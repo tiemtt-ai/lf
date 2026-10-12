@@ -4,432 +4,256 @@
 @section('page_title', $framework->name)
 
 @php
-    $versionStatusBadge = [
-        'draft_snapshot' => 'badge-info',
-        'published' => 'badge-success',
-        'deprecated' => 'badge-neutral',
-        'archived' => 'badge-neutral',
-    ];
-    $draftCount = $versions->where('status', 'draft_snapshot')->count();
+    // One working set: the open draft when there is one, otherwise the newest published Version.
+    $published = $versions->firstWhere('status', 'published');
+    $draft = $versions->firstWhere('status', 'draft_snapshot');
+    $activeNodes = fn ($version) => $version === null
+        ? collect()
+        : $nodesByVersion->get($version->id, collect())->where('status', 'active')->sortBy('sequence')->values();
+    $publishedNodes = $activeNodes($published);
+    $draftNodes = $activeNodes($draft);
+    $workingNodes = $draft ? $draftNodes : $publishedNodes;
+    $definitionsById = $definitions->keyBy('id');
+    $publishedDefinitionIds = $publishedNodes->pluck('node_definition_id')->map(fn ($id) => (int) $id);
+    $workingDefinitionIds = $workingNodes->pluck('node_definition_id')->map(fn ($id) => (int) $id);
+    $added = $draft ? $draftNodes->reject(fn ($node) => $publishedDefinitionIds->contains((int) $node->node_definition_id)) : collect();
+    $removed = $draft ? $publishedNodes->reject(fn ($node) => $workingDefinitionIds->contains((int) $node->node_definition_id)) : collect();
+    $unplaced = $definitions->where('status', 'active')
+        ->reject(fn ($definition) => $workingDefinitionIds->contains((int) $definition->id))->values();
+    $nextNumber = $draft ? (int) $draft->version_number : 1 + (int) $versions->max('version_number');
+    $isActive = $framework->status === 'active';
+    $typeLabel = fn (string $type) => __('lf.LF_learning_simple_type_'.$type);
+    $levelLabel = fn (string $key) => \Illuminate\Support\Facades\Lang::has('lf.LF_learning_simple_level_'.$key)
+        ? __('lf.LF_learning_simple_level_'.$key)
+        : $key;
 @endphp
 
 @section('content')
-    <div class="learning-framework-detail-toolbar">
-        <a class="learning-framework-detail-back" href="{{ route('admin.learning-frameworks.index') }}">
-            <span aria-hidden="true">←</span>
-            {{ __('lf.LF_learning_back') }}
-        </a>
-        <div class="learning-framework-detail-identity">
-            <span class="learning-framework-detail-code">{{ $framework->code }}</span>
-            <span class="badge {{ $framework->status === 'active' ? 'badge-success' : 'badge-neutral' }}">
-                {{ $framework->status === 'active'
-                    ? __('lf.LF_common_status_common_active')
-                    : __('lf.LF_learning_status_archived') }}
-            </span>
-        </div>
-    </div>
-
     @include('learning-frameworks.partials.errors')
 
-    <div class="learning-framework-summary">
-        <div class="learning-framework-summary-item">
-            <span class="learning-framework-summary-label">{{ __('lf.LF_learning_versions') }}</span>
-            <strong class="learning-framework-summary-value">{{ $versions->count() }}</strong>
-            <span class="learning-framework-summary-hint">
-                {{ __('lf.LF_learning_summary_draft_count', ['count' => $draftCount]) }}
-            </span>
-        </div>
-        <div class="learning-framework-summary-item">
-            <span class="learning-framework-summary-label">{{ __('lf.LF_learning_definitions') }}</span>
-            <strong class="learning-framework-summary-value">{{ $definitions->count() }}</strong>
-            <span class="learning-framework-summary-hint">{{ __('lf.LF_learning_summary_definition_hint') }}</span>
-        </div>
-        <div class="learning-framework-summary-item">
-            <span class="learning-framework-summary-label">{{ __('lf.LF_learning_mastery_scale') }}</span>
-            <strong class="learning-framework-summary-value">{{ count($masteryScale['levels']) }}</strong>
-            <span class="learning-framework-summary-hint">
-                {{ $framework->default_mastery_scale_key }} · v{{ $framework->default_mastery_scale_version }}
-            </span>
-        </div>
-    </div>
-
-    {{-- Framework details --}}
-    <section class="admin-card learning-framework-section" x-data="{ open: false }">
-        <header class="learning-framework-section-header">
-            <div>
-                <h2 class="learning-framework-section-title">{{ __('lf.LF_learning_framework_details') }}</h2>
-                <p class="learning-framework-section-help">{{ __('lf.LF_learning_group_identity_help') }}</p>
+    <div class="lf-framework">
+        <header class="lf-framework__header">
+            <div class="lf-framework__intro">
+                @if ($framework->description)
+                    <p class="lf-framework__description">{{ $framework->description }}</p>
+                @endif
+                <div class="lf-framework__status">
+                    @if ($published)
+                        <span class="badge badge-success" data-lf-framework-current>{{ __('lf.LF_learning_simple_status_current', ['number' => $published->version_number]) }}</span>
+                    @else
+                        <span class="badge badge-neutral">{{ __('lf.LF_learning_simple_status_unpublished') }}</span>
+                    @endif
+                    @unless ($isActive)
+                        <span class="badge badge-neutral">{{ __('lf.LF_learning_status_archived') }}</span>
+                    @endunless
+                    <span class="lf-framework__meta">{{ trans_choice('lf.LF_learning_simple_count', $workingNodes->count(), ['count' => $workingNodes->count()]) }}</span>
+                </div>
             </div>
-            <button type="button" class="btn btn-secondary" x-on:click="open = !open"
-                    :aria-expanded="open ? 'true' : 'false'">
-                <span x-text="open ? @js(__('lf.LF_common_button_cancel')) : @js(__('lf.LF_learning_edit_framework'))"></span>
-            </button>
         </header>
 
-        <div x-show="open" x-cloak>
-            <form method="POST" action="{{ route('admin.learning-frameworks.update', $framework->id) }}">
-                @csrf
-                @method('PUT')
-                @include('learning-frameworks.partials.framework-fields', [
-                    'framework' => $framework,
-                    'masteryScale' => $masteryScale,
-                    'useOldInput' => false,
-                ])
-                <footer class="admin-form-footer" data-actions-align="end">
-                    <div class="admin-form-footer-primary">
-                        <button type="button" class="btn btn-secondary" x-on:click="open = false">
-                            {{ __('lf.LF_common_button_cancel') }}
-                        </button>
-                        <button class="btn btn-primary" type="submit">{{ __('lf.LF_common_button_save') }}</button>
-                    </div>
-                </footer>
-            </form>
-        </div>
-
-        <dl x-show="! open" class="learning-framework-facts">
-            <div>
-                <dt>{{ __('lf.LF_learning_name') }}</dt>
-                <dd>{{ $framework->name }}</dd>
-            </div>
-            <div>
-                <dt>{{ __('lf.LF_learning_description') }}</dt>
-                <dd>{{ $framework->description ?: '—' }}</dd>
-            </div>
-            <div>
-                <dt>{{ __('lf.LF_learning_levels') }}</dt>
-                <dd class="learning-framework-scale-list">
-                    @foreach ($masteryScale['levels'] as $level)
-                        <span class="badge badge-neutral">{{ $level['key'] }} · {{ $level['threshold'] }}</span>
-                    @endforeach
-                </dd>
-            </div>
-        </dl>
-    </section>
-
-    {{-- Stable Node Definitions --}}
-    <section class="admin-card learning-framework-section" x-data="{ adding: false }">
-        <header class="learning-framework-section-header">
-            <div>
-                <h2 class="learning-framework-section-title">{{ __('lf.LF_learning_definitions') }}</h2>
-                <p class="learning-framework-section-help">{{ __('lf.LF_learning_definitions_help') }}</p>
-            </div>
-            <button type="button" class="btn btn-primary" x-on:click="adding = ! adding"
-                    :aria-expanded="adding ? 'true' : 'false'">
-                <span aria-hidden="true">+</span>
-                {{ __('lf.LF_learning_add_definition') }}
-            </button>
-        </header>
-
-        <div x-show="adding" x-cloak class="learning-framework-inline-form">
-            <form method="POST" action="{{ route('admin.learning-frameworks.definitions.store', $framework->id) }}">
-                @csrf
-                <input type="hidden" name="framework_id" value="{{ $framework->id }}">
-                @include('learning-frameworks.partials.definition-fields', [
-                    'definition' => null,
-                    'identityLocked' => false,
-                ])
-                <footer class="admin-form-footer" data-actions-align="end">
-                    <div class="admin-form-footer-primary">
-                        <button type="button" class="btn btn-secondary" x-on:click="adding = false">
-                            {{ __('lf.LF_common_button_cancel') }}
-                        </button>
-                        <button class="btn btn-primary" type="submit">{{ __('lf.LF_learning_add_definition') }}</button>
-                    </div>
-                </footer>
-            </form>
-        </div>
-
-        @forelse ($definitions as $definition)
-            <article class="learning-framework-definition" x-data="{ editing: false }">
-                <header class="learning-framework-definition-header">
-                    <div class="learning-framework-definition-identity">
-                        <strong>{{ $definition->canonical_name }}</strong>
-                        <span class="learning-framework-index-meta">{{ $definition->code }}</span>
-                    </div>
-                    <div class="learning-framework-definition-tags">
-                        <span class="badge badge-info">{{ $definition->node_type }}</span>
-                        @if ($definition->identity_locked)
-                            <span class="badge badge-neutral" title="{{ __('lf.LF_learning_definition_identity_locked') }}">
-                                <x-backend-icon name="lock" class="learning-framework-lock-icon" />
-                                {{ __('lf.LF_learning_locked') }}
-                            </span>
-                        @endif
-                        <button type="button" class="admin-text-action" x-on:click="editing = ! editing"
-                                :aria-expanded="editing ? 'true' : 'false'">
-                            {{ __('lf.action_edit') }}
-                        </button>
-                    </div>
-                </header>
-
-                <p class="learning-framework-definition-description" x-show="! editing">
-                    {{ $definition->description ?: '—' }}
-                </p>
-
-                <div x-show="editing" x-cloak class="learning-framework-inline-form">
-                    <form method="POST"
-                          action="{{ route('admin.learning-frameworks.definitions.update', [$framework->id, $definition->id]) }}">
+        @if ($isActive)
+            <div class="lf-framework__actions">
+                <details class="lf-framework__disclosure">
+                    <summary class="btn btn-secondary">{{ __('lf.LF_learning_simple_edit_framework') }}</summary>
+                    <form class="lf-framework__panel" method="POST" action="{{ route('admin.learning-frameworks.update', $framework->id) }}">
                         @csrf
                         @method('PUT')
-                        <input type="hidden" name="framework_id" value="{{ $framework->id }}">
-                        @include('learning-frameworks.partials.definition-fields', [
-                            'definition' => $definition,
-                            'identityLocked' => (bool) $definition->identity_locked,
-                        ])
-                        <footer class="admin-form-footer" data-actions-align="end">
-                            <div class="admin-form-footer-primary">
-                                <button type="button" class="btn btn-secondary" x-on:click="editing = false">
-                                    {{ __('lf.LF_common_button_cancel') }}
-                                </button>
-                                <button class="btn btn-primary" type="submit">{{ __('lf.LF_common_button_save') }}</button>
-                            </div>
-                        </footer>
+                        {{-- Only name and description change here; the code and default scale travel unchanged. --}}
+                        <input type="hidden" name="code" value="{{ $framework->code }}">
+                        <input type="hidden" name="mastery_scale_key" value="{{ $framework->default_mastery_scale_key }}">
+                        <input type="hidden" name="mastery_scale_version" value="{{ $framework->default_mastery_scale_version }}">
+                        @foreach ($masteryScale['levels'] as $i => $level)
+                            <input type="hidden" name="mastery_scale[levels][{{ $i }}][key]" value="{{ $level['key'] }}">
+                            <input type="hidden" name="mastery_scale[levels][{{ $i }}][threshold]" value="{{ $level['threshold'] }}">
+                        @endforeach
+                        <div class="lf-form-group">
+                            <x-form-label for="framework-name" :value="__('lf.LF_learning_name')" required />
+                            <input id="framework-name" name="name" class="lf-form-control" required maxlength="255" value="{{ $framework->name }}">
+                        </div>
+                        <div class="lf-form-group">
+                            <x-form-label for="framework-description" :value="__('lf.LF_learning_description')" />
+                            <textarea id="framework-description" name="description" class="lf-form-control" rows="3" maxlength="5000">{{ $framework->description }}</textarea>
+                        </div>
+                        <div class="lf-framework__panel-actions">
+                            <button class="btn btn-primary" type="submit">{{ __('lf.LF_common_button_save') }}</button>
+                        </div>
                     </form>
-                </div>
-            </article>
-        @empty
-            <div class="learning-framework-empty-state" role="status">
-                <strong>{{ __('lf.LF_learning_definitions_empty') }}</strong>
-                <span>{{ __('lf.LF_learning_definitions_empty_help') }}</span>
+                </details>
+
+                <details class="lf-framework__disclosure" @if ($workingNodes->isEmpty() && $unplaced->isEmpty()) open @endif>
+                    <summary class="btn btn-primary"><span aria-hidden="true">+</span> {{ __('lf.LF_learning_simple_add') }}</summary>
+                    <form class="lf-framework__panel" method="POST" action="{{ route('admin.learning-frameworks.competencies.store', $framework->id) }}" data-lf-framework-add>
+                        @csrf
+                        <p class="lf-form-help">{{ __('lf.LF_learning_simple_add_help') }}</p>
+                        <div class="lf-form-group">
+                            <x-form-label for="competency-name" :value="__('lf.LF_learning_simple_field_name')" required />
+                            <input id="competency-name" name="canonical_name" class="lf-form-control" required maxlength="255" value="{{ old('canonical_name') }}">
+                        </div>
+                        <div class="lf-framework__field-row">
+                            <div class="lf-form-group">
+                                <x-form-label for="competency-type" :value="__('lf.LF_learning_type')" required />
+                                <select id="competency-type" name="node_type" class="lf-form-control">
+                                    @foreach (['competency', 'objective', 'concept'] as $type)
+                                        <option value="{{ $type }}" @selected(old('node_type', 'competency') === $type)>{{ $typeLabel($type) }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="lf-form-group">
+                                <x-form-label for="competency-code" :value="__('lf.LF_learning_simple_field_code')" />
+                                <input id="competency-code" name="code" class="lf-form-control" maxlength="120" autocomplete="off" value="{{ old('code') }}">
+                            </div>
+                        </div>
+                        <div class="lf-form-group">
+                            <x-form-label for="competency-description" :value="__('lf.LF_learning_description')" />
+                            <textarea id="competency-description" name="description" class="lf-form-control" rows="3" maxlength="5000">{{ old('description') }}</textarea>
+                        </div>
+                        <div class="lf-framework__panel-actions">
+                            <button class="btn btn-primary" type="submit">{{ __('lf.LF_learning_simple_add') }}</button>
+                        </div>
+                    </form>
+                </details>
             </div>
-        @endforelse
-    </section>
+        @endif
 
-    {{-- Framework Versions --}}
-    <section class="admin-card learning-framework-section" x-data="{ creating: false }">
-        <header class="learning-framework-section-header">
-            <div>
-                <h2 class="learning-framework-section-title">{{ __('lf.LF_learning_versions') }}</h2>
-                <p class="learning-framework-section-help">{{ __('lf.LF_learning_versions_help') }}</p>
-            </div>
-            <button type="button" class="btn btn-primary" x-on:click="creating = ! creating"
-                    :aria-expanded="creating ? 'true' : 'false'">
-                <span aria-hidden="true">+</span>
-                {{ __('lf.LF_learning_new_version') }}
-            </button>
-        </header>
-
-        <div x-show="creating" x-cloak class="learning-framework-inline-form">
-            <form method="POST" action="{{ route('admin.learning-frameworks.versions.store', $framework->id) }}">
-                @csrf
-                <input type="hidden" name="framework_id" value="{{ $framework->id }}">
-                <div class="admin-form-field-grid">
-                    <div class="lf-form-group admin-form-field">
-                        <x-form-label for="new-version-code" :value="__('lf.LF_learning_version_code')" required />
-                        <input id="new-version-code" name="version_code" class="lf-form-control" required maxlength="100"
-                               value="">
-                        <p class="lf-form-help">{{ __('lf.LF_learning_version_code_help') }}</p>
-                    </div>
-                    <div class="lf-form-group admin-form-field">
-                        <x-form-label for="new-version-title" :value="__('lf.LF_learning_title')" required />
-                        <input id="new-version-title" name="title" class="lf-form-control" required maxlength="255"
-                               value="">
-                    </div>
-                    <div class="lf-form-group admin-form-field--full">
-                        <x-form-label for="new-version-description" :value="__('lf.LF_learning_description')" />
-                        <textarea id="new-version-description" name="description" class="lf-form-control" rows="3"
-                                  maxlength="5000"></textarea>
-                    </div>
+        @if ($draft)
+            <section class="lf-framework__draft" aria-labelledby="lf-framework-draft-title" data-lf-framework-draft="{{ $draft->id }}">
+                <div class="lf-framework__draft-text">
+                    <h2 id="lf-framework-draft-title" class="lf-framework__draft-title">
+                        {{ $published ? __('lf.LF_learning_simple_draft_title') : __('lf.LF_learning_simple_draft_first_title') }}
+                    </h2>
+                    @if ($added->isNotEmpty())
+                        <p>{{ __('lf.LF_learning_simple_draft_added', ['names' => $added->pluck('name_snapshot')->implode(', ')]) }}</p>
+                    @endif
+                    @if ($removed->isNotEmpty())
+                        <p>{{ __('lf.LF_learning_simple_draft_removed', ['names' => $removed->pluck('name_snapshot')->implode(', ')]) }}</p>
+                    @endif
+                    @if ($published && $added->isEmpty() && $removed->isEmpty())
+                        <p>{{ __('lf.LF_learning_simple_draft_same') }}</p>
+                    @endif
+                    @if ($published)
+                        <p class="lf-framework__draft-note">{{ __('lf.LF_learning_simple_draft_note') }}</p>
+                    @endif
                 </div>
-                <footer class="admin-form-footer" data-actions-align="end">
-                    <div class="admin-form-footer-primary">
-                        <button type="button" class="btn btn-secondary" x-on:click="creating = false">
-                            {{ __('lf.LF_common_button_cancel') }}
-                        </button>
-                        <button class="btn btn-primary" type="submit">{{ __('lf.LF_learning_create_draft') }}</button>
-                    </div>
-                </footer>
-            </form>
-        </div>
-
-        @forelse ($versions as $version)
-            @php
-                $isDraft = $version->status === 'draft_snapshot';
-                $versionNodes = $nodesByVersion->get($version->id, collect());
-                // The publish gate must use the service's own predicate. It counts
-                // active Nodes, so a version holding only retired ones is empty to it
-                // even though the list above still renders them.
-                $publishableNodes = $versionNodes->where('status', 'active');
-            @endphp
-
-            <article @class(['learning-framework-version', 'is-frozen' => ! $isDraft])
-                     x-data="{ editing: false, addingNode: false }">
-                <header class="learning-framework-version-header">
-                    <div class="learning-framework-version-identity">
-                        <strong>
-                            {{ __('lf.LF_learning_version') }} {{ $version->version_number }} —
-                            {{ $version->title_snapshot }}
-                        </strong>
-                        <span class="learning-framework-index-meta">{{ $version->version_code }}</span>
-                    </div>
-                    <div class="learning-framework-version-tags">
-                        <span class="badge {{ $versionStatusBadge[$version->status] ?? 'badge-neutral' }}">
-                            @if (! $isDraft)
-                                <x-backend-icon name="lock" class="learning-framework-lock-icon" />
-                            @endif
-                            {{ __('lf.LF_learning_version_status_'.$version->status) }}
-                        </span>
-                        <span class="learning-framework-index-muted">
-                            {{ __('lf.LF_learning_node_count', ['count' => $versionNodes->count()]) }}
-                        </span>
-                        @if ($isDraft)
-                            <button type="button" class="admin-text-action" x-on:click="editing = ! editing"
-                                    :aria-expanded="editing ? 'true' : 'false'">
-                                {{ __('lf.action_edit') }}
-                            </button>
+                @if ($isActive)
+                    <div class="lf-framework__draft-actions">
+                        <form method="POST"
+                              action="{{ route('admin.learning-frameworks.versions.destroy', [$framework->id, $draft->id]) }}"
+                              data-lf-confirm="{{ __('lf.LF_learning_simple_discard_confirm', ['number' => $draft->version_number]) }}"
+                              data-lf-confirm-label="{{ __('lf.LF_learning_simple_discard') }}"
+                              data-lf-confirm-tone="danger"
+                              data-lf-framework-discard>
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="btn btn-secondary">{{ __('lf.LF_learning_simple_discard') }}</button>
+                        </form>
+                        @if ($draftNodes->isNotEmpty())
+                            <form method="POST"
+                                  action="{{ route('admin.learning-frameworks.versions.publish', [$framework->id, $draft->id]) }}"
+                                  data-lf-confirm="{{ __('lf.LF_learning_simple_publish_confirm') }}"
+                                  data-lf-confirm-label="{{ __('lf.LF_learning_simple_publish', ['number' => $draft->version_number]) }}">
+                                @csrf
+                                <button type="submit" class="btn btn-primary">{{ __('lf.LF_learning_simple_publish', ['number' => $draft->version_number]) }}</button>
+                            </form>
                         @endif
                     </div>
-                </header>
-
-                @if ($isDraft)
-                    <div x-show="editing" x-cloak class="learning-framework-inline-form">
-                        <form method="POST"
-                              action="{{ route('admin.learning-frameworks.versions.update', [$framework->id, $version->id]) }}">
-                            @csrf
-                            @method('PUT')
-                            <input type="hidden" name="framework_id" value="{{ $framework->id }}">
-                            <input type="hidden" name="version_code" value="{{ $version->version_code }}">
-                            <div class="admin-form-field-grid">
-                                <div class="lf-form-group admin-form-field">
-                                    <x-form-label :for="'version-code-'.$version->id" :value="__('lf.LF_learning_version_code')" />
-                                    <input id="version-code-{{ $version->id }}" class="lf-form-control" disabled
-                                           value="{{ $version->version_code }}">
-                                    <p class="lf-form-help">{{ __('lf.LF_learning_version_code_immutable_help') }}</p>
-                                </div>
-                                <div class="lf-form-group admin-form-field">
-                                    <x-form-label :for="'version-title-'.$version->id" :value="__('lf.LF_learning_title')" required />
-                                    <input id="version-title-{{ $version->id }}" name="title" class="lf-form-control"
-                                           required maxlength="255" value="{{ $version->title_snapshot }}">
-                                </div>
-                                <div class="lf-form-group admin-form-field--full">
-                                    <x-form-label :for="'version-description-'.$version->id" :value="__('lf.LF_learning_description')" />
-                                    <textarea id="version-description-{{ $version->id }}" name="description"
-                                              class="lf-form-control" rows="3" maxlength="5000">{{ $version->description_snapshot }}</textarea>
-                                </div>
-                            </div>
-                            <footer class="admin-form-footer" data-actions-align="end">
-                                <div class="admin-form-footer-primary">
-                                    <button type="button" class="btn btn-secondary" x-on:click="editing = false">
-                                        {{ __('lf.LF_common_button_cancel') }}
-                                    </button>
-                                    <button class="btn btn-primary" type="submit">{{ __('lf.LF_common_button_save') }}</button>
-                                </div>
-                            </footer>
-                        </form>
-                    </div>
                 @endif
+            </section>
+        @endif
 
-                {{-- Nodes --}}
-                @if ($versionNodes->isEmpty())
-                    <div class="learning-framework-empty-state learning-framework-empty-state--inline" role="status">
-                        <strong>{{ __('lf.LF_learning_nodes_empty') }}</strong>
-                        <span>{{ __('lf.LF_learning_nodes_empty_help') }}</span>
+        <section class="admin-card lf-framework__list" aria-labelledby="lf-framework-list-title">
+            <h2 id="lf-framework-list-title" class="admin-form-section-title">{{ __('lf.LF_learning_simple_list_title') }}</h2>
+
+            @forelse ($workingNodes as $node)
+                @php
+                    $definition = $definitionsById->get((int) $node->node_definition_id);
+                    $isNew = $draft && ! $publishedDefinitionIds->contains((int) $node->node_definition_id);
+                @endphp
+                <article class="lf-framework__item" data-lf-framework-item="{{ $node->node_definition_id }}">
+                    <div class="lf-framework__item-main">
+                        <div class="lf-framework__item-title">
+                            <strong>{{ $node->name_snapshot }}</strong>
+                            <span class="badge badge-info">{{ $typeLabel($definition->node_type ?? 'competency') }}</span>
+                            @if ($isNew)
+                                <span class="badge badge-warning">{{ __('lf.LF_learning_simple_new') }}</span>
+                            @endif
+                        </div>
+                        @if ($node->description_snapshot)
+                            <p class="lf-framework__item-description">{{ $node->description_snapshot }}</p>
+                        @endif
+                        <span class="lf-framework__meta">{{ __('lf.LF_learning_simple_code', ['code' => $node->code_snapshot]) }}</span>
                     </div>
-                @else
-                    <ol class="learning-framework-node-list">
-                        @foreach ($versionNodes as $node)
-                            <li class="learning-framework-node" x-data="{ editing: false }">
-                                <div class="learning-framework-node-summary">
-                                    <span class="learning-framework-node-sequence">{{ $node->sequence }}</span>
-                                    <div class="learning-framework-node-identity">
-                                        <strong>{{ $node->name_snapshot }}</strong>
-                                        <span class="learning-framework-index-meta">{{ $node->code_snapshot }}</span>
-                                    </div>
-                                    @if ($isDraft)
-                                        <button type="button" class="admin-text-action" x-on:click="editing = ! editing"
-                                                :aria-expanded="editing ? 'true' : 'false'">
-                                            {{ __('lf.action_edit') }}
-                                        </button>
-                                    @endif
-                                </div>
+                    @if ($definition && $isActive && $definition->status === 'active')
+                        @include('learning-frameworks.partials.competency-edit', ['definition' => $definition])
+                    @endif
+                </article>
+            @empty
+                <div class="admin-form-empty-state" role="status">
+                    <strong>{{ __('lf.LF_learning_simple_empty') }}</strong>
+                    <span>{{ __('lf.LF_learning_simple_empty_help') }}</span>
+                </div>
+            @endforelse
+        </section>
 
-                                @if (filled($node->criteria_snapshot))
-                                    <pre class="learning-framework-criteria" x-show="! editing">{{ json_encode(json_decode($node->criteria_snapshot, true), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) }}</pre>
-                                @endif
+        @if ($unplaced->isNotEmpty())
+            <section class="admin-card lf-framework__list" aria-labelledby="lf-framework-unplaced-title">
+                <h2 id="lf-framework-unplaced-title" class="admin-form-section-title">{{ __('lf.LF_learning_simple_unplaced_title') }}</h2>
+                <p class="admin-form-section-help">{{ __('lf.LF_learning_simple_unplaced_help') }}</p>
+                @foreach ($unplaced as $definition)
+                    <article class="lf-framework__item" data-lf-framework-unplaced="{{ $definition->id }}">
+                        <div class="lf-framework__item-main">
+                            <div class="lf-framework__item-title">
+                                <strong>{{ $definition->canonical_name }}</strong>
+                                <span class="badge badge-info">{{ $typeLabel($definition->node_type) }}</span>
+                            </div>
+                            <span class="lf-framework__meta">{{ __('lf.LF_learning_simple_code', ['code' => $definition->code]) }}</span>
+                        </div>
+                        @if ($isActive)
+                            <form method="POST" action="{{ route('admin.learning-frameworks.competencies.store', $framework->id) }}">
+                                @csrf
+                                <input type="hidden" name="node_definition_id" value="{{ $definition->id }}">
+                                <button type="submit" class="btn btn-secondary">{{ __('lf.LF_learning_simple_unplaced_add') }}</button>
+                            </form>
+                        @endif
+                    </article>
+                @endforeach
+            </section>
+        @endif
 
-                                @if ($isDraft)
-                                    <div x-show="editing" x-cloak class="learning-framework-inline-form">
-                                        <form method="POST"
-                                              action="{{ route('admin.learning-frameworks.nodes.update', [$framework->id, $version->id, $node->id]) }}">
-                                            @csrf
-                                            @method('PUT')
-                                            <input type="hidden" name="framework_version_id" value="{{ $version->id }}">
-                                            @include('learning-frameworks.partials.node-fields', [
-                                                'node' => $node,
-                                                'editing' => true,
-                                            ])
-                                            <footer class="admin-form-footer" data-actions-align="end">
-                                                <div class="admin-form-footer-primary">
-                                                    <button type="button" class="btn btn-secondary" x-on:click="editing = false">
-                                                        {{ __('lf.LF_common_button_cancel') }}
-                                                    </button>
-                                                    <button class="btn btn-primary" type="submit">
-                                                        {{ __('lf.LF_common_button_save') }}
-                                                    </button>
-                                                </div>
-                                            </footer>
-                                        </form>
-                                    </div>
-                                @endif
-                            </li>
+        <details class="admin-card lf-framework__advanced" @if ($errors->hasAny(['mastery_scale', 'mastery_scale.*'])) open @endif>
+            <summary class="lf-framework__advanced-summary">{{ __('lf.LF_learning_simple_advanced') }}</summary>
+            <div class="lf-framework__advanced-body">
+                <section aria-labelledby="lf-framework-scale-title">
+                    <h3 id="lf-framework-scale-title" class="admin-form-subsection-title">{{ __('lf.LF_learning_simple_scale_title') }}</h3>
+                    <ol class="lf-framework__scale">
+                        @foreach ($masteryScale['levels'] as $level)
+                            <li>{{ (float) $level['threshold'] > 0
+                                ? __('lf.LF_learning_simple_scale_level', ['label' => $levelLabel($level['key']), 'percent' => round((float) $level['threshold'] * 100)])
+                                : $levelLabel($level['key']) }}</li>
                         @endforeach
                     </ol>
-                @endif
-
-                @if ($isDraft)
-                    <div class="learning-framework-version-actions">
-                        <button type="button" class="btn btn-secondary" x-on:click="addingNode = ! addingNode"
-                                :aria-expanded="addingNode ? 'true' : 'false'">
-                            <span aria-hidden="true">+</span>
-                            {{ __('lf.LF_learning_add_node') }}
-                        </button>
-
-                        <form method="POST"
-                              action="{{ route('admin.learning-frameworks.versions.publish', [$framework->id, $version->id]) }}"
-                              onsubmit="return confirm('{{ __('lf.LF_learning_publish_confirm') }}')">
-                            @csrf
-                            <button class="btn btn-primary" type="submit" @disabled($publishableNodes->isEmpty())>
-                                {{ __('lf.LF_learning_publish') }}
-                            </button>
-                        </form>
-                    </div>
-
-                    <p class="admin-form-inline-notice">
-                        <span class="admin-form-inline-notice-icon" aria-hidden="true">i</span>
-                        <span>
-                            {{ __('lf.LF_learning_publish_help') }}
-                            @if ($publishableNodes->isEmpty())
-                                {{ __('lf.LF_learning_publish_empty_blocked') }}
-                            @endif
-                        </span>
-                    </p>
-
-                    <div x-show="addingNode" x-cloak class="learning-framework-inline-form">
-                        <form method="POST"
-                              action="{{ route('admin.learning-frameworks.nodes.store', [$framework->id, $version->id]) }}">
-                            @csrf
-                            <input type="hidden" name="framework_version_id" value="{{ $version->id }}">
-                            @include('learning-frameworks.partials.node-fields', [
-                                'node' => null,
-                                'editing' => false,
-                                'newNodeFormId' => 'node-new-'.$version->id,
-                            ])
-                            <footer class="admin-form-footer" data-actions-align="end">
-                                <div class="admin-form-footer-primary">
-                                    <button type="button" class="btn btn-secondary" x-on:click="addingNode = false">
-                                        {{ __('lf.LF_common_button_cancel') }}
-                                    </button>
-                                    <button class="btn btn-primary" type="submit">{{ __('lf.LF_learning_add_node') }}</button>
-                                </div>
-                            </footer>
-                        </form>
-                    </div>
-                @endif
-            </article>
-        @empty
-            <div class="learning-framework-empty-state" role="status">
-                <strong>{{ __('lf.LF_learning_versions_empty') }}</strong>
-                <span>{{ __('lf.LF_learning_versions_empty_help') }}</span>
+                    @if ($isActive)
+                        @include('learning-frameworks.partials.scale-edit')
+                    @endif
+                </section>
+                <section aria-labelledby="lf-framework-history-title">
+                    <h3 id="lf-framework-history-title" class="admin-form-subsection-title">{{ __('lf.LF_learning_simple_history_title') }}</h3>
+                    <ul class="lf-framework__history">
+                        @forelse ($versions as $version)
+                            <li>
+                                <strong>{{ __('lf.LF_learning_simple_version', ['number' => $version->version_number]) }}</strong>
+                                <span class="lf-framework__meta">{{ $version->title_snapshot }}</span>
+                                <span class="badge {{ $version->status === 'published' ? 'badge-success' : ($version->status === 'draft_snapshot' ? 'badge-warning' : 'badge-neutral') }}">{{ __('lf.LF_learning_version_status_'.$version->status) }}</span>
+                                @if ($version->published_at)
+                                    <span class="lf-framework__meta">{{ __('lf.LF_learning_simple_published_on', ['date' => \Illuminate\Support\Carbon::parse($version->published_at)->format('d/m/Y')]) }}</span>
+                                @endif
+                            </li>
+                        @empty
+                            <li class="lf-framework__meta">{{ __('lf.LF_learning_versions_empty') }}</li>
+                        @endforelse
+                    </ul>
+                    <p class="lf-form-help">{{ __('lf.LF_learning_simple_history_help') }}</p>
+                </section>
             </div>
-        @endforelse
-    </section>
+        </details>
+    </div>
 @endsection

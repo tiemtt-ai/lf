@@ -77,6 +77,15 @@ class LearningFrameworkAuthoringMariaDbTest extends TestCase
         $this->assertSame('published', $published->status);
         $this->assertNotNull($published->published_at);
 
+        // Course scope (amendment 2026-10-11): the cohort's Course Version must have mapped the Version.
+        DB::table('core_learning_node_mappings')->insert([
+            'customer_id' => $fixture['customer_id'], 'learning_node_id' => $node->id, 'source_type' => 'course_version_lesson',
+            'source_id' => 1, 'source_discriminator' => (string) $fixture['course_version_id'], 'mapping_role' => 'teaches',
+            'source_snapshot' => json_encode(['label' => 'Lesson', 'source_type' => 'course_version_lesson',
+                'course_version_id' => $fixture['course_version_id'], 'source_version_identity' => (string) $fixture['course_version_id']], JSON_THROW_ON_ERROR),
+            'created_by' => $fixture['admin_id'], 'created_at' => now(),
+        ]);
+
         $judgment = app(TeacherJudgmentService::class)->submit($fixture['teacher_id'], [
             'submission_uuid' => '22222222-2222-4222-8222-222222222222',
             'cohort_id' => $fixture['cohort_id'],
@@ -392,7 +401,8 @@ class LearningFrameworkAuthoringMariaDbTest extends TestCase
         }
 
         foreach ([
-            'LF_FRAMEWORK_AUTHORING_FIELD_INVALID:code' => ['code' => '   '],
+            // A blank code is derived from the name since 2026-10-11; an over-long one is still refused.
+            'LF_FRAMEWORK_AUTHORING_FIELD_INVALID:code' => ['code' => str_repeat('c', 101)],
             'LF_FRAMEWORK_AUTHORING_FIELD_INVALID:name' => ['name' => str_repeat('n', 256)],
         ] as $code => $override) {
             try {
@@ -725,7 +735,7 @@ class LearningFrameworkAuthoringMariaDbTest extends TestCase
         return compact('customerId', 'adminId', 'teacherId', 'studentId', 'productId')
             + ['customer_id' => $customerId, 'admin_id' => $adminId, 'teacher_id' => $teacherId,
                 'student_id' => $studentId, 'cohort_id' => $cohortId, 'assignment_id' => $assignmentId,
-                'enrollment_id' => $enrollmentId, 'membership_id' => $membershipId];
+                'enrollment_id' => $enrollmentId, 'membership_id' => $membershipId, 'course_version_id' => $versionId];
     }
 
     private function user(int $customerId, string $email, string $role): int

@@ -617,6 +617,61 @@ class TeacherJudgmentRuntimeMariaDbTest extends TestCase
         ]));
     }
 
+    // ---------------------------------------- Course scope (amendment 2026-10-11)
+
+    public function test_a_basis_the_course_version_did_not_map_is_refused_without_writes(): void
+    {
+        $context = $this->context('scope-out');
+        TenantContext::set((object) ['id' => $context['customer_id']]);
+        $other = $this->otherPublishedVersion($context, 'scope-out-v2');
+
+        try {
+            app(TeacherJudgmentService::class)->submit($context['teacher_id'], $this->command($context, [
+                'basis_framework_version_id' => $other['basis_id'], 'learning_node_id' => $other['node_id'],
+            ]));
+            $this->fail('A basis outside the course scope must be refused.');
+        } catch (DomainException $exception) {
+            $this->assertSame('LF_TEACHER_JUDGMENT_BASIS_NOT_IN_COURSE', $exception->getMessage());
+        }
+
+        foreach (['core_liveclass_teacher_judgments', 'core_learning_evidence', 'core_learning_mastery_calculations', 'core_learning_mastery_profiles'] as $table) {
+            $this->assertSame(0, DB::table($table)->where('customer_id', $context['customer_id'])->count(), $table);
+        }
+    }
+
+    public function test_an_unmapped_node_of_the_mapped_version_is_accepted(): void
+    {
+        $context = $this->context('scope-unmapped');
+        TenantContext::set((object) ['id' => $context['customer_id']]);
+        // A Version 2 holding the fixture Definition and a second one; the course maps only the first.
+        $other = $this->otherPublishedVersion($context, 'scope-unmapped-v2', withSecondNode: true);
+        $this->courseMapping($context['customer_id'], $context['version_id'], $other['node_id'], $context['admin_id']);
+
+        $result = app(TeacherJudgmentService::class)->submit($context['teacher_id'], $this->command($context, [
+            'basis_framework_version_id' => $other['basis_id'], 'learning_node_id' => $other['second_node_id'],
+        ]));
+
+        $this->assertFalse($result->replayed, 'Option A: an unmapped Node of a mapped Version may be judged.');
+        $this->assertSame($other['second_node_id'], (int) DB::table('core_liveclass_teacher_judgments')
+            ->where('customer_id', $context['customer_id'])->value('learning_node_id'));
+    }
+
+    public function test_an_invalidated_mapping_no_longer_puts_its_version_in_scope(): void
+    {
+        $context = $this->context('scope-invalidated');
+        TenantContext::set((object) ['id' => $context['customer_id']]);
+        DB::table('core_learning_node_mappings')->where('id', $context['mapping_id'])->update([
+            'invalidated_at' => now(), 'invalidated_by' => $context['admin_id'], 'invalidation_reason' => 'Wrong lesson.',
+        ]);
+
+        try {
+            app(TeacherJudgmentService::class)->submit($context['teacher_id'], $this->command($context));
+            $this->fail('An invalidated mapping must not qualify the basis.');
+        } catch (DomainException $exception) {
+            $this->assertSame('LF_TEACHER_JUDGMENT_BASIS_NOT_IN_COURSE', $exception->getMessage());
+        }
+    }
+
     private function assertBasisRejected(array $context, array $command): void
     {
         try {
@@ -768,14 +823,73 @@ class TeacherJudgmentRuntimeMariaDbTest extends TestCase
             'updated_by' => $adminId, 'created_at' => $now, 'updated_at' => $now,
         ]);
 
+        // The cohort's Course Version mapped this Node at publication, which puts
+        // the basis Version in the course scope (Course Scope Amendment, 2026-10-11).
+        $mappingId = $this->courseMapping($customerId, $versionId, $nodeId, $adminId);
+
         return [
             'customer_id' => $customerId, 'admin_id' => $adminId, 'teacher_id' => $teacherId,
+            'version_id' => $versionId, 'mapping_id' => $mappingId,
             'student_id' => $studentId, 'product_id' => $productId,
             'cohort_id' => $cohortId, 'assignment_id' => $assignmentId,
             'enrollment_id' => $enrollmentId, 'membership_id' => $membershipId,
             'framework_id' => $frameworkId, 'basis_id' => $basisId,
             'definition_id' => $definitionId, 'node_id' => $nodeId, 'scale' => $scale,
         ];
+    }
+
+    private function courseMapping(int $customerId, int $courseVersionId, int $nodeId, int $actorId): int
+    {
+        return DB::table('core_learning_node_mappings')->insertGetId([
+            'customer_id' => $customerId, 'learning_node_id' => $nodeId,
+            'source_type' => 'course_version_lesson', 'source_id' => 1,
+            'source_discriminator' => (string) $courseVersionId, 'mapping_role' => 'teaches', 'weight' => null,
+            'source_snapshot' => json_encode(['label' => 'Lesson', 'source_type' => 'course_version_lesson',
+                'course_version_id' => $courseVersionId, 'source_version_identity' => (string) $courseVersionId], JSON_THROW_ON_ERROR),
+            'created_by' => $actorId, 'created_at' => now(),
+        ]);
+    }
+
+    /** A second published Version of the fixture Framework with one Node; not mapped by the course. */
+    private function otherPublishedVersion(array $context, string $suffix, bool $withSecondNode = false): array
+    {
+        $now = now();
+        $versionId = DB::table('core_learning_framework_versions')->insertGetId([
+            'customer_id' => $context['customer_id'], 'framework_id' => $context['framework_id'],
+            'version_number' => 2, 'version_code' => "v2-{$suffix}",
+            'title_snapshot' => "Framework {$suffix} v2", 'mastery_scale_key' => 'direct',
+            'mastery_scale_version' => '1', 'mastery_scale_snapshot' => $context['scale'],
+            'status' => 'draft_snapshot', 'created_by' => $context['admin_id'], 'updated_by' => $context['admin_id'],
+            'created_at' => $now, 'updated_at' => $now,
+        ]);
+        $nodeId = DB::table('core_learning_nodes')->insertGetId([
+            'customer_id' => $context['customer_id'], 'framework_id' => $context['framework_id'],
+            'framework_version_id' => $versionId, 'node_definition_id' => $context['definition_id'],
+            'code_snapshot' => "node-{$suffix}", 'name_snapshot' => "Node {$suffix}",
+            'sequence' => 1, 'status' => 'active', 'created_by' => $context['admin_id'],
+            'updated_by' => $context['admin_id'], 'created_at' => $now, 'updated_at' => $now,
+        ]);
+        $secondNodeId = null;
+        if ($withSecondNode) {
+            $secondDefinitionId = DB::table('core_learning_node_definitions')->insertGetId([
+                'customer_id' => $context['customer_id'], 'framework_id' => $context['framework_id'],
+                'code' => "second-{$suffix}", 'node_type' => 'competency', 'canonical_name' => "Second {$suffix}",
+                'status' => 'active', 'created_by' => $context['admin_id'], 'updated_by' => $context['admin_id'],
+                'created_at' => $now, 'updated_at' => $now,
+            ]);
+            $secondNodeId = DB::table('core_learning_nodes')->insertGetId([
+                'customer_id' => $context['customer_id'], 'framework_id' => $context['framework_id'],
+                'framework_version_id' => $versionId, 'node_definition_id' => $secondDefinitionId,
+                'code_snapshot' => "second-{$suffix}", 'name_snapshot' => "Second {$suffix}",
+                'sequence' => 2, 'status' => 'active', 'created_by' => $context['admin_id'],
+                'updated_by' => $context['admin_id'], 'created_at' => $now, 'updated_at' => $now,
+            ]);
+        }
+        DB::table('core_learning_framework_versions')->where('id', $versionId)->update([
+            'status' => 'published', 'published_at' => $now, 'published_by' => $context['admin_id'],
+        ]);
+
+        return ['basis_id' => $versionId, 'node_id' => $nodeId, 'second_node_id' => $secondNodeId];
     }
 
     private function assignment(array $context, int $teacherId): int

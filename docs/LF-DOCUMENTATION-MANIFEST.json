@@ -5,7 +5,7 @@
   "default_locale": "vi",
   "fallback_locale": "en",
   "source_of_truth": "docs/LF-INDEX.md",
-  "document_count": 295,
+  "document_count": 296,
   "documents": [
     {
       "path": "LF-Core-Overview.md",
@@ -11605,6 +11605,47 @@
       "related_documents": [
         "database/LF-Schema-Drift.md",
         "quality/LF-Regression-Audit.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "quality/LF-Teacher-Judgment-Course-Scope-Amendment.md",
+      "title": "Teacher Judgment Course Scope Amendment",
+      "area": "quality",
+      "document_type": "architecture_review",
+      "document_status": "Approved",
+      "implementation_status": "Implemented",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [
+        "teacher_judgment_course_scope"
+      ],
+      "topics": [
+        "learning",
+        "teacher-judgment",
+        "authorization"
+      ],
+      "keywords": {
+        "vi": [
+          "giáo viên chấm năng lực",
+          "phạm vi năng lực của khoá học",
+          "đánh giá của giáo viên"
+        ],
+        "en": [
+          "teacher judgment",
+          "course competency scope",
+          "judgment basis"
+        ]
+      },
+      "identifiers": [
+        "LF-Teacher-Judgment-Course-Scope-Amendment",
+        "LF_TEACHER_JUDGMENT_BASIS_NOT_IN_COURSE"
+      ],
+      "related_documents": [
+        "quality/LF-Learning-Foundation-Phase-4E-Teacher-Judgment-Design.md",
+        "core/LF-Core-Learning.md",
+        "adr/ADR-0016-Learning-Foundation.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"

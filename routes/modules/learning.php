@@ -15,3 +15,5 @@ Route::post('/learning-frameworks/{framework}/definitions', [LearningFrameworkCo
 Route::put('/learning-frameworks/{framework}/definitions/{definition}', [LearningFrameworkController::class, 'updateDefinition'])->name('learning-frameworks.definitions.update');
 Route::post('/learning-frameworks/{framework}/versions/{version}/nodes', [LearningFrameworkController::class, 'storeNode'])->name('learning-frameworks.nodes.store');
 Route::put('/learning-frameworks/{framework}/versions/{version}/nodes/{node}', [LearningFrameworkController::class, 'updateNode'])->name('learning-frameworks.nodes.update');
+Route::post('/learning-frameworks/{framework}/competencies', [LearningFrameworkController::class, 'storeCompetency'])->name('learning-frameworks.competencies.store');
+Route::delete('/learning-frameworks/{framework}/versions/{version}', [LearningFrameworkController::class, 'destroyVersion'])->name('learning-frameworks.versions.destroy');

@@ -1,12 +1,12 @@
 # LF-Navigation.md
 
-Version: 1.1
+Version: 1.2
 
 Document Status: Approved
 
 Implementation Status: Unknown
 
-Last Updated: 2026-08-09
+Last Updated: 2026-10-11
 
 Document Path: business/LF-Navigation.md
 
@@ -31,6 +31,13 @@ Document Path: business/LF-Navigation.md
 > confirmation. Immutable Origin, not timestamp coincidence, supplies the
 > Schedule relationship. Cohort Attendance and Recordings/Replay aggregate
 > records from the Cohort's concrete Sessions only.
+
+> Teacher Judgment amendment (2026-10-11, Owner): the Teacher sidebar adds
+> `Lớp của tôi` / `My classes` (`teacher.cohorts.index`), listing only cohorts
+> with the teacher's active assignment. Each opens `Chấm năng lực`
+> (`teacher.cohorts.show`) for the competencies of the Framework Version the
+> cohort's Course Version mapped. See
+> [Course Scope Amendment](../quality/LF-Teacher-Judgment-Course-Scope-Amendment.md).
 
 ## Overview
 

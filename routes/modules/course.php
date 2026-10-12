@@ -262,6 +262,8 @@ Route::put('/course-templates/{id}', [CourseTemplateController::class, 'update']
 
 Route::put('/course-templates/{templateId}/learning-framework', [CourseTemplateLearningMappingController::class, 'select'])
     ->name('course-templates.learning-framework.select');
+Route::post('/course-templates/{templateId}/learning-framework/upgrade', [CourseTemplateLearningMappingController::class, 'upgrade'])
+    ->name('course-templates.learning-framework.upgrade');
 Route::post('/course-templates/{templateId}/learning-mappings', [CourseTemplateLearningMappingController::class, 'store'])
     ->name('course-templates.learning-mappings.store');
 Route::delete('/course-templates/{templateId}/learning-mappings/{intentId}', [CourseTemplateLearningMappingController::class, 'destroy'])

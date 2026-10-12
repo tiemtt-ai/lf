@@ -324,6 +324,14 @@ final class TeacherJudgmentService
             throw new DomainException('LF_TEACHER_JUDGMENT_BASIS_INVALID');
         }
 
+        // Course scope (LF-Teacher-Judgment-Course-Scope-Amendment, Owner 2026-10-11):
+        // the basis must be a Framework Version that the cohort's published Course
+        // Version mapped at publication. Learning answers this from its own
+        // canonical mappings; source_discriminator is the Course Version id.
+        if (! $this->basisMappedByCourseVersion($customerId, (int) $cohort->version_id, (int) $basis->id)) {
+            throw new DomainException('LF_TEACHER_JUDGMENT_BASIS_NOT_IN_COURSE');
+        }
+
         if ($prior !== null && ! $this->priorIdentityMatches($prior, $payload, $membership, $basis, $node)) {
             throw new DomainException('LF_TEACHER_JUDGMENT_CORRECTION_INVALID');
         }
@@ -335,6 +343,21 @@ final class TeacherJudgmentService
         );
 
         return compact('teacher', 'cohort', 'assignment', 'membership', 'enrollment', 'basis', 'node', 'definition');
+    }
+
+    private function basisMappedByCourseVersion(int $customerId, int $courseVersionId, int $basisId): bool
+    {
+        return DB::table('core_learning_node_mappings as mappings')
+            ->join('core_learning_nodes as nodes', function ($join): void {
+                $join->on('nodes.id', '=', 'mappings.learning_node_id')
+                    ->on('nodes.customer_id', '=', 'mappings.customer_id');
+            })
+            ->where('mappings.customer_id', $customerId)
+            ->whereIn('mappings.source_type', ['course_version_lesson', 'course_version_activity'])
+            ->where('mappings.source_discriminator', (string) $courseVersionId)
+            ->whereNull('mappings.invalidated_at')
+            ->where('nodes.framework_version_id', $basisId)
+            ->exists();
     }
 
     private function lockRow(string $table, int $customerId, int $id): object

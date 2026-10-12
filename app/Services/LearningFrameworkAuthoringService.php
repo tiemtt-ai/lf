@@ -6,6 +6,7 @@ use Carbon\CarbonImmutable;
 use DomainException;
 use Illuminate\Database\RecordsNotFoundException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * Owner boundary for authoring the Learning Foundation graph.
@@ -59,6 +60,10 @@ final class LearningFrameworkAuthoringService
             $this->assertActor($customerId, $actorId, self::CAPABILITY_AUTHOR);
             $now = $this->now();
 
+            // Simplified create form (2026-10-11): a blank code is derived from the name.
+            if (trim((string) ($command['code'] ?? '')) === '') {
+                $command['code'] = $this->derivedFrameworkCode($customerId, (string) ($command['name'] ?? ''));
+            }
             $id = DB::table('core_learning_frameworks')->insertGetId([
                 'customer_id' => $customerId,
                 'code' => $this->text($command, 'code', 100),
@@ -401,6 +406,175 @@ final class LearningFrameworkAuthoringService
 
             return $this->row('core_learning_nodes', $customerId, $node->id);
         });
+    }
+
+    /**
+     * Simplified authoring (2026-10-11): one working draft per Framework.
+     *
+     * Returns the newest `draft_snapshot` Version, or creates the next one and
+     * seeds it with a Node for every active Node of the newest published
+     * Version, so the draft starts as "the current Version plus changes". The
+     * seeded Nodes are new versioned snapshots of the same stable Definitions;
+     * no Node Relation is written, so nothing is carried forward implicitly.
+     */
+    public function workingDraft(int $actorId, int $frameworkId): object
+    {
+        $customerId = $this->access->tenantId();
+
+        return DB::transaction(function () use ($customerId, $actorId, $frameworkId): object {
+            $this->assertActor($customerId, $actorId, self::CAPABILITY_AUTHOR);
+            $framework = $this->lockFramework($customerId, $frameworkId);
+            $versions = DB::table('core_learning_framework_versions')
+                ->where('customer_id', $customerId)->where('framework_id', $framework->id);
+
+            $draft = (clone $versions)->where('status', 'draft_snapshot')->orderByDesc('version_number')->first();
+            if ($draft !== null) {
+                return $draft;
+            }
+
+            $next = 1 + (int) (clone $versions)->max('version_number');
+            $code = 'v'.$next;
+            for ($suffix = 2; (clone $versions)->where('version_code', $code)->exists(); $suffix++) {
+                $code = 'v'.$next.'-'.$suffix;
+            }
+            $draft = $this->createDraftVersion($actorId, [
+                'framework_id' => $framework->id, 'version_code' => $code, 'title' => $code,
+            ]);
+
+            $published = (clone $versions)->where('status', 'published')->orderByDesc('version_number')->first();
+            if ($published !== null) {
+                $nodes = DB::table('core_learning_nodes')
+                    ->where('customer_id', $customerId)->where('framework_version_id', $published->id)
+                    ->where('status', 'active')->orderBy('sequence')->orderBy('id')->get();
+                foreach ($nodes as $node) {
+                    $this->createNode($actorId, [
+                        'framework_version_id' => $draft->id,
+                        'node_definition_id' => $node->node_definition_id,
+                        'sequence' => (int) $node->sequence,
+                        'criteria' => $node->criteria_snapshot === null ? null : json_decode($node->criteria_snapshot, true, 512, JSON_THROW_ON_ERROR),
+                    ]);
+                }
+            }
+
+            return $this->row('core_learning_framework_versions', $customerId, $draft->id);
+        });
+    }
+
+    /**
+     * Adds a competency to the working draft: a new stable Definition (its code
+     * derived from the name when none is given) or an existing active one that
+     * the draft does not hold yet. All or nothing.
+     *
+     * @param  array<string, mixed>  $command  node_definition_id, or node_type + canonical_name (+ code, description)
+     */
+    public function addCompetency(int $actorId, int $frameworkId, array $command): object
+    {
+        $customerId = $this->access->tenantId();
+
+        return DB::transaction(function () use ($customerId, $actorId, $frameworkId, $command): object {
+            $draft = $this->workingDraft($actorId, $frameworkId);
+
+            if (! empty($command['node_definition_id'])) {
+                $definition = $this->lockRow('core_learning_node_definitions', $customerId, (int) $command['node_definition_id']);
+                if ((int) $definition->framework_id !== $frameworkId) {
+                    throw new DomainException('LF_FRAMEWORK_AUTHORING_FRAMEWORK_MISMATCH');
+                }
+                if (DB::table('core_learning_nodes')->where('customer_id', $customerId)
+                    ->where('framework_version_id', $draft->id)->where('node_definition_id', $definition->id)->exists()) {
+                    throw new DomainException('LF_FRAMEWORK_AUTHORING_NODE_ALREADY_IN_DRAFT');
+                }
+            } else {
+                $code = trim((string) ($command['code'] ?? ''));
+                if ($code === '') {
+                    $code = $this->derivedDefinitionCode($customerId, $frameworkId, (string) ($command['canonical_name'] ?? ''));
+                }
+                $definition = $this->createDefinition($actorId, [
+                    'framework_id' => $frameworkId,
+                    'code' => $code,
+                    'node_type' => $command['node_type'] ?? null,
+                    'canonical_name' => $command['canonical_name'] ?? null,
+                    'description' => $command['description'] ?? null,
+                ]);
+            }
+
+            $this->createNode($actorId, ['framework_version_id' => $draft->id, 'node_definition_id' => $definition->id]);
+
+            return $this->row('core_learning_node_definitions', $customerId, $definition->id);
+        });
+    }
+
+    /**
+     * Discards a working draft (2026-10-11). Only a `draft_snapshot` Version may
+     * go — trg_lrn_fw_versions_bd_immutable and trg_lrn_nodes_bd_immutable
+     * refuse anything else — together with its Nodes. A Definition that existed
+     * only through this draft (created after it and with no Node left in any
+     * Version) goes with it; every other Definition stays. A reference from elsewhere (an AI proposal, for
+     * example) makes a foreign key refuse the delete and rolls everything back.
+     *
+     * @return int number of Definitions removed with the draft
+     */
+    public function discardDraft(int $actorId, int $frameworkId, int $versionId): int
+    {
+        $customerId = $this->access->tenantId();
+
+        return DB::transaction(function () use ($customerId, $actorId, $frameworkId, $versionId): int {
+            $this->assertActor($customerId, $actorId, self::CAPABILITY_AUTHOR);
+            $this->lockFramework($customerId, $frameworkId);
+            $version = $this->lockRow('core_learning_framework_versions', $customerId, $versionId);
+            if ((int) $version->framework_id !== $frameworkId) {
+                throw new DomainException('LF_FRAMEWORK_AUTHORING_FRAMEWORK_MISMATCH');
+            }
+            if ($version->status !== 'draft_snapshot') {
+                throw new DomainException('LF_FRAMEWORK_AUTHORING_VERSION_NOT_DRAFT');
+            }
+
+            $nodes = DB::table('core_learning_nodes')->where('customer_id', $customerId)->where('framework_version_id', $version->id);
+            $definitionIds = (clone $nodes)->lockForUpdate()->pluck('node_definition_id')->map(fn ($id): int => (int) $id)->all();
+            (clone $nodes)->delete();
+            DB::table('core_learning_framework_versions')->where('customer_id', $customerId)->where('id', $version->id)->delete();
+
+            $orphans = DB::table('core_learning_node_definitions as definitions')
+                ->where('definitions.customer_id', $customerId)->where('definitions.framework_id', $frameworkId)
+                ->whereIn('definitions.id', $definitionIds)
+                // Only what this draft brought in: a Definition that predates it stays.
+                ->where('definitions.created_at', '>=', $version->created_at)
+                ->whereNotExists(function ($query): void {
+                    $query->selectRaw('1')->from('core_learning_nodes as nodes')
+                        ->whereColumn('nodes.customer_id', 'definitions.customer_id')
+                        ->whereColumn('nodes.node_definition_id', 'definitions.id');
+                })
+                ->pluck('definitions.id')->all();
+
+            return $orphans === [] ? 0 : DB::table('core_learning_node_definitions')
+                ->where('customer_id', $customerId)->whereIn('id', $orphans)->delete();
+        });
+    }
+
+    /** Lower-case ASCII slug of the name, made unique within the tenant (idx_lrn_001). */
+    private function derivedFrameworkCode(int $customerId, string $name): string
+    {
+        $base = rtrim(mb_substr(strtolower(trim((string) preg_replace('/[^A-Za-z0-9]+/', '-', Str::ascii($name)), '-')), 0, 90), '-');
+        $base = $base === '' ? 'framework' : $base;
+        $code = $base;
+        for ($suffix = 2; DB::table('core_learning_frameworks')->where('customer_id', $customerId)->where('code', $code)->exists(); $suffix++) {
+            $code = $base.'-'.$suffix;
+        }
+
+        return $code;
+    }
+
+    /** Upper-case ASCII slug of the name, made unique within the Framework. */
+    private function derivedDefinitionCode(int $customerId, int $frameworkId, string $name): string
+    {
+        $base = mb_substr(strtoupper(trim((string) preg_replace('/[^A-Za-z0-9]+/', '-', Str::ascii($name)), '-')), 0, 100);
+        $base = $base === '' ? 'NODE' : rtrim($base, '-');
+        $code = $base;
+        for ($suffix = 2; DB::table('core_learning_node_definitions')->where('customer_id', $customerId)
+            ->where('framework_id', $frameworkId)->where('code', $code)->exists(); $suffix++) {
+            $code = $base.'-'.$suffix;
+        }
+
+        return $code;
     }
 
     public function publishVersion(int $actorId, int $versionId): object

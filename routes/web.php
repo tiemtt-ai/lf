@@ -7,6 +7,7 @@ use App\Http\Controllers\CustomerRegisterController;
 use App\Http\Controllers\MediaFileDeliveryController;
 use App\Http\Controllers\PublicSiteController;
 use App\Http\Controllers\RoleProfileController;
+use App\Http\Controllers\TeacherCohortJudgmentController;
 use App\Http\Controllers\TenantWebsiteController;
 use App\Support\TenantContext;
 use Illuminate\Support\Facades\Route;
@@ -194,6 +195,11 @@ Route::middleware([
 
     Route::patch('/profile/password', [RoleProfileController::class, 'updateTeacherPassword'])
         ->name('profile.password.update');
+
+    // Teacher Judgment surface (Course Scope Amendment, 2026-10-11).
+    Route::get('/cohorts', [TeacherCohortJudgmentController::class, 'index'])->name('cohorts.index');
+    Route::get('/cohorts/{cohort}/judgments', [TeacherCohortJudgmentController::class, 'show'])->whereNumber('cohort')->name('cohorts.show');
+    Route::post('/cohorts/{cohort}/judgments', [TeacherCohortJudgmentController::class, 'store'])->whereNumber('cohort')->name('cohorts.judgments.store');
 
     $registerCourseProductRoutes = false;
     $registerCourseTemplateLifecycleRoutes = false;

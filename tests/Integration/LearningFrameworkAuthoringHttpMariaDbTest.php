@@ -154,7 +154,7 @@ class LearningFrameworkAuthoringHttpMariaDbTest extends TestCase
 
         $this->admin()
             ->post($this->host.'/admin/learning-frameworks', $payload)
-            ->assertSessionHasErrors('learning');
+            ->assertSessionHasErrors('mastery_scale');
 
         $this->assertDatabaseMissing('core_learning_frameworks', ['code' => 'fw-bad-scale']);
     }
@@ -367,8 +367,7 @@ class LearningFrameworkAuthoringHttpMariaDbTest extends TestCase
         $framework = $this->createFramework('bleed-guard');
 
         $this->admin()
-            ->post($this->host."/admin/learning-frameworks/{$framework->id}/definitions", [
-                'framework_id' => (string) $framework->id,
+            ->post($this->host."/admin/learning-frameworks/{$framework->id}/competencies", [
                 'code' => 'DEFINITION-CODE-XYZ',
                 'node_type' => 'competency',
                 'description' => 'Submitted without canonical_name.',
@@ -379,29 +378,236 @@ class LearningFrameworkAuthoringHttpMariaDbTest extends TestCase
             ->get($this->host."/admin/learning-frameworks/{$framework->id}")
             ->assertOk()->getContent();
 
-        $this->assertStringNotContainsString('DEFINITION-CODE-XYZ', $html);
-        $this->assertStringContainsString('value="bleed-guard"', $html);
+        // The Framework edit form never reads old input: its code stays the Framework's own.
+        $this->assertStringContainsString('<input type="hidden" name="code" value="bleed-guard">', $html);
+        $this->assertSame(1, substr_count($html, 'value="DEFINITION-CODE-XYZ"'), 'Only the add-competency form is repopulated.');
+        $this->assertStringContainsString('id="competency-code" name="code" class="lf-form-control" maxlength="120" autocomplete="off" value="DEFINITION-CODE-XYZ"', $html);
     }
 
-    /**
-     * Nothing stops a Framework holding more than one draft, and each draft
-     * renders its own add-Node form. Sharing one element id across them made
-     * every `<label for>` address the first form on the page.
-     */
-    public function test_each_draft_version_renders_its_own_new_node_element_ids(): void
+    // ----------------------------------------------- Simplified page (2026-10-11)
+    public function test_the_simplified_create_form_derives_the_code_and_keeps_the_default_scale(): void
     {
-        $framework = $this->createFramework('dom-ids');
-        $first = $this->createVersion($framework->id, 'v1');
-        $second = $this->createVersion($framework->id, 'v2');
-        $this->createDefinition($framework->id, 'N-1');
+        // Exactly what the create page sends when only the name and description are filled in.
+        $payload = [
+            'name' => 'Chuẩn đầu ra tiếng Hàn sơ cấp', 'description' => '', 'code' => '',
+            'mastery_scale_key' => 'lf-default', 'mastery_scale_version' => '1',
+            'mastery_scale' => ['levels' => [
+                ['key' => 'not_started', 'threshold' => '0'],
+                ['key' => 'developing', 'threshold' => '0.5'],
+                ['key' => 'proficient', 'threshold' => '0.75'],
+                ['key' => 'mastered', 'threshold' => '0.9'],
+            ]],
+        ];
+        $this->admin()->post($this->host.'/admin/learning-frameworks', $payload)->assertSessionHasNoErrors()->assertRedirect();
+        $this->admin()->post($this->host.'/admin/learning-frameworks', $payload)->assertSessionHasNoErrors();
 
-        $html = $this->admin()
-            ->get($this->host."/admin/learning-frameworks/{$framework->id}")
-            ->assertOk()->getContent();
+        $codes = DB::table('core_learning_frameworks')->where('customer_id', $this->customerId)->orderBy('id')->pluck('code')->all();
+        $this->assertSame(['chuan-dau-ra-tieng-han-so-cap', 'chuan-dau-ra-tieng-han-so-cap-2'], $codes);
+        $scale = json_decode((string) DB::table('core_learning_frameworks')->where('code', $codes[0])->value('default_mastery_scale'), true);
+        $this->assertSame(['not_started', 'developing', 'proficient', 'mastered'], array_column($scale['levels'], 'key'));
 
-        $this->assertStringContainsString("node-new-{$first->id}-definition", $html);
-        $this->assertStringContainsString("node-new-{$second->id}-definition", $html);
-        $this->assertStringNotContainsString('id="node-new-definition"', $html);
+        $html = $this->admin()->get($this->host.'/admin/learning-frameworks/create')->assertOk()->getContent();
+        $this->assertStringContainsString('<details class="admin-form-standard-section lf-framework-create__advanced"', $html, 'Code and scale sit in the closed Advanced drawer.');
+        $this->assertStringContainsString('value="proficient"', $html);
+    }
+
+    public function test_adding_a_competency_seeds_one_draft_from_the_published_version(): void
+    {
+        $framework = $this->createFramework('seed-draft');
+        $definition = $this->createDefinition($framework->id, 'N-1');
+        $v1 = $this->createVersion($framework->id, 'v1');
+        $this->admin()->post($this->host."/admin/learning-frameworks/{$framework->id}/versions/{$v1->id}/nodes", [
+            'framework_version_id' => (string) $v1->id, 'node_definition_id' => (string) $definition->id,
+            'sequence' => '7', 'criteria_json' => '{"stage":"one"}',
+        ])->assertSessionHasNoErrors();
+        $this->admin()->post($this->host."/admin/learning-frameworks/{$framework->id}/versions/{$v1->id}/publish")->assertSessionHasNoErrors();
+
+        $this->admin()->post($this->host."/admin/learning-frameworks/{$framework->id}/competencies", [
+            'canonical_name' => 'Giao tiếp cơ bản', 'node_type' => 'competency', 'code' => '', 'description' => '',
+        ])->assertSessionHasNoErrors();
+        $this->admin()->post($this->host."/admin/learning-frameworks/{$framework->id}/competencies", [
+            'canonical_name' => 'Giao tiếp cơ bản', 'node_type' => 'objective', 'code' => '', 'description' => '',
+        ])->assertSessionHasNoErrors();
+
+        $drafts = DB::table('core_learning_framework_versions')->where('framework_id', $framework->id)->where('status', 'draft_snapshot')->get();
+        $this->assertCount(1, $drafts, 'Both additions land in the same working draft.');
+        $this->assertSame(2, (int) $drafts[0]->version_number);
+        $nodes = DB::table('core_learning_nodes')->where('framework_version_id', $drafts[0]->id)->orderBy('sequence')->get();
+        $this->assertSame(['N-1', 'GIAO-TIEP-CO-BAN', 'GIAO-TIEP-CO-BAN-2'], $nodes->pluck('code_snapshot')->all());
+        $this->assertSame(7, (int) $nodes[0]->sequence, 'The seeded Node keeps the published order.');
+        $this->assertSame(['stage' => 'one'], json_decode($nodes[0]->criteria_snapshot, true), 'The seeded Node keeps its criteria.');
+        $this->assertSame(1, DB::table('core_learning_nodes')->where('framework_version_id', $v1->id)->count(), 'The published Version is untouched.');
+
+        $html = $this->admin()->get($this->host."/admin/learning-frameworks/{$framework->id}")->assertOk()->getContent();
+        $this->assertStringContainsString('data-lf-framework-draft="'.$drafts[0]->id.'"', $html);
+        $this->assertStringContainsString("/admin/learning-frameworks/{$framework->id}/versions/{$drafts[0]->id}/publish", $html);
+        $this->assertStringContainsString('Xuất bản Phiên bản 2', $html);
+        $this->assertStringContainsString('Đang dùng · Phiên bản 1', $html);
+        $this->assertStringNotContainsString('stage', $html, 'Criteria JSON is not shown.');
+
+        // The list shows the version in use, its competency count and the open draft.
+        $row = $this->admin()->get($this->host.'/admin/learning-frameworks')->assertOk()->getContent();
+        preg_match('#<tr data-lf-framework-row="'.$framework->id.'">.*?</tr>#s', $row, $match);
+        $this->assertNotEmpty($match);
+        $this->assertStringContainsString('Phiên bản 1', $match[0]);
+        $this->assertStringContainsString('1 năng lực', $match[0]);
+        $this->assertStringContainsString('Có bản nháp', $match[0]);
+    }
+
+    public function test_an_unplaced_definition_joins_the_draft_once(): void
+    {
+        $framework = $this->createFramework('unplaced');
+        $definition = $this->createDefinition($framework->id, 'LOOSE-1');
+
+        $html = $this->admin()->get($this->host."/admin/learning-frameworks/{$framework->id}")->assertOk()->getContent();
+        $this->assertStringContainsString('data-lf-framework-unplaced="'.$definition->id.'"', $html);
+
+        $url = $this->host."/admin/learning-frameworks/{$framework->id}/competencies";
+        $this->admin()->post($url, ['node_definition_id' => (string) $definition->id])->assertSessionHasNoErrors();
+        $this->admin()->post($url, ['node_definition_id' => (string) $definition->id])->assertSessionHasErrors('learning');
+
+        $draft = DB::table('core_learning_framework_versions')->where('framework_id', $framework->id)->firstOrFail();
+        $this->assertSame(1, DB::table('core_learning_nodes')->where('framework_version_id', $draft->id)->count());
+        $html = $this->admin()->get($this->host."/admin/learning-frameworks/{$framework->id}")->assertOk()->getContent();
+        $this->assertStringNotContainsString('data-lf-framework-unplaced', $html);
+        $this->assertStringContainsString('data-lf-framework-item="'.$definition->id.'"', $html);
+    }
+
+    public function test_a_definition_from_another_framework_cannot_join_the_draft(): void
+    {
+        $target = $this->createFramework('join-target');
+        $other = $this->createFramework('join-other');
+        $foreign = $this->createDefinition($other->id, 'FOREIGN-1');
+
+        $this->admin()->post($this->host."/admin/learning-frameworks/{$target->id}/competencies", [
+            'node_definition_id' => (string) $foreign->id,
+        ])->assertSessionHasErrors('learning');
+
+        $this->assertSame(0, DB::table('core_learning_nodes')->where('framework_id', $target->id)->count());
+        $this->assertSame(0, DB::table('core_learning_framework_versions')->where('framework_id', $target->id)->count(), 'A refused addition leaves no draft behind.');
+    }
+
+    public function test_discarding_the_draft_removes_only_what_it_brought(): void
+    {
+        $framework = $this->createFramework('discard');
+        $kept = $this->createDefinition($framework->id, 'KEPT-1');
+        $url = $this->host."/admin/learning-frameworks/{$framework->id}/competencies";
+        $this->admin()->post($url, ['node_definition_id' => (string) $kept->id])->assertSessionHasNoErrors();
+        $v1 = DB::table('core_learning_framework_versions')->where('framework_id', $framework->id)->firstOrFail();
+        $this->admin()->post($this->host."/admin/learning-frameworks/{$framework->id}/versions/{$v1->id}/publish")->assertSessionHasNoErrors();
+
+        $loose = $this->createDefinition($framework->id, 'LOOSE-1');
+        $this->admin()->post($url, ['canonical_name' => 'Brand new', 'node_type' => 'competency'])->assertSessionHasNoErrors();
+        $this->admin()->post($url, ['node_definition_id' => (string) $loose->id])->assertSessionHasNoErrors();
+        $draft = DB::table('core_learning_framework_versions')->where('framework_id', $framework->id)->where('status', 'draft_snapshot')->firstOrFail();
+        $this->assertStringContainsString('data-lf-framework-discard', $this->admin()->get($this->host."/admin/learning-frameworks/{$framework->id}")->getContent());
+
+        $this->admin()->delete($this->host."/admin/learning-frameworks/{$framework->id}/versions/{$draft->id}")->assertSessionHasNoErrors()->assertRedirect();
+
+        $this->assertDatabaseMissing('core_learning_framework_versions', ['id' => $draft->id]);
+        $this->assertSame(0, DB::table('core_learning_nodes')->where('framework_version_id', $draft->id)->count());
+        $this->assertDatabaseMissing('core_learning_node_definitions', ['framework_id' => $framework->id, 'canonical_name' => 'Brand new']);
+        $this->assertDatabaseHas('core_learning_node_definitions', ['id' => $kept->id]);
+        // A Definition older than the draft is kept.
+        $this->assertDatabaseHas('core_learning_node_definitions', ['id' => $loose->id]);
+        $this->assertSame(1, DB::table('core_learning_nodes')->where('framework_version_id', $v1->id)->count(), 'The published Version is untouched.');
+        $html = $this->admin()->get($this->host."/admin/learning-frameworks/{$framework->id}")->assertOk()->getContent();
+        $this->assertStringNotContainsString('data-lf-framework-draft', $html);
+        $this->assertStringContainsString('data-lf-framework-unplaced="'.$loose->id.'"', $html);
+    }
+
+    public function test_a_published_version_cannot_be_discarded_and_a_teacher_cannot_discard(): void
+    {
+        $framework = $this->createFramework('discard-guard');
+        $definition = $this->createDefinition($framework->id, 'G-1');
+        $this->admin()->post($this->host."/admin/learning-frameworks/{$framework->id}/competencies", ['node_definition_id' => (string) $definition->id])->assertSessionHasNoErrors();
+        $version = DB::table('core_learning_framework_versions')->where('framework_id', $framework->id)->firstOrFail();
+        $teacher = User::forceCreate([
+            'customer_id' => $this->customerId, 'name' => 'teacher', 'email' => 'teacher-discard@authoring-http.test',
+            'password' => bcrypt('password'), 'role' => 'teacher', 'status' => 'active', 'email_verified_at' => now(),
+        ]);
+
+        $this->actingAs($teacher)->delete($this->host."/admin/learning-frameworks/{$framework->id}/versions/{$version->id}")->assertForbidden();
+        $this->assertDatabaseHas('core_learning_framework_versions', ['id' => $version->id]);
+
+        $this->admin()->post($this->host."/admin/learning-frameworks/{$framework->id}/versions/{$version->id}/publish")->assertSessionHasNoErrors();
+        $this->admin()->delete($this->host."/admin/learning-frameworks/{$framework->id}/versions/{$version->id}")->assertSessionHasErrors('learning');
+        $this->assertDatabaseHas('core_learning_framework_versions', ['id' => $version->id, 'status' => 'published']);
+    }
+
+    public function test_editing_the_scale_applies_to_later_versions_only(): void
+    {
+        $framework = $this->createFramework('scale-edit');
+        $definition = $this->createDefinition($framework->id, 'S-1');
+        $url = $this->host."/admin/learning-frameworks/{$framework->id}/competencies";
+        $this->admin()->post($url, ['node_definition_id' => (string) $definition->id])->assertSessionHasNoErrors();
+        $v1 = DB::table('core_learning_framework_versions')->where('framework_id', $framework->id)->firstOrFail();
+        $this->admin()->post($this->host."/admin/learning-frameworks/{$framework->id}/versions/{$v1->id}/publish")->assertSessionHasNoErrors();
+
+        $html = $this->admin()->get($this->host."/admin/learning-frameworks/{$framework->id}")->assertOk()->getContent();
+        $this->assertStringContainsString('data-lf-framework-scale-form', $html);
+        $this->assertStringContainsString('name="mastery_scale_version" value="2"', $html, 'Saving the scale form moves to the next scale version.');
+
+        // Exactly what the scale form sends after adding a level.
+        $this->admin()->put($this->host."/admin/learning-frameworks/{$framework->id}", [
+            'code' => 'scale-edit', 'name' => 'Framework scale-edit', 'description' => '',
+            'mastery_scale_key' => 'lf-default', 'mastery_scale_version' => '2',
+            'mastery_scale' => ['levels' => [
+                ['key' => 'not_started', 'threshold' => '0'],
+                ['key' => 'developing', 'threshold' => '0.4'],
+                ['key' => 'proficient', 'threshold' => '0.7'],
+                ['key' => 'mastered', 'threshold' => '0.85'],
+            ]],
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame(3, count(json_decode((string) DB::table('core_learning_framework_versions')->where('id', $v1->id)->value('mastery_scale_snapshot'), true)['levels']), 'The published Version keeps its scale.');
+        $this->admin()->post($url, ['canonical_name' => 'After scale', 'node_type' => 'competency'])->assertSessionHasNoErrors();
+        $v2 = DB::table('core_learning_framework_versions')->where('framework_id', $framework->id)->where('status', 'draft_snapshot')->firstOrFail();
+        $this->assertSame('2', (string) $v2->mastery_scale_version);
+        $this->assertSame(4, count(json_decode((string) $v2->mastery_scale_snapshot, true)['levels']), 'A new draft takes the new scale.');
+
+        // A broken scale is refused with a readable message on the scale field.
+        $this->admin()->put($this->host."/admin/learning-frameworks/{$framework->id}", [
+            'code' => 'scale-edit', 'name' => 'Framework scale-edit', 'description' => '',
+            'mastery_scale_key' => 'lf-default', 'mastery_scale_version' => '3',
+            'mastery_scale' => ['levels' => [
+                ['key' => 'a', 'threshold' => '0'],
+                ['key' => 'b', 'threshold' => '0.9'],
+                ['key' => 'c', 'threshold' => '0.5'],
+            ]],
+        ])->assertSessionHasErrors('mastery_scale');
+        $this->assertSame('2', (string) DB::table('core_learning_frameworks')->where('id', $framework->id)->value('default_mastery_scale_version'));
+    }
+
+    public function test_a_teacher_cannot_add_a_competency(): void
+    {
+        $framework = $this->createFramework('teacher-denied');
+        $teacher = User::forceCreate([
+            'customer_id' => $this->customerId, 'name' => 'teacher', 'email' => 'teacher@authoring-http.test',
+            'password' => bcrypt('password'), 'role' => 'teacher', 'status' => 'active', 'email_verified_at' => now(),
+        ]);
+
+        $this->actingAs($teacher)->post($this->host."/admin/learning-frameworks/{$framework->id}/competencies", [
+            'canonical_name' => 'Nope', 'node_type' => 'competency',
+        ])->assertForbidden();
+
+        $this->assertSame(0, DB::table('core_learning_node_definitions')->where('framework_id', $framework->id)->count());
+    }
+
+    public function test_a_published_definition_offers_only_its_description_for_editing(): void
+    {
+        $framework = $this->createFramework('locked-view');
+        $definition = $this->createDefinition($framework->id, 'LOCK-1');
+        $this->admin()->post($this->host."/admin/learning-frameworks/{$framework->id}/competencies", [
+            'node_definition_id' => (string) $definition->id,
+        ])->assertSessionHasNoErrors();
+        $draft = DB::table('core_learning_framework_versions')->where('framework_id', $framework->id)->firstOrFail();
+        $this->admin()->post($this->host."/admin/learning-frameworks/{$framework->id}/versions/{$draft->id}/publish")->assertSessionHasNoErrors();
+
+        $html = $this->admin()->get($this->host."/admin/learning-frameworks/{$framework->id}")->assertOk()->getContent();
+        $this->assertStringContainsString('<input type="hidden" name="canonical_name" value="Definition LOCK-1">', $html);
+        $this->assertStringNotContainsString('id="competency-'.$definition->id.'-name"', $html);
+        $this->assertStringContainsString('id="competency-'.$definition->id.'-description"', $html);
     }
 
     // ------------------------------------------------------------------ Boundary

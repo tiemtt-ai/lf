@@ -28,7 +28,8 @@ class LearningFrameworkRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'code' => ['required', 'string', 'max:100'],
+            // Blank on create means "derive it from the name"; updates always resend the stored code.
+            'code' => ['nullable', 'string', 'max:100'],
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:5000'],
             'mastery_scale_key' => ['required', 'string', 'max:100'],

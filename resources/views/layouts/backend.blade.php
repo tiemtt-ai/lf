@@ -33,7 +33,8 @@
         $navigationLabel = $isTeacher
             ? __('lf.LF_navigation_label_teacher_navigation')
             : __('lf.LF_navigation_label_admin_navigation');
-        $pageTitle = trim($__env->yieldContent('page_title', __('lf.LF_common_title_common_dashboard')));
+        // A section value arrives already escaped; decode it once because the breadcrumb component escapes again.
+        $pageTitle = html_entity_decode(trim($__env->yieldContent('page_title', __('lf.LF_common_title_common_dashboard'))), ENT_QUOTES | ENT_HTML5, 'UTF-8');
         $currentRouteName = (string) request()->route()?->getName();
         $isWorkspacePage = \Illuminate\Support\Str::of($currentRouteName)->endsWith([
             '.create',
@@ -74,6 +75,7 @@
                 ['label' => __('lf.LF_navigation_menu_teacher_dashboard'), 'route' => 'teacher.dashboard', 'active' => 'teacher.dashboard', 'visible' => true, 'icon' => 'home'],
                 ['label' => __('lf.LF_navigation_menu_common_product_categories'), 'route' => 'teacher.course-categories.index', 'active' => 'teacher.course-categories.*', 'visible' => true, 'icon' => 'folder'],
                 ['label' => __('lf.LF_navigation_menu_common_course_templates'), 'route' => 'teacher.course-templates.index', 'active' => 'teacher.course-templates.*', 'visible' => true, 'icon' => 'book-open'],
+                ['label' => __('lf.LF_navigation_menu_teacher_cohorts'), 'route' => 'teacher.cohorts.index', 'active' => 'teacher.cohorts.*', 'visible' => true, 'icon' => 'users'],
             ]
             : [
                 ['label' => __('lf.LF_navigation_menu_admin_dashboard'), 'route' => 'admin.dashboard', 'active' => 'admin.dashboard', 'visible' => true, 'icon' => 'home'],

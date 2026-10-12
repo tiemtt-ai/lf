@@ -912,6 +912,930 @@
     max-width: none;
 }
 
+/* Learning Framework list page (List/Index standard §25): count + create, then one table. */
+.lf-framework-index {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.lf-framework-index__toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 16px;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.lf-framework-index__intro {
+    display: flex;
+    flex: 1 1 360px;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.lf-framework-index__count {
+    color: var(--admin-text-muted);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.lf-framework-index__help {
+    margin: 0;
+    color: var(--admin-text-muted);
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.lf-framework-index__create {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 40px;
+    padding: 0 16px;
+}
+
+.lf-framework-index__create > span[aria-hidden] {
+    font-size: 20px;
+    font-weight: 400;
+    line-height: 1;
+}
+
+.lf-framework-index__name {
+    display: block;
+    color: var(--admin-primary);
+    font-size: 14px;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.lf-framework-index__name:hover,
+.lf-framework-index__name:focus-visible {
+    text-decoration: underline;
+}
+
+.lf-framework-index__description {
+    display: block;
+    margin-top: 4px;
+    color: var(--admin-text-muted);
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.lf-framework-index__versions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 8px;
+    align-items: center;
+}
+
+.lf-framework-index__meta {
+    color: var(--admin-text-muted);
+    font-size: 12px;
+}
+
+.lf-framework-index .lf-framework-index__draft {
+    color: #6b4a00;
+    background: #fff1cc;
+}
+
+.lf-framework-index__empty {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+    max-width: none;
+    padding: 40px 20px;
+    text-align: center;
+}
+
+.lf-framework-index__empty strong {
+    color: var(--admin-text);
+    font-size: 16px;
+}
+
+.lf-framework-index__empty span {
+    color: var(--admin-text-muted);
+    font-size: 14px;
+}
+
+@media (max-width: 767px) {
+    .lf-framework-index__toolbar {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .lf-framework-index__intro {
+        flex: none;
+    }
+
+    .lf-framework-index__create {
+        justify-content: center;
+        width: 100%;
+    }
+
+    /* §25.5: each framework becomes one bordered card with labelled values. */
+    .lf-framework-index__table-wrap {
+        overflow: visible;
+        border: 0;
+    }
+
+    .lf-framework-index__table {
+        min-width: 0;
+        table-layout: auto;
+    }
+
+    .lf-framework-index__table thead {
+        display: none;
+    }
+
+    .lf-framework-index__table,
+    .lf-framework-index__table tbody {
+        display: block;
+    }
+
+    .lf-framework-index__table tbody {
+        display: grid;
+        gap: 12px;
+    }
+
+    .lf-framework-index__table tr {
+        display: grid;
+        border: 1px solid var(--admin-border);
+        border-radius: 10px;
+        background: var(--admin-surface);
+        overflow: hidden;
+    }
+
+    .lf-admin-page .lf-framework-index__table td {
+        display: grid;
+        grid-template-columns: minmax(96px, .7fr) minmax(0, 1.3fr);
+        gap: 12px;
+        position: static;
+        width: auto;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--admin-border);
+        justify-items: start;
+        text-align: left;
+        white-space: normal;
+    }
+
+    .lf-framework-index__table td::before {
+        content: attr(data-label);
+        color: var(--admin-text-muted);
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .lf-admin-page .lf-framework-index__table td:last-child {
+        border-bottom: 0;
+    }
+}
+
+/* Learning Framework create page: name first, code and rating scale under "Advanced". */
+.lf-framework-create__advanced-summary {
+    display: flex;
+    align-items: center;
+    min-height: 40px;
+    color: var(--admin-text);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.lf-framework-create__advanced-summary:focus-visible {
+    outline: 2px solid var(--admin-primary);
+    outline-offset: 2px;
+}
+
+.lf-framework-create__advanced[open] > .lf-framework-create__advanced-summary {
+    margin-bottom: 8px;
+}
+
+/* Learning Framework detail page: one competency list, a working draft and an advanced drawer. */
+.lf-framework {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.lf-framework__intro {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.lf-framework__description {
+    margin: 0;
+    color: var(--admin-control-text);
+    font-size: 15px;
+    line-height: 1.6;
+}
+
+.lf-framework__status {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    align-items: center;
+}
+
+.lf-framework__meta {
+    color: var(--admin-text-muted);
+    font-size: 13px;
+}
+
+.lf-framework__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: flex-start;
+}
+
+.lf-framework__disclosure > summary {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 40px;
+    list-style: none;
+    cursor: pointer;
+}
+
+.lf-framework__disclosure > summary::-webkit-details-marker {
+    display: none;
+}
+
+.lf-framework__disclosure > summary:focus-visible,
+.lf-framework__advanced-summary:focus-visible {
+    outline: 2px solid var(--admin-primary);
+    outline-offset: 2px;
+}
+
+.lf-framework__actions > .lf-framework__disclosure[open] {
+    flex: 1 1 100%;
+}
+
+.lf-framework__panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 720px;
+    margin-top: 10px;
+    padding: 16px;
+    border: 1px solid var(--admin-control-border);
+    border-radius: 10px;
+    background: var(--admin-surface-subtle);
+}
+
+.lf-framework__panel .lf-form-group,
+.lf-framework__panel .lf-form-help,
+.lf-framework__panel .admin-form-inline-notice {
+    margin: 0;
+}
+
+.lf-framework__field-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.lf-framework__panel-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.lf-framework__draft {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 16px;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border: 1px solid #f1d28f;
+    border-radius: 12px;
+    color: #6b4a00;
+    background: #fff8e8;
+}
+
+.lf-framework__draft-text {
+    display: flex;
+    flex: 1 1 420px;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.lf-framework__draft-text p {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.55;
+    overflow-wrap: anywhere;
+}
+
+.lf-framework__draft-title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.lf-framework__draft-note {
+    opacity: 0.9;
+}
+
+.lf-framework__draft form {
+    margin: 0;
+}
+
+.lf-framework__draft-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.lf-framework__list {
+    display: flex;
+    flex-direction: column;
+    max-width: none;
+}
+
+.lf-framework__list > .admin-form-section-title {
+    margin: 0 0 8px;
+}
+
+.lf-framework__list > .admin-form-section-help {
+    margin: 0 0 8px;
+}
+
+.lf-framework__item {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 16px;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: 16px 0;
+    border-top: 1px solid var(--admin-border);
+}
+
+.lf-framework__item-main {
+    display: flex;
+    flex: 1 1 420px;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.lf-framework__item-title {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.lf-framework__item-title strong {
+    color: var(--admin-text);
+    font-size: 15px;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.lf-framework__item-description {
+    margin: 0;
+    color: var(--admin-control-text);
+    font-size: 14px;
+    line-height: 1.55;
+}
+
+.lf-framework__item-edit[open] {
+    flex: 1 1 100%;
+}
+
+.lf-framework__item form {
+    margin: 0;
+}
+
+.lf-framework .badge-warning {
+    color: #6b4a00;
+    background: #fff1cc;
+}
+
+.lf-framework__advanced {
+    max-width: none;
+}
+
+.lf-framework__advanced-summary {
+    display: flex;
+    align-items: center;
+    min-height: 40px;
+    color: var(--admin-text);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.lf-framework__advanced-body {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+    padding-top: 12px;
+}
+
+.lf-framework__scale,
+.lf-framework__history {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0 0 8px;
+    padding-left: 20px;
+    color: var(--admin-control-text);
+    font-size: 14px;
+}
+
+.lf-framework__scale-edit {
+    margin-top: 4px;
+}
+
+.lf-framework__scale-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: end;
+}
+
+.lf-framework__scale-row .lf-form-group {
+    margin: 0;
+}
+
+.lf-framework__scale-remove {
+    min-width: 44px;
+    min-height: 40px;
+}
+
+.lf-framework__scale-actions {
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.lf-framework__history {
+    padding-left: 0;
+    list-style: none;
+}
+
+.lf-framework__history li {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    align-items: center;
+}
+
+@media (max-width: 767px) {
+    .lf-framework__field-row,
+    .lf-framework__advanced-body {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .lf-framework__actions > .lf-framework__disclosure,
+    .lf-framework__actions .btn,
+    .lf-framework__draft-actions,
+    .lf-framework__draft-actions form,
+    .lf-framework__draft .btn,
+    .lf-framework__panel-actions .btn {
+        width: 100%;
+    }
+
+    .lf-framework__disclosure > summary {
+        justify-content: center;
+    }
+}
+
+/* Course Template "Đầu ra & năng lực" tab: framework choice and competencies by lesson. */
+.course-learning {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.course-learning__framework {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 16px;
+    align-items: flex-start;
+    justify-content: space-between;
+}
+
+.course-learning__framework-main {
+    display: flex;
+    flex: 1 1 420px;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.course-learning__eyebrow {
+    margin: 0;
+    color: var(--admin-text-muted);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.course-learning__framework-name {
+    margin: 0;
+    color: var(--admin-text);
+    font-size: 17px;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.course-learning__framework-actions,
+.course-learning__picker-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.course-learning__upgrade {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 16px;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border: 1px solid #c9d4f5;
+    border-radius: 12px;
+    background: #f1f4fd;
+}
+
+.course-learning__upgrade-text {
+    display: flex;
+    flex: 1 1 420px;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.course-learning__upgrade-text p {
+    margin: 0;
+    color: var(--admin-control-text);
+    font-size: 14px;
+    line-height: 1.55;
+    overflow-wrap: anywhere;
+}
+
+.course-learning__upgrade-title {
+    margin: 0;
+    color: #2f3f9e;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.course-learning__upgrade form {
+    margin: 0;
+}
+
+.course-learning__change {
+    border-top: 1px solid var(--admin-border);
+    padding-top: 12px;
+}
+
+.course-learning__change-summary {
+    display: inline-flex;
+    align-items: center;
+    min-height: 40px;
+    color: var(--admin-primary);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.course-learning__change-locked {
+    margin: 0;
+}
+
+.course-learning__select {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: flex-end;
+    padding-top: 8px;
+}
+
+.course-learning__select-field {
+    flex: 1 1 320px;
+    min-width: 0;
+    margin: 0;
+}
+
+.course-learning__map {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    border-top: 1px solid var(--admin-border);
+    padding-top: 20px;
+}
+
+.course-learning__map-header {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    align-items: baseline;
+    justify-content: space-between;
+}
+
+.course-learning__map-header .admin-form-section-title {
+    margin: 0;
+}
+
+.course-learning__count,
+.course-learning__meta,
+.course-learning__skill-meta {
+    color: var(--admin-text-muted);
+    font-size: 13px;
+}
+
+.course-learning__count {
+    font-weight: 600;
+}
+
+.course-learning__table {
+    width: 100%;
+    margin: 0;
+}
+
+.course-learning__table th,
+.course-learning__table td {
+    padding: 14px 16px;
+    vertical-align: top;
+}
+
+.course-learning__table thead th {
+    color: var(--admin-text-muted);
+    background: var(--admin-surface-subtle);
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.course-learning__section-cell {
+    color: var(--admin-primary);
+    background: var(--admin-surface-subtle);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.course-learning__section-cell[data-depth="1"] { padding-left: 32px; }
+.course-learning__section-cell[data-depth="2"] { padding-left: 48px; }
+.course-learning__section-cell[data-depth="3"] { padding-left: 64px; }
+
+.course-learning__lesson-cell {
+    min-width: 200px;
+}
+
+.course-learning__lesson-title {
+    display: block;
+    color: var(--admin-text);
+    font-size: 14px;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.course-learning__skills-cell {
+    min-width: 280px;
+}
+
+.course-learning__skills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0 0 10px;
+    padding: 0;
+    list-style: none;
+}
+
+.course-learning__skill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    max-width: 100%;
+    padding: 4px 4px 4px 12px;
+    border: 1px solid #d6dcf5;
+    border-radius: 999px;
+    background: #eef1fc;
+}
+
+.course-learning__skill-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    line-height: 1.35;
+}
+
+.course-learning__skill-name {
+    color: #2f3f9e;
+    font-size: 14px;
+    font-weight: 500;
+    overflow-wrap: anywhere;
+}
+
+.course-learning__skill-remove {
+    margin: 0;
+}
+
+.course-learning__skill-link {
+    color: inherit;
+    text-decoration: underline;
+}
+
+.course-learning__skill-link:hover,
+.course-learning__skill-link:focus-visible {
+    color: var(--admin-primary);
+}
+
+.course-learning__skill-remove button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: 0;
+    border-radius: 999px;
+    color: #2f3f9e;
+    background: transparent;
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.course-learning__skill-remove button:hover,
+.course-learning__skill-remove button:focus-visible {
+    color: var(--admin-danger);
+    background: var(--admin-danger-soft);
+}
+
+.course-learning__skill-remove button:focus-visible,
+.course-learning__picker-toggle:focus-visible,
+.course-learning__change-summary:focus-visible {
+    outline: 2px solid var(--admin-primary);
+    outline-offset: 2px;
+}
+
+.course-learning__not-mapped {
+    color: #8a5a00;
+    font-size: 14px;
+}
+
+.course-learning__picker > .course-learning__picker-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 40px;
+    list-style: none;
+    cursor: pointer;
+}
+
+.course-learning__picker > .course-learning__picker-toggle::-webkit-details-marker {
+    display: none;
+}
+
+.course-learning__picker[open] > .course-learning__picker-toggle {
+    color: var(--admin-primary-contrast);
+    background: var(--admin-primary);
+    border-color: var(--admin-primary);
+}
+
+.course-learning__picker-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 560px;
+    margin: 10px 0 0;
+    padding: 16px;
+    border: 1px solid var(--admin-control-border);
+    border-radius: 10px;
+    background: var(--admin-surface-subtle);
+}
+
+.course-learning__picker-panel .lf-form-group {
+    margin: 0;
+}
+
+.course-learning__nodes {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.course-learning__node {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    min-height: 44px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.course-learning__node:hover {
+    background: var(--admin-surface);
+}
+
+.course-learning__node input {
+    flex: none;
+    width: 18px;
+    height: 18px;
+    margin-top: 2px;
+}
+
+.course-learning__node > span {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.course-learning__node-name {
+    color: var(--admin-text);
+    font-size: 14px;
+    overflow-wrap: anywhere;
+}
+
+.course-learning-ai {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    border-color: #ddd5fb;
+    background: #f8f6ff;
+}
+
+.course-learning-ai > .admin-form-section-title,
+.course-learning-ai > .admin-form-help {
+    margin: 0;
+}
+
+.course-learning-ai .admin-form-section-title {
+    color: #3d2a8a;
+}
+
+.course-learning-ai__form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: flex-end;
+}
+
+.course-learning-ai__field {
+    flex: 1 1 320px;
+    min-width: 0;
+    margin: 0;
+}
+
+@media (max-width: 767px) {
+    .course-learning__framework-actions,
+    .course-learning__framework-actions .btn,
+    .course-learning__select .btn,
+    .course-learning__picker-actions .btn,
+    .course-learning-ai__form .btn,
+    .course-learning__upgrade .btn {
+        width: 100%;
+    }
+
+    /* Each lesson becomes one stacked card so the competencies stay visible without side scrolling. */
+    .course-learning__table thead,
+    .course-learning__table .admin-table-sequence {
+        display: none;
+    }
+
+    .course-learning__table,
+    .course-learning__table tbody,
+    .course-learning__table tr,
+    .course-learning__table th,
+    .course-learning__table td {
+        display: block;
+        width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+    }
+
+    .course-learning__table tr + tr {
+        border-top: 1px solid var(--admin-border);
+    }
+
+    .lf-admin-page .course-learning__table .course-learning__lesson-cell {
+        padding: 14px 12px 6px;
+        border: 0;
+    }
+
+    .lf-admin-page .course-learning__table .course-learning__skills-cell {
+        padding: 6px 12px 14px;
+        border: 0;
+    }
+
+    .course-learning__picker-toggle {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
 .course-template-preview-card,
 .authoring-media-current-row {
     margin: 10px;
@@ -5777,5 +6701,382 @@
         font-size: 12px;
         font-weight: 600;
         line-height: 1.4;
+    }
+}
+
+/* Teacher "Lớp của tôi" and cohort competency judgment (Course Scope Amendment 2026-10-11). */
+.teacher-cohorts {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.teacher-cohorts__intro {
+    margin: 0;
+    color: var(--admin-text-muted);
+    font-size: 14px;
+}
+
+.teacher-cohorts__card,
+.teacher-judgment__skills,
+.teacher-judgment__students {
+    margin: 0;
+}
+
+.teacher-cohorts__card {
+    padding: 18px 20px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 20px;
+    align-items: center;
+    justify-content: space-between;
+    max-width: none;
+}
+
+.teacher-cohorts__main {
+    display: flex;
+    flex: 1 1 420px;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.teacher-cohorts__title-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.teacher-cohorts__title {
+    margin: 0;
+    color: var(--admin-text);
+    font-size: 17px;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.teacher-cohorts__meta,
+.teacher-judgment__meta {
+    color: var(--admin-control-text);
+    font-size: 14px;
+}
+
+.teacher-cohorts__basis {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    color: #1d6b3d;
+    font-size: 13px;
+}
+
+.teacher-cohorts__blocked {
+    color: #8a5a00;
+    font-size: 13px;
+}
+
+.teacher-judgment {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.teacher-judgment__header {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 20px;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.teacher-judgment__basis-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.teacher-judgment__layout {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: flex-start;
+}
+
+.teacher-judgment__skills {
+    display: flex;
+    flex: 1 1 260px;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 320px;
+}
+
+.teacher-judgment__skills-title {
+    margin: 0;
+    color: var(--admin-text);
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.teacher-judgment__group-title {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    min-height: 36px;
+    color: var(--admin-text-muted);
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+}
+
+.teacher-judgment__skill-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.lf-admin-page .teacher-judgment__skill {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 10px 12px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    color: var(--admin-text);
+    text-decoration: none;
+}
+
+.lf-admin-page .teacher-judgment__skill:hover,
+.lf-admin-page .teacher-judgment__skill:focus-visible {
+    background: var(--admin-surface-subtle);
+}
+
+.lf-admin-page .teacher-judgment__skill.is-current {
+    border-color: #c9d4f5;
+    background: #eef1fc;
+}
+
+.teacher-judgment__skill-name {
+    font-size: 14px;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.teacher-judgment__skill-meta {
+    color: var(--admin-text-muted);
+    font-size: 12px;
+}
+
+.teacher-judgment__skill-meta.is-done {
+    color: #1d6b3d;
+}
+
+.teacher-judgment__students {
+    display: flex;
+    flex: 999 1 520px;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+    max-width: none;
+}
+
+.teacher-judgment__node .admin-form-section-title,
+.teacher-judgment__node .admin-form-section-help {
+    margin: 0;
+}
+
+.teacher-judgment__table {
+    width: 100%;
+    margin: 0;
+}
+
+.teacher-judgment__form-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.teacher-judgment__form-panel[hidden] {
+    display: none;
+}
+
+.teacher-judgment__form-title {
+    margin: 0;
+    color: var(--admin-text);
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.lf-admin-page .teacher-judgment__table thead th .lf-info-tip {
+    margin-left: 4px;
+}
+
+.teacher-judgment__student {
+    font-weight: 600;
+}
+
+.teacher-judgment__last {
+    display: block;
+    margin-top: 4px;
+    color: var(--admin-text-muted);
+    font-size: 12px;
+}
+
+.lf-admin-page .teacher-judgment__table td.teacher-judgment__action {
+    overflow-wrap: normal;
+    text-align: right;
+}
+
+.teacher-judgment__action .btn {
+    white-space: nowrap;
+}
+
+.teacher-judgment__sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+.teacher-judgment__level {
+    display: inline-flex;
+    align-items: center;
+    min-height: 26px;
+    padding: 0 10px;
+    border-radius: 999px;
+    color: #4b5563;
+    background: #eef0f5;
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.teacher-judgment__level[data-tone="mid"] { color: #6b4a00; background: #fff1cc; }
+.teacher-judgment__level[data-tone="good"] { color: #1d6b3d; background: #e3f5ea; }
+.teacher-judgment__level[data-tone="top"] { color: #26338a; background: #dfe7ff; }
+
+.teacher-judgment__form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 16px;
+    border: 1px solid var(--admin-control-border);
+    border-radius: 12px;
+    background: var(--admin-surface-subtle);
+}
+
+.teacher-judgment__form .lf-form-group,
+.teacher-judgment__form .lf-form-help {
+    margin: 0;
+}
+
+.teacher-judgment__levels {
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.teacher-judgment__levels > legend {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.teacher-judgment__level-options {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+    gap: 8px;
+}
+
+.teacher-judgment__level-option {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    align-items: center;
+    min-height: 44px;
+    padding: 6px 12px;
+    border: 1px solid var(--admin-control-border);
+    border-radius: 10px;
+    background: var(--admin-surface);
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.teacher-judgment__level-option.is-selected {
+    border-color: var(--admin-primary);
+    background: #eef1fc;
+}
+
+.teacher-judgment__threshold {
+    color: var(--admin-text-muted);
+    font-size: 12px;
+}
+
+.teacher-judgment__fields {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+}
+
+.teacher-judgment__form .lf-form-label {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+}
+
+.teacher-judgment__form-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+@media (max-width: 767px) {
+    .teacher-cohorts__card .btn,
+    .teacher-judgment__form-actions .btn {
+        width: 100%;
+    }
+
+    .teacher-judgment__skills {
+        max-width: none;
+    }
+
+    .teacher-judgment__table thead {
+        display: none;
+    }
+
+    .teacher-judgment__table,
+    .teacher-judgment__table tbody,
+    .teacher-judgment__table tr,
+    .lf-admin-page .teacher-judgment__table td {
+        display: block;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .teacher-judgment__table tr + tr {
+        border-top: 1px solid var(--admin-border);
+    }
+
+    .lf-admin-page .teacher-judgment__table td {
+        padding: 6px 12px;
+        border: 0;
+        text-align: left;
+    }
+
+    .teacher-judgment__table td[data-label]::before {
+        content: attr(data-label);
+        display: block;
+        color: var(--admin-text-muted);
+        font-size: 12px;
+        font-weight: 600;
     }
 }

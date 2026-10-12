@@ -13,6 +13,7 @@ use DomainException;
 use Illuminate\Database\QueryException;
 use Illuminate\Database\RecordsNotFoundException;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
@@ -92,6 +93,17 @@ final class LearningFrameworkController extends Controller
         });
     }
 
+    /** Throws the working draft away; the published Versions are untouched. */
+    public function destroyVersion(int $framework, int $version): RedirectResponse
+    {
+        return $this->mutate(function () use ($framework, $version): RedirectResponse {
+            $this->assertVersionInFramework($version, $framework);
+            $this->authoring->discardDraft((int) request()->user()->id, $framework, $version);
+
+            return back()->with('success', __('lf.LF_learning_draft_discarded'));
+        });
+    }
+
     public function storeDefinition(LearningNodeDefinitionRequest $request, int $framework): RedirectResponse
     {
         return $this->mutate(function () use ($request, $framework): RedirectResponse {
@@ -111,6 +123,25 @@ final class LearningFrameworkController extends Controller
             $this->authoring->updateDefinition((int) $request->user()->id, $definition, $command);
 
             return back()->with('success', __('lf.LF_learning_definition_updated'));
+        });
+    }
+
+    /** Simplified page: a new or existing competency goes into the working draft, created on demand. */
+    public function storeCompetency(Request $request, int $framework): RedirectResponse
+    {
+        abort_unless($request->user()?->role === 'customer_admin', 403);
+        $data = $request->validate([
+            'node_definition_id' => ['nullable', 'integer', 'min:1'],
+            'node_type' => ['required_without:node_definition_id', 'nullable', 'string', 'in:objective,concept,competency'],
+            'canonical_name' => ['required_without:node_definition_id', 'nullable', 'string', 'max:255'],
+            'code' => ['nullable', 'string', 'max:120'],
+            'description' => ['nullable', 'string', 'max:5000'],
+        ]);
+
+        return $this->mutate(function () use ($request, $framework, $data): RedirectResponse {
+            $this->authoring->addCompetency((int) $request->user()->id, $framework, $data);
+
+            return back()->with('success', __('lf.LF_learning_competency_added'));
         });
     }
 
@@ -145,9 +176,15 @@ final class LearningFrameworkController extends Controller
         } catch (RecordsNotFoundException) {
             abort(404);
         } catch (DomainException $exception) {
-            return back()->withInput()->withErrors([
-                'learning' => __('lf.LF_learning_authoring_error', ['code' => $exception->getMessage()]),
-            ]);
+            // Readable messages for the codes the simplified pages can trigger; others keep the code.
+            $readable = [
+                'LF_FRAMEWORK_AUTHORING_SCALE_INVALID' => ['mastery_scale', 'lf.LF_learning_simple_error_scale'],
+                'LF_FRAMEWORK_AUTHORING_NODE_ALREADY_IN_DRAFT' => ['learning', 'lf.LF_learning_simple_error_already_in_draft'],
+            ][$exception->getMessage()] ?? null;
+
+            return back()->withInput()->withErrors($readable
+                ? [$readable[0] => __($readable[1])]
+                : ['learning' => __('lf.LF_learning_authoring_error', ['code' => $exception->getMessage()])]);
         } catch (QueryException $exception) {
             $detail = (string) ($exception->errorInfo[2] ?? '');
             preg_match('/(?:constraint|key) [`\'"]?([A-Za-z0-9_]+)/i', $detail, $matches);

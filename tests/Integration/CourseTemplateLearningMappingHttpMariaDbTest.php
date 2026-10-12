@@ -403,9 +403,10 @@ class CourseTemplateLearningMappingHttpMariaDbTest extends TestCase
         // and learning-mappings.blade.php; the assertion was never updated,
         // which is what has kept the integration-mysql job red since then.
         $this->assertStringContainsString('Đầu ra &amp; năng lực', $html);
-        $this->assertStringContainsString('name="framework_version_id"', $html);
+        $this->assertStringContainsString('data-course-learning-selection', $html);
         $this->assertStringContainsString('Definition render', $html, 'The mapped Node label must render from the Learning read service.');
-        $this->assertStringContainsString('name="learning_node_id"', $html, 'The Node picker appears once a Version is selected.');
+        $this->assertStringContainsString('data-course-learning-lesson="'.$f['lesson_id'].'"', $html, 'Competencies are listed by lesson.');
+        $this->assertStringNotContainsString('course_template_lesson #', $html, 'No raw source type or id is shown.');
     }
 
     // ------------------------------- Drafts an admin can create a new Node in (P3-B B4)
@@ -477,8 +478,7 @@ class CourseTemplateLearningMappingHttpMariaDbTest extends TestCase
         $html = $this->editPage($f);
 
         $page = "/admin/course-templates/{$f['template_id']}/lessons/{$f['lesson_id']}/activities/{$f['activity_id']}";
-        $this->assertStringContainsString('Mở hoạt động', $html);
-        $this->assertMatchesRegularExpression('#class="btn btn-secondary" href="[^"]*'.preg_quote($page, '#').'">Mở hoạt động#', $html);
+        $this->assertMatchesRegularExpression('#class="course-learning__skill-link" href="[^"]*'.preg_quote($page, '#').'" title="Mở hoạt động">Hoạt động: Activity backlink-flat#', $html);
         $this->assertStringNotContainsString('/ai-authoring/', $html, 'The link is the Activity page, never an API address.');
     }
 
@@ -495,7 +495,7 @@ class CourseTemplateLearningMappingHttpMariaDbTest extends TestCase
             ->assertSessionHasNoErrors();
 
         $this->assertMatchesRegularExpression(
-            '#class="btn btn-secondary" href="[^"]*'.preg_quote("/admin/course-templates/{$f['template_id']}/sections/{$sectionId}/lessons/{$f['lesson_id']}/activities/{$f['activity_id']}", '#').'">Mở hoạt động#',
+            '#class="course-learning__skill-link" href="[^"]*'.preg_quote("/admin/course-templates/{$f['template_id']}/sections/{$sectionId}/lessons/{$f['lesson_id']}/activities/{$f['activity_id']}", '#').'"#',
             $this->editPage($f),
         );
     }
@@ -512,7 +512,11 @@ class CourseTemplateLearningMappingHttpMariaDbTest extends TestCase
             ->where('template_id', $f['template_id'])->where('source_type', 'course_template_activity')
             ->update(['source_id' => 999999]);
 
-        $this->assertStringNotContainsString('Mở hoạt động', $this->editPage($f), 'Neither a Lesson nor a missing Activity has a page to go back to.');
+        $html = $this->editPage($f);
+        $this->assertStringNotContainsString('course-learning__skill-link', $html, 'Neither a Lesson nor a missing Activity has a page to go back to.');
+        $orphanId = (int) DB::table('core_course_template_learning_mapping_intents')
+            ->where('template_id', $f['template_id'])->where('source_type', 'course_template_activity')->value('id');
+        $this->assertMatchesRegularExpression('#data-course-learning-orphans.*data-course-learning-intent="'.$orphanId.'"#s', $html, 'A link to removed content stays listed so it can be removed.');
     }
 
     public function test_the_tab_hides_the_node_picker_until_a_version_is_selected(): void
@@ -523,8 +527,239 @@ class CourseTemplateLearningMappingHttpMariaDbTest extends TestCase
             ->get($f['host']."/admin/course-templates/{$f['template_id']}/edit")
             ->assertOk()->getContent();
 
-        $this->assertStringContainsString('name="framework_version_id"', $html);
-        $this->assertStringNotContainsString('name="learning_node_id"', $html);
+        $this->assertStringContainsString('name="framework"', $html);
+        $this->assertStringContainsString('value="'.$f['framework_id'].':'.$f['version_id'].'"', $html);
+        $this->assertStringNotContainsString('name="learning_node_ids[]"', $html);
+    }
+
+    // ------------------------------------------------- Simplified tab forms (2026-10-11)
+
+    public function test_the_tab_selects_a_framework_from_one_combined_choice(): void
+    {
+        $f = $this->fixture('select-combined');
+
+        $this->admin($f)->put($f['host']."/admin/course-templates/{$f['template_id']}/learning-framework", [
+            'framework' => $f['framework_id'].':'.$f['version_id'],
+        ])->assertSessionHasNoErrors()->assertRedirect();
+
+        $template = DB::table('core_course_templates')->where('id', $f['template_id'])->first();
+        $this->assertSame($f['version_id'], (int) $template->selected_learning_framework_version_id);
+    }
+
+    public function test_the_lesson_picker_links_several_competencies_to_a_lesson_or_activity_target(): void
+    {
+        $f = $this->fixture('store-many');
+        $second = $this->secondPublishedNode($f);
+        $this->select($f);
+
+        $this->admin($f)->post($f['host']."/admin/course-templates/{$f['template_id']}/learning-mappings", [
+            'source' => 'course_template_lesson:'.$f['lesson_id'],
+            'learning_node_ids' => [(string) $f['node_id'], (string) $second],
+            'mapping_role' => 'teaches',
+        ])->assertSessionHasNoErrors()->assertRedirect();
+        $this->admin($f)->post($f['host']."/admin/course-templates/{$f['template_id']}/learning-mappings", [
+            'source' => 'course_template_activity:'.$f['activity_id'],
+            'learning_node_ids' => [(string) $second],
+            'mapping_role' => 'teaches',
+        ])->assertSessionHasNoErrors();
+
+        $intents = DB::table('core_course_template_learning_mapping_intents')->where('template_id', $f['template_id'])->orderBy('id')->get();
+        $this->assertSame(
+            [['course_template_lesson', $f['lesson_id'], $f['node_id']], ['course_template_lesson', $f['lesson_id'], $second], ['course_template_activity', $f['activity_id'], $second]],
+            $intents->map(fn ($i) => [$i->source_type, (int) $i->source_id, (int) $i->learning_node_id])->all(),
+        );
+    }
+
+    public function test_one_refused_competency_links_none_of_the_batch(): void
+    {
+        $f = $this->fixture('store-many-atomic');
+        $second = $this->secondPublishedNode($f);
+        $this->select($f);
+        $this->storeLessonMapping($f)->assertSessionHasNoErrors();
+        $revision = (int) DB::table('core_course_templates')->where('id', $f['template_id'])->value('working_revision');
+
+        // The second Node is fine, the first is already linked: nothing may be written.
+        $this->admin($f)->post($f['host']."/admin/course-templates/{$f['template_id']}/learning-mappings", [
+            'source' => 'course_template_lesson:'.$f['lesson_id'],
+            'learning_node_ids' => [(string) $second, (string) $f['node_id']],
+            'mapping_role' => 'teaches',
+        ])->assertSessionHasErrors('learning_node_id');
+
+        $this->assertSame(1, DB::table('core_course_template_learning_mapping_intents')->where('template_id', $f['template_id'])->count());
+        $this->assertSame($revision, (int) DB::table('core_course_templates')->where('id', $f['template_id'])->value('working_revision'));
+    }
+
+    public function test_the_picker_refuses_an_empty_choice_and_a_malformed_target(): void
+    {
+        $f = $this->fixture('store-many-invalid');
+        $this->select($f);
+        $url = $f['host']."/admin/course-templates/{$f['template_id']}/learning-mappings";
+
+        $this->admin($f)->post($url, ['source' => 'course_template_lesson:'.$f['lesson_id'], 'mapping_role' => 'teaches'])
+            ->assertSessionHasErrors('learning_node_ids');
+        $this->admin($f)->post($url, ['source' => 'core_users:1', 'learning_node_ids' => [(string) $f['node_id']], 'mapping_role' => 'teaches'])
+            ->assertSessionHasErrors('source_type');
+        $this->assertSame(0, DB::table('core_course_template_learning_mapping_intents')->where('template_id', $f['template_id'])->count());
+    }
+
+    // ------------------------------------------------- Move to a newer Version (2026-10-11)
+
+    public function test_moving_to_the_newer_version_keeps_links_by_definition_and_drops_the_rest(): void
+    {
+        $f = $this->fixture('upgrade-ok');
+        $this->select($f);
+        $this->storeLessonMapping($f, ['weight' => '0.5'])->assertSessionHasNoErrors();
+        $original = DB::table('core_course_template_learning_mapping_intents')->where('template_id', $f['template_id'])->firstOrFail();
+
+        [$v2, $v2Nodes] = $this->publishedVersionWith($f, [$this->fixtureDefinition($f)]);
+        $revision = (int) DB::table('core_course_templates')->where('id', $f['template_id'])->value('working_revision');
+
+        $html = $this->editPage($f);
+        $this->assertStringContainsString('data-course-learning-upgrade="'.$v2.'"', $html);
+        $this->assertStringContainsString('1 liên kết năng lực sẽ được giữ lại.', $html);
+        $this->assertStringNotContainsString('course-learning__change-locked', $html, 'The upgrade box replaces the locked-change note.');
+
+        $this->admin($f)->post($f['host']."/admin/course-templates/{$f['template_id']}/learning-framework/upgrade", [
+            'framework_version_id' => (string) $v2, 'working_revision' => (string) $revision,
+        ])->assertSessionHasNoErrors()->assertRedirect();
+
+        $template = DB::table('core_course_templates')->where('id', $f['template_id'])->first();
+        $this->assertSame($v2, (int) $template->selected_learning_framework_version_id);
+        $this->assertSame($revision + 1, (int) $template->working_revision);
+        $moved = DB::table('core_course_template_learning_mapping_intents')->where('template_id', $f['template_id'])->get();
+        $this->assertCount(1, $moved);
+        $this->assertSame($v2Nodes[$this->fixtureDefinition($f)], (int) $moved[0]->learning_node_id);
+        $this->assertSame($v2, (int) $moved[0]->framework_version_id);
+        $this->assertSame('0.500000', $moved[0]->weight);
+        $this->assertSame((string) $original->created_at, (string) $moved[0]->created_at, 'The original author and time are kept.');
+        $after = $this->editPage($f);
+        $this->assertStringNotContainsString('data-course-learning-upgrade', $after, 'Nothing newer is offered after the move.');
+        $this->assertStringContainsString('course-learning__change-locked', $after, 'Without an upgrade the locked-change note returns.');
+    }
+
+    public function test_a_link_whose_competency_left_the_framework_is_listed_and_removed(): void
+    {
+        $f = $this->fixture('upgrade-drop');
+        $this->select($f);
+        $this->storeLessonMapping($f)->assertSessionHasNoErrors();
+        [$v2] = $this->publishedVersionWith($f, [$this->definition($f, 'NEW')]);
+        $revision = (int) DB::table('core_course_templates')->where('id', $f['template_id'])->value('working_revision');
+
+        $this->assertStringContainsString('data-course-learning-upgrade-removed', $this->editPage($f));
+
+        $this->admin($f)->post($f['host']."/admin/course-templates/{$f['template_id']}/learning-framework/upgrade", [
+            'framework_version_id' => (string) $v2, 'working_revision' => (string) $revision,
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame(0, DB::table('core_course_template_learning_mapping_intents')->where('template_id', $f['template_id'])->count());
+        $this->assertSame($v2, (int) DB::table('core_course_templates')->where('id', $f['template_id'])->value('selected_learning_framework_version_id'));
+    }
+
+    public function test_a_stale_or_unplanned_move_changes_nothing(): void
+    {
+        $f = $this->fixture('upgrade-stale');
+        $this->select($f);
+        $this->storeLessonMapping($f)->assertSessionHasNoErrors();
+        [$v2] = $this->publishedVersionWith($f, [$this->fixtureDefinition($f)]);
+        $revision = (int) DB::table('core_course_templates')->where('id', $f['template_id'])->value('working_revision');
+        $url = $f['host']."/admin/course-templates/{$f['template_id']}/learning-framework/upgrade";
+
+        $this->admin($f)->post($url, ['framework_version_id' => (string) $v2, 'working_revision' => (string) ($revision - 1)])
+            ->assertSessionHasErrors('framework_version_id');
+        $this->admin($f)->post($url, ['framework_version_id' => (string) $f['version_id'], 'working_revision' => (string) $revision])
+            ->assertSessionHasErrors('framework_version_id');
+
+        $this->assertSame($f['version_id'], (int) DB::table('core_course_templates')->where('id', $f['template_id'])->value('selected_learning_framework_version_id'));
+        $this->assertSame($f['node_id'], (int) DB::table('core_course_template_learning_mapping_intents')->where('template_id', $f['template_id'])->value('learning_node_id'));
+    }
+
+    public function test_only_an_admin_can_move_the_version(): void
+    {
+        $f = $this->fixture('upgrade-teacher');
+        $this->select($f);
+        [$v2] = $this->publishedVersionWith($f, [$this->fixtureDefinition($f)]);
+        $this->actingAs(User::findOrFail($f['teacher_id']));
+
+        $this->post($f['host']."/teacher/course-templates/{$f['template_id']}/learning-framework/upgrade", [
+            'framework_version_id' => (string) $v2, 'working_revision' => '1',
+        ])->assertForbidden();
+
+        $this->assertSame($f['version_id'], (int) DB::table('core_course_templates')->where('id', $f['template_id'])->value('selected_learning_framework_version_id'));
+    }
+
+    /** @param array<string, mixed> $f */
+    private function fixtureDefinition(array $f): int
+    {
+        return (int) DB::table('core_learning_nodes')->where('id', $f['node_id'])->value('node_definition_id');
+    }
+
+    /** @param array<string, mixed> $f */
+    private function definition(array $f, string $code): int
+    {
+        TenantContext::set((object) ['id' => $f['customer_id']]);
+        $definition = app(LearningFrameworkAuthoringService::class)->createDefinition($f['admin_id'], [
+            'framework_id' => $f['framework_id'], 'code' => $code.'-'.$f['slug'],
+            'node_type' => 'competency', 'canonical_name' => 'Definition '.$code,
+        ]);
+        TenantContext::set(null);
+
+        return (int) $definition->id;
+    }
+
+    /**
+     * Publishes the next Version of the fixture Framework holding exactly the given Definitions.
+     *
+     * @param  array<string, mixed>  $f
+     * @param  array<int, int>  $definitionIds
+     * @return array{0:int, 1:array<int,int>} Version id and Node id by Definition id
+     */
+    private function publishedVersionWith(array $f, array $definitionIds): array
+    {
+        TenantContext::set((object) ['id' => $f['customer_id']]);
+        $authoring = app(LearningFrameworkAuthoringService::class);
+        $number = 1 + (int) DB::table('core_learning_framework_versions')->where('framework_id', $f['framework_id'])->max('version_number');
+        $version = $authoring->createDraftVersion($f['admin_id'], [
+            'framework_id' => $f['framework_id'], 'version_code' => 'v'.$number, 'title' => 'V'.$number,
+        ]);
+        $nodes = [];
+        foreach ($definitionIds as $definitionId) {
+            $nodes[$definitionId] = (int) $authoring->createNode($f['admin_id'], [
+                'framework_version_id' => $version->id, 'node_definition_id' => $definitionId,
+            ])->id;
+        }
+        $authoring->publishVersion($f['admin_id'], (int) $version->id);
+        TenantContext::set(null);
+
+        return [(int) $version->id, $nodes];
+    }
+
+    /**
+     * Publishes a Version 2 holding the fixture Definition and one more, and
+     * points the fixture at it. Returns the id of the second Node.
+     *
+     * @param  array<string, mixed>  $f
+     */
+    private function secondPublishedNode(array &$f): int
+    {
+        TenantContext::set((object) ['id' => $f['customer_id']]);
+        $authoring = app(LearningFrameworkAuthoringService::class);
+        $definitionId = (int) DB::table('core_learning_node_definitions')->where('framework_id', $f['framework_id'])->value('id');
+        $extra = $authoring->createDefinition($f['admin_id'], [
+            'framework_id' => $f['framework_id'], 'code' => 'D2-'.$f['slug'],
+            'node_type' => 'competency', 'canonical_name' => 'Second definition '.$f['slug'],
+        ]);
+        $version = $authoring->createDraftVersion($f['admin_id'], [
+            'framework_id' => $f['framework_id'], 'version_code' => 'v2', 'title' => 'V2',
+        ]);
+        $first = $authoring->createNode($f['admin_id'], ['framework_version_id' => $version->id, 'node_definition_id' => $definitionId]);
+        $second = $authoring->createNode($f['admin_id'], ['framework_version_id' => $version->id, 'node_definition_id' => $extra->id]);
+        $authoring->publishVersion($f['admin_id'], (int) $version->id);
+        TenantContext::set(null);
+
+        $f['version_id'] = (int) $version->id;
+        $f['node_id'] = (int) $first->id;
+
+        return (int) $second->id;
     }
 
     // -------------------------------------------------------------- Fixtures

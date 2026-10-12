@@ -32,6 +32,12 @@ final class LearningFrameworkReadService
             ->selectRaw('COUNT(versions.id) as version_count')
             ->selectRaw("SUM(CASE WHEN versions.status = 'draft_snapshot' THEN 1 ELSE 0 END) as draft_count")
             ->selectRaw("SUM(CASE WHEN versions.status = 'published' THEN 1 ELSE 0 END) as published_count")
+            ->selectRaw("MAX(CASE WHEN versions.status = 'published' THEN versions.version_number END) as current_version_number")
+            // Active competencies of the newest published Version, for the simplified list page.
+            ->selectRaw("(SELECT COUNT(*) FROM core_learning_nodes n JOIN core_learning_framework_versions v ON v.id = n.framework_version_id AND v.customer_id = n.customer_id
+                WHERE n.customer_id = frameworks.customer_id AND v.framework_id = frameworks.id AND n.status = 'active' AND v.status = 'published'
+                AND v.version_number = (SELECT MAX(v2.version_number) FROM core_learning_framework_versions v2
+                    WHERE v2.customer_id = frameworks.customer_id AND v2.framework_id = frameworks.id AND v2.status = 'published')) as competency_count")
             ->groupBy([
                 'frameworks.id', 'frameworks.customer_id', 'frameworks.code', 'frameworks.name',
                 'frameworks.description', 'frameworks.default_mastery_scale_key',
@@ -96,7 +102,7 @@ final class LearningFrameworkReadService
             })
             ->where('versions.customer_id', $customerId)
             ->where('versions.status', 'published')
-            ->select('versions.id as framework_version_id', 'versions.framework_id', 'versions.version_code', 'versions.title_snapshot', 'frameworks.name as framework_name')
+            ->select('versions.id as framework_version_id', 'versions.framework_id', 'versions.version_number', 'versions.version_code', 'versions.title_snapshot', 'frameworks.name as framework_name')
             ->orderBy('frameworks.name')->orderByDesc('versions.version_number')->get();
     }
 
@@ -135,7 +141,7 @@ final class LearningFrameworkReadService
         return DB::table('core_learning_nodes')
             ->where('customer_id', $customerId)
             ->whereIn('id', $ids)
-            ->get(['id', 'code_snapshot', 'name_snapshot'])
+            ->get(['id', 'node_definition_id', 'code_snapshot', 'name_snapshot'])
             ->keyBy(fn (object $node): int => (int) $node->id);
     }
 

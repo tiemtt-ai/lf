@@ -1,17 +1,17 @@
 {{-- The one place for AI proposals. Choosing an Activity reloads the page, so the section below
      is always built for exactly one Activity and no state carries over from another. --}}
-<div id="ai-authoring-entry" class="admin-card admin-form-card admin-form-surface">
+<div id="ai-authoring-entry" class="admin-card admin-form-card admin-form-surface course-learning-ai">
     <h2 class="admin-form-section-title">{{ __('lf.LF_course_template_ai_entry_title') }}</h2>
     <p class="admin-form-help">{{ __('lf.LF_course_template_ai_entry_intro') }}</p>
 
     @if ($aiAuthoring['activities'] === [])
         <p class="lf-secondary-text" data-ai-authoring-no-activities>{{ __('lf.LF_course_template_ai_entry_none') }}</p>
     @else
-        <form class="admin-form-standard" method="GET" action="{{ route($routePrefix.'.edit', $template->id) }}#ai-authoring-entry">
+        <form class="course-learning-ai__form" method="GET" action="{{ route($routePrefix.'.edit', $template->id) }}#ai-authoring-entry">
             <input type="hidden" name="tab" value="learning">
-            <div class="admin-form-group">
-                <label for="ai-authoring-activity">{{ __('lf.LF_course_template_ai_entry_label') }}</label>
-                <select id="ai-authoring-activity" name="ai_activity" required>
+            <div class="lf-form-group course-learning-ai__field">
+                <label class="lf-form-label" for="ai-authoring-activity">{{ __('lf.LF_course_template_ai_entry_label') }}</label>
+                <select id="ai-authoring-activity" name="ai_activity" class="lf-form-control" required>
                     <option value="">{{ __('lf.LF_course_template_ai_entry_placeholder') }}</option>
                     @foreach (collect($aiAuthoring['activities'])->groupBy('lesson_title') as $lessonTitle => $activities)
                         <optgroup label="{{ $lessonTitle }}">
@@ -22,9 +22,7 @@
                     @endforeach
                 </select>
             </div>
-            <div class="admin-form-actions">
-                <button type="submit" class="btn btn-primary">{{ __('lf.LF_course_template_ai_entry_submit') }}</button>
-            </div>
+            <button type="submit" class="btn btn-primary">{{ __('lf.LF_course_template_ai_entry_submit') }}</button>
         </form>
     @endif
 </div>

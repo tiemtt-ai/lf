@@ -130,6 +130,9 @@ criteria hay không.
 * [LF-Learning-Foundation-Phase-4E-Teacher-Judgment-Design.md](LF-Learning-Foundation-Phase-4E-Teacher-Judgment-Design.md)
   — Phase 4E design/readiness review for immutable Teacher Judgment source,
   default-deny authorization and end-to-end Learning projection preparation.
+* [LF-Teacher-Judgment-Course-Scope-Amendment.md](LF-Teacher-Judgment-Course-Scope-Amendment.md)
+  — Owner-approved 2026-10-11: teachers judge only competencies of the Framework
+  Version their cohort's Course Version mapped; mapped ones first (option A).
 * [LF-Learning-Foundation-Phase-4E-Course-Parent-Key-Prerequisite-Review.md](LF-Learning-Foundation-Phase-4E-Course-Parent-Key-Prerequisite-Review.md)
   — HIGH documentation review for four released Course composite parent keys
   required by tenant-safe Teacher Judgment source foreign keys.
