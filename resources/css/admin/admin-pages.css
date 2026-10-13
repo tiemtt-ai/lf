@@ -7749,7 +7749,7 @@
 }
 
 .lf-admin-page .course-enrollment-index-table .course-cohort-index-actions { width: 128px; min-width: 128px; text-align: center; }
-.lf-admin-page .course-enrollment-index-table .course-enrollment-status-badge { border: 0; }
+.lf-admin-page .admin-managed-list .admin-managed-status .badge { border: 0; }
 @media (min-width: 768px) {
     .lf-admin-page .course-enrollment-index-table {
         width: 100%;
