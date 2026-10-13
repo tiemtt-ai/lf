@@ -207,6 +207,8 @@ return [
      * never call a provider and do not depend on this block.
      */
     'authoring' => [
+        // Temporarily hide the Course AI entry until the product is ready to expose it.
+        'ui_enabled' => env('AI_AUTHORING_UI_ENABLED', false),
         'provider' => env('AI_AUTHORING_PROVIDER'),
         'model' => env('AI_AUTHORING_MODEL'),
         'data_classes' => ['derived_text'],

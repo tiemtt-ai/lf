@@ -175,9 +175,9 @@
             @else
                 <div class="admin-table-wrap course-learning__table-wrap">
                     <table class="table course-learning__table">
+                        <colgroup><col class="course-learning__half-col"><col class="course-learning__half-col"></colgroup>
                         <thead>
                             <tr>
-                                <th scope="col" class="admin-table-sequence">{{ __('lf.LF_course_template_learning_col_no') }}</th>
                                 <th scope="col">{{ __('lf.LF_course_template_learning_col_lesson') }}</th>
                                 <th scope="col">{{ __('lf.LF_course_template_learning_col_skills') }}</th>
                             </tr>
@@ -186,7 +186,7 @@
                             @foreach ($rows as $row)
                                 @if ($row['type'] === 'section')
                                     <tr class="course-learning__section-row">
-                                        <th scope="colgroup" colspan="3" class="course-learning__section-cell" data-depth="{{ min($row['depth'], 3) }}">{{ $row['title'] }}</th>
+                                        <th scope="colgroup" colspan="2" class="course-learning__section-cell" data-depth="{{ min($row['depth'], 3) }}">{{ $row['title'] }}</th>
                                     </tr>
                                 @else
                                     @php
@@ -196,7 +196,6 @@
                                         $pickerId = 'course-learning-picker-'.$lesson->id;
                                     @endphp
                                     <tr id="{{ $pickerId }}-row" data-course-learning-lesson="{{ $lesson->id }}">
-                                        <td class="admin-table-sequence">{{ $row['number'] }}</td>
                                         <td class="course-learning__lesson-cell">
                                             <span class="course-learning__lesson-title">{{ $lesson->title }}</span>
                                             <span class="course-learning__meta">{{ trans_choice('lf.LF_course_template_learning_lesson_activities', $row['activities']->count(), ['count' => $row['activities']->count()]) }}</span>
@@ -221,7 +220,10 @@
                                                         aria-labelledby="{{ $pickerId }}-title" @click="if ($event.target === $el) $el.close()"
                                                         @if (old('mapping_picker') === $pickerId && $errors->any()) x-init="$nextTick(() => $el.showModal())" @endif>
                                                     <header class="course-learning__preview-head">
-                                                        <h2 id="{{ $pickerId }}-title" class="admin-form-section-title">{{ __('lf.LF_course_template_learning_picker_label', ['lesson' => $lesson->title]) }}</h2>
+                                                        <div>
+                                                            <h2 id="{{ $pickerId }}-title" class="admin-form-section-title">{{ __('lf.LF_course_template_learning_add') }}</h2>
+                                                            <p class="course-learning__mapping-lesson">{{ $lesson->title }}</p>
+                                                        </div>
                                                         <button type="button" class="btn btn-secondary" @click="$refs.mappingDialog.close()">{{ __('lf.LF_common_button_close') }}</button>
                                                     </header>
                                                 @if (old('mapping_picker') === $pickerId && $errors->any())
@@ -276,10 +278,9 @@
                             @endforeach
                             @if ($orphanSkills->isNotEmpty())
                                 <tr class="course-learning__section-row">
-                                    <th scope="colgroup" colspan="3" class="course-learning__section-cell">{{ __('lf.LF_course_template_learning_orphans') }}</th>
+                                    <th scope="colgroup" colspan="2" class="course-learning__section-cell">{{ __('lf.LF_course_template_learning_orphans') }}</th>
                                 </tr>
                                 <tr data-course-learning-orphans>
-                                    <td class="admin-table-sequence"></td>
                                     <td class="course-learning__lesson-cell">
                                         <span class="course-learning__meta">{{ __('lf.LF_course_template_learning_orphans_help') }}</span>
                                     </td>

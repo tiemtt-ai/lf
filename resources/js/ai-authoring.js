@@ -134,6 +134,7 @@ function readJson(node, attribute) {
 export class AiAuthoring {
     constructor(root, config, messages) {
         this.root = root;
+        this.generationConfigured = config.generationConfigured !== false;
         this.urls = config.urls;
         this.framework = config.framework && config.framework.selected === true
             ? { id: config.framework.framework_id, versionId: config.framework.framework_version_id } : null;
@@ -568,7 +569,7 @@ export class AiAuthoring {
             return;
         }
         this.revoked = false;
-        this.createToggle.disabled = false;
+        this.createToggle.disabled = !this.generationConfigured;
         const items = Array.isArray(result.data.items) ? result.data.items : [];
         this.items = reset ? items : [...this.items, ...items];
         this.nextCursor = typeof result.data.next_cursor === 'string' ? result.data.next_cursor : null;
@@ -1031,13 +1032,17 @@ export class AiAuthoring {
         this.createToggle = this.button('create_open', () => this.toggleCreate(), 'btn btn-primary');
         this.createToggle.setAttribute('aria-expanded', 'false');
         this.createToggle.setAttribute('aria-controls', 'ai-authoring-create');
+        this.createToggle.disabled = !this.generationConfigured;
+        const createAction = !this.generationConfigured
+            ? el('span', { className: 'ai-authoring__disabled-create', attrs: { tabindex: '0', title: this.t('generation_unavailable') } }, [this.createToggle])
+            : this.createToggle;
         this.createPanel = el('div', { className: 'ai-authoring__create', attrs: { id: 'ai-authoring-create', hidden: '' } });
         this.createResult = el('div', { className: 'ai-authoring__create-result' });
         this.countEl = el('p', { className: 'ai-authoring__count lf-secondary-text', attrs: { 'aria-live': 'off' } });
 
         // Count at the left, the one create action at the right (list standard §25.3).
         return [
-            el('div', { className: 'ai-authoring__toolbar' }, [this.countEl, this.createToggle]),
+            el('div', { className: 'ai-authoring__toolbar' }, [this.countEl, createAction]),
             this.createPanel,
             this.createResult,
         ];

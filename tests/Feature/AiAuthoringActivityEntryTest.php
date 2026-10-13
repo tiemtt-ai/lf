@@ -33,6 +33,7 @@ class AiAuthoringActivityEntryTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        config(['ai.authoring.ui_enabled' => true]);
         config(['app.url' => self::HOST, 'app.base_domain' => 'localhost', 'app.tenant_scheme' => 'https']);
         URL::forceRootUrl(self::HOST);
         URL::forceScheme('https');
@@ -65,6 +66,15 @@ class AiAuthoringActivityEntryTest extends TestCase
             'embedded video (a link)' => ['embedded_video', false], 'quiz' => ['quiz', false],
             'live class (a link)' => ['live_class', false],
         ];
+    }
+
+    public function test_ai_entry_is_hidden_when_ui_is_disabled(): void
+    {
+        config(['ai.authoring.ui_enabled' => false]);
+        $this->activity($this->lessonId, 'video');
+        $this->actingAs($this->user('customer_admin'))->get($this->tabUrl('admin'))
+            ->assertOk()->assertDontSee('id="ai-authoring-entry"', false)
+            ->assertDontSee('id="ai-authoring-activity"', false);
     }
 
     #[DataProvider('kinds')]

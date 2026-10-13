@@ -5,6 +5,7 @@
     // authority checks as every proposal command.
     $aiConfig = [
         'isAdmin' => $aiAuthoring['is_admin'],
+        'generationConfigured' => (bool) config('ai.authoring.provider') && (bool) config('ai.authoring.model'),
         'framework' => $aiAuthoring['framework'],
         // Draft versions an admin may create a new Node in; empty for a teacher.
         'draftVersions' => $aiAuthoring['draft_versions'],

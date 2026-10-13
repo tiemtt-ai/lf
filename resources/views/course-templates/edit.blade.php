@@ -174,7 +174,7 @@
                 @if ($learningMappingState)
                     @include('course-templates.partials.learning-mappings')
                 @endif
-                @if ($aiAuthoring)
+                @if ($aiAuthoring && config('ai.authoring.ui_enabled', false))
                     @include('course-templates.partials.ai-authoring-entry')
                 @endif
             </section>

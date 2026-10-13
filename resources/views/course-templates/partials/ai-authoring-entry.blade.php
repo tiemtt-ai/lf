@@ -7,11 +7,11 @@
     @if ($aiAuthoring['activities'] === [])
         <p class="lf-secondary-text" data-ai-authoring-no-activities>{{ __('lf.LF_course_template_ai_entry_none') }}</p>
     @else
-        <form class="course-learning-ai__form" method="GET" action="{{ route($routePrefix.'.edit', $template->id) }}#ai-authoring-entry">
+        <form x-data="{ activity: @js((string) ($aiAuthoring['selected_activity_id'] ?? '')) }" class="course-learning-ai__form" method="GET" action="{{ route($routePrefix.'.edit', $template->id) }}#ai-authoring-entry">
             <input type="hidden" name="tab" value="learning">
             <div class="lf-form-group course-learning-ai__field">
                 <label class="lf-form-label" for="ai-authoring-activity">{{ __('lf.LF_course_template_ai_entry_label') }}</label>
-                <select id="ai-authoring-activity" name="ai_activity" class="lf-form-control" required>
+                <select id="ai-authoring-activity" name="ai_activity" class="lf-form-control" x-model="activity" required>
                     <option value="">{{ __('lf.LF_course_template_ai_entry_placeholder') }}</option>
                     @foreach (collect($aiAuthoring['activities'])->groupBy('lesson_title') as $lessonTitle => $activities)
                         <optgroup label="{{ $lessonTitle }}">
@@ -22,7 +22,7 @@
                     @endforeach
                 </select>
             </div>
-            <button type="submit" class="btn btn-primary">{{ __('lf.LF_course_template_ai_entry_submit') }}</button>
+            <button type="submit" class="btn btn-primary" :disabled="!activity">{{ __('lf.LF_course_template_ai_entry_submit') }}</button>
         </form>
     @endif
 </div>

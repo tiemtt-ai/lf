@@ -76,3 +76,6 @@ LOW UI follow-up: only scoped attachment/removal success status now fades after 
 
 ## Flat attachment dialog — 2026-10-13
 LOW CSS-only follow-up removes nested form/list/item borders and outer dialog border. Whitespace and subtle hover/selected backgrounds provide grouping; keyboard focus outline retained. Two-column/mobile scroll behavior and writes unchanged. Build/diff passed; browser screenshot inspected (/private/tmp/learnforge-mapping-flat.png).
+
+## AI entry compact layout after reset — 2026-10-13
+LOW scoped UI update to existing single-activity entry: neutral background/border, shorter VI/EN help, smaller labels, fixed 42px aligned selector/button, mobile stacked full-width button. View suggestions disabled until a choice exists. Existing GET, proposal authority and creation disabled state preserved. Build, Blade/diff and AI entry tests passed. Browser verification could not locate the current selector; no live command submitted.

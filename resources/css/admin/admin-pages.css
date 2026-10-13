@@ -7613,3 +7613,65 @@
     border: 0;
     border-radius: 0;
 }
+
+.ai-authoring__disabled-create { display: inline-flex; cursor: help; }
+.ai-authoring__disabled-create > button { pointer-events: none; }
+.ai-authoring__disabled-create:focus-visible { outline: 2px solid var(--admin-primary); outline-offset: 3px; border-radius: 6px; }
+
+@media (min-width: 768px) {
+    .course-learning__table .course-learning__sequence-col { width: 56px; }
+    .lf-admin-page .course-learning__table .admin-table-sequence {
+        width: 56px;
+        min-width: 56px;
+        max-width: 56px;
+        padding-left: 8px;
+        padding-right: 8px;
+        box-sizing: border-box;
+        text-align: center;
+        white-space: nowrap;
+    }
+}
+@media (max-width: 767px) {
+    .course-learning__table colgroup { display: none; }
+}
+
+@media (min-width: 768px) {
+    .course-learning__table { table-layout: fixed; }
+    .course-learning__table .course-learning__half-col { width: 50%; }
+    .lf-admin-page .course-learning__table .course-learning__lesson-cell,
+    .lf-admin-page .course-learning__table .course-learning__skills-cell { width: 50%; min-width: 0; overflow-wrap: anywhere; }
+}
+
+.course-learning__skills-cell .course-learning__skills { min-width: 0; max-width: 100%; }
+.course-learning__skills-cell .course-learning__skill { min-width: 0; max-width: 100%; box-sizing: border-box; gap: 8px; }
+.course-learning__skills-cell .course-learning__skill-text { flex: 1 1 auto; min-width: 0; }
+.course-learning__skills-cell .course-learning__skill-name { white-space: normal; overflow-wrap: anywhere; word-break: normal; }
+.course-learning__skills-cell .course-learning__skill-remove { flex: 0 0 32px; margin: 0 0 0 auto; }
+
+/* Compact attachment modal: the list scrolls while its actions stay visible. */
+.course-learning__mapping-dialog { width: min(860px, calc(100vw - 32px)); }
+.course-learning__mapping-dialog .course-learning__preview-head { padding: 16px 20px; }
+.course-learning__mapping-lesson { margin: 6px 0 0; color: var(--admin-text-muted); font-size: 14px; line-height: 1.4; overflow-wrap: anywhere; }
+.course-learning__mapping-dialog .course-learning__picker-panel { margin: 0; padding: 16px 20px 0; gap: 12px; }
+.course-learning__mapping-dialog .course-learning__nodes-grid { gap: 4px 16px; }
+.course-learning__mapping-dialog .course-learning__node { padding: 10px; }
+.course-learning__mapping-dialog .course-learning__node-name { font-size: 14px; line-height: 1.4; }
+.course-learning__mapping-dialog .course-learning__node .course-learning__meta { font-size: 12px; margin-top: 3px; overflow-wrap: anywhere; }
+.course-learning__mapping-dialog .course-learning__picker-actions { position: sticky; bottom: 0; background: var(--admin-surface); padding: 16px 0; margin: 0; }
+@media (max-width: 767px) {
+    .course-learning__mapping-dialog .course-learning__picker-panel { padding: 12px 16px 0; }
+    .course-learning__mapping-dialog .course-learning__nodes { max-height: 45vh; }
+}
+
+.course-learning-ai { background: var(--admin-surface); border-color: var(--admin-border); gap: 16px; }
+.course-learning-ai .admin-form-section-title { color: var(--admin-text); }
+.lf-admin-page .course-learning-ai > .admin-form-help { font-size: 14px; color: var(--admin-text-muted); line-height: 1.5; }
+.course-learning-ai__form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: end; }
+.lf-admin-page .course-learning-ai__form .course-learning-ai__field { margin: 0; }
+.lf-admin-page .course-learning-ai__form .lf-form-label { display: block; margin-bottom: 8px; font-size: 13px; }
+.lf-admin-page .course-learning-ai__form .lf-form-control,
+.lf-admin-page .course-learning-ai__form > .btn { height: 42px; min-height: 42px; margin: 0; box-sizing: border-box; }
+@media (max-width: 767px) {
+    .course-learning-ai__form { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+    .course-learning-ai__form > .btn { width: 100%; }
+}
