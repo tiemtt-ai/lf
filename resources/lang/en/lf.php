@@ -1106,6 +1106,8 @@ return [
     'LF_course_template_common_inactive' => 'Inactive',
     'LF_course_template_common_archived' => 'Archived',
     'LF_course_template_common_clear_filters' => 'Clear filters',
+    'LF_course_template_manage_tooltip' => 'Open the course template settings page',
+    'LF_course_template_action_manage' => 'Manage',
     'LF_course_template_common_name' => 'Course name',
     'LF_course_template_common_category' => 'Category',
     'LF_course_template_common_no_category' => 'No category',

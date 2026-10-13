@@ -1106,6 +1106,8 @@ return [
     'LF_course_template_common_inactive' => 'Ngừng hoạt động',
     'LF_course_template_common_archived' => 'Ngừng sử dụng',
     'LF_course_template_common_clear_filters' => 'Xóa bộ lọc',
+    'LF_course_template_manage_tooltip' => 'Mở trang thiết lập Template khóa học',
+    'LF_course_template_action_manage' => 'Quản lý',
     'LF_course_template_common_name' => 'Tên khóa học',
     'LF_course_template_common_category' => 'Danh mục',
     'LF_course_template_common_no_category' => 'Không thuộc danh mục',

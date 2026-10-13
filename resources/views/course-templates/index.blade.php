@@ -73,12 +73,12 @@
     </div>
 
     <div class="admin-table-wrap course-template-index-table-wrap">
-        <table class="table course-template-index-table admin-table-has-actions">
+        <table class="table course-template-index-table">
             <thead>
             <tr>
                 <th class="admin-table-sequence">{{ __('lf.table_no') }}</th>
                 <th>{{ __('lf.LF_course_template_common_name') }}</th>
-                <th>{{ __('lf.LF_course_template_common_category') }}</th>
+                <th class="course-template-index-category">{{ __('lf.LF_course_template_common_category') }}</th>
                 <th class="course-template-index-status">{{ __('lf.LF_course_template_common_status') }}</th>
                 <th class="course-template-index-actions">{{ __('lf.table_actions') }}</th>
             </tr>
@@ -107,12 +107,10 @@
                         </span>
                     </td>
                     <td class="course-template-index-actions" data-label="{{ __('lf.table_actions') }}">
-                        <x-admin-action-menu :label="__('lf.table_actions').': '.$template->title">
-                            <a class="admin-table-action-link admin-text-action" href="{{ route($routePrefix.'.edit', $template->id) }}">
-                                <x-admin-action-icon name="edit" />
-                                {{ __('lf.action_edit') }}
-                            </a>
-                        </x-admin-action-menu>
+                        <a class="btn btn-secondary course-template-manage" href="{{ route($routePrefix.'.edit', $template->id) }}">
+                            <x-admin-action-icon name="edit" />
+                            {{ __('lf.LF_course_template_action_manage') }}
+                        </a>
                     </td>
                 </tr>
             @empty
