@@ -2725,6 +2725,7 @@ return [
     'LF_course_template_teacher_group_information' => 'Thông tin giáo viên',
     'LF_course_template_teacher_group_role' => 'Vai trò trong Template',
     'LF_course_template_teacher_group_status' => 'Trạng thái phân công',
+    'LF_course_template_ai_temporarily_hidden' => 'Gợi ý năng lực bằng AI đang tạm ẩn vì chưa kết nối AI thực tế. Bạn vẫn có thể gắn năng lực thủ công.',
     'LF_course_template_ai_entry_title' => 'Gợi ý năng lực bằng AI',
     'LF_course_template_ai_entry_intro' => 'Chọn hoạt động có tài liệu, âm thanh hoặc video để xem gợi ý. Bạn duyệt trước khi gắn năng lực.',
     'LF_course_template_ai_entry_label' => 'Hoạt động có Media',

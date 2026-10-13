@@ -176,6 +176,8 @@
                 @endif
                 @if ($aiAuthoring && config('ai.authoring.ui_enabled', false))
                     @include('course-templates.partials.ai-authoring-entry')
+                @elseif ($aiAuthoring)
+                    <p class="course-learning-ai-paused" role="note"><span aria-hidden="true">ⓘ</span><span>{{ __('lf.LF_course_template_ai_temporarily_hidden') }}</span></p>
                 @endif
             </section>
         @endif

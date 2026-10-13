@@ -2725,6 +2725,7 @@ return [
     'LF_course_template_teacher_group_information' => 'Teacher Information',
     'LF_course_template_teacher_group_role' => 'Template Role',
     'LF_course_template_teacher_group_status' => 'Assignment Status',
+    'LF_course_template_ai_temporarily_hidden' => 'AI competency suggestions are temporarily hidden until a live AI service is connected. You can still link competencies manually.',
     'LF_course_template_ai_entry_title' => 'AI competency suggestions',
     'LF_course_template_ai_entry_intro' => 'Choose an activity with a document, audio or video to view suggestions. Review them before linking competencies.',
     'LF_course_template_ai_entry_label' => 'Activity with Media',
