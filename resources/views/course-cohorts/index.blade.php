@@ -66,23 +66,23 @@
     </div>
 
     <div class="admin-table-wrap course-cohort-index-table-wrap">
-        <table class="table course-cohort-index-table admin-table-has-actions">
+        <table class="table course-cohort-index-table course-cohort-manage-index admin-managed-list">
             <thead>
             <tr>
-                <th class="course-cohort-index-sequence">{{ __('lf.table_no') }}</th>
+                <th class="course-cohort-index-sequence admin-managed-sequence">{{ __('lf.table_no') }}</th>
                 <th>{{ __('lf.LF_course_cohort_common_name') }}</th>
                 <th>
                     {{ __('lf.LF_course_cohort_common_product') }}
                     / {{ __('lf.LF_course_cohort_common_version') }}
                 </th>
-                <th class="course-cohort-index-status">{{ __('lf.LF_course_cohort_common_status') }}</th>
-                <th class="course-cohort-index-actions">{{ __('lf.table_actions') }}</th>
+                <th class="course-cohort-index-status admin-managed-status">{{ __('lf.LF_course_cohort_common_status') }}</th>
+                <th class="course-cohort-index-actions admin-managed-actions">{{ __('lf.table_actions') }}</th>
             </tr>
             </thead>
             <tbody>
             @forelse ($cohorts as $cohort)
                 <tr>
-                    <td class="course-cohort-index-sequence" data-label="{{ __('lf.table_no') }}">
+                    <td class="course-cohort-index-sequence admin-managed-sequence" data-label="{{ __('lf.table_no') }}">
                         {{ $cohorts->firstItem() + $loop->index }}
                     </td>
                     <td data-label="{{ __('lf.LF_course_cohort_common_name') }}">
@@ -103,7 +103,7 @@
                             —
                         @endif
                     </td>
-                    <td class="course-cohort-index-status" data-label="{{ __('lf.LF_course_cohort_common_status') }}">
+                    <td class="course-cohort-index-status admin-managed-status" data-label="{{ __('lf.LF_course_cohort_common_status') }}">
                         <span @class([
                             'badge',
                             'course-cohort-status-badge',
@@ -115,19 +115,11 @@
                             {{ __('lf.LF_course_cohort_common_'.$cohort->status) }}
                         </span>
                     </td>
-                    <td class="course-cohort-index-actions" data-label="{{ __('lf.table_actions') }}">
-                        <x-admin-action-menu :label="__('lf.table_actions').': '.$cohort->name">
-                            <a class="admin-table-action-link admin-text-action" href="{{ route($routePrefix.'.show', $cohort->id) }}">
-                                <x-admin-action-icon name="view" />
-                                {{ __('lf.action_view') }}
-                            </a>
-                            @if ($cohort->is_mutable)
-                                <a class="admin-table-action-link admin-text-action" href="{{ route($routePrefix.'.edit', $cohort->id) }}">
-                                    <x-admin-action-icon name="edit" />
-                                    {{ __('lf.action_edit') }}
-                                </a>
-                            @endif
-                        </x-admin-action-menu>
+                    <td class="course-cohort-index-actions admin-managed-actions" data-label="{{ __('lf.table_actions') }}">
+                        <a class="btn btn-secondary course-template-manage" href="{{ route($routePrefix.'.show', $cohort->id) }}">
+                            <x-admin-action-icon name="edit" />
+                            {{ __('lf.LF_course_template_action_manage') }}
+                        </a>
                     </td>
                 </tr>
             @empty

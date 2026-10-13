@@ -54,20 +54,20 @@
             </div>
         @else
             <div class="admin-table-wrap lf-framework-index__table-wrap">
-                <table class="table lf-framework-index__table admin-table-has-actions">
+                <table class="table lf-framework-index__table admin-managed-list">
                     <thead>
                         <tr>
-                            <th scope="col" class="admin-table-sequence">{{ __('lf.table_no') }}</th>
+                            <th scope="col" class="admin-table-sequence admin-managed-sequence">{{ __('lf.table_no') }}</th>
                             <th scope="col">{{ __('lf.LF_learning_name') }}</th>
-                            <th scope="col">{{ __('lf.LF_learning_simple_index_in_use') }}</th>
-                            <th scope="col">{{ __('lf.LF_learning_status') }}</th>
-                            <th scope="col">{{ __('lf.table_actions') }}</th>
+                            <th scope="col" class="lf-framework-index__in-use">{{ __('lf.LF_learning_simple_index_in_use') }}</th>
+                            <th scope="col" class="admin-managed-status">{{ __('lf.LF_learning_status') }}</th>
+                            <th scope="col" class="admin-managed-actions">{{ __('lf.table_actions') }}</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach ($frameworks as $framework)
                             <tr data-lf-framework-row="{{ $framework->id }}">
-                                <td class="admin-table-sequence" data-label="{{ __('lf.table_no') }}">{{ $loop->iteration }}</td>
+                                <td class="admin-table-sequence admin-managed-sequence" data-label="{{ __('lf.table_no') }}">{{ $loop->iteration }}</td>
                                 <td data-label="{{ __('lf.LF_learning_name') }}">
                                     <div class="lf-framework-index__identity">
                                         <a class="lf-framework-index__name" href="{{ route('admin.learning-frameworks.show', $framework->id) }}">{{ $framework->name }}</a>
@@ -76,7 +76,7 @@
                                         @endif
                                     </div>
                                 </td>
-                                <td data-label="{{ __('lf.LF_learning_simple_index_in_use') }}">
+                                <td class="lf-framework-index__in-use" data-label="{{ __('lf.LF_learning_simple_index_in_use') }}">
                                     <span class="lf-framework-index__versions">
                                         @if ($framework->current_version_number)
                                             <span class="badge badge-success">{{ __('lf.LF_learning_simple_version', ['number' => $framework->current_version_number]) }}</span>
@@ -89,18 +89,16 @@
                                         @endif
                                     </span>
                                 </td>
-                                <td data-label="{{ __('lf.LF_learning_status') }}">
+                                <td class="admin-managed-status" data-label="{{ __('lf.LF_learning_status') }}">
                                     <span class="badge {{ $framework->status === 'active' ? 'badge-success' : 'badge-neutral' }}">
                                         {{ $framework->status === 'active' ? __('lf.LF_common_status_common_active') : __('lf.LF_learning_status_archived') }}
                                     </span>
                                 </td>
-                                <td data-label="{{ __('lf.table_actions') }}">
-                                    <x-admin-action-menu :label="__('lf.table_actions').': '.$framework->name">
-                                        <a class="admin-table-action-link admin-text-action" href="{{ route('admin.learning-frameworks.show', $framework->id) }}">
+                                <td class="admin-managed-actions" data-label="{{ __('lf.table_actions') }}">
+                                        <a class="btn btn-secondary course-template-manage" href="{{ route('admin.learning-frameworks.show', $framework->id) }}">
                                             <x-admin-action-icon name="edit" />
                                             {{ __('lf.LF_learning_manage') }}
                                         </a>
-                                    </x-admin-action-menu>
                                 </td>
                             </tr>
                         @endforeach

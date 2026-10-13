@@ -158,16 +158,16 @@
     </div>
 
     <div class="admin-table-wrap course-cohort-index-table-wrap">
-        <table class="table course-cohort-index-table course-enrollment-index-table admin-table-has-actions">
+        <table class="table course-cohort-index-table course-enrollment-index-table admin-managed-list">
             <thead>
             <tr>
                 <th class="course-enrollment-select-column"><label><input type="checkbox" :checked="allPageSelected" x-on:change="togglePage($event.target.checked)"><span class="sr-only">{{ __('lf.LF_course_enrollment_select_page') }}</span></label></th>
-                <th class="admin-table-sequence">{{ __('lf.table_no') }}</th>
+                <th class="admin-table-sequence admin-managed-sequence">{{ __('lf.table_no') }}</th>
                 <th>{{ __('lf.LF_course_enrollment_common_student') }}</th>
                 <th>{{ __('lf.LF_course_enrollment_common_product') }}</th>
                 <th>{{ __('lf.LF_course_enrollment_information') }}</th>
-                <th class="course-cohort-index-status">{{ __('lf.LF_course_enrollment_common_status') }}</th>
-                <th class="course-cohort-index-actions">{{ __('lf.table_actions') }}</th>
+                <th class="course-cohort-index-status admin-managed-status">{{ __('lf.LF_course_enrollment_common_status') }}</th>
+                <th class="course-cohort-index-actions admin-managed-actions">{{ __('lf.table_actions') }}</th>
             </tr>
             </thead>
             <tbody>
@@ -180,7 +180,7 @@
                             <span title="{{ __('lf.LF_course_enrollment_bulk_terminal') }}">—</span>
                         @endif
                     </td>
-                    <td class="admin-table-sequence" data-label="{{ __('lf.table_no') }}">{{ $enrollments->firstItem() + $loop->index }}</td>
+                    <td class="admin-table-sequence admin-managed-sequence" data-label="{{ __('lf.table_no') }}">{{ $enrollments->firstItem() + $loop->index }}</td>
                     <td data-label="{{ __('lf.LF_course_enrollment_common_student') }}">
                         <strong class="course-cohort-index-primary">{{ $enrollment->student_name }}</strong>
                         <span class="course-cohort-index-meta">{{ $enrollment->student_email }}</span>
@@ -204,7 +204,7 @@
                             {{ \Illuminate\Support\Carbon::parse($enrollment->enrolled_at)->format('d/m/Y H:i') }}
                         </span>
                     </td>
-                    <td class="course-cohort-index-status" data-label="{{ __('lf.LF_course_enrollment_common_status') }}">
+                    <td class="course-cohort-index-status admin-managed-status" data-label="{{ __('lf.LF_course_enrollment_common_status') }}">
                         <span @class([
                             'badge',
                             'course-enrollment-status-badge',
@@ -215,19 +215,11 @@
                             {{ __('lf.LF_course_enrollment_common_'.$enrollment->status) }}
                         </span>
                     </td>
-                    <td class="course-cohort-index-actions" data-label="{{ __('lf.table_actions') }}">
-                        <x-admin-action-menu :label="__('lf.table_actions').': '.$enrollment->student_name">
-                            <a class="admin-table-action-link admin-text-action" href="{{ route($routePrefix.'.show', $enrollment->id) }}">
-                                <x-admin-action-icon name="view" />
-                                {{ __('lf.action_view') }}
-                            </a>
-                            @if (in_array($enrollment->status, ['pending', 'active', 'suspended'], true))
-                                <a class="admin-table-action-link admin-text-action" href="{{ route($routePrefix.'.edit', $enrollment->id) }}">
-                                    <x-admin-action-icon name="edit" />
-                                    {{ __('lf.action_edit') }}
-                                </a>
-                            @endif
-                        </x-admin-action-menu>
+                    <td class="course-cohort-index-actions admin-managed-actions" data-label="{{ __('lf.table_actions') }}">
+                        <a class="btn btn-secondary course-template-manage" href="{{ route($routePrefix.'.show', $enrollment->id) }}">
+                            <x-admin-action-icon name="edit" />
+                            {{ __('lf.LF_course_template_action_manage') }}
+                        </a>
                     </td>
                 </tr>
             @empty

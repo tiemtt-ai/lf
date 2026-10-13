@@ -73,20 +73,20 @@
     </div>
 
     <div class="admin-table-wrap course-template-index-table-wrap">
-        <table class="table course-template-index-table">
+        <table class="table course-template-index-table admin-managed-list">
             <thead>
             <tr>
-                <th class="admin-table-sequence">{{ __('lf.table_no') }}</th>
+                <th class="admin-table-sequence admin-managed-sequence">{{ __('lf.table_no') }}</th>
                 <th>{{ __('lf.LF_course_template_common_name') }}</th>
                 <th class="course-template-index-category">{{ __('lf.LF_course_template_common_category') }}</th>
-                <th class="course-template-index-status">{{ __('lf.LF_course_template_common_status') }}</th>
-                <th class="course-template-index-actions">{{ __('lf.table_actions') }}</th>
+                <th class="course-template-index-status admin-managed-status">{{ __('lf.LF_course_template_common_status') }}</th>
+                <th class="course-template-index-actions admin-managed-actions">{{ __('lf.table_actions') }}</th>
             </tr>
             </thead>
             <tbody>
             @forelse ($templates as $template)
                 <tr>
-                    <td class="admin-table-sequence" data-label="{{ __('lf.table_no') }}">
+                    <td class="admin-table-sequence admin-managed-sequence" data-label="{{ __('lf.table_no') }}">
                         {{ $templates->firstItem() + $loop->index }}
                     </td>
                     <td data-label="{{ __('lf.LF_course_template_common_name') }}">
@@ -95,7 +95,7 @@
                     <td data-label="{{ __('lf.LF_course_template_common_category') }}">
                         {{ $template->category_name ?? '—' }}
                     </td>
-                    <td class="course-template-index-status" data-label="{{ __('lf.LF_course_template_common_status') }}">
+                    <td class="course-template-index-status admin-managed-status" data-label="{{ __('lf.LF_course_template_common_status') }}">
                         <span @class([
                             'badge',
                             'course-template-status-badge',
@@ -106,7 +106,7 @@
                             {{ __('lf.LF_course_template_common_'.$template->status) }}
                         </span>
                     </td>
-                    <td class="course-template-index-actions" data-label="{{ __('lf.table_actions') }}">
+                    <td class="course-template-index-actions admin-managed-actions" data-label="{{ __('lf.table_actions') }}">
                         <a class="btn btn-secondary course-template-manage" href="{{ route($routePrefix.'.edit', $template->id) }}">
                             <x-admin-action-icon name="edit" />
                             {{ __('lf.LF_course_template_action_manage') }}

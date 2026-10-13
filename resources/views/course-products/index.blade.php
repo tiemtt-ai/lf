@@ -87,22 +87,22 @@
     </div>
 
     <div class="admin-table-wrap course-product-index-table-wrap">
-        <table class="table course-product-index-table admin-table-has-actions">
+        <table class="table course-product-index-table admin-managed-list">
             <thead>
             <tr>
-                <th class="admin-table-sequence">{{ __('lf.table_no') }}</th>
+                <th class="admin-table-sequence admin-managed-sequence">{{ __('lf.table_no') }}</th>
                 <th>{{ __('lf.LF_course_product_common_title_field') }}</th>
                 <th>{{ __('lf.LF_course_product_common_product_type') }}</th>
                 <th class="course-product-index-price">{{ __('lf.LF_course_product_common_price') }}</th>
                 <th class="course-product-index-visibility">{{ __('lf.LF_course_product_common_visibility') }}</th>
-                <th class="course-product-index-status">{{ __('lf.LF_course_product_common_status') }}</th>
-                <th class="course-product-index-actions">{{ __('lf.table_actions') }}</th>
+                <th class="course-product-index-status admin-managed-status">{{ __('lf.LF_course_product_common_status') }}</th>
+                <th class="course-product-index-actions admin-managed-actions">{{ __('lf.table_actions') }}</th>
             </tr>
             </thead>
             <tbody>
             @forelse ($products as $product)
                 <tr>
-                    <td class="admin-table-sequence" data-label="{{ __('lf.table_no') }}">
+                    <td class="admin-table-sequence admin-managed-sequence" data-label="{{ __('lf.table_no') }}">
                         {{ $products->firstItem() + $loop->index }}
                     </td>
                     <td data-label="{{ __('lf.LF_course_product_common_title_field') }}">
@@ -120,7 +120,7 @@
                     <td class="course-product-index-visibility" data-label="{{ __('lf.LF_course_product_common_visibility') }}">
                         {{ __('lf.LF_course_product_common_visibility_'.$product->visibility) }}
                     </td>
-                    <td class="course-product-index-status" data-label="{{ __('lf.LF_course_product_common_status') }}">
+                    <td class="course-product-index-status admin-managed-status" data-label="{{ __('lf.LF_course_product_common_status') }}">
                         <span @class([
                             'badge',
                             'course-product-status-badge',
@@ -131,13 +131,11 @@
                             {{ __('lf.LF_course_product_common_'.$product->status) }}
                         </span>
                     </td>
-                    <td class="course-product-index-actions" data-label="{{ __('lf.table_actions') }}">
-                        <x-admin-action-menu :label="__('lf.table_actions').': '.$product->title">
-                            <a class="admin-table-action-link admin-text-action" href="{{ route($routePrefix.'.edit', $product->id) }}">
-                                <x-admin-action-icon name="edit" />
-                                {{ __('lf.action_edit') }}
-                            </a>
-                        </x-admin-action-menu>
+                    <td class="course-product-index-actions admin-managed-actions" data-label="{{ __('lf.table_actions') }}">
+                        <a class="btn btn-secondary course-template-manage" href="{{ route($routePrefix.'.edit', $product->id) }}">
+                            <x-admin-action-icon name="edit" />
+                            {{ __('lf.LF_course_template_action_manage') }}
+                        </a>
                     </td>
                 </tr>
             @empty

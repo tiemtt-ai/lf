@@ -2,6 +2,12 @@
 
 <svg {{ $attributes->class('admin-action-menu__item-icon') }} viewBox="0 0 24 24" aria-hidden="true">
     @switch($name)
+        @case('manage')
+            <path d="M4 6h16M4 12h16M4 18h16" />
+            <circle cx="9" cy="6" r="2" fill="var(--admin-surface)" />
+            <circle cx="15" cy="12" r="2" fill="var(--admin-surface)" />
+            <circle cx="8" cy="18" r="2" fill="var(--admin-surface)" />
+            @break
         @case('view')
             <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
             <circle cx="12" cy="12" r="2.5" />

@@ -74,20 +74,20 @@
     </div>
 
     <div class="admin-table-wrap course-category-index-table-wrap">
-        <table class="table course-category-index-table admin-table-has-actions">
+        <table class="table course-category-index-table admin-managed-list">
             <thead>
             <tr>
-                <th class="admin-table-sequence">{{ __('lf.table_no') }}</th>
+                <th class="admin-table-sequence admin-managed-sequence">{{ __('lf.table_no') }}</th>
                 <th class="course-category-index-name">{{ __('lf.LF_course_category_common_name') }}</th>
                 <th class="course-category-index-parent">{{ __('lf.LF_course_category_common_parent') }}</th>
-                <th class="course-category-index-status">{{ __('lf.LF_course_category_common_status') }}</th>
-                <th class="course-category-index-actions">{{ __('lf.table_actions') }}</th>
+                <th class="course-category-index-status admin-managed-status">{{ __('lf.LF_course_category_common_status') }}</th>
+                <th class="course-category-index-actions admin-managed-actions">{{ __('lf.table_actions') }}</th>
             </tr>
             </thead>
             <tbody>
             @forelse ($categories as $category)
                 <tr>
-                    <td class="admin-table-sequence" data-label="{{ __('lf.table_no') }}">
+                    <td class="admin-table-sequence admin-managed-sequence" data-label="{{ __('lf.table_no') }}">
                         {{ $categories->firstItem() + $loop->index }}
                     </td>
                     <td class="course-category-index-name" data-label="{{ __('lf.LF_course_category_common_name') }}">
@@ -101,20 +101,18 @@
                         data-label="{{ __('lf.LF_course_category_common_parent') }}">
                         {{ $category->parent_name ?? __('lf.LF_course_category_common_root') }}
                     </td>
-                    <td class="course-category-index-status" data-label="{{ __('lf.LF_course_category_common_status') }}">
+                    <td class="course-category-index-status admin-managed-status" data-label="{{ __('lf.LF_course_category_common_status') }}">
                         <span class="badge course-category-status-badge {{ $category->status === 'active' ? 'badge-success' : 'badge-danger' }}">
                             {{ $category->status === 'active'
                                 ? __('lf.LF_common_status_common_active')
                                 : __('lf.LF_common_status_common_inactive') }}
                         </span>
                     </td>
-                    <td class="course-category-index-actions" data-label="{{ __('lf.table_actions') }}">
-                        <x-admin-action-menu :label="__('lf.table_actions').': '.$category->name">
-                            <a class="admin-table-action-link admin-text-action" href="{{ route($routePrefix.'.edit', $category->id) }}">
-                                <x-admin-action-icon name="edit" />
-                                {{ __('lf.action_edit') }}
-                            </a>
-                        </x-admin-action-menu>
+                    <td class="course-category-index-actions admin-managed-actions" data-label="{{ __('lf.table_actions') }}">
+                        <a class="btn btn-secondary course-template-manage" href="{{ route($routePrefix.'.edit', $category->id) }}">
+                            <x-admin-action-icon name="edit" />
+                            {{ __('lf.LF_course_template_action_manage') }}
+                        </a>
                     </td>
                 </tr>
             @empty
