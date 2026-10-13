@@ -104,7 +104,7 @@ class BackendLayoutNavigationTest extends TestCase
             ->get('https://tenant-a.localhost/admin/learning-frameworks/create')
             ->assertOk()
             ->assertSeeText(__('lf.LF_learning_create_framework'))
-            ->assertSee('class="admin-card admin-form-card admin-form-surface"', false)
+            ->assertSee('class="admin-card admin-form-card admin-form-surface', false)
             ->assertSee('class="admin-form-standard"', false)
             ->assertSee('class="admin-form-field-grid"', false)
             ->assertSee('class="lf-form-control"', false)

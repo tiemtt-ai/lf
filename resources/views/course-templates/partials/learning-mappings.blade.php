@@ -59,9 +59,6 @@
     // Links whose Lesson or Activity left the Course tree stay visible so they can still be removed.
     $orphanSkills = $intents->reject(fn ($intent) => in_array((int) $intent->id, $shownIntentIds, true))->values();
 
-    $upgrade = $learningMappingState['upgrade'] ?? null;
-    $upgradeTargets = $learningMappingState['upgrade_targets'] ?? collect();
-    $upgradeRequested = request()->filled('upgrade_version');
     $roleLabels = [
         'practices' => __('lf.LF_course_template_learning_role_practices'),
         'assesses' => __('lf.LF_course_template_learning_role_assesses'),
@@ -73,12 +70,23 @@
 @endphp
 
 <div id="course-learning" class="admin-card admin-form-card admin-form-surface course-learning">
-    <section class="course-learning__framework" aria-labelledby="course-learning-framework-title">
+    <section @class(['course-learning__framework', 'course-learning__framework--selected' => $selection]) aria-labelledby="course-learning-framework-title">
         <div class="course-learning__framework-main">
             <h2 id="course-learning-framework-title" class="course-learning__eyebrow">{{ __('lf.LF_course_template_learning_framework_title') }}</h2>
+            @if ($selection && $intents->isNotEmpty())
+                <div class="course-learning__switch-help">
+                    <span class="lf-form-help">{{ __('lf.LF_course_template_learning_framework_change') }}</span>
+                    <x-info-tip :label="__('lf.LF_course_template_learning_switch_details')"
+                                :text="__('lf.LF_course_template_learning_framework_switch_help')" />
+                </div>
+            @endif
             @if ($selection)
                 <p class="course-learning__framework-name" data-course-learning-selection>
-                    {{ __('lf.LF_course_template_learning_framework_version', ['framework' => $selection->framework_name, 'version' => $selection->title_snapshot ?: $selection->version_code]) }}
+                    {{ __('lf.LF_course_template_learning_selected_framework', ['name' => $selection->framework_name]) }}
+                </p>
+                <p class="admin-form-section-help" data-course-learning-selected-version>
+                    {{ __('lf.LF_course_template_learning_selected_version', ['version' => $selection->title_snapshot ?: $selection->version_code]) }}
+                    <span class="badge badge-success">{{ __('lf.LF_course_template_learning_current_badge') }}</span>
                 </p>
                 <p class="admin-form-section-help">{{ __('lf.LF_course_template_learning_framework_help') }}</p>
             @elseif ($versions->isEmpty())
@@ -88,83 +96,69 @@
             @endif
         </div>
         <div class="course-learning__framework-actions">
+            @if ($selection && $template->status === 'draft')
+                <form method="POST" action="{{ route($routePrefix.'.learning-framework.detach', $template->id) }}"
+                      data-lf-confirm="{{ __('lf.LF_course_template_learning_detach_confirm', ['count' => $intents->count()]) }}"
+                      data-lf-confirm-label="{{ __('lf.LF_course_template_learning_detach') }}" data-lf-confirm-tone="danger">
+                    @csrf
+                    @method('DELETE')
+                    <input type="hidden" name="working_revision" value="{{ $template->working_revision }}">
+                    <button type="submit" class="btn btn-secondary"
+                            title="{{ __('lf.LF_course_template_learning_detach_tooltip') }}">{{ __('lf.LF_course_template_learning_detach') }}</button>
+                </form>
+            @endif
             @if ($selection)
-                <a class="btn btn-secondary" href="{{ route('admin.learning-frameworks.show', $selection->framework_id) }}">{{ __('lf.LF_course_template_learning_framework_view') }}</a>
+                <div x-data>
+                    <button type="button" class="btn btn-secondary" @click="$refs.frameworkPreview.showModal()"
+                            title="{{ __('lf.LF_course_template_learning_framework_view_tooltip') }}">{{ __('lf.LF_course_template_learning_framework_view') }}</button>
+                    <dialog x-ref="frameworkPreview" class="course-learning__preview-dialog" aria-labelledby="course-framework-preview-title"
+                            @click="if ($event.target === $el) $el.close()">
+                        <header class="course-learning__preview-head">
+                            <div>
+                                <h2 id="course-framework-preview-title" class="admin-form-section-title">{{ $selection->framework_name }}</h2>
+                                <p class="lf-form-help">{{ $selection->title_snapshot ?: $selection->version_code }} · {{ __('lf.LF_course_template_learning_current_badge') }}</p>
+                            </div>
+                            <button type="button" class="btn btn-secondary" @click="$refs.frameworkPreview.close()">{{ __('lf.LF_common_button_close') }}</button>
+                        </header>
+                        <div class="course-learning__preview-body">
+                            <section class="course-learning__preview-node">
+                                <h3 class="admin-form-subsection-title">{{ __('lf.LF_learning_simple_scale_title') }}</h3>
+                                @php
+                                    $previewLevels = json_decode($selection->mastery_scale_snapshot ?? '{}', true)['levels'] ?? [];
+                                @endphp
+                                <ol class="lf-framework__levels">
+                                    @foreach ($previewLevels as $level)
+                                        <li>
+                                            <span>{{ \Illuminate\Support\Facades\Lang::has('lf.LF_learning_simple_level_'.$level['key']) ? __('lf.LF_learning_simple_level_'.$level['key']) : $level['key'] }}</span>
+                                            <span>{{ (float) $level['threshold'] > 0 ? '≥ '.round((float) $level['threshold'] * 100).'%' : '0%' }}</span>
+                                        </li>
+                                    @endforeach
+                                </ol>
+                            </section>
+                            @forelse ($nodes as $node)
+                                <article class="course-learning__preview-node">
+                                    <h3 class="admin-form-subsection-title">{{ $node->name_snapshot }}</h3>
+                                    <p class="lf-form-help">{{ $node->code_snapshot }}</p>
+                                    @if ($node->description_snapshot ?? null)<p>{{ $node->description_snapshot }}</p>@endif
+                                </article>
+                            @empty
+                                <p>{{ __('lf.LF_course_template_learning_preview_no_nodes') }}</p>
+                            @endforelse
+                        </div>
+                    </dialog>
+                </div>
             @elseif ($versions->isEmpty())
                 <a class="btn btn-primary" href="{{ route('admin.learning-frameworks.index') }}">{{ __('lf.LF_course_template_learning_framework_manage') }}</a>
             @endif
         </div>
     </section>
 
-    @if ($selection && $intents->isNotEmpty() && $upgradeTargets->isNotEmpty())
-        {{-- The admin picks the target Version; nothing is guessed from number or date (ADR-0016 amendment 1.2). --}}
-        <section id="course-learning-upgrade" class="course-learning__upgrade" aria-labelledby="course-learning-upgrade-title" data-course-learning-upgrade-picker>
-            <div class="course-learning__upgrade-text">
-                <h3 id="course-learning-upgrade-title" class="course-learning__upgrade-title">{{ __('lf.LF_course_template_learning_upgrade_pick_title') }}</h3>
-                <p>{{ __('lf.LF_course_template_learning_upgrade_pick_help') }}</p>
-                <form method="GET" action="{{ route($routePrefix.'.edit', ['id' => $template->id]) }}#course-learning-upgrade" class="course-learning__upgrade-pick">
-                    <input type="hidden" name="tab" value="learning">
-                    <label class="lf-form-label" for="course-learning-upgrade-version">{{ __('lf.LF_course_template_learning_upgrade_pick_label') }}</label>
-                    <div class="course-learning__upgrade-pick-row">
-                        <select id="course-learning-upgrade-version" name="upgrade_version" class="lf-form-control" required>
-                            <option value="" @selected(! $upgrade) disabled>{{ __('lf.LF_course_template_learning_upgrade_pick_placeholder') }}</option>
-                            @foreach ($upgradeTargets as $target)
-                                <option value="{{ $target->framework_version_id }}" @selected($upgrade && (int) $upgrade['version']->framework_version_id === (int) $target->framework_version_id)>
-                                    {{ __('lf.LF_course_template_learning_upgrade_pick_option', ['number' => $target->version_number, 'version' => $target->title_snapshot ?: $target->version_code]) }}
-                                </option>
-                            @endforeach
-                        </select>
-                        <button type="submit" class="btn btn-secondary">{{ __('lf.LF_course_template_learning_upgrade_pick_submit') }}</button>
-                    </div>
-                </form>
-                @if ($upgradeRequested && ! $upgrade)
-                    <p class="course-learning__upgrade-invalid" role="alert">{{ __('lf.LF_course_template_learning_upgrade_invalid') }}</p>
-                @endif
-            </div>
-
-            @if ($upgrade)
-                <div class="course-learning__upgrade-plan" data-course-learning-upgrade="{{ $upgrade['version']->framework_version_id }}">
-                    <h4 class="course-learning__upgrade-plan-title">
-                        {{ __('lf.LF_course_template_learning_upgrade_title', ['number' => $upgrade['version']->version_number, 'version' => $upgrade['version']->title_snapshot ?: $upgrade['version']->version_code]) }}
-                    </h4>
-                    <p>{{ trans_choice('lf.LF_course_template_learning_upgrade_kept', $upgrade['kept']->count(), ['count' => $upgrade['kept']->count()]) }}</p>
-                    @if ($upgrade['removed']->isNotEmpty())
-                        <p data-course-learning-upgrade-removed>{{ __('lf.LF_course_template_learning_upgrade_removed', ['count' => $upgrade['removed']->count(), 'names' => $upgrade['removed']->map(fn ($intent) => $intent->name_snapshot)->filter()->unique()->implode(', ')]) }}</p>
-                    @endif
-                    @if ($upgrade['ai_blocked'])
-                        <p>{{ __('lf.LF_course_template_learning_error_upgrade_ai') }}</p>
-                    @endif
-                    <div class="course-learning__upgrade-actions">
-                        <a class="btn btn-secondary" href="{{ route($routePrefix.'.edit', ['id' => $template->id, 'tab' => 'learning']) }}">{{ __('lf.LF_course_template_learning_upgrade_cancel') }}</a>
-                        @unless ($upgrade['ai_blocked'])
-                            <form method="POST" action="{{ route($routePrefix.'.learning-framework.upgrade', $template->id) }}"
-                                  @if ($upgrade['removed']->isNotEmpty())
-                                      data-lf-confirm="{{ __('lf.LF_course_template_learning_upgrade_confirm', ['count' => $upgrade['removed']->count(), 'number' => $upgrade['version']->version_number]) }}"
-                                      data-lf-confirm-label="{{ __('lf.LF_course_template_learning_upgrade_submit', ['number' => $upgrade['version']->version_number]) }}"
-                                  @endif>
-                                @csrf
-                                <input type="hidden" name="framework_version_id" value="{{ $upgrade['version']->framework_version_id }}">
-                                <input type="hidden" name="working_revision" value="{{ $template->working_revision }}">
-                                <button type="submit" class="btn btn-primary">{{ __('lf.LF_course_template_learning_upgrade_submit', ['number' => $upgrade['version']->version_number]) }}</button>
-                            </form>
-                        @endunless
-                    </div>
-                </div>
-            @endif
-        </section>
-    @endif
-
-    @if ($versions->isNotEmpty() && (! $selection || $intents->isEmpty()))
-        @if ($selection)
-            <details class="course-learning__change">
-                <summary class="course-learning__change-summary">{{ __('lf.LF_course_template_learning_framework_change') }}</summary>
-                @include('course-templates.partials.learning-framework-select')
-            </details>
-        @else
+    @if ($versions->isNotEmpty())
+        <section class="course-learning__change">
+            <h3 class="admin-form-subsection-title">{{ $selection ? __('lf.LF_course_template_learning_framework_change') : __('lf.LF_course_template_learning_framework_initial_title') }}</h3>
+            <p class="admin-form-section-help">{{ __($selection ? 'lf.LF_course_template_learning_select_help' : 'lf.LF_course_template_learning_initial_help') }}</p>
             @include('course-templates.partials.learning-framework-select')
-        @endif
-    @elseif ($selection && $upgradeTargets->isEmpty())
-        <p class="lf-form-help course-learning__change-locked">{{ __('lf.LF_course_template_learning_framework_change_locked') }}</p>
+        </section>
     @endif
 
     @if ($selection)
@@ -201,7 +195,7 @@
                                         $availableNodes = $nodes->reject(fn ($node) => $lessonNodeIds->contains((int) $node->id));
                                         $pickerId = 'course-learning-picker-'.$lesson->id;
                                     @endphp
-                                    <tr data-course-learning-lesson="{{ $lesson->id }}">
+                                    <tr id="{{ $pickerId }}-row" data-course-learning-lesson="{{ $lesson->id }}">
                                         <td class="admin-table-sequence">{{ $row['number'] }}</td>
                                         <td class="course-learning__lesson-cell">
                                             <span class="course-learning__lesson-title">{{ $lesson->title }}</span>
@@ -210,56 +204,72 @@
                                         <td class="course-learning__skills-cell">
                                             <ul class="course-learning__skills">
                                                 @forelse ($row['skills'] as $skill)
-                                                    @include('course-templates.partials.learning-skill-chip')
+                                                    @include('course-templates.partials.learning-skill-chip', ['mappingPicker' => $pickerId])
                                                 @empty
                                                     <li class="course-learning__not-mapped">{{ __('lf.LF_course_template_learning_not_mapped') }}</li>
                                                 @endforelse
                                             </ul>
 
-                                            <details class="course-learning__picker">
-                                                <summary class="btn btn-secondary course-learning__picker-toggle">
+                                                @if (session('mapping_picker') === $pickerId && session('mapping_feedback'))
+                                                    <p class="course-learning__picker-feedback" role="status" x-data="{ visible: true }" x-init="setTimeout(() => visible = false, 3000)" x-show="visible" x-transition.opacity>{{ session('mapping_feedback') }}</p>
+                                                @endif
+                                            <div x-data>
+                                                <button type="button" class="btn btn-secondary" @click="$refs.mappingDialog.showModal()">
                                                     <span aria-hidden="true">+</span> {{ __('lf.LF_course_template_learning_add') }}
-                                                </summary>
+                                                </button>
+                                                <dialog id="{{ $pickerId }}" x-ref="mappingDialog" class="course-learning__preview-dialog course-learning__mapping-dialog"
+                                                        aria-labelledby="{{ $pickerId }}-title" @click="if ($event.target === $el) $el.close()"
+                                                        @if (old('mapping_picker') === $pickerId && $errors->any()) x-init="$nextTick(() => $el.showModal())" @endif>
+                                                    <header class="course-learning__preview-head">
+                                                        <h2 id="{{ $pickerId }}-title" class="admin-form-section-title">{{ __('lf.LF_course_template_learning_picker_label', ['lesson' => $lesson->title]) }}</h2>
+                                                        <button type="button" class="btn btn-secondary" @click="$refs.mappingDialog.close()">{{ __('lf.LF_common_button_close') }}</button>
+                                                    </header>
+                                                @if (old('mapping_picker') === $pickerId && $errors->any())
+                                                    <div class="course-learning__picker-feedback is-error" role="alert">
+                                                        @foreach ($errors->all() as $error)<p>{{ $error }}</p>@endforeach
+                                                    </div>
+                                                @endif
                                                 @if ($availableNodes->isEmpty())
                                                     <p class="lf-form-help course-learning__picker-panel">{{ __('lf.LF_course_template_learning_all_mapped') }}</p>
                                                 @else
                                                     <form method="POST"
                                                           action="{{ route($routePrefix.'.learning-mappings.store', $template->id) }}"
-                                                          class="course-learning__picker-panel"
+                                                          class="course-learning__picker-panel" data-lf-mapping-async
+                                                          data-error-message="{{ __('lf.LF_course_template_learning_attach_network_error') }}"
+                                                          data-refresh-error="{{ __('lf.LF_course_template_learning_attach_refresh_error') }}"
+                                                          x-data="{ chosen: @js(old('mapping_picker') === $pickerId ? old('learning_node_ids', []) : []), invalid: false, saving: false }"
+                                                          @mapping-saving="saving = $event.detail"
+                                                          @submit="if (!chosen.length) { $event.preventDefault(); invalid = true; }"
                                                           aria-label="{{ __('lf.LF_course_template_learning_picker_label', ['lesson' => $lesson->title]) }}">
                                                         @csrf
+                                                        <p class="course-learning__picker-feedback is-error" data-lf-mapping-error role="alert" hidden></p>
+                                                        <input type="hidden" name="mapping_picker" value="{{ $pickerId }}">
+                                                        <p class="course-learning__picker-feedback is-error" role="alert" x-show="invalid && !chosen.length" x-cloak>{{ __('lf.LF_course_template_learning_error_nodes_required') }}</p>
                                                         <input type="hidden" name="mapping_role" value="teaches">
-                                                        @if ($row['activities']->isEmpty())
-                                                            <input type="hidden" name="source" value="course_template_lesson:{{ $lesson->id }}">
-                                                        @else
-                                                            <div class="lf-form-group">
-                                                                <label class="lf-form-label" for="{{ $pickerId }}-target">{{ __('lf.LF_course_template_learning_target_label') }}</label>
-                                                                <select id="{{ $pickerId }}-target" name="source" class="lf-form-control">
-                                                                    <option value="course_template_lesson:{{ $lesson->id }}">{{ __('lf.LF_course_template_learning_target_lesson') }}</option>
-                                                                    @foreach ($row['activities'] as $activity)
-                                                                        <option value="course_template_activity:{{ $activity->id }}">{{ __('lf.LF_course_template_learning_target_activity', ['title' => $activity->title]) }}</option>
-                                                                    @endforeach
-                                                                </select>
-                                                            </div>
-                                                        @endif
+                                                        <input type="hidden" name="source" value="course_template_lesson:{{ $lesson->id }}">
                                                         <fieldset class="course-learning__nodes">
                                                             <legend class="lf-form-label">{{ __('lf.LF_course_template_learning_nodes_legend') }}</legend>
+                                                            <div class="course-learning__nodes-grid">
                                                             @foreach ($availableNodes as $node)
                                                                 <label class="course-learning__node">
-                                                                    <input type="checkbox" name="learning_node_ids[]" value="{{ $node->id }}">
+                                                                    <input type="checkbox" name="learning_node_ids[]" value="{{ $node->id }}" x-model="chosen">
                                                                     <span>
                                                                         <span class="course-learning__node-name">{{ $node->name_snapshot }}</span>
                                                                         <span class="course-learning__meta">{{ $node->code_snapshot }}</span>
                                                                     </span>
                                                                 </label>
                                                             @endforeach
+                                                            </div>
                                                         </fieldset>
                                                         <div class="course-learning__picker-actions">
-                                                            <button type="submit" class="btn btn-primary">{{ __('lf.LF_course_template_learning_submit') }}</button>
+                                                            <span class="lf-form-help" x-text="@js(__('lf.LF_course_template_learning_picker_count')).replace(':count', chosen.length)"></span>
+                                                            <button type="button" class="btn btn-secondary" @click="$el.closest('form').reset(); chosen = []; invalid = false; $el.closest('dialog').close()">{{ __('lf.LF_common_button_cancel') }}</button>
+                                                            <button type="submit" class="btn btn-primary" :disabled="chosen.length === 0 || saving" data-loading-label="{{ __('lf.LF_course_template_learning_attaching') }}">{{ __('lf.LF_course_template_learning_submit') }}</button>
                                                         </div>
                                                     </form>
                                                 @endif
-                                            </details>
+                                                </dialog>
+                                            </div>
                                         </td>
                                     </tr>
                                 @endif

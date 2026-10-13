@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Services\CourseTemplateLearningMappingIntentService;
 use App\Support\TenantContext;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -19,8 +20,8 @@ final class CourseTemplateLearningMappingController extends Controller
         if (is_string($request->input('framework')) && preg_match('/^(\d+):(\d+)$/', $request->input('framework'), $choice)) {
             $request->merge(['framework_id' => $choice[1], 'framework_version_id' => $choice[2]]);
         }
-        $data = $request->validate(['framework_id' => ['required', 'integer'], 'framework_version_id' => ['required', 'integer']]);
-        $this->intents->select((int) $request->user()->id, $this->customerId(), $templateId, (int) $data['framework_id'], (int) $data['framework_version_id']);
+        $data = $request->validate(['framework_id' => ['required', 'integer'], 'framework_version_id' => ['required', 'integer'], 'working_revision' => ['nullable', 'integer', 'min:0']]);
+        $this->intents->select((int) $request->user()->id, $this->customerId(), $templateId, (int) $data['framework_id'], (int) $data['framework_version_id'], isset($data['working_revision']) ? (int) $data['working_revision'] : null);
 
         return $this->back($request, $templateId, __('lf.LF_course_template_learning_flash_selected'));
     }
@@ -37,7 +38,7 @@ final class CourseTemplateLearningMappingController extends Controller
         return $this->back($request, $templateId, trans_choice('lf.LF_course_template_learning_flash_upgraded', $kept, ['count' => $kept]));
     }
 
-    public function store(Request $request, int $templateId): RedirectResponse
+    public function store(Request $request, int $templateId): RedirectResponse|JsonResponse
     {
         $this->admin($request);
         // The tab's picker sends one "type:id" target and several Nodes; the
@@ -61,20 +62,53 @@ final class CourseTemplateLearningMappingController extends Controller
         unset($data['learning_node_ids'], $data['learning_node_id']);
         $this->intents->storeMany((int) $request->user()->id, $this->customerId(), $templateId, $data, $nodeIds);
 
-        return $this->back($request, $templateId, trans_choice('lf.LF_course_template_learning_flash_added', count($nodeIds), ['count' => count($nodeIds)]));
+        $message = trans_choice('lf.LF_course_template_learning_flash_added', count($nodeIds), ['count' => count($nodeIds)]);
+        if (preg_match('/^course-learning-picker-[0-9]+$/', (string) $request->input('mapping_picker'))) {
+            $picker = $request->string('mapping_picker')->toString();
+            if ($request->expectsJson()) {
+                $request->session()->flash('mapping_picker', $picker);
+                $request->session()->flash('mapping_feedback', $message);
+
+                return response()->json(['message' => $message,
+                    'refresh_url' => route('admin.course-templates.edit', ['id' => $templateId, 'tab' => 'learning'])]);
+            }
+
+            return redirect()->to(route('admin.course-templates.edit', ['id' => $templateId, 'tab' => 'learning']).'#'.$picker.'-row')
+                ->with('mapping_picker', $picker)->with('mapping_feedback', $message);
+        }
+
+        return $this->back($request, $templateId, $message);
     }
 
-    public function destroy(Request $request, int $templateId, int $intentId): RedirectResponse
+    public function destroy(Request $request, int $templateId, int $intentId): RedirectResponse|JsonResponse
     {
         $this->admin($request);
         $this->intents->destroy($this->customerId(), $templateId, $intentId);
 
-        return $this->back($request, $templateId, __('lf.LF_course_template_learning_flash_removed'));
+        $message = __('lf.LF_course_template_learning_flash_removed');
+        if ($request->expectsJson() && preg_match('/^course-learning-picker-[0-9]+$/', (string) $request->input('mapping_picker'))) {
+            $request->session()->flash('mapping_picker', $request->string('mapping_picker')->toString());
+            $request->session()->flash('mapping_feedback', $message);
+
+            return response()->json(['message' => $message,
+                'refresh_url' => route('admin.course-templates.edit', ['id' => $templateId, 'tab' => 'learning'])]);
+        }
+
+        return $this->back($request, $templateId, $message);
     }
 
     private function admin(Request $request): void
     {
         abort_unless($request->user()?->role === 'customer_admin', 403);
+    }
+
+    public function detach(Request $request, int $templateId): RedirectResponse
+    {
+        $this->admin($request);
+        $data = $request->validate(['working_revision' => ['required', 'integer', 'min:0']]);
+        $this->intents->detachFramework((int) $request->user()->id, $this->customerId(), $templateId, (int) $data['working_revision']);
+
+        return $this->back($request, $templateId, __('lf.LF_course_template_learning_detached'));
     }
 
     private function customerId(): int

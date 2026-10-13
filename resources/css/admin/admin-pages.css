@@ -1720,6 +1720,21 @@
     gap: 20px;
 }
 
+.course-learning__framework--selected {
+    padding: 16px;
+    border: 1px solid color-mix(in srgb, var(--admin-primary) 30%, var(--admin-border));
+    border-left: 4px solid var(--admin-primary);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--admin-primary) 5%, var(--admin-surface));
+}
+
+.course-learning__framework--selected [data-course-learning-selected-version] {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
 .course-learning__framework {
     display: flex;
     flex-wrap: wrap;
@@ -1735,6 +1750,14 @@
     gap: 4px;
     min-width: 0;
 }
+
+.course-learning__switch-help {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
 
 .course-learning__eyebrow {
     margin: 0;
@@ -1846,8 +1869,54 @@
 }
 
 .course-learning__change {
-    border-top: 1px solid var(--admin-border);
-    padding-top: 12px;
+    border: 1px solid var(--admin-border);
+    border-radius: 10px;
+    padding: 16px;
+    background: var(--admin-surface-subtle);
+}
+
+.course-learning__change > .admin-form-subsection-title {
+    margin: 0 0 6px;
+    color: var(--admin-text);
+    font-size: 15px;
+}
+
+.course-learning__change > .admin-form-section-help {
+    margin: 0 0 12px;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.course-learning__select .lf-form-label {
+    font-size: 13px;
+    margin-bottom: 6px;
+}
+
+.course-learning__select .lf-form-control,
+.course-learning__select-actions .btn {
+    min-height: 42px;
+}
+
+.course-learning__select-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+@media (max-width: 767px) {
+    .course-learning__select-actions {
+        width: 100%;
+    }
+
+    .course-learning__select-actions .btn {
+        flex: 1;
+    }
+}
+
+.course-learning__select-actions .btn {
+    margin: 0;
+    padding: 10px 16px;
+    font-size: 14px;
 }
 
 .course-learning__change-summary {
@@ -7444,4 +7513,70 @@
         font-size: 12px;
         font-weight: 600;
     }
+}
+
+.course-learning__preview-dialog { width: min(800px, calc(100vw - 32px)); max-height: 85vh; padding: 0; border: 1px solid var(--admin-border); border-radius: 12px; background: var(--admin-surface); color: var(--admin-text); }
+.course-learning__preview-dialog::backdrop { background: #0006; }
+.course-learning__preview-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding: 20px; border-bottom: 1px solid var(--admin-border); }
+.course-learning__preview-body { padding: 0 20px 20px; }
+.course-learning__preview-node { padding: 16px 0; border-bottom: 1px solid var(--admin-border); overflow-wrap: anywhere; }
+
+.course-learning__picker { scroll-margin-top: 120px; }
+.course-learning__picker-panel .course-learning__nodes { max-height: 320px; overflow-y: auto; padding: 4px; background: var(--admin-surface); border: 1px solid var(--admin-border); border-radius: 8px; }
+.course-learning__picker-panel .course-learning__node:has(input:checked) { background: color-mix(in srgb, var(--admin-primary) 8%, var(--admin-surface)); }
+.course-learning__picker-actions { flex-wrap: wrap; align-items: center; gap: 10px; }
+.course-learning__picker-actions > .lf-form-help { margin-right: auto; }
+.course-learning__picker-feedback { padding: 12px; margin: 12px 0 0; border: 1px solid #bbf7d0; border-radius: 8px; color: #166534; background: #f0fdf4; }
+.course-learning__picker-feedback.is-error { border-color: var(--admin-danger); color: var(--admin-danger); background: var(--admin-danger-soft); }
+.course-learning__picker-feedback p { margin: 0; }
+
+.course-learning__picker-panel { max-width: none; }
+.course-learning__nodes-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.course-learning__nodes-grid .course-learning__node { min-width: 0; border: 1px solid var(--admin-border); }
+@media (max-width: 767px) {
+    .course-learning__nodes-grid { grid-template-columns: minmax(0, 1fr); }
+    .course-learning__picker-panel .course-learning__nodes { max-height: 360px; overflow-y: auto; }
+}
+
+.course-learning__table .course-learning__picker-cell { width: 100%; padding: 0 16px 16px; }
+.course-learning__picker-cell .course-learning__picker-panel { width: 100%; box-sizing: border-box; }
+@media (max-width: 767px) {
+    .course-learning__table .course-learning__picker-cell { padding: 0 12px 14px; }
+    .course-learning__table .course-learning__picker-row { border-top: 0; }
+}
+
+.course-learning__mapping-dialog { width: min(960px, calc(100vw - 32px)); }
+.course-learning__mapping-dialog .course-learning__picker-panel { margin: 16px; width: auto; }
+.course-learning__mapping-dialog > .course-learning__picker-feedback { margin: 16px; }
+.course-learning__mapping-dialog .course-learning__preview-head { position: sticky; top: 0; background: var(--admin-surface); z-index: 1; }
+
+/* Keep the attachment dialog visually flat instead of nesting bordered cards. */
+.course-learning__mapping-dialog { border: 0; }
+.course-learning__mapping-dialog .course-learning__picker-panel { border: 0; background: var(--admin-surface); padding: 8px 4px; }
+.course-learning__mapping-dialog .course-learning__nodes { border: 0; border-radius: 0; background: transparent; padding: 0; }
+.course-learning__mapping-dialog .course-learning__nodes-grid { gap: 8px 20px; }
+.course-learning__mapping-dialog .course-learning__node { border: 0; padding: 12px; }
+.course-learning__mapping-dialog .course-learning__node:hover { background: var(--admin-surface-subtle); }
+.course-learning__mapping-dialog .course-learning__node:focus-within { outline: 2px solid var(--admin-primary); outline-offset: -2px; }
+.course-learning__mapping-dialog .course-learning__picker-actions { padding-top: 16px; margin-top: 4px; }
+
+.course-learning__mapping-dialog .course-learning__node:has(input:checked) {
+    background: color-mix(in srgb, var(--admin-primary) 10%, var(--admin-surface));
+}
+.course-learning__mapping-dialog .course-learning__node:has(input:checked) .course-learning__node-name {
+    font-weight: 700;
+    color: var(--admin-primary);
+}
+
+.course-learning__skills-cell > .course-learning__picker-feedback[role="status"] {
+    display: table;
+    max-width: 100%;
+    box-sizing: border-box;
+    padding: 10px 14px;
+    margin: 12px 0;
+    font-size: 14px;
+    line-height: 1.5;
+    border: 0;
+    border-radius: 8px;
+    overflow-wrap: anywhere;
 }

@@ -106,7 +106,7 @@ final class LearningFrameworkReadService
             })
             ->where('versions.customer_id', $customerId)
             ->where('versions.status', 'published')
-            ->select('versions.id as framework_version_id', 'versions.framework_id', 'versions.version_number', 'versions.version_code', 'versions.title_snapshot', 'frameworks.name as framework_name')
+            ->select('versions.id as framework_version_id', 'versions.framework_id', 'versions.version_number', 'versions.version_code', 'versions.title_snapshot', 'versions.mastery_scale_snapshot', 'frameworks.name as framework_name')
             ->orderBy('frameworks.name')->orderByDesc('versions.version_number')->get();
     }
 

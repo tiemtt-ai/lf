@@ -430,3 +430,54 @@ if (document.readyState === 'loading') {
 } else {
     bootAdminTableDragScroll();
 }
+
+// Attachment writes keep the browser on the current course page.
+document.addEventListener('submit', async (event) => {
+    const form = event.target;
+    if (!(form instanceof HTMLFormElement) || !form.matches('[data-lf-mapping-async]') || event.defaultPrevented) return;
+    event.preventDefault();
+    if (form.dataset.saving === 'true') return;
+    const error = form.querySelector('[data-lf-mapping-error]');
+    if (!form.hasAttribute('data-lf-mapping-remove') && !form.querySelector('input[name="learning_node_ids[]"]:checked')) return;
+    form.dataset.saving = 'true';
+    const submit = form.querySelector('button[type="submit"]');
+    const originalLabel = submit.textContent;
+    if (submit.dataset.loadingLabel) submit.textContent = submit.dataset.loadingLabel;
+    form.dispatchEvent(new CustomEvent('mapping-saving', { detail: true }));
+    submit.disabled = true;
+    form.setAttribute('aria-busy', 'true');
+    error.hidden = true;
+    let savedMessage = '';
+    try {
+        const response = await fetch(form.action, {
+            method: 'POST', body: new FormData(form), credentials: 'same-origin',
+            headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            error.textContent = Object.values(data.errors || {}).flat().join(' ') || data.message || form.dataset.errorMessage;
+            error.hidden = false;
+            return;
+        }
+        savedMessage = data.message;
+        const snapshot = await fetch(data.refresh_url, { credentials: 'same-origin', headers: { Accept: 'text/html' } });
+        if (!snapshot.ok) throw new Error('refresh');
+        const page = new DOMParser().parseFromString(await snapshot.text(), 'text/html');
+        const replacement = page.querySelector('#course-learning');
+        const current = document.querySelector('#course-learning');
+        if (!replacement || !current) throw new Error('refresh');
+        const rowId = form.querySelector('input[name="mapping_picker"]').value + '-row';
+        form.closest('dialog')?.close();
+        current.replaceWith(replacement);
+        replacement.querySelector(`#${rowId} button[type=\"button\"]`)?.focus({ preventScroll: true });
+    } catch {
+        error.textContent = savedMessage ? `${savedMessage} ${form.dataset.refreshError}` : form.dataset.errorMessage;
+        error.hidden = false;
+    } finally {
+        form.dataset.saving = 'false';
+        submit.textContent = originalLabel;
+        form.dispatchEvent(new CustomEvent('mapping-saving', { detail: false }));
+        submit.disabled = !form.hasAttribute('data-lf-mapping-remove') && !form.querySelector('input[name="learning_node_ids[]"]:checked');
+        form.removeAttribute('aria-busy');
+    }
+});

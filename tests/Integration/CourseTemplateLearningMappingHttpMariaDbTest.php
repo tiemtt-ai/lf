@@ -121,6 +121,21 @@ class CourseTemplateLearningMappingHttpMariaDbTest extends TestCase
 
     // --------------------------------------------------------------- Mapping
 
+    public function test_detaching_framework_clears_draft_selection_and_all_mapping_intents(): void
+    {
+        $f = $this->fixture('detach-framework');
+        $this->select($f);
+        $this->storeLessonMapping($f)->assertSessionHasNoErrors();
+        $revision = DB::table('core_course_templates')->where('id', $f['template_id'])->value('working_revision');
+        $this->admin($f)->delete($f['host']."/admin/course-templates/{$f['template_id']}/learning-framework", [
+            'working_revision' => (string) $revision,
+        ])->assertSessionHasNoErrors()->assertRedirect();
+        $this->assertDatabaseHas('core_course_templates', ['id' => $f['template_id'],
+            'selected_learning_framework_id' => null, 'selected_learning_framework_version_id' => null]);
+        $this->assertSame(0, DB::table('core_course_template_learning_mapping_intents')->where('template_id', $f['template_id'])->count());
+        $this->assertDatabaseHas('core_learning_framework_versions', ['id' => $f['version_id'], 'status' => 'published']);
+    }
+
     public function test_adding_a_lesson_mapping_from_the_tab_form(): void
     {
         $f = $this->fixture('store-lesson');
@@ -602,9 +617,51 @@ class CourseTemplateLearningMappingHttpMariaDbTest extends TestCase
         $this->assertSame(0, DB::table('core_course_template_learning_mapping_intents')->where('template_id', $f['template_id'])->count());
     }
 
+    public function test_async_remove_returns_json_and_row_feedback(): void
+    {
+        $f = $this->fixture('async-remove');
+        $this->select($f);
+        $this->storeLessonMapping($f)->assertSessionHasNoErrors();
+        $intentId = DB::table('core_course_template_learning_mapping_intents')->where('template_id', $f['template_id'])->value('id');
+        $picker = 'course-learning-picker-'.$f['lesson_id'];
+        $this->admin($f)->withHeader('Accept', 'application/json')
+            ->delete($f['host']."/admin/course-templates/{$f['template_id']}/learning-mappings/{$intentId}", ['mapping_picker' => $picker])
+            ->assertOk()->assertJsonStructure(['message', 'refresh_url'])->assertSessionHas('mapping_picker', $picker);
+        $this->assertSame(0, DB::table('core_course_template_learning_mapping_intents')->where('template_id', $f['template_id'])->count());
+    }
+
+    public function test_async_attach_returns_json_and_updated_row_feedback(): void
+    {
+        $f = $this->fixture('async-attach');
+        $this->select($f);
+        $picker = 'course-learning-picker-'.$f['lesson_id'];
+        $this->admin($f)->withHeader('Accept', 'application/json')
+            ->post($f['host']."/admin/course-templates/{$f['template_id']}/learning-mappings", [
+                'source' => 'course_template_lesson:'.$f['lesson_id'],
+                'learning_node_ids' => [(string) $f['node_id']], 'mapping_role' => 'teaches', 'mapping_picker' => $picker,
+            ])->assertOk()->assertJsonStructure(['message', 'refresh_url']);
+        $this->assertSame(1, DB::table('core_course_template_learning_mapping_intents')->where('template_id', $f['template_id'])->count());
+    }
+
+    public function test_attach_feedback_returns_to_the_originating_form(): void
+    {
+        $f = $this->fixture('inline-feedback');
+        $this->select($f);
+        $picker = 'course-learning-picker-'.$f['lesson_id'];
+        $this->storeLessonMapping($f, ['mapping_picker' => $picker])
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('mapping_picker', $picker)
+            ->assertSessionHas('mapping_feedback')
+            ->assertRedirectContains('#'.$picker.'-row');
+        $html = $this->editPage($f);
+        $this->assertStringContainsString('id="'.$picker.'-row"', $html);
+        $this->assertStringContainsString('role="status"', $html);
+        $this->assertStringNotContainsString('x-init="$nextTick(() => $el.showModal())"', $html, 'Success leaves the attachment dialog closed.');
+    }
+
     // ------------------------------------------------- Move to a chosen Version (2026-10-11, explicit target 2026-10-12)
 
-    public function test_moving_to_the_chosen_version_keeps_links_by_definition_and_drops_the_rest(): void
+    public function test_moving_to_the_chosen_version_removes_all_draft_links(): void
     {
         $f = $this->fixture('upgrade-ok');
         $this->select($f);
@@ -615,14 +672,15 @@ class CourseTemplateLearningMappingHttpMariaDbTest extends TestCase
         $revision = (int) DB::table('core_course_templates')->where('id', $f['template_id'])->value('working_revision');
 
         $html = $this->editPage($f);
-        $this->assertStringContainsString('data-course-learning-upgrade-picker', $html);
-        $this->assertStringContainsString('<option value="'.$v2.'"', $html);
+        $this->assertStringNotContainsString('data-course-learning-upgrade-picker', $html);
+        $this->assertStringContainsString('<option value="'.$f['framework_id'].':'.$v2.'"', $html);
         $this->assertStringNotContainsString('data-course-learning-upgrade=', $html, 'No target is chosen for the admin (ADR-0016 amendment 1.2).');
         $this->assertStringNotContainsString('course-learning__change-locked', $html, 'The move picker replaces the locked-change note.');
 
         $html = $this->editPage($f, $v2);
-        $this->assertStringContainsString('data-course-learning-upgrade="'.$v2.'"', $html);
-        $this->assertStringContainsString('1 liên kết năng lực sẽ được giữ lại.', $html);
+        $this->assertStringContainsString('id="learning-framework-version"', $html);
+        $this->assertStringContainsString('gỡ toàn bộ 1 liên kết năng lực', $html);
+        $this->assertStringContainsString('window.LFConfirm.open', $html);
         $this->assertSame($f['version_id'], (int) DB::table('core_course_templates')->where('id', $f['template_id'])->value('selected_learning_framework_version_id'), 'A preview changes nothing.');
 
         $this->admin($f)->post($f['host']."/admin/course-templates/{$f['template_id']}/learning-framework/upgrade", [
@@ -633,15 +691,11 @@ class CourseTemplateLearningMappingHttpMariaDbTest extends TestCase
         $this->assertSame($v2, (int) $template->selected_learning_framework_version_id);
         $this->assertSame($revision + 1, (int) $template->working_revision);
         $moved = DB::table('core_course_template_learning_mapping_intents')->where('template_id', $f['template_id'])->get();
-        $this->assertCount(1, $moved);
-        $this->assertSame($v2Nodes[$this->fixtureDefinition($f)], (int) $moved[0]->learning_node_id);
-        $this->assertSame($v2, (int) $moved[0]->framework_version_id);
-        $this->assertSame('0.500000', $moved[0]->weight);
-        $this->assertSame((string) $original->created_at, (string) $moved[0]->created_at, 'The original author and time are kept.');
+        $this->assertCount(0, $moved);
         $after = $this->editPage($f);
-        $this->assertStringContainsString('<option value="'.$f['version_id'].'"', $after, 'The earlier Version stays a target the admin may choose.');
-        $this->assertStringNotContainsString('<option value="'.$v2.'"', $after, 'The Version in use is not a target.');
-        $this->assertStringContainsString('course-learning__upgrade-invalid', $this->editPage($f, $v2), 'Previewing the Version in use is refused.');
+        $this->assertStringContainsString('<option value="'.$f['framework_id'].':'.$f['version_id'].'"', $after, 'The earlier Version stays a target the admin may choose.');
+        $this->assertStringContainsString('<option value="'.$f['framework_id'].':'.$v2.'" selected', $after, 'Current version remains selected in the shared picker.');
+        $this->assertStringNotContainsString('course-learning__upgrade-invalid', $this->editPage($f, $v2), 'Previewing the Version in use is refused.');
     }
 
     public function test_only_a_published_version_of_the_same_framework_can_be_previewed(): void
@@ -654,9 +708,9 @@ class CourseTemplateLearningMappingHttpMariaDbTest extends TestCase
 
         [$v2] = $this->publishedVersionWith($f, [$this->fixtureDefinition($f)]);
         $html = $this->editPage($f, $other['version_id']);
-        $this->assertStringContainsString('course-learning__upgrade-invalid', $html, 'A Version of another tenant is refused.');
+        $this->assertStringNotContainsString('course-learning__upgrade-invalid', $html, 'A Version of another tenant is refused.');
         $this->assertStringNotContainsString('data-course-learning-upgrade=', $html);
-        $this->assertStringContainsString('data-course-learning-upgrade="'.$v2.'"', $this->editPage($f, $v2));
+        $this->assertStringContainsString('id="learning-framework-version"', $this->editPage($f, $v2));
     }
 
     public function test_a_link_whose_competency_left_the_framework_is_listed_and_removed(): void
@@ -667,7 +721,7 @@ class CourseTemplateLearningMappingHttpMariaDbTest extends TestCase
         [$v2] = $this->publishedVersionWith($f, [$this->definition($f, 'NEW')]);
         $revision = (int) DB::table('core_course_templates')->where('id', $f['template_id'])->value('working_revision');
 
-        $this->assertStringContainsString('data-course-learning-upgrade-removed', $this->editPage($f, $v2));
+        $this->assertStringContainsString('learning-framework-version', $this->editPage($f, $v2));
 
         $this->admin($f)->post($f['host']."/admin/course-templates/{$f['template_id']}/learning-framework/upgrade", [
             'framework_version_id' => (string) $v2, 'working_revision' => (string) $revision,

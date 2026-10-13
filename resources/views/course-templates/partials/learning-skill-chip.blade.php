@@ -19,7 +19,16 @@
             </span>
         @endif
     </span>
-    <form method="POST" action="{{ route($routePrefix.'.learning-mappings.destroy', [$template->id, $skill->id]) }}" class="course-learning__skill-remove">
+    <form method="POST" action="{{ route($routePrefix.'.learning-mappings.destroy', [$template->id, $skill->id]) }}" class="course-learning__skill-remove"
+          data-lf-confirm="{{ __('lf.LF_course_template_learning_remove_confirm', ['name' => $skillName]) }}"
+          data-lf-confirm-label="{{ __('lf.LF_course_template_learning_remove', ['name' => $skillName]) }}" data-lf-confirm-tone="danger"
+          @if ($mappingPicker ?? null) data-lf-mapping-async data-lf-mapping-remove
+          data-error-message="{{ __('lf.LF_course_template_learning_attach_network_error') }}"
+          data-refresh-error="{{ __('lf.LF_course_template_learning_attach_refresh_error') }}" @endif>
+        @if ($mappingPicker ?? null)
+            <input type="hidden" name="mapping_picker" value="{{ $mappingPicker }}">
+            <p data-lf-mapping-error class="course-learning__picker-feedback is-error" role="alert" hidden></p>
+        @endif
         @csrf
         @method('DELETE')
         <button type="submit" aria-label="{{ __('lf.LF_course_template_learning_remove', ['name' => $skillName]) }}" title="{{ __('lf.LF_course_template_learning_remove', ['name' => $skillName]) }}">
