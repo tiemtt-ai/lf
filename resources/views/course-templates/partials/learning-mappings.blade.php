@@ -210,13 +210,13 @@
                                                 @endforelse
                                             </ul>
 
-                                                @if (session('mapping_picker') === $pickerId && session('mapping_feedback'))
-                                                    <p class="course-learning__picker-feedback" role="status" x-data="{ visible: true }" x-init="setTimeout(() => visible = false, 3000)" x-show="visible" x-transition.opacity>{{ session('mapping_feedback') }}</p>
-                                                @endif
-                                            <div x-data>
+                                            <div x-data class="course-learning__mapping-actions">
                                                 <button type="button" class="btn btn-secondary" @click="$refs.mappingDialog.showModal()">
                                                     <span aria-hidden="true">+</span> {{ __('lf.LF_course_template_learning_add') }}
                                                 </button>
+                                                @if (session('mapping_picker') === $pickerId && session('mapping_feedback'))
+                                                    <p class="course-learning__picker-feedback" role="status" x-data="{ visible: true }" x-init="setTimeout(() => visible = false, 3000)" x-show="visible" x-transition.opacity><span class="course-learning__success-icon" aria-hidden="true">✓</span><span>{{ session('mapping_feedback') }}</span></p>
+                                                @endif
                                                 <dialog id="{{ $pickerId }}" x-ref="mappingDialog" class="course-learning__preview-dialog course-learning__mapping-dialog"
                                                         aria-labelledby="{{ $pickerId }}-title" @click="if ($event.target === $el) $el.close()"
                                                         @if (old('mapping_picker') === $pickerId && $errors->any()) x-init="$nextTick(() => $el.showModal())" @endif>
