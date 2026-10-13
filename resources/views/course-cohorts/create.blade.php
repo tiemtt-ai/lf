@@ -7,6 +7,7 @@
     <div x-data="{ lockedReason: '' }">
         <nav class="admin-form-actions course-cohort-detail-tabs" aria-label="{{ __('lf.LF_course_cohort_common_tabs') }}">
             @foreach ($cohortTabs as $tab)
+                @continue(in_array($tab['key'], ['attendance', 'recordings'], true))
                 <span class="sr-only">{{ $tab['note'] }}</span>
                 @if ($tab['accessible'])
                     <button type="button" class="btn btn-primary" aria-current="page">{{ $tab['label'] }}</button>

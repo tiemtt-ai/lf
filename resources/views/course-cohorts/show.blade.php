@@ -24,15 +24,25 @@
 
     <div x-data="{ lockedReason: '' }"
          x-init="$nextTick(() => $refs.tabs.querySelector('[aria-current=page]')?.scrollIntoView({ behavior: 'auto', block: 'nearest', inline: 'nearest' }))">
+        @if (collect($cohortTabs)->contains('read_only', true))
+            <span class="course-cohort-readonly-label">
+                <x-backend-icon name="lock" />
+                {{ __('lf.LF_course_cohort_tab_read_only') }}
+            </span>
+        @endif
         <nav x-ref="tabs" class="admin-form-actions course-cohort-detail-tabs" aria-label="{{ __('lf.LF_course_cohort_common_tabs') }}">
             @foreach ($cohortTabs as $tab)
+                @continue(in_array($tab['key'], ['attendance', 'recordings'], true))
                 <span class="sr-only">{{ $tab['note'] }}</span>
                 @if ($tab['accessible'])
                     <a @class(['btn', 'btn-primary' => $activeTab === $tab['key'], 'btn-secondary' => $activeTab !== $tab['key']])
                        href="{{ $tab['route'] }}" @if($activeTab === $tab['key']) aria-current="page" @endif>
                         {{ $tab['label'] }}
                         @if ($tab['key'] === 'students') ({{ $activeMembershipCount }}/{{ $cohort->capacity ?? '∞' }}) @endif
-                        @if ($tab['read_only']) · {{ __('lf.LF_course_cohort_tab_read_only') }} @endif
+                        @if ($tab['read_only'])
+                            <x-backend-icon name="lock" class="course-cohort-detail-tab__lock-icon" />
+                            <span class="sr-only">{{ __('lf.LF_course_cohort_tab_read_only') }}</span>
+                        @endif
                     </a>
                 @else
                     <button type="button" class="btn btn-secondary course-cohort-detail-tab--locked" aria-disabled="true"

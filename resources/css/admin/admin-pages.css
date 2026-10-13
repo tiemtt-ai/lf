@@ -7692,6 +7692,13 @@
 @media (max-width: 767px) {
     .lf-admin-page .lf-framework-index__table .course-template-manage { width: auto; max-width: 100%; flex: 0 0 auto; justify-self: start; box-sizing: border-box; }
 }
+.course-cohort-detail-tabs .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.course-cohort-detail-tabs .course-cohort-detail-tab__lock-icon { width: 14px; height: 14px; flex-shrink: 0; opacity: .7; }
+@media (min-width: 768px) {
+    .course-cohort-detail-tabs .btn { flex: 1 1 0; min-width: 0; }
+}
+.course-cohort-readonly-label { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 10px; padding: 4px 10px; border-radius: 6px; background: var(--admin-surface-muted, #f1f5f9); color: var(--admin-text-muted); font-size: 12px; font-weight: 500; }
+.course-cohort-readonly-label svg { width: 14px; height: 14px; }
 .course-template-manage { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 38px; padding: 8px 12px; white-space: nowrap; }
 .course-template-manage .admin-action-menu__item-icon { width: 16px; height: 16px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 1.8; }
 @media (min-width: 768px) {

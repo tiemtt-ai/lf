@@ -1046,7 +1046,7 @@ class CourseCohortManagementTest extends TestCase
         $detail = $this->actingAs($admin)
             ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=teachers")
             ->assertOk();
-        foreach (['overview', 'students', 'teachers', 'schedules', 'sessions', 'attendance', 'recordings'] as $tab) {
+        foreach (['overview', 'students', 'teachers', 'schedules', 'sessions'] as $tab) {
             $detail->assertSee(__('lf.LF_course_cohort_tab_'.$tab));
         }
         $detail->assertSee('min="2026-08-01"', false)
@@ -1756,7 +1756,7 @@ class CourseCohortManagementTest extends TestCase
 
         $create = $this->actingAs($admin)
             ->get('https://tenant-a.localhost/admin/course-cohorts/create')->assertOk();
-        foreach (['overview', 'students', 'teachers', 'schedules', 'sessions', 'attendance', 'recordings'] as $tab) {
+        foreach (['overview', 'students', 'teachers', 'schedules', 'sessions'] as $tab) {
             $create->assertSeeText(__('lf.LF_course_cohort_tab_'.$tab));
         }
         $create->assertSee('aria-disabled="true"', false)
@@ -1770,7 +1770,8 @@ class CourseCohortManagementTest extends TestCase
         $detail = $this->actingAs($admin)
             ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=attendance")
             ->assertOk();
-        $detail->assertSeeText(__('lf.LF_course_cohort_tab_attendance_locked_active'))
+        $detail->assertDontSeeText(__('lf.LF_course_cohort_tab_attendance'))
+            ->assertDontSeeText(__('lf.LF_course_cohort_tab_recordings'))
             ->assertSeeText(__('lf.LF_course_cohort_tab_students_detail_note'))
             ->assertSeeText(__('lf.LF_course_cohort_tab_overview_detail_note'))
             ->assertDontSeeText(__('lf.LF_course_cohort_tab_overview_note'));
