@@ -13,10 +13,6 @@
              @js($currentSection->id)
          )">
     <header class="course-template-outline-section-header">
-        <h3 class="course-template-outline-section-title">
-            {{ $currentSection->title }}
-        </h3>
-        <div class="admin-table-actions">
             <button type="button"
                     class="admin-link-button admin-text-action course-template-section-toggle"
                     aria-controls="course-template-section-{{ $currentSection->id }}-branch"
@@ -37,6 +33,11 @@
                       x-bind:class="{ 'is-collapsed': ! expanded }"
                       aria-hidden="true"></span>
             </button>
+        <h3 class="course-template-outline-section-title">
+            {{ $currentSection->title }}
+        </h3>
+        <div class="admin-table-actions">
+
             <a class="admin-text-action" href="{{ route($sectionRoutePrefix.'.create', $template->id) }}?parent_section_id={{ $currentSection->id }}">
                 {{ __('lf.LF_course_template_section_common_add_child_action') }}
             </a>
