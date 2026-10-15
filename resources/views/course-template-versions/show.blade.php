@@ -376,24 +376,8 @@
             </div>
         </section>
 
-        <div class="media-library-modal"
-             x-cloak
-             x-show="previewOpen"
-             x-on:click.self="closeVersionPreview()"
-             role="dialog"
-             aria-modal="true"
-             x-bind:aria-label="preview.name">
-            <button type="button" class="media-library-modal-backdrop"
-                    x-on:click="closeVersionPreview()"
-                    aria-label="{{ __('lf.LF_common_button_close') }}"></button>
-            <div class="media-library-modal-panel">
-                <div class="media-library-modal-header">
-                    <h2 x-text="preview.name"></h2>
-                    <button type="button" class="btn" x-on:click="closeVersionPreview()">
-                        {{ __('lf.LF_common_button_close') }}
-                    </button>
-                </div>
-                <div class="media-library-modal-body">
+        <x-media-preview-modal id="version-media-preview-title" show="previewOpen" close="closeVersionPreview()" title="preview.name" compact="preview.mediaType === 'audio' || preview.type === 'audio'">
+
                     <img x-show="preview.type === 'image'" x-bind:src="preview.type === 'image' ? preview.url : ''"
                          x-bind:alt="preview.name" class="media-library-modal-image">
                     <video x-ref="versionPreviewVideo" x-show="preview.type === 'video'"
@@ -409,8 +393,7 @@
                             loading="lazy"
                             sandbox="allow-scripts allow-same-origin allow-presentation"
                             allow="autoplay; fullscreen; picture-in-picture"></iframe>
-                </div>
-            </div>
-        </div>
+
+</x-media-preview-modal>
     </div>
 @endsection

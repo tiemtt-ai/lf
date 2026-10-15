@@ -253,30 +253,8 @@
         </div>
     </section>
 
-    <div class="media-library-modal"
-         x-cloak
-         x-show="previewOpen"
-         x-transition.opacity
-         role="dialog"
-         aria-modal="true"
-         aria-labelledby="course-template-preview-title">
-        <button type="button"
-                class="media-library-modal-backdrop"
-                aria-label="{{ __('lf.LF_common_button_cancel') }}"
-                x-on:click="closeTemplatePreview()"></button>
+    <x-media-preview-modal id="course-template-preview-title" show="previewOpen" close="closeTemplatePreview()" title="preview.name" compact="preview.mediaType === 'audio' || preview.type === 'audio'">
 
-        <div class="media-library-modal-panel">
-            <div class="media-library-modal-header">
-                <h2 id="course-template-preview-title"
-                    x-text="preview.name"></h2>
-                <button type="button"
-                        class="admin-link-button admin-text-action"
-                        x-on:click="closeTemplatePreview()">
-                    {{ __('lf.LF_common_button_cancel') }}
-                </button>
-            </div>
-
-            <div class="media-library-modal-body">
                 <template x-if="previewLoaded && preview.mediaType === 'image'">
                     <img x-bind:src="preview.url"
                          x-bind:alt="preview.name"
@@ -301,7 +279,6 @@
                         allow="fullscreen; picture-in-picture"
                         referrerpolicy="strict-origin-when-cross-origin"
                         allowfullscreen></iframe>
-            </div>
-        </div>
-    </div>
+
+</x-media-preview-modal>
 </div>

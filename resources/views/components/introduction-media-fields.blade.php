@@ -122,18 +122,11 @@
         <x-upload-hint :formats="['PDF', 'DOC', 'DOCX', 'PPT', 'PPTX', 'XLS', 'XLSX']" />
     </div>
 
-    <div class="media-library-modal" x-cloak x-show="previewOpen" x-transition.opacity role="dialog" aria-modal="true" aria-labelledby="product-introduction-preview-title">
-        <button type="button" class="media-library-modal-backdrop" aria-label="{{ __('lf.LF_common_button_cancel') }}" x-on:click="closeIntroductionPreview()"></button>
-        <div class="media-library-modal-panel">
-            <div class="media-library-modal-header">
-                <h2 id="product-introduction-preview-title" x-text="preview.name"></h2>
-                <button type="button" class="admin-link-button admin-text-action" x-on:click="closeIntroductionPreview()">{{ __('lf.LF_common_button_cancel') }}</button>
-            </div>
-            <div class="media-library-modal-body">
+    <x-media-preview-modal id="product-introduction-preview-title" show="previewOpen" close="closeIntroductionPreview()" title="preview.name" compact="preview.mediaType === 'audio' || preview.type === 'audio'">
+
                 <template x-if="previewLoaded && preview.mediaType === 'image'"><img :src="preview.url" :alt="preview.name" class="media-library-modal-image"></template>
                 <video x-ref="introductionPreviewVideoPlayer" x-show="previewLoaded && preview.mediaType === 'video'" controls preload="metadata" class="media-library-modal-video"><source x-ref="introductionPreviewVideoSource" :src="videoSrc" :type="preview.mimeType"></video>
                 <iframe class="media-library-modal-video" x-show="previewLoaded && preview.mediaType === 'embed'" :src="preview.mediaType === 'embed' ? preview.url : ''" :title="preview.name" loading="lazy" sandbox="allow-scripts allow-same-origin allow-presentation" allow="fullscreen; picture-in-picture" referrerpolicy="strict-origin-when-cross-origin"></iframe>
-            </div>
-        </div>
-    </div>
+
+</x-media-preview-modal>
 </div>

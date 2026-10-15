@@ -623,30 +623,8 @@
         </section>
     </div>
 
-    <div class="media-library-modal"
-         x-cloak
-         x-show="previewOpen"
-         x-transition.opacity
-         role="dialog"
-         aria-modal="true"
-         aria-labelledby="media-library-preview-title">
-        <button type="button"
-                class="media-library-modal-backdrop"
-                aria-label="{{ __('lf.LF_common_button_cancel') }}"
-                x-on:click="closeMediaPreview()"></button>
+    <x-media-preview-modal id="media-library-preview-title" show="previewOpen" close="closeMediaPreview()" title="preview.name" compact="preview.mediaType === 'audio' || preview.type === 'audio'">
 
-        <div class="media-library-modal-panel">
-            <div class="media-library-modal-header">
-                <h2 id="media-library-preview-title"
-                    x-text="preview.name"></h2>
-                <button type="button"
-                        class="admin-link-button admin-text-action"
-                        x-on:click="closeMediaPreview()">
-                    {{ __('lf.LF_common_button_cancel') }}
-                </button>
-            </div>
-
-            <div class="media-library-modal-body">
                 <template x-if="previewLoaded && preview.mediaType === 'image'">
                     <img x-bind:src="preview.url"
                          x-bind:alt="preview.name"
@@ -669,8 +647,7 @@
                        controls
                        preload="metadata"
                        class="media-library-modal-audio"></audio>
-            </div>
-        </div>
-    </div>
+
+</x-media-preview-modal>
     </div>
 @endsection

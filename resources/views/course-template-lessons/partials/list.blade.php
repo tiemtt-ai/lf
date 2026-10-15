@@ -275,13 +275,13 @@
                                     </div>
                                 </div>
                                 <div class="admin-table-actions">
-                                    @if (($activity->view_behavior ?? null) === 'popup')
+                                    @if (($activity->view_behavior ?? null) === 'popup' || (($activity->view_kind ?? null) === 'none' && in_array($activity->activity_type, ['audio', 'video'], true)))
                                         <button type="button"
                                                 class="admin-link-button admin-text-action"
                                                 x-on:click="openActivityPreview(
                                                     @js($activity->title),
-                                                    @js($activityViewUrl),
-                                                    @js($activity->activity_type)
+                                                    @js(($activity->view_kind ?? null) === 'none' ? '' : $activityViewUrl),
+                                                    @js(($activity->view_kind ?? null) === 'none' ? 'unavailable' : $activity->activity_type)
                                                 )">
                                             {{ __('lf.LF_common_button_view') }}
                                         </button>
@@ -397,38 +397,21 @@
         @endforelse
     </div>
 
-    <div class="media-library-modal"
-         x-cloak
-         x-show="activityPreviewOpen"
-         x-transition.opacity
-         role="dialog"
-         aria-modal="true"
-         aria-labelledby="{{ $panelId }}-activity-preview-title">
-        <button type="button"
-                class="media-library-modal-backdrop"
-                aria-label="{{ __('lf.LF_common_button_cancel') }}"
-                x-on:click="closeActivityPreview()"></button>
-        <div class="media-library-modal-panel">
-            <div class="media-library-modal-header">
-                <h2 id="{{ $panelId }}-activity-preview-title" x-text="activityPreview.title"></h2>
-                <button type="button"
-                        class="admin-link-button admin-text-action"
-                        x-on:click="closeActivityPreview()">
-                    {{ __('lf.LF_common_button_cancel') }}
-                </button>
-            </div>
-            <div class="media-library-modal-body">
+    <x-media-preview-modal id="{{ $panelId }}-activity-preview-title" show="activityPreviewOpen" close="closeActivityPreview()" title="activityPreview.title" compact="['audio', 'unavailable'].includes(activityPreview.type)">
+
                 <video x-ref="outlinePreviewVideo"
                        x-show="activityPreview.type === 'video'"
                        x-bind:src="activityPreview.type === 'video' ? activityPreview.url : ''"
                        controls preload="metadata"
                        class="media-library-modal-video"></video>
+                <p x-show="activityPreview.type === 'unavailable'" role="status" class="lf-secondary-text">
+                    {{ __('lf.LF_course_template_activity_media_unavailable') }}
+                </p>
                 <audio x-ref="outlinePreviewAudio"
                        x-show="activityPreview.type === 'audio'"
                        x-bind:src="activityPreview.type === 'audio' ? activityPreview.url : ''"
                        controls preload="metadata"
                        class="course-activity-media-audio-player"></audio>
-            </div>
-        </div>
-    </div>
+
+</x-media-preview-modal>
 </section>

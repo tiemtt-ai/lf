@@ -509,27 +509,8 @@
     <div class="lf-form-group"><x-form-label for="sort_order" :value="__('lf.LF_course_template_activity_common_sort_order')" /><input id="sort_order" type="number" min="0" name="sort_order" class="lf-form-control" value="{{ old('sort_order', $formActivity?->sort_order ?? $suggestedSortOrder ?? null) }}" placeholder="{{ __('lf.LF_course_template_activity_placeholder_sort_order') }}"></div>
         </div>
     </section>
-    <div class="media-library-modal"
-         x-cloak
-         x-show="mediaPreviewOpen"
-         x-transition.opacity
-         role="dialog"
-         aria-modal="true"
-         aria-labelledby="course-activity-media-preview-title">
-        <button type="button"
-                class="media-library-modal-backdrop"
-                aria-label="{{ __('lf.LF_common_button_cancel') }}"
-                x-on:click="closeActivityMediaPreview()"></button>
-        <div class="media-library-modal-panel">
-            <div class="media-library-modal-header">
-                <h2 id="course-activity-media-preview-title" x-text="mediaPreview.name"></h2>
-                <button type="button"
-                        class="admin-link-button admin-text-action"
-                        x-on:click="closeActivityMediaPreview()">
-                    {{ __('lf.LF_common_button_cancel') }}
-                </button>
-            </div>
-            <div class="media-library-modal-body">
+    <x-media-preview-modal id="course-activity-media-preview-title" show="mediaPreviewOpen" close="closeActivityMediaPreview()" title="mediaPreview.name" compact="mediaPreview.type === 'audio'">
+
                 <video x-ref="activityMediaVideoPlayer"
                        x-show="mediaPreview.type === 'video'"
                        x-bind:src="mediaPreview.type === 'video' ? mediaPreview.url : ''"
@@ -540,7 +521,6 @@
                        x-bind:src="mediaPreview.type === 'audio' ? mediaPreview.url : ''"
                        controls preload="metadata"
                        class="course-activity-media-audio-player"></audio>
-            </div>
-        </div>
-    </div>
+
+</x-media-preview-modal>
 </div>
