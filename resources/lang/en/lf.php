@@ -85,6 +85,7 @@ return [
     'LF_common_status_common_active' => 'Active',
     'LF_common_status_common_inactive' => 'Inactive',
     'LF_common_role_admin_customer_admin' => 'Customer Admin',
+    'LF_navigation_label_account_administrator' => 'Admin',
     'LF_common_role_teacher_teacher' => 'Teacher',
     'LF_common_role_student_student' => 'Student',
     'LF_common_navigation_public_label' => 'Public navigation',

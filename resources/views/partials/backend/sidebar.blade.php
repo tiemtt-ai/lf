@@ -2,7 +2,7 @@
     <div class="admin-sidebar__brand">
         <a href="{{ route($dashboardRoute) }}" aria-label="{{ $dashboardLabel }}">
             <img class="admin-brand-image" src="{{ asset('assets/admin/brand-logo.png') }}" alt="Master Korean" width="180" height="67">
-            <span class="admin-brand-initial" role="img" aria-label="Master Korean">V</span>
+            <img class="admin-brand-symbol" src="{{ asset('assets/admin/brand-symbol.png') }}" alt="Master Korean" width="40" height="36">
         </a>
         <button type="button" class="admin-icon-button admin-close" x-ref="drawerClose"
                 x-bind:hidden="! drawerOpen" hidden x-on:click="closeDrawer()"

@@ -45,12 +45,12 @@
         ]);
         $accountMenuLinks = $isTeacher
             ? [
-                ['label' => __('lf.LF_navigation_menu_admin_my_account'), 'route' => 'teacher.profile.edit'],
+                ['label' => __('lf.LF_navigation_menu_admin_my_account'), 'route' => 'teacher.profile.edit', 'icon' => 'user'],
             ]
             : [
-                ['label' => __('lf.LF_navigation_menu_admin_my_account'), 'route' => 'admin.my-account.edit'],
-                ['label' => __('lf.LF_navigation_menu_admin_users'), 'route' => 'admin.users.index'],
-                ['label' => __('lf.LF_navigation_menu_admin_organization'), 'route' => 'admin.organization.edit'],
+                ['label' => __('lf.LF_navigation_menu_admin_my_account'), 'route' => 'admin.my-account.edit', 'icon' => 'user'],
+                ['label' => __('lf.LF_navigation_menu_admin_users'), 'route' => 'admin.users.index', 'icon' => 'users'],
+                ['label' => __('lf.LF_navigation_menu_admin_organization'), 'route' => 'admin.organization.edit', 'icon' => 'building-2'],
             ];
         $portalMenu = $isTeacher
             ? [

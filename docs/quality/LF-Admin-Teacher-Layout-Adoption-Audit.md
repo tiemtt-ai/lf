@@ -1,12 +1,12 @@
 # Admin/Teacher Layout Adoption Audit
 
-Version: 1.3
+Version: 1.11
 
 Document Status: Review
 
 Implementation Status: Partial
 
-Last Updated: 2026-10-17
+Last Updated: 2026-10-18
 
 Document Path: quality/LF-Admin-Teacher-Layout-Adoption-Audit.md
 
@@ -54,7 +54,7 @@ sử dụng backend layout; controller, middleware, route và migration không �
 
 ## Browser evidence
 
-Trình duyệt IAB; tài khoản QA riêng trên SQLite `/tmp`, qua login thật, không
+Trình duyệt IAB; tài khoản QA riêng trên SQLite QA tạm (đã dọn), qua login thật, không
 sửa dữ liệu tenant ứng dụng. Reference và LF desktop: 1280×800, DPR 1, Arial.
 Ảnh chụp, log và JSON kiểm thử tạm đã được xóa theo yêu cầu Owner sau rà soát.
 Các kết quả dưới đây là ghi nhận lịch sử của lần kiểm tra trước; không còn
@@ -62,7 +62,7 @@ artifact thô để đối chiếu lại. Cần chạy lại kiểm thử nếu 
 
 | Hạng mục | Kết quả |
 | --- | --- |
-| Sidebar desktop expanded/collapsed | PASS: 248px / 68px; logo đầy đủ / chữ V |
+| Sidebar desktop expanded/collapsed | PASS: 248px / 68px; logo đầy đủ / chữ V ở lần kiểm tra ban đầu; đã thay bằng icon Owner bên dưới |
 | Header và typography shell | PASS: 66px; Arial 14px/1.45; màu/nav khớp measured styles |
 | Logo + brand region | PASS: pixel diff 0/16,368 pixel trong vùng 248×66 |
 | Footer trên Teacher dashboard ngắn | PASS: đáy footer ở 800px khi viewport cao 800px |
@@ -197,3 +197,93 @@ failures ở trên thuộc lần full-suite trước, không phải kết quả 
 Phạm vi bằng chứng là shell và các màn hình đã liệt kê, không chứng nhận
 pixel parity mọi form/table nghiệp vụ. Touch thiết bị thật và screen reader
 vẫn chưa kiểm chứng. Không đổi CSS chỉ để tạo diff khi geometry đã khớp mẫu.
+
+
+## Owner follow-up — collapsed brand and cleanup
+
+Owner yêu cầu thay chữ V khi thu menu bằng icon đính kèm. Asset production
+`public/assets/admin/brand-symbol.png` giữ nguyên ảnh Owner, hiển thị rộng 40px
+và giữ tỷ lệ. Desktop collapsed và trạng thái khởi tạo dùng cùng icon; expanded
+và mobile drawer giữ logo đầy đủ. UI Kit gốc không sửa.
+
+Dọn các script, log và database QA tạm riêng của đợt layout trong `/tmp`;
+không xóa artifacts của công việc khác. Báo cáo giữ kết quả lịch sử, không
+liên kết tới thư mục bằng chứng đã xóa. Đây là chỉnh presentation trong shared shell,
+không thay auth, tenant, route hoặc nghiệp vụ.
+
+Kiểm tra follow-up: browser xác nhận icon 40px đã tải, không còn chữ V;
+expanded/mobile drawer giữ logo đầy đủ. Build PASS; local Markdown links trong
+5 tài liệu UI đã chỉnh không có đường dẫn thiếu. Không tạo lại artifacts trong repo.
+
+## Owner follow-up — account dropdown
+
+Theo yêu cầu chỉnh UI/UX submenu: tài khoản dùng user, người dùng dùng users,
+tổ chức dùng building-2, đăng xuất giữ log-out từ cùng bộ Lucide reference.
+Tách phần thông tin người dùng và đăng xuất bằng border nhẹ; tăng gap icon/label,
+đồng bộ focus-visible với hover. Giữ route, role filtering, POST logout và CSRF.
+
+Build, Pint các Blade thay đổi và diff check PASS; AdminProfileTest +
+RoleProfileTest: 11 passed, 214 assertions. Chưa xác minh browser dropdown mới
+vì phiên LF hiện tại đang ở trang đăng nhập; không tuyên bố visual parity.
+Không sửa UI Kit gốc hoặc tạo thêm file kiểm thử tạm.
+
+## Account and language browser follow-up
+
+Owner yêu cầu selector cờ + VI/EN theo ảnh: dùng SVG local, nút hiện locale
+hiện tại và dropdown hiện locale còn lại; giữ POST/CSRF đổi ngôn ngữ.
+Browser QA qua login thật: account dropdown không tràn tại PC 1280×800,
+mobile 390×844 và 320×640. Mobile 320px: account bounds x=33..293,
+language bounds x=114..226, không overflow bên trong. Đổi VI → EN → VI
+thành công; Escape đóng dropdown và trả focus đúng trigger.
+Database QA được dọn sau kiểm tra; không lưu log hoặc artifacts kiểm thử trong repo.
+
+## Owner follow-up — topmenu simplification
+
+Thay initials avatar trên topmenu bằng icon user (User hiện chưa có trường ảnh
+đại diện); bỏ trigger/dropdown thông báo chưa triển khai. Giữ alignment phải
+của cụm topmenu. VI/EN dùng weight 400, nền mặc định trong suốt và nền nhấn nhẹ
+khi hover/focus/mở. Bỏ mobile offset riêng của notification để language dropdown
+không bị áp nhầm khi trở thành phần tử đầu tiên. Không đổi nghiệp vụ/UI Kit.
+
+Validation: build, Pint Blade và diff check PASS; 12 tests/234 assertions PASS
+(AdminProfileTest, RoleProfileTest và backend layout render cho Admin/Teacher).
+Không chạy lại browser trong lượt này; không tạo file kiểm thử tạm.
+
+## Owner follow-up — visible account role
+
+Topmenu PC hiển thị icon user, tên thật, badge Quản trị viên/Giáo viên theo
+role hiện hành và mũi tên. Mobile ≤680px ẩn tên/badge trong trigger; dropdown
+luôn hiện tên, badge vai trò và email. Badge có bản dịch EN; không thay role
+hoặc quyền. Tên dài được ellipsis, cụm account được phép co khi header hẹp.
+UI Kit giữ nguyên. Build, Pint và 12 tests/234 assertions PASS; diff check PASS.
+Chưa kiểm tra browser riêng trong lượt này; không tạo file kiểm thử tạm.
+
+## Owner follow-up — dropdown-only role (2026-10-18)
+
+Theo quyết định mới, bỏ badge role khỏi topmenu; dropdown đặt tên và badge
+Admin/Giáo viên cùng hàng, email ở dưới. Admin giữ label Admin ở VI/EN;
+Teacher giữ bản dịch Teacher khi EN. Identity row dùng flex-wrap và tên
+cho phép ngắt từ dài để tránh tràn trên mobile. Rule ẩn role trong trigger
+đã bỏ vì không còn markup tương ứng. Không đổi nghiệp vụ/UI Kit gốc.
+
+Build, Pint các Blade/translations và diff check PASS; 12 tests/234 assertions
+PASS. Chưa kiểm tra browser riêng trong lượt này; không tạo file kiểm thử tạm.
+
+## Topmenu visual verification — 2026-10-18
+
+Owner yêu cầu hiện chuông trở lại: dùng icon có accessible name, không handler,
+không popup, không tab stop; hover dùng chung rule admin-top-button.
+
+Browser QA Admin/Teacher qua login thật: 1280×800, 768×1024, 681×844,
+390×844, 320×640. Tên/badge nằm trong dropdown, tên topmenu ẩn trên mobile;
+tên dài không dấu cách được wrap trong dropdown và ellipsis ở trigger.
+Không overflow dropdown; Escape đóng và trả focus. Console không có error.
+Sửa max-width top-actions từ trừ 44px thành 56px để giữ đủ lề phải 20px
+tại viewport 681px khi tên dài; xác minh right=646 trong header right=666.
+
+Build, Pint và 12 tests/234 assertions PASS; diff check PASS. Database QA
+đã dọn, server QA đã dừng; không lưu file kiểm thử tạm trong repo.
+
+Owner follow-up: badge vai trò căn phải đối diện tên trong dropdown desktop;
+mobile ≤680px xuống dòng căn trái, tên dài vẫn wrap. Build và diff check PASS.
+Chưa kiểm tra browser riêng cho thay đổi căn lề này.

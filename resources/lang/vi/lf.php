@@ -85,6 +85,7 @@ return [
     'LF_common_status_common_active' => 'Hoạt động',
     'LF_common_status_common_inactive' => 'Không hoạt động',
     'LF_common_role_admin_customer_admin' => 'Quản trị khách hàng',
+    'LF_navigation_label_account_administrator' => 'Admin',
     'LF_common_role_teacher_teacher' => 'Giáo viên',
     'LF_common_role_student_student' => 'Học viên',
     'LF_common_navigation_public_label' => 'Điều hướng công khai',

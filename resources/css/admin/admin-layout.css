@@ -30,7 +30,6 @@
     --admin-color-30343d: #30343d;
     --admin-color-e8ebf1: #e8ebf1;
     --admin-color-78818e: #78818e;
-    --admin-color-00afd0: #00afd0;
     --admin-color-e3e7ef: #e3e7ef;
 }
 
@@ -206,7 +205,6 @@
 #admin-app .admin-account-name{display:none}
 #admin-app .admin-top-actions{gap:4px}
 #admin-app .admin-breadcrumb{order:3;flex-basis:100%;padding:0 0 10px 6px}
-#admin-app .admin-top-pop:first-child .admin-top-dropdown{right:-170px;min-width:250px}
 #admin-app .admin-top-button{font-size:13px}
 #admin-app .admin-header>.admin-icon-button{margin-right:auto}
 }
@@ -244,12 +242,12 @@
 #admin-app button:disabled{cursor:not-allowed;opacity:.5;}
 
 
-/* Full logo when expanded; initial when collapsed. */
-#admin-app .admin-brand-initial{display:none;color:var(--admin-color-00afd0);font:500 28px/1 Arial,sans-serif;letter-spacing:-1px}
+/* Full logo when expanded; Owner-supplied symbol when collapsed. */
+#admin-app .admin-brand-symbol{display:none;width:40px;height:auto;max-height:40px;object-fit:contain}
 #admin-app .is-collapsed .admin-brand-image{display:none}
-#admin-app .is-collapsed .admin-brand-initial{display:block}
+#admin-app .is-collapsed .admin-brand-symbol{display:block}
 #admin-app .admin-drawer .admin-brand-image{display:block}
-#admin-app .admin-drawer .admin-brand-initial{display:none}
+#admin-app .admin-drawer .admin-brand-symbol{display:none}
 
 #admin-app .admin-brand-image{width:180px;height:auto;max-height:62px;object-fit:contain;}
 
@@ -278,7 +276,7 @@
 @media (min-width: 681px) {
     :root.is-backend-sidebar-collapsed #admin-app .admin-shell > .admin-sidebar { width: 68px; padding-left: 8px; padding-right: 8px; }
     :root.is-backend-sidebar-collapsed #admin-app :is(.admin-brand-image, .admin-nav__label, .admin-nav__chevron, .admin-nav__children, .admin-user__text) { display: none; }
-    :root.is-backend-sidebar-collapsed #admin-app .admin-brand-initial { display: block; }
+    :root.is-backend-sidebar-collapsed #admin-app .admin-brand-symbol { display: block; }
 }
 :root.is-backend-sidebar-initializing #admin-app * { transition: none !important; }
 @media (pointer: coarse) {
@@ -289,3 +287,38 @@
 #admin-app .is-collapsed :is(.admin-nav__label, .admin-nav__chevron, .admin-nav__children, .admin-user__text) { display: none; }
 
 #admin-app .admin-icon-button { padding: 1px 6px; }
+
+/* Account navigation: distinct identity, destinations and sign-out action. */
+#admin-app .admin-account-dropdown { min-width: 260px; }
+#admin-app .admin-account-summary { padding: 4px 8px 12px; margin-bottom: 4px; border-bottom: 1px solid var(--nav-border); }
+#admin-app .admin-account-summary strong { padding: 0; min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+#admin-app .admin-account-summary p { margin: 6px 0 0; }
+#admin-app .admin-account-dropdown .admin-dropdown-row { gap: 12px; }
+#admin-app .admin-account-dropdown .admin-dropdown-row:focus-visible { background: var(--admin-color-f2f4fc); color: var(--nav-primary); outline-offset: -2px; }
+#admin-app .admin-account-logout { margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--nav-border); }
+
+/* Owner reference: compact flag + locale code, with the alternative below. */
+#admin-app .admin-language-button { gap: 8px; padding: 0 10px; background: transparent; color: var(--admin-color-30343d); border-radius: 10px; }
+#admin-app .admin-language-button #current-language { color: inherit; font-weight: 400; }
+#admin-app .admin-language-flag { width: 24px; height: 16px; object-fit: cover; border-radius: 3px; box-shadow: 0 0 0 1px var(--nav-border); flex: none; }
+#admin-app .admin-language-caret { width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 5px solid var(--admin-color-727c8e); }
+#admin-app .admin-language-button[aria-expanded=true] .admin-language-caret { transform: rotate(180deg); }
+#admin-app .admin-language-dropdown { top: calc(100% + 10px); min-width: 112px; padding: 6px; border-radius: 10px; }
+#admin-app .admin-language-dropdown::before { content: ''; position: absolute; right: 24px; top: -6px; width: 10px; height: 10px; background: white; border-top: 1px solid var(--admin-color-e5e9f1); border-left: 1px solid var(--admin-color-e5e9f1); transform: rotate(45deg); }
+#admin-app .admin-language-option { gap: 10px; border-radius: 7px; background: var(--admin-color-f4f5fb); }
+
+#admin-app .admin-language-button:is(:hover, :focus-visible, [aria-expanded=true]) { background: var(--admin-color-f4f5fb); }
+
+/* Account identity stays readable while the role remains distinct. */
+#admin-app .admin-account-role { display: inline-flex; align-items: center; flex: none; padding: 3px 7px; border-radius: 4px; background: var(--admin-color-f2f4fc); color: var(--nav-primary); font: 400 12px/1.4 Arial, sans-serif; }
+#admin-app .admin-account-identity { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px 8px; }
+#admin-app .admin-top-actions { max-width: calc(100% - 56px); }
+#admin-app .admin-top-pop:last-child { min-width: 0; }
+#admin-app .admin-account-button { max-width: 100%; }
+#admin-app .admin-account-name { min-width: 0; }
+
+#admin-app .admin-notification-placeholder { cursor: default; flex: none; }
+
+@media (max-width: 680px) {
+    #admin-app .admin-account-identity strong { flex-basis: 100%; }
+}
