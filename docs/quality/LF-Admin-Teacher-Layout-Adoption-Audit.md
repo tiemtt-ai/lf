@@ -1,6 +1,6 @@
 # Admin/Teacher Layout Adoption Audit
 
-Version: 1.21
+Version: 1.22
 
 Document Status: Review
 
@@ -389,3 +389,17 @@ Không để lại file kiểm thử tạm trong repo.
 Owner correction: logo login dùng đúng box 150×54px đã đo ở trang mẫu,
 áp dụng PC/mobile, bỏ override 220px trên mobile. Giữ SVG trắng và header
 PC 112px. Build/diff check PASS; chưa browser rerun cho lần thu nhỏ này.
+
+## Logo 150×54 visual acceptance — 2026-10-18
+
+Đối chiếu cùng IAB: reference PC 1440×900 có header 112px, logo box 150×54
+tại x645/y29; LF có cùng kích thước/vị trí logo, header 112px, input 40px.
+Reference mobile 390px giảm logo còn 100×42; LF giữ 150×54 theo yêu cầu Owner.
+Phát hiện LF header mobile còn cao hơn 112px do hai hàng: đã chỉnh grid mobile
+112px gồm hàng label/language 48px và hàng logo 54px, padding 5px mỗi cạnh dọc.
+Browser LF 390×844 và 320×640 xác nhận header 112px, logo 150×54, input 44px
+theo touch policy, không tràn ngang. VI/EN mobile không chồng chữ/logo;
+đổi locale thành công. Không thay form/auth behavior hoặc UI Kit.
+
+Build/diff check PASS; không chạy lại auth tests cho thay đổi CSS geometry.
+Database QA đã xóa, server/tab QA đóng, không lưu file kiểm thử tạm trong repo.

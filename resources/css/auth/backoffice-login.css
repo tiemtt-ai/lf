@@ -58,7 +58,7 @@
 }
 @media (max-width: 600px) {
     .lf-login-page .lf-login-input { height: 44px; padding-top: 10px; padding-bottom: 10px; }
-    .lf-login-header-inner { padding: 20px; grid-template-columns: minmax(0, 1fr) auto; gap: 20px; }
+    .lf-login-header-inner { height: 112px; padding: 5px 20px; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: 48px 54px; gap: 0 16px; }
     .lf-login-brand { grid-row: 2; grid-column: 1 / -1; }
     .lf-login-languages { grid-row: 1; grid-column: 2; }
     .lf-login-heading > span { font-size: 20px; }
