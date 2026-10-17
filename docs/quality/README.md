@@ -24,6 +24,9 @@ criteria hay không.
 
 # Current Document
 
+* [AI-Packet-Reassessment-2026-09-26.md](AI-Packet-Reassessment-2026-09-26.md) — báo cáo rà soát packet AI ngày 2026-09-26; giữ nguyên kết luận lịch sử.
+* [LF-A0-Docling-Benchmark-Protocol.md](LF-A0-Docling-Benchmark-Protocol.md) — protocol benchmark OCR đã Archived; giữ lại để tra cứu.
+
 * [LF-Regression-Audit.md](LF-Regression-Audit.md) — checklist bắt buộc cho mọi
   `Existing-Feature Change`; canonical Audit Level là `LOW`, `MEDIUM`, `HIGH`
   và độ sâu kiểm chứng theo mức cao nhất áp dụng.

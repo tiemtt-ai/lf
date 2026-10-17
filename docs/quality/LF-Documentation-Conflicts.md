@@ -792,7 +792,7 @@ Resolved At: 2026-09-26
 Resolution: Thêm § Processing-version length compaction vào LF-Media-Processing-Contract v2.47; v2.48 bổ sung nhánh OCR sau language profile (`document-`) và thứ tự kiểm từng bước theo review độc lập 2026-09-26 F5; test Video so khớp identity ghép tường minh gồm quy tắc nén.
 Superseded/Updated Documents: LF-Media-Processing-Contract.md
 Verification Evidence: VideoTranscriptCaptionLocalReviewTest; LF-AI-Knowledge-Backbone-Implementation-Record.md
-Related ADR/Review/Issue/PR: AI-Packet-Reassessment-2026-09-26 (working directory)
+Related ADR/Review/Issue/PR: [AI-Packet-Reassessment-2026-09-26](AI-Packet-Reassessment-2026-09-26.md)
 Notes: Ghi nhận hành vi đã có từ commit ac47b1b; không phải policy mới.
 ```
 
@@ -818,7 +818,7 @@ Resolved At: 2026-09-26
 Resolution: README, INDEX, ADR-0006 (Partial), ADR-0017 (Partial + ghi chú Context là lịch sử), LF-AI (Partial, trạng thái retrieval policy) được cập nhật.
 Superseded/Updated Documents: database/ai/README.md; LF-INDEX.md; ADR-0006; ADR-0017; LF-AI.md
 Verification Evidence: docs:lint; LF-AI-Knowledge-Backbone-Implementation-Record.md
-Related ADR/Review/Issue/PR: AI-Packet-Reassessment-2026-09-26 (working directory)
+Related ADR/Review/Issue/PR: [AI-Packet-Reassessment-2026-09-26](AI-Packet-Reassessment-2026-09-26.md)
 Notes: 0012 và 0036 đã đúng ở thời điểm đóng; đây là drift mới sau khi triển khai tiếp. Không đổi policy.
 ```
 

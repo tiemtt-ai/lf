@@ -1,5 +1,15 @@
 # Đánh giá lại packet AI từ 0a/0b đến Bước 7
 
+Version: 1.0
+
+Document Status: Review
+
+Implementation Status: Unknown
+
+Last Updated: 2026-10-17
+
+Document Path: quality/AI-Packet-Reassessment-2026-09-26.md
+
 Ngày đánh giá: 2026-09-26.
 
 Classification: Architecture/implementation reassessment, read-only production code.
@@ -16,7 +26,7 @@ kết quả FAIL xác định. Đây không phải huỷ các nghiệm thu backe
 `CourseTemplateLearningMappingIntentService.php`, test HTTP tương ứng và
 `composer.lock` trước lượt này. Đánh giá/test dùng working tree, không giả định
 đây là snapshot HEAD sạch. Không sửa ba file đó, production code, migration hay
-canonical policy. Báo cáo nằm tại working directory theo AGENTS.md.
+canonical policy. Báo cáo hiện được lưu tại `docs/quality/` (chuyển từ working directory).
 
 Đây là lượt đánh giá lại trạng thái và các boundary trọng yếu, không phải chữ ký
 Final independent closure review. Không ký lại hai gate 0a/0b bằng cùng một reviewer;
@@ -195,7 +205,7 @@ Findings By Severity: **BLOCKER 0 | HIGH 1 | MEDIUM 2 | LOW 0**.
 Giới hạn delivery/activation nêu riêng, không đếm lại thành finding mới.
 
 Bằng chứng được giữ cùng working directory tại
-[review-artifacts/ai-2026-09-26](review-artifacts/ai-2026-09-26/):
+[review-artifacts/ai-2026-09-26](../../review-artifacts/ai-2026-09-26/):
 source của hai probe, failure logs, MariaDB suite log và physical drift log.
 Các log khác ở thư mục `/private/tmp/lf-ai-review-0926.CuoKrt/` là dữ liệu tạm,
 không coi đường dẫn đó là kho evidence bền vững.

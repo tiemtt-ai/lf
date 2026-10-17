@@ -8,7 +8,7 @@ Implementation Status: Not Applicable
 
 Last Updated: 2026-08-25
 
-Document Path: LF-A0-Docling-Benchmark-Protocol.md
+Document Path: quality/LF-A0-Docling-Benchmark-Protocol.md
 
 > **Archived 2026-08-25.** Protocol này đã hoàn thành nhiệm vụ: nó tồn tại để trả
 > lời một câu hỏi, và câu hỏi đó đã được trả lời — giữ Poppler/Tesseract. Harness
@@ -18,15 +18,15 @@ Document Path: LF-A0-Docling-Benchmark-Protocol.md
 
 Related ADR:
 
-* [ADR-0004 — Media Foundation](docs/adr/ADR-0004-Media-Foundation.md)
-* [ADR-0017 — AI-Assisted Learning Authoring](docs/adr/ADR-0017-AI-Assisted-Learning-Authoring.md)
-* [ADR-0018 — Media PII And External Processing Boundary](docs/adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md) — Approved
+* [ADR-0004 — Media Foundation](../adr/ADR-0004-Media-Foundation.md)
+* [ADR-0017 — AI-Assisted Learning Authoring](../adr/ADR-0017-AI-Assisted-Learning-Authoring.md)
+* [ADR-0018 — Media PII And External Processing Boundary](../adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md) — Approved
 
 Related Specification:
 
-* [LF-Media-Processing-Contract](docs/platform/LF-Media-Processing-Contract.md)
-* [LF-Media-Read-Contract](docs/platform/LF-Media-Read-Contract.md)
-* [media_extracted_texts](docs/database/media/media_extracted_texts.md)
+* [LF-Media-Processing-Contract](../platform/LF-Media-Processing-Contract.md)
+* [LF-Media-Read-Contract](../platform/LF-Media-Read-Contract.md)
+* [media_extracted_texts](../database/media/media_extracted_texts.md)
 
 ---
 
@@ -45,7 +45,7 @@ schema, binding hay deployment nào phát sinh từ quyết định này.
 ## Bằng chứng
 
 Run `a0-fair-baseline-20260825`, mode exploratory. Bản báo cáo đầy đủ được giữ
-tại [LF-A0-Docling-Closure-Evidence](docs/quality/LF-A0-Docling-Closure-Evidence.md).
+tại [LF-A0-Docling-Closure-Evidence](LF-A0-Docling-Closure-Evidence.md).
 Baseline trong harness đã được
 sửa để khớp `LocalDocumentProcessingProvider::pdfUnits` sau khi bỏ hành vi
 all-or-nothing; các lần chạy trước đó so Docling với một baseline đang mất trang.

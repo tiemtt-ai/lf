@@ -11,7 +11,7 @@ Last Updated: 2026-08-25
 Document Path: quality/LF-A0-Docling-Closure-Evidence.md
 
 Related Specification:
-[LF-A0-Docling-Benchmark-Protocol](../../LF-A0-Docling-Benchmark-Protocol.md) v1.3
+[LF-A0-Docling-Benchmark-Protocol](LF-A0-Docling-Benchmark-Protocol.md) v1.3
 
 ---
 

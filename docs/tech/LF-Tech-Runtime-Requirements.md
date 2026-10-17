@@ -376,7 +376,7 @@ Quy tắc cô lập vẫn còn hiệu lực cho bất kỳ harness nào dựng l
 nằm trong `app/` và không bind vào service provider nào — một class extractor
 trong `app/Services` có binding sẵn có thể được bật bằng đúng một dòng `.env`.
 
-Protocol và tiêu chí đạt: `LF-A0-Docling-Benchmark-Protocol.md` ở thư mục gốc
+Protocol và tiêu chí đạt: [LF-A0-Docling-Benchmark-Protocol.md](../quality/LF-A0-Docling-Benchmark-Protocol.md) trong `docs/quality`
 repository, hiện ở trạng thái **Archived**.
 
 ---

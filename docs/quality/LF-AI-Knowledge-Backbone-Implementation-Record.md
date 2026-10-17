@@ -26,7 +26,7 @@ cuối **PASS WITH DOCUMENTED RISKS** ([báo cáo](LF-AI-Knowledge-Backbone-Inde
 ## Phạm vi và vị thế
 
 Hồ sơ implementer cho ba bước Owner đặt ngày 2026-09-26 sau lượt đánh giá lại
-packet AI (báo cáo `AI-Packet-Reassessment-2026-09-26.md` ở working directory,
+packet AI (báo cáo [AI-Packet-Reassessment-2026-09-26.md](AI-Packet-Reassessment-2026-09-26.md) trong `docs/quality`,
 verdict BLOCKED với F1 HIGH, F2 MEDIUM, F3 MEDIUM):
 
 1. Chốt corpus/authority và làm xanh kiểm chứng revision identity.

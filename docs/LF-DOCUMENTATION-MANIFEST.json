@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
-  "generated_or_updated_at": "2026-09-16",
+  "generated_or_updated_at": "2026-10-17",
   "root": "docs",
   "default_locale": "vi",
   "fallback_locale": "en",
   "source_of_truth": "docs/LF-INDEX.md",
-  "document_count": 296,
+  "document_count": 298,
   "documents": [
     {
       "path": "LF-Core-Overview.md",
@@ -8823,6 +8823,65 @@
       "related_documents": [],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "quality/AI-Packet-Reassessment-2026-09-26.md",
+      "title": "Đánh giá lại packet AI từ 0a/0b đến Bước 7",
+      "area": "quality",
+      "document_type": "quality_standard",
+      "document_status": "Review",
+      "implementation_status": "Unknown",
+      "metadata_complete": true,
+      "authority": "historical",
+      "canonical_for": [],
+      "topics": [
+        "ai",
+        "reassessment"
+      ],
+      "keywords": {
+        "vi": [
+          "rà soát packet AI"
+        ],
+        "en": [
+          "AI packet reassessment"
+        ]
+      },
+      "identifiers": [
+        "AI-Packet-Reassessment-2026-09-26"
+      ],
+      "related_documents": [],
+      "superseded_by": null,
+      "routing_source": "quality/README.md"
+    },
+    {
+      "path": "quality/LF-A0-Docling-Benchmark-Protocol.md",
+      "title": "LF A0 Docling Benchmark Protocol",
+      "area": "quality",
+      "document_type": "quality_standard",
+      "document_status": "Archived",
+      "implementation_status": "Not Applicable",
+      "metadata_complete": true,
+      "authority": "historical",
+      "canonical_for": [],
+      "topics": [
+        "ocr",
+        "docling",
+        "benchmark"
+      ],
+      "keywords": {
+        "vi": [
+          "quy trình benchmark OCR"
+        ],
+        "en": [
+          "OCR benchmark protocol"
+        ]
+      },
+      "identifiers": [
+        "LF-A0-Docling-Benchmark-Protocol"
+      ],
+      "related_documents": [],
+      "superseded_by": null,
+      "routing_source": "quality/README.md"
     },
     {
       "path": "quality/LF-A0-Docling-Closure-Evidence.md",

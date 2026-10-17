@@ -37,7 +37,7 @@ Verdict yêu cầu: `PASS`, `PASS WITH DOCUMENTED RISKS`, `CHANGES REQUIRED` ho�
   2026-09-26 (session implementer của Knowledge Sync, cũng là tác giả phần lớn
   code Bước 6/7 và của record implementer nêu trên).
 * **Đủ tư cách nếu chưa sửa gì:** reviewer của báo cáo
-  `AI-Packet-Reassessment-2026-09-26.md` (working directory) — người đó phát hiện
+  [AI-Packet-Reassessment-2026-09-26.md](AI-Packet-Reassessment-2026-09-26.md) (`docs/quality`) — người đó phát hiện
   F1–F3 nhưng không viết bản vá. Reviewer khác cũng được.
 * Không dựa vào verdict, bảng số hay kết luận của record implementer; mọi con số
   phải tái lập.

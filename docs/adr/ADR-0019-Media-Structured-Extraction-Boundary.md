@@ -441,7 +441,7 @@ Hệ quả trên học liệu thật:
 Đây là điều kiện chặn thật, không phải mong muốn kiến trúc. Benchmark A0 đo được
 rằng một engine layout (Docling) tách cột tốt hơn baseline — boundary 0.61→0.82
 trên `vi-s2`, 0.66→0.78 trên `ko-s2` — nhưng
-[Closure Record của A0](../../LF-A0-Docling-Benchmark-Protocol.md) ghi rõ lợi thế
+[Closure Record của A0](../quality/LF-A0-Docling-Benchmark-Protocol.md) ghi rõ lợi thế
 đó **không lưu được ở schema hiện hành**. Mua năng lực trước khi có chỗ chứa là
 chi phí không đổi lấy gì.
 
