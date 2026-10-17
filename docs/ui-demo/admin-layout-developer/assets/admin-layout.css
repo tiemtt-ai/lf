@@ -1,0 +1,338 @@
+/* Admin layout — scoped to #admin-app. Page examples use adm-*; UI kit uses ui-*. */
+
+#admin-app{--nav-primary:#485cc7;--nav-tint:#f0f2fc;--nav-border:#e8ebf1;font:14px/1.45 Arial,sans-serif;color:#343b4b;background:#f6f7fb;border:1px solid var(--nav-border);border-radius:8px;overflow:hidden;color-scheme:light}
+
+#admin-app *{box-sizing:border-box}
+
+#admin-app :is(.admin-nav__item,.admin-nav__child,.admin-icon-button,.admin-top-button,.admin-dropdown-row){font:inherit}
+
+#admin-app button{cursor:pointer}
+
+#admin-app .admin-demo-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 16px;background:white;border-bottom:1px solid var(--nav-border);flex-wrap:wrap}
+
+#admin-app .admin-demo-bar span{font-size:12px;color:#818999}
+
+#admin-app .admin-demo-mode{border:1px solid #dce1ec;border-radius:5px;padding:6px 10px;background:white;color:#485cc7;font-size:12px}
+
+#admin-app .admin-shell{display:flex;min-height:610px;position:relative}
+
+#admin-app .admin-sidebar{width:248px;flex-shrink:0;background:white;border-right:1px solid var(--nav-border);display:flex;flex-direction:column;padding:0 12px 12px;transition:width .16s}
+
+#admin-app .admin-sidebar__brand{display:flex;align-items:center;gap:10px;height:66px;padding:0 10px;border-bottom:1px solid #f0f2f6;margin-bottom:18px;white-space:nowrap}
+
+#admin-app .admin-brand-mark{display:flex;align-items:center;justify-content:center;border-radius:7px;background:#485cc7;color:white;width:32px;height:32px;font-size:14px;flex:none}
+
+#admin-app .admin-brand-text{font-weight:500;flex:1}
+
+#admin-app .admin-nav__caption{font-size:11px;color:#9299a6;letter-spacing:.6px;padding:0 12px;margin-bottom:10px}
+
+#admin-app .admin-nav{display:flex;flex-direction:column;gap:5px}
+
+#admin-app .admin-nav__item{display:flex;align-items:center;gap:11px;width:100%;min-height:40px;padding:9px 12px;border:0;border-radius:6px;background:white;color:#626c80;text-align:left;text-decoration:none;white-space:nowrap;transition:background .14s,color .14s}
+
+#admin-app .admin-nav__item:hover{background:#f4f5fb;color:#485cc7}
+
+#admin-app .admin-icon{width:18px;height:18px;flex:none;stroke-width:1.7}
+
+#admin-app .admin-nav__label{flex:1;min-width:0}
+
+#admin-app .admin-nav__chevron{width:14px;height:14px;flex:none;transition:transform .14s}
+
+#admin-app [aria-expanded=true]>.admin-nav__chevron{transform:rotate(180deg)}
+
+#admin-app .admin-nav__item[data-active-parent=true]{color:#485cc7;background:#f5f6fc}
+
+#admin-app .admin-nav__item[aria-current=page]{background:#485cc7;color:white}
+
+#admin-app .admin-nav__children{display:flex;flex-direction:column;gap:3px;margin:5px 0 5px 20px;padding-left:13px;border-left:1px solid #e5e9f3}
+
+#admin-app .admin-nav__child{display:block;position:relative;border:0;text-decoration:none;text-align:left;border-radius:5px;padding:8px 10px;background:white;color:#727c8e;min-height:36px;font-size:13px}
+
+#admin-app .admin-nav__child:hover{background:#f5f6fc;color:#485cc7}
+
+#admin-app .admin-nav__child[aria-current=page]{color:#485cc7;background:#eef1fc;font-weight:500}
+
+#admin-app .admin-nav__child[aria-current=page]::before{content:'';position:absolute;left:-15px;top:11px;width:3px;height:14px;background:#485cc7;border-radius:3px}
+
+#admin-app .admin-sidebar__footer{margin-top:auto;padding:20px 8px 0}
+
+#admin-app .admin-user{display:flex;align-items:center;gap:9px;padding-top:14px;border-top:1px solid var(--nav-border)}
+
+#admin-app .admin-avatar{display:flex;align-items:center;justify-content:center;width:30px;height:30px;background:#f0f2fa;border-radius:50%;color:#485cc7;font-size:12px;flex:none}
+
+#admin-app .admin-user__text{font-size:12px;color:#566176}
+
+#admin-app .admin-user__text small{display:block;color:#9299a6;font-size:11px}
+
+#admin-app .admin-main{flex:1;min-width:0}
+
+#admin-app .admin-header{height:66px;padding:0 22px;display:flex;align-items:center;gap:14px;background:white;border-bottom:1px solid var(--nav-border)}
+
+#admin-app .admin-icon-button{width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;background:transparent;border:0;color:#7d8798;border-radius:5px;flex:none}
+
+#admin-app .admin-icon-button:hover{background:#f0f2fa;color:#485cc7}
+
+#admin-app .admin-breadcrumb{font-size:12px;color:#8790a0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+#admin-app .admin-breadcrumb strong{font-weight:400;color:#525f75}
+
+#admin-app .admin-content{padding:26px}
+
+#admin-app .admin-content h2{font-size:22px;font-weight:500;margin:0 0 6px}
+
+#admin-app .admin-content p{font-size:13px;color:#8490a2;margin:0 0 22px}
+
+#admin-app .admin-panel{border:1px solid var(--nav-border);border-radius:7px;background:white;padding:20px}
+
+#admin-app .admin-panel-title{font-size:14px;font-weight:500;margin-bottom:16px}
+
+#admin-app .admin-list-row{display:flex;justify-content:space-between;align-items:center;gap:10px;border-top:1px solid #eef0f5;padding:15px 0;font-size:13px}
+
+#admin-app .admin-status{font-size:11px;color:#7e899b;background:#f5f6fa;padding:4px 8px;border-radius:4px}
+
+#admin-app [hidden]{display:none!important}
+
+#admin-app .is-collapsed .admin-sidebar{width:68px;padding-left:8px;padding-right:8px}
+
+#admin-app .is-collapsed .admin-sidebar__brand{padding:0 10px}
+
+#admin-app .is-collapsed :is(.admin-brand-text,.admin-nav__caption,.admin-nav__label,.admin-nav__chevron,.admin-nav__children,.admin-user__text){display:none}
+
+#admin-app .is-collapsed .admin-nav__item{justify-content:center;padding:10px}
+
+#admin-app .is-collapsed .admin-sidebar__footer{padding-left:10px;padding-right:0}
+
+#admin-app .admin-drawer{margin:0;padding:0;border:0;width:280px;max-width:calc(100vw - 40px);height:100dvh;max-height:none;position:fixed;inset:0 auto 0 0;background:white;color:#343b4b;overflow-y:auto}
+
+#admin-app .admin-drawer::backdrop{background:#16203959}
+
+#admin-app .admin-drawer .admin-sidebar{width:100%;min-height:100%;border:0}
+
+#admin-app .admin-close{margin-left:auto}
+
+#admin-app .admin-shell.is-mobile .admin-sidebar{display:none}
+
+#admin-app .admin-shell.is-mobile{min-height:610px;max-width:390px;margin:0 auto;border-left:1px solid #e4e7ee;border-right:1px solid #e4e7ee}
+
+#admin-app .admin-shell.is-mobile .admin-content{padding:18px}
+
+#admin-app .admin-shell.is-mobile .admin-header{padding:0 14px}
+
+#admin-app :is(button,a):focus-visible{outline:2px solid #485cc770;outline-offset:2px}
+
+@media(max-width:680px){#admin-app .admin-shell>.admin-sidebar{display:none}
+#admin-app .admin-content{padding:18px}
+#admin-app .admin-header{padding:0 14px}
+#admin-app .admin-content h2{font-size:20px}
+}
+
+@media(pointer:coarse){#admin-app .admin-nav__item,#admin-app .admin-nav__child{min-height:44px}
+#admin-app .admin-icon-button{width:44px;height:44px}
+}
+
+@media(prefers-reduced-motion:reduce){#admin-app *{transition:none!important}
+}
+
+
+#admin-app{border:0;border-radius:0;min-height:640px}
+#admin-app .admin-shell{min-height:640px}
+#admin-app .admin-content{padding:24px}
+#admin-app .admin-sidebar{position:sticky;top:0;min-height:640px;overflow-y:auto}
+#admin-app .page-heading{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:20px}
+#admin-app .page-heading p{margin:5px 0 0}
+#admin-app .admin-panel{padding:0;overflow:hidden}
+#admin-app .adm-btn{height:36px;padding:0 12px;border:1px solid #dde2ed;background:white;color:#596477;border-radius:5px;display:inline-flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap}
+#admin-app .adm-btn:hover{border-color:#aeb8e3;background:#f4f6fd;color:#485cc7}
+#admin-app .adm-btn--primary{background:#485cc7;color:white;border-color:#485cc7}
+#admin-app .adm-btn--primary:hover{background:#4053b5}
+#admin-app .adm-tabs{display:flex;border-bottom:1px solid #e8ebf1;padding:0 20px;gap:24px;overflow:auto}
+#admin-app .adm-tab{height:44px;border:0;background:none;color:#7b8597;white-space:nowrap;position:relative;padding:0 4px}
+#admin-app .adm-tab[aria-pressed=true]{color:#485cc7}
+#admin-app .adm-tab[aria-pressed=true]:after{content:'';height:2px;background:#485cc7;position:absolute;bottom:0;left:0;right:0}
+#admin-app .adm-tab:hover{color:#485cc7}
+#admin-app .adm-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 20px;flex-wrap:wrap}
+#admin-app .adm-actions{display:flex;gap:8px}
+#admin-app .adm-input{height:36px;border:1px solid #dde2ed;border-radius:5px;padding:0 10px;font:inherit;color:inherit;background:white;max-width:100%;outline:0}
+#admin-app .adm-input:hover,#admin-app .adm-input:focus{border-color:#a5afe0}
+#admin-app .adm-input:focus{box-shadow:0 0 0 2px #485cc70a}
+#admin-app .adm-table-wrap{overflow-x:auto}
+#admin-app .adm-table{border-collapse:collapse;width:100%;min-width:780px;font-size:14px}
+#admin-app .adm-table th{background:#485cc7;color:white;font-weight:600;text-align:left;height:40px}
+#admin-app .adm-table td{height:40px;border-bottom:1px solid #edf0f5}
+#admin-app .adm-table :is(th,td){padding:0 14px}
+#admin-app .adm-table tbody tr:nth-child(even){background:#fafbfe}
+#admin-app .adm-table tbody tr:hover{background:#f2f4fc}
+#admin-app .adm-center{text-align:center;width:76px}
+#admin-app .adm-number{text-align:right}
+#admin-app .adm-table input[type=checkbox]{width:16px;height:16px;accent-color:#485cc7;cursor:pointer;vertical-align:middle}
+#admin-app .adm-switch{width:32px;height:18px;border:0;border-radius:20px;background:#dce1eb;padding:2px;display:inline-flex;align-items:center}
+#admin-app .adm-switch:before{content:'';width:14px;height:14px;background:white;border-radius:50%;transition:transform .15s}
+#admin-app .adm-switch[aria-checked=true]{background:#485cc7}
+#admin-app .adm-switch[aria-checked=true]:before{transform:translateX(14px)}
+#admin-app .adm-pagination{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:16px 20px;color:#7b8597;font-size:13px}
+#admin-app .adm-pagination .adm-btn{min-width:32px;padding:0 8px}
+#admin-app .adm-dialog{border:1px solid #e3e7ef;border-radius:8px;padding:24px;width:440px;max-width:calc(100vw - 32px);max-height:calc(100dvh - 32px);overflow:auto;color:inherit}
+#admin-app .adm-dialog::backdrop{background:#16203959}
+#admin-app .adm-dialog h3{margin:0 0 20px;font-size:18px;font-weight:500}
+#admin-app .adm-field{display:grid;gap:8px;margin-bottom:16px}
+#admin-app .adm-field input{width:100%}
+#admin-app .adm-dialog .adm-actions{justify-content:flex-end;margin-top:24px}
+#admin-app .adm-note{font-size:12px;color:#9299a6;margin-top:14px}
+@media(max-width:680px){#admin-app .admin-content{padding:16px}
+#admin-app .page-heading{align-items:flex-start}
+#admin-app .adm-toolbar,#admin-app .adm-pagination{padding:12px}
+#admin-app .adm-toolbar .adm-input{width:100%}
+#admin-app .adm-tabs{padding:0 12px;gap:18px}
+}
+@media(pointer:coarse){#admin-app .adm-btn{min-height:44px}
+}
+
+
+#admin-app .admin-sidebar__brand{margin:0 -12px 18px;padding:0 24px;background:#001727;border:0;flex-shrink:0}
+
+#admin-app .admin-logo{display:block;width:145px;height:48px;flex:none;background-image:none;background-size:1024px 48px;background-position:-7px -3px;background-repeat:no-repeat}
+
+#admin-app .admin-logo-small{display:none;color:#00b7dd;font-size:24px;font-weight:600}
+
+#admin-app .is-collapsed .admin-sidebar__brand{margin-left:-8px;margin-right:-8px;justify-content:center;padding:0}
+
+#admin-app .is-collapsed .admin-logo{display:none}
+#admin-app .is-collapsed .admin-logo-small{display:block}
+
+#admin-app .admin-header{gap:12px;padding:0 20px;position:relative;z-index:5}
+
+#admin-app .admin-breadcrumb{font-size:14px;flex:1;min-width:0}
+#admin-app .admin-breadcrumb strong{font-weight:500;color:#39435b}
+
+#admin-app .admin-top-actions{display:flex;align-items:center;gap:16px;margin-left:auto;flex:none}
+
+#admin-app .admin-top-pop{position:relative}
+
+#admin-app .admin-top-button{height:36px;display:flex;align-items:center;gap:8px;background:transparent;border:0;border-radius:5px;padding:0 6px;color:#566176;white-space:nowrap}
+
+#admin-app .admin-top-button:hover,#admin-app .admin-top-button[aria-expanded=true]{color:#485cc7;background:#f2f4fc}
+
+#admin-app .admin-chevron{width:13px;height:13px;stroke-width:1.6}
+
+#admin-app .admin-notification{width:36px;justify-content:center;position:relative;color:#485cc7}
+
+#admin-app .admin-count{position:absolute;top:-3px;right:-2px;background:#e77676;color:white;font-size:10px;min-width:16px;height:16px;border-radius:10px;display:grid;place-items:center;border:2px solid white}
+
+#admin-app #current-language{color:#485cc7}
+
+#admin-app .admin-top-dropdown{position:absolute;top:44px;right:0;min-width:250px;background:white;border:1px solid #e5e9f1;border-radius:7px;padding:8px;box-shadow:0 8px 24px #25315a12;color:#596477;z-index:20}
+
+#admin-app .admin-top-dropdown strong{display:block;padding:8px;font-size:14px;font-weight:500}
+
+#admin-app .admin-top-dropdown p{font-size:12px;color:#8891a2;margin:0 8px 10px}
+
+#admin-app .admin-top-dropdown--small{min-width:150px}
+
+#admin-app .admin-dropdown-row{width:100%;display:flex;align-items:center;gap:10px;text-align:left;border:0;background:white;border-radius:4px;min-height:36px;padding:8px;color:inherit;font-size:13px}
+
+#admin-app .admin-dropdown-row:hover{background:#f2f4fc;color:#485cc7}
+
+#admin-app .admin-close{color:#dde8ef}
+
+@media(max-width:1100px){#admin-app .admin-language-label{display:none}
+#admin-app .admin-top-actions{gap:8px}
+#admin-app .admin-system-name{display:none}
+}
+
+@media(max-width:680px){#admin-app .admin-header{padding:0 12px;gap:6px;flex-wrap:wrap;height:auto;min-height:66px}
+#admin-app .admin-account-name{display:none}
+#admin-app .admin-top-actions{gap:4px}
+#admin-app .admin-breadcrumb{order:3;flex-basis:100%;padding:0 0 10px 6px}
+#admin-app .admin-top-pop:first-child .admin-top-dropdown{right:-170px;min-width:250px}
+#admin-app .admin-top-button{font-size:13px}
+#admin-app .admin-header>.admin-icon-button{margin-right:auto}
+}
+
+
+#admin-app .admin-sidebar__brand{background:#293b70;height:66px;min-height:66px;justify-content:center;padding:0 20px;border:0;position:relative}
+
+#admin-app .admin-logo{width:128px;height:48px;flex:none;background-image:none;background-size:588px 292px;background-position:-128px -91px;background-repeat:no-repeat;mix-blend-mode:screen}
+
+#admin-app .admin-close{position:absolute;right:10px;color:#dce4f7}
+
+#admin-app .admin-logo-small{color:#18badb;font-size:25px;font-weight:500}
+
+#admin-app .admin-header{height:66px;border-bottom:1px solid #e7eaf2;background:#fff}
+
+#admin-app .admin-sidebar{position:static;height:auto;min-height:640px}
+
+#admin-app .admin-nav__item[data-active-parent=true]{background:#f3f5fc}
+
+#admin-app .admin-nav__item[aria-current=page]{background:#edf0fc;color:#485cc7}
+
+#admin-app .admin-top-dropdown strong{font-weight:500}
+
+
+#admin-app{font:14px/1.45 Arial,sans-serif;color:#30343d;background:#f7f8fb}
+
+#admin-app .admin-sidebar__brand{background:#fff;border-bottom:1px solid #e8ebf1;height:66px;min-height:66px;padding:0 24px;justify-content:center}
+
+#admin-app .admin-brand-image{display:block;width:180px;max-width:100%;height:auto;object-fit:contain;flex-shrink:0}
+
+#admin-app .is-collapsed .admin-sidebar__brand{padding:0 6px}
+
+#admin-app .is-collapsed .admin-brand-image{width:56px}
+
+#admin-app .admin-drawer .admin-sidebar__brand{justify-content:flex-start;padding:0 22px}
+
+#admin-app .admin-close{color:#78818e}
+
+#admin-app .admin-content h2{font-size:20px;line-height:1.45;font-weight:500}
+
+#admin-app .adm-table{font-size:13px}
+
+#admin-app .adm-table th{font-weight:500}
+
+#admin-app .adm-btn{font:400 14px/20px Arial,sans-serif;gap:6px;border-radius:5px;min-height:36px}
+
+#admin-app .adm-input{font:400 14px/20px Arial,sans-serif;border-color:#d9dde5;border-radius:5px;height:36px}
+
+#admin-app .adm-input:hover{border-color:#8d99dc}
+
+#admin-app .adm-input:focus{border-color:#485cc7;box-shadow:0 0 0 2px #485cc718}
+
+#admin-app .admin-content .admin-icon{width:16px;height:16px;stroke-width:1.7}
+
+#admin-app .adm-field{gap:7px;font-size:14px;font-weight:400}
+
+#admin-app .adm-tab{height:36px;font:400 14px/20px Arial,sans-serif}
+
+#admin-app .adm-dialog{width:480px}
+
+#admin-app .adm-pagination{padding:12px 20px}
+
+@media(pointer:coarse){#admin-app .adm-btn,#admin-app .adm-tab{min-height:44px}
+#admin-app .adm-input{height:44px;font-size:16px}
+}
+
+
+body { margin: 0; background: #f7f8fb; }
+
+#admin-app .adm-table tr:has(input[data-select]:checked) {background:#eef0fb;}
+
+#admin-app button:disabled{cursor:not-allowed;opacity:.5;}
+
+
+/* Full logo when expanded; initial when collapsed. */
+#admin-app .admin-brand-initial{display:none;color:#00afd0;font:500 28px/1 Arial,sans-serif;letter-spacing:-1px}
+#admin-app .is-collapsed .admin-brand-image{display:none}
+#admin-app .is-collapsed .admin-brand-initial{display:block}
+#admin-app .admin-drawer .admin-brand-image{display:block}
+#admin-app .admin-drawer .admin-brand-initial{display:none}
+
+#admin-app .admin-brand-image{width:180px;height:auto;max-height:62px;object-fit:contain;}
+
+/* Stretch the shell to the viewport; footer remains in document flow. */
+#admin-app{min-height:100vh;min-height:100dvh}
+#admin-app .admin-shell{min-height:100vh;min-height:100dvh;align-items:stretch}
+#admin-app .admin-shell>.admin-sidebar{height:auto;min-height:0;align-self:stretch;overflow:visible}
+#admin-app .admin-main{display:flex;flex-direction:column;min-height:100vh;min-height:100dvh}
+#admin-app .admin-header{flex-shrink:0}
+#admin-app .admin-content{flex:1 0 auto}
+#admin-app .admin-page-footer{flex-shrink:0;margin-top:auto;border-top:1px solid #e3e7ef;padding:22px 24px;min-height:64px;display:flex;align-items:center;justify-content:center;text-align:center;background:#f7f8fb;color:#78818e;font:400 12px/1.5 Arial,sans-serif;overflow-wrap:anywhere}
+@media(max-width:680px){#admin-app .admin-page-footer{padding:18px 16px}}
