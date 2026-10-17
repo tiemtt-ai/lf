@@ -1,12 +1,12 @@
 # LearnForge Quality
 
-Version: 1.16
+Version: 1.17
 
 Document Status: Approved
 
 Implementation Status: Not Applicable
 
-Last Updated: 2026-09-08
+Last Updated: 2026-10-17
 
 Document Path: quality/README.md
 
@@ -23,6 +23,8 @@ criteria hay không.
 ---
 
 # Current Document
+
+* [LF-Admin-Teacher-Layout-Adoption-Audit.md](LF-Admin-Teacher-Layout-Adoption-Audit.md) — triển khai shell Admin/Teacher theo admin-layout-developer, browser evidence và baseline regression (2026-10-17).
 
 * [AI-Packet-Reassessment-2026-09-26.md](AI-Packet-Reassessment-2026-09-26.md) — báo cáo rà soát packet AI ngày 2026-09-26; giữ nguyên kết luận lịch sử.
 * [LF-A0-Docling-Benchmark-Protocol.md](LF-A0-Docling-Benchmark-Protocol.md) — protocol benchmark OCR đã Archived; giữ lại để tra cứu.

@@ -1,6 +1,13 @@
 <?php
 
 return [
+    'LF_navigation_button_backend_menu_open' => 'Open menu',
+    'LF_navigation_button_backend_menu_close' => 'Close menu',
+    'LF_navigation_button_backend_menu_expand' => 'Expand menu',
+    'LF_navigation_button_backend_menu_collapse' => 'Collapse menu',
+    'LF_navigation_label_backend_notifications' => 'Notifications',
+    'LF_navigation_label_backend_notifications_unavailable' => 'Notifications are not available yet.',
+
     'LF_media_filter_search' => 'Search objects…',
     'LF_media_filter_published' => 'Published',
     'LF_media_filter_objects' => 'Objects',

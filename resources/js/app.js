@@ -91,13 +91,16 @@ if (document.readyState === 'loading') {
 }
 
 window.backendSidebar = () => ({
+    isMobile: false,
+    drawerOpen: false,
+    mediaQuery: null,
+    mediaChange: null,
     sidebarCollapsed: false,
     storageKey: 'lf.backend.sidebar.collapsed',
     manualStorageKey: 'lf.backend.sidebar.manual',
     groupStorageKey: 'lf.backend.sidebar.groups',
     hasManualPreference: false,
     sidebarGroups: {},
-    activeSidebarGroups: {},
     sidebarTooltip: { visible: false, label: '', top: 0, left: 0 },
 
     init() {
@@ -125,6 +128,15 @@ window.backendSidebar = () => ({
             }
         });
 
+        this.mediaQuery = window.matchMedia('(max-width: 680px)');
+        this.isMobile = this.mediaQuery.matches;
+        this.mediaChange = (event) => {
+            this.isMobile = event.matches;
+            this.hideSidebarTooltip();
+            this.closeDrawer();
+        };
+        this.mediaQuery.addEventListener('change', this.mediaChange);
+
         this.$nextTick(() => {
             document.documentElement.classList.remove(
                 'is-backend-sidebar-collapsed',
@@ -133,13 +145,53 @@ window.backendSidebar = () => ({
         });
     },
 
+    destroy() {
+        this.mediaQuery?.removeEventListener('change', this.mediaChange);
+        this.closeDrawer();
+    },
+
     toggleSidebar() {
         this.hideSidebarTooltip();
+        if (this.isMobile) {
+            this.openDrawer();
+            return;
+        }
         this.setManualSidebarState(! this.sidebarCollapsed);
     },
 
+    openDrawer() {
+        const { drawer, sidebar, drawerClose } = this.$refs;
+        if (drawer.open) return;
+        Alpine.mutateDom(() => drawer.append(sidebar));
+        this.drawerOpen = true;
+        drawer.showModal();
+        this.$nextTick(() => drawerClose.focus());
+    },
+
+    closeDrawer() {
+        if (this.$refs.drawer?.open) this.$refs.drawer.close();
+    },
+
+    restoreSidebar() {
+        // A close event can arrive after the same dialog has reopened.
+        if (this.$refs.drawer.open) return;
+        Alpine.mutateDom(() => this.$refs.shell.prepend(this.$refs.sidebar));
+        this.drawerOpen = false;
+        this.$refs.menuToggle.focus();
+    },
+
+    closeDrawerOnBackdrop(event) {
+        const drawer = this.$refs.drawer;
+        if (event.target !== drawer) return;
+        const bounds = drawer.getBoundingClientRect();
+        if (event.clientX < bounds.left || event.clientX > bounds.right
+            || event.clientY < bounds.top || event.clientY > bounds.bottom) {
+            this.closeDrawer();
+        }
+    },
+
     showSidebarTooltip(event, label) {
-        if (! this.sidebarCollapsed) {
+        if (! this.sidebarCollapsed || this.isMobile) {
             return;
         }
 
@@ -159,13 +211,18 @@ window.backendSidebar = () => ({
 
     registerSidebarGroup(groupKey, isActive) {
         if (isActive) {
-            this.activeSidebarGroups[groupKey] = true;
+            this.sidebarGroups[groupKey] = true;
         } else if (this.sidebarGroups[groupKey] === undefined) {
             this.sidebarGroups[groupKey] = false;
         }
     },
 
     toggleSidebarGroup(groupKey) {
+        if (this.sidebarCollapsed && ! this.isMobile) {
+            this.setManualSidebarState(false);
+            this.setSidebarGroupOpen(groupKey, true);
+            return;
+        }
         this.setSidebarGroupOpen(groupKey, ! this.isSidebarGroupOpen(groupKey));
     },
 
@@ -175,7 +232,7 @@ window.backendSidebar = () => ({
     },
 
     isSidebarGroupOpen(groupKey) {
-        return this.activeSidebarGroups[groupKey] || this.sidebarGroups[groupKey] === true;
+        return this.sidebarGroups[groupKey] === true;
     },
 
     resolveInitialSidebarState(hasStoredPreference, storedPreference) {

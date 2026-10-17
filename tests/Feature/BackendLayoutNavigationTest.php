@@ -53,8 +53,8 @@ class BackendLayoutNavigationTest extends TestCase
             $this->actingAs($user)
                 ->get($url)
                 ->assertOk()
-                ->assertSee('class="backend-sidebar-toggle"', false)
-                ->assertSee('class="backend-breadcrumbs"', false)
+                ->assertSee('id="admin-menu-toggle"', false)
+                ->assertSee('class="admin-breadcrumb"', false)
                 ->assertSee('aria-label="'.__('lf.LF_navigation_label_backend_breadcrumbs').'"', false)
                 ->assertSee('x-data="backendSidebar()"', false)
                 ->assertSee("const collapsedKey = 'lf.backend.sidebar.collapsed';", false)
@@ -74,7 +74,7 @@ class BackendLayoutNavigationTest extends TestCase
         $this->actingAs($admin)
             ->get('https://tenant-a.localhost/admin')
             ->assertOk()
-            ->assertSee('class="backend-sidebar-icon"', false)
+            ->assertSee('class="backend-sidebar-icon admin-icon"', false)
             ->assertSee('data-sidebar-icon="home"', false)
             ->assertSee('data-sidebar-icon="users"', false)
             ->assertSee('data-sidebar-icon="book-open"', false)
@@ -88,7 +88,7 @@ class BackendLayoutNavigationTest extends TestCase
         $this->actingAs($teacher)
             ->get('https://tenant-a.localhost/teacher')
             ->assertOk()
-            ->assertSee('class="backend-sidebar-icon"', false)
+            ->assertSee('class="backend-sidebar-icon admin-icon"', false)
             ->assertSee('data-sidebar-icon="home"', false)
             ->assertSee('data-sidebar-icon="folder"', false)
             ->assertSee('data-sidebar-icon="book-open"', false)
@@ -127,11 +127,11 @@ class BackendLayoutNavigationTest extends TestCase
             ->getContent();
 
         $this->assertMatchesRegularExpression(
-            '/class="admin-sidebar-link" href="[^"]+\/admin\/course-products"[^>]+data-sidebar-icon="package"/',
+            '/class="admin-nav__item" href="[^"]+\/admin\/course-products"[^>]+data-sidebar-icon="package"/',
             $inactiveHtml
         );
         $this->assertMatchesRegularExpression(
-            '/class="admin-sidebar-link is-active" href="[^"]+\/admin\/course-products"[^>]+data-sidebar-icon="package"/',
+            '/class="admin-nav__item" href="[^"]+\/admin\/course-products"[^>]+data-sidebar-icon="package"[^>]+aria-current="page"/',
             $activeHtml
         );
         $this->assertStringNotContainsString('data-sidebar-icon="shopping-bag"', $activeHtml);
@@ -164,9 +164,9 @@ class BackendLayoutNavigationTest extends TestCase
         $adminHtml = $this->actingAs($admin)
             ->get('https://tenant-a.localhost/admin')
             ->assertOk()
-            ->assertSee('class="admin-account-dropdown"', false)
-            ->assertSee('class="admin-account-dropdown-user"', false)
-            ->assertSee('class="admin-account-dropdown-links"', false)
+            ->assertSee('id="top-account"', false)
+            ->assertSee('class="admin-top-dropdown"', false)
+            ->assertSee('class="admin-dropdown-row"', false)
             ->assertSee('href="https://tenant-a.localhost/admin/organization"', false)
             ->assertSee('href="https://tenant-a.localhost/admin/users"', false)
             ->assertSee('href="https://tenant-a.localhost/admin/my-account"', false)
@@ -186,7 +186,7 @@ class BackendLayoutNavigationTest extends TestCase
         $teacherHtml = $this->actingAs($teacher)
             ->get('https://tenant-a.localhost/teacher')
             ->assertOk()
-            ->assertSee('class="admin-account-dropdown"', false)
+            ->assertSee('id="top-account"', false)
             ->assertSee('href="https://tenant-a.localhost/teacher/profile"', false)
             ->assertSeeText(__('lf.LF_navigation_menu_admin_my_account'))
             ->assertDontSee('href="https://tenant-a.localhost/admin/organization"', false)
@@ -200,69 +200,24 @@ class BackendLayoutNavigationTest extends TestCase
         $this->assertStringNotContainsString(__('lf.LF_navigation_menu_admin_my_account'), $teacherSidebar);
     }
 
-    public function test_collapsed_sidebar_css_uses_icon_only_mode_and_hides_submenus(): void
+    public function test_backend_shell_uses_the_approved_reference_geometry_and_mobile_drawer(): void
     {
-        $css = file_get_contents(
-            base_path('resources/css/admin/admin-layout.css')
-        );
+        $css = file_get_contents(resource_path('css/admin/admin-layout.css'));
+        $layout = file_get_contents(resource_path('views/layouts/backend.blade.php'));
+        $header = file_get_contents(resource_path('views/partials/backend/header.blade.php'));
 
-        $this->assertStringContainsString(
-            '.backend-shell.is-sidebar-collapsed .admin-sidebar-link-label',
-            $css
-        );
-        $this->assertStringContainsString(
-            '.backend-shell.is-sidebar-collapsed .admin-sidebar-group-links',
-            $css
-        );
-        $this->assertStringContainsString('.admin-sidebar-group-arrow', $css);
-        $this->assertStringContainsString('transform: rotate(-45deg);', $css);
-        $this->assertStringContainsString('transform: rotate(45deg);', $css);
-        $this->assertStringContainsString(
-            '.backend-shell.is-sidebar-collapsed .admin-sidebar-group-arrow',
-            $css
-        );
-        $this->assertStringContainsString(
-            ':root.is-backend-sidebar-collapsed .backend-shell .admin-content-wrap',
-            $css
-        );
-        $this->assertStringContainsString(
-            ':root.is-backend-sidebar-initializing .backend-shell .admin-content-wrap',
-            $css
-        );
-        $this->assertStringContainsString(
-            ':root.is-backend-sidebar-initializing .backend-shell .admin-sidebar-group-arrow',
-            $css
-        );
-        $this->assertStringContainsString(
-            '.admin-sidebar-group:not(.is-open) .admin-sidebar-group-links',
-            $css
-        );
-        $this->assertStringContainsString('transition: none;', $css);
-        $this->assertStringContainsString('display: none;', $css);
-        $this->assertStringContainsString('.backend-sidebar-tooltip {', $css);
-        $this->assertStringContainsString('position: fixed;', $css);
-
-        $script = file_get_contents(resource_path('js/app.js'));
-        $this->assertStringContainsString('showSidebarTooltip(event, label)', $script);
-        $this->assertStringContainsString('getBoundingClientRect()', $script);
-    }
-
-    public function test_backend_sidebar_uses_shared_sticky_layout_css(): void
-    {
-        $css = file_get_contents(
-            base_path('resources/css/admin/admin-layout.css')
-        );
-
-        $this->assertStringContainsString('.lf-admin-page .layout-sidebar', $css);
-        $this->assertStringContainsString('position: sticky;', $css);
-        $this->assertStringContainsString('top: 156px;', $css);
-        $this->assertStringContainsString('max-height: calc(100vh - 156px);', $css);
-        $this->assertStringContainsString('overflow-y: auto;', $css);
-        $this->assertStringContainsString('overflow-x: hidden;', $css);
-        $this->assertStringContainsString('@media (max-width: 900px)', $css);
-        $this->assertStringContainsString('position: static;', $css);
-        $this->assertStringContainsString('max-height: none;', $css);
-        $this->assertStringContainsString('overflow: visible;', $css);
+        $this->assertStringContainsString('width:248px', $css);
+        $this->assertStringContainsString('width:68px', $css);
+        $this->assertStringContainsString('height:66px', $css);
+        $this->assertStringContainsString('@media(max-width:680px)', $css);
+        $this->assertStringContainsString('.admin-drawer::backdrop', $css);
+        $this->assertStringContainsString('min-height:100dvh', $css);
+        $this->assertStringContainsString('.admin-page-footer', $css);
+        $this->assertStringContainsString('id="admin-drawer"', $layout);
+        $this->assertStringContainsString('aria-controls="backend-sidebar"', $header);
+        $this->assertStringNotContainsString('layout-header-top', $layout);
+        $this->assertStringNotContainsString('admin-floating', $layout);
+        $this->assertStringNotContainsString('top: 156px', $css);
     }
 
     public function test_backend_grouped_forms_adapt_to_collapsed_sidebar(): void
@@ -812,7 +767,7 @@ class BackendLayoutNavigationTest extends TestCase
         $this->actingAs($admin)
             ->get('https://tenant-a.localhost/admin/course-categories')
             ->assertOk()
-            ->assertSee('class="backend-sidebar-toggle"', false)
+            ->assertSee('id="admin-menu-toggle"', false)
             ->assertSee('x-data="backendSidebar()"', false)
             ->assertDontSee('data-sidebar-auto-collapse', false)
             ->assertDontSee('has-sidebar-auto-collapse', false)
@@ -853,7 +808,7 @@ class BackendLayoutNavigationTest extends TestCase
         $this->assertStringNotContainsString('handleSidebarNavigation', $script);
         $this->assertStringNotContainsString('handleBreadcrumbNavigation', $script);
         $this->assertStringNotContainsString('expandSidebarFromNavigation', $script);
-        $this->assertStringNotContainsString('this.setManualSidebarState(false);', $script);
+        $this->assertStringContainsString('if (this.sidebarCollapsed && ! this.isMobile)', $script);
     }
 
     public function test_sidebar_group_script_toggles_and_persists_submenus(): void
@@ -876,14 +831,14 @@ class BackendLayoutNavigationTest extends TestCase
 
         $this->get('https://tenant-a.localhost/')
             ->assertOk()
-            ->assertDontSee('backend-sidebar-toggle', false)
-            ->assertDontSee('backend-breadcrumbs', false);
+            ->assertDontSee('id="admin-menu-toggle"', false)
+            ->assertDontSee('id="admin-app"', false);
 
         $this->actingAs($student)
             ->get('https://tenant-a.localhost/profile')
             ->assertOk()
-            ->assertDontSee('backend-sidebar-toggle', false)
-            ->assertDontSee('backend-breadcrumbs', false);
+            ->assertDontSee('id="admin-menu-toggle"', false)
+            ->assertDontSee('id="admin-app"', false);
     }
 
     private function createTenant(string $slug = 'tenant-a'): int

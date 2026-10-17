@@ -5,7 +5,7 @@
   "default_locale": "vi",
   "fallback_locale": "en",
   "source_of_truth": "docs/LF-INDEX.md",
-  "document_count": 298,
+  "document_count": 299,
   "documents": [
     {
       "path": "LF-Core-Overview.md",
@@ -10071,6 +10071,43 @@
       "routing_source": "LF-INDEX.md"
     },
     {
+      "path": "quality/LF-Admin-Teacher-Layout-Adoption-Audit.md",
+      "title": "Admin/Teacher Layout Adoption Audit",
+      "area": "quality",
+      "document_type": "quality_standard",
+      "document_status": "Review",
+      "implementation_status": "Partial",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": [
+        "admin-teacher-layout",
+        "visual-regression"
+      ],
+      "keywords": {
+        "vi": [
+          "giao diện quản trị",
+          "giao diện giáo viên",
+          "nghiệm thu layout"
+        ],
+        "en": [
+          "admin layout",
+          "teacher layout",
+          "visual regression"
+        ]
+      },
+      "identifiers": [
+        "backendSidebar",
+        "admin-layout-developer"
+      ],
+      "related_documents": [
+        "tech/LF-Tech-CSS.md",
+        "tech/LF-Admin-Form-Design-Standard.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
       "path": "quality/LF-Audio-Processing-Final-Code-Review.md",
       "title": "Audio Processing — Final Code Review",
       "area": "quality",
@@ -12181,18 +12218,22 @@
       "authority": "engineering",
       "canonical_for": [],
       "topics": [
-        "css"
+        "css",
+        "admin-teacher-layout",
+        "admin-layout-developer"
       ],
       "keywords": {
         "vi": [
           "tiêu chuẩn kỹ thuật",
           "công nghệ và hạ tầng",
-          "kiến trúc CSS"
+          "kiến trúc CSS",
+          "khung giao diện quản trị và giáo viên"
         ],
         "en": [
           "technical standard",
           "technology and infrastructure",
-          "CSS architecture"
+          "CSS architecture",
+          "Admin and Teacher shared layout"
         ]
       },
       "identifiers": [

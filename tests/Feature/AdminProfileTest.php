@@ -59,7 +59,7 @@ class AdminProfileTest extends TestCase
             ->assertSee('href="https://tenant-a.localhost/admin/organization"', false)
             ->assertSee('href="https://tenant-a.localhost/admin/users"', false)
             ->assertSee('href="https://tenant-a.localhost/admin/my-account"', false)
-            ->assertSee('class="admin-account-dropdown-links"', false)
+            ->assertSee('id="top-account"', false)
             ->assertDontSeeText(__('lf.LF_navigation_group_admin_account_organization'))
             ->assertDontSee('admin-sidebar-link-child is-active', false);
 

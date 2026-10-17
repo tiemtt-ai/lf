@@ -1,6 +1,6 @@
 # LearnForge Admin Form And List Design Standard
 
-Version: 1.4
+Version: 1.5
 
 Document Status: Approved
 
@@ -8,7 +8,7 @@ Implementation Status: Unknown
 
 Scope: LF Admin Create/Edit Forms And List/Index Pages
 
-Last Updated: 2026-08-09
+Last Updated: 2026-10-17
 
 Document Path: tech/LF-Admin-Form-Design-Standard.md
 
@@ -242,6 +242,14 @@ constraint đó mà không làm thay đổi legacy consumers.
 ---
 
 # 7. Sidebar And Responsive Matrix
+
+Owner approved 2026-10-17: khung ngoài Admin/Teacher dùng thiết kế
+[`admin-layout-developer`](../ui-demo/admin-layout-developer/README.md): sidebar
+248px/68px, header 66px, drawer ≤680px, footer theo document flow.
+State `.backend-shell.is-sidebar-collapsed` chỉ áp dụng ở desktop; mobile drawer
+không thay persisted desktop preference. Các breakpoint field grid bên dưới
+vẫn áp dụng cho nội dung form, độc lập breakpoint của shell.
+
 
 | Context | Outer form | Inner field grid |
 | --- | --- | --- |

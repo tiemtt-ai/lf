@@ -1,18 +1,40 @@
 # LF-Tech-CSS.md
 
-Version: 1.0
+Version: 1.1
 
 Document Status: Approved
 
 Implementation Status: Unknown
 
-Last Updated: 2026-08-09
+Last Updated: 2026-10-17
 
 Document Path: tech/LF-Tech-CSS.md
 
 ---
 
 # LearnForge CSS Architecture
+
+## Admin/Teacher layout — Owner approved 2026-10-17
+
+Visual reference chính thức của khung Admin/Teacher là
+[`admin-layout-developer`](../ui-demo/admin-layout-developer/README.md).
+Owner yêu cầu áp dụng trực tiếp, thay thế layout cũ và cho phép cập nhật chính sách.
+
+* `resources/css/admin/admin-layout.css` là nguồn presentation duy nhất cho shell,
+  được build qua `resources/css/backend.css`; không nạp CSS trực tiếp từ `docs`.
+* Scope `#admin-app` và các class `admin-*` của reference được phép riêng cho shell.
+  Font Arial 14px/1.45; sidebar 248px/68px; header 66px; mobile drawer ở ≤680px;
+  footer nằm trong document flow. Các giá trị này ưu tiên hơn typography,
+  prefix và breakpoint tổng quát bên dưới khi áp dụng cho shell Admin/Teacher.
+* Màu của reference được lưu thành CSS variables trong cùng shared stylesheet.
+  Không đổi visual chỉ để khớp spacing scale tổng quát.
+* Blade sinh markup, route, user và locale thật; Alpine quản lý tương tác.
+  Không mang mảng dữ liệu, notification giả hay handler CRUD demo vào production.
+* Xóa rule/markup/handler layout cũ khi không còn consumer. Giữ styles của form,
+  bảng và public/student còn được sử dụng; không xóa asset dùng chung còn sống.
+* Chỉnh shell phải đối chiếu browser với reference ở desktop/tablet/mobile,
+  expanded/collapsed/drawer và VI/EN; không tuyên bố pixel parity nếu chưa đo.
+
 
 ## Overview
 

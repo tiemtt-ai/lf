@@ -1,6 +1,13 @@
 <?php
 
 return [
+    'LF_navigation_button_backend_menu_open' => 'Mở menu',
+    'LF_navigation_button_backend_menu_close' => 'Đóng menu',
+    'LF_navigation_button_backend_menu_expand' => 'Mở rộng menu',
+    'LF_navigation_button_backend_menu_collapse' => 'Thu gọn menu',
+    'LF_navigation_label_backend_notifications' => 'Thông báo',
+    'LF_navigation_label_backend_notifications_unavailable' => 'Chức năng thông báo chưa được triển khai.',
+
     'LF_media_filter_search' => 'Tìm đối tượng…',
     'LF_media_filter_published' => 'Đã xuất bản',
     'LF_media_filter_objects' => 'Đối tượng',
