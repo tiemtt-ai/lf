@@ -158,6 +158,11 @@ return [
     'LF_navigation_label_tenant_navigation' => 'Tenant website navigation',
     'LF_navigation_label_tenant_mobile_navigation' => 'Tenant website mobile navigation',
 
+    'LF_auth_login_system_management' => 'System administration',
+    'LF_auth_login_system_title' => 'Sign in to your workspace',
+    'LF_auth_login_system_description' => 'Sign in with your authorized account to access the system.',
+    'LF_auth_login_username_placeholder' => 'Enter your username',
+    'LF_auth_login_password_placeholder' => 'Enter your password',
     'LF_auth_login_title' => 'Login',
     'LF_auth_login_register' => 'Register',
     'LF_auth_login_username' => 'Username',

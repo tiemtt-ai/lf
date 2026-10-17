@@ -1,6 +1,6 @@
 # Admin/Teacher Layout Adoption Audit
 
-Version: 1.11
+Version: 1.21
 
 Document Status: Review
 
@@ -287,3 +287,105 @@ Build, Pint và 12 tests/234 assertions PASS; diff check PASS. Database QA
 Owner follow-up: badge vai trò căn phải đối diện tên trong dropdown desktop;
 mobile ≤680px xuống dòng căn trái, tên dài vẫn wrap. Build và diff check PASS.
 Chưa kiểm tra browser riêng cho thay đổi căn lề này.
+
+## Badge alignment browser acceptance — 2026-10-18
+
+Browser kiểm tài khoản Admin thực tế ở 1280×800, 768×1024, 390×844,
+320×640; dropdown rộng 260px, không overflow. PC badge right khớp identity
+right; mobile name chiếm hàng riêng và badge căn trái, email bên dưới.
+Kiểm Teacher QA với chuỗi tên dài không dấu cách ở PC/mobile: tên trong
+dropdown wrap, badge xuống dòng khi thiếu chỗ; trigger PC dùng ellipsis,
+mobile ẩn tên. Không phát hiện lệch/tràn cần sửa trong dropdown.
+Escape đóng và trả focus về trigger. Không sửa code hoặc UI Kit trong lượt
+nghiệm thu này; không cần chạy lại build/tests vì chỉ quan sát browser.
+Database QA đã xóa, server QA đã dừng; không lưu file kiểm thử tạm trong repo.
+
+## Login visual adoption — 2026-10-18
+
+Owner chọn ảnh login mới: nền xám nhạt, logo Master Korean, form centered,
+icon user/lock, password toggle, nhớ tài khoản, nút primary và footer copyright.
+Bỏ header/nav public, logo đối tác góc trên, tabs đăng ký và social placeholder
+trên login; không thêm dòng login Trung tâm/Giáo viên. Login view dùng app layout
+và CSS lf-login-* trong auth/backoffice-login.css; auth layout/CSS cũ vẫn có
+consumer ở forgot/reset/verify, nên giữ. UI Kit gốc không đổi.
+
+Theo Core Auth, /login là endpoint chung cho mọi role, bao gồm student; không
+được đoán role khi guest hoặc tạo endpoint role riêng. Chỉ presentation của
+login chung thay đổi; controller, request, route, CSRF, throttle và tenant
+resolution giữ nguyên. Forgot/reset-password không thay. Các input vẫn là
+email/password, có autocomplete, label ẩn accessible, invalid/error association.
+
+Browser QA 1440×900, 390×844, 320×640: không overflow, footer không che form;
+password toggle hoạt động, sai credentials hiện lỗi cạnh input và aria-invalid;
+Admin/Teacher đăng nhập đúng vào /admin và /teacher. Console không ghi nhận error.
+AuthFlowTest, TenantAuthenticationSecurityTest, TenantHostResolutionTest:
+18 passed/127 assertions. Build, Pint, diff check PASS. Không chạy full suite
+trong lượt presentation này. Database QA đã xóa, server/tab QA đã đóng; không
+lưu scripts/logs/screenshots kiểm thử trong repository. Không tuyên bố pixel
+parity tuyệt đối với ảnh tĩnh trên mọi thiết bị.
+
+## Login card/header revision — 2026-10-18
+
+Owner chọn ảnh bố cục mới. Header dùng primary LF #485cc7, logo Master Korean
+nguyên màu trên nền trắng, label ADMIN/Quản trị hệ thống bên phải và VI–EN
+góc phải trên. Card trắng desktop max-width 480px, padding 28px; labels hiện,
+controls full width/44px và radius 9px. Mobile header dùng grid để language
+vẫn ở hàng trên cùng; chữ quản trị căn phải hàng sau. Giữ nhớ tài khoản,
+email/password contracts, CSRF và password toggle; không đổi auth/tenant.
+Login vẫn dùng chung theo Core Auth; nội dung card dùng tên Đăng nhập hệ thống.
+
+Browser 1440×900, 768×1024, 390×844, 320×640 không tràn ngang. VI → EN → VI
+qua POST route thật thành công, đổi label/title/placeholder. Form/input co theo
+viewport; trang thấp cuộn dọc tự nhiên, footer không phủ controls.
+18 tests/127 assertions PASS; build, Pint, diff check PASS. Database QA đã xóa,
+server/tab QA đã đóng. Không sửa UI Kit hoặc lưu file kiểm thử tạm trong repo.
+
+## Login navy header and dropdown — 2026-10-18
+
+Owner yêu cầu label bên trái, nền header theo ảnh 2, logo trắng trong suốt
+và selector cờ VI/EN như back office. Header #182f4b lấy từ màu phổ biến của
+ảnh Owner; logo PNG có alpha được chuyển trắng bằng CSS filter, không sửa
+asset/UI Kit. Desktop logo giữa, label trái, locale phải; mobile logo hàng
+sau, dropdown locale căn phải. Các rule header/selector cũ được thay thế.
+
+Browser 1440×900 và 320×640 xác nhận màu rgb(24,47,75), logo không nền,
+locale dropdown trong viewport, VI → EN → VI hoạt động qua POST thật;
+Escape đóng/trả focus. Auth/tenant 18 tests/127 assertions PASS; Pint và
+diff check PASS, build PASS. QA database đã dọn, server/tab đã đóng.
+
+Owner follow-up: header login dùng lại primary #485cc7 cùng nút Đăng nhập;
+nút ngôn ngữ nền trong suốt, chữ/caret trắng, hover trắng mờ. Dropdown vẫn
+nền trắng để dễ đọc. CSS-only, build/diff check PASS; chưa browser rerun.
+
+Owner follow-up: input login PC giảm 44px → 40px; mobile ≤600px và coarse
+pointer giữ 44px. Password toggle dùng inset/grid center theo input hiện hành.
+CSS-only, build/diff check PASS; chưa browser rerun, không tạo file QA tạm.
+
+Owner follow-up: logo trắng login tăng desktop 180px → 260px, mobile
+160px → 220px, bỏ opacity .85 để trắng rõ hơn. Header desktop min-height
+136px để giữ khoảng thở. Asset gốc không sửa. Build/diff check PASS; chưa
+browser rerun riêng cho kích thước này, không tạo file QA tạm.
+
+Owner correction: giữ chiều cao header desktop ban đầu 112px, logo giới hạn
+72px (mobile 60px) và object-fit contain; giữ trắng không opacity, không tăng
+chiều cao khối để chứa logo. CSS-only, build/diff check PASS.
+
+## Exact SVG logo adoption — 2026-10-18
+
+Theo Owner: lấy SVG từ DOM .login-brand-logo của trang local
+http://localhost:3000/login_business. Asset public/assets/admin/brand-logo.svg
+giữ nguyên 3 path vector và viewBox 0 0 3507 1024; root dimensions chuẩn hóa
+theo viewBox, bỏ style React không cần. Không script/external references.
+Login dùng asset SVG thay PNG, CSS filter hiện trắng; PNG giữ cho các consumer
+khác. Không sửa UI Kit hoặc business code.
+
+Browser PC 1440×900 và tablet 768×1024: logo tải đúng SVG, header 112px, input
+40px. Mobile 390×844/320×640: logo SVG trắng, không overflow; responsive hiện
+hành giữ header hai hàng 169px và input touch 44px. Console không có error.
+Build, Pint Blade và diff check PASS. Không chạy lại auth tests vì chỉ đổi asset
+URL và intrinsic dimensions. Database QA đã xóa, server/tab QA đã đóng.
+Không để lại file kiểm thử tạm trong repo.
+
+Owner correction: logo login dùng đúng box 150×54px đã đo ở trang mẫu,
+áp dụng PC/mobile, bỏ override 220px trên mobile. Giữ SVG trắng và header
+PC 112px. Build/diff check PASS; chưa browser rerun cho lần thu nhỏ này.

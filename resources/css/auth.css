@@ -1,6 +1,7 @@
 @import './lf/base.css';
 @import './lf/components.css';
 @import './auth/login.css';
+@import './auth/backoffice-login.css';
 
 @tailwind base;
 @tailwind components;
