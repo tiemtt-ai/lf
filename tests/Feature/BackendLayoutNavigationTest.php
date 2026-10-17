@@ -165,7 +165,6 @@ class BackendLayoutNavigationTest extends TestCase
             ->get('https://tenant-a.localhost/admin')
             ->assertOk()
             ->assertSee('id="top-account"', false)
-            ->assertSee('class="admin-top-dropdown"', false)
             ->assertSee('class="admin-dropdown-row"', false)
             ->assertSee('href="https://tenant-a.localhost/admin/organization"', false)
             ->assertSee('href="https://tenant-a.localhost/admin/users"', false)
@@ -175,6 +174,11 @@ class BackendLayoutNavigationTest extends TestCase
             ->assertSeeText(__('lf.LF_navigation_menu_admin_my_account'))
             ->assertSeeText(__('lf.LF_navigation_menu_student_logout'))
             ->getContent();
+
+        $this->assertMatchesRegularExpression(
+            '/<div\b[^>]*\bid="top-account"[^>]*\bclass="(?:[^" ]+ )*admin-top-dropdown(?: [^"]*)?"/',
+            $adminHtml
+        );
 
         $adminSidebar = $this->backendSidebarHtml($adminHtml);
 

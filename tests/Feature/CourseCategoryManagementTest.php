@@ -75,9 +75,11 @@ class CourseCategoryManagementTest extends TestCase
             $this->tableHeaderText($adminResponse->getContent(), 3)
         );
         $this->assertSame(5, preg_match_all('/<th\b/', $adminResponse->getContent()));
-        $adminResponse
-            ->assertSee('<th class="admin-table-sequence">', false)
-            ->assertSee('course-category-index-parent is-root', false);
+        $this->assertMatchesRegularExpression(
+            '/<th\b[^>]*\bclass="(?:[^" ]+ )*admin-table-sequence(?: [^"]*)?"/',
+            $adminResponse->getContent()
+        );
+        $adminResponse->assertSee('course-category-index-parent is-root', false);
         $css = file_get_contents(resource_path('css/admin/admin-components.css'));
         $this->assertStringContainsString(
             '.lf-admin-page .course-category-index-table .admin-table-sequence',

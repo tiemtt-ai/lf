@@ -1,5 +1,6 @@
 <?php
 
+use App\Services\MediaService;
 use Illuminate\Support\Facades\DB;
 use Tests\Feature\AiKnowledgeRetrievalServiceTest;
 
@@ -15,7 +16,7 @@ final class ReadingOrderContractProbeTest extends AiKnowledgeRetrievalServiceTes
         // Commit the synthetic fixture so after-commit consumers actually run.
         // This probe uses an in-memory SQLite DB, never an application database.
         DB::commit();
-        $deleted = app(\App\Services\MediaService::class)->deleteMedia($mediaId);
+        $deleted = app(MediaService::class)->deleteMedia($mediaId);
         $this->assertSame('deleted', $deleted->status);
         $store = $parent->getProperty('store')->getValue($this);
         $store->searchResult = $parent->getMethod('keysFor')->invoke($this, $tenant);

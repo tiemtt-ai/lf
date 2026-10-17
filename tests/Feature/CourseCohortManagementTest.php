@@ -494,8 +494,11 @@ class CourseCohortManagementTest extends TestCase
             ->assertSee('class="admin-form-standard"', false)
             ->assertSee('course-cohort-edit-tabs', false)
             ->assertSee('course-cohort-detail-tabs-help', false)
-            ->assertSee('course-cohort-detail-tab--locked', false)
-            ->assertSee('course-cohort-detail-tab__lock-icon', false)
+            ->assertViewHas('cohortTabs', fn (array $tabs): bool => collect($tabs)
+                ->whereIn('key', ['attendance', 'recordings'])
+                ->count() === 2 && collect($tabs)
+                ->whereIn('key', ['attendance', 'recordings'])
+                ->every(fn (array $tab): bool => ! $tab['accessible']))
             ->assertDontSee('🔒', false)
             ->assertSee('cohort-edit-status-panel', false)
             ->assertDontSee('name="code"', false)
@@ -869,13 +872,9 @@ class CourseCohortManagementTest extends TestCase
         $this->assertFalse(Route::has('admin.course-cohorts.transition'));
 
         $index = $this->actingAs($admin)->get('https://tenant-a.localhost/admin/course-cohorts')->assertOk();
-        foreach (['draft', 'active'] as $status) {
-            $index->assertSee(route('admin.course-cohorts.edit', $ids[$status]), false);
-        }
-        foreach (['completed', 'archived'] as $status) {
-            $index->assertDontSee(route('admin.course-cohorts.edit', $ids[$status]), false);
-        }
         foreach (['draft', 'active', 'completed', 'archived'] as $status) {
+            $index->assertSee(route('admin.course-cohorts.show', $ids[$status]), false);
+            $index->assertDontSee(route('admin.course-cohorts.edit', $ids[$status]), false);
             $index->assertSeeText(__('lf.LF_course_cohort_common_'.$status));
             $this->assertNotSame(
                 "lf.LF_course_cohort_common_{$status}",
@@ -2807,17 +2806,27 @@ class CourseCohortManagementTest extends TestCase
         )->assertForbidden();
         $this->assertDatabaseCount('core_liveclass_recordings', 0);
 
-        // Tab báo đúng lý do thật, và truy cập trực tiếp quay về Tổng quan.
+        // Deferred tabs are omitted from navigation; direct access still falls back to Overview.
         $detail = $this->actingAs($admin)
             ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=attendance")
             ->assertOk()
-            ->assertSeeText(__('lf.LF_course_cohort_tab_attendance_locked_development'))
-            ->assertSeeText(__('lf.LF_course_cohort_tab_recordings_locked_development'));
+            ->assertViewHas('activeTab', 'overview')
+            ->assertViewHas('cohortTabs', function (array $tabs): bool {
+                $attendance = collect($tabs)->firstWhere('key', 'attendance');
+                $recordings = collect($tabs)->firstWhere('key', 'recordings');
+
+                return ! $attendance['accessible'] && ! $recordings['accessible']
+                    && $attendance['locked_reason'] === __('lf.LF_course_cohort_tab_attendance_locked_development')
+                    && $recordings['locked_reason'] === __('lf.LF_course_cohort_tab_recordings_locked_development');
+            })
+            ->assertDontSee('tab=attendance', false)
+            ->assertDontSee('tab=recordings', false);
         $detail->assertDontSeeText(__('lf.LF_course_cohort_attendance_save'));
 
         $this->actingAs($admin)
             ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=recordings")
             ->assertOk()
+            ->assertViewHas('activeTab', 'overview')
             ->assertDontSeeText(__('lf.LF_course_cohort_recording_add'));
 
         // Bật cờ thì cùng request đó hoạt động trở lại — khóa là tạm thời và

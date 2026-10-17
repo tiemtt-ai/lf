@@ -39,6 +39,8 @@ class AiAuthoringHostSectionTest extends TestCase
     {
         parent::setUp();
         config([
+            // This suite tests the enabled UI; rollout defaults are tested separately.
+            'ai.authoring.ui_enabled' => true,
             'app.url' => self::HOST, 'app.base_domain' => 'localhost', 'app.tenant_scheme' => 'https',
         ]);
         URL::forceRootUrl(self::HOST);
@@ -227,7 +229,8 @@ class AiAuthoringHostSectionTest extends TestCase
         $page = $this->actingAs($this->user('customer_admin'))->get($this->pageUrl('admin'));
 
         $config = $this->config($page);
-        $this->assertEqualsCanonicalizing(['isAdmin', 'framework', 'draftVersions', 'publishedVersions', 'urls', 'mappingsUrl', 'csrfToken'], array_keys($config));
+        $this->assertEqualsCanonicalizing(['isAdmin', 'framework', 'draftVersions', 'publishedVersions', 'urls', 'mappingsUrl', 'csrfToken', 'generationConfigured'], array_keys($config));
+        $this->assertSame((bool) config('ai.authoring.provider') && (bool) config('ai.authoring.model'), $config['generationConfigured']);
         $this->assertSame(csrf_token(), $config['csrfToken']);
         $this->assertEqualsCanonicalizing(['proposals', 'generation_requests', 'bulk_decisions'], array_keys($config['urls']));
         foreach ($config['urls'] as $url) {

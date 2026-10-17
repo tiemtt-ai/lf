@@ -6,18 +6,18 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    private const TABLES = array (
-  0 => 'core_learning_frameworks',
-  1 => 'core_learning_framework_versions',
-  2 => 'core_learning_node_definitions',
-  3 => 'core_learning_nodes',
-  4 => 'core_learning_node_relations',
-  5 => 'core_learning_node_mappings',
-  6 => 'core_learning_evidence',
-  7 => 'core_learning_mastery_calculations',
-  8 => 'core_learning_calculation_evidence',
-  9 => 'core_learning_mastery_profiles',
-);
+    private const TABLES = [
+        0 => 'core_learning_frameworks',
+        1 => 'core_learning_framework_versions',
+        2 => 'core_learning_node_definitions',
+        3 => 'core_learning_nodes',
+        4 => 'core_learning_node_relations',
+        5 => 'core_learning_node_mappings',
+        6 => 'core_learning_evidence',
+        7 => 'core_learning_mastery_calculations',
+        8 => 'core_learning_calculation_evidence',
+        9 => 'core_learning_mastery_profiles',
+    ];
 
     public function up(): void
     {
@@ -687,7 +687,9 @@ END;');
 
     public function down(): void
     {
-        if (! in_array(DB::getDriverName(), ['mysql', 'mariadb'], true)) { return; }
+        if (! in_array(DB::getDriverName(), ['mysql', 'mariadb'], true)) {
+            return;
+        }
         DB::unprepared('DROP TRIGGER IF EXISTS `trg_lrn_profiles_bu_projection`');
         DB::unprepared('DROP TRIGGER IF EXISTS `trg_lrn_profiles_bi_projection`');
         DB::unprepared('DROP TRIGGER IF EXISTS `trg_lrn_calc_evidence_bd_immutable`');
@@ -724,4 +726,3 @@ END;');
         Schema::dropIfExists('core_learning_frameworks');
     }
 };
-

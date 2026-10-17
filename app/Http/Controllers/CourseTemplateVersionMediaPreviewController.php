@@ -33,7 +33,7 @@ class CourseTemplateVersionMediaPreviewController extends Controller
             'Content-Type' => $media->mime_type,
             'Content-Disposition' => 'inline; filename="'.addcslashes(
                 $media->display_name,
-                "\\\""
+                '\\"'
             ).'"',
         ];
 

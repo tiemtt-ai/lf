@@ -1065,9 +1065,15 @@ class CourseMediaIntegrationTest extends TestCase
         foreach ([[$admin, 'admin'], [$teacher, 'teacher']] as [$user, $area]) {
             $response = $this->actingAs($user)->get(
                 "https://tenant-a.localhost/{$area}/course-templates/{$templateId}/edit"
-            )->assertOk()
-                ->assertDontSeeText(__('lf.LF_course_template_activity_media_current_file'));
+            )->assertOk();
             $html = $response->getContent();
+
+            // Error translations in JS config are not visible duplicate field labels.
+            $this->assertSame(0, $this->htmlElementCount(
+                $html,
+                '//div[@data-authoring-media-current-row]//*[not(*) and normalize-space(.)="'
+                .__('lf.LF_course_template_activity_media_current_file').'"]'
+            ));
 
             $this->assertSame(3, $this->htmlElementCount(
                 $html,

@@ -18,6 +18,7 @@ class TrustedVideoUrlServiceTest extends TestCase
     public static function validUrls(): array
     {
         $youtube = ['id' => 'dQw4w9WgXcQ', 'url' => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', 'provider' => 'youtube', 'embed_url' => 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ'];
+
         return [
             ['https://www.youtube.com/watch?v=dQw4w9WgXcQ&utm_source=x', $youtube],
             ['https://youtu.be/dQw4w9WgXcQ?t=3', $youtube],

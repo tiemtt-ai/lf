@@ -1,6 +1,6 @@
 # Admin/Teacher Layout Adoption Audit
 
-Version: 1.22
+Version: 1.25
 
 Document Status: Review
 
@@ -403,3 +403,78 @@ theo touch policy, không tràn ngang. VI/EN mobile không chồng chữ/logo;
 
 Build/diff check PASS; không chạy lại auth tests cho thay đổi CSS geometry.
 Database QA đã xóa, server/tab QA đóng, không lưu file kiểm thử tạm trong repo.
+
+## Login closeout and retired CSS cleanup — 2026-10-18
+
+Đã rà class consumers trong views/JS/app và xóa 10 rule thuộc 6 nhóm không
+còn dùng: auth-login-tabs, auth-login-tab, auth-remember, auth-forgot-row,
+auth-social-list, auth-social-button. Giữ auth-login-card, inputs, submit,
+forgot-link, auth layout/footer vì forgot/reset/verify/register còn sử dụng.
+Không đổi logo 150×54, header 112px, input PC 40px/touch 44px; không đổi
+nghiệp vụ, UI Kit, routes/controllers hoặc schema.
+
+Rerun AuthFlowTest + TenantAuthenticationSecurityTest + TenantHostResolutionTest:
+18 passed, 127 assertions (3.28s). Build PASS (4.98s), diff check PASS.
+Pint login Blade và VI/EN translations PASS. Pint toàn repo FAIL trên cùng
+10 file baseline đã ghi nhận trước (migrations, media preview controllers,
+TrustedVideoUrlService/tests, Phase4C harness và ReadingOrder probe); không
+file nào trong nhóm này thay đổi. Không tuyên bố Pint toàn repo đã PASS.
+
+Chốt phần login trong phạm vi UI đã nghiệm thu; baseline formatting debt
+cần xử lý riêng. Không tạo file kiểm thử tạm; ảnh/log cũ đã dọn ở lượt trước.
+
+## Pint baseline debt resolved — 2026-10-18
+
+Theo Owner, Pint chỉ chạy sửa trên đúng 10 file baseline đã liệt kê ở trên.
+Pint toàn repo chạy lại: PASS. Đối chiếu AST của cả 10 PHP files với HEAD,
+resolve tên lớp và bỏ metadata định dạng/import declarations: giống nhau,
+bao gồm giá trị string và array entries. Parser không báo lỗi cú pháp.
+Diff check PASS, UI Kit không đổi; không chạy migrations hoặc sửa nghiệp vụ.
+Các kết quả Pint FAIL trước đây là lịch sử, không phải trạng thái hiện tại.
+Không tạo script, log hoặc file kiểm thử tạm.
+
+## Final Admin/Teacher UI and login verification — 2026-10-18
+
+Chạy mặc định php artisan test, không override model/provider. Lần đầu:
+29 failed, 23 skipped, 1428 passed (11672 assertions), 173.01s.
+Phát hiện 1 test lỗi thời do chỉnh dropdown: account navigation yêu cầu exact
+class="admin-top-dropdown", trong khi class list có thêm admin-account-dropdown.
+Đã đổi assertion sang kiểm CSS class token trên đúng #top-account; giữ toàn bộ
+assertions route/role/sidebar. Targeted test PASS (24 assertions). Không sửa
+production/business behavior để làm xanh test.
+
+Chạy lại toàn bộ PHP sau sửa: **28 failed, 23 skipped, 1429 passed,
+11693 assertions, 157.79s**. So sánh hai lần: chỉ mất failure account navigation,
+không xuất hiện failure mới. Các nhóm/số lỗi còn lại trùng baseline đã ghi
+nhận trước khi triển khai UI. Không có failure mới còn mở từ lượt UI/login.
+
+| Nhóm baseline còn lỗi | Số lỗi | Biểu hiện hiện tại |
+| --- | ---: | --- |
+| AiAuthoringHostSectionTest | 11 | Assertions section/config markup AI authoring |
+| AudioProcessingLocalReviewTest | 3 | Pipeline ready/failed và error code không khớp |
+| DocumentProcessingLocalReviewTest | 4 | Office extraction processing_failed |
+| VideoTranscriptCaptionLocalReviewTest | 3 | Pipeline/error code và thiếu record |
+| CourseCohortManagementTest | 3 | Locked tab, edit URL và attendance copy assertions |
+| BackendLayoutNavigationTest | 1 | Table action contract cũ |
+| CourseCategoryManagementTest | 1 | Table sequence header assertion |
+| CourseMediaIntegrationTest | 1 | Current-file copy assertion |
+| MediaThumbnailComponentTest | 1 | Preview CSS variable assertion |
+
+Phân loại baseline dựa trên lịch sử và failure groups; không kết luận mọi
+assertion cũ đều lỗi thời hoặc mọi pipeline failure đều là lỗi môi trường
+khi chưa audit nghiệp vụ tương ứng. Các lỗi này không được sửa trong nhiệm vụ.
+
+| Gate cuối | Kết quả |
+| --- | --- |
+| PHP full suite | 28 baseline FAIL, 1429 PASS, 23 SKIP |
+| Node tests/js/*.test.mjs | 155/155 PASS |
+| Pint toàn repository sau sửa test | PASS |
+| npm run build | PASS (4.87s) |
+| git diff --check | PASS |
+| UI Kit gốc | Không thay đổi |
+
+Kết luận: phần UI/login không có regression mới còn được phát hiện bởi
+các gate này; repository chưa được chứng nhận full-suite PASS do 28 baseline
+failures. Browser acceptance/logo 150×54/header 112 ghi ở lượt trước, không
+chạy lại browser trong lượt kiểm tra tự động này. Logs full-suite/Node tạm
+đã xóa sau tổng kết; không tạo thêm file QA/report riêng.
