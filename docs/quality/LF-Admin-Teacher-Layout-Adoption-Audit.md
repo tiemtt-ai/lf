@@ -1,6 +1,6 @@
 # Admin/Teacher Layout Adoption Audit
 
-Version: 1.25
+Version: 1.27
 
 Document Status: Review
 
@@ -478,3 +478,199 @@ các gate này; repository chưa được chứng nhận full-suite PASS do 28 b
 failures. Browser acceptance/logo 150×54/header 112 ghi ở lượt trước, không
 chạy lại browser trong lượt kiểm tra tự động này. Logs full-suite/Node tạm
 đã xóa sau tổng kết; không tạo thêm file QA/report riêng.
+
+
+## Baseline failure audit and outdated-test corrections — 2026-10-18
+
+Scope: Owner yêu cầu phân loại 28 baseline failures và chỉ sửa test lỗi thời.
+Lượt này chỉnh bốn test files bên dưới và báo cáo này; không chỉnh production
+code, nghiệp vụ, cấu hình model, Approved policy hoặc UI Kit. Các diff định
+dạng/Pint, login CSS và account-navigation test từ lượt trước vẫn được giữ.
+
+| Nhóm baseline | Số lỗi | Phân loại và xử lý |
+| --- | ---: | --- |
+| AiAuthoringHostSectionTest | 11 | Test lỗi thời: suite kiểm UI enabled nhưng không bật rollout flag; config contract thiếu generationConfigured. Bật flag trong fixture, kiểm boolean/config whitelist; giữ role/tenant/secret checks. |
+| CourseCohortManagementTest | 3 | Test lỗi thời: deferred tabs đã ẩn, list đi qua show trước khi edit. Kiểm metadata inaccessible, fallback overview, show URLs; giữ kiểm forbidden, lifecycle và database. |
+| CourseCategoryManagementTest | 1 | Test lỗi thời: exact class string không cho phép thêm class hợp lệ. Kiểm CSS class token, giữ số cột và nội dung. |
+| CourseMediaIntegrationTest | 1 | Test lỗi thời: assertDontSeeText quét cả bản dịch lỗi trong JS config. Kiểm duplicate label trong markup current-file row bằng XPath. |
+| AudioProcessingLocalReviewTest | 3 | Môi trường đã xác nhận: say trong sandbox sinh WAV im lặng dài 0,005s; ngoài sandbox fixture dài 17,5785s và cả class PASS, giữ model mặc định. Không sửa hoặc skip test. |
+| VideoTranscriptCaptionLocalReviewTest | 3 | Môi trường đã xác nhận: cả class ngoài sandbox PASS, bao gồm transcript, corrupt-video error code và tenant read. Không sửa hoặc skip test. |
+| DocumentProcessingLocalReviewTest | 4 | BLOCKED xác nhận pipeline Office: LibreOffice nhận SIGABRT (signal 6) trong sandbox. Chẩn đoán trực tiếp ngoài sandbox có doc/pptx chuyển đổi thành công, ppt/xls quá timeout 30s. Suite bình thường ngoài sandbox tiếp tục treo ở source.doc, đã dừng chủ động trước timeout cấu hình 900s. Có bằng chứng runtime không ổn định, chưa đủ để loại trừ lỗi tích hợp; giữ nguyên test. |
+| BackendLayoutNavigationTest | 1 | Lỗi UI/canonical thực tế: test tại tests/Feature/BackendLayoutNavigationTest.php:577; ví dụ resources/views/course-categories/index.blade.php:77 thiếu admin-table-has-actions và dùng managed-list. LF-Tech-CSS.md:384 và LF-Admin-Form-Design-Standard.md:886 vẫn yêu cầu shared action contract. Không nới assertion. |
+| MediaThumbnailComponentTest | 1 | Lỗi UI/canonical thực tế: test tại tests/Feature/MediaThumbnailComponentTest.php:91 yêu cầu 1280px theo docs/platform/LF-Media.md:616; resources/css/admin/admin-pages.css:503 đang 800px. Giữ test, không đổi CSS/policy trong nhiệm vụ này. |
+
+Tổng: **16 lỗi thời đã sửa; 6 lỗi môi trường đã xác nhận; 2 lỗi UI thực tế;
+4 lỗi Office còn BLOCKED xác nhận**. Không coi lỗi baseline là test lỗi thời
+chỉ vì implementation đang khác assertion. AI rollout được đối chiếu amendment
+Single Entry và test flag-off riêng trong AiAuthoringActivityEntryTest.
+
+### Verification evidence
+
+- Chạy lại AiAuthoringHostSectionTest, AiAuthoringActivityEntryTest,
+  CourseCategoryManagementTest, CourseMediaIntegrationTest,
+  CourseCohortManagementTest: **147 PASS, 1803 assertions, 15,19s**.
+- Audio class ngoài sandbox, cùng provider/model mặc định: toàn bộ 24 cases
+  PASS (bao gồm ba cases baseline). Lượt audio/document/video chung bị dừng
+  ở LibreOffice nên không có aggregate summary; không tuyên bố cả lượt PASS.
+- Video class chạy riêng ngoài sandbox: **6 PASS, 115 assertions, 41,58s**.
+- Hai test canonical UI giữ nguyên: **2 FAIL, 11 assertions** như dự kiến.
+- Diagnostic media trong sandbox có TMPDIR riêng: 15 FAIL / 74 PASS,
+  439 assertions; gồm 10 baseline media và 5 PDF/Docling failures phát sinh
+  trong môi trường chẩn đoán. Không dùng lượt này làm full-suite baseline
+  hoặc quy những failures đó thành regression của thay đổi test.
+- Pint toàn repository: **PASS**. git diff --check: **PASS**.
+- docs:lint: **58 issues** ở các tài liệu/index/manifest khác; không có
+  diagnostic nào cho báo cáo này. Giữ nguyên ngoài phạm vi sửa test.
+- Đây là targeted verification, chưa chạy lại full suite sau bốn test edits;
+  không suy diễn repository hiện chỉ còn hai failures. Build trước đó PASS;
+  lượt test-only này không thay đổi assets nên không chạy build lại.
+
+Không thêm skip/mock để che lỗi pipeline; không chỉnh model hoặc runtime để
+làm xanh assertions. Logs, fixtures và profiles chẩn đoán tạm được dọn sau
+khi đọc kết quả; không giữ đường dẫn tới file tạm làm evidence link.
+
+
+## Canonical UI fixes and Office boundary review — 2026-10-18
+
+Classification: Existing-Feature Change. Initial/Final Audit Level: HIGH
+(shared presentation across five module consumers). Audit Level Escalation:
+None. Source of truth: LF-Tech-CSS table action contract,
+LF-Admin-Form-Design-Standard §25.4, LF-Media shared preview geometry and
+LF-Tech-Runtime-Requirements Office runtime/limits. Architecture Guardrails,
+Development Standards, Regression Audit, Processing Contract and conflict
+register reviewed. No architecture boundary change or conflicting policy
+resolution is introduced by this implementation.
+
+### UI implementation and invariants
+
+- Five list consumers (course-categories, course-cohorts, course-enrollments,
+  course-products, course-templates) now opt into admin-table-has-actions and
+  reuse x-admin-action-menu. Existing management URLs, labels, authorization
+  conditions, queries, lifecycle and route destinations are unchanged. No new
+  action, backend route, component, business rule or database write is added.
+- Shared image/video preview max-width restored from 800px to 1280px; mobile
+  viewport gutter remains 24px and max-height accounts for that spacing.
+  Existing compact audio presentation remains outside this geometry fix.
+- Removed the late generic managed-actions width/alignment override so the
+  shared action column rule applies. No UI Kit source changed.
+
+Requirement traceability: the two unchanged canonical tests now PASS
+(46 assertions). Related UI/module group: 247 PASS, 3849 assertions, 18.29s.
+Pint PASS; frontend build PASS (4.47s); Node 155 PASS.
+
+Browser QA used an isolated page rendering the existing Blade action-menu and
+media-preview-modal with the actual built candidate CSS/JS, not copied styles.
+At 1440×900, image panel measured 1280px, left/right 80/1360. At 390×844,
+panel measured 342px, left/right 24/366, computed gutter 24px; no document
+horizontal overflow. The mobile action panel was inside viewport
+(left/right 136.52/272.52; top/bottom 124/172) and visible after click.
+Desktop menu screenshot showed the panel below the trigger without clipping.
+These are shared-component checks, not screenshots of all populated business
+pages or real-device touch certification. QA tab/server and viewport override
+are removed/reset after inspection.
+
+### Office: runtime versus LF integration
+
+The four native-conversion cases are DOC, PPTX, PPT and XLS; DOCX and XLSX
+use native LF readers and do not depend on this LibreOffice conversion path.
+The configured soffice resolves to the Homebrew wrapper executing
+/Applications/LibreOffice.app/Contents/MacOS/soffice.
+
+Repeated direct conversion outside Laravel and outside the sandbox, each with
+an isolated disposable UserInstallation profile, timed out after 25s for all
+four formats without a converted output. A second diagnostic using the app
+binary directly and temporary SAL_USE_VCLPLUGIN=svp also timed out after 15s
+per format, with empty stdout/stderr and no output. Processes were bounded;
+no permanent environment setting, binary upgrade or timeout change was made.
+Together with prior sandbox SIGABRT evidence this confirms an external runtime
+failure independently of the LF orchestration. Short diagnostic timeouts do
+not certify that the configured 900s production conversion would always fail;
+they establish that normal local conversion is currently not verified.
+
+A separate four-case converter-boundary test was added to the existing
+DocumentProcessingLocalReviewTest. It substitutes only the external soffice
+conversion output with existing PDF/XLSX fixtures. It checks unchanged source
+bytes, profile/output paths, target format and bounded timeout, then exercises
+the actual LF upload, usage dispatch, processing, reader, persistence and
+authorized-read path, including temporary-directory cleanup. This verifies the
+integration when the converter supplies valid output; it does not prove real
+Office conversion or replace/skip the six original native-format cases.
+
+Native Office acceptance remains BLOCKED on a working local LibreOffice
+runtime. The direct conversion failures establish a runtime problem, but a separate
+integration defect was also reproduced: Symfony Process::run throws
+ProcessSignaledException before DocumentProcessRunner reaches its nonzero-exit
+classification branch. Consequently signal evidence was lost and mapped to
+processing_failed instead of the provider's existing provider_unavailable
+mapping. DocumentProcessRunner now wraps this exception as
+DocumentCommandFailure retaining exit code and signal. No input/output,
+provider-selection, retry rule, model, data or business lifecycle was changed.
+Other runner consumers (audio/video, frame OCR, Docling, PDF validation) were
+reviewed; the exception remains a RuntimeException and existing normalization
+paths continue to own public error codes.
+
+Verification: a real child PHP process terminated by SIGTERM now retains its
+signal in DocumentCommandFailure; provider classification additionally covers
+SIGABRT (6). The converter-boundary cases pass all four formats (60 assertions).
+Combined targeted document/PDF/spreadsheet tests: 17 PASS, 107 assertions, 2.98s.
+The new POSIX test ran locally; its platform guard only covers systems without
+posix_kill, not LibreOffice availability. Original real Office tests remain
+unchanged and must pass against a working runtime for native acceptance.
+
+
+Changed files for this follow-up: resources/css/admin/admin-pages.css; the
+five resources/views/{course-categories,course-cohorts,course-enrollments,
+course-products,course-templates}/index.blade.php files;
+app/Services/DocumentProcessRunner.php;
+tests/Feature/DocumentProcessingLocalReviewTest.php;
+tests/Feature/LocalDocumentMixedPdfTest.php; this existing audit. No new
+repository file, migration, route, component or dependency.
+
+
+### Final verification and disposition
+
+| Gate | Final result |
+| --- | --- |
+| PHP full suite after UI fixes, before signal normalization | 10 FAIL / 23 SKIP / 1447 PASS, 11911 assertions, 165.60s |
+| PHP full suite after all changes including five new cases | **10 FAIL / 23 SKIP / 1452 PASS**, 11975 assertions, 150.01s |
+| Original two UI contract tests | **2 PASS**, unchanged assertions |
+| Related UI/module group | **247 PASS**, 3849 assertions |
+| Document/PDF/spreadsheet integration group | **17 PASS**, 107 assertions |
+| Node | **155 PASS** |
+| Pint entire repository after final PHP changes | **PASS** |
+| Frontend build | **PASS**, 4.47s |
+| git diff --check | **PASS** |
+| docs:lint | **58 existing/unrelated issues**, none naming this audit; not expanded into docs cleanup |
+| UI Kit original | No diff |
+
+Final suite failures are the same ten media cases as the preceding run:
+audio 3, video 3, Office 4. There is no new failure identity. In particular,
+all four Office failures now carry provider_unavailable rather than the prior
+processing_failed, demonstrating that SIGABRT reaches the existing provider
+classification. Ready assertions still fail because native conversion has not
+succeeded. The video corrupt-input case remains a sandbox failure as before;
+this document does not claim it was fixed by the document signal correction.
+
+Disposition:
+- Two canonical UI findings: resolved and verified.
+- Office integration: converter handoff and authorized read pass controlled
+  boundary tests; lost-signal classification defect resolved with regression
+  coverage. These checks do not certify native Office output fidelity.
+- Office environment: direct native conversion remains blocked by local
+  LibreOffice behavior. A working/qualified runtime must be demonstrated before
+  real Office acceptance; do not change business logic to bypass conversion.
+- Existing audio/video environment findings remain as previously recorded;
+  no additional model change or new outside-sandbox audio/video run here.
+
+Invariants retained: tenant/customer ownership, auth/permissions, existing
+queries and action URLs, lifecycle, processing output semantics, model/default
+configuration, original UI Kit, no migration. No production database was used
+for test fixtures. Native tools only read repository fixtures into disposable
+profiles. All new diagnostic logs/JSON/HTML/router/profiles and generated LF
+fixtures are deleted after results are summarized. No temporary evidence links
+are retained; no QA server or tab remains.
+
+Findings By Severity: MEDIUM — unresolved native Office runtime acceptance;
+LOW — unrelated docs-lint debt. Final Verdict: **BLOCKED** for full/native
+Office acceptance; requested UI corrections and integration correction are
+verified. No full-suite PASS or production readiness claim.

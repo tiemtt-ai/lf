@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Exceptions\DocumentCommandFailure;
 use RuntimeException;
+use Symfony\Component\Process\Exception\ProcessSignaledException;
 use Symfony\Component\Process\Exception\ProcessTimedOutException;
 use Symfony\Component\Process\Process;
 
@@ -17,6 +18,9 @@ class DocumentProcessRunner
             $process->run();
         } catch (ProcessTimedOutException) {
             throw new RuntimeException('provider_timeout');
+        } catch (ProcessSignaledException $exception) {
+            throw new DocumentCommandFailure('provider_command_failed: '.mb_substr(trim($process->getErrorOutput()), 0, 500),
+                $process->getExitCode(), $exception->getSignal());
         }
 
         if (! $process->isSuccessful()) {

@@ -458,6 +458,54 @@ class DocumentProcessingLocalReviewTest extends TestCase
         return array_map(static fn ($extension) => [$extension], ['docx', 'doc', 'pptx', 'ppt', 'xlsx', 'xls']);
     }
 
+    #[DataProvider('convertedOfficeFormats')]
+    public function test_office_converter_boundary_preserves_processing_and_authorized_read(string $extension): void
+    {
+        $this->requirePdfRuntime();
+        $realRunner = new DocumentProcessRunner;
+        $directory = null;
+        $runner = Mockery::mock(DocumentProcessRunner::class);
+        $runner->shouldReceive('run')->andReturnUsing(function (array $command, int $timeout) use ($extension, $realRunner, &$directory): string {
+            if ($command[0] !== config('media.processing.local_document.soffice_binary')) {
+                return $realRunner->run($command, $timeout);
+            }
+
+            // Substitute only the external converter, not LF persistence, readers or authorization.
+            $this->assertSame('--headless', $command[2]);
+            $this->assertSame('--convert-to', $command[3]);
+            $this->assertSame($extension === 'xls' ? 'xlsx' : 'pdf', $command[4]);
+            $this->assertSame('--outdir', $command[5]);
+            $directory = $command[6];
+            $this->assertDirectoryExists($directory.'/libreoffice-profile');
+            $this->assertSame('-env:UserInstallation=file://'.$directory.'/libreoffice-profile', $command[1]);
+            $this->assertSame(
+                hash_file('sha256', base_path('tests/Fixtures/document/office.'.$extension)),
+                hash_file('sha256', $command[7])
+            );
+            $this->assertGreaterThan(0, $timeout);
+            $this->assertLessThanOrEqual((int) config('media.processing.local_document.office_timeout_seconds'), $timeout);
+            $fixture = $extension === 'xls' ? 'office.xlsx' : 'structured.pdf';
+            $this->assertTrue(copy(base_path('tests/Fixtures/document/'.$fixture), $directory.'/source.'.$command[4]));
+
+            return '';
+        });
+        $this->app->instance(DocumentProcessRunner::class, $runner);
+
+        $media = $this->upload('office.'.$extension);
+        $this->attach($media);
+        $job = $this->ocrJob($media);
+        $this->assertSame('ready', $job->status, (string) $job->error_code);
+        $text = implode(' ', array_column($this->read(), 'text'));
+        $this->assertStringContainsString($extension === 'xls' ? 'DOCUMENT_ACCEPTANCE_ALPHA' : 'LearnForge structured acceptance', $text);
+        $this->assertNotNull($directory);
+        $this->assertDirectoryDoesNotExist($directory);
+    }
+
+    public static function convertedOfficeFormats(): array
+    {
+        return array_map(static fn ($extension) => [$extension], ['doc', 'pptx', 'ppt', 'xls']);
+    }
+
     public function test_real_docling_table_merged_cells_chart_and_diagram_fixture(): void
     {
         $this->requirePdfRuntime();

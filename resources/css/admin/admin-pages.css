@@ -500,7 +500,7 @@
 }
 
 .media-library-modal {
-    --lf-media-preview-max-width: 800px;
+    --lf-media-preview-max-width: 1280px;
 
     position: fixed;
     inset: 0;
@@ -536,8 +536,7 @@
 }
 
 @media (max-width: 767px) {
-    .media-library-modal { padding: 16px; }
-    .media-library-modal-panel { padding: 16px; max-height: calc(100dvh - 32px); }
+    .media-library-modal-panel { padding: 16px; max-height: calc(100dvh - 48px); }
     .media-library-modal-header { gap: 12px; }
     .media-library-modal-header h2 { font-size: 16px; }
 }
@@ -7869,5 +7868,4 @@
         white-space: nowrap;
     }
     .lf-admin-page .admin-managed-list .admin-managed-status { text-align: center; }
-    .lf-admin-page .admin-managed-list .admin-managed-actions { width: 128px; min-width: 128px; text-align: center; }
 }

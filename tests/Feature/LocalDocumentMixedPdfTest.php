@@ -56,7 +56,7 @@ class LocalDocumentMixedPdfTest extends TestCase
     public function test_command_failures_distinguish_input_output_and_unknown_errors(): void
     {
         foreach ([[1, null, 'corrupt_source'], [3, null, 'corrupt_source'],
-            [2, null, 'provider_unavailable'], [137, 9, 'provider_unavailable'],
+            [2, null, 'provider_unavailable'], [134, 6, 'provider_unavailable'], [137, 9, 'provider_unavailable'],
             [99, null, 'processing_failed']] as [$exit, $signal, $expected]) {
             $runner = Mockery::mock(DocumentProcessRunner::class);
             $runner->shouldReceive('run')->once()->andThrow(new DocumentCommandFailure(
@@ -68,6 +68,21 @@ class LocalDocumentMixedPdfTest extends TestCase
             } catch (\RuntimeException $e) {
                 $this->assertSame($expected, $e->getMessage());
             }
+        }
+    }
+
+    public function test_a_signaled_command_preserves_signal_for_provider_classification(): void
+    {
+        if (! function_exists('posix_kill')) {
+            $this->markTestSkipped('Signal integration test requires POSIX process support.');
+        }
+
+        try {
+            (new DocumentProcessRunner)->run([PHP_BINARY, '-r', 'posix_kill(getmypid(), SIGTERM);'], 5);
+            $this->fail('Expected a signaled command failure.');
+        } catch (DocumentCommandFailure $exception) {
+            $this->assertSame(SIGTERM, $exception->signal);
+            $this->assertStringStartsWith('provider_command_failed:', $exception->getMessage());
         }
     }
 
