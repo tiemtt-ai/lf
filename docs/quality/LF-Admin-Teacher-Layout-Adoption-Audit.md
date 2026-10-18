@@ -1,6 +1,6 @@
 # Admin/Teacher Layout Adoption Audit
 
-Version: 1.31
+Version: 1.33
 
 Document Status: Review
 
@@ -988,3 +988,117 @@ this existing audit. Disposable schemas, server/data directory, socket,
 bootstrap/harness PHP, SQL trace, logs/JSON and this run's fake storage were
 removed after results were summarized. No temporary evidence links, business
 code change, migration edit, new component or UI Kit edit remains.
+
+
+## Qdrant follow-up — closure of original 23 SKIP cases (2026-10-18)
+
+Classification: verification/environment setup only. Initial/Final Audit Level:
+LOW for this follow-up; no application or test implementation changed.
+Findings By Severity: none. Final Verdict: **PASS** for the supplemental audit
+of the original 23 guarded tests.
+
+Installed the official macOS Intel binary [Qdrant v1.19.2](https://github.com/qdrant/qdrant/releases/tag/v1.19.2)
+at `/usr/local/opt/lf-qdrant/1.19.2/qdrant`. Download SHA-256 matched the
+release API digest:
+`e095b682ad7460baff43827eaa13647b5ec97c48edcb676646ae2f4108395044`.
+This satisfies ADR-0006's self-hosted minimum 1.11. Native binary execution and
+custom configuration follow the [official installation documentation](https://qdrant.tech/documentation/installation/).
+
+The temporary instance bound only `127.0.0.1:16333`, with gRPC, clustering and
+telemetry disabled, using a private disposable data directory. No application
+`.env`, provider activation, business database or production service changed.
+The existing test used SQLite in memory plus the real Qdrant REST service;
+its embedding provider remains the existing test fixture, not an external
+model call.
+
+Command:
+
+```sh
+LF_QDRANT_TEST_URL=http://127.0.0.1:16333 php artisan test --filter=test_real_qdrant_maintenance_passes_a_broken_collection_and_recovers_it
+```
+
+Result: **1 PASS, 17 assertions, 0 SKIP, 0 FAIL**, duration **4.78s**, exit 0.
+The existing assertions exercised real upserts, customer_id payload indexing,
+404 responses for a missing collection, reconciliation recovery and deletion
+recovery. No assertion was weakened or test edited. The collection's UUID
+prefix isolated this run. `GET /collections` returned an empty collection list
+both before and after the test; server output confirmed collection deletion.
+
+| Original guarded group | Supplemental result |
+| --- | --- |
+| MariaDB-dependent cases | 20 PASS, 70 assertions (preceding follow-up) |
+| Optional real media fixtures | 2 PASS, 22 assertions (preceding follow-up) |
+| Dedicated Qdrant endpoint | 1 PASS, 17 assertions (this follow-up) |
+| Total | **23/23 PASS in supplemental runs; 109 assertions** |
+
+This closes the previously unverified Qdrant item. These are separate runs
+with their required environments; the earlier full-suite result remains
+1462 PASS / 23 SKIP, not a newly executed full suite with zero skips. Default
+SQLite guards/configuration remain unchanged. No new application defect was
+found in this follow-up.
+
+Cleanup: Qdrant was gracefully stopped, and its archive, temporary config,
+data, snapshots, inventory JSON and root `.qdrant-initialized` marker were
+removed. Inventory comparison found no new LF temporary directories or fake
+storage disks. The installed binary remains available for later local runs;
+no background service or automatic application connection was enabled.
+Only this existing report changed in the repository. Business code, tests and
+UI Kit are unchanged; full suite/Pint/build were not repeated for this
+runtime-only verification. Final `git diff --check` PASS.
+
+
+## Final complete verification and SKIP reconciliation — 2026-10-18
+
+Owner requested a fresh complete test/Pint/build run and consolidation of the
+23 previously skipped cases. Initial/Final Audit Level: LOW for this
+verification-only follow-up. Findings By Severity: none. Final Verdict:
+**PASS** for the requested final verification. No business code, test,
+configuration or original UI Kit was modified; only this existing audit changed.
+
+| Fresh gate | Result |
+| --- | --- |
+| `php artisan test` outside sandbox, configured default model, no model/provider override | **1462 PASS / 23 SKIP / 0 FAIL**, 12200 assertions, **256.79s**, exit 0 |
+| `vendor/bin/pint --test` | **PASS**, exit 0, no formatting edits |
+| `node --test tests/js/*.test.mjs` | **155 PASS / 0 SKIP / 0 FAIL**, exit 0 |
+| `npm run build` | **PASS**, 65 modules, **5.33s**, exit 0 |
+| `git diff --check` | **PASS** |
+| Original `docs/ui-demo` | No diff |
+
+No failure remains to classify as a baseline defect, obsolete test, environment
+error or new UI regression in this execution. The same 23 explicit environment
+guards remain in the default suite: 20 physical MariaDB checks, two optional
+media-fixture checks and one dedicated Qdrant endpoint check. They are not test
+failures, and no guard/assertion was removed to obtain a green run.
+
+Supplemental evidence from the preceding follow-ups remains separate from this
+fresh full suite:
+
+| Existing SKIP group | Verified environment | Supplemental result |
+| --- | --- | --- |
+| 20 MariaDB checks | Isolated native MariaDB 11.4.12, all 101 canonical migrations completed | **20 PASS / 70 assertions**, 13.234s; includes the previously documented concurrency fixture correction |
+| 2 optional media checks | Native tools, generated local fixtures, default STT model | **2 PASS / 22 assertions**, 41.02s |
+| 1 Qdrant check | Official native Qdrant 1.19.2, isolated loopback endpoint and collection | **1 PASS / 17 assertions**, 4.78s |
+| Total originally skipped | Separate supplemental runs, not a combined full-suite run | **23/23 PASS / 109 assertions** |
+
+All original SKIP cases therefore have supplemental execution evidence; none
+remains awaiting an environment. Default PHPUnit still uses SQLite and does
+not supply optional fixture/endpoint variables, so the fresh full-suite count
+correctly remains 1462 PASS / 23 SKIP. This report does not claim a newly run
+1485-test full suite without skips.
+
+The run's PHPUnit PID was 12758. Cleanup removed only newly inventoried LF temp
+fixtures/workspaces and `media_local_test_12758` fake storage, preserving older
+artifacts owned by other runs. Temporary verification logs and inventory JSON
+were removed after summarizing results. No temporary evidence links were added.
+Pint and build introduced no tracked changes. No service was activated, no
+business database was touched and the original UI Kit has no diff.
+
+Additional documentation gate: `php artisan docs:lint` exited 1 with **58
+metadata/catalog/manifest issues** in other existing documents, including
+Course Framework review reports and UI Demo README/component catalogs; it
+also reported 94 allowlisted legacy metadata files. No diagnostic named this
+audit, the only changed repository file. These are existing workspace
+documentation debt, not a failing PHP test or new UI regression. They were
+left unchanged to preserve the requested scope and original UI Kit. The PASS
+verdict above applies to the requested test/Pint/build gates, not a claim that
+the whole documentation catalog passes lint.

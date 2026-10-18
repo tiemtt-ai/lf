@@ -1,5 +1,15 @@
 # Danh mục component
 
+Version: 1.0
+
+Document Status: Review
+
+Implementation Status: Not Applicable
+
+Last Updated: 2026-10-18
+
+Document Path: ui-demo/ui-kit-developer/COMPONENTS.md
+
 | Tên đề xuất | Mẫu / biến thể |
 |---|---|
 | x-ui.field | Label, required, hint, error |

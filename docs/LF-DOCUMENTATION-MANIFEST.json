@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
-  "generated_or_updated_at": "2026-10-17",
+  "generated_or_updated_at": "2026-10-18",
   "root": "docs",
   "default_locale": "vi",
   "fallback_locale": "en",
   "source_of_truth": "docs/LF-INDEX.md",
-  "document_count": 299,
+  "document_count": 307,
   "documents": [
     {
       "path": "LF-Core-Overview.md",
@@ -10250,6 +10250,99 @@
       "routing_source": "LF-INDEX.md"
     },
     {
+      "path": "quality/LF-Course-Framework-Detach-Regression-Audit.md",
+      "title": "Draft framework detach — implementation and regression audit",
+      "area": "quality",
+      "document_type": "quality_standard",
+      "document_status": "Review",
+      "implementation_status": "Partial",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": [
+        "course-framework-detach",
+        "draft-links"
+      ],
+      "keywords": {
+        "vi": [
+          "tách khung năng lực",
+          "liên kết năng lực bản nháp"
+        ],
+        "en": [
+          "framework detach",
+          "draft competency links"
+        ]
+      },
+      "identifiers": [
+        "LF-Course-Framework-Detach-Regression-Audit"
+      ],
+      "related_documents": [],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "quality/LF-Course-Framework-Reset-Change-Review.md",
+      "title": "Course framework change: reset all draft competency links",
+      "area": "quality",
+      "document_type": "architecture_review",
+      "document_status": "Review",
+      "implementation_status": "Partial",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": [
+        "course-framework-reset",
+        "draft-links"
+      ],
+      "keywords": {
+        "vi": [
+          "đổi phiên bản khung năng lực",
+          "xóa liên kết bản nháp"
+        ],
+        "en": [
+          "framework version change",
+          "draft competency reset"
+        ]
+      },
+      "identifiers": [
+        "LF-Course-Framework-Reset-Change-Review"
+      ],
+      "related_documents": [],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "quality/LF-Course-Framework-Selection-UX-Audit.md",
+      "title": "Course framework selection UX audit — 2026-10-12",
+      "area": "quality",
+      "document_type": "quality_standard",
+      "document_status": "Review",
+      "implementation_status": "Partial",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": [
+        "course-framework-selection",
+        "ui-regression"
+      ],
+      "keywords": {
+        "vi": [
+          "chọn khung năng lực",
+          "nghiệm thu giao diện"
+        ],
+        "en": [
+          "framework selection",
+          "UX audit"
+        ]
+      },
+      "identifiers": [
+        "LF-Course-Framework-Selection-UX-Audit"
+      ],
+      "related_documents": [],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
       "path": "quality/LF-Course-Lesson-Multiple-Prerequisites-Architecture-Review.md",
       "title": "Course Lesson Multiple Prerequisites Architecture Review",
       "area": "quality",
@@ -11240,6 +11333,37 @@
       "routing_source": "LF-INDEX.md"
     },
     {
+      "path": "quality/LF-Learning-Framework-UI-Search-Regression-Audit.md",
+      "title": "Learning Framework UI and Search Regression Audit",
+      "area": "quality",
+      "document_type": "quality_standard",
+      "document_status": "Review",
+      "implementation_status": "Implemented",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": [
+        "learning-framework-search",
+        "ui-regression"
+      ],
+      "keywords": {
+        "vi": [
+          "tìm kiếm khung năng lực",
+          "giao diện năng lực"
+        ],
+        "en": [
+          "learning framework search",
+          "UI regression"
+        ]
+      },
+      "identifiers": [
+        "LF-Learning-Framework-UI-Search-Regression-Audit"
+      ],
+      "related_documents": [],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
       "path": "quality/LF-Learning-Gate-2-Independent-Review.md",
       "title": "Learning Gate 2 Independent Review",
       "area": "quality",
@@ -11416,6 +11540,37 @@
       },
       "identifiers": [
         "LF-LiveClass-Schedule-Session-Origin-Architecture-Review"
+      ],
+      "related_documents": [],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "quality/LF-Media-Object-Filter-Review.md",
+      "title": "Media object filter — 2026-10-06",
+      "area": "quality",
+      "document_type": "quality_standard",
+      "document_status": "Review",
+      "implementation_status": "Implemented",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": [
+        "media-filter",
+        "owner-objects"
+      ],
+      "keywords": {
+        "vi": [
+          "lọc đối tượng phương tiện",
+          "loại chủ sở hữu"
+        ],
+        "en": [
+          "media object filter",
+          "owner type"
+        ]
+      },
+      "identifiers": [
+        "LF-Media-Object-Filter-Review"
       ],
       "related_documents": [],
       "superseded_by": null,
@@ -12362,6 +12517,93 @@
         "tech/LF-Tech-CSS.md",
         "tech/LF-Tech-Stack.md"
       ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "ui-demo/admin-layout-developer/README.md",
+      "title": "Admin layout — developer handoff",
+      "area": "ui-demo",
+      "document_type": "directory_guide",
+      "document_status": "Review",
+      "implementation_status": "Not Applicable",
+      "metadata_complete": true,
+      "authority": "engineering",
+      "canonical_for": [],
+      "topics": [
+        "admin-layout",
+        "developer-handoff"
+      ],
+      "keywords": {
+        "vi": [
+          "mẫu bố cục quản trị",
+          "bàn giao thiết kế"
+        ],
+        "en": [
+          "admin layout reference",
+          "developer handoff"
+        ]
+      },
+      "identifiers": [],
+      "related_documents": [],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "ui-demo/ui-kit-developer/COMPONENTS.md",
+      "title": "Danh mục component",
+      "area": "ui-demo",
+      "document_type": "technical_standard",
+      "document_status": "Review",
+      "implementation_status": "Not Applicable",
+      "metadata_complete": true,
+      "authority": "engineering",
+      "canonical_for": [],
+      "topics": [
+        "ui-kit",
+        "component-catalog"
+      ],
+      "keywords": {
+        "vi": [
+          "danh mục thành phần",
+          "mẫu điều khiển"
+        ],
+        "en": [
+          "component catalog",
+          "control variants"
+        ]
+      },
+      "identifiers": [],
+      "related_documents": [],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "ui-demo/ui-kit-developer/README.md",
+      "title": "UI Kit — Developer handoff",
+      "area": "ui-demo",
+      "document_type": "directory_guide",
+      "document_status": "Review",
+      "implementation_status": "Not Applicable",
+      "metadata_complete": true,
+      "authority": "engineering",
+      "canonical_for": [],
+      "topics": [
+        "ui-kit",
+        "developer-handoff"
+      ],
+      "keywords": {
+        "vi": [
+          "bộ mẫu giao diện",
+          "bàn giao giao diện"
+        ],
+        "en": [
+          "UI kit reference",
+          "frontend handoff"
+        ]
+      },
+      "identifiers": [],
+      "related_documents": [],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"
     }

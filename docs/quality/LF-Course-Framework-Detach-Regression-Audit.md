@@ -1,5 +1,15 @@
 # Draft framework detach — implementation and regression audit
 
+Version: 1.0
+
+Document Status: Review
+
+Implementation Status: Partial
+
+Last Updated: 2026-10-18
+
+Document Path: quality/LF-Course-Framework-Detach-Regression-Audit.md
+
 Date: 2026-10-12
 Classification: Existing-Feature Change
 Initial Audit Level: HIGH

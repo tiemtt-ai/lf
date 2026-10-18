@@ -1,5 +1,15 @@
 # Admin layout — developer handoff
 
+Version: 1.0
+
+Document Status: Review
+
+Implementation Status: Not Applicable
+
+Last Updated: 2026-10-18
+
+Document Path: ui-demo/admin-layout-developer/README.md
+
 ## Xem giao diện
 
 Giải nén và mở `index.html` bằng trình duyệt hiện đại. Chỉ có một bản HTML. CSS, JavaScript, logo và thư viện icon nằm trong `assets/`; không cần CDN hay bước build.

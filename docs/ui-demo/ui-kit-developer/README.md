@@ -1,5 +1,15 @@
 # UI Kit — Developer handoff
 
+Version: 1.0
+
+Document Status: Review
+
+Implementation Status: Not Applicable
+
+Last Updated: 2026-10-18
+
+Document Path: ui-demo/ui-kit-developer/README.md
+
 Bản duy nhất, đầy đủ, theo thiết kế được chốt ngày 16/10/2026 lúc 10:47 (Việt Nam). Bao gồm sửa đổi cuối: radio, upload và editor có focus nhẹ; công tắc trạng thái bảng 32×18px, không có dấu ✓/×.
 
 ## Mở demo

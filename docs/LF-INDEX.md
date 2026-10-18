@@ -1,12 +1,12 @@
 # LF-INDEX.md
 
-Version: 2.32
+Version: 2.33
 
 Document Status: Approved
 
 Implementation Status: Not Applicable
 
-Last Updated: 2026-10-17
+Last Updated: 2026-10-18
 
 Document Path: LF-INDEX.md
 
@@ -383,6 +383,11 @@ docs/quality/
 | Document | Purpose |
 | --- | --- |
 | [quality/README.md](quality/README.md) | Quality area usage and boundaries |
+| [quality/LF-Course-Framework-Selection-UX-Audit.md](quality/LF-Course-Framework-Selection-UX-Audit.md) | Rà soát UX chọn framework; giữ kết luận và giới hạn nghiệm thu lịch sử. |
+| [quality/LF-Course-Framework-Reset-Change-Review.md](quality/LF-Course-Framework-Reset-Change-Review.md) | Review reset liên kết competency bản nháp; giữ giới hạn release signoff đã ghi. |
+| [quality/LF-Media-Object-Filter-Review.md](quality/LF-Media-Object-Filter-Review.md) | Review bộ lọc nhiều đối tượng Media theo owner type. |
+| [quality/LF-Learning-Framework-UI-Search-Regression-Audit.md](quality/LF-Learning-Framework-UI-Search-Regression-Audit.md) | Regression UI và tìm kiếm Learning Framework; giữ rủi ro đã ghi. |
+| [quality/LF-Course-Framework-Detach-Regression-Audit.md](quality/LF-Course-Framework-Detach-Regression-Audit.md) | Audit tách framework bản nháp; giữ kết luận HIGH signoff lịch sử. |
 | [quality/LF-Admin-Teacher-Layout-Adoption-Audit.md](quality/LF-Admin-Teacher-Layout-Adoption-Audit.md) | Admin/Teacher shell adoption, browser evidence và giới hạn nghiệm thu |
 | [quality/LF-Regression-Audit.md](quality/LF-Regression-Audit.md) | Mandatory `LOW`/`MEDIUM`/`HIGH` audit for every Existing-Feature Change |
 | [quality/LF-UI-Async-State-Engineering-Practice.md](quality/LF-UI-Async-State-Engineering-Practice.md) | Nguyên tắc làm giao diện có nhiều luồng bất đồng bộ (bất biến trước, test đối kháng, đột biến, đi thử từ menu, danh sách kiểm trước khi gửi review); rút từ 6 lượt review P3-A |

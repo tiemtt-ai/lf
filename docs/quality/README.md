@@ -1,12 +1,12 @@
 # LearnForge Quality
 
-Version: 1.17
+Version: 1.18
 
 Document Status: Approved
 
 Implementation Status: Not Applicable
 
-Last Updated: 2026-10-17
+Last Updated: 2026-10-18
 
 Document Path: quality/README.md
 
@@ -23,6 +23,12 @@ criteria hay không.
 ---
 
 # Current Document
+
+* [LF-Course-Framework-Selection-UX-Audit.md](LF-Course-Framework-Selection-UX-Audit.md) — Rà soát UX chọn framework; giữ kết luận và giới hạn nghiệm thu lịch sử.
+* [LF-Course-Framework-Reset-Change-Review.md](LF-Course-Framework-Reset-Change-Review.md) — Review reset liên kết competency bản nháp; giữ giới hạn release signoff đã ghi.
+* [LF-Media-Object-Filter-Review.md](LF-Media-Object-Filter-Review.md) — Review bộ lọc nhiều đối tượng Media theo owner type.
+* [LF-Learning-Framework-UI-Search-Regression-Audit.md](LF-Learning-Framework-UI-Search-Regression-Audit.md) — Regression UI và tìm kiếm Learning Framework; giữ rủi ro đã ghi.
+* [LF-Course-Framework-Detach-Regression-Audit.md](LF-Course-Framework-Detach-Regression-Audit.md) — Audit tách framework bản nháp; giữ kết luận HIGH signoff lịch sử.
 
 * [LF-Admin-Teacher-Layout-Adoption-Audit.md](LF-Admin-Teacher-Layout-Adoption-Audit.md) — triển khai shell Admin/Teacher theo admin-layout-developer, browser evidence và baseline regression (2026-10-17).
 

@@ -1,5 +1,15 @@
 # Course framework change: reset all draft competency links
 
+Version: 1.0
+
+Document Status: Review
+
+Implementation Status: Partial
+
+Last Updated: 2026-10-18
+
+Document Path: quality/LF-Course-Framework-Reset-Change-Review.md
+
 Status: User approved 2026-10-13; implemented; focused checks passed, broad release verification blocked
 Date: 2026-10-13
 Audit level: HIGH (changes existing version-switch behavior)

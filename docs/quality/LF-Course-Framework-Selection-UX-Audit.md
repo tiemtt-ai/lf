@@ -1,5 +1,15 @@
 # Course framework selection UX audit — 2026-10-12
 
+Version: 1.0
+
+Document Status: Review
+
+Implementation Status: Partial
+
+Last Updated: 2026-10-18
+
+Document Path: quality/LF-Course-Framework-Selection-UX-Audit.md
+
 Existing-Feature Change; Initial/Final Audit Level LOW; escalation None. Presentation-only: selector always visible when choosing/changing is permitted, instead of hidden disclosure; locked selection always explains remove-all-links prerequisite even when same-framework upgrade is available. Backend has no independent detach selection endpoint; no such action added. Existing mappings, selection lock, version upgrade, tenant and immutable published mappings preserved. Sources reviewed: mapping intent database contract, architecture review, selection owner service/controller/views. Files changed: learning-mappings partial, VI/EN labels; new file this audit. Browser verified empty-selection course shows native selector; no save/remove submitted. Blade compilation and diff check pass. MariaDB HTTP suite 36 skipped under SQLite; write paths unchanged. No CSS/build changes; no PHP formatting needed. Responsive relies on unchanged shared selector/notice primitives. Unverified: locked-state browser not verified on user's specific course. Remaining risk: no bulk detach flow exists. Findings None introduced. Verdict PASS WITH DOCUMENTED RISKS.
 
 Selected framework clarity follow-up: LOW, no escalation. Replaced ambiguous combined title with translated explicit 'Selected framework: name' and separate 'Current version: title/code' labels. No selection/query/payload changes; existing source fields and styles reused. Partial + VI/EN labels only. Targeted detach/render suite 7 passed; diff check passed. No CSS/JS build needed. Overall existing HIGH verification limitations from detach audit remain unchanged.
