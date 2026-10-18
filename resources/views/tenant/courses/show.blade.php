@@ -17,7 +17,7 @@
 
         <div class="tenant-course-actions">
             @guest
-                <a class="student-button" href="{{ route('login') }}">{{ __('lf.LF_course_card_guest_login_register_purchase') }}</a>
+                <a class="student-button" href="{{ route('login', ['experience' => 'student']) }}">{{ __('lf.LF_course_card_guest_login_register_purchase') }}</a>
             @else
                 @if (auth()->user()->role === 'student' && $course['enrolled'])
                     <a class="student-button" href="#">{{ __('lf.LF_course_button_student_start_continue') }}</a>

@@ -22,7 +22,7 @@
         <a class="student-button is-outline is-small"
            href="{{ route('tenant.courses.show', $course['slug']) }}">{{ __('lf.LF_course_card_public_view_detail') }}</a>
         @guest
-            <a class="student-button is-small" href="{{ route('login') }}">{{ __('lf.LF_course_card_guest_login_register_purchase') }}</a>
+            <a class="student-button is-small" href="{{ route('login', ['experience' => 'student']) }}">{{ __('lf.LF_course_card_guest_login_register_purchase') }}</a>
         @else
             @if (auth()->user()->role === 'student' && $course['enrolled'])
                 <a class="student-button is-small" href="#">{{ __('lf.LF_course_card_student_continue_learning') }}</a>

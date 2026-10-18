@@ -1,6 +1,6 @@
 # Admin/Teacher Layout Adoption Audit
 
-Version: 1.33
+Version: 1.41
 
 Document Status: Review
 
@@ -1102,3 +1102,207 @@ documentation debt, not a failing PHP test or new UI regression. They were
 left unchanged to preserve the requested scope and original UI Kit. The PASS
 verdict above applies to the requested test/Pint/build gates, not a claim that
 the whole documentation catalog passes lint.
+
+
+## User-facing login entry correction — 2026-10-18
+
+Owner requested that tenant user login links display the user-facing form
+instead of the Admin/Teacher form. Existing-Feature Change; Initial/Final Audit
+Level HIGH because the shared authentication entry renders the view. No
+escalation. Final Verdict: PASS WITH DOCUMENTED RISKS (visual QA not performed).
+
+Kept the single GET/POST `/login` endpoint and unchanged tenant/authentication,
+role checks, session handling, throttling and post-login destinations. The
+`experience=student` query selects presentation only, never an authenticated
+role. Default `/login` retains the existing back-office view. Tenant header,
+course cards, course details and public auth links select the user-facing view.
+The new ordinary Blade view reuses the existing public auth layout/classes and
+translated labels, with CSRF, error associations and autocomplete. Failed login
+returns to the same student query URL. No business service, UI Kit, CSS or JS
+changed; no new login route/component was introduced.
+
+Validation: AuthFlowTest, TenantAuthenticationSecurityTest and TenantWebsiteUiTest
+**18 PASS / 176 assertions**, 3.42s. Includes public vs back-office view choice,
+public entry link, invalid-credential return context, existing role redirects,
+cross-tenant/inactive-account rejection and tenant website behavior. Targeted
+Pint, docs:lint and git diff --check PASS. Full suite/build were not repeated:
+no asset source changed; the modified controller/views and auth invariants are
+covered by the targeted suites. Browser PC/mobile visual comparison has not
+been performed; responsive behavior reuses existing public auth CSS rather
+than establishing new visual parity evidence. No live account/data was changed
+and no temporary test report, log or screenshot was created.
+
+
+## Public login responsive visual follow-up — 2026-10-18
+
+Existing-Feature Change, Initial/Final Audit Level MEDIUM: public-login-only
+presentation changes, no authentication logic changes. Final Verdict: PASS for
+local browser responsive review; physical mobile device/keyboard not tested.
+
+Browser inspection of `/login?experience=student` found overlapping partner
+logos/account/language actions at 375px and fixed 400px horizontal main padding
+that could squeeze the form at intermediate desktop widths. Added a public
+login body class via the existing auth layout attribute bag. Scoped CSS uses
+3% horizontal main padding and hides decorative partner logos below 600px,
+leaving the main Master Korean brand and account/language actions visible.
+Other auth views do not receive the class; the back-office view is unchanged.
+
+Inspected browser screenshots/DOM at 1440x900, 1024x768, 375x812 and 320x740.
+Form remains centered and contained, desktop card 620px; mobile card 338.4px
+at 375 viewport and 286.7px at 320 viewport. DOM scrollWidth equals available
+clientWidth (360px and 305px respectively), with no horizontal page overflow.
+375px header actions no longer overlap. Desktop password focus is visible.
+No credentials were submitted or live customer data changed. The back-office
+page still measures header 112px, logo 150x54px and input height 40px and has
+no public-login scope class. No UI Kit source or business behavior changed.
+
+AuthFlowTest, TenantAuthenticationSecurityTest and TenantWebsiteUiTest:
+18 PASS / 176 assertions. Asset build PASS (65 modules, 5.14s); docs:lint and
+git diff --check PASS. Screenshots were inspected in browser tool output,
+without saving temporary screenshot/log files. Temporary viewport override
+was reset and QA tabs closed. No full-suite rerun for this scoped CSS change.
+
+
+## Student login adopts tenant shell — 2026-10-18
+
+Owner requested using the same topmenu/footer as the student website rather
+than the legacy public auth shell. Existing-Feature Change; Initial/Final
+Audit Level MEDIUM (presentation only). Final Verdict PASS for local review.
+
+Student login now extends the existing layouts.tenant, reusing its shared
+header, language switcher, responsive menu, branding and footer. Guest menu
+visibility stays unchanged; authenticated-only student links remain protected.
+The form reuses student card/form/control/button CSS and translated labels.
+Only a 480px centered shell layout rule was added to tenant CSS. Removed the
+previous auth-student-login CSS patch and body attribute plumbing, now unused.
+The old auth layout remains for password recovery/other existing consumers;
+it was not deleted while still used. Admin/Teacher login, single login endpoint,
+CSRF, tenant/role checks, form payload and redirects are unchanged.
+
+Browser screenshots at 1440x900 and 375x812 confirmed shared tenant shell and
+form containment; document scrollWidth/clientWidth equal 1440 and 375px.
+No credentials submitted. Tests: AuthFlowTest, TenantAuthenticationSecurityTest,
+TenantWebsiteUiTest 18 PASS / 179 assertions, 3.22s; checks explicitly assert
+tenant header/footer and absence of the previous auth header. Build PASS
+(65 modules, 5.43s). Targeted Pint, docs:lint and diff whitespace check PASS.
+UI Kit unchanged. No temporary screenshot/log files created; viewport reset,
+QA tab closed, temporary local server stopped. Physical mobile device/keyboard
+not tested; no claim of pixel parity to a new supplied design.
+
+
+## Student login balance and footer correction — 2026-10-18
+
+Existing-Feature Change; Initial/Final Audit Level MEDIUM, presentation only.
+Owner requested balanced form, labels/input cues, recovery-link UX and footer.
+Kept explicit labels above both fields and added existing translated input
+placeholders. Recovery link now sits alongside Remember with primary color,
+underline and visible keyboard focus; both affordances have 44px minimum height.
+Submit spans the field width. Login-only page modifier uses a flex viewport
+shell to center the form in remaining space and place footer at the bottom,
+without fixed positioning. An optional footer-description section replaces
+the internal technical copy with existing copyright on login only; other
+tenant consumers keep their existing default. Admin/Teacher login, tenant
+logic, auth payload and original UI Kit are unchanged.
+
+Browser evidence inspected at 1440x900 and 375x812: no horizontal overflow,
+footer bottom respectively 900px and 812px, labels and recovery link readable.
+No screenshots/logs saved as temporary files; no credentials submitted.
+18 related auth/security/tenant tests PASS (179 assertions, 3.39s), build PASS
+(4.69s), docs lint and diff check PASS. Physical device/keyboard not tested.
+
+
+## Student password recovery shell — 2026-10-18
+
+Existing-Feature Change; Initial/Final Audit Level HIGH (shared auth view
+selection); Final Verdict PASS WITH DOCUMENTED RISKS (no physical-device or
+real-email-delivery verification). Student login now links to the existing
+forgot-password endpoint with experience=student. Only GET view selection uses
+this presentation hint; default recovery view and Admin/Teacher login remain
+unchanged. New ordinary Blade view reuses tenant layout and existing student
+login CSS, topmenu/footer, labels, error association, status notice and full
+width submit. Back link returns to student login. No new route, component,
+CSS or JavaScript added. The original reset-link handler, validation, tenant
+criteria, password broker and enumeration-safe status response are unchanged.
+
+Browser screenshots at 1440x900 and 375x812 show no horizontal overflow and
+footer bottom equal to viewport bottom. No real credentials or email submitted
+in browser. Related auth/security/tenant suites: 19 PASS / 194 assertions,
+3.48s; new coverage includes shared shell, default-view preservation, invalid
+email redirect and successful generic status redirect in student context.
+Targeted Pint, docs:lint and diff check PASS. No build rerun: no assets changed.
+UI Kit unchanged; no temporary files created; viewport reset, QA tab closed
+and temporary local server stopped.
+
+
+## Student reset-password presentation — 2026-10-18
+
+Existing-Feature Change; Initial/Final Audit Level HIGH (auth notification URL
+and reset view/return context). Final Verdict PASS WITH DOCUMENTED RISKS:
+physical device and real email delivery not verified.
+
+Added ordinary student reset Blade view reusing tenant header/footer and login
+styles. Labels, email prefill, new-password autocomplete, error associations,
+full-width submit, back link and a checkbox revealing both password inputs
+are provided. Query experience=student selects presentation only. Reset email
+URL callback reproduces Laravel's default token/email route generation, adding
+that query only for student recipients; Admin/Teacher URLs and default reset
+view stay unchanged. Successful student-context reset returns to student login.
+The existing password broker, token validation/expiry, tenant/active checks,
+confirmation/default rules, hashing, remember-token rotation and reset event
+are unchanged. No original UI Kit, CSS/JS, route or business rule changed.
+
+30 auth/security/tenant/user-audit tests PASS (413 assertions, 5.79s), including
+invalid-token password preservation, successful student reset, student email
+URL presentation hint, existing teacher reset and tenant/IP/email throttling.
+Targeted Pint, docs lint and diff check PASS; build not repeated (no asset
+changes). Browser screenshots at 1440x900 and 375x812 show contained form;
+mobile scrollWidth360 equals client content width, no horizontal overflow.
+Reveal-password checkbox toggles input type to text without entering a real
+password. Browser used an invalid illustrative token only, no submission or
+live password change. QA tab closed, viewport reset, temporary server stopped;
+no temporary evidence files created.
+
+
+## Final student authentication verification — 2026-10-18
+
+Verification only; Initial/Final Audit Level LOW for this report-only
+follow-up. Final Verdict PASS for requested gates. No further business,
+Admin/Teacher form, original UI Kit, auth logic or asset-source changes made.
+
+| Fresh gate | Result |
+| --- | --- |
+| Full `php artisan test`, outside sandbox, default configuration/model | **1465 PASS / 23 SKIP / 0 FAIL**, **12250 assertions**, **225.31s**, exit 0 |
+| `vendor/bin/pint --test` entire repository | PASS, exit 0, no formatting edits |
+| `node --test tests/js/*.test.mjs` | **155 PASS / 0 FAIL / 0 SKIP**, exit 0 |
+| `npm run build` | PASS, 65 modules, **5.63s**, exit 0 |
+| `php artisan docs:lint` | PASS (94 existing allowlisted metadata files remain informational) |
+| `git diff --check` | PASS |
+
+The three added AuthFlowTest cases for student login, recovery and reset ran
+within this same full suite. No test failure remains to classify as baseline
+or new regression. Existing 23 environment guards remain unchanged: 20 native
+MariaDB checks, two optional media fixtures and one dedicated Qdrant endpoint.
+The earlier separate supplemental runs recorded 23/23 PASS (109 assertions);
+they were not rerun here and are not counted as zero skips in this fresh suite.
+No claim of a single full run without skips is made.
+
+Earlier browser evidence for 1440px PC and 375px mobile remains applicable;
+physical device/keyboard and actual reset-email delivery remain unverified.
+No live account password or customer data changed during browser inspection.
+Cleanup used the initial temp/storage inventory and exact PHPUnit PID 52521:
+removed this run's generated audio/video fixtures, extraction workspace and
+media_local_test_52521 fake storage only. Temporary logs and inventory JSON
+were removed after this summary. No temporary evidence link/file was added.
+
+
+## Default recovery back-link closure — 2026-10-18
+
+Existing-Feature Change; Initial/Final Audit Level LOW (single view link).
+Final Verdict PASS. Restored the default forgot-password form's Back to login
+link to `/login` (Admin/Teacher presentation). Student recovery retains its
+separate link to `/login?experience=student`. No authentication, tenant,
+password-reset behavior or original UI Kit changed. Added regression
+assertions for the default back-link alongside existing student-context checks.
+AuthFlowTest + TenantAuthenticationSecurityTest: 16 PASS / 144 assertions,
+3.78s; targeted Pint, docs lint and diff check PASS. No temporary files created.
+This resolves the back-link finding from the final diff review.

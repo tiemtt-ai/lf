@@ -1935,3 +1935,71 @@
         grid-template-columns: 1fr;
     }
 }
+
+
+.student-login-shell {
+    width: 100%;
+    max-width: 480px;
+    margin: 0 auto;
+}
+
+
+.student-page--login {
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+}
+
+.student-page--login .student-main {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    padding: 40px 0;
+}
+
+.student-page--login .student-header,
+.student-page--login .student-footer {
+    flex-shrink: 0;
+}
+
+.student-login-options {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 16px;
+    margin: 20px 0;
+    font-size: 13px;
+}
+
+.student-login-remember {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    cursor: pointer;
+}
+
+.student-login-recovery {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    color: var(--student-primary);
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.student-login-recovery:hover {
+    text-decoration-thickness: 2px;
+}
+
+.student-login-recovery:focus-visible {
+    outline: 2px solid var(--student-primary);
+    outline-offset: 4px;
+    border-radius: 4px;
+}
+
+.student-login-submit {
+    width: 100%;
+}

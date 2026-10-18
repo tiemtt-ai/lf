@@ -15,11 +15,11 @@ class PasswordResetLinkController extends Controller
     /**
      * Display the password reset link request view.
      */
-    public function create(): View
+    public function create(Request $request): View
     {
         abort_if(TenantContext::customerId() === null, 404);
 
-        return view('auth.forgot-password');
+        return view($request->query('experience') === 'student' ? 'auth.student-forgot-password' : 'auth.forgot-password');
     }
 
     /**

@@ -19,7 +19,7 @@
         </div>
 
         <div class="auth-top-actions">
-            <a class="auth-top-action" href="{{ auth()->check() ? route('dashboard') : route('login') }}">
+            <a class="auth-top-action" href="{{ auth()->check() ? route('dashboard') : route('login', ['experience' => 'student']) }}">
                 <img src="{{ asset('assets/admin/account.svg') }}" alt="">
                 {{ __('lf.LF_auth_account_common_label') }}
             </a>

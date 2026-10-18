@@ -19,6 +19,7 @@ use App\Services\Ai\UnavailableAuthoringProposalProvider;
 use App\Services\Ai\UnavailableEmbeddingProvider;
 use App\Services\Ai\UnavailableVectorStore;
 use App\Services\Ai\UnavailableVisionInterpretationProvider;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -108,6 +109,19 @@ class AppServiceProvider extends ServiceProvider
             ]);
 
             return Limit::perMinute(5)->by(hash('sha256', $key));
+        });
+
+        ResetPassword::createUrlUsing(function (object $notifiable, string $token): string {
+            $parameters = [
+                'token' => $token,
+                'email' => $notifiable->getEmailForPasswordReset(),
+            ];
+
+            if ($notifiable->role === 'student') {
+                $parameters['experience'] = 'student';
+            }
+
+            return url(route('password.reset', $parameters, false));
         });
 
         VerifyEmail::createUrlUsing(function (object $notifiable): string {

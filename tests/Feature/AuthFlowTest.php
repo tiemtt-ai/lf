@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -54,6 +55,38 @@ class AuthFlowTest extends TestCase
         }
     }
 
+    public function test_student_entry_uses_public_login_without_changing_backoffice_login(): void
+    {
+        $this->createTenant();
+
+        $this->get('https://tenant-a.localhost/login?experience=student')
+            ->assertOk()
+            ->assertViewIs('auth.student-login')
+            ->assertSee('student-login-title', false)
+            ->assertSee('student-header', false)
+            ->assertSee('student-footer', false)
+            ->assertDontSee('auth-header-top', false)
+            ->assertDontSee('lf-login-header', false);
+
+        $this->get('https://tenant-a.localhost/login')
+            ->assertOk()
+            ->assertViewIs('auth.login')
+            ->assertSee('lf-login-header', false);
+
+        $this->get('https://tenant-a.localhost/')
+            ->assertOk()
+            ->assertSee('/login?experience=student', false);
+
+        $this->from('https://tenant-a.localhost/login?experience=student')
+            ->post('https://tenant-a.localhost/login?experience=student', [
+                'email' => 'missing@example.test',
+                'password' => 'wrong-password',
+            ])
+            ->assertRedirect('https://tenant-a.localhost/login?experience=student')
+            ->assertSessionHasErrors('email');
+        $this->assertGuest();
+    }
+
     public function test_unknown_role_is_rejected_after_authentication(): void
     {
         $customerId = $this->createTenant();
@@ -99,6 +132,62 @@ class AuthFlowTest extends TestCase
             ->assertSeeText('0900000000')
             ->assertSeeText(__('lf.LF_common_role_admin_customer_admin'))
             ->assertDontSeeText('Customer ID');
+    }
+
+    public function test_student_password_recovery_reuses_tenant_shell_and_preserves_context(): void
+    {
+        $this->createTenant();
+        $url = 'https://tenant-a.localhost/forgot-password?experience=student';
+
+        $this->get($url)->assertOk()
+            ->assertViewIs('auth.student-forgot-password')
+            ->assertSee('student-header', false)
+            ->assertSee('student-footer', false)
+            ->assertSee('/login?experience=student', false)
+            ->assertDontSee('auth-header-top', false);
+
+        $this->from($url)->post($url, ['email' => 'invalid'])
+            ->assertRedirect($url)->assertSessionHasErrors('email');
+
+        $this->from($url)->post($url, ['email' => 'unknown@example.test'])
+            ->assertRedirect($url)->assertSessionHas('status');
+
+        $this->get('https://tenant-a.localhost/forgot-password')
+            ->assertOk()->assertViewIs('auth.forgot-password')
+            ->assertSee('href="https://tenant-a.localhost/login"', false)
+            ->assertDontSee('class="auth-forgot-link" href="https://tenant-a.localhost/login?experience=student"', false);
+    }
+
+    public function test_student_reset_email_and_form_keep_student_presentation(): void
+    {
+        Notification::fake();
+        $customerId = $this->createTenant();
+        $user = $this->createUser($customerId, 'student', verified: true);
+        $token = Password::createToken($user);
+        $url = 'https://tenant-a.localhost/reset-password/'.$token.'?email='.urlencode($user->email).'&experience=student';
+
+        $this->get($url)->assertOk()->assertViewIs('auth.student-reset-password')
+            ->assertSee('student-header', false)->assertSee('student-footer', false)
+            ->assertDontSee('auth-header-top', false);
+
+        $this->from($url)->post('https://tenant-a.localhost/reset-password?experience=student', [
+            'token' => 'invalid', 'email' => $user->email,
+            'password' => 'student-new-456', 'password_confirmation' => 'student-new-456',
+        ])->assertRedirect($url)->assertSessionHasErrors('email');
+        $this->assertTrue(Hash::check('password123', $user->fresh()->password));
+
+        $this->post('https://tenant-a.localhost/reset-password?experience=student', [
+            'token' => $token, 'email' => $user->email,
+            'password' => 'student-new-456', 'password_confirmation' => 'student-new-456',
+        ])->assertRedirect('https://tenant-a.localhost/login?experience=student');
+        $this->assertTrue(Hash::check('student-new-456', $user->fresh()->password));
+
+        $user->sendPasswordResetNotification('presentation-test-token');
+        Notification::assertSentTo($user, ResetPassword::class, function ($notification) use ($user) {
+            $this->assertStringContainsString('experience=student', $notification->toMail($user)->actionUrl);
+
+            return true;
+        });
     }
 
     public function test_password_reset_views_and_token_flow_work_for_current_tenant(): void

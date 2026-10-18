@@ -34,7 +34,7 @@
             ];
     @endphp
 
-    <div class="student-page" x-data="{ mobileMenuOpen: false }">
+    <div class="student-page @yield('tenant_page_class')" x-data="{ mobileMenuOpen: false }">
         <header class="student-header">
             <div class="student-container">
                 <div class="student-header-inner">
@@ -68,7 +68,7 @@
                                 <button class="student-login-button" type="submit">{{ __('lf.LF_navigation_menu_student_logout') }}</button>
                             </form>
                         @else
-                            <a class="student-login-button" href="{{ route('login') }}">{{ __('lf.LF_navigation_menu_guest_login') }}</a>
+                            <a class="student-login-button" href="{{ route('login', ['experience' => 'student']) }}">{{ __('lf.LF_navigation_menu_guest_login') }}</a>
                         @endif
 
                         <button class="student-mobile-trigger" type="button"
@@ -108,7 +108,7 @@
                     <span class="student-brand-mark">LF</span>
                     {{ $tenant?->name ?? 'LF' }}
                 </div>
-                <p>{{ __('lf.LF_home_public_roles_description') }}</p>
+                <p>@yield('footer_description', __('lf.LF_home_public_roles_description'))</p>
                 <div class="student-footer-links">
                     <a href="{{ route('public.about') }}">{{ __('lf.LF_navigation_menu_public_about') }}</a>
                     <a href="{{ route('tenant.contact') }}">{{ __('lf.LF_navigation_menu_public_contact') }}</a>

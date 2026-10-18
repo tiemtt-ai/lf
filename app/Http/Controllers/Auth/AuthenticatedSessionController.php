@@ -12,13 +12,13 @@ use Illuminate\View\View;
 
 class AuthenticatedSessionController extends Controller
 {
-    public function create(): View
+    public function create(Request $request): View
     {
         if (TenantContext::customerId() === null) {
             abort(404);
         }
 
-        return view('auth.login');
+        return view($request->query('experience') === 'student' ? 'auth.student-login' : 'auth.login');
     }
 
     public function store(LoginRequest $request): RedirectResponse
