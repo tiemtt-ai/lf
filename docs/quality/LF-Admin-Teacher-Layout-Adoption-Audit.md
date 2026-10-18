@@ -1,6 +1,6 @@
 # Admin/Teacher Layout Adoption Audit
 
-Version: 1.27
+Version: 1.31
 
 Document Status: Review
 
@@ -674,3 +674,317 @@ Findings By Severity: MEDIUM — unresolved native Office runtime acceptance;
 LOW — unrelated docs-lint debt. Final Verdict: **BLOCKED** for full/native
 Office acceptance; requested UI corrections and integration correction are
 verified. No full-suite PASS or production readiness claim.
+
+
+## Real Office runtime acceptance follow-up — 2026-10-18
+
+Scope: diagnose LibreOffice startup and rerun the four native Office cases;
+no application, test, configuration, UI Kit, binary or business-rule edits.
+Initial/Final Audit Level: LOW for final documentation-only diff. Native runtime
+diagnostics are isolated from production data. No new architecture boundary,
+provider, conversion option, output format or processing-version change.
+Routing/authority: docs/README, LF-INDEX, Architecture Guardrails, Development
+Standards, Regression Audit, existing Media runtime/processing contracts.
+
+A direct DOC diagnostic with a new UserInstallation profile completed with
+exit 0 and produced a PDF. A one-second process sample while it was starting
+showed macOS AppKit initialization/dynamic-library loading, including dyld
+notification waits. This is observed startup evidence, not proof of a single
+permanent root cause for all previous timeouts. The installed version remains
+LibreOffice 26.2.5.2. No update/reinstall, persistent environment override,
+timeout increase, profile deletion outside diagnostic directories or bypass of
+LF processing was needed.
+
+The actual LF tests were then run outside the agent sandbox with the default
+configuration, native LibreOffice and fresh provider-owned temporary profiles:
+
+```bash
+php artisan test --filter='test_real_office_format_upload_extract_and_authorized_read.*#(1|2|3|5)$'
+```
+
+Dataset mapping from officeFormats(): #1 DOC, #2 PPTX, #3 PPT, #5 XLS.
+All four retain their original ready-state, DOCUMENT_ACCEPTANCE_ALPHA content,
+authorized-read and billing-unit assertions. No mock converter, added skip,
+relaxed assertion, model override or shortened timeout is used in these runs.
+
+First run: **4 PASS, 20 assertions, 22.92s**. A second identical run with newly
+created profiles checks recurrence after the prior intermittent startup issue.
+
+Second run: **4 PASS, 20 assertions, 21.90s**. Both runs used separate process
+launches/profiles and completed without hanging. This supersedes the previous
+BLOCKED disposition for native Office acceptance in this local outside-sandbox
+execution context. Final Verdict: **PASS for these four native Office tests**.
+The current evidence does not establish that the intermittent macOS startup
+problem is permanently eliminated, or that sandboxed native execution works.
+Use an executor permitted to launch native LibreOffice for this integration
+suite; do not skip real conversions merely to obtain a green sandbox run.
+
+No full-suite, Pint or frontend build rerun was needed for this follow-up:
+only this existing report changed; the previous full-suite result is historical
+and is not relabeled PASS. Audio/video findings are outside this follow-up.
+git diff --check PASS; original UI Kit has no diff. Diagnostic process/sample,
+profiles, converted PDF, logs and temporary JSON are removed after recording
+these results. No runtime/test temporary file remains from this follow-up.
+
+
+## Final outside-sandbox full verification — 2026-10-18
+
+Owner requested a complete default-model test run outside the agent sandbox,
+Pint and build. No application, test, business-rule, runtime configuration or
+UI Kit change was made in this follow-up. Only this existing report changed.
+Initial/Final Audit Level: LOW (documentation-only final diff); verification
+covers the full existing suite. No audit-level escalation or new boundary.
+
+Commands and results:
+
+| Gate | Result |
+| --- | --- |
+| php artisan test, outside sandbox | **1462 PASS / 23 SKIP / 0 FAIL**, 12200 assertions, 226.15s; exit 0 |
+| vendor/bin/pint --test --format=json | **PASS**, no formatting edit |
+| npm run build | **PASS**, 4.70s |
+| node --test tests/js/*.test.mjs | **155 PASS / 0 FAIL / 0 SKIP** |
+| git diff --check | **PASS** |
+| Original docs/ui-demo | No diff |
+
+The configured default STT model was confirmed as
+runtime/stt/models/large-v3-turbo. No model/provider environment override was
+added to the suite command. Test-owned fixtures/configuration remain unchanged;
+real audio, DocumentProcessingLocalReviewTest (including native Office), and
+VideoTranscriptCaptionLocalReviewTest all report PASS within this same full
+run. There are no remaining test failures to classify in this execution.
+This supersedes the earlier full-suite failure counts for this local,
+outside-sandbox default configuration; historical results remain above.
+
+### Existing skipped integration checks
+
+All 23 skips come from existing explicit guards; no skip was added:
+
+| Reason | Count | Source |
+| --- | ---: | --- |
+| Default SQLite cannot verify MariaDB/MySQL physical constraints, SQL SHA2, or real row-lock/concurrent-connection behavior | 20 | AiEmbeddingServiceTest (2), AiKnowledgeIngestionServiceTest (1), AiProviderExecutionGateTest (2), AiVisionInterpretationsSchemaTest (14), CourseTemplatePublishConcurrencyTest (1) |
+| Dedicated local Qdrant test endpoint LF_QDRANT_TEST_URL not supplied | 1 | AiEmbeddingServiceTest |
+| Optional explicit external audio/video fixture paths LF_REAL_AUDIO_FIXTURE / LF_REAL_VIDEO_FIXTURE not supplied | 2 | MediaProcessingSubstrateTest |
+
+These are unexecuted environment-gated integration checks, not failed tests.
+The separate self-generated real audio/video review suites did execute and
+PASS. This run does not certify the skipped MariaDB/Qdrant/explicit-fixture
+checks, and it does not establish that native tools work inside the sandbox.
+No production database or service was substituted to bypass their guards.
+
+Final Verdict: **PASS WITH DOCUMENTED RISKS** — every requested executable
+gate passes, no detected regression or remaining failure in this run; the 23
+pre-existing guarded checks remain unverified as listed. Native Office is
+accepted in the outside-sandbox local context; no permanent macOS startup
+root-cause elimination or production runtime qualification is claimed.
+
+Only the existing audit was updated. Temporary test logs, snapshot JSON and
+new LF diagnostic fixtures were removed after summarizing results. No temp
+script/report, new component, route, migration, dependency or UI Kit edit was
+left in the repository. Existing unrelated documentation lint debt recorded
+above is outside these requested gates and was not modified.
+
+
+## Follow-up audit of 23 guarded tests — 2026-10-18
+
+Owner requested supplemental execution where local prerequisites permit it and
+an explicit list of missing environments. No application, test assertion,
+existing server configuration, business rule or UI Kit was changed. Final diff
+is this existing report only (Initial/Final Audit Level LOW). No new migration
+or package was created/installed. Existing routing, Guardrails, Development
+Standards, Regression Audit and schema-drift safety boundaries were reviewed.
+
+| Original skipped group | Count | Supplemental outcome |
+| --- | ---: | --- |
+| Explicit real audio/video fixtures | 2 | **PASS**, 22 assertions, 41.02s |
+| MariaDB/MySQL physical constraints, query optimization and concurrency | 20 | **BLOCKED in fresh-schema setup**, not a test failure or a PASS |
+| Real Qdrant maintenance/recovery | 1 | **BLOCKED: required local service/endpoint absent** |
+
+### Two real media cases now verified
+
+Created synthetic English speech containing learning-design sentences with
+local say/ffmpeg; no human recording or PII. Passed paths via
+LF_REAL_AUDIO_FIXTURE and LF_REAL_VIDEO_FIXTURE to the two original
+MediaProcessingSubstrateTest cases. Native execution was outside the sandbox;
+model configuration stayed at its default large-v3-turbo. No assertion, guard,
+provider implementation or fixture selection logic was edited. Both cases
+exercised actual transcript/caption persistence and read contracts.
+
+These are supplemental results; the original default full-suite count remains
+1462 PASS / 23 SKIP / 0 FAIL unless rerun with these explicit prerequisites.
+Do not relabel it as a new full run with fewer skips.
+
+### MariaDB exists, but isolated schema setup is not yet qualified
+
+Local server at 127.0.0.1:3307 reports MariaDB 11.4.12. Its application account
+cannot CREATE a new lf_skip_* test database (1044 access denied). This is an
+access limitation, not evidence of a domain/test defect; no operation was run
+against the business schema learnforge_db.
+
+A same-version MariaDB binary and mariadb-install-db are already installed.
+Initialized a separate disposable data directory under a private 0700 scratch
+folder, bound only to its own Unix socket, with networking disabled (port 0).
+No existing account grant, server process, production schema or password was
+changed. The disposable instance used innodb_flush_log_at_trx_commit=2 during
+setup; durability/crash recovery was not an acceptance target.
+
+The harness selected exactly the 20 originally guarded cases from:
+AiEmbeddingServiceTest (2), AiKnowledgeIngestionServiceTest (1),
+AiProviderExecutionGateTest (2), AiVisionInterpretationsSchemaTest (14),
+CourseTemplatePublishConcurrencyTest (1). It supplied mysql plus the private
+socket and a freshly created lf_skip_* database, then invoked the original
+artisan tests with RefreshDatabase unchanged.
+
+Both attempts expired during initial migrate:fresh setup, at harness budgets
+240s and 900s. These were diagnostic process budgets only; LF job/runtime
+limits were unchanged. There was no PHPUnit result summary and no completed
+test-assertion evidence; the Laravel exception handler's wrapper exit status
+must not be mistaken for a successful test run. Both disposable schemas were
+dropped by finally cleanup.
+
+The last observed progress was **99/101 migrations** complete, through
+2026_09_14_000100_create_ai_vision_interpretations. The remaining ordered
+migrations are 2026_09_15_000100_create_ai_authoring_proposal_packet and
+2026_09_28_000100_widen_ai_knowledge_chunk_source_role. This identifies the
+unfinished setup stage, not a proven deadlock or faulty SQL statement. No
+migration was skipped, patched or marked applied to force test execution.
+
+Missing prerequisite for these 20: an isolated MariaDB test environment in
+which the complete canonical fresh schema can be built successfully. Next
+investigation must isolate slow/blocked DDL in the final setup stage (or use a
+separately validated integration bootstrap); a pre-existing business database
+must not be substituted. The actual 20 constraint/concurrency outcomes remain
+unverified. There is insufficient evidence to call them outdated tests or
+business regressions because their setup did not complete.
+
+### Qdrant prerequisite
+
+LF_QDRANT_TEST_URL is absent, configured AI_QDRANT_HOST is empty, and an
+outside-sandbox request to http://127.0.0.1:6333/healthz was refused. No qdrant,
+docker or podman executable was found on PATH. A dedicated localhost Qdrant
+instance and LF_QDRANT_TEST_URL pointing to it are needed. The original test
+creates a unique lf_maintenance_* collection and tests real maintenance;
+FakeVectorStore or an in-memory substitute would not verify that contract.
+No arbitrary production/vector endpoint was used or service downloaded.
+
+### Disposition and cleanup
+
+Final Verdict: **BLOCKED for the 21 remaining environment/setup-gated cases**;
+2 additional real media tests PASS. No new application failure was established
+and no global full-suite PASS beyond the prior default run is claimed.
+Missing environments/setup are explicit above; no further code/build/Pint run
+is needed for this documentation-only follow-up. git diff --check PASS;
+original UI Kit has no diff.
+
+The disposable databases were removed, the socket-only MariaDB instance was
+shut down, and its data directory, harness PHP, logs/JSON, synthetic media and
+this run's fake-storage directories were deleted after summarizing evidence.
+Pre-existing application data, test artifacts from other runs, and the local
+MariaDB service were preserved. No temporary evidence links are retained.
+
+
+## MariaDB setup diagnosis and 20 guarded cases closed — 2026-10-18
+
+Scope: Owner requested diagnosis of the 99/101 fresh-schema timeout and
+execution of the 20 database-gated tests, preserving business behavior and the
+original UI Kit. Classification: Existing-Feature Change; Initial/Final Audit
+Level LOW for the final test-only and report diff. No production schema,
+application transaction, permission/tenant rule, migration source or framework
+vendor file changed. Routing/authority reviewed: README, LF-INDEX,
+Architecture Guardrails, Development Standards, Regression Audit, Schema Drift
+Standard and relevant Course publish semantics.
+
+### What actually happened during setup
+
+The 99/101 observation was a progress snapshot, not evidence that migration
+100 was deadlocked. A separate native migration run on an isolated socket-only
+MariaDB 11.4.12 instance logged start/end events for every migration and every
+SQL statement. All **101 migrations completed**, exit 0, in **288.45s**.
+The final proposal-packet migration took approximately **28s** and the final
+source-role migration **0.30s**. No SQL statement failed or stayed blocked in
+this trace.
+
+The trace contains **1617 completed queries**, including **1307 DDL statements**;
+the slowest individual query took **364.91ms**. An isolated ten-ALTER benchmark
+measured 2.234s with default I/O versus 2.219s with nosync. That experiment did
+not demonstrate a meaningful fsync improvement and is not the fix. The
+experimental instance configuration was removed before acceptance tests:
+final runtime reported innodb_flush_log_at_trx_commit=1 and
+innodb_flush_method=O_DIRECT.
+
+The initial 240s wrapper budget was shorter than the measured schema-build
+time. The earlier 900s wrapper failure had no per-migration/per-query trace,
+so its separate cause cannot be assigned retrospectively; it was not reproduced
+by this instrumented single migration run. Do not infer a defect in the two
+final migrations from those earlier aggregate timeouts, and do not alter a
+Frozen migration to bypass them.
+
+### Corrected test setup workflow
+
+Setup was separated from assertions. After native migrate completed, the
+bootstrap compared every recorded migration name against every canonical
+repository migration (101/101, exact match) and verified the exact disposable
+database and Unix socket. Only then did it set Laravel's in-process
+RefreshDatabaseState::migrated cache, reusing that freshly constructed schema
+instead of rebuilding it within the assertion-run budget. No migration was
+omitted, edited, marked applied manually, or replaced with an SQL mock. Original
+RefreshDatabase transactions, constraints, triggers and assertions remained
+active. This was a temporary diagnostic bootstrap, not a new production path.
+
+No existing database/server/account was changed. The disposable server bound
+only a private Unix socket, with networking disabled; database name was a
+random lf_maria_diagnose_* name. After schema construction the server was
+gracefully restarted with default engine configuration for the test run.
+
+### Newly exposed test-fixture defect
+
+First execution: **19 PASS / 1 ERROR**, 67 assertions, 13.059s. The error was
+CourseTemplatePublishConcurrencyTest at the query locking the *other* Template
+(former line 51): MariaDB error 1205. RefreshDatabase kept both inserted
+Templates uncommitted in its outer transaction. Consequently the second
+connection waited on the fixture insertion itself before reaching the intended
+publish-lock contention. This was a test setup issue, not evidence that publish
+locked unrelated committed Templates.
+
+Only tests/Feature/CourseTemplatePublishConcurrencyTest.php changed: assert the
+expected outer transaction level, commit synthetic fixtures before opening the
+two competing transactions, then delete only that fixture's Templates/customer
+and restore the RefreshDatabase transaction during cleanup. All original lock
+assertions remain: another committed Template can be locked, while the Template
+held by publish cannot. No application publishing or locking code changed.
+
+### Final supplemental verification
+
+| Group | Native MariaDB result |
+| --- | --- |
+| AiEmbeddingServiceTest guarded cases | 2 PASS |
+| AiKnowledgeIngestionServiceTest guarded case | 1 PASS |
+| AiProviderExecutionGateTest guarded cases | 2 PASS |
+| AiVisionInterpretationsSchemaTest guarded cases | 14 PASS |
+| CourseTemplatePublishConcurrencyTest | 1 PASS after fixture-only correction |
+| Total | **20 PASS, 70 assertions, 13.234s**, exit 0 |
+
+The exact original 20 cases were selected by their existing method names.
+There were no new skips, relaxed assertions, fake SQL engine or disabled
+constraints. Pint entire repository and git diff --check PASS. The UI Kit has
+no diff. Build/full default suite were not repeated for this test-fixture-only
+change; the physical MariaDB target group exercises the changed setup directly.
+
+This supersedes the prior BLOCKED disposition for these 20 cases. Together
+with the two real media cases from the preceding follow-up, **22 of the
+original 23 guarded cases now have supplemental PASS evidence**. The remaining
+Qdrant case still lacks the dedicated local service/endpoint described above.
+Default phpunit.xml remains unchanged; a default SQLite run still takes its
+existing environment guards, so these results are not a relabeled full-suite
+run with no skips.
+
+Final Verdict: **PASS for the requested 20 MariaDB tests**; remaining
+unverified item from the broader 23-case audit is Qdrant. The old 900s wrapper
+incident has no retrospective root-cause proof, but the complete schema and
+all requested assertions now execute successfully through the explicit,
+validated setup workflow.
+
+Changed repository files in this follow-up: the single concurrency test and
+this existing audit. Disposable schemas, server/data directory, socket,
+bootstrap/harness PHP, SQL trace, logs/JSON and this run's fake storage were
+removed after results were summarized. No temporary evidence links, business
+code change, migration edit, new component or UI Kit edit remains.

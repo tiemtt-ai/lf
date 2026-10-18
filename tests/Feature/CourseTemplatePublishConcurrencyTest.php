@@ -29,6 +29,10 @@ class CourseTemplatePublishConcurrencyTest extends TestCase
         $firstTemplateId = $this->createTemplate($customerId, 'First Template');
         $secondTemplateId = $this->createTemplate($customerId, 'Second Template');
 
+        // Both connections must see the fixtures before testing publish's row lock.
+        $this->assertSame(1, DB::transactionLevel());
+        DB::commit();
+
         $baseConfig = config('database.connections.'.config('database.default'));
         config(['database.connections.content_lock_probe' => $baseConfig]);
         $publisher = DB::connection();
@@ -68,6 +72,10 @@ class CourseTemplatePublishConcurrencyTest extends TestCase
                 $publisher->rollBack();
             }
             DB::purge('content_lock_probe');
+            DB::table('core_course_templates')->where('customer_id', $customerId)->delete();
+            DB::table('saas_customers')->where('id', $customerId)->delete();
+            // Restore the transaction expected by RefreshDatabase teardown.
+            DB::beginTransaction();
         }
     }
 
