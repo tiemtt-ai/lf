@@ -817,3 +817,22 @@ Verification: Node dialog-form tests 18 PASS (6 mutations killed); PHP asserts `
 message attributes; browser on a rendered popup: empty name -> "Vui lòng nhập tên danh mục.", no request, focus in
 the field, message cleared on typing. Not verified: screen reader announcement, selects whose empty option is
 selectable (only text inputs and the status select are required today).
+
+### Category delete — 2026-10-19
+
+Owner: a category with no attached product may be deleted. Because `core_course_templates.category_id`,
+`core_course_products.category_id` and `core_course_categories.parent_id` are RESTRICT foreign keys (and the
+database rule already forbids deleting a category used by a template), deletion is allowed only when all three are
+empty; otherwise the server answers 409 with the reason and count. `DELETE /course-categories/{id}`
+(`course-categories.destroy`, admin and teacher): tenant scoped, teacher only for categories they created, row
+locked and re-checked inside a transaction, image usages detached first, then the row is deleted; a late FK
+violation is reported as "in use". JSON for XHR (200 / 409), redirect with flash otherwise.
+
+List UI: a trash button (lucide `trash-2`, `ux-row-delete`) beside edit; disabled with a tooltip giving the reason when
+the counts (`product_count`, `template_count`, `child_count`, computed per row in the index query) are not zero.
+Clicking asks through the shared `window.LFConfirm` (danger tone, Cancel focused), then
+`admin-ui-kit-row-actions.js` sends the request; success shows the toast and refetches the list, a refusal shows the
+reason in the error toast. Verification: PHP delete tests (empty delete + usage detach, blocked by product/template/
+child with counts, tenant isolation, teacher ownership, guest 401, non-JSON redirect, index button states); Node 5 row
+action tests (6 mutations killed). Not verified: the race-condition path (FK violation after the check) and a real
+browser delete against a live server.

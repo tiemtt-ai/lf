@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" type="image/svg+xml" href="https://www.masterkorean.vn/images/favicon.svg">
+    <link rel="shortcut icon" href="https://www.masterkorean.vn/images/favicon.svg">
+    <title>Danh mục sản phẩm</title>
+
+            <script>
+        (() => {
+            const collapsedKey = 'lf.backend.sidebar.collapsed';
+            let shouldCollapse = false;
+
+            try {
+                const storedPreference = window.localStorage.getItem(collapsedKey);
+
+                if (storedPreference === 'true' || storedPreference === 'false') {
+                    shouldCollapse = storedPreference === 'true';
+                }
+            } catch (error) {
+                shouldCollapse = false;
+            }
+
+            document.documentElement.classList.add('is-backend-sidebar-initializing');
+            document.documentElement.classList.toggle('is-backend-sidebar-collapsed', shouldCollapse);
+        })();
+    </script>
+    <script type="module" src="http://127.0.0.1:5173/@vite/client" data-navigate-track="reload"></script><link rel="stylesheet" href="http://127.0.0.1:5173/resources/css/backend.css" data-navigate-track="reload" /><script type="module" src="http://127.0.0.1:5173/resources/js/app.js" data-navigate-track="reload"></script>    <script type="module" src="http://127.0.0.1:5173/@vite/client" data-navigate-track="reload"></script><link rel="stylesheet" href="http://127.0.0.1:5173/resources/css/admin/admin-ui-kit.css" data-navigate-track="reload" /><script type="module" src="http://127.0.0.1:5173/resources/js/admin-ui-kit-controls.js" data-navigate-track="reload"></script><script type="module" src="http://127.0.0.1:5173/resources/js/admin-ui-kit-dialog-form.js" data-navigate-track="reload"></script><script type="module" src="http://127.0.0.1:5173/resources/js/admin-ui-kit-row-actions.js" data-navigate-track="reload"></script></head>
+<body class="lf-admin-page">
+    
+    <div id="admin-app" x-data="backendSidebar()" class="backend-shell"
+         x-bind:class="{ 'is-sidebar-collapsed': sidebarCollapsed && ! isMobile }">
+        <div id="admin-shell" class="admin-shell" x-ref="shell"
+             x-bind:class="{ 'is-collapsed': sidebarCollapsed && ! isMobile }">
+            <aside id="backend-sidebar" class="admin-sidebar" x-ref="sidebar" aria-label="Điều hướng quản trị khách hàng">
+    <div class="admin-sidebar__brand">
+        <a href="https://tenant-a.localhost/admin" aria-label="Bảng điều khiển">
+            <img class="admin-brand-image" src="https://tenant-a.localhost/assets/admin/brand-logo.png" alt="Master Korean" width="180" height="67">
+            <img class="admin-brand-symbol" src="https://tenant-a.localhost/assets/admin/brand-symbol.png" alt="Master Korean" width="40" height="36">
+        </a>
+        <button type="button" class="admin-icon-button admin-close" x-ref="drawerClose"
+                x-bind:hidden="! drawerOpen" hidden x-on:click="closeDrawer()"
+                aria-label="Đóng menu">
+            <svg class="backend-sidebar-icon admin-icon"
+     viewBox="0 0 24 24"
+     fill="none"
+     stroke="currentColor"
+     stroke-width="1.8"
+     stroke-linecap="round"
+     stroke-linejoin="round"
+     aria-hidden="true">
+    <path d="M18 6 6 18"></path><path d="m6 6 12 12"></path>
+</svg>
+        </button>
+    </div>
+    <nav class="admin-nav" aria-label="Điều hướng quản trị khách hàng">
+                                                            <a class="admin-nav__item" href="https://tenant-a.localhost/admin"
+                   aria-label="Bảng điều khiển" data-sidebar-icon="home"
+                                      x-on:mouseenter="showSidebarTooltip($event, 'B\u1ea3ng \u0111i\u1ec1u khi\u1ec3n')"
+                   x-on:mouseleave="hideSidebarTooltip()" x-on:focus="showSidebarTooltip($event, 'B\u1ea3ng \u0111i\u1ec1u khi\u1ec3n')"
+                   x-on:blur="hideSidebarTooltip()">
+                    <svg class="backend-sidebar-icon admin-icon"
+     viewBox="0 0 24 24"
+     fill="none"
+     stroke="currentColor"
+     stroke-width="1.8"
+     stroke-linecap="round"
+     stroke-linejoin="round"
+     aria-hidden="true">
+    <path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"></path><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+</svg>
+                    <span class="admin-nav__label">Bảng điều khiển</span>
+                </a>
+                                                                        <a class="admin-nav__item" href="https://tenant-a.localhost/admin/course-categories"
+                   aria-label="Danh mục sản phẩm" data-sidebar-icon="folder"
+                    aria-current="page"                    x-on:mouseenter="showSidebarTooltip($event, 'Danh m\u1ee5c s\u1ea3n ph\u1ea9m')"
+                   x-on:mouseleave="hideSidebarTooltip()" x-on:focus="showSidebarTooltip($event, 'Danh m\u1ee5c s\u1ea3n ph\u1ea9m')"
+                   x-on:blur="hideSidebarTooltip()">
+                    <svg class="backend-sidebar-icon admin-icon"
+     viewBox="0 0 24 24"
+     fill="none"
+     stroke="currentColor"
+     stroke-width="1.8"
+     stroke-linecap="round"
+     stroke-linejoin="round"
+     aria-hidden="true">
+    <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"></path>
+</svg>
+                    <span class="admin-nav__label">Danh mục sản phẩm</span>
+                </a>
+                                                                        <a class="admin-nav__item" href="https://tenant-a.localhost/admin/course-templates"
+                   aria-label="Template khóa học" data-sidebar-icon="book-open"
+                                      x-on:mouseenter="showSidebarTooltip($event, 'Template kh\u00f3a h\u1ecdc')"
+                   x-on:mouseleave="hideSidebarTooltip()" x-on:focus="showSidebarTooltip($event, 'Template kh\u00f3a h\u1ecdc')"
+                   x-on:blur="hideSidebarTooltip()">
+                    <svg class="backend-sidebar-icon admin-icon"
+     viewBox="0 0 24 24"
+     fill="none"
+     stroke="currentColor"
+     stroke-width="1.8"
+     stroke-linecap="round"
+     stroke-linejoin="round"
+     aria-hidden="true">
+    <path d="M12 7v14"></path><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"></path>
+</svg>
+                    <span class="admin-nav__label">Template khóa học</span>
+                </a>
+                                                                        <a class="admin-nav__item" href="https://tenant-a.localhost/admin/course-products"
+                   aria-label="Sản phẩm khóa học" data-sidebar-icon="package"
+                                      x-on:mouseenter="showSidebarTooltip($event, 'S\u1ea3n ph\u1ea9m kh\u00f3a h\u1ecdc')"
+                   x-on:mouseleave="hideSidebarTooltip()" x-on:focus="showSidebarTooltip($event, 'S\u1ea3n ph\u1ea9m kh\u00f3a h\u1ecdc')"
+                   x-on:blur="hideSidebarTooltip()">
+                    <svg class="backend-sidebar-icon admin-icon"
+     viewBox="0 0 24 24"
+     fill="none"
+     stroke="currentColor"
+     stroke-width="1.8"
+     stroke-linecap="round"
+     stroke-linejoin="round"
+     aria-hidden="true">
+    <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"></path><path d="m3.3 7 8.7 5 8.7-5"></path><path d="M12 22V12"></path>
+</svg>
+                    <span class="admin-nav__label">Sản phẩm khóa học</span>
+                </a>
+                                                                        <a class="admin-nav__item" href="https://tenant-a.localhost/admin/course-enrollments"
+                   aria-label="Ghi danh khóa học" data-sidebar-icon="clipboard-check"
+                                      x-on:mouseenter="showSidebarTooltip($event, 'Ghi danh kh\u00f3a h\u1ecdc')"
+                   x-on:mouseleave="hideSidebarTooltip()" x-on:focus="showSidebarTooltip($event, 'Ghi danh kh\u00f3a h\u1ecdc')"
+                   x-on:blur="hideSidebarTooltip()">
+                    <svg class="backend-sidebar-icon admin-icon"
+     viewBox="0 0 24 24"
+     fill="none"
+     stroke="currentColor"
+     stroke-width="1.8"
+     stroke-linecap="round"
+     stroke-linejoin="round"
+     aria-hidden="true">
+    <rect width="8" height="4" x="8" y="2" rx="1" ry="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="m9 14 2 2 4-4"></path>
+</svg>
+                    <span class="admin-nav__label">Ghi danh khóa học</span>
+                </a>
+                                                                        <a class="admin-nav__item" href="https://tenant-a.localhost/admin/course-cohorts"
+                   aria-label="Lớp học" data-sidebar-icon="users"
+                                      x-on:mouseenter="showSidebarTooltip($event, 'L\u1edbp h\u1ecdc')"
+                   x-on:mouseleave="hideSidebarTooltip()" x-on:focus="showSidebarTooltip($event, 'L\u1edbp h\u1ecdc')"
+                   x-on:blur="hideSidebarTooltip()">
+                    <svg class="backend-sidebar-icon admin-icon"
+     viewBox="0 0 24 24"
+     fill="none"
+     stroke="currentColor"
+     stroke-width="1.8"
+     stroke-linecap="round"
+     stroke-linejoin="round"
+     aria-hidden="true">
+    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+</svg>
+                    <span class="admin-nav__label">Lớp học</span>
+                </a>
+                                                                        <a class="admin-nav__item" href="https://tenant-a.localhost/admin/media"
+                   aria-label="Thư viện Media" data-sidebar-icon="image"
+                                      x-on:mouseenter="showSidebarTooltip($event, 'Th\u01b0 vi\u1ec7n Media')"
+                   x-on:mouseleave="hideSidebarTooltip()" x-on:focus="showSidebarTooltip($event, 'Th\u01b0 vi\u1ec7n Media')"
+                   x-on:blur="hideSidebarTooltip()">
+                    <svg class="backend-sidebar-icon admin-icon"
+     viewBox="0 0 24 24"
+     fill="none"
+     stroke="currentColor"
+     stroke-width="1.8"
+     stroke-linecap="round"
+     stroke-linejoin="round"
+     aria-hidden="true">
+    <rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect><circle cx="9" cy="9" r="2"></circle><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path>
+</svg>
+                    <span class="admin-nav__label">Thư viện Media</span>
+                </a>
+                                                                        <a class="admin-nav__item" href="https://tenant-a.localhost/admin/learning-frameworks"
+                   aria-label="Đầu ra &amp; năng lực" data-sidebar-icon="book-marked"
+                                      x-on:mouseenter="showSidebarTooltip($event, '\u0110\u1ea7u ra \u0026 n\u0103ng l\u1ef1c')"
+                   x-on:mouseleave="hideSidebarTooltip()" x-on:focus="showSidebarTooltip($event, '\u0110\u1ea7u ra \u0026 n\u0103ng l\u1ef1c')"
+                   x-on:blur="hideSidebarTooltip()">
+                    <svg class="backend-sidebar-icon admin-icon"
+     viewBox="0 0 24 24"
+     fill="none"
+     stroke="currentColor"
+     stroke-width="1.8"
+     stroke-linecap="round"
+     stroke-linejoin="round"
+     aria-hidden="true">
+    <path d="M10 2v8l3-3 3 3V2"></path><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20"></path>
+</svg>
+                    <span class="admin-nav__label">Đầu ra &amp; năng lực</span>
+                </a>
+                        </nav>
+    <div class="admin-sidebar__footer">
+        <div class="admin-user">
+            <span class="admin-avatar" aria-hidden="true">VI</span>
+            <span class="admin-user__text">Visang 1<small>Điều hướng quản trị khách hàng</small></span>
+        </div>
+    </div>
+</aside>
+            <div class="admin-main">
+                <header class="admin-header">
+    <button id="admin-menu-toggle" type="button" class="admin-icon-button" x-ref="menuToggle"
+            x-on:click="toggleSidebar()" aria-controls="backend-sidebar" aria-expanded="true"
+            aria-label="Thu gọn menu"
+            x-bind:aria-expanded="(isMobile ? drawerOpen : ! sidebarCollapsed).toString()"
+            x-bind:aria-label="isMobile ? 'M\u1edf menu' : (sidebarCollapsed ? 'M\u1edf r\u1ed9ng menu' : 'Thu g\u1ecdn menu')">
+        <svg class="backend-sidebar-icon admin-icon"
+     viewBox="0 0 24 24"
+     fill="none"
+     stroke="currentColor"
+     stroke-width="1.8"
+     stroke-linecap="round"
+     stroke-linejoin="round"
+     aria-hidden="true">
+    <rect width="18" height="18" x="3" y="3" rx="2"></rect><path d="M9 3v18"></path>
+</svg>
+    </button>
+    <nav class="admin-breadcrumb" aria-label="Đường dẫn điều hướng">
+    <span class="admin-system-name">MK eLearning</span>
+            <span class="admin-breadcrumb-separator" aria-hidden="true"> / </span>
+                    <a href="https://tenant-a.localhost/admin">Bảng điều khiển</a>
+                    <span class="admin-breadcrumb-separator" aria-hidden="true"> / </span>
+                    <strong  aria-current="page" >Danh mục sản phẩm</strong>
+            </nav>
+    <div class="admin-top-actions" x-data="{ open: null, closeMenu() { const button = this.$el.querySelector('[aria-expanded=true]'); this.open = null; button?.focus(); } }"
+         x-on:click.outside="open = null" x-on:keydown.escape.stop="closeMenu()">
+        <span class="admin-top-button admin-notification admin-notification-placeholder" role="img"
+              aria-label="Thông báo">
+            <svg class="backend-sidebar-icon admin-icon"
+     viewBox="0 0 24 24"
+     fill="none"
+     stroke="currentColor"
+     stroke-width="1.8"
+     stroke-linecap="round"
+     stroke-linejoin="round"
+     aria-hidden="true">
+    <path d="M10.268 21a2 2 0 0 0 3.464 0"></path><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"></path>
+</svg>
+        </span>
+        <div class="admin-top-pop">
+            <button type="button" class="admin-top-button admin-language-button" aria-controls="top-language" aria-expanded="false"
+                    x-bind:aria-expanded="(open === 'language').toString()"
+                    x-on:click="open = open === 'language' ? null : 'language'"
+                    aria-label="Ngôn ngữ">
+                <img class="admin-language-flag" src="https://tenant-a.localhost/assets/admin/flag-vi.svg" alt="" width="24" height="16">
+                <span id="current-language">VI</span>
+                <span class="admin-language-caret" aria-hidden="true"></span>
+            </button>
+            <div id="top-language" class="admin-top-dropdown admin-top-dropdown--small admin-language-dropdown" x-show="open === 'language'" x-cloak>
+                                                                            <form method="POST" action="https://tenant-a.localhost/language/en">
+                        <input type="hidden" name="_token" value="WMgbwvjBmZ0FnKsBHiLm2IxKOhA9b26KflVR26OH" autocomplete="off">                        <button type="submit" class="admin-dropdown-row admin-language-option" lang="en" aria-label="English">
+                            <img class="admin-language-flag" src="https://tenant-a.localhost/assets/admin/flag-en.svg" alt="" width="24" height="16">
+                            <span>EN</span>
+                        </button>
+                    </form>
+                            </div>
+        </div>
+        <div class="admin-top-pop">
+            <button type="button" class="admin-top-button admin-account-button" aria-controls="top-account" aria-expanded="false"
+                    x-bind:aria-expanded="(open === 'account').toString()"
+                    x-on:click="open = open === 'account' ? null : 'account'"
+                    aria-label="Menu tài khoản">
+                <span class="admin-avatar" aria-hidden="true"><svg class="backend-sidebar-icon admin-icon"
+     viewBox="0 0 24 24"
+     fill="none"
+     stroke="currentColor"
+     stroke-width="1.8"
+     stroke-linecap="round"
+     stroke-linejoin="round"
+     aria-hidden="true">
+    <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle>
+</svg>
+</span>
+                <span class="admin-account-name">Visang 1</span>
+                <svg class="backend-sidebar-icon admin-chevron"
+     viewBox="0 0 24 24"
+     fill="none"
+     stroke="currentColor"
+     stroke-width="1.8"
+     stroke-linecap="round"
+     stroke-linejoin="round"
+     aria-hidden="true">
+    <path d="m6 9 6 6 6-6"></path>
+</svg>
+            </button>
+            <div id="top-account" class="admin-top-dropdown admin-account-dropdown" x-show="open === 'account'" x-cloak>
+                <div class="admin-account-summary">
+                    <div class="admin-account-identity">
+                        <strong>Visang 1</strong>
+                        <span class="admin-account-role">Admin</span>
+                    </div>
+                    <p>a@example.test</p>
+                </div>
+                                    <a class="admin-dropdown-row" href="https://tenant-a.localhost/admin/my-account">
+                        <svg class="backend-sidebar-icon admin-icon"
+     viewBox="0 0 24 24"
+     fill="none"
+     stroke="currentColor"
+     stroke-width="1.8"
+     stroke-linecap="round"
+     stroke-linejoin="round"
+     aria-hidden="true">
+    <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle>
+</svg>
+Tài khoản của tôi
+                    </a>
+                                    <a class="admin-dropdown-row" href="https://tenant-a.localhost/admin/users">
+                        <svg class="backend-sidebar-icon admin-icon"
+     viewBox="0 0 24 24"
+     fill="none"
+     stroke="currentColor"
+     stroke-width="1.8"
+     stroke-linecap="round"
+     stroke-linejoin="round"
+     aria-hidden="true">
+    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+</svg>
+Người dùng
+                    </a>
+                                    <a class="admin-dropdown-row" href="https://tenant-a.localhost/admin/organization">
+                        <svg class="backend-sidebar-icon admin-icon"
+     viewBox="0 0 24 24"
+     fill="none"
+     stroke="currentColor"
+     stroke-width="1.8"
+     stroke-linecap="round"
+     stroke-linejoin="round"
+     aria-hidden="true">
+    <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"></path><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"></path><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"></path><path d="M10 6h4"></path><path d="M10 10h4"></path><path d="M10 14h4"></path><path d="M10 18h4"></path>
+</svg>
+Tổ chức
+                    </a>
+                                <form class="admin-account-logout" method="POST" action="https://tenant-a.localhost/logout">
+                    <input type="hidden" name="_token" value="WMgbwvjBmZ0FnKsBHiLm2IxKOhA9b26KflVR26OH" autocomplete="off">                    <button type="submit" class="admin-dropdown-row">
+                        <svg class="backend-sidebar-icon admin-icon"
+     viewBox="0 0 24 24"
+     fill="none"
+     stroke="currentColor"
+     stroke-width="1.8"
+     stroke-linecap="round"
+     stroke-linejoin="round"
+     aria-hidden="true">
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" x2="9" y1="12" y2="12"></line>
+</svg>
+Đăng xuất
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</header>
+                <main id="admin-content" class="admin-content">
+                    <div class="page-heading">
+                        <h1 id="admin-page-title">Danh mục sản phẩm</h1>
+                    </div>
+                    <div class="lf-admin-ui lf-admin-ui--list" data-ui-dialog-form-scope data-ui-row-actions
+     data-csrf="WMgbwvjBmZ0FnKsBHiLm2IxKOhA9b26KflVR26OH"
+     data-msg-delete-error="Không xoá được. Vui lòng thử lại."
+     data-msg-session-expired="Phiên làm việc đã hết hạn. Hãy tải lại trang.">
+    
+    <div class="ui-toast-region" data-ui-toast-region>
+        <div class="ui-toast ui-toast--success" role="status" data-ui-toast data-ui-toast-timeout="4000" data-ui-dialog-form-flash  hidden >
+            <span class="ui-toast__text" data-ui-toast-text></span>
+            <button type="button" class="ui-toast__close cursor-interaction" data-ui-toast-close aria-label="Đóng">×</button>
+        </div>
+        <div class="ui-toast ui-toast--danger" role="alert" data-ui-toast data-ui-toast-timeout="0" data-ui-dialog-form-page-error hidden>
+            <span class="ui-toast__text" data-ui-toast-text></span>
+            <button type="button" class="ui-toast__close cursor-interaction" data-ui-toast-close aria-label="Đóng">×</button>
+        </div>
+    </div>
+
+    
+    <section class="mk-section" aria-labelledby="admin-page-title">
+        <form class="mk-tablebar mk-tablebar--filters" method="GET" action="https://tenant-a.localhost/admin/course-categories" data-ui-live-filter>
+            <div class="ui-field mk-search">
+                <label class="ui-field__label" for="keyword">
+                    Từ khóa
+                </label>
+                <div class="ui-search">
+                    <input id="keyword" type="search" name="keyword" value=""
+                           placeholder="Tìm theo tên hoặc slug">
+                    <button type="submit" class="ui-button cursor-interaction" aria-label="Tìm kiếm">
+                        <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
+                    </button>
+                </div>
+            </div>
+
+            <div class="ui-field mk-search" x-data="{
+                value: '', open: false, query: '', active: -1,
+                options: JSON.parse('[{\u0022value\u0022:\u0022\u0022,\u0022label\u0022:\u0022T\\u1ea5t c\\u1ea3 tr\\u1ea1ng th\\u00e1i\u0022},{\u0022value\u0022:\u0022active\u0022,\u0022label\u0022:\u0022Ho\\u1ea1t \\u0111\\u1ed9ng\u0022},{\u0022value\u0022:\u0022inactive\u0022,\u0022label\u0022:\u0022Kh\\u00f4ng ho\\u1ea1t \\u0111\\u1ed9ng\u0022}]'),
+                get matches() { return this.options.filter(item => item.label.toLocaleLowerCase().includes(this.query.toLocaleLowerCase())); },
+                get label() { return this.options.find(item => item.value === this.value)?.label ?? ''; },
+                close() { this.open = false; this.query = ''; this.active = -1; },
+                choose(item) { if (!item) return; const changed = this.value !== item.value; this.value = item.value; this.close(); this.$refs.input.focus(); this.open = false; if (changed) this.$nextTick(() => this.$refs.input.form?.requestSubmit()); },
+                move(step) { this.open = true; this.active = Math.max(0, Math.min(this.matches.length - 1, this.active + step)); }
+            }" @click.outside="close()" @focusout="if (!$el.contains($event.relatedTarget)) close()">
+                <label class="ui-field__label" for="status" x-bind:for="'category-status-input'">
+                    Trạng thái
+                </label>
+                <select id="status" name="status" x-model="value" x-show="false">
+                    <option value="">Tất cả trạng thái</option>
+                    <option value="active" >Hoạt động</option>
+                    <option value="inactive" >Không hoạt động</option>
+                </select>
+                <div class="ux-combo" x-cloak>
+                    <div class="ux-combo__control">
+                        <input id="category-status-input" x-ref="input" type="text" autocomplete="off" role="combobox"
+                               aria-autocomplete="list" aria-controls="category-status-options" :aria-expanded="open.toString()"
+                               :aria-activedescendant="open && active >= 0 ? 'category-status-option-' + active : null"
+                               :value="open ? query : label" :placeholder="label"
+                               @click="open = true" @input="query = $event.target.value; open = true; active = -1"
+                               @keydown.arrow-down.prevent="move(1)" @keydown.arrow-up.prevent="move(-1)"
+                               @keydown.enter="if (open) { $event.preventDefault(); choose(matches[active >= 0 ? active : 0]); }"
+                               @keydown.escape.prevent.stop="close()">
+                        <button class="ux-clear cursor-interaction" type="button" x-show="value !== ''"
+                                aria-label="Xóa bộ lọc"
+                                @click="choose(options[0])">×</button>
+                        <span class="ux-combo__icon" aria-hidden="true"></span>
+                    </div>
+                    <div class="ux-combo__list" id="category-status-options" role="listbox"
+                         aria-label="Trạng thái" x-show="open">
+                        <template x-for="(item, index) in matches" :key="item.value">
+                            <button class="ux-option cursor-interaction" type="button" role="option" tabindex="-1"
+                                    :id="'category-status-option-' + index" :aria-selected="(item.value === value).toString()"
+                                    @mousedown.prevent @click="choose(item)">
+                                <span x-text="item.label"></span><span x-show="item.value === value" aria-hidden="true">✓</span>
+                            </button>
+                        </template>
+                        <div class="ui-caption" role="status" x-show="matches.length === 0">Không có kết quả</div>
+                    </div>
+                </div>
+            </div>
+            <span class="ui-live-slot" data-ui-live-region="clear-filters">
+                            </span>
+            <button type="button" class="mk-toolbar-action ui-button ui-button--primary cursor-interaction"
+                    data-ui-dialog-form-open data-url="https://tenant-a.localhost/admin/course-categories/create" aria-haspopup="dialog">
+                <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+                Tạo danh mục sản phẩm
+            </button>
+        </form>
+
+    <div class="mk-table-scroll" data-ui-live-region="table" role="region" aria-label="Danh mục sản phẩm" tabindex="0">
+        <table aria-labelledby="admin-page-title">
+            <colgroup>
+                <col class="mk-col-sequence">
+                <col>
+                <col class="mk-col-parent">
+                <col class="mk-col-count">
+                <col class="mk-col-status">
+                <col class="mk-col-action">
+            </colgroup>
+            <thead>
+            <tr>
+                <th scope="col" class="mk-sequence">STT</th>
+                <th scope="col" class="mk-text-cell">Tên danh mục</th>
+                <th scope="col" class="mk-text-cell">Danh mục cha</th>
+                <th scope="col" class="mk-count-cell">Số sản phẩm</th>
+                <th scope="col" class="ux-action-cell">Trạng thái</th>
+                <th scope="col" class="ux-action-cell">Thao tác</th>
+            </tr>
+            </thead>
+            <tbody>
+                            <tr>
+                    <td class="mk-sequence" data-label="STT">
+                        1
+                    </td>
+                    <td class="mk-text-cell" data-label="Tên danh mục">
+                        <span class="mk-name-line">
+                            <span class="mk-name-text">Một danh mục nổi bật có tên rất rất dài để thử việc cắt chữ trong ô tên danh mục của bảng</span>
+                                                            <span class="mk-featured" title="Danh mục nổi bật" data-tooltip="Danh mục nổi bật">
+                                    <svg class="ui-icon" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z" /></svg>
+                                    <span class="ui-sr-only">Danh mục nổi bật</span>
+                                </span>
+                                                    </span>
+                        <p class="ui-caption">ten-dai</p>
+                    </td>
+                    <td class="mk-text-cell mk-na"
+                        data-label="Danh mục cha">
+                        Danh mục gốc
+                    </td>
+                    <td class="mk-count-cell mk-na"
+                        data-label="Số sản phẩm">
+                        0
+                    </td>
+                    <td class="ux-action-cell" data-label="Trạng thái">
+                        <form method="POST" action="https://tenant-a.localhost/admin/course-categories/3/toggle-status">
+                            <input type="hidden" name="_token" value="WMgbwvjBmZ0FnKsBHiLm2IxKOhA9b26KflVR26OH" autocomplete="off">                            <button type="submit" class="ux-row-switch cursor-interaction" role="switch"
+                                    aria-checked="true"
+                                    aria-label="Bật/tắt trạng thái: Một danh mục nổi bật có tên rất rất dài để thử việc cắt chữ trong ô tên danh mục của bảng"
+                                    title="Hoạt động"></button>
+                        </form>
+                    </td>
+                    <td class="ux-action-cell" data-label="Thao tác">
+                        <button type="button" class="ux-row-edit cursor-interaction" data-ui-dialog-form-open
+                                data-url="https://tenant-a.localhost/admin/course-categories/3/edit" aria-haspopup="dialog"
+                                aria-label="Chỉnh sửa danh mục: Một danh mục nổi bật có tên rất rất dài để thử việc cắt chữ trong ô tên danh mục của bảng" title="Chỉnh sửa danh mục" data-tooltip="Chỉnh sửa danh mục">
+                            <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z" /></svg>
+                        </button>
+                                                <button type="button" class="ux-row-delete cursor-interaction" data-ui-row-delete
+                                data-url="https://tenant-a.localhost/admin/course-categories/3"
+                                data-confirm-title="Xoá danh mục?"
+                                data-confirm-message="Danh mục «Một danh mục nổi bật có tên rất rất dài để thử việc cắt chữ trong ô tên danh mục của bảng» sẽ bị xoá vĩnh viễn và không thể hoàn tác."
+                                data-confirm-label="Xoá"
+                                 title="Xoá danh mục" data-tooltip="Xoá danh mục"                                 aria-label="Xoá danh mục: Một danh mục nổi bật có tên rất rất dài để thử việc cắt chữ trong ô tên danh mục của bảng">
+                            <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /><line x1="10" x2="10" y1="11" y2="17" /><line x1="14" x2="14" y1="11" y2="17" /></svg>
+                        </button>
+                    </td>
+                </tr>
+                            <tr>
+                    <td class="mk-sequence" data-label="STT">
+                        2
+                    </td>
+                    <td class="mk-text-cell" data-label="Tên danh mục">
+                        <span class="mk-name-line">
+                            <span class="mk-name-text">Sơ Cấp</span>
+                                                            <span class="mk-featured" title="Danh mục nổi bật" data-tooltip="Danh mục nổi bật">
+                                    <svg class="ui-icon" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z" /></svg>
+                                    <span class="ui-sr-only">Danh mục nổi bật</span>
+                                </span>
+                                                    </span>
+                        <p class="ui-caption">so-cap</p>
+                    </td>
+                    <td class="mk-text-cell mk-na"
+                        data-label="Danh mục cha">
+                        Danh mục gốc
+                    </td>
+                    <td class="mk-count-cell mk-na"
+                        data-label="Số sản phẩm">
+                        0
+                    </td>
+                    <td class="ux-action-cell" data-label="Trạng thái">
+                        <form method="POST" action="https://tenant-a.localhost/admin/course-categories/2/toggle-status">
+                            <input type="hidden" name="_token" value="WMgbwvjBmZ0FnKsBHiLm2IxKOhA9b26KflVR26OH" autocomplete="off">                            <button type="submit" class="ux-row-switch cursor-interaction" role="switch"
+                                    aria-checked="true"
+                                    aria-label="Bật/tắt trạng thái: Sơ Cấp"
+                                    title="Hoạt động"></button>
+                        </form>
+                    </td>
+                    <td class="ux-action-cell" data-label="Thao tác">
+                        <button type="button" class="ux-row-edit cursor-interaction" data-ui-dialog-form-open
+                                data-url="https://tenant-a.localhost/admin/course-categories/2/edit" aria-haspopup="dialog"
+                                aria-label="Chỉnh sửa danh mục: Sơ Cấp" title="Chỉnh sửa danh mục" data-tooltip="Chỉnh sửa danh mục">
+                            <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z" /></svg>
+                        </button>
+                                                <button type="button" class="ux-row-delete cursor-interaction" data-ui-row-delete
+                                data-url="https://tenant-a.localhost/admin/course-categories/2"
+                                data-confirm-title="Xoá danh mục?"
+                                data-confirm-message="Danh mục «Sơ Cấp» sẽ bị xoá vĩnh viễn và không thể hoàn tác."
+                                data-confirm-label="Xoá"
+                                 title="Xoá danh mục" data-tooltip="Xoá danh mục"                                 aria-label="Xoá danh mục: Sơ Cấp">
+                            <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /><line x1="10" x2="10" y1="11" y2="17" /><line x1="14" x2="14" y1="11" y2="17" /></svg>
+                        </button>
+                    </td>
+                </tr>
+                            <tr>
+                    <td class="mk-sequence" data-label="STT">
+                        3
+                    </td>
+                    <td class="mk-text-cell" data-label="Tên danh mục">
+                        <span class="mk-name-line">
+                            <span class="mk-name-text">Trung Cấp</span>
+                                                    </span>
+                        <p class="ui-caption">trung-cap</p>
+                    </td>
+                    <td class="mk-text-cell mk-na"
+                        data-label="Danh mục cha">
+                        Danh mục gốc
+                    </td>
+                    <td class="mk-count-cell mk-na"
+                        data-label="Số sản phẩm">
+                        0
+                    </td>
+                    <td class="ux-action-cell" data-label="Trạng thái">
+                        <form method="POST" action="https://tenant-a.localhost/admin/course-categories/1/toggle-status">
+                            <input type="hidden" name="_token" value="WMgbwvjBmZ0FnKsBHiLm2IxKOhA9b26KflVR26OH" autocomplete="off">                            <button type="submit" class="ux-row-switch cursor-interaction" role="switch"
+                                    aria-checked="true"
+                                    aria-label="Bật/tắt trạng thái: Trung Cấp"
+                                    title="Hoạt động"></button>
+                        </form>
+                    </td>
+                    <td class="ux-action-cell" data-label="Thao tác">
+                        <button type="button" class="ux-row-edit cursor-interaction" data-ui-dialog-form-open
+                                data-url="https://tenant-a.localhost/admin/course-categories/1/edit" aria-haspopup="dialog"
+                                aria-label="Chỉnh sửa danh mục: Trung Cấp" title="Chỉnh sửa danh mục" data-tooltip="Chỉnh sửa danh mục">
+                            <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z" /></svg>
+                        </button>
+                                                <button type="button" class="ux-row-delete cursor-interaction" data-ui-row-delete
+                                data-url="https://tenant-a.localhost/admin/course-categories/1"
+                                data-confirm-title="Xoá danh mục?"
+                                data-confirm-message="Danh mục «Trung Cấp» sẽ bị xoá vĩnh viễn và không thể hoàn tác."
+                                data-confirm-label="Xoá"
+                                 title="Xoá danh mục" data-tooltip="Xoá danh mục"                                 aria-label="Xoá danh mục: Trung Cấp">
+                            <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /><line x1="10" x2="10" y1="11" y2="17" /><line x1="14" x2="14" y1="11" y2="17" /></svg>
+                        </button>
+                    </td>
+                </tr>
+                        </tbody>
+        </table>
+    </div>
+
+        <div class="mk-table-foot" data-ui-live-region="foot">
+            <span class="mk-footnote" role="status">Hiển thị 1–3 / 3 dòng</span>
+            <nav class="mk-pages" aria-label="Danh mục sản phẩm">
+                                    <button type="button" class="mk-page" disabled aria-label="« Trước">‹</button>
+                                                    <a class="mk-page" href="https://tenant-a.localhost/admin/course-categories?page=1"  aria-current="page" >1</a>
+                                                    <button type="button" class="mk-page" disabled aria-label="Sau »">›</button>
+                                <select aria-label="Số dòng mỗi trang" disabled>
+                    <option>10 / trang</option>
+                </select>
+            </nav>
+        </div>
+    </section>
+
+    <dialog class="ui-modal" data-columns="2" aria-labelledby="category-dialog-title" data-ui-dialog-form
+            data-msg-load-error="Không tải được biểu mẫu. Vui lòng thử lại."
+            data-msg-save-error="Không lưu được. Vui lòng thử lại."
+            data-msg-session-expired="Phiên làm việc đã hết hạn. Hãy tải lại trang."
+            data-msg-required-input="Vui lòng nhập :field."
+            data-msg-required-select="Vui lòng chọn :field."></dialog>
+</div>
+                </main>
+                <footer class="admin-page-footer">Copyright © VISANG Education Group Vietnam Company</footer>
+            </div>
+        </div>
+        <dialog id="admin-drawer" class="admin-drawer" x-ref="drawer" aria-label="Điều hướng quản trị khách hàng"
+                x-on:close="restoreSidebar()" x-on:click="closeDrawerOnBackdrop($event)"></dialog>
+        <div class="backend-sidebar-tooltip" x-cloak x-show="sidebarTooltip.visible"
+             x-bind:style="`top: ${sidebarTooltip.top}px; left: ${sidebarTooltip.left}px`"
+             role="tooltip"><span x-text="sidebarTooltip.label"></span></div>
+        <dialog class="lf-confirm-dialog"
+        data-lf-confirm-dialog
+        data-default-title="Xác nhận thao tác"
+        aria-labelledby="lf-confirm-dialog-title"
+        aria-describedby="lf-confirm-dialog-message">
+    <div class="lf-confirm-dialog__panel">
+        <div class="lf-confirm-dialog__heading">
+            <span class="lf-confirm-dialog__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <path d="M12 9v4m0 4h.01M10.3 4.3 2.8 17.2A2 2 0 0 0 4.5 20h15a2 2 0 0 0 1.7-2.8L13.7 4.3a2 2 0 0 0-3.4 0Z" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </span>
+            <div>
+                <h2 id="lf-confirm-dialog-title" data-lf-confirm-title></h2>
+                <p id="lf-confirm-dialog-message" data-lf-confirm-message></p>
+            </div>
+        </div>
+        <div class="lf-confirm-dialog__actions">
+            <button type="button" class="btn btn-secondary" data-lf-confirm-cancel>
+                Hủy
+            </button>
+            <button type="button"
+                    class="btn btn-primary"
+                    data-lf-confirm-accept
+                    data-default-label="Xác nhận"></button>
+        </div>
+    </div>
+</dialog>
+    </div>
+</body>
+</html>

@@ -81,6 +81,11 @@ core_course_templates
 * Category không chứa dữ liệu học tập.
 * Category inactive sẽ không hiển thị trên Website.
 * Không được xóa Category đang được Template sử dụng.
+* Chỉ được xóa Category khi không còn Product đính kèm, không còn Template sử dụng
+  và không còn Category con (cả ba là khóa ngoại RESTRICT). Việc xóa là xóa thật;
+  ảnh đại diện/banner của Category được gỡ liên kết (usage `detached`) trong cùng
+  giao dịch. Server kiểm tra lại điều kiện khi xóa, trong phạm vi tenant; giáo viên
+  chỉ xóa được Category do mình tạo. (Owner xác nhận 2026-10-19.)
 * Khi tạo mới, server luôn gán `MAX(sort_order) + 1` trong tenant; tenant chưa
   có Category bắt đầu từ `1`. Giá trị client gửi khi Create không quyết định
   thứ tự. Edit vẫn cho phép quản trị thứ tự thủ công.

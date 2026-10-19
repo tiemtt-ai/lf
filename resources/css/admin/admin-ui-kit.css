@@ -92,6 +92,7 @@
     --ui-success-soft: #dcfce7;
     --ui-success-border: #bbf7d0;
     --ui-danger-soft: #fdecee;
+    --ui-featured: #e0a100;
     --ui-color-c8526018: #c8526018;
     --ui-color-a6aebc: #a6aebc;
     --ui-color-f3f4f8: #f3f4f8;
@@ -1393,6 +1394,14 @@
 .lf-admin-ui .ux-row-edit:hover {
     background: var(--ui-color-eef0fb)
 }
+.lf-admin-ui .mk-name-line { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.lf-admin-ui .mk-name-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lf-admin-ui .mk-featured { display: inline-flex; flex: none; color: var(--ui-featured); }
+.lf-admin-ui .mk-featured .ui-icon { width: 14px; height: 14px; }
+.lf-admin-ui .ux-row-delete { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--ui-invalid); vertical-align: middle; }
+.lf-admin-ui .ux-row-delete:hover:not(:disabled) { background: var(--ui-danger-soft); }
+.lf-admin-ui .ux-row-delete:disabled { color: var(--ui-color-a0a6b1); cursor: not-allowed; }
+.lf-admin-ui .ux-row-delete:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--ui-color-c8526018); }
 .lf-admin-ui :is(#catalog-tag-add,[data-ui-tag-add])::before,
 .lf-admin-ui [data-modal-tag-add]::before {
     font: 22px/1 var(--ui-font-family)

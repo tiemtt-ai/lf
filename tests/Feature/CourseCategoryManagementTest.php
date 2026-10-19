@@ -220,6 +220,174 @@ class CourseCategoryManagementTest extends TestCase
         );
     }
 
+    public function test_empty_category_can_be_deleted_and_its_images_are_detached(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $categoryId = $this->createCategory($customerId, 'Disposable', 'disposable');
+        $otherId = $this->createCategory($customerId, 'Keeper', 'keeper');
+
+        $this->actingAs($admin)
+            ->put("https://tenant-a.localhost/admin/course-categories/{$categoryId}", $this->validCategoryData([
+                'name' => 'Disposable',
+                'thumbnail_image_file' => UploadedFile::fake()->image('thumb.png', 120, 120),
+            ]))
+            ->assertRedirect();
+        $this->assertSame(1, DB::table('media_file_usages')->where('owner_type', 'course_category')->where('owner_id', $categoryId)->where('status', 'active')->count());
+
+        $this->actingAs($admin)
+            ->deleteJson("https://tenant-a.localhost/admin/course-categories/{$categoryId}")
+            ->assertOk()
+            ->assertJson(['message' => __('lf.LF_course_category_common_deleted')]);
+
+        $this->assertNull(DB::table('core_course_categories')->where('id', $categoryId)->first());
+        $this->assertNotNull(DB::table('core_course_categories')->where('id', $otherId)->first());
+        $this->assertSame(0, DB::table('media_file_usages')->where('owner_type', 'course_category')->where('owner_id', $categoryId)->where('status', 'active')->count());
+    }
+
+    public function test_category_with_products_templates_or_children_cannot_be_deleted(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $withProduct = $this->createCategory($customerId, 'Has product', 'has-product');
+        $withTemplate = $this->createCategory($customerId, 'Has template', 'has-template');
+        $withChild = $this->createCategory($customerId, 'Has child', 'has-child');
+        $this->createCategory($customerId, 'Child', 'child', parentId: $withChild);
+        $this->createProduct($customerId, $withProduct, 'product-a');
+        $this->createProduct($customerId, $withProduct, 'product-b');
+        DB::table('core_course_templates')->insert([
+            'customer_id' => $customerId, 'category_id' => $withTemplate, 'title' => 'T',
+            'estimated_minutes_per_lesson' => 0, 'lesson_count' => 0, 'working_revision' => 1,
+            'status' => 'draft', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        foreach ([
+            [$withProduct, 'products', 2],
+            [$withTemplate, 'templates', 1],
+            [$withChild, 'children', 1],
+        ] as [$id, $reason, $count]) {
+            $this->actingAs($admin)
+                ->deleteJson("https://tenant-a.localhost/admin/course-categories/{$id}")
+                ->assertStatus(409)
+                ->assertJson(['message' => __('lf.LF_course_category_delete_blocked_'.$reason, ['count' => $count])]);
+            $this->assertNotNull(DB::table('core_course_categories')->where('id', $id)->first(), $reason);
+        }
+    }
+
+    public function test_products_of_another_tenant_do_not_block_and_other_tenants_categories_are_not_deletable(): void
+    {
+        $customerId = $this->createTenant();
+        $otherCustomerId = $this->createTenant('tenant-b');
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $mine = $this->createCategory($customerId, 'Mine', 'mine');
+        $theirs = $this->createCategory($otherCustomerId, 'Theirs', 'theirs');
+
+        $this->actingAs($admin)
+            ->deleteJson("https://tenant-a.localhost/admin/course-categories/{$theirs}")
+            ->assertNotFound();
+        $this->assertNotNull(DB::table('core_course_categories')->where('id', $theirs)->first());
+
+        $this->actingAs($admin)
+            ->deleteJson("https://tenant-a.localhost/admin/course-categories/{$mine}")
+            ->assertOk();
+    }
+
+    public function test_teacher_can_delete_only_their_own_empty_category_and_guests_cannot_delete(): void
+    {
+        $customerId = $this->createTenant();
+        $teacher = $this->createUser($customerId, 'teacher');
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $own = $this->createCategory($customerId, 'Own', 'own', createdBy: $teacher->id);
+        $others = $this->createCategory($customerId, 'Others', 'others', createdBy: $admin->id);
+
+        $this->deleteJson("https://tenant-a.localhost/teacher/course-categories/{$own}")->assertUnauthorized();
+        $this->actingAs($teacher)
+            ->deleteJson("https://tenant-a.localhost/teacher/course-categories/{$others}")
+            ->assertForbidden();
+        $this->assertNotNull(DB::table('core_course_categories')->where('id', $others)->first());
+        $this->actingAs($teacher)
+            ->deleteJson("https://tenant-a.localhost/teacher/course-categories/{$own}")
+            ->assertOk();
+        $this->assertNull(DB::table('core_course_categories')->where('id', $own)->first());
+    }
+
+    public function test_non_json_delete_redirects_with_a_message_or_the_reason(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $free = $this->createCategory($customerId, 'Free', 'free');
+        $used = $this->createCategory($customerId, 'Used', 'used');
+        $this->createProduct($customerId, $used, 'p1');
+
+        $this->actingAs($admin)
+            ->delete("https://tenant-a.localhost/admin/course-categories/{$free}")
+            ->assertRedirect('https://tenant-a.localhost/admin/course-categories')
+            ->assertSessionHas('success', __('lf.LF_course_category_common_deleted'));
+        $this->actingAs($admin)
+            ->from('https://tenant-a.localhost/admin/course-categories')
+            ->delete("https://tenant-a.localhost/admin/course-categories/{$used}")
+            ->assertRedirect('https://tenant-a.localhost/admin/course-categories')
+            ->assertSessionHasErrors(['category']);
+        $this->assertNotNull(DB::table('core_course_categories')->where('id', $used)->first());
+    }
+
+    public function test_index_enables_delete_only_for_unused_categories_and_explains_why_not(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $free = $this->createCategory($customerId, 'Free category', 'free-category');
+        $used = $this->createCategory($customerId, 'Used category', 'used-category');
+        $this->createProduct($customerId, $used, 'p1');
+
+        $content = $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/course-categories')
+            ->assertOk()
+            ->getContent();
+
+        $this->assertSame(2, $this->htmlElementCount($content, '//button[@data-ui-row-delete]'));
+        $this->assertSame(
+            1,
+            $this->htmlElementCount($content, '//button[@data-ui-row-delete and not(@disabled) and @data-url="https://tenant-a.localhost/admin/course-categories/'.$free.'"]')
+        );
+        $this->assertSame(
+            1,
+            $this->htmlElementCount($content, '//button[@data-ui-row-delete and @disabled and @aria-disabled="true" and contains(@title, "1 ")]')
+        );
+        $this->assertStringContainsString(__('lf.LF_course_category_delete_blocked_products', ['count' => 1]), $content);
+        $this->assertStringContainsString('data-csrf=', $content);
+        $this->assertStringContainsString('resources/js/admin-ui-kit-row-actions.js', $content);
+    }
+
+    public function test_featured_categories_show_a_star_with_an_accessible_name_instead_of_caption_text(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $this->createCategory($customerId, 'Plain category', 'plain-category');
+        $featuredId = $this->createCategory($customerId, 'Starred category', 'starred-category');
+        DB::table('core_course_categories')->where('id', $featuredId)->update(['is_featured' => true]);
+
+        $content = $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/course-categories')
+            ->assertOk()
+            ->getContent();
+
+        $label = __('lf.LF_course_category_common_featured');
+        $this->assertSame(1, $this->htmlElementCount($content, '//span[contains(concat(" ", normalize-space(@class), " "), " mk-featured ")]'));
+        $this->assertSame(
+            1,
+            $this->htmlElementCount(
+                $content,
+                '//span[contains(@class, "mk-name-line")][span[contains(@class, "mk-name-text") and normalize-space(.)="Starred category"]]'
+                .'/span[contains(@class, "mk-featured") and @title="'.$label.'"][svg[@aria-hidden="true"]][span[contains(@class, "ui-sr-only") and normalize-space(.)="'.$label.'"]]'
+            )
+        );
+        $this->assertSame(
+            0,
+            $this->htmlElementCount($content, '//span[@class="ui-caption" and normalize-space(.)="'.$label.'"]'),
+            'the featured label is no longer plain caption text next to the name'
+        );
+    }
+
     public function test_category_index_paginates_ten_records_with_a_continuous_sequence_column(): void
     {
         $customerId = $this->createTenant();

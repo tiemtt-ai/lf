@@ -10,6 +10,7 @@ export default defineConfig({
                 'resources/js/admin-ui-kit-dialog.js',
                 'resources/js/admin-ui-kit-controls.js',
                 'resources/js/admin-ui-kit-dialog-form.js',
+                'resources/js/admin-ui-kit-row-actions.js',
                 'resources/css/auth.css',
                 'resources/css/tenant-site.css',
                 'resources/js/app.js',
