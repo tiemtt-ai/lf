@@ -158,8 +158,127 @@ export function initUiKitSelect(select) {
     return instance;
 }
 
+const LIVE_FILTER_DELAY_MS = 350;
+
+/**
+ * Filters a list in place: the form's GET request is fetched and only the
+ * [data-ui-live-region] blocks are swapped, so the search box keeps focus.
+ * Only the latest request may touch the page; anything unexpected falls back
+ * to a normal page load of the same URL. Without JavaScript the form submits.
+ */
+export function initUiKitLiveFilter(form, deps = {}) {
+    if (instances.has(form)) return instances.get(form);
+    const root = form.closest('.lf-admin-ui');
+    if (!root) return null;
+    const win = deps.window ?? window;
+    const delay = deps.delay ?? LIVE_FILTER_DELAY_MS;
+    const parse = deps.parse ?? (html => new win.DOMParser().parseFromString(html, 'text/html'));
+    const params = deps.params ?? (() => new URLSearchParams(new FormData(form)));
+    let seq = 0;
+    let timer = null;
+    let controller = null;
+    let composing = false;
+    let lastUrl = null;
+
+    const buildUrl = () => {
+        const url = new URL(form.getAttribute('action'), win.location.href);
+        url.search = '';
+        for (const [key, value] of params()) {
+            if (String(value).trim() !== '') url.searchParams.append(key, value);
+        }
+        return url.toString();
+    };
+    const navigate = url => win.location.assign(url);
+    const cancelTimer = () => {
+        if (timer !== null) win.clearTimeout(timer);
+        timer = null;
+    };
+    const run = async () => {
+        cancelTimer();
+        const mine = ++seq;
+        const url = buildUrl();
+        lastUrl = url;
+        controller?.abort();
+        controller = new win.AbortController();
+        root.setAttribute('aria-busy', 'true');
+        try {
+            const response = await win.fetch(url, {
+                headers: { Accept: 'text/html', 'X-Requested-With': 'XMLHttpRequest' },
+                credentials: 'same-origin',
+                signal: controller.signal,
+            });
+            if (mine !== seq) return;
+            if (!response.ok || response.redirected) {
+                navigate(response.redirected ? response.url : url);
+                return;
+            }
+            const html = await response.text();
+            if (mine !== seq) return;
+            const doc = parse(html);
+            const current = [...root.querySelectorAll('[data-ui-live-region]')];
+            const next = current.map(node => doc.querySelector(`[data-ui-live-region="${node.getAttribute('data-ui-live-region')}"]`));
+            if (current.length === 0 || next.some(node => !node)) {
+                navigate(url);
+                return;
+            }
+            current.forEach((node, index) => node.replaceWith(win.document.importNode(next[index], true)));
+            win.history.replaceState(win.history.state, '', url);
+        } catch (error) {
+            if (mine !== seq) return;
+            navigate(url);
+        } finally {
+            if (mine === seq) root.removeAttribute('aria-busy');
+        }
+    };
+    const schedule = () => {
+        if (composing) return;
+        cancelTimer();
+        timer = win.setTimeout(() => {
+            timer = null;
+            if (buildUrl() !== lastUrl) run();
+        }, delay);
+    };
+    const onSubmit = event => {
+        event.preventDefault();
+        run();
+    };
+    const onInput = event => {
+        if (event.target?.type !== 'search' || event.isComposing) return;
+        schedule();
+    };
+    const onCompositionStart = () => {
+        composing = true;
+        cancelTimer();
+    };
+    const onCompositionEnd = event => {
+        composing = false;
+        if (event.target?.type === 'search') schedule();
+    };
+
+    lastUrl = buildUrl();
+    form.addEventListener('submit', onSubmit);
+    form.addEventListener('input', onInput);
+    form.addEventListener('compositionstart', onCompositionStart);
+    form.addEventListener('compositionend', onCompositionEnd);
+    const instance = { run, destroy() {
+        cancelTimer();
+        seq++;
+        controller?.abort();
+        form.removeEventListener('submit', onSubmit);
+        form.removeEventListener('input', onInput);
+        form.removeEventListener('compositionstart', onCompositionStart);
+        form.removeEventListener('compositionend', onCompositionEnd);
+        instances.delete(form);
+    } };
+    instances.set(form, instance);
+    return instance;
+}
+
 if (typeof document !== 'undefined') {
-    const initialize = () => document.querySelectorAll('.lf-admin-ui select[data-ui-kit-select]').forEach(initUiKitSelect);
+    const initialize = () => {
+        document.querySelectorAll('.lf-admin-ui select[data-ui-kit-select]').forEach(initUiKitSelect);
+        document.querySelectorAll('.lf-admin-ui form[data-ui-live-filter]').forEach(form => initUiKitLiveFilter(form));
+    };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initialize, { once: true });
     else initialize();
 }

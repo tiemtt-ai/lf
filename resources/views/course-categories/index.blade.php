@@ -5,7 +5,7 @@
 
 @section('vite')
     @parent
-    @vite('resources/css/admin/admin-ui-kit.css')
+    @vite(['resources/css/admin/admin-ui-kit.css', 'resources/js/admin-ui-kit-controls.js'])
 @endsection
 
 @section('content')
@@ -31,7 +31,7 @@
     @endif
 
     <section class="mk-section" aria-labelledby="admin-page-title">
-        <form class="mk-tablebar mk-tablebar--filters" method="GET" action="{{ route($routePrefix.'.index') }}">
+        <form class="mk-tablebar mk-tablebar--filters" method="GET" action="{{ route($routePrefix.'.index') }}" data-ui-live-filter>
             <div class="ui-field mk-search">
                 <label class="ui-field__label" for="keyword">
                     {{ __('lf.LF_course_category_common_keyword') }}
@@ -55,7 +55,7 @@
                 get matches() { return this.options.filter(item => item.label.toLocaleLowerCase().includes(this.query.toLocaleLowerCase())); },
                 get label() { return this.options.find(item => item.value === this.value)?.label ?? ''; },
                 close() { this.open = false; this.query = ''; this.active = -1; },
-                choose(item) { if (!item) return; this.value = item.value; this.close(); this.$refs.input.focus(); this.open = false; },
+                choose(item) { if (!item) return; const changed = this.value !== item.value; this.value = item.value; this.close(); this.$refs.input.focus(); this.open = false; if (changed) this.$nextTick(() => this.$refs.input.form?.requestSubmit()); },
                 move(step) { this.open = true; this.active = Math.max(0, Math.min(this.matches.length - 1, this.active + step)); }
             }" @click.outside="close()" @focusout="if (!$el.contains($event.relatedTarget)) close()">
                 <label class="ui-field__label" for="status" x-bind:for="'category-status-input'">
@@ -94,23 +94,26 @@
                     </div>
                 </div>
             </div>
-            @if ($hasActiveFilters)
-                <a class="ui-button ui-button--outline cursor-interaction" href="{{ route($routePrefix.'.index') }}">
-                    {{ __('lf.LF_course_category_common_clear_filters') }}
-                </a>
-            @endif
+            <span class="ui-live-slot" data-ui-live-region="clear-filters">
+                @if ($hasActiveFilters)
+                    <a class="ui-button ui-button--outline cursor-interaction" href="{{ route($routePrefix.'.index') }}">
+                        {{ __('lf.LF_course_category_common_clear_filters') }}
+                    </a>
+                @endif
+            </span>
             <a href="{{ route($routePrefix.'.create') }}" class="mk-toolbar-action ui-button ui-button--primary cursor-interaction">
                 <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
                 {{ __('lf.LF_course_category_common_create') }}
             </a>
         </form>
 
-    <div class="mk-table-scroll" role="region" aria-label="{{ __('lf.LF_course_category_common_title') }}" tabindex="0">
+    <div class="mk-table-scroll" data-ui-live-region="table" role="region" aria-label="{{ __('lf.LF_course_category_common_title') }}" tabindex="0">
         <table aria-labelledby="admin-page-title">
             <colgroup>
                 <col class="mk-col-sequence">
                 <col>
                 <col class="mk-col-parent">
+                <col class="mk-col-count">
                 <col class="mk-col-status">
                 <col class="mk-col-action">
             </colgroup>
@@ -119,6 +122,7 @@
                 <th scope="col" class="mk-sequence">{{ __('lf.table_no') }}</th>
                 <th scope="col" class="mk-text-cell">{{ __('lf.LF_course_category_common_name') }}</th>
                 <th scope="col" class="mk-text-cell">{{ __('lf.LF_course_category_common_parent') }}</th>
+                <th scope="col" class="mk-count-cell">{{ __('lf.LF_course_category_index_product_count') }}</th>
                 <th scope="col" class="ux-action-cell">{{ __('lf.LF_course_category_common_status') }}</th>
                 <th scope="col" class="ux-action-cell">{{ __('lf.table_actions') }}</th>
             </tr>
@@ -140,12 +144,18 @@
                         data-label="{{ __('lf.LF_course_category_common_parent') }}">
                         {{ $category->parent_name ?? __('lf.LF_course_category_common_root') }}
                     </td>
+                    <td @class(['mk-count-cell', 'mk-na' => (int) $category->product_count === 0])
+                        data-label="{{ __('lf.LF_course_category_index_product_count') }}">
+                        {{ number_format((int) $category->product_count) }}
+                    </td>
                     <td class="ux-action-cell" data-label="{{ __('lf.LF_course_category_common_status') }}">
-                        <span>
-                            {{ $category->status === 'active'
-                                ? __('lf.LF_common_status_common_active')
-                                : __('lf.LF_common_status_common_inactive') }}
-                        </span>
+                        <form method="POST" action="{{ route($routePrefix.'.toggle-status', $category->id) }}">
+                            @csrf
+                            <button type="submit" class="ux-row-switch cursor-interaction" role="switch"
+                                    aria-checked="{{ $category->status === 'active' ? 'true' : 'false' }}"
+                                    aria-label="{{ __('lf.LF_course_category_action_toggle_status') }}: {{ $category->name }}"
+                                    title="{{ $category->status === 'active' ? __('lf.LF_common_status_common_active') : __('lf.LF_common_status_common_inactive') }}"></button>
+                        </form>
                     </td>
                     <td class="ux-action-cell" data-label="{{ __('lf.table_actions') }}">
                         <a class="ux-row-edit cursor-interaction" href="{{ route($routePrefix.'.edit', $category->id) }}" aria-label="{{ __('lf.LF_course_category_action_edit') }}: {{ $category->name }}" title="{{ __('lf.LF_course_category_action_edit') }}" data-tooltip="{{ __('lf.LF_course_category_action_edit') }}">
@@ -155,19 +165,15 @@
                 </tr>
             @empty
                 <tr class="mk-empty-row">
-                    <td class="mk-empty" colspan="5">
+                    <td class="mk-empty" colspan="6">
                         <div role="status">
                             <strong>{{ $hasActiveFilters ? __('lf.LF_course_category_filter_empty') : __('lf.LF_course_category_common_empty') }}</strong>
                             <p class="ui-caption">{{ $hasActiveFilters ? __('lf.LF_course_category_filter_empty_help') : __('lf.LF_course_category_empty_help') }}</p>
-                            @if ($hasActiveFilters)
-                                <a class="ui-button ui-button--outline" href="{{ route($routePrefix.'.index') }}">
-                                    {{ __('lf.LF_course_category_common_clear_filters') }}
-                                </a>
-                            @else
+                            @unless ($hasActiveFilters)
                                 <a class="ui-button ui-button--primary" href="{{ route($routePrefix.'.create') }}">
                                     {{ __('lf.LF_course_category_common_create') }}
                                 </a>
-                            @endif
+                            @endunless
                         </div>
                     </td>
                 </tr>
@@ -176,8 +182,8 @@
         </table>
     </div>
 
-        <div class="mk-table-foot">
-            <span class="mk-footnote">{{ __('lf.LF_common_pagination_summary', ['from' => $categories->firstItem() ?? 0, 'to' => $categories->lastItem() ?? 0, 'total' => $categories->total()]) }}</span>
+        <div class="mk-table-foot" data-ui-live-region="foot">
+            <span class="mk-footnote" role="status">{{ __('lf.LF_common_pagination_summary', ['from' => $categories->firstItem() ?? 0, 'to' => $categories->lastItem() ?? 0, 'total' => $categories->total()]) }}</span>
             <nav class="mk-pages" aria-label="{{ __('lf.LF_course_category_common_title') }}">
                 @if ($categories->onFirstPage())
                     <button type="button" class="mk-page" disabled aria-label="{{ html_entity_decode(__('pagination.previous'), ENT_QUOTES, 'UTF-8') }}">‹</button>

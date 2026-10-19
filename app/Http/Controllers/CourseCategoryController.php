@@ -52,6 +52,12 @@ class CourseCategoryController extends Controller
             ->orderByDesc('categories.created_at')
             ->orderByDesc('categories.id')
             ->select('categories.*', 'parent.name as parent_name')
+            ->selectSub(function ($query) use ($customerId): void {
+                $query->from('core_course_products as products')
+                    ->selectRaw('count(*)')
+                    ->whereColumn('products.category_id', 'categories.id')
+                    ->where('products.customer_id', $customerId);
+            }, 'product_count')
             ->paginate(10)
             ->withQueryString();
 

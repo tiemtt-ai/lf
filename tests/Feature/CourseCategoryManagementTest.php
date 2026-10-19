@@ -79,12 +79,21 @@ class CourseCategoryManagementTest extends TestCase
             __('lf.LF_course_category_common_parent'),
             $this->tableHeaderText($adminResponse->getContent(), 3)
         );
-        $this->assertSame(5, preg_match_all('/<th\b/', $adminResponse->getContent()));
+        $this->assertSame(
+            __('lf.LF_course_category_index_product_count'),
+            $this->tableHeaderText($adminResponse->getContent(), 4)
+        );
+        $this->assertSame(6, preg_match_all('/<th\b/', $adminResponse->getContent()));
         $this->assertMatchesRegularExpression(
             '/<th\b[^>]*\bclass="(?:[^" ]+ )*mk-sequence(?: [^"]*)?"/',
             $adminResponse->getContent()
         );
-        $adminResponse->assertSee('mk-text-cell mk-na', false);
+        $adminResponse->assertSee('mk-text-cell mk-na', false)
+            ->assertSee('data-ui-live-filter', false)
+            ->assertSee('data-ui-live-region="table"', false)
+            ->assertSee('data-ui-live-region="foot"', false)
+            ->assertSee('data-ui-live-region="clear-filters"', false)
+            ->assertSee('requestSubmit()', false);
         $css = file_get_contents(resource_path('css/admin/admin-ui-kit.css'));
         $this->assertStringContainsString(
             '.lf-admin-ui .mk-text-cell',
@@ -110,6 +119,47 @@ class CourseCategoryManagementTest extends TestCase
         $this->assertSame(
             __('lf.LF_course_category_common_parent'),
             $this->tableHeaderText($teacherResponse->getContent(), 3)
+        );
+    }
+
+    public function test_category_index_shows_tenant_scoped_product_count_and_status_switch(): void
+    {
+        $customerId = $this->createTenant();
+        $otherCustomerId = $this->createTenant('tenant-b');
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $withProducts = $this->createCategory($customerId, 'Counted Category', 'counted-category');
+        $this->createCategory($customerId, 'Paused Category', 'paused-category', status: 'inactive');
+
+        $this->createProduct($customerId, $withProducts, 'counted-1');
+        $this->createProduct($customerId, $withProducts, 'counted-2');
+        $this->createProduct($otherCustomerId, $withProducts, 'foreign-1');
+
+        $html = $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/course-categories')
+            ->assertOk()
+            ->getContent();
+
+        $xpath = new \DOMXPath(tap(new \DOMDocument, fn ($dom) => @$dom->loadHTML($html)));
+        $counts = [];
+        $statuses = [];
+        foreach ($xpath->query('//table/tbody/tr') as $row) {
+            $name = trim($xpath->query('./td[2]/span', $row)->item(0)->textContent);
+            $counts[$name] = trim($xpath->query('./td[4]', $row)->item(0)->textContent);
+            $switch = $xpath->query('./td[5]/form/button[@role="switch"]', $row)->item(0);
+            $statuses[$name] = [
+                $switch->getAttribute('class'),
+                $switch->getAttribute('aria-checked'),
+                $xpath->query('./td[5]/form', $row)->item(0)->getAttribute('action'),
+            ];
+        }
+
+        $this->assertSame(['Paused Category' => '0', 'Counted Category' => '2'], $counts);
+        $this->assertSame('ux-row-switch cursor-interaction', $statuses['Counted Category'][0]);
+        $this->assertSame('true', $statuses['Counted Category'][1]);
+        $this->assertSame('false', $statuses['Paused Category'][1]);
+        $this->assertSame(
+            route('admin.course-categories.toggle-status', $withProducts),
+            $statuses['Counted Category'][2]
         );
     }
 
@@ -179,13 +229,19 @@ class CourseCategoryManagementTest extends TestCase
 
         $this->createCategory($customerId, 'Existing Category', 'existing-category');
 
-        $this->get('https://tenant-a.localhost/admin/course-categories?keyword=missing')
+        $filtered = $this->get('https://tenant-a.localhost/admin/course-categories?keyword=missing')
             ->assertOk()
             ->assertSee('mk-empty', false)
             ->assertSeeText(__('lf.LF_course_category_filter_empty'))
             ->assertSeeText(__('lf.LF_course_category_filter_empty_help'))
             ->assertSeeText(__('lf.LF_course_category_common_clear_filters'))
             ->assertDontSeeText(__('lf.LF_course_category_common_empty'));
+        $this->assertSame(
+            1,
+            substr_count($filtered->getContent(), '>'.__('lf.LF_course_category_common_clear_filters').'<')
+            + substr_count(preg_replace('/\s+/', ' ', $filtered->getContent()), '> '.__('lf.LF_course_category_common_clear_filters').' <'),
+            'Clear-filters appears once; the empty state does not repeat it.'
+        );
     }
 
     public function test_admin_can_create_a_category_with_documented_fields(): void
@@ -814,6 +870,26 @@ class CourseCategoryManagementTest extends TestCase
             'slug' => $slug,
             'subdomain' => $slug,
             'status' => 'active',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    private function createProduct(int $customerId, int $categoryId, string $code): int
+    {
+        return DB::table('core_course_products')->insertGetId([
+            'customer_id' => $customerId,
+            'category_id' => $categoryId,
+            'product_code' => $code,
+            'product_type' => 'course',
+            'title' => $code,
+            'slug' => $code,
+            'thumbnail_type' => 'image',
+            'price' => 0,
+            'currency' => 'VND',
+            'enrollment_type' => 'open',
+            'visibility' => 'public',
+            'status' => 'draft',
             'created_at' => now(),
             'updated_at' => now(),
         ]);

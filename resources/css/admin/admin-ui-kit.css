@@ -1709,7 +1709,7 @@
 /* Keep real empty-state copy visible without horizontally scrolling a wide table. */
 .lf-admin-ui .mk-table-scroll { container-type: inline-size; }
 .lf-admin-ui .mk-empty > [role=status] {
-    inline-size: calc(100cqw - 36px);
+    inline-size: calc(100cqw - 37px);
     max-inline-size: 100%;
     white-space: normal;
 }
@@ -1730,7 +1730,11 @@
 .lf-admin-ui .mk-toolbar-action { margin-left: auto; }
 .lf-admin-ui .mk-col-sequence { width: 64px; }
 .lf-admin-ui .mk-col-parent { width: 26%; }
+.lf-admin-ui .ui-live-slot { display: contents; }
+.lf-admin-ui[aria-busy=true] [data-ui-live-region=table] { opacity: .6; transition: opacity .12s; }
+.lf-admin-ui .mk-col-count { width: 120px; }
 .lf-admin-ui .mk-col-status { width: 150px; }
+.lf-admin-ui :is(th, td).mk-count-cell { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .lf-admin-ui .mk-col-action { width: 96px; }
 .lf-admin-ui :is(th, td).mk-sequence { text-align: center; }
 @media (max-width: 520px) {

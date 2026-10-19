@@ -612,3 +612,67 @@ Grouping closure: browser confirms summary and controls right-aligned at 1440,
 21 PASS / 204 assertions, CSS checks 3 PASS, build, targeted Pint, docs lint and
 diff check PASS. No temporary artifacts. Final verdict PASS WITH DOCUMENTED
 RISKS; physical touch and exhaustive visual states remain unverified.
+
+## Category list status switch and product count — 2026-10-19
+
+Owner approved two list refinements on `/admin|teacher/course-categories`
+("áp dụng UI KIT"): status uses the UI Kit `ux-row-switch` instead of plain
+text, and a new "Số sản phẩm / Products" column. No new status visual was
+invented; a short-lived pill variant was removed in favour of the UI Kit switch.
+
+Each switch is a `role="switch"` submit button inside a POST form (CSRF) to the
+existing `<prefix>.course-categories.toggle-status` route; aria-checked mirrors
+status, aria-label uses new key `LF_course_category_action_toggle_status`.
+Controller toggle logic, tenant scope and the success flash are unchanged; works
+without JavaScript and redirects back with the current filters/page. Existing
+behaviour noted, not changed: toggle/edit check tenant only, not teacher
+ownership; teachers only see switches on categories they created.
+
+Shared CSS adds only `mk-col-count`/`mk-count-cell` (right-aligned, tabular
+numbers). The controller counts `core_course_products` per category with a
+correlated subquery filtered by `products.customer_id` = current tenant, so
+another tenant's rows never count.
+
+Classification: Existing-Feature Change; Audit Level MEDIUM; no route, schema,
+auth or business-rule change. Files: CourseCategoryController (count only),
+category index Blade, shared CSS, VI/EN lf.php, CourseCategoryManagementTest.
+
+## Category list live filter — 2026-10-19
+
+Owner request: choosing a status filters at once; typing in the search box
+filters as you type (Enter or the search button still work).
+
+`initUiKitLiveFilter` in `resources/js/admin-ui-kit-controls.js` (opt-in via
+`form[data-ui-live-filter]`) intercepts the GET form submit, fetches the same
+URL and swaps only `[data-ui-live-region]` nodes (`table`, `foot`,
+`clear-filters`) parsed with DOMParser; no HTML string sink. The form itself is
+never replaced, so the search box keeps focus and caret. Typing waits 350 ms
+after the last keystroke, never runs during IME composition (Vietnamese
+Telex/VNI) and skips a query identical to the last one. The status combobox
+calls `requestSubmit()` only when its value changes. URL updates with
+`history.replaceState`; pagination resets to page 1. Only the latest request
+may touch the page (sequence counter + AbortController). HTTP error, redirect
+(e.g. expired session), missing region or network error loads the same URL
+normally. Without JavaScript the form submits as before. Server, route, query
+and tenant scope unchanged. CSS adds `ui-live-slot` (display: contents) and a
+dimmed table while `aria-busy`; footer summary is `role="status"`.
+
+Verification: tests/js/admin-ui-kit-live-filter.test.mjs 11 PASS (stale
+response, late body, late failure, debounce, IME, fallbacks); mutation check
+of 6 guards all killed. CourseCategoryManagementTest 22 PASS. Browser (static
+rendered pages, 1440x800): typing "So" swapped to 1 row with focus and value kept,
+clear-filters appeared; choosing "Không hoạt động" fetched `status=inactive`
+without page reload. Not verified on the live authenticated session, real
+Vietnamese IME, mobile or screen readers.
+
+### Category list balance fixes — 2026-10-19
+
+Owner screenshot showed a horizontal scrollbar under the empty state and two
+"Xóa bộ lọc" buttons. Measured at 1440px: table 1143px vs scroll container
+1142px, because the empty-state block (`100cqw - 36px`) ignored the 1px cell
+border; it is now `100cqw - 37px` (scrollWidth equals clientWidth). The empty
+state no longer repeats the clear-filters button when filters are active; the
+toolbar one remains and the create button still shows for an empty tenant. The
+magnifier shown in a focused combobox is the original UI Kit design, unchanged.
+Verification: CourseCategoryManagementTest 22 PASS (new count assertion fails when
+the duplicate is restored); browser check on a rendered empty-filter page.
