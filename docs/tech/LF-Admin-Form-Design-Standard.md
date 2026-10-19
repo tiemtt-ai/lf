@@ -1,6 +1,6 @@
 # LearnForge Admin Form And List Design Standard
 
-Version: 1.6
+Version: 1.7
 
 Document Status: Approved
 
@@ -43,7 +43,12 @@ Các từ khóa normative:
 
 ---
 
-## UI Kit adoption — Owner instruction 2026-10-19
+## UI Kit adoption — Owner approved 2026-10-19
+
+Owner đã duyệt thiết kế Shared CSS và popup UI KIT 1/2/3 cột làm chuẩn cho
+Admin/Giáo viên. Chưa áp dụng vào các form hiện tại; chỉ rollout khi Owner chỉ
+định chức năng. Phê duyệt thiết kế không thay thế các kiểm tra kỹ thuật còn
+pending/blocked trong [hướng dẫn Shared CSS](LF-Admin-UI-Kit-Shared-CSS.md).
 
 Trigger **“áp dụng UI KIT”** yêu cầu dùng
 [Shared UI Kit CSS](LF-Admin-UI-Kit-Shared-CSS.md) cho form Admin/Teacher

@@ -1,14 +1,35 @@
 # LF Admin UI Kit Shared CSS
 
-Version: 1.1
+Version: 1.2
 
-Document Status: Review
+Document Status: Approved
 
 Implementation Status: Partial
 
 Last Updated: 2026-10-19
 
 Document Path: tech/LF-Admin-UI-Kit-Shared-CSS.md
+
+## Owner approval — 2026-10-19
+
+Owner đã xác nhận thiết kế preview đúng yêu cầu và phê duyệt Shared CSS cùng
+popup UI KIT 1/2/3 cột làm chuẩn dùng chung cho **Admin/Giáo viên**. Các item
+trong popup dùng cùng Shared CSS với form; UI Kit Developer gốc tiếp tục là
+visual reference, không chỉnh sửa bản gốc. Shared CSS là nguồn implementation
+presentation duy nhất cho consumer opt-in.
+
+Khi Owner yêu cầu **“áp dụng UI KIT”** hoặc **“áp dụng popup UI KIT [1/2/3 cột]
+cho [chức năng]”**, dùng contract trong tài liệu này cho đúng chức năng được
+chỉ định. Phê duyệt chuẩn thiết kế không đồng nghĩa phê duyệt rollout: **chưa
+áp dụng vào các form hiện tại**, không tự migrate và không đổi nghiệp vụ,
+validation, tenant/auth hay luồng lưu dữ liệu. Các điều chỉnh thiết kế tiếp theo
+thực hiện theo yêu cầu Owner.
+
+Phê duyệt visual của Owner không thay thế bằng chứng kiểm thử kỹ thuật.
+Implementation Status vẫn là Partial: các kiểm tra native browser PC/tablet/mobile,
+cuộn, đóng popup và trả focus chưa kiểm chứng được vẫn giữ trạng thái pending/
+blocked trong phần verification bên dưới; không chuyển thành PASS từ xác nhận
+thiết kế này.
 
 ## Contract and adoption
 

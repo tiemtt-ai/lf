@@ -1,6 +1,6 @@
 # LF-Tech-CSS.md
 
-Version: 1.2
+Version: 1.3
 
 Document Status: Approved
 
@@ -36,7 +36,12 @@ Owner yêu cầu áp dụng trực tiếp, thay thế layout cũ và cho phép c
   expanded/collapsed/drawer và VI/EN; không tuyên bố pixel parity nếu chưa đo.
 
 
-## Shared UI Kit — Owner instruction 2026-10-19
+## Shared UI Kit — Owner approved 2026-10-19
+
+Owner đã duyệt thiết kế Shared CSS và popup UI KIT 1/2/3 cột làm chuẩn cho
+Admin/Giáo viên. Chưa áp dụng vào các form hiện tại; chỉ rollout khi Owner chỉ
+định chức năng. Phê duyệt thiết kế không thay thế các kiểm tra kỹ thuật còn
+pending/blocked trong [hướng dẫn Shared CSS](LF-Admin-UI-Kit-Shared-CSS.md).
 
 Khi Owner nói **“áp dụng UI KIT”**, dùng thiết kế gốc
 [`ui-kit-developer`](../ui-demo/ui-kit-developer/README.md) và Shared CSS
