@@ -1,0 +1,5 @@
+/* Preview canvas only; component presentation comes from shared CSS. */
+body {
+    margin: 0;
+    background: #f7f8fb;
+}

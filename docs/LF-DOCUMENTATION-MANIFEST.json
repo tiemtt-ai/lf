@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
-  "generated_or_updated_at": "2026-10-18",
+  "generated_or_updated_at": "2026-10-19",
   "root": "docs",
   "default_locale": "vi",
   "fallback_locale": "en",
   "source_of_truth": "docs/LF-INDEX.md",
-  "document_count": 307,
+  "document_count": 308,
   "documents": [
     {
       "path": "LF-Core-Overview.md",
@@ -12299,6 +12299,49 @@
       "routing_source": "LF-INDEX.md"
     },
     {
+      "path": "tech/LF-Admin-UI-Kit-Shared-CSS.md",
+      "title": "LF Admin UI Kit Shared CSS",
+      "area": "tech",
+      "document_type": "technical_standard",
+      "document_status": "Review",
+      "implementation_status": "Partial",
+      "metadata_complete": true,
+      "authority": "engineering",
+      "canonical_for": [],
+      "topics": [
+        "admin-shared-css",
+        "ui-kit-adoption",
+        "shared-dialog-contract"
+      ],
+      "keywords": {
+        "vi": [
+          "áp dụng UI KIT",
+          "CSS dùng chung quản trị",
+          "mẫu giao diện giáo viên",
+          "áp dụng popup UI KIT"
+        ],
+        "en": [
+          "shared admin CSS",
+          "UI kit adoption",
+          "visual fidelity",
+          "shared popup contract"
+        ]
+      },
+      "identifiers": [
+        "lf-admin-ui",
+        "admin-ui-kit.css",
+        "admin-ui-kit-dialog.js",
+        "data-columns"
+      ],
+      "related_documents": [
+        "tech/LF-Tech-CSS.md",
+        "tech/LF-Admin-Form-Design-Standard.md",
+        "ui-demo/ui-kit-developer/README.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
       "path": "tech/LF-Tech-AWS.md",
       "title": "LF-Tech-AWS.md",
       "area": "tech",
@@ -12395,7 +12438,8 @@
         "LF-Tech-CSS"
       ],
       "related_documents": [
-        "tech/LF-Admin-Form-Design-Standard.md"
+        "tech/LF-Admin-Form-Design-Standard.md",
+        "tech/LF-Admin-UI-Kit-Shared-CSS.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"

@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Shared UI KIT — Popup 1/2/3 cột</title>
+<link rel="stylesheet" href="../css/admin/admin-ui-kit.css">
+<link rel="stylesheet" href="admin-ui-kit-preview.css">
+<script type="module" src="../js/admin-ui-kit-dialog.js"></script>
+</head><body>
+<div class="lf-admin-ui lf-admin-ui--catalog" data-ui-dialog-scope>
+<h2>Popup dùng chung — UI KIT</h2>
+<p class="ui-caption">Một markup contract; data-columns chọn 1/2/3 cột. Item bên trong dùng Shared CSS. Đây là dữ liệu mẫu, không lưu.</p>
+<div class="ui-action-row">
+<button type="button" class="ui-button ui-button--primary" data-ui-dialog-open="sample-dialog-1" aria-controls="sample-dialog-1" aria-haspopup="dialog" aria-expanded="false">Popup 1 cột</button>
+<button type="button" class="ui-button ui-button--primary" data-ui-dialog-open="sample-dialog-2" aria-controls="sample-dialog-2" aria-haspopup="dialog" aria-expanded="false">Popup 2 cột</button>
+<button type="button" class="ui-button ui-button--primary" data-ui-dialog-open="sample-dialog-3" aria-controls="sample-dialog-3" aria-haspopup="dialog" aria-expanded="false">Popup 3 cột</button>
+</div>
+
+<!-- Copy one dialog, rename IDs and form fields, set data-columns. Keep shared classes. -->
+<dialog id="sample-dialog-1" class="ui-modal" data-ui-dialog data-columns="1" aria-labelledby="sample-1-title" aria-describedby="sample-1-help">
+    <form class="ui-modal__form" method="dialog">
+        <header class="ui-modal__header">
+            <div><h3 id="sample-1-title">Thông tin mẫu — 1 cột</h3><span class="ui-caption" id="sample-1-help">Mẫu tương tác, không gửi dữ liệu.</span></div>
+            <button class="ui-modal__close" type="button" data-ui-dialog-close aria-label="Đóng popup">×</button>
+        </header>
+        <div class="ui-modal__body"><div class="ui-modal__grid">
+<div class="ui-field">
+    <label class="ui-field__label" for="sample-1-name">Tên mẫu</label>
+    <input id="sample-1-name" name="name" placeholder="Nhập tên" required autofocus>
+</div>
+<div class="ui-field">
+    <label class="ui-field__label" for="sample-1-email">Email</label>
+    <input id="sample-1-email" type="email" name="email" placeholder="name@example.test">
+</div>
+<div class="ui-field">
+    <label class="ui-field__label" for="sample-1-number">Số lượng</label>
+    <input id="sample-1-number" type="number" name="quantity" min="0" value="1">
+</div>
+<div class="ui-field">
+    <label class="ui-field__label" for="sample-1-select">Trạng thái</label>
+    <select id="sample-1-select" name="status"><option>Đang sử dụng</option><option>Chưa sử dụng</option></select>
+</div>
+<div class="ui-field">
+    <label class="ui-field__label" for="sample-1-description">Mô tả</label>
+    <textarea id="sample-1-description" name="description" placeholder="Nhập mô tả"></textarea>
+</div>
+<div class="ui-field">
+    <label class="ui-check" for="sample-1-active"><input id="sample-1-active" type="checkbox" name="active"> Bật tính năng</label>
+</div>
+        </div></div>
+        <footer class="ui-modal__footer">
+            <button class="ui-button" type="button" data-ui-dialog-close>Hủy</button>
+            <button class="ui-button ui-button--primary" type="submit">Xác nhận mẫu</button>
+        </footer>
+    </form>
+</dialog>
+
+<!-- Copy one dialog, rename IDs and form fields, set data-columns. Keep shared classes. -->
+<dialog id="sample-dialog-2" class="ui-modal" data-ui-dialog data-columns="2" aria-labelledby="sample-2-title" aria-describedby="sample-2-help">
+    <form class="ui-modal__form" method="dialog">
+        <header class="ui-modal__header">
+            <div><h3 id="sample-2-title">Thông tin mẫu — 2 cột</h3><span class="ui-caption" id="sample-2-help">Mẫu tương tác, không gửi dữ liệu.</span></div>
+            <button class="ui-modal__close" type="button" data-ui-dialog-close aria-label="Đóng popup">×</button>
+        </header>
+        <div class="ui-modal__body"><div class="ui-modal__grid">
+<div class="ui-field">
+    <label class="ui-field__label" for="sample-2-name">Tên mẫu</label>
+    <input id="sample-2-name" name="name" placeholder="Nhập tên" required autofocus>
+</div>
+<div class="ui-field">
+    <label class="ui-field__label" for="sample-2-email">Email</label>
+    <input id="sample-2-email" type="email" name="email" placeholder="name@example.test">
+</div>
+<div class="ui-field">
+    <label class="ui-field__label" for="sample-2-number">Số lượng</label>
+    <input id="sample-2-number" type="number" name="quantity" min="0" value="1">
+</div>
+<div class="ui-field">
+    <label class="ui-field__label" for="sample-2-select">Trạng thái</label>
+    <select id="sample-2-select" name="status"><option>Đang sử dụng</option><option>Chưa sử dụng</option></select>
+</div>
+<div class="ui-field">
+    <label class="ui-field__label" for="sample-2-description">Mô tả</label>
+    <textarea id="sample-2-description" name="description" placeholder="Nhập mô tả"></textarea>
+</div>
+<div class="ui-field">
+    <label class="ui-check" for="sample-2-active"><input id="sample-2-active" type="checkbox" name="active"> Bật tính năng</label>
+</div>
+        </div></div>
+        <footer class="ui-modal__footer">
+            <button class="ui-button" type="button" data-ui-dialog-close>Hủy</button>
+            <button class="ui-button ui-button--primary" type="submit">Xác nhận mẫu</button>
+        </footer>
+    </form>
+</dialog>
+
+<!-- Copy one dialog, rename IDs and form fields, set data-columns. Keep shared classes. -->
+<dialog id="sample-dialog-3" class="ui-modal" data-ui-dialog data-columns="3" aria-labelledby="sample-3-title" aria-describedby="sample-3-help">
+    <form class="ui-modal__form" method="dialog">
+        <header class="ui-modal__header">
+            <div><h3 id="sample-3-title">Thông tin mẫu — 3 cột</h3><span class="ui-caption" id="sample-3-help">Mẫu tương tác, không gửi dữ liệu.</span></div>
+            <button class="ui-modal__close" type="button" data-ui-dialog-close aria-label="Đóng popup">×</button>
+        </header>
+        <div class="ui-modal__body"><div class="ui-modal__grid">
+<div class="ui-field">
+    <label class="ui-field__label" for="sample-3-name">Tên mẫu</label>
+    <input id="sample-3-name" name="name" placeholder="Nhập tên" required autofocus>
+</div>
+<div class="ui-field">
+    <label class="ui-field__label" for="sample-3-email">Email</label>
+    <input id="sample-3-email" type="email" name="email" placeholder="name@example.test">
+</div>
+<div class="ui-field">
+    <label class="ui-field__label" for="sample-3-number">Số lượng</label>
+    <input id="sample-3-number" type="number" name="quantity" min="0" value="1">
+</div>
+<div class="ui-field">
+    <label class="ui-field__label" for="sample-3-select">Trạng thái</label>
+    <select id="sample-3-select" name="status"><option>Đang sử dụng</option><option>Chưa sử dụng</option></select>
+</div>
+<div class="ui-field">
+    <label class="ui-field__label" for="sample-3-description">Mô tả</label>
+    <textarea id="sample-3-description" name="description" placeholder="Nhập mô tả"></textarea>
+</div>
+<div class="ui-field">
+    <label class="ui-check" for="sample-3-active"><input id="sample-3-active" type="checkbox" name="active"> Bật tính năng</label>
+</div>
+        </div></div>
+        <footer class="ui-modal__footer">
+            <button class="ui-button" type="button" data-ui-dialog-close>Hủy</button>
+            <button class="ui-button ui-button--primary" type="submit">Xác nhận mẫu</button>
+        </footer>
+    </form>
+</dialog>
+</div></body></html>

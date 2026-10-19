@@ -1,12 +1,12 @@
 # LF-INDEX.md
 
-Version: 2.33
+Version: 2.34
 
 Document Status: Approved
 
 Implementation Status: Not Applicable
 
-Last Updated: 2026-10-18
+Last Updated: 2026-10-19
 
 Document Path: LF-INDEX.md
 
@@ -294,6 +294,7 @@ docs/tech/
 | [tech/LF-Tech-Stack.md](tech/LF-Tech-Stack.md) | Technology stack |
 | [tech/LF-Tech-Architecture.md](tech/LF-Tech-Architecture.md) | System architecture |
 | [tech/LF-Tech-CSS.md](tech/LF-Tech-CSS.md) | CSS architecture |
+| [tech/LF-Admin-UI-Kit-Shared-CSS.md](tech/LF-Admin-UI-Kit-Shared-CSS.md) | Shared CSS theo UI Kit Developer; trigger “áp dụng UI KIT”, chỉ opt-in form được chỉ định |
 | [tech/LF-Admin-Form-Design-Standard.md](tech/LF-Admin-Form-Design-Standard.md) | Canonical presentation standard cho LF Admin Create/Edit forms và List/Index pages; kích hoạt bởi “Áp dụng thiết kế tiêu chuẩn”, “Áp dụng chuẩn danh sách” và các trigger tương đương |
 | [tech/LF-Tech-AWS.md](tech/LF-Tech-AWS.md) | AWS infrastructure |
 | [tech/LF-Tech-Runtime-Requirements.md](tech/LF-Tech-Runtime-Requirements.md) | Yêu cầu cài đặt runtime, extension, binary, biến môi trường, CI và gate triển khai production; vận hành queue/scheduler Media → AI Knowledge và điều kiện activation provider |
@@ -753,6 +754,8 @@ Read:
 ---
 
 ## Frontend
+
+Nếu Owner nói “áp dụng UI KIT”, đọc thêm `tech/LF-Admin-UI-Kit-Shared-CSS.md`; chỉ áp dụng cho form được chỉ định.
 
 Read:
 

@@ -1,12 +1,12 @@
 # LF-Tech-CSS.md
 
-Version: 1.1
+Version: 1.2
 
 Document Status: Approved
 
 Implementation Status: Unknown
 
-Last Updated: 2026-10-17
+Last Updated: 2026-10-19
 
 Document Path: tech/LF-Tech-CSS.md
 
@@ -35,6 +35,32 @@ Owner yêu cầu áp dụng trực tiếp, thay thế layout cũ và cho phép c
 * Chỉnh shell phải đối chiếu browser với reference ở desktop/tablet/mobile,
   expanded/collapsed/drawer và VI/EN; không tuyên bố pixel parity nếu chưa đo.
 
+
+## Shared UI Kit — Owner instruction 2026-10-19
+
+Khi Owner nói **“áp dụng UI KIT”**, dùng thiết kế gốc
+[`ui-kit-developer`](../ui-demo/ui-kit-developer/README.md) và Shared CSS
+`resources/css/admin/admin-ui-kit.css` cho **form Admin/Teacher được chỉ định**.
+Đọc [hướng dẫn Shared CSS](LF-Admin-UI-Kit-Shared-CSS.md) trước khi áp dụng.
+Trigger **“áp dụng popup UI KIT [1/2/3 cột] cho [chức năng]”** dùng mẫu popup
+chung và Shared CSS này; chỉ chỉnh popup/chức năng được chỉ định. Nếu không
+nêu số cột, chọn theo nội dung thực tế và giải thích lựa chọn. Không tự migrate
+popup khác hoặc tạo CSS popup riêng theo module.
+Không hiểu trigger này là quyền migrate hàng loạt hoặc thay đổi nghiệp vụ.
+
+* `.lf-admin-ui` là scope opt-in; giữ class item `ui-*`, `ux-*`, `mk-*` của mẫu.
+* Shared stylesheet là nguồn presentation duy nhất cho consumer đã opt-in.
+  HTML/Blade dùng classes trực tiếp; không bắt buộc tạo Blade Component.
+* Typography, kích thước, spacing, màu và states của mẫu ưu tiên các ví dụ
+  tổng quát bên dưới **trong scope này**; không đổi thiết kế theo sở thích.
+* Không copy CSS theo module hoặc nhập CSS trực tiếp từ `docs` vào production.
+* Asset được build riêng; chưa thêm vào backend layout hoặc migrate form.
+  CSS/primitives cũ giữ cho consumer chưa chuyển; không nạp hai bộ style cho
+  cùng item. Chỉ gỡ rule cũ sau khi xác minh hết consumer.
+* Thay visual phải đối chiếu UI Kit bằng browser cùng viewport/font/device scale,
+  gồm states và responsive; báo rõ phần chưa kiểm chứng.
+* Demo JS chỉ phục vụ preview. Tích hợp Alpine/Livewire và semantics thuộc
+  từng task áp dụng form; không copy handler demo thành business integration.
 
 ## Overview
 

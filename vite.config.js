@@ -6,6 +6,8 @@ export default defineConfig({
         laravel({
             input: [
                 'resources/css/backend.css',
+                'resources/css/admin/admin-ui-kit.css',
+                'resources/js/admin-ui-kit-dialog.js',
                 'resources/css/auth.css',
                 'resources/css/tenant-site.css',
                 'resources/js/app.js',

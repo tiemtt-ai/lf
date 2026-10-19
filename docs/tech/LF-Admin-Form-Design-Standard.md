@@ -1,6 +1,6 @@
 # LearnForge Admin Form And List Design Standard
 
-Version: 1.5
+Version: 1.6
 
 Document Status: Approved
 
@@ -8,7 +8,7 @@ Implementation Status: Unknown
 
 Scope: LF Admin Create/Edit Forms And List/Index Pages
 
-Last Updated: 2026-10-17
+Last Updated: 2026-10-19
 
 Document Path: tech/LF-Admin-Form-Design-Standard.md
 
@@ -42,6 +42,22 @@ Các từ khóa normative:
 * **MAY** — tùy chọn.
 
 ---
+
+## UI Kit adoption — Owner instruction 2026-10-19
+
+Trigger **“áp dụng UI KIT”** yêu cầu dùng
+[Shared UI Kit CSS](LF-Admin-UI-Kit-Shared-CSS.md) cho form Admin/Teacher
+được chỉ định, giữ đúng visual `docs/ui-demo/ui-kit-developer`. Đây là opt-in
+presentation; không migrate form khác, không đổi payload, validation, tenant,
+auth hoặc nghiệp vụ. Primitives hiện hành bên dưới tiếp tục dành cho consumer
+chưa opt-in. Consumer UI Kit dùng chung CSS, không tạo CSS cạnh tranh theo module.
+
+Trigger **“áp dụng popup UI KIT”** dùng mẫu `resources/ui/admin-ui-kit-popup.html`,
+chọn `data-columns="1|2|3"`; field trong popup tuân theo Shared CSS như field
+trên form. Có thể copy markup mẫu tới chức năng, nhưng giữ một nguồn CSS và
+adapter dialog chung. Đổi ID/name/label theo instance, không copy dữ liệu/handler
+mẫu hoặc tạo Blade Component mới chỉ để sao chép visual. Token, props domain,
+validation, permissions và save/cancel nghiệp vụ vẫn do chức năng sở hữu.
 
 # 2. AI Agent Trigger
 
