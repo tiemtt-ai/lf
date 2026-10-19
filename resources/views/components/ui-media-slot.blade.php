@@ -7,6 +7,7 @@
     'presentation' => null,
     'displayName' => null,
     'previewUrl' => null,
+    'mime' => null,
     'removeName' => null,
     'uploadLabel' => null,
     'viewLabel' => null,
@@ -46,6 +47,7 @@
      data-pending-previewable="{{ $pendingPreviewable ? 'true' : 'false' }}"
      data-saved-name="{{ $displayName }}"
      data-saved-preview-url="{{ $previewUrl }}"
+     data-saved-mime="{{ $mime }}"
      data-status-selected="{{ __('lf.LF_media_slot_selected', ['name' => ':name']) }}"
      data-status-removed="{{ __('lf.LF_media_slot_removed') }}">
     <div class="ui-media-tile" data-ui-media-tile>

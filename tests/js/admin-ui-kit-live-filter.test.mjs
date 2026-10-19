@@ -232,3 +232,16 @@ test('a save announced by a dialog form in the same scope refetches the list and
     t.instance.destroy();
     assert.equal(root.listeners.has('ui-dialog-form-saved'), false);
 });
+
+test('choosing in a select filters at once; other change targets do not', async () => {
+    const t = setup();
+    t.fields.status = 'active';
+    t.fire('change', { target: { tagName: 'INPUT' } });
+    assert.equal(t.calls.fetch.length, 0);
+    t.fire('change', { target: { tagName: 'SELECT' } });
+    assert.equal(t.calls.fetch.length, 1);
+    assert.equal(t.calls.fetch[0].url, 'https://t.localhost/admin/course-categories?status=active');
+    t.pending[0].resolve(t.ok('table foot'));
+    await t.tick();
+    t.instance.destroy();
+});

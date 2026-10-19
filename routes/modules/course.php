@@ -248,6 +248,9 @@ Route::get('/course-templates/{id}', [CourseTemplateController::class, 'show'])
 Route::get('/course-templates/{id}/edit', [CourseTemplateController::class, 'edit'])
     ->name('course-templates.edit');
 
+Route::get('/course-templates/{id}/form', [CourseTemplateController::class, 'form'])
+    ->name('course-templates.form');
+
 Route::get(
     '/course-templates/{templateId}/media/{slot}/{mediaFileId}',
     [CourseTemplateMediaPreviewController::class, 'show']

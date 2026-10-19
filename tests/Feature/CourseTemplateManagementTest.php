@@ -56,12 +56,16 @@ class CourseTemplateManagementTest extends TestCase
                 ->assertOk()
                 ->assertSeeText('TOPIK Beginner')
                 ->assertSeeText('Template khóa học')
-                ->assertSee('course-template-index-toolbar', false)
-                ->assertSee('course-template-index-count', false)
-                ->assertSee('course-template-filter-grid', false)
-                ->assertSee('course-template-index-table', false)
-                ->assertSee('course-template-status-badge', false)
-                ->assertSee('admin-table-sequence', false)
+                ->assertSee('lf-admin-ui', false)
+                ->assertSee('data-ui-live-filter', false)
+                ->assertSee('data-ui-kit-select', false)
+                ->assertSee('mk-table-scroll', false)
+                ->assertSee('mk-table-foot', false)
+                ->assertSee('ux-row-edit', false)
+                ->assertSee('mk-sequence', false)
+                ->assertSee('data-ui-toast-region', false)
+                ->assertDontSee('course-template-index-table', false)
+                ->assertSee('ui-status ui-status--', false)
                 ->assertSeeText(__('lf.table_no'))
                 ->assertDontSeeText('Private Tenant Template');
         }
@@ -88,25 +92,25 @@ class CourseTemplateManagementTest extends TestCase
             ->assertSeeText('Paginated Template 10')
             ->assertDontSeeText('Paginated Template 01')
             ->assertSeeTextInOrder(['Paginated Template 11', 'Paginated Template 10'])
-            ->assertSee('admin-table-sequence', false);
+            ->assertSee('mk-sequence', false);
 
         $secondPage = $this->get('https://tenant-a.localhost/admin/course-templates?page=2')
             ->assertOk()
             ->assertSeeText('Paginated Template 01')
             ->assertDontSeeText('Paginated Template 11')
-            ->assertSee('admin-table-sequence', false);
+            ->assertSee('mk-sequence', false);
 
         $firstPageDocument = new \DOMDocument;
         @$firstPageDocument->loadHTML($firstPage->getContent());
         $firstPageSequence = (new \DOMXPath($firstPageDocument))
-            ->query('//tbody/tr/td[contains(@class, "admin-table-sequence")]');
+            ->query('//tbody/tr/td[contains(@class, "mk-sequence")]');
         $this->assertCount(10, $firstPageSequence);
         $this->assertSame('10', trim($firstPageSequence->item(9)->textContent));
 
         $secondPageDocument = new \DOMDocument;
         @$secondPageDocument->loadHTML($secondPage->getContent());
         $secondPageSequence = (new \DOMXPath($secondPageDocument))
-            ->query('//tbody/tr/td[contains(@class, "admin-table-sequence")]');
+            ->query('//tbody/tr/td[contains(@class, "mk-sequence")]');
         $this->assertCount(1, $secondPageSequence);
         $this->assertSame('11', trim($secondPageSequence->item(0)->textContent));
     }
@@ -119,7 +123,7 @@ class CourseTemplateManagementTest extends TestCase
         $this->actingAs($admin)
             ->get('https://tenant-a.localhost/admin/course-templates')
             ->assertOk()
-            ->assertSee('course-template-empty-state', false)
+            ->assertSee('mk-empty', false)
             ->assertSeeText(__('lf.LF_course_template_common_empty'))
             ->assertSeeText(__('lf.LF_course_template_empty_help'))
             ->assertSeeText(__('lf.LF_course_template_common_create'));
@@ -128,7 +132,7 @@ class CourseTemplateManagementTest extends TestCase
 
         $this->get('https://tenant-a.localhost/admin/course-templates?keyword=missing')
             ->assertOk()
-            ->assertSee('course-template-empty-state', false)
+            ->assertSee('mk-empty', false)
             ->assertSeeText(__('lf.LF_course_template_filter_empty'))
             ->assertSeeText(__('lf.LF_course_template_filter_empty_help'))
             ->assertSeeText(__('lf.LF_course_template_common_clear_filters'))
@@ -233,89 +237,34 @@ class CourseTemplateManagementTest extends TestCase
             'required-label-course'
         );
 
-        $responses = [
-            $this->actingAs($admin)
-                ->get('https://tenant-a.localhost/admin/course-templates/create')
-                ->assertOk(),
-            $this->actingAs($admin)
-                ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit")
-                ->assertOk(),
-        ];
-        $formPartial = file_get_contents(
-            base_path('resources/views/course-templates/partials/form.blade.php')
-        );
-
-        $this->assertSame(1, substr_count($formPartial, 'class="admin-form-flow"'));
-        $this->assertSame(5, substr_count($formPartial, 'class="admin-form-standard-section"'));
-        $this->assertStringContainsString('aria-labelledby="course-template-basic"', $formPartial);
-        $this->assertStringContainsString('aria-labelledby="course-template-description"', $formPartial);
-        $this->assertStringContainsString('aria-labelledby="course-template-learning"', $formPartial);
-        $this->assertStringContainsString('aria-labelledby="course-template-introduction"', $formPartial);
-        $this->assertStringContainsString('aria-labelledby="course-template-display"', $formPartial);
-        $this->assertMatchesRegularExpression(
-            '/aria-labelledby="course-template-display"[\s\S]*?<div class="lf-form-group admin-form-field--full">[\s\S]*?(?:id="status"|LF_course_template_common_status)/',
-            $formPartial
-        );
-        $this->assertSame(4, substr_count($formPartial, 'admin-form-field--full'));
-        $this->assertStringNotContainsString('admin-form-subsection', $formPartial);
-        $this->assertSame(3, substr_count($formPartial, '<x-authoring-media-row'));
-        $this->assertSame(3, substr_count($formPartial, '<x-authoring-media-upload'));
-        $this->assertSame(1, substr_count($formPartial, ':presentation="$introImageThumbnail"'));
-        $this->assertSame(1, substr_count($formPartial, ':presentation="$introVideoThumbnail"'));
-        $this->assertSame(1, substr_count($formPartial, ':presentation="$introDocumentThumbnail"'));
-        $this->assertStringNotContainsString('course-template-preview-info', $formPartial);
-        $this->assertStringNotContainsString('course-template-preview-name', $formPartial);
-        $this->assertStringNotContainsString('course-template-preview-actions', $formPartial);
-        $this->assertStringContainsString("preview.mediaType === 'embed'", $formPartial);
-        $this->assertStringNotContainsString('syncDefaultSortOrder', $formPartial);
-        $this->assertStringNotContainsString('name="sort_order"', $formPartial);
-
-        foreach ($responses as $response) {
-            foreach ([
-                'category_id',
-                'title',
-                'publisher_name',
-                'status',
-            ] as $field) {
-                $this->assertSame(
-                    1,
-                    $this->requiredIndicatorCount($response->getContent(), $field),
-                    "Expected {$field} to have one required indicator."
-                );
+        $createFragment = $this->actingAs($admin)
+            ->withHeader('X-Requested-With', 'XMLHttpRequest')
+            ->get('https://tenant-a.localhost/admin/course-templates/create')
+            ->assertOk()
+            ->getContent();
+        $editFragment = $this->withHeader('X-Requested-With', 'XMLHttpRequest')
+            ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/form")
+            ->assertOk()
+            ->getContent();
+        foreach ([$createFragment, $editFragment] as $fragment) {
+            foreach (['category_id', 'title', 'publisher_name', 'status'] as $field) {
+                $this->assertSame(1, $this->dialogRequiredIndicatorCount($fragment, $field), "Dialog: {$field} is required.");
             }
-
-            foreach ([
-                'short_description',
-                'description',
-                'intro_image_file',
-                'intro_video_file',
-                'intro_document_file',
-                'intro_image_media_file_id',
-                'intro_video_media_file_id',
-                'difficulty_level',
-                'estimated_minutes_per_lesson',
-                'estimated_lesson_count',
-                'sort_order',
-            ] as $field) {
-                $this->assertSame(
-                    0,
-                    $this->requiredIndicatorCount($response->getContent(), $field),
-                    "Expected {$field} to remain optional."
-                );
+            foreach (['short_description', 'description', 'difficulty_level', 'estimated_minutes_per_lesson', 'estimated_lesson_count'] as $field) {
+                $this->assertSame(0, $this->dialogRequiredIndicatorCount($fragment, $field), "Dialog: {$field} is optional.");
             }
-
-            $response->assertSeeText(__('lf.LF_course_template_group_basic'))
-                ->assertSeeText(__('lf.LF_course_template_group_description'))
-                ->assertSeeText(__('lf.LF_course_template_group_learning'))
-                ->assertSeeText(__('lf.LF_course_template_group_introduction'));
-            $this->assertStringContainsString('admin-form-field-grid--three', $response->getContent());
-            $this->assertStringNotContainsString('name="slug"', $response->getContent());
-            $this->assertManualSeoControlsNotRendered(
-                $response->getContent(),
-                'course-template-seo-title',
-                'LF_course_template'
-            );
+            $this->assertStringNotContainsString('name="slug"', $fragment);
+            $this->assertStringNotContainsString('name="sort_order"', $fragment);
+            $this->assertManualSeoControlsNotRendered($fragment, 'course-template-seo-title', 'LF_course_template');
         }
+
+        // The workspace page no longer carries the form: its Information tab is a summary that opens the dialog.
+        $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit")
+            ->assertOk()
+            ->assertDontSee('id="course-template-update-form"', false)
+            ->assertSee('data-ui-dialog-form-hash-open', false);
+        $this->assertFileDoesNotExist(base_path('resources/views/course-templates/partials/form.blade.php'));
     }
 
     public function test_create_select_defaults_and_edit_saved_values_are_preserved(): void
@@ -325,6 +274,7 @@ class CourseTemplateManagementTest extends TestCase
         $categoryId = $this->createCategory($customerId, 'General', 'general');
 
         $create = $this->actingAs($admin)
+            ->withHeader('X-Requested-With', 'XMLHttpRequest')
             ->get('https://tenant-a.localhost/admin/course-templates/create')
             ->assertOk()
             ->assertSeeText(__('lf.LF_course_template_select_category'))
@@ -338,11 +288,8 @@ class CourseTemplateManagementTest extends TestCase
         $this->assertTrue($this->selectOptionIsSelected($create->getContent(), 'category_id', ''));
         $this->assertTrue($this->selectOptionIsSelected($create->getContent(), 'difficulty_level', ''));
         $this->assertFalse($this->selectOptionIsSelected($create->getContent(), 'category_id', (string) $categoryId));
-        $create->assertSee("'lf-select-placeholder': selectedCategoryId === null || selectedCategoryId === ''", false)
-            ->assertSee("'lf-select-placeholder': selectedDifficulty === null || selectedDifficulty === ''", false)
-            ->assertSee("'lf-select-placeholder': selectedVideoSource === null || selectedVideoSource === ''", false)
-            ->assertSee("'has-value': selectedVideoSource", false)
-            ->assertSee('class="lf-form-control introduction-video-source"', false);
+        $create->assertSee('data-ui-kit-select', false)
+            ->assertSee('selectedVideoSource', false);
 
         $templateId = $this->createTemplate($customerId, 'Saved Selects', 'unused', $admin->id);
         DB::table('core_course_templates')->where('id', $templateId)->update([
@@ -351,12 +298,13 @@ class CourseTemplateManagementTest extends TestCase
             'status' => 'active',
         ]);
 
-        $edit = $this->actingAs($admin)
-            ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit")
-            ->assertOk();
-        $this->assertTrue($this->selectOptionIsSelected($edit->getContent(), 'category_id', (string) $categoryId));
-        $this->assertTrue($this->selectOptionIsSelected($edit->getContent(), 'difficulty_level', 'advanced'));
-        $this->assertTrue($this->selectOptionIsSelected($edit->getContent(), 'status', 'active'));
+        $editFragment = $this->withHeader('X-Requested-With', 'XMLHttpRequest')
+            ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/form")
+            ->assertOk()
+            ->getContent();
+        $this->assertTrue($this->selectOptionIsSelected($editFragment, 'category_id', (string) $categoryId));
+        $this->assertTrue($this->selectOptionIsSelected($editFragment, 'difficulty_level', 'advanced'));
+        $this->assertTrue($this->selectOptionIsSelected($editFragment, 'status', 'active'));
     }
 
     public function test_template_order_defaults_updates_and_category_moves_are_scoped(): void
@@ -445,6 +393,7 @@ class CourseTemplateManagementTest extends TestCase
         DB::table('core_course_templates')->where('id', $templateId)->update(['sort_order' => 8]);
 
         $this->actingAs($admin)
+            ->withHeader('X-Requested-With', 'XMLHttpRequest')
             ->get('https://tenant-a.localhost/admin/course-templates/create')
             ->assertOk()
             ->assertDontSee('selectedSortOrder', false)
@@ -458,22 +407,27 @@ class CourseTemplateManagementTest extends TestCase
         $templateId = $this->createTemplate($customerId, 'Action Labels', 'action-labels', $admin->id);
 
         $create = $this->actingAs($admin)
+            ->withHeader('X-Requested-With', 'XMLHttpRequest')
             ->get('https://tenant-a.localhost/admin/course-templates/create')
             ->assertOk()->assertSeeText('Tạo Template')->getContent();
-        $edit = $this->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit")
+        $edit = $this->withHeader('X-Requested-With', 'XMLHttpRequest')
+            ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/form")
             ->assertOk()->assertSeeText('Lưu thay đổi')->getContent();
         $this->assertMatchesRegularExpression('/<button[^>]*type="submit"[^>]*>\s*Tạo Template\s*<\/button>/', $create);
         $this->assertMatchesRegularExpression('/<button[^>]*type="submit"[^>]*>\s*Lưu thay đổi\s*<\/button>/', $edit);
-        $this->assertStringContainsString('class="admin-form-footer"', $create);
-        $this->assertStringContainsString('class="admin-form-footer"', $edit);
-        $this->assertStringContainsString('class="admin-form-footer-danger"', $edit);
-        $this->assertStringContainsString('class="admin-form-footer-primary"', $edit);
-        $this->assertStringContainsString('form="course-template-update-form"', $edit);
+        $this->assertStringContainsString('class="ui-modal__footer"', $create);
+        $this->assertStringContainsString('class="ui-modal__footer"', $edit);
+
+        $workspace = $this->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit")
+            ->assertOk()->assertSeeText('Sửa thông tin')->getContent();
+        $this->assertStringContainsString('data-ui-dialog-form-open', $workspace);
 
         $englishCreate = $this->withSession(['locale' => 'en'])->actingAs($admin)
+            ->withHeader('X-Requested-With', 'XMLHttpRequest')
             ->get('https://tenant-a.localhost/admin/course-templates/create')
             ->assertOk()->assertSeeText('Create Template')->getContent();
-        $englishEdit = $this->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit")
+        $englishEdit = $this->withHeader('X-Requested-With', 'XMLHttpRequest')
+            ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/form")
             ->assertOk()->assertSeeText('Save Changes')->getContent();
         $this->assertMatchesRegularExpression('/<button[^>]*type="submit"[^>]*>\s*Create Template\s*<\/button>/', $englishCreate);
         $this->assertMatchesRegularExpression('/<button[^>]*type="submit"[^>]*>\s*Save Changes\s*<\/button>/', $englishEdit);
@@ -609,7 +563,7 @@ class CourseTemplateManagementTest extends TestCase
             ->assertOk()
             ->assertSeeText('Đã tạo Template khóa học thành công.')
             ->assertSeeText('Bạn có thể tiếp tục cập nhật thông tin, xây dựng nội dung khóa học, phân công giáo viên và xuất bản phiên bản khi sẵn sàng.')
-            ->assertSee('value="Minimal Template"', false);
+            ->assertSee('Minimal Template');
         $this->assertStringContainsString('role="status"', $firstEdit->getContent());
         $this->assertStringContainsString('class="admin-alert-title"', $firstEdit->getContent());
         $this->assertStringContainsString('class="admin-alert-guidance"', $firstEdit->getContent());
@@ -943,6 +897,338 @@ class CourseTemplateManagementTest extends TestCase
         ]);
     }
 
+    public function test_unused_template_is_deleted_through_json_and_blocked_ones_report_why(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $teacher = $this->createUser($customerId, 'teacher');
+        $free = $this->createTemplate($customerId, 'Free template', 'free-template');
+        $withSection = $this->createTemplate($customerId, 'Has section', 'has-section');
+        $withTeacher = $this->createTemplate($customerId, 'Has teacher', 'has-teacher');
+        $withProduct = $this->createTemplate($customerId, 'Used by product', 'used-by-product');
+
+        DB::table('core_course_template_sections')->insert([
+            'customer_id' => $customerId, 'template_id' => $withSection, 'parent_section_id' => null,
+            'allows_lessons' => true, 'title' => 'S', 'description' => 'S', 'display_order' => 1,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('core_course_template_teachers')->insert([
+            'customer_id' => $customerId, 'template_id' => $withTeacher, 'teacher_id' => $teacher->id,
+            'role' => 'lead', 'sort_order' => 0, 'status' => 'active', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $productId = DB::table('core_course_products')->insertGetId([
+            'customer_id' => $customerId, 'product_code' => 'p1', 'product_type' => 'course', 'title' => 'p1', 'slug' => 'p1',
+            'thumbnail_type' => 'image', 'price' => 0, 'currency' => 'VND', 'enrollment_type' => 'open',
+            'visibility' => 'public', 'status' => 'draft', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('core_course_product_items')->insert([
+            'customer_id' => $customerId, 'product_id' => $productId, 'template_id' => $withProduct, 'version_id' => null,
+            'sort_order' => 0, 'is_required' => true, 'status' => 'active', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        foreach ([[$withSection, 'sections'], [$withTeacher, 'teachers'], [$withProduct, 'products']] as [$id, $reason]) {
+            $this->actingAs($admin)
+                ->deleteJson("https://tenant-a.localhost/admin/course-templates/{$id}")
+                ->assertStatus(409)
+                ->assertJson(['message' => __('lf.LF_course_template_delete_blocked_'.$reason, ['count' => 1])]);
+            $this->assertDatabaseHas('core_course_templates', ['id' => $id]);
+        }
+
+        $this->actingAs($admin)
+            ->deleteJson("https://tenant-a.localhost/admin/course-templates/{$free}")
+            ->assertOk()
+            ->assertJson(['message' => __('lf.LF_course_template_common_deleted')]);
+        $this->assertDatabaseMissing('core_course_templates', ['id' => $free]);
+
+        $this->actingAs($admin)
+            ->from('https://tenant-a.localhost/admin/course-templates')
+            ->delete("https://tenant-a.localhost/admin/course-templates/{$withSection}")
+            ->assertRedirect('https://tenant-a.localhost/admin/course-templates')
+            ->assertSessionHasErrors(['template']);
+    }
+
+    public function test_template_delete_respects_tenant_and_teacher_scope(): void
+    {
+        $customerId = $this->createTenant();
+        $otherCustomerId = $this->createTenant('tenant-b');
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $teacher = $this->createUser($customerId, 'teacher');
+        $stranger = $this->createUser($customerId, 'teacher');
+        $others = $this->createTemplate($otherCustomerId, 'Other tenant', 'other-tenant');
+        $own = $this->createTemplate($customerId, 'Own template', 'own-template', $teacher->id);
+
+        $this->actingAs($admin)->deleteJson("https://tenant-a.localhost/admin/course-templates/{$others}")->assertNotFound();
+        $this->assertDatabaseHas('core_course_templates', ['id' => $others]);
+        // A teacher with no access to the template does not even learn that it exists.
+        $this->actingAs($stranger)->deleteJson("https://tenant-a.localhost/teacher/course-templates/{$own}")->assertNotFound();
+        $this->assertDatabaseHas('core_course_templates', ['id' => $own]);
+        $this->actingAs($teacher)->deleteJson("https://tenant-a.localhost/teacher/course-templates/{$own}")->assertOk();
+        $this->assertDatabaseMissing('core_course_templates', ['id' => $own]);
+    }
+
+    public function test_template_index_enables_delete_only_for_unused_templates_and_explains_why_not(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $free = $this->createTemplate($customerId, 'Free listed', 'free-listed');
+        $used = $this->createTemplate($customerId, 'Used listed', 'used-listed');
+        DB::table('core_course_template_sections')->insert([
+            'customer_id' => $customerId, 'template_id' => $used, 'parent_section_id' => null,
+            'allows_lessons' => true, 'title' => 'S', 'description' => 'S', 'display_order' => 1,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $content = $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/course-templates')
+            ->assertOk()
+            ->assertSee('resources/js/admin-ui-kit-row-actions.js', false)
+            ->assertSee('data-csrf=', false)
+            ->assertSee(__('lf.LF_course_template_delete_blocked_sections', ['count' => 1]), false)
+            ->getContent();
+
+        $document = new \DOMDocument;
+        @$document->loadHTML('<?xml encoding="UTF-8">'.$content);
+        $xpath = new \DOMXPath($document);
+        $this->assertSame(2, $xpath->query('//button[@data-ui-row-delete]')->length);
+        $this->assertSame(
+            1,
+            $xpath->query('//button[@data-ui-row-delete and not(@disabled) and @data-url="https://tenant-a.localhost/admin/course-templates/'.$free.'"]')->length
+        );
+        $this->assertSame(
+            1,
+            $xpath->query('//button[@data-ui-row-delete and @disabled and @aria-disabled="true" and @data-url="https://tenant-a.localhost/admin/course-templates/'.$used.'"]')->length
+        );
+    }
+
+    public function test_template_dialog_fragments_have_the_popup_structure_and_media_slots(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, 'Dialog template', 'dialog-template', $admin->id);
+        $archivedId = $this->createTemplate($customerId, 'Archived template', 'archived-template', $admin->id);
+        DB::table('core_course_templates')->where('id', $archivedId)->update(['status' => 'archived']);
+
+        $hasClass = fn (string $class) => 'contains(concat(" ", normalize-space(@class), " "), " '.$class.' ")';
+        $fragments = [
+            'create' => $this->actingAs($admin)->withHeader('X-Requested-With', 'XMLHttpRequest')
+                ->get('https://tenant-a.localhost/admin/course-templates/create')->assertOk()->getContent(),
+            'edit' => $this->withHeader('X-Requested-With', 'XMLHttpRequest')
+                ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/form")->assertOk()->getContent(),
+        ];
+
+        foreach ($fragments as $mode => $html) {
+            $count = fn (string $xpath) => $this->templateHtmlCount($html, $xpath);
+            $this->assertSame(1, $count('//form['.$hasClass('ui-modal__form').' and @novalidate]'), $mode);
+            $this->assertSame(1, $count('//div['.$hasClass('ui-modal__body').']//div['.$hasClass('ui-modal__grid').']'), $mode);
+            $this->assertSame(1, $count('//dialog[@data-ui-dialog-form-confirm]'), $mode);
+            $this->assertSame(2, $count('//button[@data-ui-dialog-form-cancel]'), $mode);
+            $this->assertSame(3, $count('//div[@data-ui-media-slot]'), $mode);
+            $this->assertSame(
+                ['image', 'video'],
+                [
+                    $this->templateHtmlAttribute($html, '//div[@data-ui-media-slot][.//input[@id="intro_image_file"]]', 'data-kind'),
+                    $this->templateHtmlAttribute($html, '//div[@data-ui-media-slot][.//input[@id="intro_video_file"]]', 'data-kind'),
+                ],
+                $mode
+            );
+            $this->assertSame(1, $count('//input[@id="intro_document_file"]'), $mode);
+            foreach (['title', 'category_id', 'publisher_name', 'status', 'difficulty_level', 'short_description', 'description'] as $field) {
+                $this->assertSame(1, $count('//*[@id="template-form-'.$field.'"]'), "{$mode} {$field}");
+            }
+            $this->assertSame(0, $count('//*[@id="status" or @id="title" or @id="keyword"]'), 'ids must not collide with the list filters');
+            $this->assertSame(3, $count('//input[@type="hidden" and (@name="intro_image_media_file_id" or @name="intro_video_media_file_id" or @name="intro_document_media_file_id")]'), $mode);
+            $this->assertSame(3, $count('//select[@data-ui-kit-select and (@name="category_id" or @name="difficulty_level" or @name="intro_video_source")]'), $mode);
+            $this->assertStringContainsString('x-on:ui-media-preview', $html);
+        }
+        $this->assertSame(1, $this->templateHtmlCount($fragments['edit'], '//input[@name="_method" and @value="PUT"]'));
+        $this->assertSame(0, $this->templateHtmlCount($fragments['create'], '//input[@name="_method"]'));
+        $this->assertStringContainsString("/admin/course-templates/{$templateId}", $fragments['edit']);
+
+        $archived = $this->withHeader('X-Requested-With', 'XMLHttpRequest')
+            ->get("https://tenant-a.localhost/admin/course-templates/{$archivedId}/form")->assertOk()->getContent();
+        $this->assertSame(1, $this->templateHtmlCount($archived, '//fieldset[@disabled]'));
+        $this->assertSame(1, $this->templateHtmlCount($archived, '//button[@type="submit" and @disabled]'));
+        $this->assertSame(0, $this->templateHtmlCount($fragments['edit'], '//fieldset[@disabled]'));
+    }
+
+    public function test_template_dialog_fragments_are_ajax_only_and_scoped(): void
+    {
+        $customerId = $this->createTenant();
+        $otherCustomerId = $this->createTenant('tenant-b');
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $stranger = $this->createUser($customerId, 'teacher');
+        $mine = $this->createTemplate($customerId, 'Mine', 'mine', $admin->id);
+        $theirs = $this->createTemplate($otherCustomerId, 'Theirs', 'theirs');
+        $ajax = ['X-Requested-With' => 'XMLHttpRequest'];
+
+        $this->actingAs($admin)->get('https://tenant-a.localhost/admin/course-templates/create')->assertNotFound();
+        $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-templates/{$mine}/form")->assertNotFound();
+        $this->actingAs($admin)->withHeaders($ajax)->get("https://tenant-a.localhost/admin/course-templates/{$theirs}/form")->assertNotFound();
+        $this->actingAs($stranger)->withHeaders($ajax)->get("https://tenant-a.localhost/teacher/course-templates/{$mine}/form")->assertNotFound();
+    }
+
+    public function test_json_create_returns_the_workspace_redirect_and_update_reports_validation_per_field(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $this->createCategory($customerId, 'General', 'general');
+
+        $this->actingAs($admin)
+            ->postJson('https://tenant-a.localhost/admin/course-templates', $this->validTemplateData(['title' => '']))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['title']);
+        $this->assertSame(0, DB::table('core_course_templates')->where('customer_id', $customerId)->count());
+
+        $response = $this->actingAs($admin)
+            ->postJson('https://tenant-a.localhost/admin/course-templates', $this->validTemplateData(['title' => 'Created in dialog']))
+            ->assertCreated();
+        $templateId = (int) DB::table('core_course_templates')->where('title', 'Created in dialog')->value('id');
+        $response->assertJson(['redirect' => "https://tenant-a.localhost/admin/course-templates/{$templateId}/edit"]);
+        $response->assertSessionHas('course_template_created_title');
+        $response->assertSessionHas('course_template_created_guidance');
+
+        $this->actingAs($admin)
+            ->putJson("https://tenant-a.localhost/admin/course-templates/{$templateId}", $this->validTemplateData(['title' => 'Renamed in dialog']))
+            ->assertOk()
+            ->assertJson(['message' => __('lf.LF_course_template_common_updated')]);
+        $this->assertSame('Renamed in dialog', DB::table('core_course_templates')->where('id', $templateId)->value('title'));
+
+        $this->actingAs($admin)
+            ->putJson("https://tenant-a.localhost/admin/course-templates/{$templateId}", $this->validTemplateData(['title' => '']))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['title']);
+    }
+
+    public function test_template_index_opens_create_edit_information_and_manage_from_the_list(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, 'Listed template', 'listed-template', $admin->id);
+
+        $content = $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/course-templates')
+            ->assertOk()
+            ->assertSee('data-ui-dialog-form-scope', false)
+            ->assertSee('data-columns="2"', false)
+            ->assertSee('resources/js/admin-ui-kit-dialog-form.js', false)
+            ->getContent();
+
+        $this->assertSame(1, $this->templateHtmlCount($content, '//dialog[@data-ui-dialog-form]'));
+        $this->assertSame(
+            1,
+            $this->templateHtmlCount($content, '//button[@data-ui-dialog-form-open and @data-url="https://tenant-a.localhost/admin/course-templates/create"]')
+        );
+        $this->assertSame(
+            1,
+            $this->templateHtmlCount($content, '//button[@data-ui-dialog-form-open and @data-url="https://tenant-a.localhost/admin/course-templates/'.$templateId.'/form"]')
+        );
+        $this->assertSame(
+            1,
+            $this->templateHtmlCount($content, '//a[@href="https://tenant-a.localhost/admin/course-templates/'.$templateId.'/edit"]')
+        );
+        $this->assertSame(0, $this->templateHtmlCount($content, '//a[contains(@href, "/course-templates/create")]'));
+    }
+
+    public function test_workspace_information_tab_is_a_summary_that_opens_the_same_popup(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $categoryId = $this->createCategory($customerId, 'Korean', 'korean');
+        $templateId = $this->createTemplate($customerId, 'Summary template', 'summary-template', $admin->id);
+        DB::table('core_course_templates')->where('id', $templateId)->update([
+            'category_id' => $categoryId,
+            'publisher_name' => 'Visang',
+            'difficulty_level' => 'advanced',
+            'estimated_minutes_per_lesson' => 25,
+            'short_description' => 'Short summary text',
+            'status' => 'inactive',
+        ]);
+
+        $html = $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit")
+            ->assertOk()
+            ->assertSee('resources/js/admin-ui-kit-dialog-form.js', false)
+            ->assertSee('data-field-id-prefix="template-form-"', false)
+            ->getContent();
+
+        $this->assertSame(0, $this->templateHtmlCount($html, '//form[@id="course-template-update-form"]'));
+        $this->assertSame(
+            1,
+            $this->templateHtmlCount($html, '//button[@data-ui-dialog-form-open and @data-ui-dialog-form-hash-open and @data-url="https://tenant-a.localhost/admin/course-templates/'.$templateId.'/form?context=workspace"]')
+        );
+        $this->assertSame(12, $this->templateHtmlCount($html, '//div[@data-summary-field]'));
+        foreach ([
+            'title' => 'Summary template',
+            'category_id' => 'Korean',
+            'publisher_name' => 'Visang',
+            'estimated_minutes_per_lesson' => '25',
+            'short_description' => 'Short summary text',
+        ] as $field => $value) {
+            $this->assertSame(
+                1,
+                $this->templateHtmlCount($html, '//div[@data-summary-field="'.$field.'"]/dd[contains(normalize-space(.), "'.$value.'")]'),
+                $field
+            );
+        }
+        $this->assertSame(1, $this->templateHtmlCount($html, '//div[@data-summary-field="status"]//span[contains(@class, "ui-status--inactive")]'));
+        // The archive action for an inactive template stays on the page (not part of the dialog).
+        $this->assertSame(1, $this->templateHtmlCount($html, '//form[contains(@action, "/archive")]'));
+    }
+
+    public function test_saving_from_the_workspace_dialog_returns_to_the_information_tab_with_a_message(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $this->createCategory($customerId, 'General', 'general');
+        $templateId = $this->createTemplate($customerId, 'Before', 'before', $admin->id);
+        $url = "https://tenant-a.localhost/admin/course-templates/{$templateId}";
+
+        $response = $this->actingAs($admin)
+            ->putJson($url.'?context=workspace', $this->validTemplateData(['title' => 'After workspace save']))
+            ->assertOk()
+            ->assertJson([
+                'message' => __('lf.LF_course_template_common_updated'),
+                'redirect' => $url.'/edit?tab=information',
+            ]);
+        $response->assertSessionHas('success', __('lf.LF_course_template_common_updated'));
+        $this->assertSame('After workspace save', DB::table('core_course_templates')->where('id', $templateId)->value('title'));
+
+        $form = $this->withHeader('X-Requested-With', 'XMLHttpRequest')
+            ->get($url.'/form?context=workspace')
+            ->assertOk()
+            ->getContent();
+        $this->assertStringContainsString('action="'.$url.'?context=workspace"', $form);
+        $plain = $this->withHeader('X-Requested-With', 'XMLHttpRequest')->get($url.'/form')->getContent();
+        $this->assertStringNotContainsString('context=workspace', $plain);
+    }
+
+    public function test_readiness_links_still_target_information_fields_that_the_dialog_can_focus(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, 'Needs info', 'needs-info', $admin->id);
+        DB::table('core_course_templates')->where('id', $templateId)->update(['category_id' => null, 'difficulty_level' => null]);
+
+        $html = $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=publish")
+            ->assertOk()
+            ->getContent();
+        $fragments = [];
+        preg_match_all('/\?tab=information#([a-z_]+)/', $html, $fragments);
+        $this->assertNotEmpty($fragments[1], 'readiness issues link to Information fields');
+
+        $dialog = $this->withHeader('X-Requested-With', 'XMLHttpRequest')
+            ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/form")
+            ->getContent();
+        foreach (array_unique($fragments[1]) as $field) {
+            $this->assertGreaterThanOrEqual(
+                1,
+                $this->templateHtmlCount($dialog, '//*[@id="template-form-'.$field.'" or @id="'.$field.'"]'),
+                "The dialog has a field the link #{$field} can focus."
+            );
+        }
+    }
+
     public function test_guest_and_student_cannot_access_template_management(): void
     {
         $customerId = $this->createTenant();
@@ -966,7 +1252,7 @@ class CourseTemplateManagementTest extends TestCase
         $this->assertFileDoesNotExist(app_path('Models/CourseTemplate.php'));
     }
 
-    public function test_edit_renders_real_trusted_youtube_thumbnail(): void
+    public function test_information_shows_the_saved_embed_in_the_summary_and_the_form(): void
     {
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
@@ -980,10 +1266,14 @@ class CourseTemplateManagementTest extends TestCase
         $this->actingAs($admin)
             ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit")
             ->assertOk()
-            ->assertSee('data-media-thumbnail-state="provider_video_thumbnail"', false)
-            ->assertSee('https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg', false)
-            ->assertSee('<img class="media-thumbnail-image"', false)
-            ->assertDontSee('<iframe class="media-thumbnail', false);
+            ->assertSee('data-summary-field="intro_video_source"', false)
+            ->assertSeeText('Youtube');
+
+        $this->withHeader('X-Requested-With', 'XMLHttpRequest')
+            ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/form")
+            ->assertOk()
+            ->assertSee('value="https://www.youtube.com/watch?v=dQw4w9WgXcQ"', false)
+            ->assertSee('<option value="embed" selected', false);
     }
 
     private function createTenant(string $slug = 'tenant-a'): int
@@ -1098,6 +1388,43 @@ class CourseTemplateManagementTest extends TestCase
             'meta_keywords' => null,
             'status' => 'draft',
         ], $overrides);
+    }
+
+    private function templateHtmlCount(string $html, string $xpath): int
+    {
+        $previous = libxml_use_internal_errors(true);
+        $document = new \DOMDocument;
+        $document->loadHTML('<?xml encoding="UTF-8">'.$html);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previous);
+
+        return (new \DOMXPath($document))->query($xpath)->length;
+    }
+
+    private function templateHtmlAttribute(string $html, string $xpath, string $attribute): ?string
+    {
+        $previous = libxml_use_internal_errors(true);
+        $document = new \DOMDocument;
+        $document->loadHTML('<?xml encoding="UTF-8">'.$html);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previous);
+        $node = (new \DOMXPath($document))->query($xpath)->item(0);
+
+        return $node?->getAttribute($attribute);
+    }
+
+    private function dialogRequiredIndicatorCount(string $html, string $field): int
+    {
+        $previous = libxml_use_internal_errors(true);
+        $document = new \DOMDocument;
+        $document->loadHTML('<?xml encoding="UTF-8">'.$html);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previous);
+
+        return (new \DOMXPath($document))->query(sprintf(
+            '//label[@for="template-form-%s"]//span[contains(concat(" ", normalize-space(@class), " "), " ui-field__required ")]',
+            $field
+        ))->length;
     }
 
     private function requiredIndicatorCount(string $html, string $field): int

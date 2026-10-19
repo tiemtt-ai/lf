@@ -36,7 +36,7 @@ class El {
 }
 
 function dialogEl(label = 'dialog') {
-    const d = new El({ 'data-msg-load-error': 'LOAD', 'data-msg-save-error': 'SAVE', 'data-msg-session-expired': 'SESSION', 'data-msg-required-input': 'Enter :field.', 'data-msg-required-select': 'Select :field.' });
+    const d = new El({ 'data-msg-load-error': 'LOAD', 'data-msg-save-error': 'SAVE', 'data-msg-session-expired': 'SESSION', 'data-msg-required-input': 'Enter :field.', 'data-msg-required-select': 'Select :field.', 'data-field-id-prefix': 'category-form-' });
     d.label = label;
     d.showModal = () => { d.open = true; d.calls.push('showModal'); };
     d.close = () => { if (!d.open) return; d.open = false; d.calls.push('close'); d.listeners.get('close')?.({ target: d }); };
@@ -63,8 +63,9 @@ function makeForm({ field = true } = {}) {
         if (selector.includes('feedback')) return feedbackNode;
         if (selector.includes('confirm')) return confirm;
         if (selector.includes('name="name"')) return field ? nameInput : null;
+        if (selector.startsWith('#') && form.byId?.[selector.slice(1)]) return form.byId[selector.slice(1)];
+        if (selector.startsWith('label[for=')) return form.labelFor ? form.labelFor(selector) : { textContent: '* Tên danh mục' };
         if (selector.includes('-ui-kit')) return null;
-        if (selector.startsWith('label[for=')) return { textContent: '* Tên danh mục' };
         if (selector === '#category-form-name-error') return nameField.children.at(-1) ?? null;
         if (selector.startsWith('select')) return nameInput;
         return null;
@@ -78,19 +79,25 @@ function makeForm({ field = true } = {}) {
         return [];
     };
     form.selectEl = new El();
+    form.other = new El();
+    form.other.scrolled = 0;
+    form.other.scrollIntoView = () => { form.other.scrolled += 1; };
+    form.byId = { 'category-form-other-ui-kit': form.other };
     form.keep = keep;
     return form;
 }
 
-function setup({ snapshotValue = 'a', defer = () => Promise.resolve() } = {}) {
+function setup({ snapshotValue = 'a', defer = () => Promise.resolve(), hash = '', hashTrigger = false, triggerHidden = false } = {}) {
     const dialog = dialogEl('main');
     const flash = new El({ hidden: '' }); flash.hidden = true;
     const pageError = new El(); pageError.hidden = true;
     const trigger = new El({ 'data-url': '/admin/course-categories/5/edit' });
+    if (triggerHidden) trigger.offsetParent = null;
     const scopeEvents = [];
     const scope = new El();
     scope.querySelector = selector => {
         if (selector.includes('dialog[data-ui-dialog-form]')) return dialog;
+        if (selector.includes('hash-open')) return hashTrigger ? trigger : null;
         if (selector.includes('flash')) return flash;
         if (selector.includes('page-error')) return pageError;
         return null;
@@ -103,12 +110,15 @@ function setup({ snapshotValue = 'a', defer = () => Promise.resolve() } = {}) {
     const forms = [];
     const destroyed = [];
     const nav = [];
+    const hashListeners = new Map();
     dialog.dispatchEvent = event => scopeEvents.push(event);
     const win = {
         AbortController: class { constructor() { this.signal = { aborted: false }; } abort() { this.signal.aborted = true; } },
         FormData: class { constructor(form) { this.form = form; } },
         document: { importNode: node => node, createElement: () => new El() },
-        location: { assign: url => nav.push(url) },
+        location: { assign: url => nav.push(url), hash },
+        addEventListener: (type, fn) => hashListeners.set(type, fn),
+        removeEventListener: type => hashListeners.delete(type),
         CSS: { escape: x => x },
         fetch: (url, options) => {
             fetches.push({ url, options });
@@ -135,7 +145,7 @@ function setup({ snapshotValue = 'a', defer = () => Promise.resolve() } = {}) {
     const respond = (index, response) => pending[index].resolve(response);
     const html = body => ({ ok: true, redirected: false, text: async () => body });
     const json = (status, payload) => ({ ok: status >= 200 && status < 300, status, json: async () => payload });
-    return { dialog, scope, scopeEvents, trigger, flash, pageError, fetches, pending, forms, destroyed, nav, state, instance, win, clickOn, tick, respond, html, json };
+    return { hashListeners, win, dialog, scope, scopeEvents, trigger, flash, pageError, fetches, pending, forms, destroyed, nav, state, instance, win, clickOn, tick, respond, html, json };
 }
 
 async function opened(t) {
@@ -399,4 +409,68 @@ test('a required select uses the select wording and a filled form proceeds to th
     t.scope.listeners.get('submit')({ target: form, preventDefault() {} });
     assert.equal(t.fetches.length, 2);
     assert.equal(form.nameField.children.length, 0, 'the old message is gone when the form is valid');
+});
+
+test('a save that answers with a redirect navigates there and shows nothing in the list', async () => {
+    const t = setup();
+    const form = await opened(t);
+    t.scope.listeners.get('submit')({ target: form, preventDefault() {} });
+    t.respond(1, t.json(201, { message: 'Created', redirect: '/admin/course-templates/9/edit' }));
+    await t.tick(); await t.tick();
+    assert.deepEqual(t.nav, ['/admin/course-templates/9/edit']);
+    assert.equal(t.flash.hidden, true);
+    assert.deepEqual(t.scopeEvents, [], 'no list refresh: the page is leaving');
+});
+
+test('the label of a select adapted into a combobox is still found for the required message', async () => {
+    const t = setup();
+    const form = await opened(t);
+    form.name.value = '';
+    form.name.tagName = 'SELECT';
+    form.labelFor = selector => (selector.includes('-ui-kit') ? { textContent: '* Danh mục' } : null);
+    t.scope.listeners.get('submit')({ target: form, preventDefault() {} });
+    assert.equal(form.nameField.children.at(-1).textContent, 'Select danh mục.');
+});
+
+test('a trigger can name the field to focus; the id prefix and the combobox form of the id are tried', async () => {
+    const t = setup();
+    t.trigger.attrs.set('data-ui-dialog-form-focus', 'other');
+    t.clickOn(t.trigger, 'data-ui-dialog-form-open');
+    t.respond(0, t.html('FORM'));
+    await t.tick(); await t.tick();
+    const form = t.forms[0];
+    assert.equal(form.other.focused, 1);
+    assert.equal(form.other.scrolled, 1);
+    assert.equal(form.name.focused, 0, 'the default first field is not focused as well');
+});
+
+test('an unknown field name falls back to the first field', async () => {
+    const t = setup();
+    t.trigger.attrs.set('data-ui-dialog-form-focus', 'does_not_exist');
+    t.clickOn(t.trigger, 'data-ui-dialog-form-open');
+    t.respond(0, t.html('FORM'));
+    await t.tick(); await t.tick();
+    assert.equal(t.forms[0].name.focused, 1);
+});
+
+test('a link hash opens the form on that field when the page loads, and again on hashchange', async () => {
+    const t = setup({ hash: '#other', hashTrigger: true });
+    assert.equal(t.fetches.length, 1, 'opened on init');
+    t.respond(0, t.html('FORM'));
+    await t.tick(); await t.tick();
+    assert.equal(t.forms[0].other.focused, 1);
+    t.instance.destroy();
+    assert.equal(t.hashListeners.size, 0);
+
+    const later = setup({ hash: '', hashTrigger: true });
+    assert.equal(later.fetches.length, 0);
+    later.win.location.hash = '#other';
+    later.hashListeners.get('hashchange')();
+    assert.equal(later.fetches.length, 1);
+});
+
+test('no auto-open without a hash, without the marked trigger, or when the trigger is not visible', () => {
+    assert.equal(setup({ hash: '', hashTrigger: true }).fetches.length, 0);
+    assert.equal(setup({ hash: '#other', hashTrigger: false }).fetches.length, 0);
+    assert.equal(setup({ hash: '#other', hashTrigger: true, triggerHidden: true }).fetches.length, 0, 'the Information tab is not the visible one');
 });

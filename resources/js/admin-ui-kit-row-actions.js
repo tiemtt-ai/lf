@@ -4,12 +4,13 @@
  * Success: a toast and `ui-dialog-form-saved` so the list refetches. A refusal (409) shows the server's reason.
  * One request at a time; a disabled button (the server said it cannot be deleted) does nothing.
  */
-import { showUiToast } from './admin-ui-kit-controls.js';
+import { showUiToast, claimOnce, releaseClaim } from './admin-ui-kit-controls.js';
 
 const instances = new WeakMap();
 
 export function initUiKitRowActions(scope, deps = {}) {
     if (instances.has(scope)) return instances.get(scope);
+    if (!claimOnce(scope, 'RowActions')) return null;
     const win = deps.window ?? window;
     const confirmAction = deps.confirm ?? (options => win.LFConfirm.open(options));
     const createEvent = deps.createEvent ?? ((type, detail) => new CustomEvent(type, { bubbles: true, detail }));
@@ -71,7 +72,7 @@ export function initUiKitRowActions(scope, deps = {}) {
         if (trigger && scope.contains(trigger)) remove(trigger);
     };
     scope.addEventListener('click', onClick);
-    const instance = { destroy() { scope.removeEventListener('click', onClick); instances.delete(scope); } };
+    const instance = { destroy() { scope.removeEventListener('click', onClick); releaseClaim(scope, 'RowActions'); instances.delete(scope); } };
     instances.set(scope, instance);
     return instance;
 }

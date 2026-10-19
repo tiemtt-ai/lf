@@ -271,7 +271,7 @@ class CourseMediaIntegrationTest extends TestCase
         $this->assertSignedDeliveryUrl($customerId, $mediaFile);
 
         $response = $this->actingAs($admin)
-            ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit")
+            ->withHeader('X-Requested-With', 'XMLHttpRequest')->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/form")
             ->assertOk()
             ->assertSee('name="intro_image_file"', false)
             ->assertSee("/admin/course-templates/{$templateId}/media/image/", false)
@@ -331,22 +331,15 @@ class CourseMediaIntegrationTest extends TestCase
         Storage::disk('media_local')->assertExists($mediaFile->storage_key);
 
         $response = $this->actingAs($admin)
-            ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit")
+            ->withHeader('X-Requested-With', 'XMLHttpRequest')->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/form")
             ->assertOk()
             ->assertSee('name="intro_video_file"', false)
-            ->assertSee("course-templates\\/{$templateId}\\/media\\/video\\/", false)
+            ->assertSee("course-templates/{$templateId}/media/video/", false)
             ->assertSee('name="remove_intro_video"', false)
+            ->assertSee('data-kind="video"', false)
+            ->assertSee('data-saved="true"', false)
+            ->assertSee('x-on:ui-media-preview', false)
             ->assertSee('preload="metadata"', false)
-            ->assertSee('this.resetTemplatePreview()', false)
-            ->assertSee('this.$refs.templatePreviewVideoSource?.setAttribute(\'src\', url)', false)
-            ->assertSee('this.$refs.templatePreviewVideoPlayer?.load()', false)
-            ->assertSee('this.previewOpen = true', false)
-            ->assertSee('player.play()', false)
-            ->assertSee('player.pause()', false)
-            ->assertSee('removeAttribute(\'src\')', false)
-            ->assertSee('this.videoSrc = \'\'', false)
-            ->assertSee('player.load()', false)
-            ->assertDontSee('<video controls preload="metadata">', false)
             ->assertDontSee('course-template-preview-type', false)
             ->assertDontSee('<strong>Video Template</strong>', false)
             ->assertDontSee('/storage/tenants/', false);
@@ -386,11 +379,11 @@ class CourseMediaIntegrationTest extends TestCase
             );
 
         $this->actingAs($admin)
-            ->followingRedirects()
-            ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}")
+            ->withHeader('X-Requested-With', 'XMLHttpRequest')
+            ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/form")
             ->assertOk()
             ->assertSee('name="intro_video_file"', false)
-            ->assertSee("course-templates\\/{$templateId}\\/media\\/video\\/", false);
+            ->assertSee("course-templates/{$templateId}/media/video/", false);
     }
 
     public function test_admin_can_update_course_template_from_image_to_intro_video(): void
@@ -845,10 +838,11 @@ class CourseMediaIntegrationTest extends TestCase
         ]);
 
         $this->actingAs($admin)
-            ->get("https://tenant-a.localhost/admin/course-templates/{$template->id}/edit")
+            ->withHeader('X-Requested-With', 'XMLHttpRequest')
+            ->get("https://tenant-a.localhost/admin/course-templates/{$template->id}/form")
             ->assertOk()
-            ->assertDontSee('name="remove_intro_video"', false)
             ->assertDontSee('https://www.youtube.com/embed/dQw4w9WgXcQ', false)
+            ->assertDontSee('data-saved-preview-url="https://www.youtube.com', false)
             ->assertSee('name="remove_intro_image"', false)
             ->assertSee('name="remove_intro_document"', false);
     }
@@ -991,17 +985,17 @@ class CourseMediaIntegrationTest extends TestCase
             ->where('customer_id', $customerId)
             ->where('title', 'Localized Removal Labels')
             ->value('id');
-        $url = "https://tenant-a.localhost/admin/course-templates/{$templateId}/edit";
+        $url = "https://tenant-a.localhost/admin/course-templates/{$templateId}/form";
 
-        $this->withSession(['locale' => 'vi'])->actingAs($admin)->get($url)
-            ->assertSeeText('Gỡ ảnh hiện tại')
-            ->assertSeeText('Gỡ video hiện tại')
-            ->assertSeeText('Gỡ tài liệu hiện tại');
+        $this->withSession(['locale' => 'vi'])->actingAs($admin)->withHeader('X-Requested-With', 'XMLHttpRequest')->get($url)
+            ->assertSee('aria-label="Gỡ ảnh hiện tại"', false)
+            ->assertSee('aria-label="Gỡ video hiện tại"', false)
+            ->assertSee('aria-label="Gỡ tài liệu hiện tại"', false);
 
-        $this->withSession(['locale' => 'en'])->actingAs($admin)->get($url)
-            ->assertSeeText('Remove current image')
-            ->assertSeeText('Remove current video')
-            ->assertSeeText('Remove current document');
+        $this->withSession(['locale' => 'en'])->actingAs($admin)->withHeader('X-Requested-With', 'XMLHttpRequest')->get($url)
+            ->assertSee('aria-label="Remove current image"', false)
+            ->assertSee('aria-label="Remove current video"', false)
+            ->assertSee('aria-label="Remove current document"', false);
     }
 
     public function test_course_template_accepts_image_and_uploaded_video_together(): void
@@ -1063,45 +1057,26 @@ class CourseMediaIntegrationTest extends TestCase
         $this->createTemplateAssignment($customerId, $templateId, $teacher->id);
 
         foreach ([[$admin, 'admin'], [$teacher, 'teacher']] as [$user, $area]) {
-            $response = $this->actingAs($user)->get(
-                "https://tenant-a.localhost/{$area}/course-templates/{$templateId}/edit"
-            )->assertOk();
-            $html = $response->getContent();
+            $html = $this->actingAs($user)->withHeader('X-Requested-With', 'XMLHttpRequest')->get(
+                "https://tenant-a.localhost/{$area}/course-templates/{$templateId}/form"
+            )->assertOk()->getContent();
 
-            // Error translations in JS config are not visible duplicate field labels.
-            $this->assertSame(0, $this->htmlElementCount(
-                $html,
-                '//div[@data-authoring-media-current-row]//*[not(*) and normalize-space(.)="'
-                .__('lf.LF_course_template_activity_media_current_file').'"]'
-            ));
-
-            $this->assertSame(3, $this->htmlElementCount(
-                $html,
-                '//div[contains(concat(" ", normalize-space(@class), " "), " course-template-information-media ")]'
-                .'//div[@data-authoring-media-current-row]'
-            ));
+            $this->assertSame(3, $this->htmlElementCount($html, '//div[@data-ui-media-slot and @data-saved="true"]'));
 
             foreach ([
-                'intro_image_file' => 'remove_intro_image',
-                'intro_video_file' => 'remove_intro_video',
-                'intro_document_file' => 'remove_intro_document',
-            ] as $uploadName => $removeName) {
-                $field = '//div[contains(concat(" ", normalize-space(@class), " "), " course-template-information-media ")]'
-                    .'[.//input[@name="'.$uploadName.'"]]';
-                $this->assertSame(1, $this->htmlElementCount(
-                    $html,
-                    $field.'//div[contains(concat(" ", normalize-space(@class), " "), " authoring-media-upload-tile ")]'
-                    .'[.//input[@name="'.$uploadName.'"]]'
-                ));
-                $this->assertSame(1, $this->htmlElementCount(
-                    $html,
-                    $field.'//*[contains(concat(" ", normalize-space(@class), " "), " authoring-media-help ")]'
-                ));
-                $this->assertSame(1, $this->htmlElementCount(
-                    $html,
-                    $field.'//div[@data-authoring-media-current-row]'
-                    .'//input[@name="'.$removeName.'"]'
-                ));
+                'intro_image_file' => ['remove_intro_image', 'image'],
+                'intro_video_file' => ['remove_intro_video', 'video'],
+                'intro_document_file' => ['remove_intro_document', null],
+            ] as $uploadName => [$removeName, $kind]) {
+                $slot = '//div[@data-ui-media-slot][.//input[@name="'.$uploadName.'"]]';
+                $this->assertSame(1, $this->htmlElementCount($html, $slot));
+                $this->assertSame(1, $this->htmlElementCount($html, $slot.'//input[@type="hidden" and @name="'.$removeName.'" and @value="0"]'));
+                $this->assertSame(1, $this->htmlElementCount($html, $slot.'//button[@data-ui-media-view]'));
+                $this->assertSame(1, $this->htmlElementCount($html, $slot.'//button[@data-ui-media-remove]'));
+                $this->assertSame(1, $this->htmlElementCount($html, $slot.'//div[contains(concat(" ", normalize-space(@class), " "), " ui-media-slot__hint ")]'));
+                if ($kind !== null) {
+                    $this->assertSame(1, $this->htmlElementCount($html, '//div[@data-ui-media-slot and @data-kind="'.$kind.'"][.//input[@name="'.$uploadName.'"]]'));
+                }
             }
         }
     }
@@ -1169,11 +1144,11 @@ class CourseMediaIntegrationTest extends TestCase
             ->value('id');
 
         $this->actingAs($admin)
-            ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit")
+            ->withHeader('X-Requested-With', 'XMLHttpRequest')->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/form")
             ->assertOk()
             ->assertSee('name="intro_video_source"', false)
             ->assertSee('name="intro_video_file"', false)
-            ->assertSee(':disabled="selectedVideoSource !== \'upload\'"', false)
+            ->assertSee('input.disabled = selectedVideoSource !== \'upload\'', false)
             ->assertSee(':disabled="selectedVideoSource !== \'embed\'"', false);
 
         $response = $this->actingAs($admin)->post(

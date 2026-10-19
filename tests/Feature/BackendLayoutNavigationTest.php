@@ -287,7 +287,6 @@ class BackendLayoutNavigationTest extends TestCase
             'resources/views/course-cohorts/index.blade.php',
             'resources/views/course-enrollments/index.blade.php',
             'resources/views/course-products/index.blade.php',
-            'resources/views/course-templates/index.blade.php',
             'resources/views/media-categories/index.blade.php',
             'resources/views/media-files/index.blade.php',
         ];
@@ -587,7 +586,6 @@ class BackendLayoutNavigationTest extends TestCase
             'resources/views/course-products/index.blade.php',
             'resources/views/course-products/edit.blade.php',
             'resources/views/course-template-teachers/partials/list.blade.php',
-            'resources/views/course-templates/index.blade.php',
             'resources/views/course-templates/edit.blade.php',
             'resources/views/media-categories/index.blade.php',
             'resources/views/media-files/index.blade.php',
@@ -649,20 +647,9 @@ class BackendLayoutNavigationTest extends TestCase
 
     public function test_backend_adaptive_form_markup_prioritizes_left_column(): void
     {
-        $templateForm = file_get_contents(
-            base_path('resources/views/course-templates/partials/form.blade.php')
-        );
         $productForm = file_get_contents(
             base_path('resources/views/course-products/partials/form.blade.php')
         );
-
-        $this->assertSame(1, substr_count($templateForm, 'class="admin-form-flow"'));
-        $this->assertSame(5, substr_count($templateForm, 'class="admin-form-standard-section"'));
-        $this->assertStringContainsString('aria-labelledby="course-template-basic"', $templateForm);
-        $this->assertStringContainsString('aria-labelledby="course-template-description"', $templateForm);
-        $this->assertStringContainsString('aria-labelledby="course-template-learning"', $templateForm);
-        $this->assertStringContainsString('aria-labelledby="course-template-introduction"', $templateForm);
-        $this->assertStringContainsString('aria-labelledby="course-template-display"', $templateForm);
 
         $this->assertSame(1, substr_count($productForm, 'class="admin-form-flow"'));
         $this->assertSame(5, substr_count($productForm, 'class="admin-form-standard-section"'));

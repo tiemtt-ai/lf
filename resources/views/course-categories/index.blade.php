@@ -17,16 +17,7 @@
         $hasActiveFilters = $keyword !== '' || $status;
     @endphp
 
-    <div class="ui-toast-region" data-ui-toast-region>
-        <div class="ui-toast ui-toast--success" role="status" data-ui-toast data-ui-toast-timeout="4000" data-ui-dialog-form-flash @unless (session('success')) hidden @endunless>
-            <span class="ui-toast__text" data-ui-toast-text>{{ session('success') }}</span>
-            <button type="button" class="ui-toast__close cursor-interaction" data-ui-toast-close aria-label="{{ __('lf.LF_common_button_close') }}">×</button>
-        </div>
-        <div class="ui-toast ui-toast--danger" role="alert" data-ui-toast data-ui-toast-timeout="0" data-ui-dialog-form-page-error hidden>
-            <span class="ui-toast__text" data-ui-toast-text></span>
-            <button type="button" class="ui-toast__close cursor-interaction" data-ui-toast-close aria-label="{{ __('lf.LF_common_button_close') }}">×</button>
-        </div>
-    </div>
+    <x-ui-list-toasts />
 
     @if ($errors->any())
         <div class="admin-alert admin-alert-danger">
@@ -217,27 +208,10 @@
         </table>
     </div>
 
-        <div class="mk-table-foot" data-ui-live-region="foot">
-            <span class="mk-footnote" role="status">{{ __('lf.LF_common_pagination_summary', ['from' => $categories->firstItem() ?? 0, 'to' => $categories->lastItem() ?? 0, 'total' => $categories->total()]) }}</span>
-            <nav class="mk-pages" aria-label="{{ __('lf.LF_course_category_common_title') }}">
-                @if ($categories->onFirstPage())
-                    <button type="button" class="mk-page" disabled aria-label="{{ html_entity_decode(__('pagination.previous'), ENT_QUOTES, 'UTF-8') }}">‹</button>
-                @else
-                    <a class="mk-page" rel="prev" href="{{ $categories->previousPageUrl() }}" aria-label="{{ html_entity_decode(__('pagination.previous'), ENT_QUOTES, 'UTF-8') }}">‹</a>
-                @endif
-                @foreach ($categories->getUrlRange(max(1, $categories->currentPage() - 2), min($categories->lastPage(), $categories->currentPage() + 2)) as $page => $url)
-                    <a class="mk-page" href="{{ $url }}" @if ($page === $categories->currentPage()) aria-current="page" @endif>{{ $page }}</a>
-                @endforeach
-                @if ($categories->hasMorePages())
-                    <a class="mk-page" rel="next" href="{{ $categories->nextPageUrl() }}" aria-label="{{ html_entity_decode(__('pagination.next'), ENT_QUOTES, 'UTF-8') }}">›</a>
-                @else
-                    <button type="button" class="mk-page" disabled aria-label="{{ html_entity_decode(__('pagination.next'), ENT_QUOTES, 'UTF-8') }}">›</button>
-                @endif
-                <select aria-label="{{ __('lf.LF_course_category_index_page_size') }}" disabled>
-                    <option>{{ __('lf.LF_course_category_index_page_size_option', ['count' => $categories->perPage()]) }}</option>
-                </select>
-            </nav>
-        </div>
+        <x-ui-list-foot :paginator="$categories"
+            :label="__('lf.LF_course_category_common_title')"
+            :page-size-label="__('lf.LF_course_category_index_page_size')"
+            :page-size-option="__('lf.LF_course_category_index_page_size_option', ['count' => $categories->perPage()])" />
     </section>
 
     <dialog class="ui-modal" data-columns="2" aria-labelledby="category-dialog-title" data-ui-dialog-form

@@ -43,7 +43,7 @@ function setup({ saved = true, removable = true, kind = 'image', previewable = t
     const timers = [];
     const slot = new El({
         'data-saved': String(saved), 'data-saved-name': 'saved.png', 'data-saved-preview-url': saved ? '/saved-full.png' : '',
-        'data-pending-previewable': String(previewable), 'data-kind': kind,
+        'data-pending-previewable': String(previewable), 'data-kind': kind, 'data-saved-mime': 'image/png',
         'data-status-selected': 'Selected: :name', 'data-status-removed': 'Removed',
     });
     slot.querySelector = selector => map[selector.match(/data-ui-media-([a-z-]+)/)[1]] ?? null;
@@ -148,10 +148,10 @@ test('a cancelled picker returns to the base state and revokes', () => {
 test('view announces the saved URL, then the pending URL, never an empty one', () => {
     const t = setup();
     t.click(t.parts.view);
-    assert.deepEqual(t.events.at(-1), { type: UI_MEDIA_PREVIEW_EVENT, detail: { name: 'saved.png', url: '/saved-full.png', kind: 'image' } });
+    assert.deepEqual(t.events.at(-1), { type: UI_MEDIA_PREVIEW_EVENT, detail: { name: 'saved.png', url: '/saved-full.png', kind: 'image', mimeType: 'image/png' } });
     t.choose('new.png');
     t.click(t.parts.view);
-    assert.deepEqual(t.events.at(-1).detail, { name: 'new.png', url: 'blob:new.png:0', kind: 'image' });
+    assert.deepEqual(t.events.at(-1).detail, { name: 'new.png', url: 'blob:new.png:0', kind: 'image', mimeType: 'image/png' });
     const none = setup({ saved: false, savedImage: '' });
     assert.equal(none.parts.view.hidden, true);
     none.click(none.parts.view);

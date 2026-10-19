@@ -9,7 +9,7 @@
  * {errors}. Closing a form that has unsaved changes asks first through a nested
  * <dialog data-ui-dialog-form-confirm>. Only the latest open request may touch the page; one submit at a time.
  */
-import { initUiKitSelect, initUiKitMediaSlots, showUiToast, hideUiToast } from './admin-ui-kit-controls.js';
+import { initUiKitSelect, initUiKitMediaSlots, showUiToast, hideUiToast, claimOnce, releaseClaim } from './admin-ui-kit-controls.js';
 
 const instances = new WeakMap();
 export const UI_DIALOG_FORM_SAVED_EVENT = 'ui-dialog-form-saved';
@@ -28,6 +28,7 @@ export function initUiKitDialogForm(scope, deps = {}) {
     if (instances.has(scope)) return instances.get(scope);
     const dialog = scope.querySelector('dialog[data-ui-dialog-form]');
     if (!dialog) return null;
+    if (!claimOnce(scope, 'DialogForm')) return null;
     const win = deps.window ?? window;
     const parse = deps.parse ?? (html => new win.DOMParser().parseFromString(html, 'text/html'));
     const snapshotOf = deps.serialize ?? (form => serializeForm(form));
@@ -36,6 +37,7 @@ export function initUiKitDialogForm(scope, deps = {}) {
     const createEvent = deps.createEvent ?? ((type, detail) => new CustomEvent(type, { bubbles: true, detail }));
     const defer = deps.defer ?? (() => new Promise(resolve => win.setTimeout(resolve, 0)));
     const message = name => dialog.getAttribute(`data-msg-${name}`) || '';
+    const escapeId = id => (win.CSS?.escape ? win.CSS.escape(id) : id);
     const part = name => scope.querySelector(`[data-ui-dialog-form-${name}]`);
 
     let seq = 0;
@@ -103,7 +105,6 @@ export function initUiKitDialogForm(scope, deps = {}) {
         form?.querySelectorAll('.ui-field__error[data-ui-dialog-form-error]').forEach(node => node.remove());
         form?.querySelectorAll('[aria-invalid="true"]').forEach(unmark);
     };
-    const escapeId = id => (win.CSS?.escape ? win.CSS.escape(id) : id);
     // One field's message goes away as soon as the user supplies a value (typing, or choosing in a select).
     const clearFieldError = control => {
         if (!form || control?.getAttribute?.('aria-invalid') !== 'true') return;
@@ -121,7 +122,8 @@ export function initUiKitDialogForm(scope, deps = {}) {
         const errors = {};
         for (const control of form.querySelectorAll('[required]')) {
             if (String(control.value ?? '').trim() !== '' || !control.name) continue;
-            const label = form.querySelector(`label[for="${control.id}"]`);
+            // The select adapter re-points the label at its combobox input (`<id>-ui-kit`).
+            const label = form.querySelector(`label[for="${control.id}"]`) ?? form.querySelector(`label[for="${control.id}-ui-kit"]`);
             const name = String(label?.textContent ?? control.name).replace('*', '').trim().toLocaleLowerCase();
             const template = control.tagName === 'SELECT' ? message('required-select') : message('required-input');
             errors[control.name] = [template.replace(':field', name)];
@@ -151,7 +153,21 @@ export function initUiKitDialogForm(scope, deps = {}) {
         first?.focus?.();
     };
 
-    async function open(trigger) {
+    // Put the cursor in the field a link points at (`#field`), trying the dialog's id prefix and the combobox of a select.
+    const focusField = id => {
+        const prefix = dialog.getAttribute('data-field-id-prefix') || '';
+        for (const selector of [`#${escapeId(prefix + id)}-ui-kit`, `#${escapeId(prefix + id)}`, `#${escapeId(id)}`]) {
+            const field = form.querySelector(selector);
+            if (field) {
+                field.focus?.();
+                field.scrollIntoView?.({ block: 'center' });
+                return true;
+            }
+        }
+        return false;
+    };
+
+    async function open(trigger, options = {}) {
         const url = trigger.getAttribute('data-url');
         if (!url || submitting) return;
         const mine = ++seq;
@@ -187,7 +203,9 @@ export function initUiKitDialogForm(scope, deps = {}) {
             opener = trigger;
             openerUrl = url;
             dialog.showModal();
-            node.querySelector('select, input:not([type="hidden"]):not([type="file"]), textarea')?.focus?.();
+            if (!(options.focus && focusField(options.focus))) {
+                node.querySelector('select, input:not([type="hidden"]):not([type="file"]), textarea')?.focus?.();
+            }
         } catch (error) {
             if (mine === seq && error?.name !== 'AbortError') pageError(message('load-error'));
         } finally {
@@ -219,6 +237,11 @@ export function initUiKitDialogForm(scope, deps = {}) {
             let payload = null;
             try { payload = await response.json(); } catch (error) { payload = null; }
             if (mine !== seq || form !== current) return;
+            if (response.ok && payload?.redirect) {
+                // e.g. a new record continues on its own page; the server flashed what that page should show.
+                win.location.assign(String(payload.redirect));
+                return;
+            }
             if (response.ok) {
                 const text = String(payload?.message ?? '');
                 const flash = part('flash');
@@ -241,7 +264,7 @@ export function initUiKitDialogForm(scope, deps = {}) {
     const onClick = event => {
         const target = event.target?.closest?.('[data-ui-dialog-form-open], [data-ui-dialog-form-cancel], [data-ui-dialog-form-keep], [data-ui-dialog-form-discard]');
         if (!target || !scope.contains(target)) return;
-        if (target.hasAttribute('data-ui-dialog-form-open')) open(target);
+        if (target.hasAttribute('data-ui-dialog-form-open')) open(target, { focus: target.getAttribute('data-ui-dialog-form-focus') });
         else if (target.hasAttribute('data-ui-dialog-form-cancel')) requestClose();
         else if (target.hasAttribute('data-ui-dialog-form-keep')) confirmDialog()?.close();
         else closeNow();
@@ -260,9 +283,16 @@ export function initUiKitDialogForm(scope, deps = {}) {
         restoreFocus();
     };
 
+    // A link such as `?tab=information#difficulty_level` opens the form on that field.
+    const autoOpen = () => {
+        const field = String(win.location?.hash || '').slice(1);
+        const trigger = field ? scope.querySelector('[data-ui-dialog-form-hash-open]') : null;
+        if (trigger && (!('offsetParent' in trigger) || trigger.offsetParent !== null)) open(trigger, { focus: field });
+    };
     scope.addEventListener('click', onClick);
     const onFieldEdit = event => clearFieldError(event.target);
     scope.addEventListener('submit', submit);
+    win.addEventListener?.('hashchange', autoOpen);
     dialog.addEventListener('input', onFieldEdit);
     dialog.addEventListener('change', onFieldEdit);
     dialog.addEventListener('cancel', onCancel);
@@ -270,6 +300,7 @@ export function initUiKitDialogForm(scope, deps = {}) {
     const instance = { destroy() {
         seq++;
         controller?.abort();
+        win.removeEventListener?.('hashchange', autoOpen);
         scope.removeEventListener('click', onClick);
         scope.removeEventListener('submit', submit);
         dialog.removeEventListener('input', onFieldEdit);
@@ -278,9 +309,11 @@ export function initUiKitDialogForm(scope, deps = {}) {
         dialog.removeEventListener('close', onClose);
         if (dialog.open) dialog.close();
         teardown();
+        releaseClaim(scope, 'DialogForm');
         instances.delete(scope);
     } };
     instances.set(scope, instance);
+    autoOpen();
     return instance;
 }
 

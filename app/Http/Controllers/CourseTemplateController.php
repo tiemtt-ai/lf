@@ -16,6 +16,7 @@ use App\Support\AuditLog;
 use App\Support\CourseTemplateStatus;
 use App\Support\TenantContext;
 use App\Support\UploadLimit;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -86,6 +87,12 @@ class CourseTemplateController extends Controller
             ->paginate(10)
             ->withQueryString();
 
+        $blockers = $this->deletionBlockers($customerId, $templates->getCollection()->pluck('id')->map(fn ($id) => (int) $id)->all());
+        $templates->getCollection()->each(function (object $template) use ($blockers): void {
+            $reasons = $blockers[(int) $template->id] ?? [];
+            $template->delete_blocker = $reasons === [] ? null : $this->deletionBlockMessage($reasons);
+        });
+
         return view('course-templates.index', [
             'templates' => $templates,
             'keyword' => $keyword,
@@ -96,9 +103,12 @@ class CourseTemplateController extends Controller
 
     public function create(Request $request): View
     {
+        abort_unless($request->ajax(), 404);
+
         $customerId = $this->customerId();
 
-        return view('course-templates.create', [
+        return view('course-templates.dialog', [
+            'template' => null,
             'categories' => $this->categories(),
             'requiredFields' => $this->requiredFields($customerId),
             'introImageMedia' => null,
@@ -109,6 +119,31 @@ class CourseTemplateController extends Controller
             'introVideoThumbnail' => null,
             'introDocumentThumbnail' => null,
             'routePrefix' => $this->routePrefix($request),
+        ]);
+    }
+
+    /**
+     * The information form (edit mode) as a dialog fragment, for the list's popup.
+     */
+    public function form(Request $request, int $id): View
+    {
+        abort_unless($request->ajax(), 404);
+
+        $customerId = $this->customerId();
+        $routePrefix = $this->routePrefix($request);
+        $template = $this->findTemplate($customerId, $id);
+        $readiness = $this->readinessService->evaluate(
+            $customerId,
+            $this->readinessService->load($customerId, $id),
+        );
+
+        return view('course-templates.dialog', [
+            'template' => $template,
+            'context' => $request->query('context') === 'workspace' ? 'workspace' : null,
+            'categories' => $this->categories(),
+            'requiredFields' => $this->requiredFields($customerId, $id),
+            'routePrefix' => $routePrefix,
+            ...$this->introductionMediaViewData($template, $customerId, $routePrefix, $readiness),
         ]);
     }
 
@@ -140,12 +175,24 @@ class CourseTemplateController extends Controller
             return $templateId;
         });
 
-        return redirect()
-            ->route($this->routePrefix($request).'.edit', $templateId)
-            ->with([
-                'course_template_created_title' => __('lf.LF_course_template_common_created_title'),
-                'course_template_created_guidance' => __('lf.LF_course_template_common_created_guidance'),
-            ]);
+        $created = [
+            'course_template_created_title' => __('lf.LF_course_template_common_created_title'),
+            'course_template_created_guidance' => __('lf.LF_course_template_common_created_guidance'),
+        ];
+        $editUrl = route($this->routePrefix($request).'.edit', $templateId);
+
+        if ($request->expectsJson()) {
+            // The dialog follows `redirect` to the workspace, which shows the guidance flashed here.
+            $request->session()->flash('course_template_created_title', $created['course_template_created_title']);
+            $request->session()->flash('course_template_created_guidance', $created['course_template_created_guidance']);
+
+            return response()->json([
+                'message' => $created['course_template_created_title'],
+                'redirect' => $editUrl,
+            ], 201);
+        }
+
+        return redirect()->to($editUrl)->with($created);
     }
 
     public function show(Request $request, int $id): RedirectResponse
@@ -194,17 +241,6 @@ class CourseTemplateController extends Controller
             ctype_digit((string) $request->query('ai_activity')) ? (int) $request->query('ai_activity') : null,
         );
 
-        $introImageMedia = $this->mediaFile($template->intro_image_media_file_id, $id, 'image', $routePrefix);
-        $introVideoMedia = $this->mediaFile($template->intro_video_media_file_id, $id, 'video', $routePrefix);
-        $introDocumentMedia = $this->mediaFile($template->intro_document_media_file_id, $id, 'document', $routePrefix);
-        $introVideoEmbedUrl = $template->intro_video_source === 'embed'
-            && $template->intro_video_embed_url
-            && ! $publishReadiness->blockers()->contains(
-                fn (object $issue): bool => $issue->code === 'video_state'
-            )
-                ? $this->trustedVideoUrls->embedUrl($template->intro_video_embed_url)
-                : null;
-
         return view('course-templates.edit', [
             'template' => $template,
             'versions' => $versions,
@@ -218,17 +254,7 @@ class CourseTemplateController extends Controller
             'directLessons' => $publishGraph->lessons->whereNull('template_section_id'),
             'lessonsBySection' => $publishGraph->lessons->whereNotNull('template_section_id')->groupBy('template_section_id'),
             'activitiesByLesson' => $this->activitiesByLesson($customerId, $id),
-            'introImageMedia' => $introImageMedia,
-            'introVideoMedia' => $introVideoMedia,
-            'introDocumentMedia' => $introDocumentMedia,
-            'introVideoEmbedUrl' => $introVideoEmbedUrl,
-            'introImageThumbnail' => $this->mediaThumbnails->image($introImageMedia),
-            'introVideoThumbnail' => $template->intro_video_source === 'embed'
-                ? $this->mediaThumbnails->embeddedVideo(
-                    $introVideoEmbedUrl ? $template->intro_video_embed_url : null
-                )
-                : $this->mediaThumbnails->uploadedVideo($introVideoMedia),
-            'introDocumentThumbnail' => $this->mediaThumbnails->document($introDocumentMedia),
+            ...$this->introductionMediaViewData($template, $customerId, $routePrefix, $publishReadiness),
             'teacherAssignments' => $this->teacherAssignments(
                 $customerId,
                 $id
@@ -415,6 +441,20 @@ class CourseTemplateController extends Controller
             $this->syncIntroductionMedia($request, $id, $validated);
         });
 
+        if ($request->expectsJson()) {
+            if ($request->query('context') === 'workspace') {
+                // Saved from the workspace's Information tab: return there with the message (the summary changed).
+                $request->session()->flash('success', __('lf.LF_course_template_common_updated'));
+
+                return response()->json([
+                    'message' => __('lf.LF_course_template_common_updated'),
+                    'redirect' => route($this->routePrefix($request).'.edit', ['id' => $id, 'tab' => 'information']),
+                ]);
+            }
+
+            return response()->json(['message' => __('lf.LF_course_template_common_updated')]);
+        }
+
         return redirect()
             ->route($this->routePrefix($request).'.edit', $id)
             ->with('success', __('lf.LF_course_template_common_updated'));
@@ -467,18 +507,47 @@ class CourseTemplateController extends Controller
         $customerId = $this->customerId();
         $this->findTemplate($customerId, $id);
 
-        if ($this->hasReferences($customerId, $id)) {
-            return back()->withErrors([
-                'template' => __(
-                    'lf.LF_course_template_common_delete_blocked'
-                ),
-            ]);
+        try {
+            $blocked = DB::transaction(function () use ($customerId, $id): ?string {
+                $locked = DB::table('core_course_templates')
+                    ->where('customer_id', $customerId)
+                    ->where('id', $id)
+                    ->lockForUpdate()
+                    ->first();
+
+                abort_if(! $locked, 404);
+
+                $reasons = $this->deletionBlockers($customerId, [$id])[$id] ?? [];
+
+                if ($reasons !== []) {
+                    return $this->deletionBlockMessage($reasons);
+                }
+
+                foreach (['intro_image', 'intro_video', 'intro_document'] as $usageType) {
+                    $this->detachOwnerMedia($id, $usageType);
+                }
+
+                DB::table('core_course_templates')
+                    ->where('customer_id', $customerId)
+                    ->where('id', $id)
+                    ->delete();
+
+                return null;
+            });
+        } catch (QueryException $exception) {
+            // Something was attached between the check and the delete (all references are RESTRICT keys).
+            $blocked = __('lf.LF_course_template_delete_blocked_generic');
         }
 
-        DB::table('core_course_templates')
-            ->where('customer_id', $customerId)
-            ->where('id', $id)
-            ->delete();
+        if ($blocked !== null) {
+            return $request->expectsJson()
+                ? response()->json(['message' => $blocked], 409)
+                : back()->withErrors(['template' => $blocked]);
+        }
+
+        if ($request->expectsJson()) {
+            return response()->json(['message' => __('lf.LF_course_template_common_deleted')]);
+        }
 
         return redirect()
             ->route($this->routePrefix($request).'.index')
@@ -1104,6 +1173,40 @@ class CourseTemplateController extends Controller
         }
     }
 
+    /**
+     * Current intro image/video/document with their thumbnails, as the information form needs them.
+     *
+     * @return array<string, mixed>
+     */
+    private function introductionMediaViewData(object $template, int $customerId, string $routePrefix, object $publishReadiness): array
+    {
+        $id = (int) $template->id;
+        $introImageMedia = $this->mediaFile($template->intro_image_media_file_id, $id, 'image', $routePrefix);
+        $introVideoMedia = $this->mediaFile($template->intro_video_media_file_id, $id, 'video', $routePrefix);
+        $introDocumentMedia = $this->mediaFile($template->intro_document_media_file_id, $id, 'document', $routePrefix);
+        $introVideoEmbedUrl = $template->intro_video_source === 'embed'
+            && $template->intro_video_embed_url
+            && ! $publishReadiness->blockers()->contains(
+                fn (object $issue): bool => $issue->code === 'video_state'
+            )
+                ? $this->trustedVideoUrls->embedUrl($template->intro_video_embed_url)
+                : null;
+
+        return [
+            'introImageMedia' => $introImageMedia,
+            'introVideoMedia' => $introVideoMedia,
+            'introDocumentMedia' => $introDocumentMedia,
+            'introVideoEmbedUrl' => $introVideoEmbedUrl,
+            'introImageThumbnail' => $this->mediaThumbnails->image($introImageMedia),
+            'introVideoThumbnail' => $template->intro_video_source === 'embed'
+                ? $this->mediaThumbnails->embeddedVideo(
+                    $introVideoEmbedUrl ? $template->intro_video_embed_url : null
+                )
+                : $this->mediaThumbnails->uploadedVideo($introVideoMedia),
+            'introDocumentThumbnail' => $this->mediaThumbnails->document($introDocumentMedia),
+        ];
+    }
+
     private function mediaFile(
         ?int $mediaFileId,
         int $templateId,
@@ -1192,27 +1295,53 @@ class CourseTemplateController extends Controller
         abort_unless($isAssignedTeacher, 404);
     }
 
-    private function hasReferences(int $customerId, int $templateId): bool
+    /**
+     * What still hangs on each template: reason => count, per template id. A template with any entry cannot be
+     * deleted (structure, versions, assigned teachers, products that use it, learning mappings).
+     *
+     * @param  array<int, int>  $templateIds
+     * @return array<int, array<string, int>>
+     */
+    private function deletionBlockers(int $customerId, array $templateIds): array
     {
+        $blockers = [];
+
         foreach ([
-            'core_course_template_sections',
-            'core_course_template_teachers',
-            'core_course_template_lessons',
-            'core_course_template_activities',
-            'core_course_template_versions',
-        ] as $table) {
-            if (
-                Schema::hasTable($table)
-                && DB::table($table)
-                    ->where('customer_id', $customerId)
-                    ->where('template_id', $templateId)
-                    ->exists()
-            ) {
-                return true;
+            'sections' => 'core_course_template_sections',
+            'lessons' => 'core_course_template_lessons',
+            'activities' => 'core_course_template_activities',
+            'versions' => 'core_course_template_versions',
+            'teachers' => 'core_course_template_teachers',
+            'products' => 'core_course_product_items',
+            'mappings' => 'core_course_template_learning_mapping_intents',
+        ] as $reason => $table) {
+            if (! Schema::hasTable($table)) {
+                continue;
+            }
+
+            $counts = DB::table($table)
+                ->where('customer_id', $customerId)
+                ->whereIn('template_id', $templateIds)
+                ->selectRaw('template_id, count(*) as aggregate')
+                ->groupBy('template_id')
+                ->pluck('aggregate', 'template_id');
+
+            foreach ($counts as $templateId => $count) {
+                $blockers[(int) $templateId][$reason] = (int) $count;
             }
         }
 
-        return false;
+        return $blockers;
+    }
+
+    /**
+     * @param  array<string, int>  $reasons
+     */
+    private function deletionBlockMessage(array $reasons): string
+    {
+        $reason = array_key_first($reasons);
+
+        return __('lf.LF_course_template_delete_blocked_'.$reason, ['count' => $reasons[$reason]]);
     }
 
     private function customerId(): int

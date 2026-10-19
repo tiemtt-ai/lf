@@ -846,3 +846,102 @@ label, and a `ui-sr-only` copy of that label for screen readers (the icon is `ar
 nothing. New visual, not in the original UI Kit, adopted on the Owner's choice. Checked in a browser: star 14px,
 colour rgb(224,161,0), long names keep the star on the same line; PHP test asserts the markup and that the plain
 caption is gone. Not verified: touch (tooltip needs hover) and the amber colour's contrast on the striped row.
+
+## Course template list adoption — 2026-10-19
+
+Owner asked to apply the Product Category approach to `/admin|teacher/course-templates`, list page first
+(create/edit popup and delete come later). `course-templates/index.blade.php` now uses the UI Kit list: filters
+(keyword + status combobox built from a native `select[data-ui-kit-select]`) apply as you type/choose through
+`data-ui-live-filter`; result messages (`session('success')`) are a toast; table, footer and pagination use the UI Kit
+markup. Status stays read-only text (four lifecycle values, so no switch); "Quản lý" is an edit-icon link to the
+existing edit page. Controller, query, teacher scope and routes are unchanged.
+
+Shared pieces extracted from the category list: `x-ui-list-toasts` and `x-ui-list-foot` (category list now uses
+them too), live filter reacts to `change` on selects, CSS `mk-col-secondary`. Tests: template list and layout
+tests updated to the new markup (the template list is no longer part of the legacy `admin-table` contract lists);
+Node live-filter test for select changes. Browser (rendered page, stubbed fetch): combobox lists the 4 statuses,
+choosing "Bản nháp" fetched `?status=draft`, typing fetched `?keyword=TOPIK&status=draft` with the search box
+keeping focus, toast top-right. Not verified: teacher view in a browser, real server round-trip.
+
+### Course template delete and lifecycle status pills — 2026-10-19
+
+Delete (Owner: confirm first, only when nothing is attached): `destroy` already existed (no UI); it now answers JSON
+for XHR (200 / 409) and keeps the redirect otherwise. A template can be deleted only when it has no sections,
+lessons, activities, published versions, assigned teachers, products using it (`core_course_product_items`) and no
+learning mappings (RESTRICT foreign keys plus the old rule). The row is locked and re-checked in a transaction, intro
+image/video/document usages are detached first, and a late FK violation is reported as "in use". Access is unchanged
+(`findTemplate`: admin, or the teacher who created / is assigned; others get 404). The list computes the first
+blocking reason per row with one grouped query per table for the page's ids and disables the trash button with that
+reason as the tooltip; clicking an enabled one asks through `window.LFConfirm`, then `admin-ui-kit-row-actions.js`
+sends the request (same module as the category list).
+
+Status column: templates have four lifecycle values, so (unlike the category on/off switch) they are shown as
+read-only pills: `ui-status--draft` blue, `--active` green, `--inactive` amber, `--archived` grey (tokens
+`--ui-warning`, `--ui-warning-soft` added). Changed on the Owner's suggestion; colours can be tuned in the CSS.
+Verification: PHP tests (JSON delete, 409 for sections/teachers/products with counts, tenant and teacher scope,
+non-JSON redirect with error, list button states, pill classes); browser on a rendered list: pill colours as above,
+blocked row disabled with "Không thể xoá: Template còn 1 phần học.", confirm dialog (Cancel focused), DELETE request
+and toast. Not verified: lessons/activities/versions/mapping blockers have no dedicated test (same code path as the
+tested ones), the media detach and race paths, a real server delete.
+
+Status pill refinement (Owner, 2026-10-19): no leading dot and regular weight (400) text; the colours per status are
+unchanged.
+
+### Duplicate status filter on the template list — 2026-10-19
+
+Owner saw the status filter twice. Cause (reproduced in a browser): the same JS module was evaluated twice, because
+Vite's dev server serves an HMR-updated module as `admin-ui-kit-controls.js?t=...` for importers while the page's own
+tag loads the plain URL, so each copy built a combobox from the same `select[data-ui-kit-select]`. The old guard was a
+module-level `WeakMap`, which each copy has separately. The guard now lives on the element
+(`claimOnce`/`releaseClaim`, `data-ui-kit-ready-*`) for the select adapter, live filter, media slot, toasts, dialog
+form and row actions, so a second copy skips an element that is already set up. Production builds ship one copy and
+were not affected. Verification: Node tests for the guard; browser: the resource list showed both copies, only one
+combobox is rendered.
+
+### Course template create / edit-information popup — 2026-10-19
+
+Owner asked for the category approach on the template list: Create and Edit open in a popup (2 columns).
+Scope and what stays:
+- **Create**: popup only. `GET course-templates/create` now returns the form fragment (`course-templates/dialog.blade.php`
+  + `partials/dialog-fields.blade.php`) for XHR and 404 otherwise; the create page view was deleted. `store` answers JSON
+  `{message, redirect}` (201) where `redirect` is the workspace page, so after creating the dialog continues there exactly
+  like before (the created guidance is flashed for that page); validation answers 422.
+- **Edit information**: new route `course-templates.form` (`GET /course-templates/{id}/form`, XHR only, same access rules as
+  `edit`) renders the same fragment; `update` answers JSON `{message}` and the list refetches. The list row now has three
+  actions: Edit information (popup), Manage (link to the workspace page, 6 tabs) and Delete.
+- **Not changed**: the workspace page `course-templates/{id}/edit` (Structure, Teachers, Learning framework, Publish, History)
+  and its Information tab still use the legacy `partials/form.blade.php`; teachers and learning frameworks are separate tabs,
+  not part of this form. So the field list exists in two partials until the Information tab is moved to the popup (follow-up).
+
+Popup content: title; category | publisher; status | difficulty; minutes per lesson | lesson count; short description |
+description; then three media fields in a row: image tile, video (source select upload/embed; upload tile or URL input) and
+document tile. Required fields come from `requiredFields()`; empty ones are reported inline. An archived template opens
+read-only (fieldset disabled, save disabled). Field ids are prefixed `template-form-*`.
+Shared pieces extended: `x-ui-dialog-discard` (nested "discard changes?" dialog), media slot carries `mime` and passes
+`mimeType` in the preview event (non-image/video/embed kinds open in a new tab), the dialog form follows a `redirect` in the
+JSON answer, and the required-message lookup finds the label of a select turned into a combobox.
+Verification: PHP template tests (fragments, JSON create/update, ajax-only, scope, list triggers; 469 template-related tests
+pass); Node 222 tests; browser on rendered pages with a stubbed fetch: popup layout, video source toggle (upload tile / URL),
+inline required messages in Vietnamese, 422 mapping, redirect after create, edit popup with saved values and image preview.
+Not verified: a real upload of video/document through the popup (large files, no progress indicator), the embed-video saved
+state in a browser, teacher view, a real server round-trip.
+
+### Template workspace: Information tab uses the same popup — 2026-10-19
+
+Owner asked to leave one form only. The Information tab of `course-templates/{id}/edit` is now a summary (12 read-only
+fields, status pill, archive action for an inactive template) with an "Edit information" button (read-only archived
+templates: "View information") that opens the same dialog. The legacy `partials/form.blade.php` was deleted, so the field
+list exists once (`partials/dialog-fields.blade.php`).
+
+Details: the button loads `course-templates/{id}/form?context=workspace`; the fragment's form posts to
+`update?context=workspace`, and in that case the JSON answer carries `redirect` to `?tab=information` plus a flashed success
+message, so the page reloads with the new summary. Readiness links keep their URLs (`?tab=information#<field>`): the page
+opens the dialog when the URL has a hash and the marked button is visible (`data-ui-dialog-form-hash-open`), and the dialog
+puts the cursor in `#<field>` (tries the id prefix `data-field-id-prefix="template-form-"`, then the combobox of a select, then
+the bare id), so links such as `#difficulty_level`, `#status`, `#intro_video_source` still land on the right field. The
+workspace page loads the UI Kit CSS/JS (rules are scoped to `.lf-admin-ui`, wrapped around the Information panel only).
+Verification: PHP tests (template summary, workspace save + redirect, readiness fragments all have a focusable field in the
+dialog; 12 older tests rewritten from the edit page to the fragment; template-related suite passes), Node dialog-form tests
+24 (7 mutations killed for focus/auto-open), browser on a rendered page: summary card, `#difficulty_level` opens the dialog
+with the combobox focused, save posts to the workspace context and follows the redirect. Not verified: the guidance flash
+after create on the real workspace, teacher view, a real server round-trip.

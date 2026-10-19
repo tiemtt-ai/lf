@@ -82,7 +82,7 @@ class MediaThumbnailComponentTest extends TestCase
     public function test_compact_css_and_modal_markup_are_separate(): void
     {
         $css = file_get_contents(resource_path('css/admin/admin-pages.css'));
-        $form = file_get_contents(resource_path('views/course-templates/partials/form.blade.php'));
+        $form = file_get_contents(resource_path('views/components/introduction-media-fields.blade.php'));
 
         foreach (['width: 64px;', 'height: 64px;', 'min-width: 64px;', 'max-width: 64px;', 'flex: 0 0 64px;', 'overflow: hidden;'] as $rule) {
             $this->assertStringContainsString($rule, $css);

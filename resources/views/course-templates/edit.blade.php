@@ -3,6 +3,11 @@
 @section('title', __('lf.LF_course_template_common_edit'))
 @section('page_title', __('lf.LF_course_template_common_edit'))
 
+@section('vite')
+    @parent
+    @vite(['resources/css/admin/admin-ui-kit.css', 'resources/js/admin-ui-kit-controls.js', 'resources/js/admin-ui-kit-dialog-form.js'])
+@endsection
+
 @section('content')
     @php
         $tabs = [
@@ -105,55 +110,79 @@
         <section id="course-template-tab-information"
                  class="course-template-tab-panel"
                  @if ($activeTab !== 'information') hidden @endif>
-            <div class="admin-card admin-form-card admin-form-surface">
-                <form id="course-template-update-form"
-                      class="admin-form-standard"
-                      method="POST"
-                      action="{{ route($routePrefix.'.update', $template->id) }}"
-                      enctype="multipart/form-data">
-                    @csrf
-                    @method('PUT')
+            @php
+                $isArchived = $template->status === \App\Support\CourseTemplateStatus::ARCHIVED;
+                $categoryName = $categories->firstWhere('id', $template->category_id)?->name;
+                $dash = '—';
+                $introVideoName = $introVideoMedia?->display_name
+                    ?? ($introVideoEmbedUrl ? ucfirst((string) $template->intro_video_provider) : null);
+                $summary = [
+                    ['title', __('lf.LF_course_template_common_name'), $template->title],
+                    ['category_id', __('lf.LF_course_template_common_category'), $categoryName],
+                    ['publisher_name', __('lf.LF_course_template_common_publisher_name'), $template->publisher_name],
+                    ['status', __('lf.LF_course_template_common_status'), null],
+                    ['difficulty_level', __('lf.LF_course_template_common_difficulty_level'), $template->difficulty_level ? __('lf.LF_course_template_common_'.$template->difficulty_level) : null],
+                    ['estimated_minutes_per_lesson', __('lf.LF_course_template_estimated_minutes_per_lesson'), $template->estimated_minutes_per_lesson],
+                    ['estimated_lesson_count', __('lf.LF_course_template_estimated_lesson_count'), $template->estimated_lesson_count],
+                    ['short_description', __('lf.LF_course_template_common_short_description'), $template->short_description],
+                    ['description', __('lf.LF_course_template_common_description'), $template->description ? \Illuminate\Support\Str::limit(strip_tags((string) $template->description), 320) : null],
+                    ['intro_image_file', __('lf.LF_course_template_intro_image'), $introImageMedia?->display_name],
+                    ['intro_video_source', __('lf.LF_course_template_intro_video'), $introVideoName],
+                    ['intro_document_file', __('lf.LF_course_template_intro_document'), $introDocumentMedia?->display_name],
+                ];
+            @endphp
+            <div class="lf-admin-ui lf-admin-ui--list" data-ui-dialog-form-scope>
+                <x-ui-list-toasts />
 
-                    @if ($template->status === \App\Support\CourseTemplateStatus::ARCHIVED)<fieldset disabled>@endif
-                    @include('course-templates.partials.form')
-                    @if ($template->status === \App\Support\CourseTemplateStatus::ARCHIVED)</fieldset>@endif
+                <section class="mk-section" aria-labelledby="course-template-information-title">
+                    <div class="ui-summary-head">
+                        <h2 id="course-template-information-title" class="admin-form-section-title">{{ __('lf.LF_course_template_tab_information') }}</h2>
+                        <button type="button" class="ui-button ui-button--primary cursor-interaction"
+                                data-ui-dialog-form-open data-ui-dialog-form-hash-open aria-haspopup="dialog"
+                                data-url="{{ route($routePrefix.'.form', ['id' => $template->id, 'context' => 'workspace']) }}">
+                            {{ $isArchived ? __('lf.LF_course_template_action_view_info') : __('lf.LF_course_template_action_edit_info') }}
+                        </button>
+                    </div>
 
-                </form>
+                    <dl class="ui-summary">
+                        @foreach ($summary as [$field, $label, $value])
+                            <div class="ui-summary__item" data-summary-field="{{ $field }}" @class(['ui-summary__item--wide' => in_array($field, ['short_description', 'description'], true)])>
+                                <dt class="ui-field__label">{{ $label }}</dt>
+                                <dd>
+                                    @if ($field === 'status')
+                                        <span class="ui-status ui-status--{{ $template->status }}">{{ __('lf.LF_course_template_common_'.$template->status) }}</span>
+                                    @else
+                                        {{ $value !== null && $value !== '' ? $value : $dash }}
+                                    @endif
+                                </dd>
+                            </div>
+                        @endforeach
+                    </dl>
 
-                <footer class="admin-form-footer" data-actions-align="end">
-                    <div class="admin-form-footer-danger">
-                        @if ($template->status === \App\Support\CourseTemplateStatus::INACTIVE
-                            && \Illuminate\Support\Facades\Route::has($routePrefix.'.archive'))
+                    @if ($template->status === \App\Support\CourseTemplateStatus::INACTIVE
+                        && \Illuminate\Support\Facades\Route::has($routePrefix.'.archive'))
+                        <div class="ui-summary-foot">
                             <form method="POST"
-                              action="{{ route($routePrefix.'.archive', $template->id) }}"
-                              x-data="{ submitting: false }"
-                              data-lf-confirm="{{ __('lf.LF_course_template_status_archive_confirm') }}"
-                              data-lf-confirm-tone="danger"
-                              @submit="if (submitting) { $event.preventDefault(); return } submitting = true">
-                            @csrf
-                            <button type="submit"
-                                    class="btn btn-danger"
-                                    :disabled="submitting"
-                                    :aria-busy="submitting">
-                                {{ __('lf.LF_course_template_status_archive_action') }}
-                            </button>
-                        </form>
-                        @endif
-                    </div>
+                                  action="{{ route($routePrefix.'.archive', $template->id) }}"
+                                  x-data="{ submitting: false }"
+                                  data-lf-confirm="{{ __('lf.LF_course_template_status_archive_confirm') }}"
+                                  data-lf-confirm-tone="danger"
+                                  @submit="if (submitting) { $event.preventDefault(); return } submitting = true">
+                                @csrf
+                                <button type="submit" class="ui-button cursor-interaction" :disabled="submitting" :aria-busy="submitting">
+                                    {{ __('lf.LF_course_template_status_archive_action') }}
+                                </button>
+                            </form>
+                        </div>
+                    @endif
+                </section>
 
-                    <div class="admin-form-footer-primary">
-                        <a href="{{ route($routePrefix.'.index') }}" class="btn btn-secondary">
-                            {{ __('lf.LF_common_button_cancel') }}
-                        </a>
-                        @if ($template->status !== \App\Support\CourseTemplateStatus::ARCHIVED)
-                            <button type="submit"
-                                    form="course-template-update-form"
-                                    class="btn btn-primary">
-                                {{ __('lf.LF_common_button_save_changes') }}
-                            </button>
-                        @endif
-                    </div>
-                </footer>
+                <dialog class="ui-modal" data-columns="2" aria-labelledby="template-dialog-title" data-ui-dialog-form data-field-id-prefix="template-form-"
+                        data-msg-load-error="{{ __('lf.LF_course_template_dialog_load_error') }}"
+                        data-msg-save-error="{{ __('lf.LF_course_template_dialog_save_error') }}"
+                        data-msg-session-expired="{{ __('lf.LF_course_template_session_expired') }}"
+                        data-msg-required-input="{{ __('lf.LF_course_template_dialog_required_input') }}"
+                        data-msg-required-select="{{ __('lf.LF_course_template_dialog_required_select') }}"></dialog>
             </div>
         </section>
 

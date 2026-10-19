@@ -1,11 +1,30 @@
 /** Opt-in adapters for real native selects. All presentation is shared CSS. */
 const instances = new WeakMap();
 
+/**
+ * Initialise-once guard kept on the element itself. A module-level WeakMap is not enough: when the same file is
+ * loaded twice (e.g. Vite dev serves an HMR-updated copy with `?t=`), each copy would initialise the same element.
+ * Elements without a dataset (test fakes) fall back to the per-module WeakMap checks only.
+ */
+export function claimOnce(node, name) {
+    const dataset = node?.dataset;
+    if (!dataset) return true;
+    const key = `uiKitReady${name}`;
+    if (dataset[key]) return false;
+    dataset[key] = '1';
+    return true;
+}
+
+export function releaseClaim(node, name) {
+    if (node?.dataset) delete node.dataset[`uiKitReady${name}`];
+}
+
 export function initUiKitSelect(select) {
     if (instances.has(select)) return instances.get(select);
     if (select.multiple) return null;
     const root = select.closest('.lf-admin-ui');
     if (!root) return null;
+    if (!claimOnce(select, 'Select')) return null;
     const label = root.querySelector(`label[for="${CSS.escape(select.id)}"]`);
     const wrapper = document.createElement('div');
     wrapper.className = 'ux-combo';
@@ -152,6 +171,7 @@ export function initUiKitSelect(select) {
         if (label) label.htmlFor = previousLabelFor;
         select.hidden = false;
         wrapper.remove();
+        releaseClaim(select, 'Select');
         instances.delete(select);
     } };
     instances.set(select, instance);
@@ -185,6 +205,7 @@ export function showUiToast(node, text, deps = {}) {
 
 export function initUiKitToasts(scope = document, deps = {}) {
     scope.querySelectorAll('[data-ui-toast]').forEach(node => {
+        if (!claimOnce(node, 'Toast')) return;
         node.querySelector('[data-ui-toast-close]')?.addEventListener('click', () => hideUiToast(node, deps));
         if (!node.hidden) showUiToast(node, (node.querySelector('[data-ui-toast-text]') ?? node).textContent, deps);
     });
@@ -205,6 +226,7 @@ export function initUiKitMediaSlot(slot, deps = {}) {
     const part = name => slot.querySelector(`[data-ui-media-${name}]`);
     const input = part('input');
     if (!input) return null;
+    if (!claimOnce(slot, 'MediaSlot')) return null;
     const filled = part('filled');
     const empty = part('empty');
     const image = part('image');
@@ -219,6 +241,7 @@ export function initUiKitMediaSlot(slot, deps = {}) {
     const saved = slot.getAttribute('data-saved') === 'true';
     const savedName = slot.getAttribute('data-saved-name') || '';
     const savedPreview = slot.getAttribute('data-saved-preview-url') || '';
+    const savedMime = slot.getAttribute('data-saved-mime') || '';
     const savedImage = image.getAttribute('src') || '';
     const previewable = slot.getAttribute('data-pending-previewable') === 'true';
     const kind = slot.getAttribute('data-kind') || 'image';
@@ -279,7 +302,12 @@ export function initUiKitMediaSlot(slot, deps = {}) {
     const onView = () => {
         const url = pending ? pending.url : savedPreview;
         if (!url) return;
-        slot.dispatchEvent(createEvent(UI_MEDIA_PREVIEW_EVENT, { name: pending ? pending.file.name : savedName, url, kind }));
+        slot.dispatchEvent(createEvent(UI_MEDIA_PREVIEW_EVENT, {
+            name: pending ? pending.file.name : savedName,
+            url,
+            kind,
+            mimeType: pending ? String(pending.file.type || '') : savedMime,
+        }));
     };
     const onImageError = () => { imageBroken = true; render(); };
     const form = slot.closest?.('form') ?? null;
@@ -304,6 +332,7 @@ export function initUiKitMediaSlot(slot, deps = {}) {
         viewButton.removeEventListener('click', onView);
         image.removeEventListener('error', onImageError);
         form?.removeEventListener('reset', onReset);
+        releaseClaim(slot, 'MediaSlot');
         instances.delete(slot);
     } };
     instances.set(slot, instance);
@@ -326,6 +355,7 @@ export function initUiKitLiveFilter(form, deps = {}) {
     if (instances.has(form)) return instances.get(form);
     const root = form.closest('.lf-admin-ui');
     if (!root) return null;
+    if (!claimOnce(form, 'LiveFilter')) return null;
     const win = deps.window ?? window;
     const delay = deps.delay ?? LIVE_FILTER_DELAY_MS;
     const parse = deps.parse ?? (html => new win.DOMParser().parseFromString(html, 'text/html'));
@@ -402,6 +432,10 @@ export function initUiKitLiveFilter(form, deps = {}) {
         if (event.target?.type !== 'search' || event.isComposing) return;
         schedule();
     };
+    // Choosing a value in a select (native or the UI Kit combobox built from one) filters at once.
+    const onChange = event => {
+        if (event.target?.tagName === 'SELECT') run();
+    };
     const onCompositionStart = () => {
         composing = true;
         cancelTimer();
@@ -417,15 +451,18 @@ export function initUiKitLiveFilter(form, deps = {}) {
     root.addEventListener('ui-dialog-form-saved', onSaved);
     form.addEventListener('submit', onSubmit);
     form.addEventListener('input', onInput);
+    form.addEventListener('change', onChange);
     form.addEventListener('compositionstart', onCompositionStart);
     form.addEventListener('compositionend', onCompositionEnd);
     const instance = { run, destroy() {
         cancelTimer();
         seq++;
         controller?.abort();
+        releaseClaim(form, 'LiveFilter');
         root.removeEventListener('ui-dialog-form-saved', onSaved);
         form.removeEventListener('submit', onSubmit);
         form.removeEventListener('input', onInput);
+        form.removeEventListener('change', onChange);
         form.removeEventListener('compositionstart', onCompositionStart);
         form.removeEventListener('compositionend', onCompositionEnd);
         instances.delete(form);
