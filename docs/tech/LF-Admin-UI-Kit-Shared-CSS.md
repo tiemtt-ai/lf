@@ -836,3 +836,13 @@ reason in the error toast. Verification: PHP delete tests (empty delete + usage 
 child with counts, tenant isolation, teacher ownership, guest 401, non-JSON redirect, index button states); Node 5 row
 action tests (6 mutations killed). Not verified: the race-condition path (FK violation after the check) and a real
 browser delete against a live server.
+
+### Featured category marker — 2026-10-19
+
+Owner chose a star instead of the grey caption text "Danh mục nổi bật" beside the name. The name cell is now
+`mk-name-line` (name in `mk-name-text`, ellipsised when too long) followed, only for featured categories, by
+`mk-featured`: a 14px filled lucide `star` in `--ui-featured` (#e0a100), `title`/`data-tooltip` with the existing
+label, and a `ui-sr-only` copy of that label for screen readers (the icon is `aria-hidden`). Non-featured rows show
+nothing. New visual, not in the original UI Kit, adopted on the Owner's choice. Checked in a browser: star 14px,
+colour rgb(224,161,0), long names keep the star on the same line; PHP test asserts the markup and that the plain
+caption is gone. Not verified: touch (tooltip needs hover) and the amber colour's contrast on the striped row.
