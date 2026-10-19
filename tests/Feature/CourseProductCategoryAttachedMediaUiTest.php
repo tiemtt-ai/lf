@@ -54,12 +54,10 @@ class CourseProductCategoryAttachedMediaUiTest extends TestCase
                     ),
                 ])
             )
-            ->assertRedirect(
-                "https://tenant-a.localhost/admin/course-categories/{$categoryId}/edit"
-            );
+            ->assertRedirect('https://tenant-a.localhost/admin/course-categories');
 
         $response = $this->actingAs($admin)
-            ->get("https://tenant-a.localhost/admin/course-categories/{$categoryId}/edit")
+            ->withHeader('X-Requested-With', 'XMLHttpRequest')->get("https://tenant-a.localhost/admin/course-categories/{$categoryId}/edit")
             ->assertOk();
         $content = $response->getContent();
 
@@ -67,58 +65,50 @@ class CourseProductCategoryAttachedMediaUiTest extends TestCase
             1,
             $this->htmlElementCount(
                 $content,
-                '//div[contains(concat(" ", normalize-space(@class), " "), " ui-form-surface ")]'
-                .'/form[contains(concat(" ", normalize-space(@class), " "), " ui-form ")]'
-                .'/div[contains(concat(" ", normalize-space(@class), " "), " ui-form-flow ")]'
+                '//form[contains(concat(" ", normalize-space(@class), " "), " ui-modal__form ")]'
+                .'/div[contains(concat(" ", normalize-space(@class), " "), " ui-modal__body ")]'
+                .'//div[contains(concat(" ", normalize-space(@class), " "), " ui-modal__grid ")]'
             )
+        );
+        $slot = '//div[@data-ui-media-slot and @data-saved="true"]';
+        $this->assertSame(2, $this->htmlElementCount($content, $slot));
+        $this->assertSame(2, $this->htmlElementCount($content, $slot.'//img[@data-ui-media-image and @src]'));
+        $this->assertSame(
+            2,
+            $this->htmlElementCount($content, $slot.'//button[@type="button" and @data-ui-media-view and @aria-label]')
         );
         $this->assertSame(
             2,
-            $this->htmlElementCount(
-                $content,
-                '//div[@data-authoring-media-current-row]'
-            )
+            $this->htmlElementCount($content, $slot.'//button[@type="button" and @data-ui-media-remove and @aria-label]')
         );
         $this->assertSame(
             2,
-            $this->htmlElementCount(
-                $content,
-                '//div[@data-authoring-media-current-row]'
-                .'//*[contains(concat(" ", normalize-space(@class), " "), " media-thumbnail ")]'
-            )
+            $this->htmlElementCount($content, $slot.'//input[@type="file" and @data-ui-media-input]')
         );
         $this->assertSame(
             2,
-            $this->htmlElementCount(
-                $content,
-                '//div[@data-authoring-media-current-row]'
-                .'//button[@type="button" and contains(concat(" ", normalize-space(@class), " "), " ui-button ")]'
-            )
+            $this->htmlElementCount($content, $slot.'//input[@type="hidden" and @data-ui-media-remove-flag and @value="0"]')
         );
         $this->assertSame(
-            2,
+            1,
             $this->htmlElementCount(
                 $content,
-                '//button[@type="button" and @*[starts-with(name(), "x-on:click") and contains(., "openCategoryImagePreview")]]'
+                '//div[@x-data][@*[name()="x-on:ui-media-preview" and contains(., "openCategoryImagePreview")]]'
             )
         );
+        $this->assertSame(0, $this->htmlElementCount($content, '//div[@data-authoring-media-current-row]'));
+        $this->assertStringNotContainsString('data-ui-media-name', $content);
         $this->assertSame(
             0,
             $this->htmlElementCount(
                 $content,
-                '//div[@data-authoring-media-current-row]//a'
-            )
-        );
-        $this->assertSame(
-            2,
-            $this->htmlElementCount(
-                $content,
-                '//div[@data-authoring-media-current-row]//label[contains(concat(" ", normalize-space(@class), " "), " ui-check ")]'
-                .'//input[@type="checkbox"]'
+                '//label[contains(concat(" ", normalize-space(@class), " "), " ui-upload ")]'
             )
         );
         $this->assertStringContainsString('name="remove_thumbnail_image_media"', $content);
         $this->assertStringContainsString('name="remove_banner_image_media"', $content);
+        $this->assertStringContainsString('name="thumbnail_image_file"', $content);
+        $this->assertStringContainsString('name="banner_image_file"', $content);
         $this->assertStringContainsString('course-category-preview-title', $content);
         $this->assertStringContainsString(
             'Định dạng: JPG, PNG, GIF, WEBP, SVG',
@@ -127,15 +117,7 @@ class CourseProductCategoryAttachedMediaUiTest extends TestCase
         $this->assertStringContainsString('Tối đa:', $content);
         $this->assertStringContainsString('Ảnh đại diện', $content);
         $this->assertStringContainsString('Ảnh banner', $content);
-        $this->assertStringContainsString('openCategoryImagePreview', $content);
         $this->assertStringContainsString('class="ui-modal"', $content);
-        $this->assertSame(
-            2,
-            $this->htmlElementCount(
-                $content,
-                '//label[contains(concat(" ", normalize-space(@class), " "), " ui-upload ")]//input[@type="file"]'
-            )
-        );
         $this->assertGreaterThanOrEqual(
             1,
             $this->htmlElementCount(
@@ -147,12 +129,78 @@ class CourseProductCategoryAttachedMediaUiTest extends TestCase
         $this->assertStringNotContainsString('target="_blank"', $content);
 
         $componentCss = file_get_contents(resource_path('css/admin/admin-ui-kit.css'));
-        $this->assertStringContainsString(
-            '.lf-admin-ui .ui-form-media',
-            $componentCss
+        $this->assertStringContainsString('.lf-admin-ui .ui-media-tile', $componentCss);
+        $this->assertStringContainsString('.lf-admin-ui .ui-media-tile__actions', $componentCss);
+    }
+
+    public function test_create_form_shows_empty_media_slots_without_remove_controls(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+
+        $content = $this->actingAs($admin)
+            ->withHeader('X-Requested-With', 'XMLHttpRequest')->get('https://tenant-a.localhost/admin/course-categories/create')
+            ->assertOk()
+            ->getContent();
+
+        $slot = '//div[@data-ui-media-slot and @data-saved="false"]';
+        $this->assertSame(2, $this->htmlElementCount($content, $slot));
+        $this->assertSame(
+            2,
+            $this->htmlElementCount(
+                $content,
+                $slot.'//label[@data-ui-media-empty and not(@hidden)]//span[text()="Tải lên"]'
+            )
         );
-        $this->assertStringContainsString('.lf-admin-ui .ui-upload', $componentCss);
-        $this->assertStringContainsString('.lf-admin-ui .ui-media-upload__file', $componentCss);
+        $this->assertSame(
+            2,
+            $this->htmlElementCount($content, $slot.'//div[@data-ui-media-filled and @hidden]')
+        );
+        $this->assertSame(
+            2,
+            $this->htmlElementCount($content, $slot.'//input[@type="file" and @accept="image/*"]')
+        );
+    }
+
+    public function test_upload_hint_lives_inside_the_slot_and_describes_the_file_input(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+
+        $content = $this->actingAs($admin)
+            ->withHeader('X-Requested-With', 'XMLHttpRequest')
+            ->get('https://tenant-a.localhost/admin/course-categories/create')
+            ->assertOk()
+            ->getContent();
+
+        foreach (['thumbnail_image_file', 'banner_image_file'] as $id) {
+            $this->assertSame(
+                1,
+                $this->htmlElementCount(
+                    $content,
+                    '//div[@data-ui-media-slot]//div[@id="'.$id.'-hint" and contains(., "Định dạng: JPG")]'
+                ),
+                $id
+            );
+            $this->assertSame(
+                1,
+                $this->htmlElementCount(
+                    $content,
+                    '//input[@id="'.$id.'" and @aria-describedby="'.$id.'-hint"]'
+                ),
+                $id
+            );
+        }
+        $this->assertSame(
+            0,
+            $this->htmlElementCount(
+                $content,
+                '//div[contains(concat(" ", normalize-space(@class), " "), " ui-grid ")]/following-sibling::*[contains(., "Định dạng")]'
+            )
+        );
+        $css = file_get_contents(resource_path('css/admin/admin-ui-kit.css'));
+        $this->assertStringContainsString('.lf-admin-ui .ui-media-slot__hint', $css);
+        $this->assertStringContainsString('(hover: hover)', $css);
     }
 
     public function test_remove_current_image_still_detaches_usage_without_deleting_media_file(): void
@@ -174,9 +222,7 @@ class CourseProductCategoryAttachedMediaUiTest extends TestCase
                     ),
                 ])
             )
-            ->assertRedirect(
-                "https://tenant-a.localhost/admin/course-categories/{$categoryId}/edit"
-            );
+            ->assertRedirect('https://tenant-a.localhost/admin/course-categories');
 
         $usage = DB::table('media_file_usages')
             ->where('customer_id', $customerId)
@@ -199,9 +245,7 @@ class CourseProductCategoryAttachedMediaUiTest extends TestCase
                     'remove_thumbnail_image_media' => 1,
                 ])
             )
-            ->assertRedirect(
-                "https://tenant-a.localhost/admin/course-categories/{$categoryId}/edit"
-            );
+            ->assertRedirect('https://tenant-a.localhost/admin/course-categories');
 
         $this->assertDatabaseHas('media_file_usages', [
             'id' => $usage->id,
@@ -282,7 +326,7 @@ class CourseProductCategoryAttachedMediaUiTest extends TestCase
     {
         $previous = libxml_use_internal_errors(true);
         $document = new \DOMDocument;
-        $document->loadHTML($html);
+        $document->loadHTML('<?xml encoding="UTF-8">'.$html);
         libxml_clear_errors();
         libxml_use_internal_errors($previous);
 

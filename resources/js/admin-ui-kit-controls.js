@@ -158,6 +158,162 @@ export function initUiKitSelect(select) {
     return instance;
 }
 
+const toastTimers = new WeakMap();
+
+/**
+ * Toast: a message node `[data-ui-toast]` (text in `[data-ui-toast-text]`, optional `[data-ui-toast-close]`).
+ * Showing replaces the text and restarts the auto-hide timer (`data-ui-toast-timeout` ms, 0 = stays until closed).
+ */
+export function hideUiToast(node, deps = {}) {
+    const clear = deps.clearTimeout ?? globalThis.clearTimeout;
+    if (toastTimers.has(node)) clear(toastTimers.get(node));
+    toastTimers.delete(node);
+    node.hidden = true;
+}
+
+export function showUiToast(node, text, deps = {}) {
+    const set = deps.setTimeout ?? globalThis.setTimeout;
+    const clear = deps.clearTimeout ?? globalThis.clearTimeout;
+    if (toastTimers.has(node)) clear(toastTimers.get(node));
+    toastTimers.delete(node);
+    const target = node.querySelector?.('[data-ui-toast-text]') ?? node;
+    target.textContent = text;
+    node.hidden = false;
+    const timeout = Number(node.getAttribute?.('data-ui-toast-timeout') ?? 0);
+    if (timeout > 0) toastTimers.set(node, set(() => hideUiToast(node, deps), timeout));
+}
+
+export function initUiKitToasts(scope = document, deps = {}) {
+    scope.querySelectorAll('[data-ui-toast]').forEach(node => {
+        node.querySelector('[data-ui-toast-close]')?.addEventListener('click', () => hideUiToast(node, deps));
+        if (!node.hidden) showUiToast(node, (node.querySelector('[data-ui-toast-text]') ?? node).textContent, deps);
+    });
+}
+
+export const UI_MEDIA_PREVIEW_EVENT = 'ui-media-preview';
+
+/**
+ * Media slot: one tile per file (markup: components/ui-media-slot.blade.php).
+ * Filled iff there is a pending file, or a saved file that is not marked removed. Remove on a saved file only
+ * sets the hidden remove flag (the server detaches on save); remove on a pending file discards the choice and
+ * returns to the base state (saved, or empty when the saved file was already removed). A file chosen while the
+ * flag is set replaces the saved one on the server. View asks the form to open its preview through a bubbling
+ * `ui-media-preview` event, so saved and pending files share one path.
+ */
+export function initUiKitMediaSlot(slot, deps = {}) {
+    if (instances.has(slot)) return instances.get(slot);
+    const part = name => slot.querySelector(`[data-ui-media-${name}]`);
+    const input = part('input');
+    if (!input) return null;
+    const filled = part('filled');
+    const empty = part('empty');
+    const image = part('image');
+    const fallback = part('fallback');
+    const viewButton = part('view');
+    const removeButton = part('remove');
+    const flag = part('remove-flag');
+    const statusNode = part('status');
+    const urlApi = deps.url ?? globalThis.URL;
+    const createEvent = deps.createEvent ?? ((type, detail) => new CustomEvent(type, { bubbles: true, detail }));
+    const defer = deps.setTimeout ?? ((fn) => globalThis.setTimeout(fn, 0));
+    const saved = slot.getAttribute('data-saved') === 'true';
+    const savedName = slot.getAttribute('data-saved-name') || '';
+    const savedPreview = slot.getAttribute('data-saved-preview-url') || '';
+    const savedImage = image.getAttribute('src') || '';
+    const previewable = slot.getAttribute('data-pending-previewable') === 'true';
+    const kind = slot.getAttribute('data-kind') || 'image';
+    const selectedText = slot.getAttribute('data-status-selected') || ':name';
+    const removedText = slot.getAttribute('data-status-removed') || '';
+    let removed = flag?.value === '1';
+    let pending = null;
+    let imageBroken = false;
+
+    const announce = text => { if (statusNode) statusNode.textContent = text; };
+    const discardPending = () => {
+        if (pending?.url) urlApi.revokeObjectURL(pending.url);
+        pending = null;
+    };
+    const render = () => {
+        const isFilled = pending !== null || (saved && !removed);
+        const src = pending ? (pending.isImage ? pending.url : '') : savedImage;
+        const showImage = isFilled && src !== '' && !imageBroken;
+        slot.setAttribute('data-state', isFilled ? 'filled' : 'empty');
+        filled.hidden = !isFilled;
+        empty.hidden = isFilled;
+        input.tabIndex = isFilled ? -1 : 0;
+        if (showImage) image.setAttribute('src', src); else image.removeAttribute('src');
+        image.hidden = !showImage;
+        fallback.hidden = showImage;
+        viewButton.hidden = !isFilled || (pending ? pending.url === '' || !previewable : savedPreview === '');
+        removeButton.hidden = !isFilled || (!pending && !flag);
+    };
+    const syncFromInput = () => {
+        discardPending();
+        const file = input.files?.[0] ?? null;
+        imageBroken = false;
+        if (file) {
+            const isImage = kind === 'image' && String(file.type).startsWith('image/');
+            pending = { file, isImage, url: isImage || previewable ? urlApi.createObjectURL(file) : '' };
+        }
+    };
+    const onChange = () => {
+        syncFromInput();
+        if (pending) announce(selectedText.replace(':name', pending.file.name));
+        render();
+    };
+    const onRemove = () => {
+        if (pending) {
+            discardPending();
+            input.value = '';
+        } else if (saved && !removed && flag) {
+            removed = true;
+            flag.value = '1';
+        } else {
+            return;
+        }
+        announce(removedText);
+        render();
+        if (empty.hidden) viewButton.hidden ? removeButton.focus?.() : viewButton.focus?.();
+        else input.focus?.();
+    };
+    const onView = () => {
+        const url = pending ? pending.url : savedPreview;
+        if (!url) return;
+        slot.dispatchEvent(createEvent(UI_MEDIA_PREVIEW_EVENT, { name: pending ? pending.file.name : savedName, url, kind }));
+    };
+    const onImageError = () => { imageBroken = true; render(); };
+    const form = slot.closest?.('form') ?? null;
+    const onReset = () => defer(() => {
+        removed = false;
+        if (flag) flag.value = '0';
+        syncFromInput();
+        render();
+    });
+
+    input.addEventListener('change', onChange);
+    removeButton.addEventListener('click', onRemove);
+    viewButton.addEventListener('click', onView);
+    image.addEventListener('error', onImageError);
+    form?.addEventListener('reset', onReset);
+    syncFromInput();
+    render();
+    const instance = { destroy() {
+        discardPending();
+        input.removeEventListener('change', onChange);
+        removeButton.removeEventListener('click', onRemove);
+        viewButton.removeEventListener('click', onView);
+        image.removeEventListener('error', onImageError);
+        form?.removeEventListener('reset', onReset);
+        instances.delete(slot);
+    } };
+    instances.set(slot, instance);
+    return instance;
+}
+
+export function initUiKitMediaSlots(scope = document) {
+    return [...scope.querySelectorAll('[data-ui-media-slot]')].map(slot => initUiKitMediaSlot(slot)).filter(Boolean);
+}
+
 const LIVE_FILTER_DELAY_MS = 350;
 
 /**
@@ -255,7 +411,10 @@ export function initUiKitLiveFilter(form, deps = {}) {
         if (event.target?.type === 'search') schedule();
     };
 
+    // A dialog form in the same scope saved something: the list may have changed, fetch it again.
+    const onSaved = () => { run(); };
     lastUrl = buildUrl();
+    root.addEventListener('ui-dialog-form-saved', onSaved);
     form.addEventListener('submit', onSubmit);
     form.addEventListener('input', onInput);
     form.addEventListener('compositionstart', onCompositionStart);
@@ -264,6 +423,7 @@ export function initUiKitLiveFilter(form, deps = {}) {
         cancelTimer();
         seq++;
         controller?.abort();
+        root.removeEventListener('ui-dialog-form-saved', onSaved);
         form.removeEventListener('submit', onSubmit);
         form.removeEventListener('input', onInput);
         form.removeEventListener('compositionstart', onCompositionStart);
@@ -278,6 +438,8 @@ if (typeof document !== 'undefined') {
     const initialize = () => {
         document.querySelectorAll('.lf-admin-ui select[data-ui-kit-select]').forEach(initUiKitSelect);
         document.querySelectorAll('.lf-admin-ui form[data-ui-live-filter]').forEach(form => initUiKitLiveFilter(form));
+        initUiKitMediaSlots(document);
+        initUiKitToasts(document);
     };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initialize, { once: true });
     else initialize();

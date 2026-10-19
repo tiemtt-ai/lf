@@ -676,3 +676,144 @@ toolbar one remains and the create button still shows for an empty tenant. The
 magnifier shown in a focused combobox is the original UI Kit design, unchanged.
 Verification: CourseCategoryManagementTest 22 PASS (new count assertion fails when
 the duplicate is restored); browser check on a rendered empty-filter page.
+
+## Media slot for category images — 2026-10-19
+
+Owner asked for media upload like the image tile: data shows inside the tile, hover
+View/Remove, replace by removing then choosing again. New shared component
+`x-ui-media-slot` (+ `initUiKitMediaSlot`, UI Kit CSS `ui-media-tile*`, `ui-sr-only`),
+applied to the category Thumbnail and Banner; the UI Kit branches of
+`authoring-media-row`/`authoring-media-upload` (used only by categories) were removed,
+the legacy branches are unchanged. Server contract unchanged: same file input names,
+`remove_*_media` flags (hidden `0`/`1` instead of a checkbox), same validation and sync.
+Behaviour rules and the not-yet-implemented multi-file case are in
+[LF-Media.md §2.1](../platform/LF-Media.md).
+
+Classification: Existing-Feature Change; Audit Level MEDIUM; no route, schema, tenant or
+auth change. Files: ui-media-slot component, category form partial, authoring-media-row,
+authoring-media-upload, admin-ui-kit-controls.js, admin-ui-kit.css, VI/EN lf.php (5 keys),
+tests (Node media-slot suite, CourseProductCategoryAttachedMediaUiTest).
+
+Verification: Node suite 14 media-slot tests (object URLs revoked, flag/pending state,
+cancelled picker, reset, restored file, idempotent destroy; 10 guard mutations all
+killed); UI Kit CSS tests PASS; PHP category tests PASS. Browser on rendered edit/create
+pages: saved image fills the tile, hover shows eye/trash, Remove empties the tile and sets
+the flag, a chosen file appears in the tile and opens the preview, FormData carries the
+file and flags, mobile shows actions always without horizontal overflow. Not verified:
+real file chooser, an actual save round-trip in the browser, screen readers, other kinds
+(video/audio/document) which are not wired to any form yet.
+
+## Category create/edit as one popup (3 columns at first, now 2) — 2026-10-19
+
+Owner decision: category create and edit open in a popup UI KIT (3 columns) from the list;
+there is **one** form, no separate create/edit pages and no no-JavaScript fallback. This
+supersedes "Category create/edit adoption" above (page forms).
+
+Server: `create`/`edit` return only the form fragment (`course-categories/dialog.blade.php`
+including `partials/form.blade.php`) and answer 404 unless the request is XHR
+(`X-Requested-With`). `store`/`update` answer JSON when `expectsJson()` (201 / 200
+`{message}`; validation 422 `{errors}`); a non-JSON request keeps the previous redirect to the
+list. Validation, tenant scope, ownership and media sync are unchanged. Field ids are
+prefixed `category-form-*` because the list's status filter already uses `id="status"`.
+
+Client: `resources/js/admin-ui-kit-dialog-form.js` (new, shared, opt-in via
+`.lf-admin-ui[data-ui-dialog-form-scope]` and one empty `<dialog data-ui-dialog-form>`) loads
+the fragment on `[data-ui-dialog-form-open][data-url]`, initialises selects and media slots,
+submits with fetch (files included), marks per-field errors, closes on success, shows the
+server message and fires `ui-dialog-form-saved`, which makes the live filter refetch the
+list. Unsaved changes (compared to a snapshot taken after controls settle) are protected by
+a nested confirm dialog for Cancel, ×, and Escape; Escape inside the confirm only closes the
+confirm. While saving, the submit and cancel buttons are disabled and Escape is ignored. A
+newer open or a close makes late responses no-ops. Long content scrolls inside
+`ui-modal__body`; header and footer stay put. The static adapter
+`admin-ui-kit-dialog.js` is not used here (it cannot load content). New shared CSS:
+`ui-field-stack`.
+
+Classification: Existing-Feature Change; Audit Level MEDIUM; no route, schema, tenant or auth
+change. Files: CourseCategoryController, course-categories index/dialog/partials/form (create
+and edit pages deleted), dialog-form JS, live filter listener, UI Kit CSS, vite config,
+VI/EN lf.php (7 keys), tests.
+
+Verification: Node suite 203 PASS (new: 14 dialog-form tests, mutation check of 11 guards, 1
+survivor-equivalent pair documented as redundant guards); PHP category + media UI tests PASS
+(fragment structure, ajax-only 404, JSON 422/201/200, index dialog contract). Browser, on
+rendered pages with a stubbed fetch (no live server session): 3-column popup, parent
+combobox list not clipped, slug auto-fill, 422 messages inline with focus, Escape asks and
+Escape in the confirm keeps editing, discard closes, success disables buttons then closes
+with flash, list refreshed, focus back on the opener, edit shows the saved image, 520px
+viewport scrolls the body, 375px viewport is one column. Not verified: real server
+round-trip (CSRF, file upload through the popup) in a browser, screen readers, second Escape
+in Chrome without interaction (browser close-watcher may close without `cancel`), focus after
+list refresh when the edited row's button is replaced.
+
+### Category popup switched to 2 columns — 2026-10-19
+
+Owner asked to go back from 3 to 2 columns, with Description no longer full width.
+`data-columns="2"` (800px); order: Parent | Name, Slug | Status, Description | Featured,
+Thumbnail | Banner. The temporary `ui-field-stack` CSS was removed. Behaviour, server contract
+and the verification notes above are unchanged. Checked in a browser on the rendered
+create popup at 1440px (two 366px columns); category PHP tests PASS.
+
+### Category popup: hover hint and rebalanced layout — 2026-10-19
+
+Owner asked for the "Định dạng… · Tối đa…" line to appear only when hovering the upload tile,
+and for the popup layout to be rebalanced. The hint is now the slot content of
+`x-ui-media-slot` (`.ui-media-slot__hint`, referenced by the file input's `aria-describedby`).
+Where hover exists and the screen is wider than 520px it is a tooltip above the empty tile
+(opacity, so it stays in the accessibility tree; shown on tile hover or keyboard focus, not
+for a filled tile); on touch and narrow screens it stays a visible caption. The dialog form
+keeps any existing `aria-describedby` when it marks and clears field errors.
+
+Layout (2 columns): Parent | Name, Slug | Status, then left `ui-field-stack` (Description +
+Featured switch) and right `ui-field-row` (Thumbnail and Banner tiles side by side). New shared
+CSS: `ui-field-stack`, `ui-field-row`. Verification: PHP category and media UI tests PASS
+(hint inside the slot and described-by assertion), Node UI Kit suites PASS; browser on rendered
+pages: balanced rows, tooltip above each tile inside the dialog body without scrollbars.
+Not checked on a touch device or with a screen reader.
+
+### Category list edit icon — 2026-10-19
+
+The row edit button uses the UI Kit reference icon exactly (lucide v0.468.0 `square-pen`, same
+two paths as `docs/ui-demo/ui-kit-developer`, round caps/joins, `ui-icon` 16px, stroke 1.7
+from Shared CSS) instead of the earlier hand-drawn pencil. Checked in a browser: 30x30 button,
+primary colour; list test asserts the path.
+
+### Category list result messages as a toast — 2026-10-19
+
+Owner chose a toast over the green bar (which pushed the list down and never went away), with
+the condition that it must not cover the account menu. The toast region is fixed at the
+bottom-right (16px gutter on narrow screens), so the header is never covered. New shared
+pieces: `ui-toast-region`, `ui-toast` (+`--danger`), `ui-toast__text/close`, token `--ui-success`,
+and `showUiToast` / `hideUiToast` / `initUiKitToasts` in `admin-ui-kit-controls.js`: success
+toast auto-hides after 4 s (`data-ui-toast-timeout`), a new message restarts the timer, a load
+failure toast (timeout 0) stays until closed with ×; a server flash message
+(`session('success')`, e.g. after toggling status) is shown as the same toast on load. This is a
+new visual, not in the original UI Kit; it follows the Owner's approval in chat.
+Verification: Node 4 toast tests; PHP test for the region and the flash; browser on a rendered
+page: toast at the bottom-right corner (380x50 at 1036,826 in a 1440x900 viewport), visible at
+2 s and hidden at 4 s. Not verified: touch, screen readers, several toasts at once.
+
+### Toast restyled and moved to the top right — 2026-10-19
+
+Owner: the success message should have a light green background with standard green text, and
+sit at the top right of the form, below the top menu (not covering the account menu). The toast
+region is now `top: 78px; right: 24px` (the `.admin-header` is 66px high; 16px gutter on narrow
+screens). Success: background `#dcfce7`, border `#bbf7d0`, text `#166534` (tokens `--ui-success`,
+`--ui-success-soft`, `--ui-success-border`); danger toast uses `--ui-danger-soft` with the
+existing invalid/danger colours. Supersedes the bottom-right position above. Checked in a
+browser: toast box 1036..1416 x 78..128 in a 1440px viewport, header bottom at 66, computed
+colours as above.
+
+### Required fields reported inline — 2026-10-19
+
+The browser's own bubble ("Please fill out this field.", in the browser language) is replaced by an inline
+message under the field. The dialog form has `novalidate`; on submit `admin-ui-kit-dialog-form.js` checks every
+`[required]` control, reports all empty ones at once with the same red border and `ui-field__error` text as server
+errors ("Vui lòng nhập :field." / "Vui lòng chọn :field.", EN equivalents from `lf.php`, `:field` is the label
+without `*`, lower-cased), focuses the first one and sends nothing. A field's message disappears as soon as it has a
+non-blank value (typing, or choosing in a select). Messages are linked with `aria-invalid`/`aria-describedby`
+(an existing hint description is kept). The server still validates and answers 422 with the same display.
+Verification: Node dialog-form tests 18 PASS (6 mutations killed); PHP asserts `novalidate`, `required` and the
+message attributes; browser on a rendered popup: empty name -> "Vui lòng nhập tên danh mục.", no request, focus in
+the field, message cleared on typing. Not verified: screen reader announcement, selects whose empty option is
+selectable (only text inputs and the status select are required today).

@@ -6,6 +6,7 @@ use App\Services\MediaService;
 use App\Services\MediaThumbnailPresenter;
 use App\Support\TenantContext;
 use App\Support\UploadLimit;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -58,6 +59,18 @@ class CourseCategoryController extends Controller
                     ->whereColumn('products.category_id', 'categories.id')
                     ->where('products.customer_id', $customerId);
             }, 'product_count')
+            ->selectSub(function ($query) use ($customerId): void {
+                $query->from('core_course_templates as templates')
+                    ->selectRaw('count(*)')
+                    ->whereColumn('templates.category_id', 'categories.id')
+                    ->where('templates.customer_id', $customerId);
+            }, 'template_count')
+            ->selectSub(function ($query) use ($customerId): void {
+                $query->from('core_course_categories as children')
+                    ->selectRaw('count(*)')
+                    ->whereColumn('children.parent_id', 'categories.id')
+                    ->where('children.customer_id', $customerId);
+            }, 'child_count')
             ->paginate(10)
             ->withQueryString();
 
@@ -79,9 +92,10 @@ class CourseCategoryController extends Controller
 
     public function create(Request $request): View
     {
-        $customerId = $this->customerId();
+        abort_unless($request->ajax(), 404);
 
-        return view('course-categories.create', [
+        return view('course-categories.dialog', [
+            'category' => null,
             'parentCategories' => $this->parentCategories(),
             'routePrefix' => $this->routePrefix($request),
             'thumbnailMedia' => null,
@@ -122,6 +136,10 @@ class CourseCategoryController extends Controller
 
         $this->syncUploadedMedia($request, $categoryId, $validated['name']);
 
+        if ($request->expectsJson()) {
+            return response()->json(['message' => __('lf.LF_course_category_common_created')], 201);
+        }
+
         return redirect()
             ->route($this->routePrefix($request).'.index')
             ->with('success', __('lf.LF_course_category_common_created'));
@@ -129,13 +147,15 @@ class CourseCategoryController extends Controller
 
     public function edit(Request $request, int $id): View
     {
+        abort_unless($request->ajax(), 404);
+
         $customerId = $this->customerId();
         $category = $this->findCategory($customerId, $id);
         $excludedIds = array_merge([$id], $this->descendantIds($customerId, $id));
         $thumbnailMedia = $this->singleMedia('course_category', $id, 'thumbnail');
         $bannerMedia = $this->singleMedia('course_category', $id, 'banner_image');
 
-        return view('course-categories.edit', [
+        return view('course-categories.dialog', [
             'category' => $category,
             'parentCategories' => $this->parentCategories($excludedIds),
             'routePrefix' => $this->routePrefix($request),
@@ -177,9 +197,88 @@ class CourseCategoryController extends Controller
 
         $this->syncUploadedMedia($request, $id, $validated['name']);
 
+        if ($request->expectsJson()) {
+            return response()->json(['message' => __('lf.LF_course_category_common_updated')]);
+        }
+
         return redirect()
-            ->route($this->routePrefix($request).'.edit', $id)
+            ->route($this->routePrefix($request).'.index')
             ->with('success', __('lf.LF_course_category_common_updated'));
+    }
+
+    /**
+     * A category can be deleted only when nothing depends on it: no product, no course template and no child
+     * category (all three are RESTRICT foreign keys). Its image usages are detached first, in the same transaction.
+     */
+    public function destroy(Request $request, int $id)
+    {
+        $customerId = $this->customerId();
+        $this->findCategory($customerId, $id);
+
+        try {
+            $blocked = DB::transaction(function () use ($customerId, $id): ?string {
+                $locked = DB::table('core_course_categories')
+                    ->where('customer_id', $customerId)
+                    ->where('id', $id)
+                    ->lockForUpdate()
+                    ->first();
+
+                abort_if(! $locked, 404);
+
+                $blockers = $this->deletionBlockers($customerId, $id);
+
+                if ($blockers !== []) {
+                    $reason = array_key_first($blockers);
+
+                    return __('lf.LF_course_category_delete_blocked_'.$reason, ['count' => $blockers[$reason]]);
+                }
+
+                foreach (['thumbnail', 'banner_image'] as $usageType) {
+                    $this->detachExistingMedia($id, $usageType);
+                }
+
+                DB::table('core_course_categories')
+                    ->where('customer_id', $customerId)
+                    ->where('id', $id)
+                    ->delete();
+
+                return null;
+            });
+        } catch (QueryException $exception) {
+            // A product, template or child was attached between the check and the delete.
+            $blocked = __('lf.LF_course_category_delete_blocked_generic');
+        }
+
+        if ($blocked !== null) {
+            return $request->expectsJson()
+                ? response()->json(['message' => $blocked], 409)
+                : back()->withErrors(['category' => $blocked]);
+        }
+
+        if ($request->expectsJson()) {
+            return response()->json(['message' => __('lf.LF_course_category_common_deleted')]);
+        }
+
+        return redirect()
+            ->route($this->routePrefix($request).'.index')
+            ->with('success', __('lf.LF_course_category_common_deleted'));
+    }
+
+    /**
+     * @return array<string, int> reason => how many records still depend on the category
+     */
+    private function deletionBlockers(int $customerId, int $id): array
+    {
+        $count = fn (string $table, string $column): int => DB::table($table)
+            ->where('customer_id', $customerId)
+            ->where($column, $id)
+            ->count();
+
+        return array_filter([
+            'products' => $count('core_course_products', 'category_id'),
+            'templates' => $count('core_course_templates', 'category_id'),
+            'children' => $count('core_course_categories', 'parent_id'),
+        ]);
     }
 
     public function toggleStatus(Request $request, int $id)

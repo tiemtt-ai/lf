@@ -430,6 +430,29 @@ Remove trên form:
   Media dùng chung không bị xóa.
 * Nếu Remove và valid replacement cùng được gửi, replacement thắng.
 
+### 2.1 UI Kit variant — media slot (Owner approved 2026-10-19)
+
+Consumers opted in to the UI Kit (`.lf-admin-ui`) use one **media slot** per file,
+`<x-ui-media-slot>`, instead of the separate Current tile + Upload/Replace tile:
+
+* Empty slot is the upload tile (`+ Tải lên`). A saved or just-chosen file fills the
+  tile itself (thumbnail for images; type icon for other kinds); no file-name caption
+  under the tile (Owner, 2026-10-19). Hover or keyboard focus shows View and Remove; touch devices always show them.
+* Replace = Remove, then choose a file. Remove on a saved file only sets
+  `remove_*` to `1`; the server detaches on a successful save, and a file submitted in the
+  same request replaces it. Remove on a file that was only chosen discards that choice and
+  returns to the previous state. Nothing is uploaded until the form is submitted.
+* View uses the form's existing preview through the bubbling `ui-media-preview` event
+  (saved and chosen files share one path); kinds the browser cannot preview hide View for
+  chosen files.
+* Multiple files (a new empty slot after each file) are not implemented; no field's
+  backend accepts more than one file yet.
+* Implementation: `resources/views/components/ui-media-slot.blade.php`,
+  `initUiKitMediaSlot` in `resources/js/admin-ui-kit-controls.js`, shared UI Kit CSS
+  (`ui-media-tile*`). Currently used by the course category form (thumbnail, banner). The
+  legacy `authoring-media-row` / `authoring-media-upload` contract in §1–2 is unchanged for
+  non-UI-Kit forms.
+
 ## 3. Upload / Replace
 
 User-facing forms must expose media upload in simple business language.

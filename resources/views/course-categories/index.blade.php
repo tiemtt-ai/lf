@@ -5,20 +5,25 @@
 
 @section('vite')
     @parent
-    @vite(['resources/css/admin/admin-ui-kit.css', 'resources/js/admin-ui-kit-controls.js'])
+    @vite(['resources/css/admin/admin-ui-kit.css', 'resources/js/admin-ui-kit-controls.js', 'resources/js/admin-ui-kit-dialog-form.js'])
 @endsection
 
 @section('content')
-<div class="lf-admin-ui lf-admin-ui--list">
+<div class="lf-admin-ui lf-admin-ui--list" data-ui-dialog-form-scope>
     @php
         $hasActiveFilters = $keyword !== '' || $status;
     @endphp
 
-    @if (session('success'))
-        <div class="admin-alert admin-alert-success" role="status">
-            {{ session('success') }}
+    <div class="ui-toast-region" data-ui-toast-region>
+        <div class="ui-toast ui-toast--success" role="status" data-ui-toast data-ui-toast-timeout="4000" data-ui-dialog-form-flash @unless (session('success')) hidden @endunless>
+            <span class="ui-toast__text" data-ui-toast-text>{{ session('success') }}</span>
+            <button type="button" class="ui-toast__close cursor-interaction" data-ui-toast-close aria-label="{{ __('lf.LF_common_button_close') }}">×</button>
         </div>
-    @endif
+        <div class="ui-toast ui-toast--danger" role="alert" data-ui-toast data-ui-toast-timeout="0" data-ui-dialog-form-page-error hidden>
+            <span class="ui-toast__text" data-ui-toast-text></span>
+            <button type="button" class="ui-toast__close cursor-interaction" data-ui-toast-close aria-label="{{ __('lf.LF_common_button_close') }}">×</button>
+        </div>
+    </div>
 
     @if ($errors->any())
         <div class="admin-alert admin-alert-danger">
@@ -101,10 +106,11 @@
                     </a>
                 @endif
             </span>
-            <a href="{{ route($routePrefix.'.create') }}" class="mk-toolbar-action ui-button ui-button--primary cursor-interaction">
+            <button type="button" class="mk-toolbar-action ui-button ui-button--primary cursor-interaction"
+                    data-ui-dialog-form-open data-url="{{ route($routePrefix.'.create') }}" aria-haspopup="dialog">
                 <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
                 {{ __('lf.LF_course_category_common_create') }}
-            </a>
+            </button>
         </form>
 
     <div class="mk-table-scroll" data-ui-live-region="table" role="region" aria-label="{{ __('lf.LF_course_category_common_title') }}" tabindex="0">
@@ -158,9 +164,11 @@
                         </form>
                     </td>
                     <td class="ux-action-cell" data-label="{{ __('lf.table_actions') }}">
-                        <a class="ux-row-edit cursor-interaction" href="{{ route($routePrefix.'.edit', $category->id) }}" aria-label="{{ __('lf.LF_course_category_action_edit') }}: {{ $category->name }}" title="{{ __('lf.LF_course_category_action_edit') }}" data-tooltip="{{ __('lf.LF_course_category_action_edit') }}">
-                            <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="m16 3 5 5-9 9-5 1 1-5Z" /></svg>
-                        </a>
+                        <button type="button" class="ux-row-edit cursor-interaction" data-ui-dialog-form-open
+                                data-url="{{ route($routePrefix.'.edit', $category->id) }}" aria-haspopup="dialog"
+                                aria-label="{{ __('lf.LF_course_category_action_edit') }}: {{ $category->name }}" title="{{ __('lf.LF_course_category_action_edit') }}" data-tooltip="{{ __('lf.LF_course_category_action_edit') }}">
+                            <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z" /></svg>
+                        </button>
                     </td>
                 </tr>
             @empty
@@ -170,9 +178,10 @@
                             <strong>{{ $hasActiveFilters ? __('lf.LF_course_category_filter_empty') : __('lf.LF_course_category_common_empty') }}</strong>
                             <p class="ui-caption">{{ $hasActiveFilters ? __('lf.LF_course_category_filter_empty_help') : __('lf.LF_course_category_empty_help') }}</p>
                             @unless ($hasActiveFilters)
-                                <a class="ui-button ui-button--primary" href="{{ route($routePrefix.'.create') }}">
+                                <button type="button" class="ui-button ui-button--primary cursor-interaction"
+                                        data-ui-dialog-form-open data-url="{{ route($routePrefix.'.create') }}" aria-haspopup="dialog">
                                     {{ __('lf.LF_course_category_common_create') }}
-                                </a>
+                                </button>
                             @endunless
                         </div>
                     </td>
@@ -204,5 +213,12 @@
             </nav>
         </div>
     </section>
+
+    <dialog class="ui-modal" data-columns="2" aria-labelledby="category-dialog-title" data-ui-dialog-form
+            data-msg-load-error="{{ __('lf.LF_course_category_dialog_load_error') }}"
+            data-msg-save-error="{{ __('lf.LF_course_category_dialog_save_error') }}"
+            data-msg-session-expired="{{ __('lf.LF_course_category_dialog_session_expired') }}"
+            data-msg-required-input="{{ __('lf.LF_course_category_dialog_required_input') }}"
+            data-msg-required-select="{{ __('lf.LF_course_category_dialog_required_select') }}"></dialog>
 </div>
 @endsection

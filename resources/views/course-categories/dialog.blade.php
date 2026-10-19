@@ -1,0 +1,49 @@
+@php
+    $isEdit = $category !== null;
+@endphp
+<form class="ui-modal__form" method="POST" enctype="multipart/form-data" novalidate
+      action="{{ $isEdit ? route($routePrefix.'.update', $category->id) : route($routePrefix.'.store') }}">
+    @csrf
+    @if ($isEdit)
+        @method('PUT')
+    @endif
+    <header class="ui-modal__header">
+        <div>
+            <h3 id="category-dialog-title">
+                {{ $isEdit ? __('lf.LF_course_category_common_edit') : __('lf.LF_course_category_common_create') }}
+            </h3>
+        </div>
+        <button class="ui-modal__close cursor-interaction" type="button" data-ui-dialog-form-cancel
+                aria-label="{{ __('lf.LF_common_button_close') }}">×</button>
+    </header>
+    <div class="ui-modal__body">
+        @include('course-categories.partials.form')
+    </div>
+    <footer class="ui-modal__footer">
+        <span class="ui-caption ui-field__error" role="alert" data-ui-dialog-form-feedback></span>
+        <button type="button" class="ui-button cursor-interaction" data-ui-dialog-form-cancel>
+            {{ __('lf.LF_common_button_cancel') }}
+        </button>
+        <button type="submit" class="ui-button ui-button--primary cursor-interaction" data-ui-dialog-form-submit>
+            {{ $isEdit ? __('lf.LF_common_button_save_changes') : __('lf.LF_course_category_common_create') }}
+        </button>
+    </footer>
+    <dialog class="ui-modal" data-columns="1" aria-labelledby="category-dialog-discard-title" data-ui-dialog-form-confirm>
+        <div class="ui-modal__form">
+            <header class="ui-modal__header">
+                <h3 id="category-dialog-discard-title">{{ __('lf.LF_course_category_dialog_discard_title') }}</h3>
+            </header>
+            <div class="ui-modal__body">
+                <p>{{ __('lf.LF_course_category_dialog_discard_text') }}</p>
+            </div>
+            <footer class="ui-modal__footer">
+                <button type="button" class="ui-button cursor-interaction" data-ui-dialog-form-keep>
+                    {{ __('lf.LF_course_category_dialog_keep_editing') }}
+                </button>
+                <button type="button" class="ui-button ui-button--primary cursor-interaction" data-ui-dialog-form-discard>
+                    {{ __('lf.LF_course_category_dialog_discard') }}
+                </button>
+            </footer>
+        </div>
+    </dialog>
+</form>

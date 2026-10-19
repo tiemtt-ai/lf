@@ -283,7 +283,6 @@ class BackendLayoutNavigationTest extends TestCase
     {
         $indexFiles = [
             'resources/views/admin/users/index.blade.php',
-            'resources/views/course-categories/index.blade.php',
             'resources/views/course-cohort-students/index.blade.php',
             'resources/views/course-cohorts/index.blade.php',
             'resources/views/course-enrollments/index.blade.php',
@@ -578,7 +577,6 @@ class BackendLayoutNavigationTest extends TestCase
     {
         $tableViews = [
             'resources/views/admin/users/index.blade.php',
-            'resources/views/course-categories/index.blade.php',
             'resources/views/course-cohort-students/index.blade.php',
             'resources/views/course-cohorts/index.blade.php',
             'resources/views/course-cohorts/show.blade.php',
@@ -746,10 +744,8 @@ class BackendLayoutNavigationTest extends TestCase
             'korean'
         );
 
-        foreach ([
-            'https://tenant-a.localhost/admin/course-categories/create',
-            "https://tenant-a.localhost/admin/course-categories/{$categoryId}/edit",
-        ] as $url) {
+        // Category create/edit now open as a dialog fragment (no layout page); the list page keeps the contract.
+        foreach (['https://tenant-a.localhost/admin/course-categories'] as $url) {
             $this->actingAs($admin)
                 ->get($url)
                 ->assertOk()

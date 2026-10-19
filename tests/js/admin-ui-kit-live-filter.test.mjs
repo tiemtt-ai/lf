@@ -44,6 +44,9 @@ function setup({ keyword = '', status = '' } = {}) {
         setAttribute(name, value) { this.attrs.set(name, value); },
         removeAttribute(name) { this.attrs.delete(name); },
         querySelectorAll() { return this.regions; },
+        listeners: new Map(),
+        addEventListener(type, fn) { this.listeners.set(type, fn); },
+        removeEventListener(type) { this.listeners.delete(type); },
     };
     const form = {
         getAttribute: () => '/admin/course-categories',
@@ -216,4 +219,16 @@ test('composition guards hold even when the browser omits one of the signals', (
     t.fire('input', { target: search, isComposing: true });
     assert.equal(t.timers.size, 0, 'isComposing alone also defers');
     t.instance.destroy();
+});
+
+test('a save announced by a dialog form in the same scope refetches the list and cleans up on destroy', async () => {
+    const t = setup({ keyword: 'So' });
+    root.listeners.get('ui-dialog-form-saved')();
+    assert.equal(t.calls.fetch.length, 1);
+    assert.equal(t.calls.fetch[0].url, 'https://t.localhost/admin/course-categories?keyword=So');
+    t.pending[0].resolve(t.ok('table foot'));
+    await t.tick();
+    assert.deepEqual(root.regions.map(r => r.label), ['table foot:table', 'table foot:foot']);
+    t.instance.destroy();
+    assert.equal(root.listeners.has('ui-dialog-form-saved'), false);
 });

@@ -88,6 +88,10 @@
     --ui-color-eef0fb: #eef0fb;
     --ui-primary: #485cc7;
     --ui-focus-ring: #485cc718;
+    --ui-success: #166534;
+    --ui-success-soft: #dcfce7;
+    --ui-success-border: #bbf7d0;
+    --ui-danger-soft: #fdecee;
     --ui-color-c8526018: #c8526018;
     --ui-color-a6aebc: #a6aebc;
     --ui-color-f3f4f8: #f3f4f8;
@@ -1730,6 +1734,49 @@
 .lf-admin-ui .mk-toolbar-action { margin-left: auto; }
 .lf-admin-ui .mk-col-sequence { width: 64px; }
 .lf-admin-ui .mk-col-parent { width: 26%; }
+/* Media slot (Owner reference 2026-10-19): one 112px tile per file; View/Remove appear on hover or focus. */
+.lf-admin-ui .ui-sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+/* Toast: top-right, just below the top menu (.admin-header is 66px high), so it never covers the account menu. */
+.lf-admin-ui .ui-toast-region { position: fixed; top: 78px; right: 24px; z-index: 60; display: grid; gap: 10px; width: min(380px, calc(100vw - 32px)); pointer-events: none; }
+.lf-admin-ui .ui-toast { pointer-events: auto; display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; border: 1px solid var(--ui-success-border); border-radius: var(--ui-control-radius); background: var(--ui-success-soft); color: var(--ui-success); box-shadow: 0 8px 24px var(--ui-color-17233b14); font-size: 14px; font-weight: 500; }
+.lf-admin-ui .ui-toast[hidden] { display: none; }
+.lf-admin-ui .ui-toast--danger { border-color: var(--ui-invalid); background: var(--ui-danger-soft); color: var(--ui-color-bd3d46); }
+.lf-admin-ui .ui-toast__text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.lf-admin-ui .ui-toast__close { flex: none; display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: inherit; font: 20px/1 var(--ui-font-family); }
+.lf-admin-ui .ui-toast__close:hover { background: var(--ui-color-ffffff1c); filter: brightness(.9); }
+@media (max-width: 520px) { .lf-admin-ui .ui-toast-region { right: 16px; } }
+.lf-admin-ui .ui-field-stack { display: grid; gap: 18px; min-width: 0; align-content: start; }
+.lf-admin-ui .ui-field-row { display: flex; flex-wrap: wrap; gap: 18px 22px; min-width: 0; align-content: start; }
+.lf-admin-ui .ui-field-row > .ui-field { flex: 0 0 auto; }
+.lf-admin-ui .ui-media-slot { display: grid; justify-items: start; gap: 6px; min-width: 0; position: relative; }
+.lf-admin-ui .ui-media-tile { position: relative; width: 112px; height: 112px; flex: none; border-radius: var(--ui-control-radius); overflow: hidden; }
+.lf-admin-ui .ui-media-tile [hidden] { display: none; }
+.lf-admin-ui .ui-media-tile__empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; width: 100%; height: 100%; padding: 10px; border: 1px dashed var(--ui-color-d3d8e3); border-radius: var(--ui-control-radius); background: var(--ui-color-fafbfe); color: var(--ui-text); font-size: 13px; text-align: center; transition: border-color .14s, background-color .14s; }
+.lf-admin-ui .ui-media-tile__empty:hover { border-color: var(--ui-border-hover); background: var(--ui-color-f8f9fd); }
+.lf-admin-ui .ui-media-tile:focus-within { box-shadow: 0 0 0 2px var(--ui-focus-ring); }
+.lf-admin-ui .ui-media-tile:has(.ui-media-tile__input[aria-invalid=true]) .ui-media-tile__empty { border-color: var(--ui-invalid); }
+.lf-admin-ui .ui-media-tile__input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); opacity: 0; }
+.lf-admin-ui .ui-media-tile__filled { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; border: 1px solid var(--ui-border); border-radius: var(--ui-control-radius); background: var(--ui-white); overflow: hidden; }
+.lf-admin-ui .ui-media-tile__image { width: 100%; height: 100%; object-fit: contain; }
+.lf-admin-ui .ui-media-tile__fallback { display: flex; align-items: center; justify-content: center; color: var(--ui-color-9299a8); }
+.lf-admin-ui .ui-media-tile__fallback .ui-icon { width: 32px; height: 32px; }
+.lf-admin-ui .ui-media-tile__actions { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 10px; background: var(--ui-color-17202d73); opacity: 0; transition: opacity .14s; }
+.lf-admin-ui .ui-media-tile:hover .ui-media-tile__actions,
+.lf-admin-ui .ui-media-tile:focus-within .ui-media-tile__actions { opacity: 1; }
+@media (hover: none) { .lf-admin-ui .ui-media-tile__actions { opacity: 1; } }
+.lf-admin-ui .ui-media-tile__action { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--ui-white); }
+.lf-admin-ui .ui-media-tile__action .ui-icon { width: 22px; height: 22px; }
+.lf-admin-ui .ui-media-tile__action:hover { background: var(--ui-color-ffffff1c); }
+.lf-admin-ui .ui-media-tile__action:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--ui-white); }
+.lf-admin-ui .ui-media-slot__hint { margin: 0; }
+/* Where hover exists, the format/size hint is a tooltip above the empty upload tile; on touch (and very narrow
+   screens) it stays a normal caption. It remains in the accessibility tree (opacity, not visibility). */
+@media (hover: hover) and (min-width: 521px) {
+    .lf-admin-ui .ui-media-slot__hint { position: absolute; bottom: calc(100% + 6px); left: 0; z-index: 5; width: max-content; max-width: 220px; padding: 8px 10px; border-radius: var(--ui-control-radius); background: var(--ui-text); color: var(--ui-white); font-size: 12px; line-height: 1.4; text-wrap: balance; opacity: 0; pointer-events: none; transition: opacity .14s; }
+    .lf-admin-ui .ui-media-slot__hint .ui-caption { color: inherit; }
+    .lf-admin-ui .ui-media-slot[data-state=empty] .ui-media-tile:is(:hover, :focus-within) ~ .ui-media-slot__hint { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) { .lf-admin-ui .ui-media-tile__empty, .lf-admin-ui .ui-media-tile__actions, .lf-admin-ui .ui-media-slot__hint { transition: none; } }
 .lf-admin-ui .ui-live-slot { display: contents; }
 .lf-admin-ui[aria-busy=true] [data-ui-live-region=table] { opacity: .6; transition: opacity .12s; }
 .lf-admin-ui .mk-col-count { width: 120px; }

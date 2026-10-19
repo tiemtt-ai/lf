@@ -8,9 +8,6 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\MessageBag;
-use Illuminate\Support\Str;
-use Illuminate\Support\ViewErrorBag;
 use Tests\TestCase;
 
 class CourseCategoryManagementTest extends TestCase
@@ -163,6 +160,66 @@ class CourseCategoryManagementTest extends TestCase
         );
     }
 
+    public function test_category_index_opens_create_and_edit_in_one_two_column_dialog(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $categoryId = $this->createCategory($customerId, 'Dialog Category', 'dialog-category');
+
+        $content = $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/course-categories')
+            ->assertOk()
+            ->assertSee('data-ui-dialog-form-scope', false)
+            ->assertSee('data-columns="2"', false)
+            ->assertSee('resources/js/admin-ui-kit-dialog-form.js', false)
+            ->assertSee('data-msg-required-input="'.e(__('lf.LF_course_category_dialog_required_input')).'"', false)
+            ->assertSee('data-msg-required-select="'.e(__('lf.LF_course_category_dialog_required_select')).'"', false)
+            ->assertSee('M18.375 2.625a1 1 0 0 1 3 3', false)
+            ->getContent();
+
+        $this->assertSame(1, $this->htmlElementCount($content, '//dialog[@data-ui-dialog-form]'));
+        $this->assertEqualsCanonicalizing(
+            ['https://tenant-a.localhost/admin/course-categories/create', "https://tenant-a.localhost/admin/course-categories/{$categoryId}/edit"],
+            collect((new \DOMXPath(tap(new \DOMDocument, fn ($dom) => @$dom->loadHTML($content))))->query('//button[@data-ui-dialog-form-open]'))
+                ->map(fn ($node) => $node->getAttribute('data-url'))
+                ->all()
+        );
+        $this->assertSame(
+            0,
+            $this->htmlElementCount($content, '//a[contains(@href, "/course-categories/create") or contains(@href, "/edit")]')
+        );
+    }
+
+    public function test_category_index_reports_results_in_a_toast_region(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+
+        $content = $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/course-categories')
+            ->assertOk()
+            ->assertDontSee('admin-alert-success', false)
+            ->getContent();
+        $this->assertSame(1, $this->htmlElementCount($content, '//div[@data-ui-toast-region]'));
+        $this->assertSame(
+            1,
+            $this->htmlElementCount($content, '//div[@data-ui-toast-region]/div[@data-ui-dialog-form-flash and @data-ui-toast-timeout="4000" and @hidden]')
+        );
+        $this->assertSame(
+            1,
+            $this->htmlElementCount($content, '//div[@data-ui-toast-region]/div[@data-ui-dialog-form-page-error and @data-ui-toast-timeout="0" and @hidden]')
+        );
+
+        $flashed = $this->actingAs($admin)
+            ->withSession(['success' => 'Saved from a redirect'])
+            ->get('https://tenant-a.localhost/admin/course-categories')
+            ->getContent();
+        $this->assertSame(
+            1,
+            $this->htmlElementCount($flashed, '//div[@data-ui-dialog-form-flash and not(@hidden)]/span[@data-ui-toast-text and contains(., "Saved from a redirect")]')
+        );
+    }
+
     public function test_category_index_paginates_ten_records_with_a_continuous_sequence_column(): void
     {
         $customerId = $this->createTenant();
@@ -294,34 +351,42 @@ class CourseCategoryManagementTest extends TestCase
             createdBy: $teacher->id
         );
 
-        foreach ([
-            $this->actingAs($admin)
+        $fragments = [
+            'create' => $this->actingAs($admin)
+                ->withHeader('X-Requested-With', 'XMLHttpRequest')
                 ->get('https://tenant-a.localhost/admin/course-categories/create')
                 ->assertOk(),
-            $this->actingAs($teacher)
-                ->get(
-                    "https://tenant-a.localhost/teacher/course-categories/{$categoryId}/edit"
-                )
+            'edit' => $this->actingAs($teacher)
+                ->withHeader('X-Requested-With', 'XMLHttpRequest')
+                ->get("https://tenant-a.localhost/teacher/course-categories/{$categoryId}/edit")
                 ->assertOk(),
-        ] as $response) {
-            $content = $response->getContent();
+        ];
 
-            $this->assertSame(1, substr_count($content, 'class="ui-form-flow"'));
-            $this->assertSame(3, substr_count($content, 'class="ui-section"'));
-            $this->assertStringContainsString('aria-labelledby="course-category-general"', $content);
-            $this->assertStringContainsString('aria-labelledby="course-category-media"', $content);
-            $this->assertStringContainsString('aria-labelledby="course-category-display"', $content);
-            $displaySection = Str::between(
-                $content,
-                'aria-labelledby="course-category-display"',
-                'class="ui-modal"'
-            );
-            $this->assertStringContainsString('ui-check ui-switch', $displaySection);
-            $this->assertStringContainsString('name="is_featured"', $displaySection);
-            $this->assertStringContainsString('data-ui-kit-select', $displaySection);
-            $this->assertStringNotContainsString('aria-labelledby="course-category-description"', $content);
-            $this->assertStringContainsString('class="ui-action-row"', $content);
-            $this->assertStringContainsString('class="ui-action-row"', $content);
+        foreach ($fragments as $mode => $response) {
+            $content = $response->getContent();
+            $count = fn (string $xpath) => $this->htmlElementCount($content, $xpath);
+            $hasClass = fn (string $class) => 'contains(concat(" ", normalize-space(@class), " "), " '.$class.' ")';
+
+            $this->assertSame(1, $count('//form['.$hasClass('ui-modal__form').']'), $mode);
+            $this->assertSame(1, $count('//form[@novalidate]'), 'required fields are reported inline, not by the browser bubble');
+            $this->assertSame(1, $count('//input[@name="name" and @required]'));
+            $this->assertSame(1, $count('//form['.$hasClass('ui-modal__form').']/header['.$hasClass('ui-modal__header').']'));
+            $this->assertSame(1, $count('//form['.$hasClass('ui-modal__form').']/div['.$hasClass('ui-modal__body').']'));
+            $this->assertSame(1, $count('//form['.$hasClass('ui-modal__form').']/footer['.$hasClass('ui-modal__footer').']'));
+            $this->assertSame(1, $count('//div['.$hasClass('ui-modal__body').']//div['.$hasClass('ui-modal__grid').']'));
+            $this->assertSame(0, $count('//*['.$hasClass('ui-section').' or '.$hasClass('ui-form-flow').']'));
+            $this->assertSame(2, $count('//button[@data-ui-dialog-form-cancel]'));
+            $this->assertSame(1, $count('//button[@type="submit" and @data-ui-dialog-form-submit]'));
+            $this->assertSame(1, $count('//dialog[@data-ui-dialog-form-confirm]'));
+            $this->assertSame(1, $count('//input[@name="_method" and @value="PUT"]') + ($mode === 'create' ? 1 : 0));
+
+            foreach (['parent_id', 'name', 'slug', 'description', 'status'] as $field) {
+                $this->assertSame(1, $count('//*[@id="category-form-'.$field.'"]'), $field);
+            }
+            $this->assertSame(0, $count('//*[@id="status" or @id="name" or @id="parent_id"]'), 'ids must not collide with list filters');
+            $this->assertStringContainsString('ui-check ui-switch', $content);
+            $this->assertStringContainsString('name="is_featured"', $content);
+            $this->assertSame(2, $count('//select[@data-ui-kit-select]'));
             $this->assertStringContainsString('name="slug"', $content);
             $this->assertStringContainsString('readonly', $content);
             $this->assertStringContainsString('x-model="selectedParentId"', $content);
@@ -342,29 +407,53 @@ class CourseCategoryManagementTest extends TestCase
                 'LF_course_category'
             );
         }
+
+        $this->assertStringContainsString(
+            __('lf.LF_common_button_save_changes'),
+            $fragments['edit']->getContent()
+        );
+        $this->assertStringContainsString(
+            "/teacher/course-categories/{$categoryId}",
+            $fragments['edit']->getContent()
+        );
     }
 
-    public function test_ui_kit_form_restores_old_values_and_exposes_server_validation_errors(): void
+    public function test_category_form_fragments_are_only_served_to_ajax_requests(): void
     {
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
-        $errors = new ViewErrorBag;
-        $errors->put('default', new MessageBag(['name' => 'Category name validation error']));
-        $response = $this->actingAs($admin)->withSession([
-            'errors' => $errors,
-            '_old_input' => ['name' => 'Retained category', 'description' => 'Retained description', 'status' => 'inactive', 'is_featured' => '1'],
-        ])->get('https://tenant-a.localhost/admin/course-categories/create')->assertOk();
-        $document = new \DOMDocument;
-        @$document->loadHTML($response->getContent());
-        $xpath = new \DOMXPath($document);
-        $name = $xpath->query('//input[@id="name"]')->item(0);
-        $this->assertSame('Retained category', $name->getAttribute('value'));
-        $this->assertSame('true', $name->getAttribute('aria-invalid'));
-        $this->assertSame('name-error', $name->getAttribute('aria-describedby'));
-        $this->assertSame('Category name validation error', trim($xpath->query('//*[@id="name-error"]')->item(0)->textContent));
-        $this->assertSame('inactive', $xpath->query('//select[@id="status"]/option[@selected]')->item(0)->getAttribute('value'));
-        $this->assertTrue($xpath->query('//input[@id="is_featured"]')->item(0)->hasAttribute('checked'));
-        $this->assertSame('Retained description', $xpath->query('//textarea[@id="description"]')->item(0)->textContent);
+        $categoryId = $this->createCategory($customerId, 'Existing', 'existing');
+
+        $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/course-categories/create')
+            ->assertNotFound();
+        $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-categories/{$categoryId}/edit")
+            ->assertNotFound();
+    }
+
+    public function test_json_save_reports_validation_errors_per_field_and_success_messages(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+
+        $this->actingAs($admin)
+            ->postJson('https://tenant-a.localhost/admin/course-categories', $this->validCategoryData(['name' => '']))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['name']);
+        $this->assertSame(0, DB::table('core_course_categories')->where('customer_id', $customerId)->count());
+
+        $this->actingAs($admin)
+            ->postJson('https://tenant-a.localhost/admin/course-categories', $this->validCategoryData(['name' => 'Saved via dialog']))
+            ->assertCreated()
+            ->assertJson(['message' => __('lf.LF_course_category_common_created')]);
+
+        $categoryId = (int) DB::table('core_course_categories')->where('name', 'Saved via dialog')->value('id');
+        $this->actingAs($admin)
+            ->putJson("https://tenant-a.localhost/admin/course-categories/{$categoryId}", $this->validCategoryData(['name' => 'Renamed via dialog']))
+            ->assertOk()
+            ->assertJson(['message' => __('lf.LF_course_category_common_updated')]);
+        $this->assertSame('Renamed via dialog', DB::table('core_course_categories')->where('id', $categoryId)->value('name'));
     }
 
     public function test_create_order_is_server_assigned_and_ignores_forged_input(): void
@@ -375,7 +464,7 @@ class CourseCategoryManagementTest extends TestCase
         DB::table('core_course_categories')->where('id', $existingId)->update(['sort_order' => 8]);
 
         $this->actingAs($admin)
-            ->get('https://tenant-a.localhost/admin/course-categories/create')
+            ->withHeader('X-Requested-With', 'XMLHttpRequest')->get('https://tenant-a.localhost/admin/course-categories/create')
             ->assertOk()
             ->assertDontSee('name="sort_order"', false)
             ->assertDontSee('id="sort_order"', false);
@@ -419,9 +508,7 @@ class CourseCategoryManagementTest extends TestCase
                 "https://tenant-a.localhost/admin/course-categories/{$categoryId}",
                 $data
             )
-            ->assertRedirect(
-                "https://tenant-a.localhost/admin/course-categories/{$categoryId}/edit"
-            );
+            ->assertRedirect('https://tenant-a.localhost/admin/course-categories');
 
         $this->assertDatabaseHas('core_course_categories', [
             'id' => $categoryId,
@@ -511,9 +598,7 @@ class CourseCategoryManagementTest extends TestCase
                     ),
                 ])
             )
-            ->assertRedirect(
-                "https://tenant-a.localhost/admin/course-categories/{$categoryId}/edit"
-            );
+            ->assertRedirect('https://tenant-a.localhost/admin/course-categories');
 
         $mediaFile = $this->assertActiveMediaUsage(
             $customerId,
@@ -582,9 +667,7 @@ class CourseCategoryManagementTest extends TestCase
                     'banner_image_file' => $this->uploadedPngFile('banner-a.png'),
                 ])
             )
-            ->assertRedirect(
-                "https://tenant-a.localhost/admin/course-categories/{$firstCategoryId}/edit"
-            );
+            ->assertRedirect('https://tenant-a.localhost/admin/course-categories');
 
         $this->actingAs($admin)
             ->put(
@@ -595,9 +678,7 @@ class CourseCategoryManagementTest extends TestCase
                     'banner_image_file' => $this->uploadedPngFile('banner-b.png'),
                 ])
             )
-            ->assertRedirect(
-                "https://tenant-a.localhost/admin/course-categories/{$secondCategoryId}/edit"
-            );
+            ->assertRedirect('https://tenant-a.localhost/admin/course-categories');
 
         $mediaFile = DB::table('media_files')->first();
 
@@ -645,9 +726,7 @@ class CourseCategoryManagementTest extends TestCase
                     ),
                 ])
             )
-            ->assertRedirect(
-                "https://tenant-a.localhost/teacher/course-categories/{$categoryId}/edit"
-            );
+            ->assertRedirect('https://tenant-a.localhost/teacher/course-categories');
 
         $this->assertActiveMediaUsage($customerId, $categoryId, 'thumbnail');
         $this->assertActiveMediaUsage($customerId, $categoryId, 'banner_image');
@@ -725,7 +804,7 @@ class CourseCategoryManagementTest extends TestCase
         );
 
         $this->actingAs($admin)
-            ->get("https://tenant-a.localhost/admin/course-categories/{$otherCategoryId}/edit")
+            ->withHeader('X-Requested-With', 'XMLHttpRequest')->withHeader('X-Requested-With', 'XMLHttpRequest')->get("https://tenant-a.localhost/admin/course-categories/{$otherCategoryId}/edit")
             ->assertNotFound();
 
         $this->actingAs($admin)
@@ -805,9 +884,7 @@ class CourseCategoryManagementTest extends TestCase
                     'status' => 'active',
                 ])
             )
-            ->assertRedirect(
-                "https://tenant-a.localhost/admin/course-categories/{$categoryId}/edit"
-            );
+            ->assertRedirect('https://tenant-a.localhost/admin/course-categories');
 
         $this->actingAs($admin)
             ->post("https://tenant-a.localhost/admin/course-categories/{$categoryId}/toggle-status")
@@ -893,6 +970,14 @@ class CourseCategoryManagementTest extends TestCase
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+    }
+
+    private function htmlElementCount(string $html, string $xpath): int
+    {
+        $document = new \DOMDocument;
+        @$document->loadHTML('<?xml encoding="UTF-8">'.$html);
+
+        return (new \DOMXPath($document))->query($xpath)->length;
     }
 
     private function tableHeaderText(string $html, int $position): string

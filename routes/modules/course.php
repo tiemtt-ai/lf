@@ -39,6 +39,9 @@ Route::put('/course-categories/{id}', [CourseCategoryController::class, 'update'
 Route::post('/course-categories/{id}/toggle-status', [CourseCategoryController::class, 'toggleStatus'])
     ->name('course-categories.toggle-status');
 
+Route::delete('/course-categories/{id}', [CourseCategoryController::class, 'destroy'])
+    ->name('course-categories.destroy');
+
 if ($registerCourseProductRoutes ?? false) {
     Route::get('/course-cohorts', [CourseCohortController::class, 'index'])
         ->name('course-cohorts.index');
