@@ -8,7 +8,9 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\MessageBag;
 use Illuminate\Support\Str;
+use Illuminate\Support\ViewErrorBag;
 use Tests\TestCase;
 
 class CourseCategoryManagementTest extends TestCase
@@ -52,12 +54,15 @@ class CourseCategoryManagementTest extends TestCase
             ->assertSeeText('Admin Category')
             ->assertSeeText('Teacher Category')
             ->assertSeeText(__('lf.LF_navigation_menu_common_product_categories'))
-            ->assertSee('course-category-index-toolbar', false)
-            ->assertSee('course-category-index-count', false)
-            ->assertSee('course-category-filter-grid', false)
-            ->assertSee('course-category-index-table', false)
-            ->assertSee('course-category-index-meta', false)
-            ->assertSee('course-category-status-badge', false)
+            ->assertSee('mk-tablebar--filters', false)
+            ->assertSee('lf-admin-ui', false)
+            ->assertSee('mk-tablebar', false)
+            ->assertSee('ui-caption', false)
+            ->assertSee('mk-table-scroll', false)
+            ->assertSee('ux-combo__control', false)
+            ->assertSee('mk-table-foot', false)
+            ->assertDontSee('ui-list-', false)
+            ->assertSee('ux-row-edit', false)
             ->assertDontSeeText(__('lf.LF_course_category_index_sort_order'))
             ->assertDontSee('class="admin-table-action-icon"', false)
             ->assertDontSeeText(__('lf.LF_course_category_common_thumbnail_image'))
@@ -76,13 +81,13 @@ class CourseCategoryManagementTest extends TestCase
         );
         $this->assertSame(5, preg_match_all('/<th\b/', $adminResponse->getContent()));
         $this->assertMatchesRegularExpression(
-            '/<th\b[^>]*\bclass="(?:[^" ]+ )*admin-table-sequence(?: [^"]*)?"/',
+            '/<th\b[^>]*\bclass="(?:[^" ]+ )*mk-sequence(?: [^"]*)?"/',
             $adminResponse->getContent()
         );
-        $adminResponse->assertSee('course-category-index-parent is-root', false);
-        $css = file_get_contents(resource_path('css/admin/admin-components.css'));
+        $adminResponse->assertSee('mk-text-cell mk-na', false);
+        $css = file_get_contents(resource_path('css/admin/admin-ui-kit.css'));
         $this->assertStringContainsString(
-            '.lf-admin-page .course-category-index-table .admin-table-sequence',
+            '.lf-admin-ui .mk-text-cell',
             $css
         );
 
@@ -135,17 +140,26 @@ class CourseCategoryManagementTest extends TestCase
             ->assertSeeText('Paginated Category 01')
             ->assertDontSeeText('Paginated Category 11');
 
+        $filteredPage = $this->get('https://tenant-a.localhost/admin/course-categories?keyword=Paginated&status=active')
+            ->assertOk();
+        $filteredDocument = new \DOMDocument;
+        @$filteredDocument->loadHTML($filteredPage->getContent());
+        $nextLink = (new \DOMXPath($filteredDocument))->query('//a[@rel="next"]')->item(0);
+        $this->assertNotNull($nextLink);
+        parse_str(parse_url($nextLink->getAttribute('href'), PHP_URL_QUERY), $nextQuery);
+        $this->assertSame(['keyword' => 'Paginated', 'status' => 'active', 'page' => '2'], $nextQuery);
+
         $firstPageDocument = new \DOMDocument;
         @$firstPageDocument->loadHTML($firstPage->getContent());
         $firstPageSequence = (new \DOMXPath($firstPageDocument))
-            ->query('//tbody/tr/td[contains(@class, "admin-table-sequence")]');
+            ->query('//tbody/tr/td[contains(@class, "mk-sequence")]');
         $this->assertCount(10, $firstPageSequence);
         $this->assertSame('10', trim($firstPageSequence->item(9)->textContent));
 
         $secondPageDocument = new \DOMDocument;
         @$secondPageDocument->loadHTML($secondPage->getContent());
         $secondPageSequence = (new \DOMXPath($secondPageDocument))
-            ->query('//tbody/tr/td[contains(@class, "admin-table-sequence")]');
+            ->query('//tbody/tr/td[contains(@class, "mk-sequence")]');
         $this->assertCount(1, $secondPageSequence);
         $this->assertSame('11', trim($secondPageSequence->item(0)->textContent));
     }
@@ -158,7 +172,7 @@ class CourseCategoryManagementTest extends TestCase
         $this->actingAs($admin)
             ->get('https://tenant-a.localhost/admin/course-categories')
             ->assertOk()
-            ->assertSee('course-category-empty-state', false)
+            ->assertSee('mk-empty', false)
             ->assertSeeText(__('lf.LF_course_category_common_empty'))
             ->assertSeeText(__('lf.LF_course_category_empty_help'))
             ->assertSeeText(__('lf.LF_course_category_common_create'));
@@ -167,7 +181,7 @@ class CourseCategoryManagementTest extends TestCase
 
         $this->get('https://tenant-a.localhost/admin/course-categories?keyword=missing')
             ->assertOk()
-            ->assertSee('course-category-empty-state', false)
+            ->assertSee('mk-empty', false)
             ->assertSeeText(__('lf.LF_course_category_filter_empty'))
             ->assertSeeText(__('lf.LF_course_category_filter_empty_help'))
             ->assertSeeText(__('lf.LF_course_category_common_clear_filters'))
@@ -236,28 +250,26 @@ class CourseCategoryManagementTest extends TestCase
         ] as $response) {
             $content = $response->getContent();
 
-            $this->assertSame(1, substr_count($content, 'class="admin-form-flow"'));
-            $this->assertSame(3, substr_count($content, 'class="admin-form-standard-section"'));
+            $this->assertSame(1, substr_count($content, 'class="ui-form-flow"'));
+            $this->assertSame(3, substr_count($content, 'class="ui-section"'));
             $this->assertStringContainsString('aria-labelledby="course-category-general"', $content);
             $this->assertStringContainsString('aria-labelledby="course-category-media"', $content);
             $this->assertStringContainsString('aria-labelledby="course-category-display"', $content);
             $displaySection = Str::between(
                 $content,
                 'aria-labelledby="course-category-display"',
-                'class="media-library-modal"'
+                'class="ui-modal"'
             );
-            $this->assertStringContainsString('admin-form-option-panel--compact', $displaySection);
-            $this->assertMatchesRegularExpression(
-                '/class="admin-form-field-grid"[\s\S]*?class="admin-form-option-group course-category-featured-option admin-form-field--full"[\s\S]*?class="lf-form-group admin-form-field--full"[\s\S]*?<select id="status"/',
-                $displaySection
-            );
+            $this->assertStringContainsString('ui-check ui-switch', $displaySection);
+            $this->assertStringContainsString('name="is_featured"', $displaySection);
+            $this->assertStringContainsString('data-ui-kit-select', $displaySection);
             $this->assertStringNotContainsString('aria-labelledby="course-category-description"', $content);
-            $this->assertStringContainsString('class="admin-form-footer"', $content);
-            $this->assertStringContainsString('class="admin-form-footer-primary"', $content);
+            $this->assertStringContainsString('class="ui-action-row"', $content);
+            $this->assertStringContainsString('class="ui-action-row"', $content);
             $this->assertStringContainsString('name="slug"', $content);
             $this->assertStringContainsString('readonly', $content);
             $this->assertStringContainsString('x-model="selectedParentId"', $content);
-            $this->assertStringContainsString('lf-select-placeholder', $content);
+            $this->assertStringNotContainsString('lf-form-control', $content);
             $this->assertStringContainsString(__('lf.LF_course_category_select_parent'), $content);
             foreach ([
                 'LF_course_category_placeholder_name',
@@ -274,6 +286,29 @@ class CourseCategoryManagementTest extends TestCase
                 'LF_course_category'
             );
         }
+    }
+
+    public function test_ui_kit_form_restores_old_values_and_exposes_server_validation_errors(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $errors = new ViewErrorBag;
+        $errors->put('default', new MessageBag(['name' => 'Category name validation error']));
+        $response = $this->actingAs($admin)->withSession([
+            'errors' => $errors,
+            '_old_input' => ['name' => 'Retained category', 'description' => 'Retained description', 'status' => 'inactive', 'is_featured' => '1'],
+        ])->get('https://tenant-a.localhost/admin/course-categories/create')->assertOk();
+        $document = new \DOMDocument;
+        @$document->loadHTML($response->getContent());
+        $xpath = new \DOMXPath($document);
+        $name = $xpath->query('//input[@id="name"]')->item(0);
+        $this->assertSame('Retained category', $name->getAttribute('value'));
+        $this->assertSame('true', $name->getAttribute('aria-invalid'));
+        $this->assertSame('name-error', $name->getAttribute('aria-describedby'));
+        $this->assertSame('Category name validation error', trim($xpath->query('//*[@id="name-error"]')->item(0)->textContent));
+        $this->assertSame('inactive', $xpath->query('//select[@id="status"]/option[@selected]')->item(0)->getAttribute('value'));
+        $this->assertTrue($xpath->query('//input[@id="is_featured"]')->item(0)->hasAttribute('checked'));
+        $this->assertSame('Retained description', $xpath->query('//textarea[@id="description"]')->item(0)->textContent);
     }
 
     public function test_create_order_is_server_assigned_and_ignores_forged_input(): void

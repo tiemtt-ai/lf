@@ -12331,6 +12331,7 @@
         "lf-admin-ui",
         "admin-ui-kit.css",
         "admin-ui-kit-dialog.js",
+        "admin-ui-kit-controls.js",
         "data-columns"
       ],
       "related_documents": [

@@ -67,9 +67,9 @@ class CourseProductCategoryAttachedMediaUiTest extends TestCase
             1,
             $this->htmlElementCount(
                 $content,
-                '//div[contains(concat(" ", normalize-space(@class), " "), " admin-form-surface ")]'
-                .'/form[contains(concat(" ", normalize-space(@class), " "), " admin-form-standard ")]'
-                .'/div[contains(concat(" ", normalize-space(@class), " "), " admin-form-flow ")]'
+                '//div[contains(concat(" ", normalize-space(@class), " "), " ui-form-surface ")]'
+                .'/form[contains(concat(" ", normalize-space(@class), " "), " ui-form ")]'
+                .'/div[contains(concat(" ", normalize-space(@class), " "), " ui-form-flow ")]'
             )
         );
         $this->assertSame(
@@ -92,7 +92,7 @@ class CourseProductCategoryAttachedMediaUiTest extends TestCase
             $this->htmlElementCount(
                 $content,
                 '//div[@data-authoring-media-current-row]'
-                .'//button[@type="button" and contains(concat(" ", normalize-space(@class), " "), " authoring-media-overlay-action ")]'
+                .'//button[@type="button" and contains(concat(" ", normalize-space(@class), " "), " ui-button ")]'
             )
         );
         $this->assertSame(
@@ -106,14 +106,14 @@ class CourseProductCategoryAttachedMediaUiTest extends TestCase
             0,
             $this->htmlElementCount(
                 $content,
-                '//a[contains(concat(" ", normalize-space(@class), " "), " authoring-media-overlay-action ")]'
+                '//div[@data-authoring-media-current-row]//a'
             )
         );
         $this->assertSame(
             2,
             $this->htmlElementCount(
                 $content,
-                '//label[contains(concat(" ", normalize-space(@class), " "), " authoring-media-remove ")]'
+                '//div[@data-authoring-media-current-row]//label[contains(concat(" ", normalize-space(@class), " "), " ui-check ")]'
                 .'//input[@type="checkbox"]'
             )
         );
@@ -128,12 +128,12 @@ class CourseProductCategoryAttachedMediaUiTest extends TestCase
         $this->assertStringContainsString('Ảnh đại diện', $content);
         $this->assertStringContainsString('Ảnh banner', $content);
         $this->assertStringContainsString('openCategoryImagePreview', $content);
-        $this->assertStringContainsString('media-library-modal-image', $content);
+        $this->assertStringContainsString('class="ui-modal"', $content);
         $this->assertSame(
             2,
             $this->htmlElementCount(
                 $content,
-                '//input[@type="file" and contains(concat(" ", normalize-space(@class), " "), " admin-file-upload ")]'
+                '//label[contains(concat(" ", normalize-space(@class), " "), " ui-upload ")]//input[@type="file"]'
             )
         );
         $this->assertGreaterThanOrEqual(
@@ -146,13 +146,13 @@ class CourseProductCategoryAttachedMediaUiTest extends TestCase
         $this->assertStringNotContainsString('admin-media-action-divider', $content);
         $this->assertStringNotContainsString('target="_blank"', $content);
 
-        $componentCss = file_get_contents(base_path('resources/css/admin/admin-pages.css'));
+        $componentCss = file_get_contents(resource_path('css/admin/admin-ui-kit.css'));
         $this->assertStringContainsString(
-            '.authoring-media-picker-row',
+            '.lf-admin-ui .ui-form-media',
             $componentCss
         );
-        $this->assertStringContainsString('.authoring-media-upload-tile', $componentCss);
-        $this->assertStringContainsString('.authoring-media-current-row:hover', $componentCss);
+        $this->assertStringContainsString('.lf-admin-ui .ui-upload', $componentCss);
+        $this->assertStringContainsString('.lf-admin-ui .ui-media-upload__file', $componentCss);
     }
 
     public function test_remove_current_image_still_detaches_usage_without_deleting_media_file(): void

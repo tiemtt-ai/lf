@@ -1,6 +1,6 @@
 # LF Admin UI Kit Shared CSS
 
-Version: 1.2
+Version: 1.9
 
 Document Status: Approved
 
@@ -41,7 +41,7 @@ permissions, lifecycle và payload.
 
 Presentation source: `resources/css/admin/admin-ui-kit.css`.
 Visual reference: [UI Kit gốc](../ui-demo/ui-kit-developer/README.md).
-Entry được Vite build riêng, chưa được nạp trong layout hiện hành.
+Entry được Vite build riêng, chỉ nạp tại consumer được chỉ định; không nạp toàn bộ backend layout.
 Không có một thư viện UI Kit implementation khác trước task này: tìm kiếm
 CSS/Blade hiện hành không có namespace ui-/ux-/mk- của kit. Các primitive
 lf-/admin- hiện hành vẫn có consumer nên chưa xóa hoặc đổi visual của chúng.
@@ -334,3 +334,281 @@ single stylesheet; adapter contains no visual styles or submission handler.
 Real native 1/2/3-column desktop/mobile, Escape/focus return, long-body scroll,
 combobox/calendar clipping and coarse-pointer input acceptance remain pending
 browser access. No newly saved temporary test logs/screenshots were created.
+
+## Course category list adoption — 2026-10-19
+
+Owner chỉ định danh sách `/admin/course-categories` áp dụng UI KIT. View dùng
+chung `course-categories/index.blade.php` phục vụ Admin/Teacher; hai vai trò
+nhận cùng presentation, giữ nguyên controller và phạm vi truy cập của từng vai trò.
+Form create/edit và các module khác chưa chuyển. Shared CSS được nạp qua section
+Vite của riêng view này, không thêm vào backend layout hoặc sửa UI Kit gốc.
+
+Classification: Existing-Feature Change. Initial/Final Audit Level: MEDIUM.
+Rationale: Blade presentation, shared opt-in stylesheet, pagination markup;
+không thay đổi route, query, dữ liệu, tenant/auth, validation hay mutation.
+Audit Level Escalation: None. Documents reviewed: README, LF-INDEX routing,
+Architecture Guardrails, Regression Audit, Tech CSS, Admin Form Design Standard
+và tài liệu này. Source of truth: UI Kit Developer và Shared CSS được Owner duyệt.
+
+Shared `ui-list-*` classes bổ sung layout toolbar/filter, text cells và empty
+state; không thêm CSS theo module, Blade Component hoặc JavaScript. Bộ lọc giữ
+GET keyword/status; pagination dùng URL paginator giữ query string. Bảng cuộn
+ngang trên mobile, filter 2 cột ở tablet và 1 cột ở mobile. Manage vẫn dẫn tới
+route edit hiện có, bỏ menu trung gian khi chỉ có một action. Trạng thái/nổi bật
+giữ nội dung thật, dùng caption thay badge chưa có mẫu duyệt.
+
+Files changed: shared stylesheet, category index view, CategoryManagementTest
+và tài liệu này. No new files. Tests cập nhật selector presentation, giữ kiểm
+tra tenant isolation, teacher ownership, pagination, empty/filter state và CRUD.
+Native visual QA PC/tablet/mobile: BLOCKED — automatic browser approval review
+failed vì model at capacity, thao tác không được thực hiện. Không suy diễn
+visual parity hoặc touch/screen-reader acceptance từ test render.
+Final verdict: implementation verified by targeted checks; visual acceptance
+BLOCKED pending browser access. Không tạo file kiểm thử tạm.
+
+Commands/results: CourseCategoryManagementTest 20 PASS (188 assertions at the
+final verification run); UI Kit CSS/dialog tests 8 PASS; full Pint and targeted Pint PASS;
+Vite build PASS (67 modules, 4.78s); docs:lint PASS (94 existing allowlisted
+metadata items, no new issues); route list retains 12 category endpoints;
+git diff --check PASS. Full PHP suite not repeated for presentation-only scope.
+Requirement traceability: category tests cover visibility/filter/empty/pagination
+and business invariants; shared CSS tests cover opt-in isolation/tokens/entries.
+Browser geometry, keyboard/touch, text overflow and VI/EN visual fidelity remain
+unverified. No verified HIGH findings; browser acceptance remains open.
+
+### Category list visual follow-up — 2026-10-19
+
+Browser returned one screenshot of the authenticated category list in the
+current narrow pane. Observed: filter fields stacked in one column, labels and
+search button visible, two category rows rendered, horizontal scrollbar inside
+the table region, footer wrapped. No screenshot file was saved. This is a
+single-pane observation, not a measured mobile device/viewport comparison.
+
+Subsequent browser capability/documentation and accessibility reads timed out
+at automatic permission review. PC/tablet viewport changes, reference comparison,
+filter interaction, keyboard scrolling and touch remain BLOCKED/unverified.
+No additional CSS/Blade or business changes were made from this incomplete
+visual inspection; no new visual defect was established by the available image.
+
+### Category list correction to the actual UI Kit list — 2026-10-19
+
+Owner rejected the earlier mixed ui-table/custom ui-list layout. This correction
+supersedes that presentation: use the original mk-section, mk-section-head,
+mk-tablebar, mk-table-scroll, table and mk-table-foot/mk-pages structure. Filters
+use the original ui-field/mk-search, ui-search and ux-combo markup; actions use
+ui-button and ux-row-edit. Removed the ui-list-* CSS introduced by the previous
+attempt. No new Blade Component, module stylesheet or UI Kit source edit.
+
+The Alpine status-combobox adapter binds the existing named native select,
+retaining no-JS fallback and the same GET keyword/status payload. Supports text
+search, clear, ArrowUp/Down, Enter, Escape, outside click and focus leaving the
+field. CSS remains the sole presentation source. Link-only adapters normalize
+button typography to the demo's native button; mk-text-cell adapts alignment
+for real text columns; mk-empty keeps copy within the visible scroll container.
+No demo handlers, fake rows, bulk selection, reporting tabs or totals were added.
+Category status stays read-only text as before; edit still navigates to the
+existing edit route. Page size remains the controller's fixed 10: the matching
+size display is disabled rather than pretending to offer 5/20-row behavior.
+New VI/EN keys label this display and the combobox's empty search result.
+
+Classification: Existing-Feature Change; Initial/Final Audit Level MEDIUM;
+Escalation None. Same documents, source of truth and business invariants as the
+adoption audit above. Dependencies/consumers: shared Admin/Teacher category index
+view, scoped shared CSS and existing Alpine runtime; no other forms migrated.
+Files changed in this correction: category index Blade, shared CSS, category
+feature tests, VI/EN lf.php dictionaries and this document. No new repo files.
+
+Browser evidence: authenticated Admin at 1440x900, 768x1024, 375x812; reference
+and live page explicitly measured at the same viewport and device scale 1,
+same browser and Arial. Seven corresponding controls/cells (search input and
+button, primary create link/button, ordinary table header, edit action,
+combobox control and input) compared for height, font family/size/weight/line
+height, padding, border width/radius, background and text color: zero differences
+at all three sizes. Screenshots inspected at all sizes, no document-wide
+horizontal overflow. This is sampled computed-style evidence, not exhaustive
+pixel parity for differing datasets/layout shells or every interaction state.
+
+Observed combobox no-results text and keyword search “Sơ” returning one real row,
+keyboard selection active, GET submit and retained status in pagination
+URLs, Escape close/focus retained on the combobox, inactive empty state and clear
+filters. Tablet/mobile dropdown bounds stayed inside viewport; mobile table
+ArrowRight moved scrollLeft to 40. Empty-state copy initially extended beyond
+the mobile visible area: fixed and measured left 47/right 328 at viewport 375.
+Existing local data has only two rows: real multi-page navigation is covered by
+feature tests, not claimed as browser-tested. Teacher/EN browser rendering,
+physical touch, screen readers and exhaustive hover/focus pixel comparisons
+remain unverified. No mutations performed in browser.
+
+Verification: CourseCategoryManagementTest 20 PASS / 194 assertions, including
+new actual pagination-query preservation assertions. Shared CSS/dialog Node
+checks 8 PASS. Targeted Pint PASS; Vite build PASS (67 modules, 4.30s), existing
+backend/auth/student/app bundle hashes unchanged. Full PHP suite not repeated
+for scoped presentation changes. docs:lint and diff checks are run at final
+closure. Final Verdict: PASS WITH DOCUMENTED RISKS for the scoped correction;
+no claim of full application/device visual parity. The earlier browser BLOCKED
+record remains historical and is superseded only for checks described here.
+Temporary original reference copies used by the existing preview server are
+removed after inspection; no new test logs/JSON/screenshots retained in repo.
+
+## Category create/edit adoption — 2026-10-19
+
+Owner explicitly requested the category create/edit forms after the list. The
+shared category form now uses ui-section/ui-grid/ui-field, the original input,
+textarea, ui-check/ui-switch, ui-upload and ui-button contracts. No other
+business forms migrated. ui-field--full spans the existing two-column grid;
+ui-form-label-row and ui-form-media provide layout only, ui-field__error exposes
+existing server validation errors. All visual rules remain in Shared CSS.
+
+Load the separate resources/js/admin-ui-kit-controls.js asset in these adopted
+views. Opt in real single native selects with data-ui-kit-select; supply
+localized data-ui-empty-label/data-ui-clear-label. The adapter retains the
+original named select and its real option values/disabled/required state,
+updates it with input/change events, and changes only accessible presentation.
+Native fallback remains if JavaScript does not run. Exported initUiKitSelect
+is idempotent and returns destroy() for cleanup; multiple selects are outside
+this adapter's scope. Search, clear when a blank option is allowed, ArrowUp/Down,
+Enter, Escape, outside click and blur are supported. IDs must be unique. This
+is an application adapter, not the demo JS or a new UI framework.
+
+Existing authoring-media-upload, authoring-media-row, upload-hint and
+media-preview-modal components receive an explicit ui-kit flag only from the
+category form. Their default remains the existing presentation, verified with
+related course-media tests. Signed URLs, thumbnail state presenter, media usages,
+replace/remove field names, formats/real effective upload limit and file input
+names are retained. Preview uses the shared native ui-modal with existing
+Alpine show/close state; no media endpoint, permissions or save behavior changes.
+No new Blade Component. Controller, tenant/auth, ownership, request validation,
+SEO preservation, automatic slug rules and database operations are untouched.
+
+Regression audit: Existing-Feature Change; Initial/Final MEDIUM; Escalation None.
+Reason: scoped forms plus explicit opt-in presentation branches in shared media
+components. Documents reviewed: README, LF-INDEX routing, Guardrails, Regression
+Audit, Tech CSS, Form Design Standard and this contract. Source of truth remains
+the approved original UI Kit and Shared CSS. Dependencies/consumers reviewed:
+Admin/Teacher category forms, other course media consumers of the default
+components, existing Alpine and Vite. New file: admin-ui-kit-controls.js. Changed:
+category create/edit/partial, four existing media Blade components, shared CSS,
+Vite input, VI/EN clear-selection label, category/attached-media tests and the
+routing/usage docs. No production layout or original UI Kit file changed.
+
+Native browser checks on authenticated Admin: create and edit at 1440x900,
+768x1024 and 375x812, device scale 1; no document horizontal overflow. Grid is
+two columns on PC/tablet and one on mobile. Text inputs measure 36px and upload
+areas 85px. Existing edit values and image remain visible. Create name typing
+retained the original automatic slug behavior; parent keyboard selection sets
+the real parent_id. Mobile real-image preview opened inside viewport, Escape
+closed it and focus returned to the Xem opener. Browser did not save records or
+upload/remove production media. Default controls compared against the original
+UI Kit at the same three viewports/browser/scale: seven text/label/textarea/
+upload/combobox/button samples matched ten computed properties per size.
+The eighth switch sample exposed a Tailwind 1px border absent in the original;
+Shared CSS now explicitly sets border:0, verified in browser. Unused native-input
+font/color properties still differ under the host reset; no text is rendered
+by the switch input. Exhaustive pixel parity is not claimed.
+
+Tests updated retain payload, SEO, sequence, tenant/teacher boundaries, media
+attachment/removal and default shared-component coverage. Added old-input and
+server-error association assertions. PHP related suites: 79 PASS / 844 assertions;
+Node suite: 163 PASS. Pint targeted PASS, Node syntax check PASS; Vite build PASS
+(68 modules), backend/auth/student/app hashes unchanged. docs:lint and diff
+checks run at closure. Full PHP suite not repeated for scoped presentation.
+No baseline failure remains in the targeted suites; obsolete visual assertions
+were updated, an initial Blade syntax mistake and switch border were corrected.
+
+Unverified: physical touch/coarse-pointer devices, VoiceOver/NVDA, Teacher/EN
+visual rendering, native file chooser/network uploads on real devices and every
+interaction's pixel comparison. Upload behavior is covered by PHP integration
+checks. Final verdict: PASS WITH DOCUMENTED RISKS for the named form adoption.
+No automatic rollout. Temporary reference copies removed; no new test screenshots,
+logs or JSON retained. Browser viewport overrides reset after inspection.
+
+Closure checks for category forms: final category/attached-media rerun 23 PASS /
+240 assertions; documentation suites 20 PASS / 22 assertions; docs:lint and diff
+checks PASS. Keyboard-active combobox option uses the existing option focus
+presentation through data-ui-active; confirmed active descendant/highlight in
+browser with no console warnings/errors. No files changed under app, routes,
+database, config, production layouts or docs/ui-demo. Reference staging copies
+were removed and the viewport override was reset.
+
+### Owner-requested list layout refinement — 2026-10-19
+
+Owner requested a more balanced category list layout after reviewing its image.
+The embedded lf-admin-ui--list variant removes the duplicate canvas inset and
+initial section margin, uses the existing backend h1 for section/table labelling,
+and removes the repeated inner title. Filters and create action share one
+mk-tablebar--filters row on desktop, wrap on tablet and stack on mobile.
+The footer remains the single result range/count and pagination area. Shared
+column contracts keep sequence (64px), status (150px), action (96px) compact;
+parent is 26%, name uses remaining space, sequence is centered. These are the
+Owner-requested layout adjustments; control typography/colors/states and original
+UI Kit remain unchanged. No module CSS, layout, query or business behavior edit.
+
+Existing-Feature Change, initial/final MEDIUM, no escalation; same governance,
+source of truth and invariants as the adoption audit. Files: category index,
+Shared CSS, existing presentation assertion and this usage record. New files:
+none. Browser inspected at 1440x900, 768x1024 and 375x812: one page heading, no
+document horizontal overflow; table keeps its own horizontal scroll when needed.
+Targeted category suite 21 PASS / 204 assertions, CSS isolation/token tests
+3 PASS, targeted Pint PASS, Vite build PASS (68 modules, 4.22s); docs:lint and
+diff checks run at closure. Physical touch/screen readers and exhaustive pixel
+state comparison remain unverified. Final verdict PASS WITH DOCUMENTED RISKS.
+No new test artifact files; viewport override reset after review.
+
+### Owner typography amendment — 2026-10-19
+
+Owner requested a consistent 14px primary text size across content, labels,
+inputs, buttons and data tables. Both canonical table variants (ui-table and
+mk-section table) now use 14px instead of the reference's 13px. ui-button
+explicitly uses the existing Arial 14px/20px control contract. Category status
+is table data, so its caption class was removed and it inherits the table size.
+Secondary helper/slug/caption text keeps its existing smaller size; heading
+hierarchy, weights, colors and spacing are retained. Existing coarse-pointer
+input sizing remains the responsive reference exception. This is an explicit
+Owner-approved deviation from the original table typography, implemented only
+in Shared CSS; the original UI Kit remains untouched. No business change.
+
+Existing-Feature Change; initial/final MEDIUM, no escalation. Scope: Shared CSS,
+category status markup and CSS usage/policy docs. Verification at closure uses
+category tests, shared CSS checks, build, targeted Pint, docs lint/diff and browser
+computed font sizes where available; not a new claim of source pixel parity.
+
+Typography closure: browser measured table/header/data/status/label/button at
+14px on 1440/768/375px viewports, with no document horizontal overflow. Category
+suite 21 PASS / 204 assertions, CSS checks 3 PASS, targeted Pint, build (68 modules,
+4.08s), docs:lint and diff check PASS. No new test artifacts or UI Kit source edits.
+Final verdict PASS WITH DOCUMENTED RISKS; physical touch and exhaustive visual
+state comparisons remain outside this sampled check.
+
+### Owner pagination typography amendment — 2026-10-19
+
+Owner extended the 14px standard to pagination: mk-page/ui-pagination buttons,
+mk-pages select and mk-footnote result summaries use 14px. This supersedes the
+reference's 12px footer summary/page-size text only; other helper/caption text
+stays unchanged. Shared CSS is the only presentation change; original UI Kit,
+paginator URLs, fixed page size and business behavior remain untouched.
+Existing-Feature Change, initial/final MEDIUM, no escalation. Verification:
+shared CSS checks, category tests, build, docs lint/diff and sampled browser
+computed sizes. No new files or temporary test artifacts.
+
+Pagination closure: computed page/summary/page-size text is 14px at 1440, 768
+and 375px, with no document overflow; viewport reset. Category tests 21 PASS /
+204 assertions, CSS tests 3 PASS, build, docs lint and diff check PASS. Full
+suite not repeated for this typography-only change. Final verdict PASS WITH
+DOCUMENTED RISKS; physical device and exhaustive pixel checks remain unverified.
+
+### Owner pagination grouping amendment — 2026-10-19
+
+Owner requested the result summary and pagination as one right-aligned area.
+Canonical mk-table-foot now justifies its summary and mk-pages to the right;
+wrapped page controls also align right on mobile. Shared summary translation:
+“Hiển thị :from–:to / :total dòng” / “Showing :from–:to / :total rows”. Actual
+paginator bounds are used, including 0–0 / 0. Font remains 14px. No query,
+page-size, business or original UI Kit changes. Existing-Feature Change, initial/
+final MEDIUM; no escalation. Scope: Shared CSS, category footer, VI/EN text and
+this record. No new files; targeted tests/build/lint and browser checks at closure.
+
+Grouping closure: browser confirms summary and controls right-aligned at 1440,
+768 and 375px, 14px text and no document overflow; viewport reset. Category suite
+21 PASS / 204 assertions, CSS checks 3 PASS, build, targeted Pint, docs lint and
+diff check PASS. No temporary artifacts. Final verdict PASS WITH DOCUMENTED
+RISKS; physical touch and exhaustive visual states remain unverified.

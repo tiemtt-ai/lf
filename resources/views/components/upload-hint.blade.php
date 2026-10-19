@@ -1,4 +1,5 @@
 @props([
+    'uiKit' => false,
     'formats' => [],
     'maxSize' => null,
     'note' => null,
@@ -17,6 +18,6 @@
     ]);
 @endphp
 
-<div {{ $attributes->class(['admin-upload-hint', 'authoring-media-help']) }}>
+<div {{ $attributes->class([$uiKit ? 'ui-caption' : 'admin-upload-hint authoring-media-help']) }}>
     {{ $hintText }}@if ($note) <span>{{ $note }}</span>@endif
 </div>

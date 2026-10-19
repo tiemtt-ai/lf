@@ -11,7 +11,7 @@
     $isFeatured = (bool) old('is_featured', $formCategory?->is_featured ?? false);
 @endphp
 
-<div class="admin-form-flow"
+<div class="ui-form-flow"
      x-data="{
          generatedSlug: @js((string) $generatedSlug),
          selectedParentId: @js($selectedParentId),
@@ -45,17 +45,15 @@
          },
      }"
      x-on:keydown.escape.window="closeCategoryImagePreview()">
-    <section class="admin-form-standard-section" aria-labelledby="course-category-general">
-        <header class="admin-form-section-header">
-            <h2 id="course-category-general" class="admin-form-section-title">{{ __('lf.LF_course_category_group_general') }}</h2>
+    <section class="ui-section" aria-labelledby="course-category-general">
+        <header class="ui-form-section-header">
+            <h3 id="course-category-general" class="ui-form-section-title">{{ __('lf.LF_course_category_group_general') }}</h3>
         </header>
-        <div class="admin-form-field-grid">
-            <div class="lf-form-group admin-form-field">
-                <x-form-label for="parent_id"
-                              :value="__('lf.LF_course_category_common_parent')" />
-                <select id="parent_id" name="parent_id" class="lf-form-control"
-                        x-model="selectedParentId"
-                        :class="{ 'lf-select-placeholder': selectedParentId === null || selectedParentId === '' }">
+        <div class="ui-grid">
+            <div class="ui-field">
+                <label class="ui-field__label" for="parent_id">{{ __('lf.LF_course_category_common_parent') }}</label>
+                <select id="parent_id" aria-invalid="{{ $errors->has('parent_id') ? 'true' : 'false' }}" @error('parent_id') aria-describedby="parent_id-error" @enderror name="parent_id" data-ui-kit-select data-ui-empty-label="{{ __('lf.LF_course_category_index_no_options') }}" data-ui-clear-label="{{ __('lf.LF_course_category_common_clear_selection') }}"
+                        x-model="selectedParentId">
                     <option value="" @selected($selectedParentId === null || $selectedParentId === '')>{{ __('lf.LF_course_category_select_parent') }}</option>
                     @foreach ($parentCategories as $parentCategory)
                         <option value="{{ $parentCategory->id }}"
@@ -64,133 +62,132 @@
                         </option>
                     @endforeach
                 </select>
+                @error('parent_id')<span class="ui-field__error" id="parent_id-error" role="alert">{{ $message }}</span>@enderror
             </div>
 
-            <div class="lf-form-group admin-form-field">
-                <x-form-label for="name"
-                              :value="__('lf.LF_course_category_common_name')"
-                              required />
-                <input id="name" type="text" name="name" class="lf-form-control"
+            <div class="ui-field">
+                <label class="ui-field__label" for="name"><span class="ui-field__required" aria-hidden="true">*</span>{{ __('lf.LF_course_category_common_name') }}</label>
+                <input id="name" aria-invalid="{{ $errors->has('name') ? 'true' : 'false' }}" @error('name') aria-describedby="name-error" @enderror type="text" name="name"
                        value="{{ old('name', $formCategory?->name) }}"
                        placeholder="{{ __('lf.LF_course_category_placeholder_name') }}"
                        required
                        maxlength="255"
                        @input="syncSlug($event.target.value)">
+                @error('name')<span class="ui-field__error" id="name-error" role="alert">{{ $message }}</span>@enderror
             </div>
 
-            <div class="lf-form-group admin-form-field--full">
-                <div class="admin-form-label-row">
-                    <x-form-label for="slug"
-                                  :value="__('lf.LF_course_category_common_slug')" />
-                    <span class="admin-form-label-metadata">{{ __('lf.LF_course_category_common_automatic') }}</span>
+            <div class="ui-field ui-field--full">
+                <div class="ui-form-label-row">
+                    <label class="ui-field__label" for="slug">{{ __('lf.LF_course_category_common_slug') }}</label>
+                    <span class="ui-caption">{{ __('lf.LF_course_category_common_automatic') }}</span>
                 </div>
-                <input id="slug" type="text" name="slug" class="lf-form-control admin-form-readonly"
+                <input id="slug" aria-invalid="{{ $errors->has('slug') ? 'true' : 'false' }}" @error('slug') aria-describedby="slug-error" @enderror type="text" name="slug"
                        value="{{ $generatedSlug }}"
                        placeholder="{{ __('lf.LF_course_category_placeholder_slug') }}"
                        maxlength="255"
                        readonly
                        x-model="generatedSlug">
+                @error('slug')<span class="ui-field__error" id="slug-error" role="alert">{{ $message }}</span>@enderror
             </div>
 
-            <div class="lf-form-group admin-form-field--full">
-                <x-form-label for="description" :value="__('lf.LF_course_category_common_description')" />
-                <textarea id="description" name="description" class="lf-form-control"
+            <div class="ui-field ui-field--full">
+                <label class="ui-field__label" for="description">{{ __('lf.LF_course_category_common_description') }}</label>
+                <textarea id="description" aria-invalid="{{ $errors->has('description') ? 'true' : 'false' }}" @error('description') aria-describedby="description-error" @enderror name="description"
                           rows="3" placeholder="{{ __('lf.LF_course_category_placeholder_description') }}">{{ old('description', $formCategory?->description) }}</textarea>
+                @error('description')<span class="ui-field__error" id="description-error" role="alert">{{ $message }}</span>@enderror
             </div>
 
         </div>
     </section>
 
-    <section class="admin-form-standard-section" aria-labelledby="course-category-media">
-        <header class="admin-form-section-header">
-            <h2 id="course-category-media" class="admin-form-section-title">{{ __('lf.LF_course_category_group_media') }}</h2>
+    <section class="ui-section" aria-labelledby="course-category-media">
+        <header class="ui-form-section-header">
+            <h3 id="course-category-media" class="ui-form-section-title">{{ __('lf.LF_course_category_group_media') }}</h3>
         </header>
-        <div class="admin-form-field-grid">
-            <div class="lf-form-group admin-form-field">
-                <p class="authoring-media-field-title">{{ __('lf.LF_course_category_common_thumbnail_image') }}</p>
-                <div class="authoring-media-picker-row">
+        <div class="ui-grid">
+            <div class="ui-field">
+                <p class="ui-field__label" id="thumbnail-image-label">{{ __('lf.LF_course_category_common_thumbnail_image') }}</p>
+                <div class="ui-form-media">
                 @if ($thumbnailMedia ?? null)
                     <input type="hidden" name="remove_thumbnail_image_media" value="0">
-                    <x-authoring-media-row
+                    <x-authoring-media-row ui-kit
                         :presentation="$thumbnailPresentation"
                         :alt="$thumbnailMedia->display_name"
                         :display-name="$thumbnailMedia->display_name"
                         remove-name="remove_thumbnail_image_media"
                         :remove-label="__('lf.LF_course_category_common_remove_image')">
-                        <button type="button" class="authoring-media-overlay-action" x-on:click.stop="openCategoryImagePreview(@js($thumbnailMedia->display_name), @js($thumbnailMedia->signed_url))">
-                            <x-backend-icon name="eye" class="authoring-media-action-icon" />
+                        <button type="button" class="ui-button" x-on:click.stop="openCategoryImagePreview(@js($thumbnailMedia->display_name), @js($thumbnailMedia->signed_url))">
+                            <x-backend-icon name="eye" class="ui-icon" />
                             <span class="sr-only">{{ __('lf.LF_course_category_common_view_image') }}</span>
                         </button>
                     </x-authoring-media-row>
                 @elseif ($formCategory?->thumbnail_image)
-                    <x-authoring-media-row
+                    <x-authoring-media-row ui-kit
                         :presentation="['state' => 'image', 'kind' => 'image', 'url' => $formCategory->thumbnail_image]"
                         :alt="$formCategory->name"
                         :display-name="$formCategory->name">
-                        <button type="button" class="authoring-media-overlay-action" x-on:click.stop="openCategoryImagePreview(@js($formCategory->name), @js($formCategory->thumbnail_image))">
-                            <x-backend-icon name="eye" class="authoring-media-action-icon" />
+                        <button type="button" class="ui-button" x-on:click.stop="openCategoryImagePreview(@js($formCategory->name), @js($formCategory->thumbnail_image))">
+                            <x-backend-icon name="eye" class="ui-icon" />
                             <span class="sr-only">{{ __('lf.LF_course_category_common_view_image') }}</span>
                         </button>
                     </x-authoring-media-row>
                 @endif
-                <x-authoring-media-upload id="thumbnail_image_file" name="thumbnail_image_file" :label="(($thumbnailMedia ?? null) || $formCategory?->thumbnail_image) ? __('lf.LF_media_replace_image') : __('lf.LF_media_upload_image')" accept="image/*" />
+                <x-authoring-media-upload ui-kit aria-labelledby="thumbnail-image-label" id="thumbnail_image_file" name="thumbnail_image_file" :label="(($thumbnailMedia ?? null) || $formCategory?->thumbnail_image) ? __('lf.LF_media_replace_image') : __('lf.LF_media_upload_image')" accept="image/*" />
                 </div>
-                <x-upload-hint :formats="['JPG', 'PNG', 'GIF', 'WEBP', 'SVG']" />
+                <x-upload-hint ui-kit :formats="['JPG', 'PNG', 'GIF', 'WEBP', 'SVG']" />
             </div>
-            <div class="lf-form-group admin-form-field">
-                <p class="authoring-media-field-title">{{ __('lf.LF_course_category_common_banner_image') }}</p>
-                <div class="authoring-media-picker-row">
+            <div class="ui-field">
+                <p class="ui-field__label" id="banner-image-label">{{ __('lf.LF_course_category_common_banner_image') }}</p>
+                <div class="ui-form-media">
                 @if ($bannerMedia ?? null)
                     <input type="hidden" name="remove_banner_image_media" value="0">
-                    <x-authoring-media-row
+                    <x-authoring-media-row ui-kit
                         :presentation="$bannerPresentation"
                         :alt="$bannerMedia->display_name"
                         :display-name="$bannerMedia->display_name"
                         remove-name="remove_banner_image_media"
                         :remove-label="__('lf.LF_course_category_common_remove_image')">
-                        <button type="button" class="authoring-media-overlay-action" x-on:click.stop="openCategoryImagePreview(@js($bannerMedia->display_name), @js($bannerMedia->signed_url))">
-                            <x-backend-icon name="eye" class="authoring-media-action-icon" />
+                        <button type="button" class="ui-button" x-on:click.stop="openCategoryImagePreview(@js($bannerMedia->display_name), @js($bannerMedia->signed_url))">
+                            <x-backend-icon name="eye" class="ui-icon" />
                             <span class="sr-only">{{ __('lf.LF_course_category_common_view_image') }}</span>
                         </button>
                     </x-authoring-media-row>
                 @elseif ($formCategory?->banner_image)
-                    <x-authoring-media-row
+                    <x-authoring-media-row ui-kit
                         :presentation="['state' => 'image', 'kind' => 'image', 'url' => $formCategory->banner_image]"
                         :alt="$formCategory->name"
                         :display-name="$formCategory->name">
-                        <button type="button" class="authoring-media-overlay-action" x-on:click.stop="openCategoryImagePreview(@js($formCategory->name), @js($formCategory->banner_image))">
-                            <x-backend-icon name="eye" class="authoring-media-action-icon" />
+                        <button type="button" class="ui-button" x-on:click.stop="openCategoryImagePreview(@js($formCategory->name), @js($formCategory->banner_image))">
+                            <x-backend-icon name="eye" class="ui-icon" />
                             <span class="sr-only">{{ __('lf.LF_course_category_common_view_image') }}</span>
                         </button>
                     </x-authoring-media-row>
                 @endif
-                <x-authoring-media-upload id="banner_image_file" name="banner_image_file" :label="(($bannerMedia ?? null) || $formCategory?->banner_image) ? __('lf.LF_media_replace_image') : __('lf.LF_media_upload_image')" accept="image/*" />
+                <x-authoring-media-upload ui-kit aria-labelledby="banner-image-label" id="banner_image_file" name="banner_image_file" :label="(($bannerMedia ?? null) || $formCategory?->banner_image) ? __('lf.LF_media_replace_image') : __('lf.LF_media_upload_image')" accept="image/*" />
                 </div>
-                <x-upload-hint :formats="['JPG', 'PNG', 'GIF', 'WEBP', 'SVG']" />
+                <x-upload-hint ui-kit :formats="['JPG', 'PNG', 'GIF', 'WEBP', 'SVG']" />
             </div>
 
         </div>
     </section>
 
-    <section class="admin-form-standard-section" aria-labelledby="course-category-display">
-        <header class="admin-form-section-header">
-            <h2 id="course-category-display" class="admin-form-section-title">{{ __('lf.LF_course_category_group_display') }}</h2>
+    <section class="ui-section" aria-labelledby="course-category-display">
+        <header class="ui-form-section-header">
+            <h3 id="course-category-display" class="ui-form-section-title">{{ __('lf.LF_course_category_group_display') }}</h3>
         </header>
-        <div class="admin-form-field-grid">
-            <div class="admin-form-option-group course-category-featured-option admin-form-field--full">
+        <div class="ui-grid">
+            <div class="ui-field">
                 <input type="hidden" name="is_featured" value="0">
-                <label class="admin-form-option-panel admin-form-option-panel--compact">
-                    <input id="is_featured" type="checkbox" name="is_featured" value="1"
+                <label class="ui-check ui-switch">
+                    <input id="is_featured" type="checkbox" role="switch" name="is_featured" value="1"
                            @checked($isFeatured)>
-                    <span><strong>{{ __('lf.LF_course_category_common_featured') }}</strong></span>
+                    <span>{{ __('lf.LF_course_category_common_featured') }}</span>
                 </label>
             </div>
 
-            <div class="lf-form-group admin-form-field--full">
-                <x-form-label for="status"
-                              :value="__('lf.LF_course_category_common_status')"
-                              required />
-                <select id="status" name="status" class="lf-form-control" required>
+            <div class="ui-field ui-field--full">
+                <label class="ui-field__label" for="status"><span class="ui-field__required" aria-hidden="true">*</span>{{ __('lf.LF_course_category_common_status') }}</label>
+                <select id="status" aria-invalid="{{ $errors->has('status') ? 'true' : 'false' }}" @error('status') aria-describedby="status-error" @enderror name="status" data-ui-kit-select data-ui-empty-label="{{ __('lf.LF_course_category_index_no_options') }}" data-ui-clear-label="{{ __('lf.LF_course_category_common_clear_selection') }}" required>
                     <option value="active" @selected($selectedStatus === 'active')>
                         {{ __('lf.LF_course_category_common_active') }}
                     </option>
@@ -198,16 +195,17 @@
                         {{ __('lf.LF_course_category_common_inactive') }}
                     </option>
                 </select>
+                @error('status')<span class="ui-field__error" id="status-error" role="alert">{{ $message }}</span>@enderror
             </div>
         </div>
     </section>
 
-<x-media-preview-modal id="course-category-preview-title" show="previewOpen" close="closeCategoryImagePreview()" title="preview.name" compact="preview.mediaType === 'audio' || preview.type === 'audio'">
+<x-media-preview-modal ui-kit id="course-category-preview-title" show="previewOpen" close="closeCategoryImagePreview()" title="preview.name" compact="preview.mediaType === 'audio' || preview.type === 'audio'">
 
             <img x-show="previewOpen"
                  x-bind:src="preview.url"
                  x-bind:alt="preview.name"
-                 class="media-library-modal-image">
+                 >
 
 </x-media-preview-modal>
 </div>

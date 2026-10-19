@@ -1,6 +1,6 @@
 # LF-Tech-CSS.md
 
-Version: 1.3
+Version: 1.6
 
 Document Status: Approved
 
@@ -39,8 +39,8 @@ Owner yêu cầu áp dụng trực tiếp, thay thế layout cũ và cho phép c
 ## Shared UI Kit — Owner approved 2026-10-19
 
 Owner đã duyệt thiết kế Shared CSS và popup UI KIT 1/2/3 cột làm chuẩn cho
-Admin/Giáo viên. Chưa áp dụng vào các form hiện tại; chỉ rollout khi Owner chỉ
-định chức năng. Phê duyệt thiết kế không thay thế các kiểm tra kỹ thuật còn
+Admin/Giáo viên. Chỉ rollout khi Owner chỉ định chức năng; hiện đã áp dụng
+cho danh sách và form thêm/sửa danh mục khóa học. Phê duyệt thiết kế không thay thế các kiểm tra kỹ thuật còn
 pending/blocked trong [hướng dẫn Shared CSS](LF-Admin-UI-Kit-Shared-CSS.md).
 
 Khi Owner nói **“áp dụng UI KIT”**, dùng thiết kế gốc
@@ -56,10 +56,15 @@ Không hiểu trigger này là quyền migrate hàng loạt hoặc thay đổi n
 * `.lf-admin-ui` là scope opt-in; giữ class item `ui-*`, `ux-*`, `mk-*` của mẫu.
 * Shared stylesheet là nguồn presentation duy nhất cho consumer đã opt-in.
   HTML/Blade dùng classes trực tiếp; không bắt buộc tạo Blade Component.
+* Owner thống nhất cỡ chữ chính 14px cho nội dung, label, input, button và
+  bảng dữ liệu và khu vực phân trang ngày 2026-10-19; riêng bảng đổi từ 13px
+  của mẫu thành 14px. Phân trang gồm số trang, số kết quả và số dòng/trang.
+  Helper/caption và hierarchy tiêu đề giữ nguyên; xem amendment trong Shared CSS.
 * Typography, kích thước, spacing, màu và states của mẫu ưu tiên các ví dụ
   tổng quát bên dưới **trong scope này**; không đổi thiết kế theo sở thích.
 * Không copy CSS theo module hoặc nhập CSS trực tiếp từ `docs` vào production.
-* Asset được build riêng; chưa thêm vào backend layout hoặc migrate form.
+* Asset được build riêng, không thêm vào backend layout; chỉ consumer được
+  Owner chỉ định nạp asset (hiện gồm danh sách và form danh mục khóa học).
   CSS/primitives cũ giữ cho consumer chưa chuyển; không nạp hai bộ style cho
   cùng item. Chỉ gỡ rule cũ sau khi xác minh hết consumer.
 * Thay visual phải đối chiếu UI Kit bằng browser cùng viewport/font/device scale,

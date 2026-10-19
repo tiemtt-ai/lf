@@ -1,6 +1,6 @@
 # LearnForge Technology Documentation
 
-Version: 1.2
+Version: 1.3
 
 Document Status: Approved
 
@@ -47,7 +47,7 @@ Domain docs.
   cài đặt runtime, binary, biến môi trường, queue/scheduler Media → AI Knowledge
   và gate triển khai/kích hoạt provider.
 * [LF-Tech-CSS](LF-Tech-CSS.md).
-* [LF Admin UI Kit Shared CSS](LF-Admin-UI-Kit-Shared-CSS.md) — Owner đã duyệt Shared CSS và popup UI KIT cho Admin/Giáo viên; chưa rollout form hiện tại, chỉ opt-in theo yêu cầu.
+* [LF Admin UI Kit Shared CSS](LF-Admin-UI-Kit-Shared-CSS.md) — Owner đã duyệt Shared CSS và popup UI KIT cho Admin/Giáo viên; chỉ opt-in theo yêu cầu, hiện gồm danh sách và form danh mục khóa học.
 * [LF Admin Form And List Design Standard](LF-Admin-Form-Design-Standard.md) —
   chuẩn presentation canonical cho LF Admin Create/Edit forms và List/Index
   pages.

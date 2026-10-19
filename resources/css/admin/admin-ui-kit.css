@@ -1,5 +1,5 @@
 /* LF Admin/Teacher UI Kit shared presentation. Opt in with .lf-admin-ui.
- * Visual source: docs/ui-demo/ui-kit-developer. No production consumers migrated.
+ * Visual source: docs/ui-demo/ui-kit-developer. Only explicitly adopted category consumers load this asset.
  * Keep original cascade order; demo interactions are not production adapters. */
 .lf-admin-ui {
     --ui-font-family: Arial, sans-serif;
@@ -218,6 +218,7 @@
     flex-shrink: 0
 }
 .lf-admin-ui .ui-button {
+    font: 14px/20px var(--ui-font-family);
     display: inline-flex;
     justify-content: center;
     align-items: center;
@@ -362,7 +363,8 @@
     background: var(--ui-color-d8dce5);
     border-radius: 10px;
     position: relative;
-    transition: background .14s ease
+    transition: background .14s ease;
+    border: 0
 }
 .lf-admin-ui .ui-switch input:checked {
     background: var(--ui-primary)
@@ -504,7 +506,7 @@
 .lf-admin-ui .ui-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 13px;
+    font-size: 14px;
     min-width: 390px
 }
 .lf-admin-ui .ui-table th {
@@ -531,6 +533,7 @@
     margin-top: 12px
 }
 .lf-admin-ui .ui-pagination button {
+    font: 14px/20px var(--ui-font-family);
     min-width: 30px;
     height: 30px;
     border: 1px solid var(--ui-color-e2e6ee);
@@ -663,7 +666,7 @@
     min-width: 670px;
     border-collapse: separate;
     border-spacing: 0;
-    font-size: 13px;
+    font-size: 14px;
     font-variant-numeric: tabular-nums
 }
 .lf-admin-ui th {
@@ -718,7 +721,7 @@
 .lf-admin-ui .mk-table-foot {
     padding: 12px 20px;
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;
     align-items: center;
     gap: 12px;
     flex-wrap: wrap
@@ -726,9 +729,11 @@
 .lf-admin-ui .mk-pages {
     display: flex;
     align-items: center;
+    justify-content: flex-end;
     gap: 6px
 }
 .lf-admin-ui .mk-page {
+    font: 14px/20px var(--ui-font-family);
     min-width: 32px;
     min-height: 32px;
     padding: 4px 8px;
@@ -745,11 +750,11 @@
 .lf-admin-ui .mk-pages select {
     width: auto;
     height: 32px;
-    font-size: 12px;
+    font-size: 14px;
     margin-left: 6px
 }
 .lf-admin-ui .mk-footnote {
-    font-size: 12px;
+    font-size: 14px;
     color: var(--ui-muted)
 }
 .lf-admin-ui .mk-section {
@@ -1119,7 +1124,8 @@
     padding: 7px 12px
 }
 .lf-admin-ui .ux-option:hover,
-.lf-admin-ui .ux-option:focus-visible {
+.lf-admin-ui .ux-option:focus-visible,
+.lf-admin-ui .ux-option[data-ui-active] {
     background: var(--ui-hover)
 }
 .lf-admin-ui .ux-option[aria-selected=true] {
@@ -1670,4 +1676,65 @@
     width: 16px;
     height: 16px;
     stroke-width: 1.7
+}
+
+/* Semantic adapters for real text data and link navigation; visual values stay in the kit. */
+.lf-admin-ui .mk-text-cell {
+    text-align: left;
+    overflow-wrap: anywhere;
+}
+.lf-admin-ui .mk-empty {
+    text-align: center;
+    height: 100px;
+}
+.lf-admin-ui a:is(.ui-button, .mk-page, .ux-row-edit) {
+    text-decoration: none;
+}
+.lf-admin-ui a.mk-page,
+.lf-admin-ui a.ux-row-edit {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+/* The demo toolbar contains only a count. Real labelled filters share its wrapping contract. */
+.lf-admin-ui .mk-tablebar:has(.ui-field) { align-items: flex-end; }
+.lf-admin-ui .mk-section:has(.ux-combo) { overflow: visible; }
+
+.lf-admin-ui a.ui-button { font: 14px/20px var(--ui-font-family); }
+.lf-admin-ui a.ux-row-edit {
+    font: 14px/20px var(--ui-font-family);
+    padding: 1px 6px;
+}
+
+/* Keep real empty-state copy visible without horizontally scrolling a wide table. */
+.lf-admin-ui .mk-table-scroll { container-type: inline-size; }
+.lf-admin-ui .mk-empty > [role=status] {
+    inline-size: calc(100cqw - 36px);
+    max-inline-size: 100%;
+    white-space: normal;
+}
+
+/* Opt-in form layout uses the demo grid and media primitives. */
+.lf-admin-ui .ui-field--full { grid-column: 1 / -1; }
+.lf-admin-ui .ui-form-label-row { display: flex; align-items: center; gap: 10px; }
+.lf-admin-ui .ui-form-media { display: grid; gap: 12px; min-width: 0; }
+.lf-admin-ui .ui-field__error { font-size: 12px; color: var(--ui-invalid); }
+.lf-admin-ui .ui-modal:not([open]) { display: none; }
+.lf-admin-ui .ui-modal img { max-width: 100%; height: auto; }
+
+/* Embedded lists use the existing backend page heading, without a second canvas inset. */
+.lf-admin-ui--list { padding: 0; background: transparent; }
+.lf-admin-ui--list > .mk-section { margin-top: 0; }
+.lf-admin-ui .mk-tablebar--filters .mk-search { flex: 0 1 240px; }
+.lf-admin-ui .mk-tablebar--filters .mk-search:first-child { flex: 1 1 280px; max-width: 360px; }
+.lf-admin-ui .mk-toolbar-action { margin-left: auto; }
+.lf-admin-ui .mk-col-sequence { width: 64px; }
+.lf-admin-ui .mk-col-parent { width: 26%; }
+.lf-admin-ui .mk-col-status { width: 150px; }
+.lf-admin-ui .mk-col-action { width: 96px; }
+.lf-admin-ui :is(th, td).mk-sequence { text-align: center; }
+@media (max-width: 520px) {
+    .lf-admin-ui .mk-tablebar--filters .mk-search,
+    .lf-admin-ui .mk-tablebar--filters .mk-search:first-child { flex-basis: 100%; width: 100%; max-width: none; }
+    .lf-admin-ui .mk-tablebar--filters .mk-toolbar-action { margin-left: 0; }
 }

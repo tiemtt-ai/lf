@@ -8,6 +8,7 @@ export default defineConfig({
                 'resources/css/backend.css',
                 'resources/css/admin/admin-ui-kit.css',
                 'resources/js/admin-ui-kit-dialog.js',
+                'resources/js/admin-ui-kit-controls.js',
                 'resources/css/auth.css',
                 'resources/css/tenant-site.css',
                 'resources/js/app.js',
