@@ -112,6 +112,36 @@ class BackendLayoutNavigationTest extends TestCase
             ->assertSee('href="https://tenant-a.localhost/admin/learning-frameworks"', false);
     }
 
+    public function test_list_pages_put_their_primary_action_in_the_page_heading(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+
+        foreach ([
+            ['course-categories', 'category-list', __('lf.LF_course_category_common_create_short')],
+            ['course-templates', 'template-list', __('lf.LF_course_template_common_create_short')],
+        ] as [$path, $scopeId, $label]) {
+            $html = $this->actingAs($admin)
+                ->get('https://tenant-a.localhost/admin/'.$path)
+                ->assertOk()
+                ->assertSee('class="page-heading page-heading--with-actions"', false)
+                ->assertSee('class="page-heading__actions lf-admin-ui lf-admin-ui--list"', false)
+                ->assertSee('data-ui-dialog-form-for="'.$scopeId.'"', false)
+                ->assertSee('id="'.$scopeId.'"', false)
+                ->getContent();
+
+            $this->assertMatchesRegularExpression('/<h1 id="admin-page-title">/', $html);
+            $this->assertStringContainsString($label, $html);
+            $this->assertDoesNotMatchRegularExpression('/<form[^>]*>(?:(?!<\/form>).)*data-ui-dialog-form-open/s', $html);
+        }
+
+        $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/course-products')
+            ->assertOk()
+            ->assertSee('class="page-heading"', false)
+            ->assertDontSee('page-heading--with-actions', false);
+    }
+
     public function test_course_products_uses_the_package_icon_when_active_and_inactive(): void
     {
         $customerId = $this->createTenant();

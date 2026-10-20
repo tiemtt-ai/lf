@@ -1742,6 +1742,12 @@
 .lf-admin-ui .ui-field__error { font-size: 12px; color: var(--ui-invalid); }
 .lf-admin-ui .ui-modal:not([open]) { display: none; }
 .lf-admin-ui .ui-modal img { max-width: 100%; height: auto; }
+/* Media preview (image, video, embedded video): a narrower dialog, media centred and sized by itself, 16:9 for video. */
+.lf-admin-ui .ui-modal[data-preview] { --modal-width: 760px; }
+.lf-admin-ui .ui-modal[data-preview] .ui-modal__body { display: grid; justify-items: center; padding: 16px 22px 22px; }
+.lf-admin-ui .ui-modal[data-preview] :is(iframe, video) { display: block; width: 100%; aspect-ratio: 16 / 9; height: auto; max-height: 70dvh; border: 0; border-radius: 4px; background: var(--ui-text); }
+.lf-admin-ui .ui-modal[data-preview] video { object-fit: contain; }
+.lf-admin-ui .ui-modal[data-preview] img { display: block; max-height: 70dvh; width: auto; border-radius: 4px; }
 
 /* Embedded lists use the existing backend page heading, without a second canvas inset. */
 .lf-admin-ui--list { padding: 0; background: transparent; }
@@ -1806,6 +1812,14 @@
     .lf-admin-ui .ui-media-slot__hint { position: absolute; bottom: calc(100% + 6px); left: 0; z-index: 5; width: max-content; max-width: 220px; padding: 8px 10px; border-radius: var(--ui-control-radius); background: var(--ui-text); color: var(--ui-white); font-size: 12px; line-height: 1.4; text-wrap: balance; opacity: 0; pointer-events: none; transition: opacity .14s; }
     .lf-admin-ui .ui-media-slot__hint .ui-caption { color: inherit; }
     .lf-admin-ui .ui-media-slot[data-state=empty] .ui-media-tile:is(:hover, :focus-within) ~ .ui-media-slot__hint { opacity: 1; }
+}
+/* Icon buttons with data-tooltip show the same dark hint as the upload tile, at once on hover or keyboard focus
+   (no native title delay). Anchored to the right edge so it never leaves the scrolling table; the name for assistive
+   technology stays in aria-label. */
+@media (hover: hover) {
+    .lf-admin-ui :is(.ux-row-edit, .ux-row-delete)[data-tooltip] { position: relative; }
+    .lf-admin-ui :is(.ux-row-edit, .ux-row-delete)[data-tooltip]::after { content: attr(data-tooltip); position: absolute; bottom: calc(100% + 6px); right: 0; z-index: 5; width: max-content; max-width: 220px; padding: 8px 10px; border-radius: var(--ui-control-radius); background: var(--ui-text); color: var(--ui-white); font-size: 12px; font-weight: 400; line-height: 1.4; text-align: left; text-wrap: balance; opacity: 0; pointer-events: none; transition: none; }
+    .lf-admin-ui :is(.ux-row-edit, .ux-row-delete)[data-tooltip]:is(:hover, :focus-visible)::after { opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) { .lf-admin-ui .ui-media-tile__empty, .lf-admin-ui .ui-media-tile__actions, .lf-admin-ui .ui-media-slot__hint { transition: none; } }
 .lf-admin-ui .ui-live-slot { display: contents; }

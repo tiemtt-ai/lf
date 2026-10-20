@@ -282,6 +282,14 @@ export function initUiKitDialogForm(scope, deps = {}) {
         if (target.hasAttribute('data-ui-dialog-form-open')) open(target, { focus: target.getAttribute('data-ui-dialog-form-focus') });
         else requestClose();
     };
+    // A primary action in the page heading lives outside the scope: it opens this scope's dialog when
+    // its data-ui-dialog-form-for names the scope id.
+    const onOutsideClick = event => {
+        if (!scope.id) return;
+        const target = event.target?.closest?.(`[data-ui-dialog-form-open][data-ui-dialog-form-for="${scope.id}"]`);
+        if (!target || scope.contains(target)) return;
+        open(target, { focus: target.getAttribute('data-ui-dialog-form-focus') });
+    };
     // Escape: ask first when something is unsaved (the nested confirm handles its own Escape natively).
     const onCancel = event => {
         if (event.target !== dialog) return;
@@ -303,6 +311,7 @@ export function initUiKitDialogForm(scope, deps = {}) {
         if (trigger && (!('offsetParent' in trigger) || trigger.offsetParent !== null)) open(trigger, { focus: field });
     };
     scope.addEventListener('click', onClick);
+    win.document?.addEventListener?.('click', onOutsideClick);
     const onFieldEdit = event => clearFieldError(event.target);
     scope.addEventListener('submit', submit);
     win.addEventListener?.('hashchange', autoOpen);
@@ -315,6 +324,7 @@ export function initUiKitDialogForm(scope, deps = {}) {
         controller?.abort();
         win.removeEventListener?.('hashchange', autoOpen);
         scope.removeEventListener('click', onClick);
+        win.document?.removeEventListener?.('click', onOutsideClick);
         scope.removeEventListener('submit', submit);
         dialog.removeEventListener('input', onFieldEdit);
         dialog.removeEventListener('change', onFieldEdit);

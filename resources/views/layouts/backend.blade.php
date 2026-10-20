@@ -146,8 +146,11 @@
             <div class="admin-main">
                 @include('partials.backend.header')
                 <main id="admin-content" class="admin-content">
-                    <div class="page-heading">
+                    <div @class(['page-heading', 'page-heading--with-actions' => $__env->hasSection('page_actions')])>
                         <h1 id="admin-page-title">@yield('page_title', __('lf.LF_common_title_common_dashboard'))</h1>
+                        @hasSection('page_actions')
+                            <div class="page-heading__actions lf-admin-ui lf-admin-ui--list">@yield('page_actions')</div>
+                        @endif
                     </div>
                     @yield('content')
                 </main>

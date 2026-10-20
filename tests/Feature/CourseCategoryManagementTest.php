@@ -351,7 +351,7 @@ class CourseCategoryManagementTest extends TestCase
         );
         $this->assertSame(
             1,
-            $this->htmlElementCount($content, '//button[@data-ui-row-delete and @disabled and @aria-disabled="true" and contains(@title, "1 ")]')
+            $this->htmlElementCount($content, '//button[@data-ui-row-delete and @disabled and @aria-disabled="true" and contains(@data-tooltip, "1 ") and not(@title)]')
         );
         $this->assertStringContainsString(__('lf.LF_course_category_delete_blocked_products', ['count' => 1]), $content);
         $this->assertStringContainsString('data-csrf=', $content);
@@ -450,7 +450,7 @@ class CourseCategoryManagementTest extends TestCase
             ->assertSee('mk-empty', false)
             ->assertSeeText(__('lf.LF_course_category_common_empty'))
             ->assertSeeText(__('lf.LF_course_category_empty_help'))
-            ->assertSeeText(__('lf.LF_course_category_common_create'));
+            ->assertSeeText(__('lf.LF_course_category_common_create_short'));
 
         $this->createCategory($customerId, 'Existing Category', 'existing-category');
 

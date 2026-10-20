@@ -266,6 +266,9 @@
 #admin-app .admin-brand-image { max-width: 100%; }
 #admin-app .admin-sidebar__brand > a { display: flex; align-items: center; justify-content: center; }
 #admin-app .admin-content > .page-heading > h1 { margin: 0 0 6px; font: 500 20px/1.45 Arial, sans-serif; }
+#admin-app .page-heading--with-actions { margin-bottom: 16px; }
+#admin-app .admin-content > .page-heading--with-actions > h1 { margin: 0; }
+#admin-app .page-heading__actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; flex: none; }
 #admin-app .admin-breadcrumb a { color: inherit; }
 #admin-app .admin-breadcrumb a:hover { color: var(--nav-primary); }
 #admin-app .admin-top-dropdown { max-width: calc(100vw - 24px); overflow-wrap: anywhere; }

@@ -995,3 +995,29 @@ it). Verification: PHP (empty/saved/Vimeo tiles, source switching embed -> inval
 the dialog, thumbnail, both exclusion directions, saved embed preview) and on the real local app after logging in with the test
 account (create popup with 4 tiles and the 500 MB / 1 GB hints, edit popup of a real template with a saved embed). Not verified:
 saving a real template (no data was written), a real 1 GB upload.
+
+
+## Shared page heading with primary action — 2026-10-20
+
+Format for every UI Kit list page: title on the left, the single primary action (create) on the right, 16px between heading and
+content, `h1` kept. The page fills `@section('page_actions')`; `layouts/backend.blade.php` then renders
+`.page-heading.page-heading--with-actions` with `.page-heading__actions` (also `lf-admin-ui lf-admin-ui--list`, so UI Kit buttons
+work there). Pages without the section keep the old heading.
+
+Popup from the heading: the button carries `data-ui-dialog-form-open data-ui-dialog-form-for="<scope id>"`; the scope root has that
+`id` plus `data-ui-dialog-form-scope`. `admin-ui-kit-dialog-form.js` opens triggers outside the scope only when the attribute equals
+`scope.id` and the trigger is not inside the scope. The create button is not repeated in the filter form; the empty-state create
+button stays in the table. Applied to course categories and course templates (tests: `BackendLayoutNavigationTest`,
+`admin-ui-kit-dialog-form.test.mjs`). New list pages follow this format.
+
+Button label: short verb + noun on the heading and the empty state (`LF_course_category_common_create_short` = "Tạo danh mục", `LF_course_template_common_create_short` = "Tạo template"). The long key stays as the popup title.
+
+Secondary actions (export, import): the standard fixes only where they go; a page opts in when it really needs them. They sit in `.page-heading__actions` before the create button, which stays last on the right and is the only primary-coloured one. Secondary buttons use `ui-button--outline` with a short label such as "Xuất Excel", and move into a "…" menu once there are three or more actions. Export is not part of the default: before the first export page, decide filter scope (current filter or all), row limit, permission (teachers only their own data), columns, audit logging and tenant isolation (`customer_id`).
+
+## Instant tooltip on row action icons — 2026-10-20
+
+`.ux-row-edit` and `.ux-row-delete` with `data-tooltip` show a dark hint (same look as the upload-tile hint) at once on hover or keyboard focus, anchored to the icon's right edge so the scrolling table never clips it; only where hover exists. The native `title` is not used on these icons (it appears after a delay and would double the hint); the accessible name stays in `aria-label`. A disabled delete shows its blocker text the same way. Verification: related PHP tests, CSS token test, real app (hover on the edit icon).
+
+## Media preview dialog — 2026-10-20
+
+`x-media-preview-modal ui-kit` renders `dialog[data-preview]`: 760px wide, media centred in the body, video and embedded video at 16:9 (full width, at most 70% of the viewport height), images by their own size with the same height cap. Before this the embedded player kept the browser default 300x150 box in a wide empty dialog. Verified on the real app (embed preview of a saved template: dialog 697px, player fills the width); the YouTube content itself did not load inside the in-app browser pane, so playback was not verified.

@@ -955,6 +955,8 @@ rõ ràng. Responsive behavior **MUST NOT** ẩn business data hoặc action.
 ## 25.7 List/Index Acceptance Checklist
 
 - [ ] Toolbar có một count và một primary create action.
+- [ ] Trang UI Kit: primary create action nằm bên phải tiêu đề qua `@section('page_actions')`, nhãn ngắn dạng "Tạo <đối tượng>" (xem LF-Admin-UI-Kit-Shared-CSS, mục Shared page heading).
+- [ ] Hành động phụ (xuất, nhập) nằm trước nút tạo, dùng `ui-button--outline`, nhãn ngắn; từ 3 hành động gom vào menu "…".
 - [ ] Filter compact, persistent labels, controls và actions canh hàng.
 - [ ] Header, primary text và metadata có hierarchy rõ.
 - [ ] Sequence/status/actions không chiếm business width quá mức.

@@ -92,6 +92,7 @@ function setup({ snapshotValue = 'a', defer = () => Promise.resolve(), hash = ''
     if (triggerHidden) trigger.offsetParent = null;
     const scopeEvents = [];
     const scope = new El();
+    scope.id = 'category-list';
     scope.querySelector = selector => {
         if (selector.includes('dialog[data-ui-dialog-form]')) return dialog;
         if (selector.includes('hash-open')) return hashTrigger ? trigger : null;
@@ -108,11 +109,12 @@ function setup({ snapshotValue = 'a', defer = () => Promise.resolve(), hash = ''
     const destroyed = [];
     const nav = [];
     const hashListeners = new Map();
+    const docListeners = new Map();
     dialog.dispatchEvent = event => scopeEvents.push(event);
     const win = {
         AbortController: class { constructor() { this.signal = { aborted: false }; } abort() { this.signal.aborted = true; } },
         FormData: class { constructor(form) { this.form = form; } },
-        document: { importNode: node => node, createElement: () => new El() },
+        document: { importNode: node => node, createElement: () => new El(), addEventListener: (type, fn) => docListeners.set(type, fn), removeEventListener: type => docListeners.delete(type) },
         location: { assign: url => nav.push(url), hash },
         addEventListener: (type, fn) => hashListeners.set(type, fn),
         removeEventListener: type => hashListeners.delete(type),
@@ -143,7 +145,7 @@ function setup({ snapshotValue = 'a', defer = () => Promise.resolve(), hash = ''
     const respond = (index, response) => pending[index].resolve(response);
     const html = body => ({ ok: true, redirected: false, text: async () => body });
     const json = (status, payload) => ({ ok: status >= 200 && status < 300, status, json: async () => payload });
-    return { confirms, hashListeners, win, dialog, scope, scopeEvents, trigger, flash, pageError, fetches, pending, forms, destroyed, nav, state, instance, win, clickOn, tick, respond, html, json };
+    return { confirms, hashListeners, docListeners, win, dialog, scope, scopeEvents, trigger, flash, pageError, fetches, pending, forms, destroyed, nav, state, instance, win, clickOn, tick, respond, html, json };
 }
 
 async function opened(t) {
@@ -486,4 +488,21 @@ test('no auto-open without a hash, without the marked trigger, or when the trigg
     assert.equal(setup({ hash: '', hashTrigger: true }).fetches.length, 0);
     assert.equal(setup({ hash: '#other', hashTrigger: false }).fetches.length, 0);
     assert.equal(setup({ hash: '#other', hashTrigger: true, triggerHidden: true }).fetches.length, 0, 'the Information tab is not the visible one');
+});
+
+test('a heading button outside the scope opens this scope\'s dialog only when it names the scope; destroy stops listening', async () => {
+    const t = setup();
+    const heading = new El({ 'data-url': '/admin/course-categories/create', 'data-ui-dialog-form-for': 'category-list' });
+    const other = new El({ 'data-url': '/admin/other/create', 'data-ui-dialog-form-for': 'other-list' });
+    const fake = el => ({ target: { closest: selector => (selector.includes(`for="${el.attrs.get('data-ui-dialog-form-for')}"`) ? el : null) } });
+    const click = (el, inside) => { t.scope.contains = () => inside; t.docListeners.get('click')(fake(el)); };
+    click(other, false);
+    assert.equal(t.fetches.length, 0, 'a button naming another scope is ignored');
+    click(heading, true);
+    assert.equal(t.fetches.length, 0, 'a button inside the scope is left to the scope handler');
+    click(heading, false);
+    assert.equal(t.fetches.length, 1);
+    assert.equal(t.fetches[0].url, '/admin/course-categories/create');
+    t.instance.destroy();
+    assert.equal(t.docListeners.size, 0);
 });

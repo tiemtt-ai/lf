@@ -1,7 +1,7 @@
 @props(['id', 'show', 'close', 'title', 'compact' => 'false', 'uiKit' => false])
 
 @if ($uiKit)
-    <dialog class="ui-modal" data-columns="2" aria-labelledby="{{ $id }}"
+    <dialog class="ui-modal" data-columns="2" data-preview aria-labelledby="{{ $id }}"
             x-effect="if ({{ $show }} && !$el.open) $el.showModal(); else if (!({{ $show }}) && $el.open) $el.close()"
             @close="{{ $close }}">
         <div class="ui-modal__form">

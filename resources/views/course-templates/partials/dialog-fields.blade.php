@@ -56,21 +56,6 @@
             </div>
 
             <div class="ui-field">
-                @if ($archivedTemplate)
-                    <span class="ui-field__label">{{ __('lf.LF_course_template_common_status') }}</span>
-                    <span class="ui-status ui-status--archived">{{ __('lf.LF_course_template_common_archived') }}</span>
-                @else
-                    <label class="ui-field__label" for="template-form-status">{!! $star !!}{{ __('lf.LF_course_template_common_status') }}</label>
-                    <select id="template-form-status" name="status" data-ui-kit-select required
-                            data-ui-empty-label="{{ __('lf.LF_course_template_index_no_options') }}" data-ui-clear-label="{{ __('lf.LF_course_template_common_clear_filters') }}">
-                        @foreach (\App\Support\CourseTemplateStatus::EDITABLE_VALUES as $templateStatus)
-                            <option value="{{ $templateStatus }}" @selected($selectedStatus === $templateStatus)>{{ __('lf.LF_course_template_common_'.$templateStatus) }}</option>
-                        @endforeach
-                    </select>
-                @endif
-            </div>
-
-            <div class="ui-field">
                 <label class="ui-field__label" for="template-form-difficulty_level">{{ __('lf.LF_course_template_common_difficulty_level') }}</label>
                 <select id="template-form-difficulty_level" name="difficulty_level" data-ui-kit-select
                         data-ui-empty-label="{{ __('lf.LF_course_template_index_no_options') }}" data-ui-clear-label="{{ __('lf.LF_course_template_common_clear_filters') }}">
@@ -91,6 +76,21 @@
                 <label class="ui-field__label" for="template-form-estimated_lesson_count">{{ __('lf.LF_course_template_estimated_lesson_count') }}</label>
                 <input id="template-form-estimated_lesson_count" type="number" min="1" name="estimated_lesson_count"
                        value="{{ $formTemplate?->estimated_lesson_count }}" placeholder="{{ __('lf.LF_course_template_placeholder_lesson_count') }}">
+            </div>
+
+            <div class="ui-field">
+                @if ($archivedTemplate)
+                    <span class="ui-field__label">{{ __('lf.LF_course_template_common_status') }}</span>
+                    <span class="ui-status ui-status--archived">{{ __('lf.LF_course_template_common_archived') }}</span>
+                @else
+                    <label class="ui-field__label" for="template-form-status">{!! $star !!}{{ __('lf.LF_course_template_common_status') }}</label>
+                    <select id="template-form-status" name="status" data-ui-kit-select required
+                            data-ui-empty-label="{{ __('lf.LF_course_template_index_no_options') }}" data-ui-clear-label="{{ __('lf.LF_course_template_common_clear_filters') }}">
+                        @foreach (\App\Support\CourseTemplateStatus::EDITABLE_VALUES as $templateStatus)
+                            <option value="{{ $templateStatus }}" @selected($selectedStatus === $templateStatus)>{{ __('lf.LF_course_template_common_'.$templateStatus) }}</option>
+                        @endforeach
+                    </select>
+                @endif
             </div>
 
             <div class="ui-field ui-field--full"

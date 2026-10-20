@@ -8,8 +8,16 @@
     @vite(['resources/css/admin/admin-ui-kit.css', 'resources/js/admin-ui-kit-controls.js', 'resources/js/admin-ui-kit-dialog-form.js', 'resources/js/admin-ui-kit-row-actions.js'])
 @endsection
 
+@section('page_actions')
+    <button type="button" class="ui-button ui-button--primary cursor-interaction"
+            data-ui-dialog-form-open data-ui-dialog-form-for="template-list" data-url="{{ route($routePrefix.'.create') }}" aria-haspopup="dialog">
+        <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+        {{ __('lf.LF_course_template_common_create_short') }}
+    </button>
+@endsection
+
 @section('content')
-<div class="lf-admin-ui lf-admin-ui--list" data-ui-dialog-form-scope data-ui-row-actions
+<div id="template-list" class="lf-admin-ui lf-admin-ui--list" data-ui-dialog-form-scope data-ui-row-actions
      data-csrf="{{ csrf_token() }}"
      data-msg-delete-error="{{ __('lf.LF_course_template_delete_error') }}"
      data-msg-session-expired="{{ __('lf.LF_course_template_session_expired') }}">
@@ -67,11 +75,6 @@
                     </a>
                 @endif
             </span>
-            <button type="button" class="mk-toolbar-action ui-button ui-button--primary cursor-interaction"
-                    data-ui-dialog-form-open data-url="{{ route($routePrefix.'.create') }}" aria-haspopup="dialog">
-                <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
-                {{ __('lf.LF_course_template_common_create') }}
-            </button>
         </form>
 
         <div class="mk-table-scroll" data-ui-live-region="table" role="region" aria-label="{{ __('lf.LF_course_template_common_title') }}" tabindex="0">
@@ -112,12 +115,12 @@
                             <button type="button" class="ux-row-edit cursor-interaction" data-ui-dialog-form-open
                                     data-url="{{ route($routePrefix.'.form', $template->id) }}" aria-haspopup="dialog"
                                     aria-label="{{ __('lf.LF_course_template_action_edit_info') }}: {{ $template->title }}"
-                                    title="{{ __('lf.LF_course_template_action_edit_info') }}" data-tooltip="{{ __('lf.LF_course_template_action_edit_info') }}">
+                                    data-tooltip="{{ __('lf.LF_course_template_action_edit_info') }}">
                                 <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z" /></svg>
                             </button>
                             <a class="ux-row-edit cursor-interaction" href="{{ route($routePrefix.'.edit', $template->id) }}"
                                aria-label="{{ __('lf.LF_course_template_action_manage') }}: {{ $template->title }}"
-                               title="{{ __('lf.LF_course_template_action_manage') }}" data-tooltip="{{ __('lf.LF_course_template_action_manage') }}">
+                               data-tooltip="{{ __('lf.LF_course_template_action_manage') }}">
                                 <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 17 2 2 4-4" /><path d="m3 7 2 2 4-4" /><path d="M13 6h8" /><path d="M13 12h8" /><path d="M13 18h8" /></svg>
                             </a>
                             <button type="button" class="ux-row-delete cursor-interaction" data-ui-row-delete
@@ -125,8 +128,8 @@
                                     data-confirm-title="{{ __('lf.LF_course_template_delete_title') }}"
                                     data-confirm-message="{{ __('lf.LF_course_template_delete_confirm', ['name' => $template->title]) }}"
                                     data-confirm-label="{{ __('lf.LF_course_template_delete_label') }}"
-                                    @if ($template->delete_blocker) disabled aria-disabled="true" title="{{ $template->delete_blocker }}" data-tooltip="{{ $template->delete_blocker }}"
-                                    @else title="{{ __('lf.LF_course_template_action_delete') }}" data-tooltip="{{ __('lf.LF_course_template_action_delete') }}" @endif
+                                    @if ($template->delete_blocker) disabled aria-disabled="true" data-tooltip="{{ $template->delete_blocker }}"
+                                    @else data-tooltip="{{ __('lf.LF_course_template_action_delete') }}" @endif
                                     aria-label="{{ __('lf.LF_course_template_action_delete') }}: {{ $template->title }}">
                                 <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /><line x1="10" x2="10" y1="11" y2="17" /><line x1="14" x2="14" y1="11" y2="17" /></svg>
                             </button>
@@ -141,7 +144,7 @@
                                 @unless ($hasActiveFilters)
                                     <button type="button" class="ui-button ui-button--primary cursor-interaction"
                                             data-ui-dialog-form-open data-url="{{ route($routePrefix.'.create') }}" aria-haspopup="dialog">
-                                        {{ __('lf.LF_course_template_common_create') }}
+                                        {{ __('lf.LF_course_template_common_create_short') }}
                                     </button>
                                 @endunless
                             </div>
