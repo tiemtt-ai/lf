@@ -619,13 +619,16 @@ export function initUiKitLiveFilter(form, deps = {}) {
         event.preventDefault();
         run();
     };
+    // The search box inside a multi-select panel only narrows that panel's list; it is not a filter.
+    const inMultiSelectPanel = target => Boolean(target?.closest?.('[data-ui-multiselect]'));
     const onInput = event => {
-        if (event.target?.type !== 'search' || event.isComposing) return;
+        if (event.target?.type !== 'search' || event.isComposing || inMultiSelectPanel(event.target)) return;
         schedule();
     };
-    // Choosing a value in a select (native or the UI Kit combobox built from one) filters at once.
+    // Choosing a value in a select (native or the UI Kit combobox built from one), or ticking an entry of a
+    // multi-select, filters at once.
     const onChange = event => {
-        if (event.target?.tagName === 'SELECT') run();
+        if (event.target?.tagName === 'SELECT' || (event.target?.type === 'checkbox' && inMultiSelectPanel(event.target))) run();
     };
     const onCompositionStart = () => {
         composing = true;
@@ -633,7 +636,7 @@ export function initUiKitLiveFilter(form, deps = {}) {
     };
     const onCompositionEnd = event => {
         composing = false;
-        if (event.target?.type === 'search') schedule();
+        if (event.target?.type === 'search' && !inMultiSelectPanel(event.target)) schedule();
     };
 
     // A dialog form in the same scope saved something: the list may have changed, fetch it again.

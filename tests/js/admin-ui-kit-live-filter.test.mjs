@@ -245,3 +245,21 @@ test('choosing in a select filters at once; other change targets do not', async 
     await t.tick();
     t.instance.destroy();
 });
+
+test('ticking an entry of a multi-select filters at once; the panel search box and unrelated checkboxes do not', () => {
+    const t = setup();
+    const inPanel = { type: 'checkbox', closest: selector => (selector === '[data-ui-multiselect]' ? {} : null) };
+    const outside = { type: 'checkbox', closest: () => null };
+    const panelSearch = { type: 'search', closest: selector => (selector === '[data-ui-multiselect]' ? {} : null) };
+    t.fire('change', { target: outside });
+    assert.equal(t.calls.fetch.length, 0, 'a checkbox that is not part of a multi-select is not a filter');
+    t.fire('input', { target: panelSearch });
+    t.flushTimers();
+    assert.equal(t.calls.fetch.length, 0, 'typing in the panel search does not run the filter');
+    t.fire('compositionend', { target: panelSearch });
+    t.flushTimers();
+    assert.equal(t.calls.fetch.length, 0);
+    t.fire('change', { target: inPanel });
+    assert.equal(t.calls.fetch.length, 1);
+    t.instance.destroy();
+});

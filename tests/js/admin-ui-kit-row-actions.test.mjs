@@ -19,6 +19,7 @@ class El {
     removeEventListener(type) { this.listeners.delete(type); }
     focus() { this.focused += 1; }
     closest() { return this.self; }
+    hasAttribute(name) { return this.attrs.has(name); }
 }
 
 function setup({ confirm = async () => true, trigger = {} } = {}) {
@@ -125,4 +126,73 @@ test('a success that answers a redirect reloads that page instead of toasting in
     other.pending[0].resolve(other.json(200, { redirect: '/admin/course-templates' }));
     await other.tick(); await other.tick();
     assert.deepEqual(other.nav, ['https://x.test/admin/course-templates'], 'a different page is a plain navigation');
+});
+
+function bulkSetup({ confirm = async () => true } = {}) {
+    const t = setup({ confirm });
+    const boxes = [new El({ 'data-ui-bulk-item': '' }), new El({ 'data-ui-bulk-item': '' }), new El({ 'data-ui-bulk-item': '' })];
+    boxes.forEach((box, i) => { box.value = String(10 + i); box.checked = false; });
+    boxes[2].disabled = true;
+    const all = new El({ 'data-ui-bulk-select-all': '' }); all.checked = false; all.indeterminate = false;
+    const countNode = new El(); const bar = new El({ 'data-text-selected': 'Selected :count' }); bar.hidden = true;
+    bar.querySelector = () => countNode;
+    const trigger = new El({ 'data-url': '/admin/media/bulk', 'data-ui-bulk-delete': '', 'data-ui-bulk-name': 'media_ids[]', 'data-confirm-title': 'Delete files?', 'data-confirm-message': 'Delete :count files?', 'data-confirm-label': 'Delete' });
+    const baseQuery = t.scope.querySelector;
+    t.scope.querySelectorAll = selector => (selector.includes('bulk-item') ? boxes : []);
+    t.scope.querySelector = selector => (selector.includes('select-all') ? all : selector.includes('bulk-bar') ? bar : baseQuery(selector));
+    return { ...t, boxes, all, bar, countNode, trigger, bulkClick: () => t.scope.listeners.get('click')({ target: { closest: () => trigger } }), change: target => t.scope.listeners.get('change')({ target }) };
+}
+
+test('bulk selection: select-all checks the selectable items only, shows the bar with the count, and follows each item', () => {
+    const t = bulkSetup();
+    t.all.checked = true;
+    t.change(t.all);
+    assert.deepEqual(t.boxes.map(b => b.checked), [true, true, false], 'a disabled item is never chosen');
+    assert.equal(t.bar.hidden, false);
+    assert.equal(t.countNode.textContent, 'Selected 2');
+    assert.equal(t.all.indeterminate, false);
+    t.boxes[0].checked = false;
+    t.change(t.boxes[0]);
+    assert.equal(t.all.checked, false);
+    assert.equal(t.all.indeterminate, true);
+    assert.equal(t.countNode.textContent, 'Selected 1');
+    t.boxes[1].checked = false;
+    t.change(t.boxes[1]);
+    assert.equal(t.bar.hidden, true);
+    assert.equal(t.all.indeterminate, false);
+});
+
+test('bulk delete confirms with the count, sends every checked value, and nothing is sent when nothing is checked or the user declines', async () => {
+    const empty = bulkSetup();
+    empty.bulkClick(); await empty.tick();
+    assert.equal(empty.confirms.length, 0);
+    assert.equal(empty.fetches.length, 0);
+
+    const declined = bulkSetup({ confirm: async () => false });
+    declined.boxes[0].checked = true;
+    declined.bulkClick(); await declined.tick();
+    assert.equal(declined.confirms[0].message, 'Delete 1 files?');
+    assert.equal(declined.fetches.length, 0);
+
+    const t = bulkSetup();
+    t.boxes[0].checked = true; t.boxes[1].checked = true; t.boxes[2].checked = true;
+    t.bulkClick(); await t.tick();
+    assert.equal(t.confirms[0].message, 'Delete 2 files?', 'a disabled box is not counted even if checked');
+    assert.equal(t.fetches[0].url, '/admin/media/bulk');
+    assert.deepEqual(t.fetches[0].options.body.rows, [['_method', 'DELETE'], ['_token', 'TOKEN'], ['media_ids[]', '10'], ['media_ids[]', '11']]);
+    t.pending[0].resolve(t.json(200, { message: 'Deleted', redirect: '/admin/course-templates/3/edit?tab=structure#x' }));
+    await t.tick(); await t.tick();
+    assert.equal(t.nav.at(-1), 'reload');
+});
+
+test('a confirmed POST action (clean-up) sends a plain POST without method spoofing', async () => {
+    const t = setup();
+    const purge = new El({ 'data-url': '/admin/media/purge-orphan-storage', 'data-ui-confirm-post': '', 'data-confirm-title': 'Purge?', 'data-confirm-message': 'Sure?', 'data-confirm-label': 'Purge' });
+    t.scope.listeners.get('click')({ target: { closest: () => purge } });
+    await t.tick();
+    assert.equal(t.confirms[0].tone, 'danger');
+    assert.deepEqual(t.fetches[0].options.body.rows, [['_token', 'TOKEN']]);
+    t.pending[0].resolve(t.json(200, { message: 'Done' }));
+    await t.tick(); await t.tick();
+    assert.equal(t.flash.textContent, 'Done');
 });

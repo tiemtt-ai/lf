@@ -3,12 +3,59 @@
 @section('title', __('lf.LF_media_file_common_title'))
 @section('page_title', __('lf.LF_media_file_common_title'))
 
+@section('vite')
+    @parent
+    @vite(['resources/css/admin/admin-ui-kit.css', 'resources/js/admin-ui-kit-controls.js', 'resources/js/admin-ui-kit-row-actions.js', 'resources/js/admin-ui-kit-multiselect.js'])
+@endsection
+
 @section('content')
-    @if (session('success'))
-        <div class="admin-alert admin-alert-success" role="status">
-            {{ session('success') }}
-        </div>
-    @endif
+@php
+    $tabLabels = [
+        'all' => __('lf.LF_media_file_common_tab_all'),
+        'images' => __('lf.LF_media_file_common_tab_images'),
+        'videos' => __('lf.LF_media_file_common_tab_videos'),
+        'documents' => __('lf.LF_media_file_common_tab_documents'),
+        'audio' => __('lf.LF_media_file_common_tab_audio'),
+    ];
+    $typeLabels = [
+        'image' => __('lf.LF_media_file_common_tab_images'),
+        'video' => __('lf.LF_media_file_common_tab_videos'),
+        'document' => __('lf.LF_media_file_common_tab_documents'),
+        'audio' => __('lf.LF_media_file_common_tab_audio'),
+    ];
+    $hasActiveFilters = $keyword !== null || $ownerType !== null || $usageStatus !== null;
+    $selectAttributes = 'data-ui-kit-select data-ui-empty-label="'.e(__('lf.LF_media_file_select_no_options')).'" data-ui-clear-label="'.e(__('lf.LF_media_file_common_clear_filters')).'"';
+    $tabQuery = array_filter(['keyword' => $keyword, 'owner_type' => $ownerType, 'owner_refs' => $ownerRefs, 'usage_status' => $usageStatus]);
+    $objectChoices = $ownerObjects[$ownerType] ?? [];
+@endphp
+
+<div id="media-list" class="lf-admin-ui lf-admin-ui--list" data-ui-row-actions
+     data-csrf="{{ csrf_token() }}"
+     data-msg-delete-error="{{ __('lf.LF_media_file_delete_error') }}"
+     data-msg-session-expired="{{ __('lf.LF_media_file_session_expired') }}"
+     x-data="{
+         previewOpen: false,
+         preview: { name: '', url: '', mimeType: '', mediaType: '' },
+         usageOpen: false,
+         usage: { name: '', items: [] },
+         openMediaPreview(name, url, mimeType, mediaType) {
+             this.preview = { name, url, mimeType, mediaType };
+             this.previewOpen = true;
+         },
+         closeMediaPreview() {
+             this.previewOpen = false;
+             this.preview = { name: '', url: '', mimeType: '', mediaType: '' };
+         },
+         openUsage(name, items) {
+             this.usage = { name, items };
+             this.usageOpen = true;
+         },
+         closeUsage() {
+             this.usageOpen = false;
+             this.usage = { name: '', items: [] };
+         },
+     }">
+    <x-ui-list-toasts />
 
     @if ($errors->any())
         <div class="admin-alert admin-alert-danger">
@@ -20,634 +67,267 @@
         </div>
     @endif
 
-    @php
-        $tabLabels = [
-            'all' => __('lf.LF_media_file_common_tab_all'),
-            'images' => __('lf.LF_media_file_common_tab_images'),
-            'videos' => __('lf.LF_media_file_common_tab_videos'),
-            'documents' => __('lf.LF_media_file_common_tab_documents'),
-            'audio' => __('lf.LF_media_file_common_tab_audio'),
-        ];
-        $typeLabels = [
-            'image' => __('lf.LF_media_file_common_tab_images'),
-            'video' => __('lf.LF_media_file_common_tab_videos'),
-            'document' => __('lf.LF_media_file_common_tab_documents'),
-            'audio' => __('lf.LF_media_file_common_tab_audio'),
-        ];
-        $hasActiveFilters = $keyword !== null || $ownerType !== null || $usageStatus !== null;
-        $unusedMediaIds = $mediaFiles->getCollection()
-            ->filter(fn (object $mediaFile): bool => (int) $mediaFile->usage_count === 0)
-            ->pluck('id')
-            ->map(fn ($id): int => (int) $id)
-            ->values()
-            ->all();
-    @endphp
+    <section class="mk-section" aria-labelledby="admin-page-title">
+        <nav class="mk-tabs" data-ui-live-region="tabs" aria-label="{{ __('lf.LF_media_file_common_type') }}">
+            @foreach ($tabs as $availableTab)
+                <a href="{{ route('admin.media.index', array_merge(['tab' => $availableTab], $tabQuery)) }}"
+                   class="mk-tab cursor-interaction"
+                   @if ($tab === $availableTab) aria-current="page" @endif>
+                    {{ $tabLabels[$availableTab] }}
+                    <span class="mk-tab-count">{{ $tabCounts[$availableTab] ?? 0 }}</span>
+                </a>
+            @endforeach
+        </nav>
 
-    <div class="admin-tabs media-library-tabs">
-        @foreach ($tabs as $availableTab)
-            <a href="{{ route('admin.media.index', array_filter([
-                'tab' => $availableTab,
-                'keyword' => $keyword,
-                'owner_type' => $ownerType,
-                'owner_refs' => $ownerRefs,
-                'usage_status' => $usageStatus,
-            ])) }}"
-               class="admin-tab {{ $tab === $availableTab ? 'is-active' : '' }}"
-               @if ($tab === $availableTab) aria-current="page" @endif>
-                {{ $tabLabels[$availableTab] }}
-                <span class="media-library-tab-count">{{ $tabCounts[$availableTab] ?? 0 }}</span>
-            </a>
-        @endforeach
-    </div>
-
-    <div class="admin-card admin-form-card media-library-filter-card">
-        <form x-data="{ ownerType: @js($ownerType ?? ''), objects: @js($ownerObjects), selected: @js($ownerRefs), search: '', open: false }" class="media-library-filter-form" method="GET" action="{{ route('admin.media.index') }}">
+        <form class="mk-tablebar mk-tablebar--filters ui-media-filters" method="GET" action="{{ route('admin.media.index') }}" data-ui-live-filter>
             <input type="hidden" name="tab" value="{{ $tab }}">
 
-            <div class="media-library-filter-grid">
-                <div class="lf-form-group">
-                    <label class="lf-form-label" for="keyword">
-                        {{ __('lf.LF_media_file_common_keyword') }}
-                    </label>
-                    <input id="keyword"
-                           name="keyword"
-                           type="search"
-                           class="lf-form-control"
-                           value="{{ $keyword }}"
+            <div class="ui-field mk-search">
+                <label class="ui-field__label" for="keyword">{{ __('lf.LF_media_file_common_keyword') }}</label>
+                <div class="ui-search">
+                    <input id="keyword" type="search" name="keyword" value="{{ $keyword }}"
                            placeholder="{{ __('lf.LF_media_file_common_keyword_placeholder') }}">
-                </div>
-
-                <div class="lf-form-group">
-                    <label class="lf-form-label" for="owner_type">
-                        {{ __('lf.LF_media_file_common_owner_type') }}
-                    </label>
-                    <select id="owner_type" name="owner_type" class="lf-form-control" x-model="ownerType" @change="selected = []; search = ''; open = false">
-                        <option value="">{{ __('lf.LF_media_file_common_all_owner_types') }}</option>
-                        @foreach ($ownerTypeOptions as $value => $label)
-                            <option value="{{ $value }}" @selected($ownerType === $value)>
-                                {{ $label }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-
-                <div class="lf-form-group media-owner-combobox" @click.outside="open = false" @keydown.escape="open = false">
-                    <label class="lf-form-label" for="owner_objects">{{ __('lf.LF_media_filter_objects') }}</label>
-                    <div id="owner_objects" role="combobox" :tabindex="ownerType ? 0 : -1" :aria-disabled="! ownerType" :class="{ 'is-disabled': ! ownerType }" aria-haspopup="listbox" class="lf-form-control media-owner-combobox-trigger" @click="if (ownerType) { open = !open; if (open) $nextTick(() => $refs.ownerSearch.focus()) }" @keydown.enter.prevent="if (ownerType) { open = !open; if (open) $nextTick(() => $refs.ownerSearch.focus()) }" @keydown.space.prevent="if (ownerType) { open = !open; if (open) $nextTick(() => $refs.ownerSearch.focus()) }" :aria-expanded="open" aria-controls="owner_object_choices">
-                        <span class="media-owner-placeholder" x-show="! selected.length" x-text="ownerType ? @js(__('lf.LF_media_filter_all_objects')) : @js(__('lf.LF_media_filter_pick_type_first'))"></span>
-                        <template x-for="ref in selected.slice(0, 2)" :key="ref">
-                            <span class="media-owner-chip">
-                                <span class="media-owner-chip-label" x-text="(objects[ownerType] || []).find(item => item.value === ref)?.label ?? ref"></span>
-                                <button type="button" class="media-owner-chip-remove" aria-label="{{ __('lf.LF_media_filter_remove') }}" @click.stop="selected = selected.filter(value => value !== ref)">×</button>
-                            </span>
-                        </template>
-                        <span class="media-owner-chip media-owner-chip-more" x-show="selected.length > 2" x-text="'+' + (selected.length - 2)"></span>
-                    </div>
-                    <div id="owner_object_choices" class="media-owner-object-choices" x-show="open" x-cloak>
-                        <input type="search" class="lf-form-control" x-ref="ownerSearch" x-model="search" aria-label="{{ __('lf.LF_media_filter_search') }}" placeholder="{{ __('lf.LF_media_filter_search') }}">
-                        <div role="listbox" aria-multiselectable="true" aria-label="{{ __('lf.LF_media_filter_objects') }}">
-                        <template x-for="object in (objects[ownerType] || []).filter(item => item.label.toLocaleLowerCase().includes(search.toLocaleLowerCase()))" :key="object.value">
-                            <label role="option" :aria-selected="selected.includes(object.value)"><input type="checkbox" :value="object.value" x-model="selected"><span x-text="object.label"></span></label>
-                        </template>
-                        </div>
-                    </div>
-                    <template x-for="ref in selected" :key="ref"><input type="hidden" name="owner_refs[]" :value="ref"></template>
-                </div>
-
-                <div class="lf-form-group">
-                    <label class="lf-form-label" for="usage_status">
-                        {{ __('lf.LF_media_file_usage_status') }}
-                    </label>
-                    <select id="usage_status" name="usage_status" class="lf-form-control">
-                        <option value="">{{ __('lf.LF_media_file_usage_status_all') }}</option>
-                        <option value="in_use" @selected($usageStatus === 'in_use')>
-                            {{ __('lf.LF_media_file_common_in_use') }}
-                        </option>
-                        <option value="unused" @selected($usageStatus === 'unused')>
-                            {{ __('lf.LF_media_file_common_unused') }}
-                        </option>
-                    </select>
-                </div>
-
-                <div class="admin-form-actions media-library-filter-actions">
-                    <button type="submit" class="btn btn-primary">
-                        {{ __('lf.LF_common_button_search') }}
+                    <button type="submit" class="ui-button cursor-interaction" aria-label="{{ __('lf.LF_common_button_search') }}">
+                        <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
                     </button>
-                    @if ($hasActiveFilters)
-                        <a class="admin-text-action" href="{{ route('admin.media.index', ['tab' => $tab]) }}">
-                            {{ __('lf.LF_media_file_common_clear_filters') }}
-                        </a>
-                    @endif
-                    <div class="media-library-storage-purge">
-                        <span class="media-library-storage-purge__info"
-                              x-data="{ tip: false }"
-                              :class="{ 'is-open': tip }"
-                              @click.outside="tip = false"
-                              @keydown.escape="tip = false">
-                            <button type="submit"
-                                    form="media-purge-orphan-form"
-                                    class="btn btn-outline-secondary"
-                                    aria-describedby="media-storage-purge-tooltip">
-                                {{ __('lf.LF_media_storage_purge_short') }}
-                            </button>
-                            <button type="button"
-                                    class="media-library-storage-purge__info-button"
-                                    aria-label="{{ __('lf.LF_media_storage_purge_title') }}"
-                                    aria-describedby="media-storage-purge-tooltip"
-                                    :aria-expanded="tip"
-                                    @click="tip = !tip">i</button>
-                            <span id="media-storage-purge-tooltip" role="tooltip" class="media-library-storage-purge__tooltip">
-                                <strong>{{ __('lf.LF_media_storage_purge_title') }}</strong><br>
-                                {{ __('lf.LF_media_storage_purge_note') }}
-                            </span>
-                        </span>
+                </div>
+            </div>
+
+            <div class="ui-field mk-search">
+                <label class="ui-field__label" for="owner_type">{{ __('lf.LF_media_file_common_owner_type') }}</label>
+                <select id="owner_type" name="owner_type" {!! $selectAttributes !!}>
+                    <option value="">{{ __('lf.LF_media_file_common_all_owner_types') }}</option>
+                    @foreach ($ownerTypeOptions as $value => $label)
+                        <option value="{{ $value }}" @selected($ownerType === $value)>{{ $label }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div class="ui-field mk-search">
+                <span class="ui-field__label" id="owner-objects-label">{{ __('lf.LF_media_filter_objects') }}</span>
+                <div class="ux-combo ui-multiselect" data-ui-multiselect data-ms-depends-on="owner_type" data-ms-name="owner_refs[]"
+                     data-ms-options='@json($ownerObjects)'
+                     data-text-pick-first="{{ __('lf.LF_media_filter_pick_type_first') }}"
+                     data-text-all="{{ __('lf.LF_media_filter_all_objects') }}"
+                     data-text-selected="{{ __('lf.LF_media_filter_selected_count') }}">
+                    <button type="button" class="ux-combo__control ui-multiselect__trigger cursor-interaction" data-ms-trigger
+                            aria-haspopup="true" aria-expanded="false" aria-controls="owner-objects-panel" aria-labelledby="owner-objects-label"
+                            @disabled($ownerType === null)>
+                        <span class="ui-multiselect__summary" data-ms-summary>{{ $ownerType === null ? __('lf.LF_media_filter_pick_type_first') : ($ownerRefs === [] ? __('lf.LF_media_filter_all_objects') : str_replace(':count', (string) count($ownerRefs), __('lf.LF_media_filter_selected_count'))) }}</span>
+                        <span class="ux-combo__icon" aria-hidden="true"></span>
+                    </button>
+                    <div class="ux-combo__list ui-multiselect__panel" id="owner-objects-panel" data-ms-panel hidden>
+                        <input type="search" data-ms-search aria-label="{{ __('lf.LF_media_filter_search') }}" placeholder="{{ __('lf.LF_media_filter_search') }}">
+                        <div class="ui-check-list ui-multiselect__list" data-ms-list role="group" aria-labelledby="owner-objects-label">
+                            @foreach ($objectChoices as $choice)
+                                <label class="ui-check">
+                                    <input type="checkbox" name="owner_refs[]" value="{{ $choice['value'] }}" @checked(in_array($choice['value'], $ownerRefs, true))>
+                                    <span>{{ $choice['label'] }}</span>
+                                </label>
+                            @endforeach
+                        </div>
                     </div>
                 </div>
             </div>
+
+            <div class="ui-field mk-search">
+                <label class="ui-field__label" for="usage_status">{{ __('lf.LF_media_file_usage_status') }}</label>
+                <select id="usage_status" name="usage_status" {!! $selectAttributes !!}>
+                    <option value="">{{ __('lf.LF_media_file_usage_status_all') }}</option>
+                    <option value="in_use" @selected($usageStatus === 'in_use')>{{ __('lf.LF_media_file_common_in_use') }}</option>
+                    <option value="unused" @selected($usageStatus === 'unused')>{{ __('lf.LF_media_file_common_unused') }}</option>
+                </select>
+            </div>
+
+            <span class="ui-live-slot" data-ui-live-region="clear-filters">
+                @if ($hasActiveFilters)
+                    <a class="ui-button ui-button--outline cursor-interaction" href="{{ route('admin.media.index', ['tab' => $tab]) }}">
+                        {{ __('lf.LF_media_file_common_clear_filters') }}
+                    </a>
+                @endif
+            </span>
+
+            {{-- Clean-up of orphan storage: no schedule, the admin chooses when. The note stays readable for assistive technology. --}}
+            <button type="button" class="ui-button cursor-interaction mk-toolbar-action" data-ui-confirm-post
+                    data-url="{{ route('admin.media.purge-orphan-storage', $listFilters) }}"
+                    data-confirm-title="{{ __('lf.LF_media_storage_purge_title') }}"
+                    data-confirm-message="{{ __('lf.LF_media_storage_purge_confirm') }}"
+                    data-confirm-label="{{ __('lf.LF_media_storage_purge_action') }}"
+                    title="{{ __('lf.LF_media_storage_purge_note') }}"
+                    aria-describedby="media-storage-purge-note">
+                {{ __('lf.LF_media_storage_purge_short') }}
+            </button>
+            <span id="media-storage-purge-note" class="ui-sr-only"><strong>{{ __('lf.LF_media_storage_purge_title') }}</strong> {{ __('lf.LF_media_storage_purge_note') }}</span>
         </form>
-    </div>
 
-    <div class="media-library-page"
-         x-data="{
-             previewOpen: false,
-             previewLoaded: false,
-             videoSrc: '',
-             audioSrc: '',
-             preview: {
-                 name: '',
-                 url: '',
-                 mimeType: '',
-                 mediaType: '',
-             },
-             deleteOpen: false,
-             deleteSubmitting: false,
-             deleteTarget: {
-                 name: '',
-                 action: '',
-                 ids: [],
-                 bulk: false,
-             },
-             selectedMediaIds: [],
-             availableUnusedIds: @js($unusedMediaIds),
-             get allUnusedSelected() {
-                 return this.availableUnusedIds.length > 0
-                     && this.availableUnusedIds.every((id) => this.selectedMediaIds.includes(id));
-             },
-             toggleAllUnused(checked) {
-                 this.selectedMediaIds = checked ? [...this.availableUnusedIds] : [];
-             },
-             openMediaPreview(name, url, mimeType, mediaType) {
-                 this.resetMediaPreview();
-                 this.preview = { name, url: ['image', 'audio'].includes(mediaType) ? url : '', mimeType, mediaType };
-                 this.previewLoaded = true;
+        <div class="mk-table-top" data-ui-live-region="summary">
+            <strong class="mk-table-top__count" role="status">{{ trans_choice('lf.LF_media_file_count', $mediaFiles->total(), ['count' => $mediaFiles->total()]) }}</strong>
+            <div class="mk-table-top__bulk" data-ui-bulk-bar hidden data-text-selected="{{ __('lf.LF_media_file_bulk_selected', ['count' => ':count']) }}">
+                <span data-ui-bulk-count></span>
+                <button type="button" class="ui-button ui-button--danger cursor-interaction" data-ui-bulk-delete data-ui-bulk-name="media_ids[]"
+                        data-url="{{ route('admin.media.bulk-destroy', $listFilters) }}"
+                        data-confirm-title="{{ __('lf.LF_media_file_bulk_delete_confirm') }}"
+                        data-confirm-message="{{ __('lf.LF_media_file_bulk_delete_body', ['count' => ':count']) }}"
+                        data-confirm-label="{{ __('lf.LF_media_file_common_delete') }}">
+                    {{ __('lf.LF_media_file_bulk_delete') }}
+                </button>
+            </div>
+            <span class="ui-caption mk-table-top__hint">{{ __('lf.LF_media_file_select_unused_hint') }}</span>
+        </div>
 
-                 if (mediaType === 'video') {
-                     this.videoSrc = url;
-                     this.$refs.videoPreviewSource?.setAttribute('src', url);
-                     this.$refs.videoPreviewPlayer?.load();
-                 }
-
-                 if (mediaType === 'audio') {
-                     this.audioSrc = url;
-                 }
-
-                 this.previewOpen = true;
-                 this.$nextTick(() => {
-                     if (mediaType === 'video') {
-                         this.playVideoPreview();
-                     }
-                 });
-             },
-             playVideoPreview() {
-                 const player = this.$refs.videoPreviewPlayer;
-
-                 if (! player) {
-                     return;
-                 }
-
-                 player.muted = false;
-                 const playAttempt = player.play();
-
-                 if (playAttempt !== undefined) {
-                     playAttempt.catch(() => {
-                         player.muted = true;
-                         player.play().catch(() => {});
-                     });
-                 }
-             },
-             resetMediaPreview() {
-                 const player = this.$refs.videoPreviewPlayer;
-                 const audioPlayer = this.$refs.audioPreviewPlayer;
-
-                 if (player) {
-                     player.pause();
-                     player.muted = false;
-                     player.removeAttribute('src');
-                     player.querySelectorAll('source').forEach((source) => {
-                         source.removeAttribute('src');
-                     });
-                     player.load();
-                 }
-
-                 if (audioPlayer) {
-                     audioPlayer.pause();
-                     audioPlayer.removeAttribute('src');
-                     audioPlayer.load();
-                 }
-
-                 this.previewLoaded = false;
-                 this.videoSrc = '';
-                 this.audioSrc = '';
-                 this.preview = { name: '', url: '', mimeType: '', mediaType: '' };
-             },
-             closeMediaPreview() {
-                 this.resetMediaPreview();
-                 this.previewOpen = false;
-             },
-             openMediaDelete(name, action, ids = []) {
-                 this.deleteTarget = { name, action, ids, bulk: ids.length > 0 };
-                 this.deleteSubmitting = false;
-                 this.deleteOpen = true;
-                 this.$nextTick(() => this.$refs.deleteCancel?.focus());
-             },
-             openBulkMediaDelete() {
-                 if (this.selectedMediaIds.length === 0) {
-                     return;
-                 }
-
-                 this.openMediaDelete(
-                     '',
-                     @js(route('admin.media.bulk-destroy')),
-                     [...this.selectedMediaIds]
-                 );
-             },
-             closeMediaDelete() {
-                 if (this.deleteSubmitting) {
-                     return;
-                 }
-
-                 this.deleteOpen = false;
-                 this.deleteTarget = { name: '', action: '', ids: [], bulk: false };
-             },
-             handleEscape() {
-                 if (this.deleteOpen) {
-                     this.closeMediaDelete();
-                     return;
-                 }
-
-                 if (this.previewOpen) {
-                     this.closeMediaPreview();
-                 }
-             },
-         }"
-         x-on:keydown.escape.window="handleEscape()">
-    <div class="media-library-bulk-toolbar"
-         x-cloak
-         x-show="selectedMediaIds.length > 0"
-         x-transition.opacity
-         role="region"
-         aria-live="polite">
-        <span x-text="@js(__('lf.LF_media_file_bulk_selected', ['count' => ':count'])).replace(':count', selectedMediaIds.length)"></span>
-        <button type="button"
-                class="btn btn-danger"
-                x-on:click="openBulkMediaDelete()">
-            {{ __('lf.LF_media_file_bulk_delete') }}
-        </button>
-    </div>
-
-    {{-- Don rac storage: khong co lich tu dong, admin bam khi muon. Nut nam o hang thao tac cua bo loc (thuoc tinh form). --}}
-    <form id="media-purge-orphan-form"
-          method="POST"
-          action="{{ route('admin.media.purge-orphan-storage') }}"
-          onsubmit="return confirm(@js(__('lf.LF_media_storage_purge_confirm')));">
-        @csrf
-        @foreach ($listFilters as $filterKey => $filterValue)
-            <input type="hidden" name="{{ $filterKey }}" value="{{ $filterValue }}">
-        @endforeach
-    </form>
-
-    <div class="admin-table-wrap media-library-table-wrap media-library-index-table-wrap">
-        <table class="table media-library-table media-library-index-table admin-table-has-actions">
-            <thead>
-            <tr>
-                <th class="admin-table-sequence">{{ __('lf.table_no') }}</th>
-                <th>{{ __('lf.LF_media_file_common_file') }}</th>
-                <th>{{ __('lf.LF_media_file_common_type_and_size') }}</th>
-                <th>{{ __('lf.LF_media_file_common_upload_information') }}</th>
-                <th>{{ __('lf.LF_media_file_common_usage') }}</th>
-                <th class="media-library-index-status">{{ __('lf.LF_media_file_common_status') }}</th>
-                <th class="media-library-index-actions">
-                    <div class="media-library-action-heading">
-                        <span>{{ __('lf.table_actions') }}</span>
-                        @if ($unusedMediaIds !== [])
-                            <input type="checkbox"
-                                   class="media-library-selection-checkbox"
-                                   x-bind:checked="allUnusedSelected"
-                                   x-on:change="toggleAllUnused($event.target.checked)"
-                                   aria-label="{{ __('lf.LF_media_file_select_all_unused') }}">
-                        @endif
-                    </div>
-                </th>
-            </tr>
-            </thead>
-            <tbody>
-            @forelse ($mediaFiles as $mediaFile)
+        <div class="mk-table-scroll" data-ui-live-region="table" role="region" aria-label="{{ __('lf.LF_media_file_common_title') }}" tabindex="0">
+            <table aria-labelledby="admin-page-title" class="ui-media-table">
+                <colgroup>
+                    <col class="mk-col-sequence">
+                    <col class="ui-col-media">
+                    <col class="ui-col-type">
+                    <col class="ui-col-upload">
+                    <col class="ui-col-usage">
+                    <col class="mk-col-status">
+                    <col class="mk-col-action-wide">
+                </colgroup>
+                <thead>
                 <tr>
-                    <td class="admin-table-sequence" data-label="{{ __('lf.table_no') }}">
-                        <span class="media-library-sequence-number">{{ $mediaFiles->firstItem() + $loop->index }}</span>
-                    </td>
-                    <td data-label="{{ __('lf.LF_media_file_common_file') }}">
-                        <div class="media-library-media-cell">
-                            <div class="media-library-preview-cell">
+                    <th scope="col" class="mk-sequence admin-table-sequence">{{ __('lf.table_no') }}</th>
+                    <th scope="col" class="mk-text-cell">{{ __('lf.LF_media_file_common_file') }}</th>
+                    <th scope="col" class="mk-text-cell">{{ __('lf.LF_media_file_common_type_and_size') }}</th>
+                    <th scope="col" class="mk-text-cell">{{ __('lf.LF_media_file_common_upload_information') }}</th>
+                    <th scope="col" class="mk-text-cell">{{ __('lf.LF_media_file_common_usage') }}</th>
+                    <th scope="col" class="ux-action-cell">{{ __('lf.LF_media_file_common_status') }}</th>
+                    <th scope="col" class="ux-action-cell">
+                        {{ __('lf.table_actions') }}
+                        <input type="checkbox" class="ui-bulk-box" data-ui-bulk-select-all
+                               aria-label="{{ __('lf.LF_media_file_select_all_unused') }}">
+                    </th>
+                </tr>
+                </thead>
+                <tbody>
+                @forelse ($mediaFiles as $mediaFile)
+                    @php
+                        $isUnused = (int) $mediaFile->usage_count === 0;
+                        $usageOwnerLabels = $mediaFile->active_usages
+                            ->groupBy('owner_type')
+                            ->keys()
+                            ->map(fn ($logicalOwnerType) => $ownerTypeOptions[$logicalOwnerType] ?? str($logicalOwnerType)->replace('_', ' ')->headline())
+                            ->values();
+                        $usageItems = $mediaFile->active_usages->map(fn ($usage) => [
+                            'type' => (string) ($ownerTypeOptions[$usage->owner_type] ?? str($usage->owner_type)->replace('_', ' ')->headline()),
+                            'name' => (string) $usage->owner_name,
+                        ])->values()->all();
+                    @endphp
+                    <tr>
+                        <td class="mk-sequence admin-table-sequence" data-label="{{ __('lf.table_no') }}">
+                            <span class="media-library-sequence-number">{{ $mediaFiles->firstItem() + $loop->index }}</span>
+                        </td>
+                        <td class="mk-text-cell" data-label="{{ __('lf.LF_media_file_common_file') }}">
+                            <div class="ui-file-identity">
                                 @if ($mediaFile->preview_mode === 'popup')
-                                    <button type="button"
-                                            class="media-library-preview media-library-preview-button"
-                                            x-on:click="openMediaPreview(
-                                                @js($mediaFile->display_name),
-                                                @js($mediaFile->preview_url),
-                                                @js($mediaFile->mime_type),
-                                                @js($mediaFile->file_type)
-                                            )"
+                                    <button type="button" class="ui-file-tile media-library-preview-button cursor-interaction"
+                                            x-on:click="openMediaPreview(@js($mediaFile->display_name), @js($mediaFile->preview_url), @js($mediaFile->mime_type), @js($mediaFile->file_type))"
                                             aria-label="{{ __('lf.LF_media_file_preview_named', ['name' => $mediaFile->display_name]) }}">
                                         <x-media-thumbnail :presentation="$mediaFile->thumbnail_presentation" :alt="$mediaFile->display_name" />
-                                        <span class="media-library-preview-overlay" aria-hidden="true">
-                                            <x-backend-icon name="eye" />
-                                        </span>
+                                        <span class="ui-file-tile__overlay media-library-preview-overlay" aria-hidden="true"><x-backend-icon name="eye" class="ui-icon" /></span>
                                     </button>
                                 @elseif ($mediaFile->preview_mode === 'new_tab')
-                                    <a class="media-library-preview media-library-preview-button"
-                                       href="{{ $mediaFile->preview_url }}"
-                                       target="_blank"
-                                       rel="noopener noreferrer"
+                                    <a class="ui-file-tile media-library-preview-button cursor-interaction" href="{{ $mediaFile->preview_url }}" target="_blank" rel="noopener noreferrer"
                                        aria-label="{{ __('lf.LF_media_file_preview_named', ['name' => $mediaFile->display_name]) }}">
                                         <x-media-thumbnail :presentation="$mediaFile->thumbnail_presentation" :alt="$mediaFile->display_name" />
-                                        <span class="media-library-preview-overlay" aria-hidden="true">
-                                            <x-backend-icon name="eye" />
-                                        </span>
+                                        <span class="ui-file-tile__overlay media-library-preview-overlay" aria-hidden="true"><x-backend-icon name="eye" class="ui-icon" /></span>
                                     </a>
                                 @else
-                                    <div class="media-library-preview">
+                                    <span class="ui-file-tile">
                                         <x-media-thumbnail :presentation="$mediaFile->thumbnail_presentation" :alt="$mediaFile->display_name" />
-                                    </div>
+                                    </span>
                                 @endif
-                            </div>
-                            <div class="media-library-file-information">
-                                <div class="media-library-file-name">{{ $mediaFile->display_name }}</div>
-                                <div class="media-library-file-meta">{{ $mediaFile->original_name }}</div>
-                            </div>
-                        </div>
-                    </td>
-                    <td data-label="{{ __('lf.LF_media_file_common_type_and_size') }}">
-                        <span class="media-library-type-label">{{ $typeLabels[$mediaFile->file_type] ?? __('lf.LF_media_file_common_other') }}</span>
-                        <span class="media-library-file-meta media-library-size-meta">{{ number_format(((int) $mediaFile->file_size_bytes) / 1024, 1) }} KB</span>
-                    </td>
-                    <td data-label="{{ __('lf.LF_media_file_common_upload_information') }}">
-                        <span class="media-library-uploader-name">{{ $mediaFile->uploaded_by_name ?? '—' }}</span>
-                        <span class="media-library-file-meta media-library-upload-date">{{ \Illuminate\Support\Carbon::parse($mediaFile->created_at)->format('d/m/Y H:i') }}</span>
-                    </td>
-                    <td data-label="{{ __('lf.LF_media_file_common_usage') }}">
-                        <span class="media-library-usage-count">
-                            {{ trans_choice('lf.LF_media_file_usage_count', $mediaFile->active_usages->count(), ['count' => $mediaFile->active_usages->count()]) }}
-                        </span>
-                        @php
-                            $usageOwnerLabels = $mediaFile->active_usages
-                                ->groupBy('owner_type')
-                                ->keys()
-                                ->map(fn ($logicalOwnerType) => $ownerTypeOptions[$logicalOwnerType] ?? str($logicalOwnerType)->replace('_', ' ')->headline())
-                                ->values();
-                        @endphp
-                        @if ($usageOwnerLabels->isNotEmpty())
-                            <div class="media-library-usage-summary">
-                                <div class="media-library-usage-summary-item">
-                                    <span>{{ $usageOwnerLabels->first() }}</span>
+                                <div class="ui-file-identity__text">
+                                    <span class="ui-file-title">{{ $mediaFile->display_name }}</span>
+                                    <p class="ui-caption">{{ $mediaFile->original_name }}</p>
                                 </div>
-                                @if ($usageOwnerLabels->count() > 1)
-                                    <div class="media-library-usage-more"
-                                         x-data="{
-                                             open: false,
-                                             panelStyle: '',
-                                             closeTimer: null,
-                                             openPanel() {
-                                                 clearTimeout(this.closeTimer)
-                                                 if (this.open) return
-                                                 this.open = true
-                                                 this.$nextTick(() => this.place())
-                                             },
-                                             scheduleClose() {
-                                                 clearTimeout(this.closeTimer)
-                                                 this.closeTimer = setTimeout(() => this.open = false, 120)
-                                             },
-                                             cancelClose() {
-                                                 clearTimeout(this.closeTimer)
-                                             },
-                                             place() {
-                                                 const trigger = this.$refs.trigger?.getBoundingClientRect()
-                                                 const panel = this.$refs.panel
-                                                 if (!trigger || !panel) return
-                                                 const gap = 6
-                                                 const edge = 8
-                                                 let top = trigger.bottom + gap
-                                                 if (top + panel.offsetHeight > window.innerHeight - edge) {
-                                                     top = Math.max(edge, trigger.top - panel.offsetHeight - gap)
-                                                 }
-                                                 const left = Math.min(
-                                                     window.innerWidth - panel.offsetWidth - edge,
-                                                     Math.max(edge, trigger.left)
-                                                 )
-                                                 this.panelStyle = `top:${top}px;left:${left}px`
-                                             }
-                                         }"
-                                         x-on:click.outside="open = false" x-on:keydown.escape.stop="open = false"
-                                         x-on:mouseenter="openPanel()" x-on:mouseleave="scheduleClose()"
-                                         x-on:resize.window="open = false" x-on:scroll.window="open = false">
-                                        <button type="button" class="media-library-usage-more__trigger"
-                                                x-ref="trigger" x-on:click="openPanel()"
-                                                x-bind:aria-expanded="open.toString()"
-                                                aria-haspopup="true">
-                                            {{ __('lf.LF_media_file_usage_more', ['count' => $usageOwnerLabels->count() - 1]) }}
-                                        </button>
-                                        <template x-teleport="body">
-                                            <div class="media-library-usage-more__panel" role="tooltip" x-ref="panel"
-                                                 x-bind:style="panelStyle" x-show="open" x-cloak
-                                                 x-on:mouseenter="cancelClose()" x-on:mouseleave="scheduleClose()"
-                                                 x-transition.opacity.duration.120ms>
-                                                <strong>{{ __('lf.LF_media_file_usage_all_places') }}</strong>
-                                                <ul>
-                                                    @foreach ($usageOwnerLabels as $usageOwnerLabel)
-                                                        <li>{{ $usageOwnerLabel }}</li>
-                                                    @endforeach
-                                                </ul>
-                                            </div>
-                                        </template>
-                                    </div>
-                                @endif
                             </div>
-                        @endif
-                    </td>
-                    <td class="media-library-index-status" data-label="{{ __('lf.LF_media_file_common_status') }}">
-                        <div class="media-library-status-cell">
-                            @if ((int) $mediaFile->usage_count === 0)
-                                <span class="media-library-status-badge media-library-status-badge--unused">
-                                    {{ __('lf.LF_media_file_common_unused') }}
-                                </span>
+                        </td>
+                        <td class="mk-text-cell" data-label="{{ __('lf.LF_media_file_common_type_and_size') }}">
+                            {{ $typeLabels[$mediaFile->file_type] ?? __('lf.LF_media_file_common_other') }}
+                            <p class="ui-caption">{{ number_format(((int) $mediaFile->file_size_bytes) / 1024, 1) }} KB</p>
+                        </td>
+                        <td class="mk-text-cell" data-label="{{ __('lf.LF_media_file_common_upload_information') }}">
+                            {{ $mediaFile->uploaded_by_name ?? '—' }}
+                            <p class="ui-caption">{{ \Illuminate\Support\Carbon::parse($mediaFile->created_at)->format('d/m/Y H:i') }}</p>
+                        </td>
+                        <td class="mk-text-cell" data-label="{{ __('lf.LF_media_file_common_usage') }}">
+                            @if ($usageItems !== [])
+                                <button type="button" class="ui-link-button cursor-interaction" aria-haspopup="dialog"
+                                        x-on:click="openUsage(@js($mediaFile->display_name), @js($usageItems))">
+                                    {{ trans_choice('lf.LF_media_file_usage_count', count($usageItems), ['count' => count($usageItems)]) }}
+                                </button>
+                                <p class="ui-caption">
+                                    {{ $usageOwnerLabels->first() }}@if ($usageOwnerLabels->count() > 1) {{ __('lf.LF_media_file_usage_more', ['count' => $usageOwnerLabels->count() - 1]) }}@endif
+                                </p>
                             @else
-                                <span class="media-library-status-badge media-library-status-badge--in-use">
-                                    {{ __('lf.LF_media_file_common_in_use') }}
-                                </span>
+                                <span class="ui-caption">{{ __('lf.LF_media_file_usage_none') }}</span>
                             @endif
-
-                        </div>
-                    </td>
-                    <td class="media-library-index-actions" data-label="{{ __('lf.table_actions') }}">
-                        @if ((int) $mediaFile->usage_count === 0)
-                            <div class="media-library-action-cell">
-                                <x-admin-action-menu :label="__('lf.table_actions').': '.$mediaFile->display_name">
-                                    <button class="admin-link-button admin-text-action admin-danger-text-action"
-                                            type="button"
-                                            data-delete-action="{{ route('admin.media.destroy', $mediaFile->id) }}"
-                                            x-on:click="open = false; openMediaDelete(@js($mediaFile->display_name), $el.dataset.deleteAction)">
-                                        <x-admin-action-icon name="delete" />
-                                        {{ __('lf.LF_media_file_common_delete') }}
-                                    </button>
-                                </x-admin-action-menu>
-                                <input type="checkbox"
-                                       class="media-library-selection-checkbox"
-                                       value="{{ $mediaFile->id }}"
-                                       x-model.number="selectedMediaIds"
+                        </td>
+                        <td class="ux-action-cell" data-label="{{ __('lf.LF_media_file_common_status') }}">
+                            <span @class(['ui-status', 'ui-status--active' => ! $isUnused, 'ui-status--archived' => $isUnused])>
+                                {{ $isUnused ? __('lf.LF_media_file_common_unused') : __('lf.LF_media_file_common_in_use') }}
+                            </span>
+                        </td>
+                        <td class="ux-action-cell" data-label="{{ __('lf.table_actions') }}">
+                            @if ($isUnused)
+                                <button type="button" class="ux-row-delete cursor-interaction" data-ui-row-delete
+                                        data-url="{{ route('admin.media.destroy', array_merge(['id' => $mediaFile->id], $listFilters)) }}"
+                                        data-confirm-title="{{ __('lf.LF_media_file_common_delete_confirm') }}"
+                                        data-confirm-message="{{ __('lf.LF_media_file_delete_confirm_body', ['name' => $mediaFile->display_name]) }} {{ __('lf.LF_media_file_delete_confirm_warning') }}"
+                                        data-confirm-label="{{ __('lf.LF_media_file_common_delete') }}"
+                                        data-tooltip="{{ __('lf.LF_media_file_common_delete') }}"
+                                        aria-label="{{ __('lf.LF_media_file_common_delete') }}: {{ $mediaFile->display_name }}">
+                                    <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /><line x1="10" x2="10" y1="11" y2="17" /><line x1="14" x2="14" y1="11" y2="17" /></svg>
+                                </button>
+                                <input type="checkbox" class="ui-bulk-box media-library-selection-checkbox" data-ui-bulk-item value="{{ $mediaFile->id }}"
                                        aria-label="{{ __('lf.LF_media_file_select_unused_named', ['name' => $mediaFile->display_name]) }}">
-                            </div>
-                        @else
-                            <span class="lf-secondary-text media-library-action-empty" aria-label="{{ __('lf.LF_media_file_common_no_actions') }}">—</span>
-                        @endif
-                    </td>
-                </tr>
-            @empty
-                <tr class="media-library-empty-row">
-                    <td colspan="7" class="media-library-empty-cell">
-                        <div class="media-library-empty-state" role="status">
-                            <strong>{{ $hasActiveFilters ? __('lf.LF_media_file_filter_empty') : __('lf.LF_media_file_common_empty') }}</strong>
-                            <span>{{ $hasActiveFilters ? __('lf.LF_media_file_filter_empty_help') : __('lf.LF_media_file_empty_help') }}</span>
-                            @if ($hasActiveFilters)
-                                <a class="admin-text-action" href="{{ route('admin.media.index', ['tab' => $tab]) }}">
-                                    {{ __('lf.LF_media_file_common_clear_filters') }}
-                                </a>
+                            @else
+                                <span class="ui-caption media-library-action-empty" aria-label="{{ __('lf.LF_media_file_common_no_actions') }}">—</span>
                             @endif
-                        </div>
-                    </td>
-                </tr>
-            @endforelse
-            </tbody>
-        </table>
-    </div>
-
-    @if ($mediaFiles->hasPages())
-        <div class="admin-pagination">
-            {{ $mediaFiles->links() }}
+                        </td>
+                    </tr>
+                @empty
+                    <tr class="mk-empty-row">
+                        <td class="mk-empty" colspan="7">
+                            <div role="status" class="media-library-empty-state">
+                                <strong>{{ $hasActiveFilters ? __('lf.LF_media_file_filter_empty') : __('lf.LF_media_file_common_empty') }}</strong>
+                                <p class="ui-caption">{{ $hasActiveFilters ? __('lf.LF_media_file_filter_empty_help') : __('lf.LF_media_file_empty_help') }}</p>
+                            </div>
+                        </td>
+                    </tr>
+                @endforelse
+                </tbody>
+            </table>
         </div>
-    @endif
 
-    <div class="admin-modal-backdrop"
-         x-cloak
-         x-show="deleteOpen"
-         x-transition.opacity
-         x-on:click.self="closeMediaDelete()">
-        <section class="admin-modal media-library-delete-modal"
-                 role="dialog"
-                 aria-modal="true"
-                 aria-labelledby="media-library-delete-title"
-                 aria-describedby="media-library-delete-description"
-                 x-bind:aria-busy="deleteSubmitting">
-            <header class="admin-modal-header">
-                <div>
-                    <span class="media-library-delete-icon" aria-hidden="true">!</span>
-                    <h2 id="media-library-delete-title">
-                        <span x-show="! deleteTarget.bulk">{{ __('lf.LF_media_file_common_delete_confirm') }}</span>
-                        <span x-cloak x-show="deleteTarget.bulk">{{ __('lf.LF_media_file_bulk_delete_confirm') }}</span>
-                    </h2>
-                </div>
-                <button type="button"
-                        class="media-library-delete-close"
-                        x-on:click="closeMediaDelete()"
-                        x-bind:disabled="deleteSubmitting"
-                        aria-label="{{ __('lf.LF_common_button_close') }}">
-                    <span aria-hidden="true">×</span>
-                </button>
-            </header>
+        <x-ui-list-foot :paginator="$mediaFiles"
+            :label="__('lf.LF_media_file_common_title')"
+            :page-size-label="__('lf.LF_media_file_page_size')"
+            :page-size-option="__('lf.LF_media_file_page_size_option', ['count' => $mediaFiles->perPage()])" />
+    </section>
 
-            <form method="POST"
-                  x-bind:action="deleteTarget.action"
-                  x-on:submit="deleteSubmitting = true">
-                @csrf
-                @method('DELETE')
+    <x-media-preview-modal ui-kit id="media-library-preview-title" show="previewOpen" close="closeMediaPreview()" title="preview.name" compact="false">
+        <template x-if="previewOpen && preview.mediaType === 'image'">
+            <img x-bind:src="preview.url" x-bind:alt="preview.name" class="media-library-modal-image">
+        </template>
+        <template x-if="previewOpen && preview.mediaType === 'video'">
+            <video controls preload="metadata" autoplay x-bind:src="preview.url"></video>
+        </template>
+        <template x-if="previewOpen && preview.mediaType === 'audio'">
+            <audio controls preload="metadata" autoplay x-bind:src="preview.url"></audio>
+        </template>
+    </x-media-preview-modal>
 
-                {{-- Giữ nguyên bộ lọc đang xem để sau khi xóa quay lại đúng danh sách
-                     người dùng đang đứng, thay vì bị ném về một bộ lọc khác. --}}
-                @foreach (request()->only(['tab', 'type', 'keyword', 'owner_type', 'usage_status', 'page']) as $filterKey => $filterValue)
-                    @if (filled($filterValue) && is_string($filterValue))
-                        <input type="hidden" name="{{ $filterKey }}" value="{{ $filterValue }}">
-                    @endif
-                @endforeach
-
-                <template x-for="mediaId in deleteTarget.ids" x-bind:key="mediaId">
-                    <input type="hidden" name="media_ids[]" x-bind:value="mediaId">
-                </template>
-
-                <div class="media-library-delete-body">
-                    <p id="media-library-delete-description"
-                       x-show="! deleteTarget.bulk"
-                       x-text="@js(__('lf.LF_media_file_delete_confirm_body', ['name' => ':name'])).replace(':name', deleteTarget.name)"></p>
-                    <p x-cloak
-                       x-show="deleteTarget.bulk"
-                       x-text="@js(__('lf.LF_media_file_bulk_delete_body', ['count' => ':count'])).replace(':count', deleteTarget.ids.length)"></p>
-                    <strong>{{ __('lf.LF_media_file_delete_confirm_warning') }}</strong>
-                </div>
-
-                <footer class="admin-form-footer" data-actions-align="end">
-                    <div class="admin-form-footer-primary">
-                        <button x-ref="deleteCancel"
-                                type="button"
-                                class="btn btn-secondary"
-                                x-on:click="closeMediaDelete()"
-                                x-bind:disabled="deleteSubmitting">
-                            {{ __('lf.LF_common_button_cancel') }}
-                        </button>
-                        <button type="submit"
-                                class="btn btn-danger"
-                                x-bind:disabled="deleteSubmitting">
-                            <span x-show="! deleteSubmitting">{{ __('lf.LF_media_file_common_delete') }}</span>
-                            <span x-cloak x-show="deleteSubmitting">{{ __('lf.LF_media_file_delete_processing') }}</span>
-                        </button>
-                    </div>
-                </footer>
-            </form>
-        </section>
-    </div>
-
-    <x-media-preview-modal id="media-library-preview-title" show="previewOpen" close="closeMediaPreview()" title="preview.name" compact="preview.mediaType === 'audio' || preview.type === 'audio'">
-
-                <template x-if="previewLoaded && preview.mediaType === 'image'">
-                    <img x-bind:src="preview.url"
-                         x-bind:alt="preview.name"
-                         class="media-library-modal-image">
-                </template>
-
-                <video x-ref="videoPreviewPlayer"
-                       x-show="previewLoaded && preview.mediaType === 'video'"
-                       controls
-                       preload="metadata"
-                       class="media-library-modal-video">
-                    <source x-ref="videoPreviewSource"
-                            x-bind:src="videoSrc"
-                            x-bind:type="preview.mimeType">
-                </video>
-
-                <audio x-ref="audioPreviewPlayer"
-                       x-show="previewLoaded && preview.mediaType === 'audio'"
-                       x-bind:src="audioSrc"
-                       controls
-                       preload="metadata"
-                       class="media-library-modal-audio"></audio>
-
-</x-media-preview-modal>
-    </div>
+    <x-media-preview-modal ui-kit id="media-library-usage-title" show="usageOpen" close="closeUsage()" title="usage.name" compact="true">
+        <h4 class="ui-modal__section-title">{{ __('lf.LF_media_file_usage_all_places') }}</h4>
+        <ul class="ui-usage-list">
+            <template x-for="item in usage.items" x-bind:key="item.type + item.name">
+                <li><span class="ui-caption" x-text="item.type"></span> <span x-text="item.name"></span></li>
+            </template>
+        </ul>
+    </x-media-preview-modal>
+</div>
 @endsection

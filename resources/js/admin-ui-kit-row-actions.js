@@ -1,8 +1,13 @@
 /**
- * Row actions for UI Kit lists. `[data-ui-row-delete]` (data-url, data-confirm-title/-message/-label) asks through the
- * shared LF confirmation dialog (window.LFConfirm, danger tone), then sends DELETE (method spoofing) as XHR/JSON.
- * Success: a toast and `ui-dialog-form-saved` so the list refetches (or, when the server answers `redirect`, a reload there). A refusal (409) shows the server's reason.
- * One request at a time; a disabled button (the server said it cannot be deleted) does nothing.
+ * Row actions for UI Kit lists. Three triggers, all asking through the shared LF confirmation dialog
+ * (window.LFConfirm, danger tone) before anything is sent, all answered as XHR/JSON:
+ *  - `[data-ui-row-delete]` (data-url, data-confirm-title/-message/-label): DELETE (method spoofing);
+ *  - `[data-ui-bulk-delete]`: DELETE of every checked `[data-ui-bulk-item]` (their values go as `data-ui-bulk-name`,
+ *    default `ids[]`; ":count" in the confirm message is replaced), with the select-all box
+ *    `[data-ui-bulk-select-all]` and the bar `[data-ui-bulk-bar]` (hidden until something is checked) kept in step;
+ *  - `[data-ui-confirm-post]`: a plain POST (e.g. a clean-up that is not tied to a row).
+ * Success: a toast and `ui-dialog-form-saved` so the list refetches (or, when the server answers `redirect`, a reload
+ * there). A refusal (409) shows the server's reason. One request at a time; a disabled button does nothing.
  */
 import { showUiToast, claimOnce, releaseClaim, followRedirect } from './admin-ui-kit-controls.js';
 
@@ -23,21 +28,22 @@ export function initUiKitRowActions(scope, deps = {}) {
         if (node && text) showUiToast(node, text, win);
     };
 
-    async function remove(trigger) {
+    async function perform(trigger, { method, confirmMessage, fields = [] }) {
         if (busy || trigger.disabled || attr(trigger, 'aria-disabled') === 'true') return;
         busy = true;
         try {
             const confirmed = await confirmAction({
                 title: attr(trigger, 'data-confirm-title'),
-                message: attr(trigger, 'data-confirm-message'),
+                message: confirmMessage ?? attr(trigger, 'data-confirm-message'),
                 confirmLabel: attr(trigger, 'data-confirm-label'),
                 tone: 'danger',
                 trigger,
             });
             if (!confirmed) return;
             const body = new win.FormData();
-            body.append('_method', 'DELETE');
+            if (method !== 'POST') body.append('_method', method);
             body.append('_token', attr(scope, 'data-csrf'));
+            for (const [name, value] of fields) body.append(name, value);
             let response;
             try {
                 response = await win.fetch(attr(trigger, 'data-url'), {
@@ -70,12 +76,59 @@ export function initUiKitRowActions(scope, deps = {}) {
         }
     }
 
+    const remove = trigger => perform(trigger, { method: 'DELETE' });
+    const checkedItems = () => [...scope.querySelectorAll('[data-ui-bulk-item]')].filter(box => box.checked && !box.disabled);
+    function bulkRemove(trigger) {
+        const items = checkedItems();
+        if (items.length === 0) return;
+        return perform(trigger, {
+            method: 'DELETE',
+            confirmMessage: attr(trigger, 'data-confirm-message').replace(':count', String(items.length)),
+            fields: items.map(box => [attr(trigger, 'data-ui-bulk-name') || 'ids[]', box.value]),
+        });
+    }
+    // Select-all (indeterminate when some are checked) and the bar with the count; items that cannot be chosen are skipped.
+    function syncBulk() {
+        const items = [...scope.querySelectorAll('[data-ui-bulk-item]')].filter(box => !box.disabled);
+        const chosen = items.filter(box => box.checked).length;
+        const all = scope.querySelector('[data-ui-bulk-select-all]');
+        if (all) {
+            all.disabled = items.length === 0;
+            all.checked = items.length > 0 && chosen === items.length;
+            all.indeterminate = chosen > 0 && chosen < items.length;
+        }
+        const bar = scope.querySelector('[data-ui-bulk-bar]');
+        if (bar) {
+            bar.hidden = chosen === 0;
+            const count = bar.querySelector('[data-ui-bulk-count]');
+            if (count) count.textContent = attr(bar, 'data-text-selected').replace(':count', String(chosen));
+        }
+    }
+    const onChange = event => {
+        const target = event.target;
+        if (target?.hasAttribute?.('data-ui-bulk-select-all')) {
+            for (const box of scope.querySelectorAll('[data-ui-bulk-item]')) if (!box.disabled) box.checked = target.checked;
+            syncBulk();
+        } else if (target?.hasAttribute?.('data-ui-bulk-item')) {
+            syncBulk();
+        }
+    };
+
     const onClick = event => {
-        const trigger = event.target?.closest?.('[data-ui-row-delete]');
-        if (trigger && scope.contains(trigger)) remove(trigger);
+        const trigger = event.target?.closest?.('[data-ui-row-delete], [data-ui-bulk-delete], [data-ui-confirm-post]');
+        if (!trigger || !scope.contains(trigger)) return;
+        if (trigger.hasAttribute('data-ui-bulk-delete')) bulkRemove(trigger);
+        else if (trigger.hasAttribute('data-ui-confirm-post')) perform(trigger, { method: 'POST' });
+        else remove(trigger);
     };
     scope.addEventListener('click', onClick);
-    const instance = { destroy() { scope.removeEventListener('click', onClick); releaseClaim(scope, 'RowActions'); instances.delete(scope); } };
+    scope.addEventListener('change', onChange);
+    const instance = { destroy() {
+        scope.removeEventListener('click', onClick);
+        scope.removeEventListener('change', onChange);
+        releaseClaim(scope, 'RowActions');
+        instances.delete(scope);
+    } };
     instances.set(scope, instance);
     return instance;
 }

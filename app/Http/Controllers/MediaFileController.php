@@ -6,11 +6,13 @@ use App\Services\MediaService;
 use App\Services\MediaStorageResidueSweeper;
 use App\Services\MediaThumbnailPresenter;
 use App\Support\TenantContext;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Lang;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class MediaFileController extends Controller
@@ -44,14 +46,12 @@ class MediaFileController extends Controller
      *
      * Chi quet tenant hien tai: TenantContext la ranh gioi, khong phai bo loc.
      */
-    public function purgeOrphanStorage(Request $request): RedirectResponse
+    public function purgeOrphanStorage(Request $request): RedirectResponse|JsonResponse
     {
         $found = $this->sweeper->scan($this->customerId());
 
         if ($found === []) {
-            return redirect()
-                ->route('admin.media.index', $this->listFilters($request))
-                ->with('success', __('lf.LF_media_storage_purge_nothing'));
+            return $this->listResponse($request, 'success', __('lf.LF_media_storage_purge_nothing'));
         }
 
         $purged = 0;
@@ -68,14 +68,33 @@ class MediaFileController extends Controller
             $failed++;
         }
 
-        $redirect = redirect()->route('admin.media.index', $this->listFilters($request));
-
         return $failed === 0
-            ? $redirect->with('success', __('lf.LF_media_storage_purge_done', ['count' => $purged]))
-            : $redirect->with('error', __('lf.LF_media_storage_purge_partial', [
+            ? $this->listResponse($request, 'success', __('lf.LF_media_storage_purge_done', ['count' => $purged]))
+            : $this->listResponse($request, 'error', __('lf.LF_media_storage_purge_partial', [
                 'count' => $purged,
                 'failed' => $failed,
             ]));
+    }
+
+    /**
+     * The answer to a list action: the legacy redirect back to the list the user was viewing (filters kept), or, for the
+     * UI Kit's XHR, JSON with that same URL (the page reloads there and shows the flashed message as a toast). A
+     * failure is a 409 with its message.
+     */
+    private function listResponse(Request $request, string $flashKey, string $message): RedirectResponse|JsonResponse
+    {
+        $url = route('admin.media.index', $this->listFilters($request));
+
+        if ($request->expectsJson()) {
+            if ($flashKey === 'error') {
+                return response()->json(['message' => $message], 409);
+            }
+            $request->session()->flash('success', $message);
+
+            return response()->json(['message' => $message, 'redirect' => $url]);
+        }
+
+        return redirect()->to($url)->with($flashKey, $message);
     }
 
     public function index(Request $request): View
@@ -152,13 +171,19 @@ class MediaFileController extends Controller
         ]);
     }
 
-    public function destroy(Request $request, int $id): RedirectResponse
+    public function destroy(Request $request, int $id): RedirectResponse|JsonResponse
     {
-        $this->mediaService->deleteMedia($id);
+        try {
+            $this->mediaService->deleteMedia($id);
+        } catch (ValidationException $exception) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => (string) collect($exception->errors())->flatten()->first()], 409);
+            }
 
-        return redirect()
-            ->route('admin.media.index', $this->listFilters($request))
-            ->with('success', __('lf.LF_media_file_common_deleted'));
+            throw $exception;
+        }
+
+        return $this->listResponse($request, 'success', __('lf.LF_media_file_common_deleted'));
     }
 
     /**
@@ -194,24 +219,30 @@ class MediaFileController extends Controller
         return $filters;
     }
 
-    public function bulkDestroy(Request $request): RedirectResponse
+    public function bulkDestroy(Request $request): RedirectResponse|JsonResponse
     {
         $validated = $request->validate([
             'media_ids' => ['required', 'array', 'min:1', 'max:100'],
             'media_ids.*' => ['required', 'integer', 'distinct'],
         ]);
 
-        $deletedCount = $this->mediaService->deleteUnusedMedia(
-            $validated['media_ids']
-        );
+        try {
+            $deletedCount = $this->mediaService->deleteUnusedMedia(
+                $validated['media_ids']
+            );
+        } catch (ValidationException $exception) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => (string) collect($exception->errors())->flatten()->first()], 409);
+            }
 
-        return redirect()
-            ->route('admin.media.index', $this->listFilters($request))
-            ->with('success', trans_choice(
-                'lf.LF_media_file_bulk_deleted',
-                $deletedCount,
-                ['count' => $deletedCount]
-            ));
+            throw $exception;
+        }
+
+        return $this->listResponse($request, 'success', trans_choice(
+            'lf.LF_media_file_bulk_deleted',
+            $deletedCount,
+            ['count' => $deletedCount]
+        ));
     }
 
     private function mediaQuery(

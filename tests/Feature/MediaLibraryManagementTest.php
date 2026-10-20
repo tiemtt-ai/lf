@@ -65,10 +65,10 @@ class MediaLibraryManagementTest extends TestCase
             ->assertOk()
             ->assertSeeText(__('lf.LF_media_file_common_title'))
             ->assertSeeText(__('lf.LF_navigation_menu_admin_media'))
-            ->assertSee('media-library-filter-grid', false)
-            ->assertSee('media-library-tab-count', false)
-            ->assertSee('media-library-index-table', false)
-            ->assertSee('media-library-index-actions', false)
+            ->assertSee('data-ui-live-filter', false)
+            ->assertSee('data-ui-multiselect', false)
+            ->assertSee('mk-tab-count', false)
+            ->assertSee('ui-media-table', false)
             ->assertSee('media-library-action-empty', false)
             ->assertSee('media-library-sequence-number', false)
             ->assertSee('media-library-preview-button', false)
@@ -81,26 +81,6 @@ class MediaLibraryManagementTest extends TestCase
             ->assertDontSee('name="usage_type"', false)
             ->assertSeeText('TOPIK Beginner')
             ->assertSeeText(__('lf.LF_media_usage_label_course_category'));
-
-        $componentsCss = file_get_contents(resource_path('css/admin/admin-components.css'));
-        $pagesCss = file_get_contents(resource_path('css/admin/admin-pages.css'));
-        $this->assertStringContainsString(
-            '.lf-admin-page .media-library-index-table .admin-table-sequence',
-            $componentsCss
-        );
-        $this->assertStringContainsString('max-width: 50px;', $componentsCss);
-        $this->assertStringContainsString(
-            '.media-library-index-table tbody tr:hover > td',
-            $pagesCss
-        );
-        $this->assertStringContainsString(
-            '.media-library-index-table tbody tr:hover .media-library-preview-button .media-library-preview-overlay',
-            $pagesCss
-        );
-        $this->assertStringContainsString(
-            '.media-library-tabs .admin-tab.is-active .media-library-tab-count',
-            $pagesCss
-        );
 
         $this->assertSame(2, DB::table('media_files')->where('customer_id', $customerId)->count());
         $this->assertSame(2, DB::table('media_file_usages')->where('customer_id', $customerId)->count());
@@ -160,11 +140,11 @@ class MediaLibraryManagementTest extends TestCase
             ->assertSee('data-media-thumbnail-kind="audio"', false)
             ->assertSee('media-library-preview-overlay', false)
             ->assertSee('openMediaPreview(', false)
-            ->assertSee('x-ref="audioPreviewPlayer"', false)
+            ->assertSee('<audio', false)
             ->assertSeeText('Hoạt động khóa học')
             ->assertDontSeeText('#401')
             ->assertDontSee('media-library-used-by', false)
-            ->assertSee('media-library-usage-summary', false)
+            ->assertSee('openUsage(', false)
             ->assertDontSeeText('Document Asset');
 
         $this->actingAs($admin)
@@ -212,19 +192,6 @@ class MediaLibraryManagementTest extends TestCase
         $this->assertSame(0, $this->mediaLibraryPreviewButtonCount($response->getContent(), 3));
         $this->assertMediaLibraryPreviewButtonCss();
         $this->assertSame(1, substr_count($response->getContent(), '<video'));
-        $this->assertStringContainsString('this.resetMediaPreview()', $response->getContent());
-        $this->assertStringContainsString('this.$refs.videoPreviewSource?.setAttribute(\'src\', url)', $response->getContent());
-        $this->assertStringContainsString('this.$refs.videoPreviewPlayer?.load()', $response->getContent());
-        $this->assertStringContainsString('this.previewOpen = true', $response->getContent());
-        $this->assertStringContainsString('playVideoPreview()', $response->getContent());
-        $this->assertStringContainsString('player.play()', $response->getContent());
-        $this->assertStringContainsString('player.muted = true', $response->getContent());
-        $this->assertStringContainsString('player.muted = false', $response->getContent());
-        $this->assertStringContainsString('player.pause()', $response->getContent());
-        $this->assertStringContainsString('removeAttribute(\'src\')', $response->getContent());
-        $this->assertStringContainsString('this.videoSrc = \'\'', $response->getContent());
-        $this->assertStringContainsString('player.load()', $response->getContent());
-
         $signedUrl = app(MediaService::class)->generateSignedUrl((int) $mediaFile->id);
 
         $this->assertStringContainsString('expiration=', $signedUrl);
@@ -340,6 +307,17 @@ class MediaLibraryManagementTest extends TestCase
         $this->actingAs($admin)
             ->delete('https://tenant-a.localhost/admin/media/'.$media->id, ['tab' => 'images'])
             ->assertRedirect('https://tenant-a.localhost/admin/media?tab=images');
+    }
+
+    private function xpath(string $html): \DOMXPath
+    {
+        $previous = libxml_use_internal_errors(true);
+        $document = new \DOMDocument;
+        $document->loadHTML($html);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previous);
+
+        return new \DOMXPath($document);
     }
 
     private function tableMediaElementCount(string $html, string $tagName): int
@@ -1104,8 +1082,9 @@ class MediaLibraryManagementTest extends TestCase
             ->assertOk()
             ->assertSeeText('Unused Image')
             ->assertSee("admin/media/{$mediaFile->id}", false)
-            ->assertSeeText(__('lf.LF_media_file_common_delete_confirm'))
-            ->assertSeeText(__('lf.LF_media_file_delete_confirm_warning'))
+            ->assertSee('data-ui-row-delete', false)
+            ->assertSee('data-confirm-title="'.__('lf.LF_media_file_common_delete_confirm').'"', false)
+            ->assertSee(__('lf.LF_media_file_delete_confirm_warning'), false)
             ->assertDontSee('onclick="return confirm', false);
 
         $this->actingAs($admin)
@@ -1124,6 +1103,77 @@ class MediaLibraryManagementTest extends TestCase
             ->get('https://tenant-a.localhost/admin/media')
             ->assertOk()
             ->assertDontSeeText('Unused Image');
+    }
+
+    public function test_ui_kit_list_actions_answer_json_with_the_list_url_and_keep_the_filters(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $this->actingAs($admin);
+        TenantContext::set((object) ['id' => $customerId]);
+        // Unattached uploads of the same kind replace each other, so each file here has its own type.
+        $single = $this->uploadUnattachedMedia($admin, 'Single Unused', 'image', 'single.png');
+        $first = $this->uploadUnattachedMedia($admin, 'Bulk One', 'document', 'bulk-one.pdf');
+        $second = $this->uploadUnattachedMedia($admin, 'Bulk Two', 'audio', 'bulk-two.mp3');
+        $used = $this->uploadManagedMedia($admin, 'In Use', 'video', 'in-use.mp4', 'course_activity', 201, 'video');
+        $list = 'https://tenant-a.localhost/admin/media?tab=all&usage_status=unused';
+
+        // The page hands the buttons URLs that already carry the filters the user is viewing.
+        $html = $this->actingAs($admin)->get($list)->assertOk()->getContent();
+        $this->assertStringContainsString('data-url="https://tenant-a.localhost/admin/media/'.$single->id.'?tab=all&amp;usage_status=unused"', $html);
+        $this->assertStringContainsString('data-url="https://tenant-a.localhost/admin/media/bulk?tab=all&amp;usage_status=unused"', $html);
+        $this->assertStringContainsString('data-ui-confirm-post', $html);
+
+        $this->actingAs($admin)->deleteJson('https://tenant-a.localhost/admin/media/'.$single->id.'?tab=all&usage_status=unused')
+            ->assertOk()
+            ->assertJson(['message' => __('lf.LF_media_file_common_deleted'), 'redirect' => $list])
+            ->assertSessionHas('success', __('lf.LF_media_file_common_deleted'));
+        $this->assertDatabaseHas('media_files', ['id' => $single->id, 'status' => 'deleted']);
+
+        $this->actingAs($admin)->deleteJson('https://tenant-a.localhost/admin/media/'.$used->id)
+            ->assertStatus(409)
+            ->assertJsonStructure(['message']);
+        $this->assertDatabaseHas('media_files', ['id' => $used->id, 'status' => 'ready']);
+
+        $this->actingAs($admin)->deleteJson('https://tenant-a.localhost/admin/media/bulk?tab=all&usage_status=unused', ['media_ids' => [$first->id, $used->id]])
+            ->assertStatus(409);
+        $this->assertDatabaseHas('media_files', ['id' => $first->id, 'status' => 'ready']);
+
+        $this->actingAs($admin)->deleteJson('https://tenant-a.localhost/admin/media/bulk?tab=all&usage_status=unused', ['media_ids' => [$first->id, $second->id]])
+            ->assertOk()
+            ->assertJson(['redirect' => $list]);
+        $this->assertDatabaseHas('media_files', ['id' => $first->id, 'status' => 'deleted']);
+        $this->assertDatabaseHas('media_files', ['id' => $second->id, 'status' => 'deleted']);
+
+        $this->actingAs($admin)->postJson('https://tenant-a.localhost/admin/media/purge-orphan-storage?tab=all')
+            ->assertOk()
+            ->assertJson(['redirect' => 'https://tenant-a.localhost/admin/media?tab=all']);
+    }
+
+    public function test_object_filter_is_rendered_as_the_ui_kit_multiselect_for_the_chosen_owner_type(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $this->actingAs($admin);
+        TenantContext::set((object) ['id' => $customerId]);
+        // A real category with an uploaded image: its media is "used by" an object that exists.
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-categories', $this->validCategoryData([
+            'name' => 'Filter Category',
+            'slug' => 'filter-category',
+            'thumbnail_image_file' => UploadedFile::fake()->image('filter.png', 120, 120),
+        ]))->assertRedirect();
+
+        // No owner type yet: the trigger is disabled and no object is offered.
+        $xpath = $this->xpath($this->actingAs($admin)->get('https://tenant-a.localhost/admin/media')->getContent());
+        $this->assertSame('disabled', $xpath->query('//*[@data-ui-multiselect]//button[@data-ms-trigger]')->item(0)?->getAttribute('disabled'));
+        $this->assertSame(0, $xpath->query('//*[@data-ui-multiselect]//input[@name="owner_refs[]"]')->length);
+        $options = json_decode($xpath->query('//*[@data-ui-multiselect]')->item(0)->getAttribute('data-ms-options'), true);
+        $this->assertArrayHasKey('course_category', $options);
+
+        $ref = $options['course_category'][0]['value'];
+        $xpath = $this->xpath($this->actingAs($admin)->get('https://tenant-a.localhost/admin/media?owner_type=course_category&owner_refs[]='.urlencode($ref))->getContent());
+        $this->assertFalse($xpath->query('//*[@data-ui-multiselect]//button[@data-ms-trigger]')->item(0)->hasAttribute('disabled'));
+        $this->assertSame('checked', $xpath->query('//*[@data-ui-multiselect]//input[@name="owner_refs[]" and @value="'.$ref.'"]')->item(0)?->getAttribute('checked'));
     }
 
     public function test_delete_unused_media_with_missing_storage_object_does_not_crash(): void

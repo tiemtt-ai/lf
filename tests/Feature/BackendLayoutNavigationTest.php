@@ -318,7 +318,6 @@ class BackendLayoutNavigationTest extends TestCase
             'resources/views/course-enrollments/index.blade.php',
             'resources/views/course-products/index.blade.php',
             'resources/views/media-categories/index.blade.php',
-            'resources/views/media-files/index.blade.php',
         ];
 
         foreach ($indexFiles as $file) {
@@ -344,7 +343,6 @@ class BackendLayoutNavigationTest extends TestCase
         foreach (array_diff($indexFiles, [
             'resources/views/course-cohorts/index.blade.php',
             'resources/views/course-enrollments/index.blade.php',
-            'resources/views/media-files/index.blade.php',
             'resources/views/course-products/index.blade.php',
             'resources/views/course-templates/index.blade.php',
         ]) as $file) {
@@ -618,7 +616,6 @@ class BackendLayoutNavigationTest extends TestCase
             'resources/views/course-template-teachers/partials/list.blade.php',
             'resources/views/course-templates/edit.blade.php',
             'resources/views/media-categories/index.blade.php',
-            'resources/views/media-files/index.blade.php',
         ];
 
         foreach ($tableViews as $view) {
