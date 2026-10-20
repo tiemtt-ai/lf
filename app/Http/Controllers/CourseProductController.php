@@ -730,7 +730,7 @@ class CourseProductController extends Controller
                 'max:'.UploadLimit::effectiveKilobytes(),
             ],
             'intro_image_file' => ['nullable', 'file', 'max:'.UploadLimit::effectiveKilobytes()],
-            'intro_video_file' => ['nullable', 'file', 'max:'.UploadLimit::effectiveKilobytes()],
+            'intro_video_file' => ['nullable', 'file', 'max:'.UploadLimit::effectiveVideoKilobytes()],
             'intro_document_file' => ['nullable', 'file', 'max:'.UploadLimit::effectiveKilobytes()],
             'intro_video_source' => ['nullable', Rule::in(['upload', 'embed'])],
             'intro_video_embed_url' => ['nullable', 'string', 'max:2048'],

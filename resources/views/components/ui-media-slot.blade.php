@@ -8,6 +8,7 @@
     'displayName' => null,
     'previewUrl' => null,
     'mime' => null,
+    'focusAlias' => null,
     'removeName' => null,
     'uploadLabel' => null,
     'viewLabel' => null,
@@ -75,6 +76,7 @@
         </label>
         <input class="ui-media-tile__input" type="file" id="{{ $id }}" name="{{ $name }}"
                data-ui-media-input @if ($accept) accept="{{ $accept }}" @endif
+               @if ($focusAlias) data-ui-focus-alias="{{ $focusAlias }}" @endif
                aria-invalid="{{ $errors->has($name) ? 'true' : 'false' }}"
                @php($describedBy = trim(($slot->isNotEmpty() ? $id.'-hint ' : '').($errors->has($name) ? $id.'-error' : '')))
                @if ($describedBy !== '') aria-describedby="{{ $describedBy }}" @endif

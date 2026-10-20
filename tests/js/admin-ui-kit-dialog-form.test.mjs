@@ -36,7 +36,7 @@ class El {
 }
 
 function dialogEl(label = 'dialog') {
-    const d = new El({ 'data-msg-load-error': 'LOAD', 'data-msg-save-error': 'SAVE', 'data-msg-session-expired': 'SESSION', 'data-msg-required-input': 'Enter :field.', 'data-msg-required-select': 'Select :field.', 'data-field-id-prefix': 'category-form-' });
+    const d = new El({ 'data-msg-load-error': 'LOAD', 'data-msg-save-error': 'SAVE', 'data-msg-session-expired': 'SESSION', 'data-msg-required-input': 'Enter :field.', 'data-msg-required-select': 'Select :field.', 'data-field-id-prefix': 'category-form-', 'data-msg-discard-title': 'DISCARD-TITLE', 'data-msg-discard-text': 'DISCARD-TEXT', 'data-msg-discard': 'DISCARD' });
     d.label = label;
     d.showModal = () => { d.open = true; d.calls.push('showModal'); };
     d.close = () => { if (!d.open) return; d.open = false; d.calls.push('close'); d.listeners.get('close')?.({ target: d }); };
@@ -47,13 +47,11 @@ function dialogEl(label = 'dialog') {
 }
 
 function makeForm({ field = true } = {}) {
-    const confirm = dialogEl('confirm');
-    const keep = new El(); const submit = new El(); const cancel = new El(); const feedbackNode = new El();
+    const submit = new El(); const cancel = new El(); const feedbackNode = new El();
     const nameField = new El(); nameField.closest = () => nameField;
     const nameInput = new El(); nameInput.id = 'category-form-name'; nameInput.closest = () => nameField;
     nameInput.name = 'name'; nameInput.value = 'A'; nameInput.tagName = 'INPUT';
     const form = new El({ action: '/admin/course-categories' });
-    form.dialogConfirm = confirm;
     form.name = nameInput;
     form.nameField = nameField;
     form.submit = submit;
@@ -61,7 +59,6 @@ function makeForm({ field = true } = {}) {
     form.feedbackNode = feedbackNode;
     form.querySelector = selector => {
         if (selector.includes('feedback')) return feedbackNode;
-        if (selector.includes('confirm')) return confirm;
         if (selector.includes('name="name"')) return field ? nameInput : null;
         if (selector.startsWith('#') && form.byId?.[selector.slice(1)]) return form.byId[selector.slice(1)];
         if (selector.startsWith('label[for=')) return form.labelFor ? form.labelFor(selector) : { textContent: '* Tên danh mục' };
@@ -83,11 +80,11 @@ function makeForm({ field = true } = {}) {
     form.other.scrolled = 0;
     form.other.scrollIntoView = () => { form.other.scrolled += 1; };
     form.byId = { 'category-form-other-ui-kit': form.other };
-    form.keep = keep;
     return form;
 }
 
-function setup({ snapshotValue = 'a', defer = () => Promise.resolve(), hash = '', hashTrigger = false, triggerHidden = false } = {}) {
+function setup({ snapshotValue = 'a', defer = () => Promise.resolve(), hash = '', hashTrigger = false, triggerHidden = false, confirmAnswer = async () => true } = {}) {
+    const confirms = [];
     const dialog = dialogEl('main');
     const flash = new El({ hidden: '' }); flash.hidden = true;
     const pageError = new El(); pageError.hidden = true;
@@ -136,6 +133,7 @@ function setup({ snapshotValue = 'a', defer = () => Promise.resolve(), hash = ''
         initSlots: () => [{ destroy: () => destroyed.push('slot') }],
         createEvent: (type, detail) => ({ type, detail }),
         defer,
+        confirm: options => { confirms.push(options); return confirmAnswer(options); },
     });
     const click = (target, which) => scope.listeners.get('click')({
         target: { closest: () => target },
@@ -145,7 +143,7 @@ function setup({ snapshotValue = 'a', defer = () => Promise.resolve(), hash = ''
     const respond = (index, response) => pending[index].resolve(response);
     const html = body => ({ ok: true, redirected: false, text: async () => body });
     const json = (status, payload) => ({ ok: status >= 200 && status < 300, status, json: async () => payload });
-    return { hashListeners, win, dialog, scope, scopeEvents, trigger, flash, pageError, fetches, pending, forms, destroyed, nav, state, instance, win, clickOn, tick, respond, html, json };
+    return { confirms, hashListeners, win, dialog, scope, scopeEvents, trigger, flash, pageError, fetches, pending, forms, destroyed, nav, state, instance, win, clickOn, tick, respond, html, json };
 }
 
 async function opened(t) {
@@ -202,41 +200,56 @@ test('closing a clean form needs no question; closing empties the dialog and des
     const form = await opened(t);
     t.clickOn(form.cancel, 'data-ui-dialog-form-cancel');
     assert.equal(t.dialog.open, false);
-    assert.equal(form.dialogConfirm.open, false);
+    assert.deepEqual(t.confirms, [], 'a clean form closes without a question');
     assert.deepEqual(t.dialog.children, []);
     assert.deepEqual(t.destroyed.sort(), ['select', 'slot']);
     assert.equal(t.trigger.focused, 1, 'focus returns to the opener');
 });
 
-test('closing a dirty form asks first: keep editing leaves everything open, discard closes both', async () => {
-    const t = setup();
+test('closing a dirty form asks through the shared confirm dialog: Cancel keeps editing, the danger action discards', async () => {
+    let answer = false;
+    const t = setup({ confirmAnswer: async () => answer });
     const form = await opened(t);
     t.state.value = 'changed';
     t.clickOn(form.cancel, 'data-ui-dialog-form-cancel');
-    assert.equal(form.dialogConfirm.open, true);
-    assert.equal(t.dialog.open, true);
-    form.dialogConfirm.close();
-    t.clickOn(form.keep, 'data-ui-dialog-form-keep');
-    assert.equal(t.dialog.open, true);
+    await t.tick();
+    assert.deepEqual(t.confirms, [{ title: 'DISCARD-TITLE', message: 'DISCARD-TEXT', confirmLabel: 'DISCARD', tone: 'danger' }]);
+    assert.equal(t.dialog.open, true, 'cancelled: still editing');
+    answer = true;
     t.clickOn(form.cancel, 'data-ui-dialog-form-cancel');
-    t.clickOn(new El(), 'data-ui-dialog-form-discard');
-    assert.equal(form.dialogConfirm.open, false);
+    await t.tick();
+    assert.equal(t.confirms.length, 2);
+    assert.equal(t.dialog.open, false);
+});
+
+test('a second close request while the question is open is ignored', async () => {
+    let release;
+    const t = setup({ confirmAnswer: () => new Promise(resolve => { release = resolve; }) });
+    const form = await opened(t);
+    t.state.value = 'changed';
+    t.clickOn(form.cancel, 'data-ui-dialog-form-cancel');
+    t.clickOn(form.cancel, 'data-ui-dialog-form-cancel');
+    t.dialog.listeners.get('cancel')({ target: t.dialog, preventDefault() {} });
+    assert.equal(t.confirms.length, 1);
+    release(true);
+    await t.tick();
     assert.equal(t.dialog.open, false);
 });
 
 test('Escape is intercepted: dirty asks, clean closes', async () => {
-    const t = setup();
-    const form = await opened(t);
+    const t = setup({ confirmAnswer: async () => false });
+    await opened(t);
     let prevented = 0;
     t.state.value = 'changed';
     t.dialog.listeners.get('cancel')({ target: t.dialog, preventDefault: () => prevented++ });
+    await t.tick();
     assert.equal(prevented, 1);
-    assert.equal(form.dialogConfirm.open, true);
+    assert.equal(t.confirms.length, 1);
     assert.equal(t.dialog.open, true);
-    form.dialogConfirm.close();
     t.state.value = 'a';
     t.dialog.listeners.get('cancel')({ target: t.dialog, preventDefault: () => prevented++ });
     assert.equal(t.dialog.open, false);
+    assert.equal(t.confirms.length, 1, 'clean: no second question');
 });
 
 test('success: POST as JSON, close without asking, show the message, announce the save', async () => {
@@ -251,7 +264,7 @@ test('success: POST as JSON, close without asking, show the message, announce th
     t.respond(1, t.json(201, { message: 'Created' }));
     await t.tick(); await t.tick();
     assert.equal(t.dialog.open, false);
-    assert.equal(form.dialogConfirm.open, false);
+    assert.deepEqual(t.confirms, [], 'a saved form is closed without asking');
     assert.equal(t.flash.textContent, 'Created');
     assert.equal(t.flash.hidden, false);
     assert.deepEqual(t.scopeEvents.map(e => e.type), [UI_DIALOG_FORM_SAVED_EVENT]);
@@ -287,7 +300,7 @@ test('while a submit is in flight a second submit, Cancel and Escape do nothing'
     t.clickOn(form.cancel, 'data-ui-dialog-form-cancel');
     t.dialog.listeners.get('cancel')({ target: t.dialog, preventDefault() {} });
     assert.equal(t.dialog.open, true);
-    assert.equal(form.dialogConfirm.open, false);
+    assert.deepEqual(t.confirms, [], 'nothing can ask while saving');
 });
 
 test('a response arriving after the dialog was closed or destroyed changes nothing', async () => {

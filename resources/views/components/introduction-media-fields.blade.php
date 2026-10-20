@@ -97,7 +97,7 @@
         </div>
         </div>
         @error('intro_video_file')<p id="intro_video_file_error" class="lf-form-error">{{ $message }}</p>@enderror
-        <x-upload-hint :formats="['MP4', 'WEBM', 'MOV', 'AVI']" x-show="selectedVideoSource === 'upload'" />
+        <x-upload-hint :formats="['MP4', 'WEBM', 'MOV', 'AVI']" :max-size="\App\Support\UploadLimit::effectiveVideoKilobytes()" x-show="selectedVideoSource === 'upload'" />
         <input id="intro_video_embed_url" type="url" name="intro_video_embed_url" class="lf-form-control" value="{{ old('intro_video_embed_url', $embedValue) }}" placeholder="{{ __('lf.LF_course_template_placeholder_embed_url') }}" x-show="selectedVideoSource === 'embed'" :disabled="selectedVideoSource !== 'embed'" @error('intro_video_embed_url') aria-invalid="true" aria-describedby="intro_video_embed_url_error" @enderror>
         @error('intro_video_embed_url')<p id="intro_video_embed_url_error" class="lf-form-error">{{ $message }}</p>@enderror
     </div>

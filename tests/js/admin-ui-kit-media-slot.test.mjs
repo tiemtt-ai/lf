@@ -60,6 +60,8 @@ function setup({ saved = true, removable = true, kind = 'image', previewable = t
         createEvent: (type, detail) => ({ type, detail }),
         setTimeout: fn => timers.push(fn),
     });
+    const changes = [];
+    parts.input.dispatchEvent = event => changes.push(event.type);
     const choose = (name, type = 'image/png') => {
         parts.input.files = name ? [{ name, type }] : [];
         parts.input.value = name ?? '';
@@ -68,7 +70,7 @@ function setup({ saved = true, removable = true, kind = 'image', previewable = t
     const click = (el) => el.listeners.get('click')();
     const state = () => slot.getAttribute('data-state');
     const alive = () => urls.created.filter(url => !urls.revoked.includes(url));
-    return { slot, parts, flag, events, urls, instance, choose, click, state, alive, formListeners, timers };
+    return { slot, parts, flag, events, urls, instance, choose, click, state, alive, formListeners, timers, changes };
 }
 
 test('saved image fills the tile with View and Remove, no upload tile', () => {
@@ -221,4 +223,14 @@ test('init is idempotent and destroy removes every listener', () => {
     first.destroy();
     for (const el of [t.parts.input, t.parts.remove, t.parts.view, t.parts.image]) assert.equal(el.listeners.size, 0);
     assert.equal(t.formListeners.size, 0);
+});
+
+test('discarding a chosen file tells the form (a change event); removing a saved file does not', () => {
+    const t = setup();
+    t.choose('new.png');
+    t.click(t.parts.remove);
+    assert.deepEqual(t.changes, ['change'], 'a form that mirrors "a file is chosen" hears that none is');
+    const saved = setup();
+    saved.click(saved.parts.remove);
+    assert.deepEqual(saved.changes, []);
 });

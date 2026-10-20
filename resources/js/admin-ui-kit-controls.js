@@ -288,6 +288,8 @@ export function initUiKitMediaSlot(slot, deps = {}) {
         if (pending) {
             discardPending();
             input.value = '';
+            // Anything that mirrors "a file is chosen" (e.g. a form's own state) hears that it is not any more.
+            input.dispatchEvent?.(new Event('change', { bubbles: true }));
         } else if (saved && !removed && flag) {
             removed = true;
             flag.value = '1';

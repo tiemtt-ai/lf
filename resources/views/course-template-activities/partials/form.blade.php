@@ -264,7 +264,7 @@
             @include('course-template-activities.partials.current-media', ['mediaType' => 'video'])
             <x-authoring-media-upload id="activity_video_file" name="activity_video_file" :label="($currentActivityMedia['type'] ?? null) === 'video' ? __('lf.LF_media_replace_video') : __('lf.LF_media_upload_video')" accept=".mp4,.webm,.mov,.avi,video/mp4,video/webm,video/quicktime,video/x-msvideo" x-on:change="readMediaDuration($event, 'video')" />
         </div>
-        <x-upload-hint :formats="['MP4', 'WEBM', 'MOV', 'AVI']" />
+        <x-upload-hint :formats="['MP4', 'WEBM', 'MOV', 'AVI']" :max-size="\App\Support\UploadLimit::effectiveVideoKilobytes()" />
         <p class="lf-form-error"
            role="alert"
            x-show="mediaDurationState === 'invalid_type' && mediaTypeError === 'video'">

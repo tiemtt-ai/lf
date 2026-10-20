@@ -545,7 +545,7 @@ class CourseCategoryManagementTest extends TestCase
             $this->assertSame(0, $count('//*['.$hasClass('ui-section').' or '.$hasClass('ui-form-flow').']'));
             $this->assertSame(2, $count('//button[@data-ui-dialog-form-cancel]'));
             $this->assertSame(1, $count('//button[@type="submit" and @data-ui-dialog-form-submit]'));
-            $this->assertSame(1, $count('//dialog[@data-ui-dialog-form-confirm]'));
+            $this->assertSame(1, $count('//dialog'), 'only the image preview dialog: unsaved changes use the shared LF confirm dialog');
             $this->assertSame(1, $count('//input[@name="_method" and @value="PUT"]') + ($mode === 'create' ? 1 : 0));
 
             foreach (['parent_id', 'name', 'slug', 'description', 'status'] as $field) {

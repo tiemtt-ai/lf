@@ -179,6 +179,9 @@
 
                 <dialog class="ui-modal" data-columns="2" aria-labelledby="template-dialog-title" data-ui-dialog-form data-field-id-prefix="template-form-"
                         data-msg-load-error="{{ __('lf.LF_course_template_dialog_load_error') }}"
+            data-msg-discard-title="{{ __('lf.LF_course_template_dialog_discard_title') }}"
+            data-msg-discard-text="{{ __('lf.LF_course_template_dialog_discard_text') }}"
+            data-msg-discard="{{ __('lf.LF_course_template_dialog_discard') }}"
                         data-msg-save-error="{{ __('lf.LF_course_template_dialog_save_error') }}"
                         data-msg-session-expired="{{ __('lf.LF_course_template_session_expired') }}"
                         data-msg-required-input="{{ __('lf.LF_course_template_dialog_required_input') }}"

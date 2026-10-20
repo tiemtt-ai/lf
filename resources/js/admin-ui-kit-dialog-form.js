@@ -6,8 +6,7 @@
  *
  * Contract: openers carry [data-ui-dialog-form-open][data-url]; the fragment is one <form class="ui-modal__form">
  * (X-Requested-With request); a successful save answers 2xx JSON {message}, a validation failure 422 JSON
- * {errors}. Closing a form that has unsaved changes asks first through a nested
- * <dialog data-ui-dialog-form-confirm>. Only the latest open request may touch the page; one submit at a time.
+ * {errors}. Closing a form that has unsaved changes asks first through the shared LF confirmation dialog (window.LFConfirm). Only the latest open request may touch the page; one submit at a time.
  */
 import { initUiKitSelect, initUiKitMediaSlots, showUiToast, hideUiToast, claimOnce, releaseClaim } from './admin-ui-kit-controls.js';
 
@@ -34,6 +33,7 @@ export function initUiKitDialogForm(scope, deps = {}) {
     const snapshotOf = deps.serialize ?? (form => serializeForm(form));
     const initSelect = deps.initSelect ?? initUiKitSelect;
     const initSlots = deps.initSlots ?? initUiKitMediaSlots;
+    const confirmAction = deps.confirm ?? (options => win.LFConfirm.open(options));
     const createEvent = deps.createEvent ?? ((type, detail) => new CustomEvent(type, { bubbles: true, detail }));
     const defer = deps.defer ?? (() => new Promise(resolve => win.setTimeout(resolve, 0)));
     const message = name => dialog.getAttribute(`data-msg-${name}`) || '';
@@ -48,6 +48,7 @@ export function initUiKitDialogForm(scope, deps = {}) {
     let snapshot = '';
     let submitting = false;
     let controls = [];
+    let confirming = false;
 
     const pageError = text => {
         const node = part('page-error');
@@ -58,7 +59,6 @@ export function initUiKitDialogForm(scope, deps = {}) {
         const node = form?.querySelector('[data-ui-dialog-form-feedback]');
         if (node) node.textContent = text;
     };
-    const confirmDialog = () => form?.querySelector('dialog[data-ui-dialog-form-confirm]') ?? null;
     const isDirty = () => form !== null && snapshotOf(form) !== snapshot;
     const teardown = () => {
         controls.forEach(control => control?.destroy?.());
@@ -77,18 +77,27 @@ export function initUiKitDialogForm(scope, deps = {}) {
         opener = null;
     };
     const closeNow = () => {
-        confirmDialog()?.open && confirmDialog().close();
         if (dialog.open) dialog.close();
     };
-    const requestClose = () => {
-        if (submitting || !form) return;
+    // Unsaved changes: ask through the shared LF confirmation dialog (danger tone, Cancel focused). Cancel keeps editing.
+    const askDiscard = () => confirmAction({
+        title: message('discard-title'),
+        message: message('discard-text'),
+        confirmLabel: message('discard'),
+        tone: 'danger',
+    });
+    async function requestClose() {
+        if (submitting || !form || confirming) return;
         if (!isDirty()) { closeNow(); return; }
-        const confirm = confirmDialog();
-        if (confirm && !confirm.open) {
-            confirm.showModal();
-            confirm.querySelector('[data-ui-dialog-form-keep]')?.focus?.();
+        const current = form;
+        confirming = true;
+        try {
+            const discard = await askDiscard();
+            if (discard && form === current && !submitting) closeNow();
+        } finally {
+            confirming = false;
         }
-    };
+    }
     const setSubmitting = on => {
         submitting = on;
         form?.setAttribute('aria-busy', String(on));
@@ -156,7 +165,8 @@ export function initUiKitDialogForm(scope, deps = {}) {
     // Put the cursor in the field a link points at (`#field`), trying the dialog's id prefix and the combobox of a select.
     const focusField = id => {
         const prefix = dialog.getAttribute('data-field-id-prefix') || '';
-        for (const selector of [`#${escapeId(prefix + id)}-ui-kit`, `#${escapeId(prefix + id)}`, `#${escapeId(id)}`]) {
+        // `data-ui-focus-alias` lets a field that replaced another (or has no id of its own) answer to a link's name.
+        for (const selector of [`#${escapeId(prefix + id)}-ui-kit`, `#${escapeId(prefix + id)}`, `#${escapeId(id)}`, `[data-ui-focus-alias="${id}"]`]) {
             const field = form.querySelector(selector);
             if (field) {
                 field.focus?.();
@@ -262,12 +272,10 @@ export function initUiKitDialogForm(scope, deps = {}) {
     }
 
     const onClick = event => {
-        const target = event.target?.closest?.('[data-ui-dialog-form-open], [data-ui-dialog-form-cancel], [data-ui-dialog-form-keep], [data-ui-dialog-form-discard]');
+        const target = event.target?.closest?.('[data-ui-dialog-form-open], [data-ui-dialog-form-cancel]');
         if (!target || !scope.contains(target)) return;
         if (target.hasAttribute('data-ui-dialog-form-open')) open(target, { focus: target.getAttribute('data-ui-dialog-form-focus') });
-        else if (target.hasAttribute('data-ui-dialog-form-cancel')) requestClose();
-        else if (target.hasAttribute('data-ui-dialog-form-keep')) confirmDialog()?.close();
-        else closeNow();
+        else requestClose();
     };
     // Escape: ask first when something is unsaved (the nested confirm handles its own Escape natively).
     const onCancel = event => {

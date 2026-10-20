@@ -29,9 +29,4 @@
             {{ $isEdit ? __('lf.LF_common_button_save_changes') : __('lf.LF_course_template_action_create') }}
         </button>
     </footer>
-    <x-ui-dialog-discard
-        :title="__('lf.LF_course_template_dialog_discard_title')"
-        :text="__('lf.LF_course_template_dialog_discard_text')"
-        :keep="__('lf.LF_course_template_dialog_keep_editing')"
-        :discard="__('lf.LF_course_template_dialog_discard')" />
 </form>

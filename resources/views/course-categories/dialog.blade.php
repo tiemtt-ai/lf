@@ -28,22 +28,4 @@
             {{ $isEdit ? __('lf.LF_common_button_save_changes') : __('lf.LF_course_category_common_create') }}
         </button>
     </footer>
-    <dialog class="ui-modal" data-columns="1" aria-labelledby="category-dialog-discard-title" data-ui-dialog-form-confirm>
-        <div class="ui-modal__form">
-            <header class="ui-modal__header">
-                <h3 id="category-dialog-discard-title">{{ __('lf.LF_course_category_dialog_discard_title') }}</h3>
-            </header>
-            <div class="ui-modal__body">
-                <p>{{ __('lf.LF_course_category_dialog_discard_text') }}</p>
-            </div>
-            <footer class="ui-modal__footer">
-                <button type="button" class="ui-button cursor-interaction" data-ui-dialog-form-keep>
-                    {{ __('lf.LF_course_category_dialog_keep_editing') }}
-                </button>
-                <button type="button" class="ui-button ui-button--primary cursor-interaction" data-ui-dialog-form-discard>
-                    {{ __('lf.LF_course_category_dialog_discard') }}
-                </button>
-            </footer>
-        </div>
-    </dialog>
 </form>

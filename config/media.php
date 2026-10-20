@@ -9,7 +9,10 @@ return [
     'region' => env('MEDIA_AWS_DEFAULT_REGION', env('AWS_DEFAULT_REGION')),
     'storage_class' => env('MEDIA_AWS_STORAGE_CLASS'),
     'signed_url_ttl_minutes' => (int) env('MEDIA_SIGNED_URL_TTL_MINUTES', 10),
-    'max_upload_kilobytes' => (int) env('MEDIA_MAX_UPLOAD_KILOBYTES', 102400),
+    // Upload size policy: a video may be up to 1 GB, any other media up to 500 MB. These settings can only lower the
+    // limits (UploadLimit caps them at the policy values); PHP's upload_max_filesize / post_max_size lower them further.
+    'max_upload_kilobytes' => (int) env('MEDIA_MAX_UPLOAD_KILOBYTES', 512000),
+    'video_max_upload_kilobytes' => (int) env('MEDIA_VIDEO_MAX_UPLOAD_KILOBYTES', 1048576),
     'ffprobe_binary' => env('MEDIA_FFPROBE_BINARY', 'ffprobe'),
     'ffprobe_timeout_seconds' => (int) env('MEDIA_FFPROBE_TIMEOUT_SECONDS', 15),
     'processing' => [

@@ -737,9 +737,13 @@ class CourseTemplateController extends Controller
             'intro_video_file' => [
                 'nullable',
                 'file',
+                'max:'.UploadLimit::effectiveVideoKilobytes(),
+            ],
+            'intro_document_file' => [
+                'nullable',
+                'file',
                 'max:'.UploadLimit::effectiveKilobytes(),
             ],
-            'intro_document_file' => ['nullable', 'file', 'max:'.UploadLimit::effectiveKilobytes()],
         ];
     }
 

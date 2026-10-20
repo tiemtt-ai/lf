@@ -945,3 +945,32 @@ dialog; 12 older tests rewritten from the edit page to the fragment; template-re
 24 (7 mutations killed for focus/auto-open), browser on a rendered page: summary card, `#difficulty_level` opens the dialog
 with the combobox focused, save posts to the workspace context and follows the redirect. Not verified: the guidance flash
 after create on the real workspace, teacher view, a real server round-trip.
+
+### Template popup layout adjusted — 2026-10-19
+
+Owner: short and detailed description each take the full width (2 columns); the three uploads (image, video, document) share
+one row; the embedded video is the last row. Layout now: title; category | publisher; status | difficulty; minutes | lesson
+count; short description (full); description (full); uploads row (image | video tile | document); last row: video source
+select | embed URL (shown only when the source is "embed"). The video tile appears in the uploads row only when the source is
+"upload". Ids and names are unchanged, so readiness links (`#intro_video_source`, `#intro_image_file`, ...) still focus the
+right field. New key `LF_course_template_embed_url_label`. Checked in a browser: embed state (select + URL in the last row,
+image and document tiles in one row) and upload state (three tiles in one row).
+
+### Template popup: media first, embedded video hidden, size policy; discard confirmation — 2026-10-19
+
+Owner decisions on the template popup: (1) the embedded-video option is hidden for now: only image, video upload and
+document remain; a template that already has an embed keeps it untouched (hidden `intro_video_source=embed` and URL are
+sent) until a video file is chosen, which switches the source to `upload`; discarding the chosen file restores the saved
+source (the media slot now fires a `change` event on discard so the form can follow); readiness links to
+`#intro_video_source` focus the video tile through `data-ui-focus-alias`. (2) The three uploads form one row **above** the
+descriptions. (3) Upload size policy, app-wide: a video up to **1 GB**, any other media up to **500 MB**
+(`UploadLimit::MAX_VIDEO_KILOBYTES` / `MAX_OTHER_KILOBYTES`; `media.max_upload_kilobytes` and
+`media.video_max_upload_kilobytes` can only lower them; PHP's `upload_max_filesize` / `post_max_size` still apply). Used by
+template, product, activity video and media-library validation and by the upload hints. The local `.env` has
+`MEDIA_MAX_UPLOAD_KILOBYTES=1048576`, which the policy cap now overrides to 500 MB for non-video media.
+
+Discard confirmation: the nested custom dialog was removed. Closing a dialog form with unsaved changes (Cancel, ×, Escape)
+now asks through the shared `window.LFConfirm` (danger tone, warning icon, Cancel focused; standard §26): title "Bỏ thay đổi
+chưa lưu?", text "Bạn có thay đổi chưa lưu. Nếu đóng bây giờ, các thay đổi này sẽ bị mất.", action "Bỏ thay đổi". Applies to the
+category and template popups. Verification: Node 228 tests (confirm flow, 5 mutations killed), PHP limits tests, browser
+check of the layout, the hints (500 MB / 1 GB / 500 MB) and the confirmation. Not verified: a real 1 GB upload.

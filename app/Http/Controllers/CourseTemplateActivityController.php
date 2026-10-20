@@ -961,7 +961,7 @@ class CourseTemplateActivityController extends Controller
             'activity_video_file' => [
                 'nullable',
                 'file',
-                'max:'.UploadLimit::effectiveKilobytes(),
+                'max:'.UploadLimit::effectiveVideoKilobytes(),
             ],
             'activity_audio_file' => [
                 'nullable',

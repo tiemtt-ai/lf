@@ -289,7 +289,8 @@ class CourseTemplateManagementTest extends TestCase
         $this->assertTrue($this->selectOptionIsSelected($create->getContent(), 'difficulty_level', ''));
         $this->assertFalse($this->selectOptionIsSelected($create->getContent(), 'category_id', (string) $categoryId));
         $create->assertSee('data-ui-kit-select', false)
-            ->assertSee('selectedVideoSource', false);
+            ->assertSee('name="intro_video_source"', false)
+            ->assertDontSee('<option value="embed"', false);
 
         $templateId = $this->createTemplate($customerId, 'Saved Selects', 'unused', $admin->id);
         DB::table('core_course_templates')->where('id', $templateId)->update([
@@ -1020,7 +1021,7 @@ class CourseTemplateManagementTest extends TestCase
             $count = fn (string $xpath) => $this->templateHtmlCount($html, $xpath);
             $this->assertSame(1, $count('//form['.$hasClass('ui-modal__form').' and @novalidate]'), $mode);
             $this->assertSame(1, $count('//div['.$hasClass('ui-modal__body').']//div['.$hasClass('ui-modal__grid').']'), $mode);
-            $this->assertSame(1, $count('//dialog[@data-ui-dialog-form-confirm]'), $mode);
+            $this->assertSame(1, $count('//dialog'), $mode.': only the media preview dialog, no nested discard dialog');
             $this->assertSame(2, $count('//button[@data-ui-dialog-form-cancel]'), $mode);
             $this->assertSame(3, $count('//div[@data-ui-media-slot]'), $mode);
             $this->assertSame(
@@ -1037,7 +1038,10 @@ class CourseTemplateManagementTest extends TestCase
             }
             $this->assertSame(0, $count('//*[@id="status" or @id="title" or @id="keyword"]'), 'ids must not collide with the list filters');
             $this->assertSame(3, $count('//input[@type="hidden" and (@name="intro_image_media_file_id" or @name="intro_video_media_file_id" or @name="intro_document_media_file_id")]'), $mode);
-            $this->assertSame(3, $count('//select[@data-ui-kit-select and (@name="category_id" or @name="difficulty_level" or @name="intro_video_source")]'), $mode);
+            $this->assertSame(3, $count('//select[@data-ui-kit-select and (@name="category_id" or @name="difficulty_level" or @name="status")]'), $mode);
+            $this->assertSame(0, $count('//select[@name="intro_video_source"]'), 'embedded video is hidden for now');
+            $this->assertSame(1, $count('//input[@type="hidden" and @name="intro_video_source"]'), $mode);
+            $this->assertSame(0, $count('//input[@name="intro_video_embed_url" and not(@type="hidden")]'), $mode);
             $this->assertStringContainsString('x-on:ui-media-preview', $html);
         }
         $this->assertSame(1, $this->templateHtmlCount($fragments['edit'], '//input[@name="_method" and @value="PUT"]'));
@@ -1229,6 +1233,44 @@ class CourseTemplateManagementTest extends TestCase
         }
     }
 
+    public function test_template_media_uploads_use_the_video_and_other_media_limits(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $this->createCategory($customerId, 'General', 'general');
+        $templateId = $this->createTemplate($customerId, 'Limits', 'limits', $admin->id);
+
+        // Lower the policy so small fake files can prove which limit each field uses (video 300 KB, other 100 KB).
+        config(['media.max_upload_kilobytes' => 100, 'media.video_max_upload_kilobytes' => 300]);
+
+        $this->actingAs($admin)
+            ->putJson("https://tenant-a.localhost/admin/course-templates/{$templateId}", $this->validTemplateData([
+                'intro_video_source' => 'upload',
+                'intro_image_file' => UploadedFile::fake()->image('big.png')->size(200),
+                'intro_video_file' => UploadedFile::fake()->create('ok.mp4', 200, 'video/mp4'),
+            ]))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['intro_image_file'])
+            ->assertJsonMissingValidationErrors(['intro_video_file']);
+
+        $this->actingAs($admin)
+            ->putJson("https://tenant-a.localhost/admin/course-templates/{$templateId}", $this->validTemplateData([
+                'intro_video_source' => 'upload',
+                'intro_image_file' => null,
+                'intro_document_file' => UploadedFile::fake()->create('doc.pdf', 200, 'application/pdf'),
+                'intro_video_file' => UploadedFile::fake()->create('toobig.mp4', 400, 'video/mp4'),
+            ]))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['intro_document_file', 'intro_video_file']);
+
+        $hints = $this->withHeader('X-Requested-With', 'XMLHttpRequest')
+            ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/form")
+            ->assertOk()
+            ->getContent();
+        $this->assertSame(2, substr_count($hints, 'Tối đa: 100 KB'));
+        $this->assertSame(1, substr_count($hints, 'Tối đa: 300 KB'));
+    }
+
     public function test_guest_and_student_cannot_access_template_management(): void
     {
         $customerId = $this->createTenant();
@@ -1272,8 +1314,10 @@ class CourseTemplateManagementTest extends TestCase
         $this->withHeader('X-Requested-With', 'XMLHttpRequest')
             ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/form")
             ->assertOk()
-            ->assertSee('value="https://www.youtube.com/watch?v=dQw4w9WgXcQ"', false)
-            ->assertSee('<option value="embed" selected', false);
+            // Hidden for now, but a saved embed is carried through untouched until a video file is chosen.
+            ->assertSee('<input type="hidden" name="intro_video_embed_url" value="https://www.youtube.com/watch?v=dQw4w9WgXcQ"', false)
+            ->assertSee('savedVideoSource', false)
+            ->assertDontSee('<option value="embed"', false);
     }
 
     private function createTenant(string $slug = 'tenant-a'): int

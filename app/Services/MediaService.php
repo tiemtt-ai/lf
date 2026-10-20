@@ -840,7 +840,7 @@ class MediaService
                 'file' => [
                     'required',
                     'file',
-                    'max:'.UploadLimit::effectiveKilobytes(),
+                    'max:'.UploadLimit::effectiveKilobytesForFile($file),
                 ],
                 'category_id' => [
                     'nullable',

@@ -76,4 +76,37 @@ class UploadLimitTest extends TestCase
             $html
         );
     }
+
+    public function test_policy_limits_video_to_one_gigabyte_and_other_media_to_five_hundred_megabytes(): void
+    {
+        // Even when the environment allows more, the policy caps apply (PHP's own limits are not involved here).
+        config(['media.max_upload_kilobytes' => 4 * 1024 * 1024, 'media.video_max_upload_kilobytes' => 8 * 1024 * 1024]);
+        $big = '10G';
+
+        $this->assertSame(500 * 1024, UploadLimit::MAX_OTHER_KILOBYTES);
+        $this->assertSame(1024 * 1024, UploadLimit::MAX_VIDEO_KILOBYTES);
+        $this->assertSame(
+            UploadLimit::MAX_OTHER_KILOBYTES,
+            UploadLimit::effectiveKilobytes(uploadMaxFilesize: $big, postMaxSize: $big)
+        );
+
+        // The environment can still lower them.
+        config(['media.max_upload_kilobytes' => 100 * 1024, 'media.video_max_upload_kilobytes' => 200 * 1024]);
+        $this->assertSame(100 * 1024, UploadLimit::effectiveKilobytes(uploadMaxFilesize: $big, postMaxSize: $big));
+    }
+
+    public function test_video_and_other_upload_fields_use_their_own_limits_in_validation_and_hints(): void
+    {
+        $other = UploadLimit::effectiveKilobytes();
+        $video = UploadLimit::effectiveVideoKilobytes();
+        $this->assertLessThanOrEqual(UploadLimit::MAX_OTHER_KILOBYTES, $other);
+        $this->assertLessThanOrEqual(UploadLimit::MAX_VIDEO_KILOBYTES, $video);
+        $this->assertGreaterThanOrEqual($other, $video);
+
+        app()->setLocale('vi');
+        $videoHint = Blade::render('<x-upload-hint :formats="[\'MP4\']" :max-size="\\App\\Support\\UploadLimit::effectiveVideoKilobytes()" />');
+        $otherHint = Blade::render('<x-upload-hint :formats="[\'PDF\']" />');
+        $this->assertStringContainsString(UploadLimit::humanReadable($video), $videoHint);
+        $this->assertStringContainsString(UploadLimit::humanReadable($other), $otherHint);
+    }
 }

@@ -2,17 +2,24 @@
 
 namespace App\Support;
 
+use Illuminate\Http\UploadedFile;
+
 class UploadLimit
 {
+    /** Policy: a video may be up to 1 GB, any other media up to 500 MB. */
+    public const MAX_VIDEO_KILOBYTES = 1048576;
+
+    public const MAX_OTHER_KILOBYTES = 512000;
+
     public static function effectiveKilobytes(
         ?int $productLimitKilobytes = null,
         ?string $uploadMaxFilesize = null,
         ?string $postMaxSize = null
     ): int {
         $limits = [];
-        $productLimitKilobytes ??= (int) config(
-            'media.max_upload_kilobytes',
-            102400
+        $productLimitKilobytes ??= min(
+            (int) config('media.max_upload_kilobytes', self::MAX_OTHER_KILOBYTES),
+            self::MAX_OTHER_KILOBYTES
         );
 
         if ($productLimitKilobytes > 0) {
@@ -31,6 +38,24 @@ class UploadLimit
         }
 
         return $limits === [] ? 0 : min($limits);
+    }
+
+    /** The limit for a video upload (still lowered by PHP's own limits). */
+    public static function effectiveVideoKilobytes(): int
+    {
+        return self::effectiveKilobytes(min(
+            (int) config('media.video_max_upload_kilobytes', self::MAX_VIDEO_KILOBYTES),
+            self::MAX_VIDEO_KILOBYTES
+        ));
+    }
+
+    /** The limit that applies to a file whose type is only known once it arrives (e.g. the media library). */
+    public static function effectiveKilobytesForFile(UploadedFile $file): int
+    {
+        $isVideo = str_starts_with((string) $file->getMimeType(), 'video/')
+            || in_array(strtolower($file->getClientOriginalExtension()), ['mp4', 'webm', 'mov', 'avi', 'm4v', 'mkv'], true);
+
+        return $isVideo ? self::effectiveVideoKilobytes() : self::effectiveKilobytes();
     }
 
     public static function parseIniSizeToKilobytes(string|false|null $value): ?int

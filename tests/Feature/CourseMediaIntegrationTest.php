@@ -1148,8 +1148,8 @@ class CourseMediaIntegrationTest extends TestCase
             ->assertOk()
             ->assertSee('name="intro_video_source"', false)
             ->assertSee('name="intro_video_file"', false)
-            ->assertSee('input.disabled = selectedVideoSource !== \'upload\'', false)
-            ->assertSee(':disabled="selectedVideoSource !== \'embed\'"', false);
+            ->assertSee(':value="videoFileChosen ? \'upload\' : (savedVideoSource || \'\')"', false)
+            ->assertSee('videoFileChosen = ($event.target.files?.length ?? 0) > 0', false);
 
         $response = $this->actingAs($admin)->post(
             "https://tenant-a.localhost/admin/course-templates/{$templateId}",
