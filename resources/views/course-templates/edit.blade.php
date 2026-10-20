@@ -116,27 +116,54 @@
                 $dash = '—';
                 $introVideoName = $introVideoMedia?->display_name
                     ?? ($introVideoEmbedUrl ? ucfirst((string) $template->intro_video_provider) : null);
-                $summary = [
-                    ['title', __('lf.LF_course_template_common_name'), $template->title],
-                    ['category_id', __('lf.LF_course_template_common_category'), $categoryName],
-                    ['publisher_name', __('lf.LF_course_template_common_publisher_name'), $template->publisher_name],
-                    ['status', __('lf.LF_course_template_common_status'), null],
-                    ['difficulty_level', __('lf.LF_course_template_common_difficulty_level'), $template->difficulty_level ? __('lf.LF_course_template_common_'.$template->difficulty_level) : null],
-                    ['estimated_minutes_per_lesson', __('lf.LF_course_template_estimated_minutes_per_lesson'), $template->estimated_minutes_per_lesson],
-                    ['estimated_lesson_count', __('lf.LF_course_template_estimated_lesson_count'), $template->estimated_lesson_count],
-                    ['short_description', __('lf.LF_course_template_common_short_description'), $template->short_description],
-                    ['description', __('lf.LF_course_template_common_description'), $template->description ? \Illuminate\Support\Str::limit(strip_tags((string) $template->description), 320) : null],
-                    ['intro_image_file', __('lf.LF_course_template_intro_image'), $introImageMedia?->display_name],
-                    ['intro_video_source', __('lf.LF_course_template_intro_video'), $introVideoName],
-                    ['intro_document_file', __('lf.LF_course_template_intro_document'), $introDocumentMedia?->display_name],
+                $groups = [
+                    'general' => [__('lf.LF_course_template_summary_general'), [
+                        ['title', __('lf.LF_course_template_common_name'), $template->title],
+                        ['category_id', __('lf.LF_course_template_common_category'), $categoryName],
+                        ['publisher_name', __('lf.LF_course_template_common_publisher_name'), $template->publisher_name],
+                        ['difficulty_level', __('lf.LF_course_template_common_difficulty_level'), $template->difficulty_level ? __('lf.LF_course_template_common_'.$template->difficulty_level) : null],
+                        ['estimated_minutes_per_lesson', __('lf.LF_course_template_estimated_minutes_per_lesson'), $template->estimated_minutes_per_lesson],
+                        ['estimated_lesson_count', __('lf.LF_course_template_estimated_lesson_count'), $template->estimated_lesson_count],
+                        ['status', __('lf.LF_course_template_common_status'), null],
+                    ]],
+                    'media' => [__('lf.LF_course_template_summary_media'), [
+                        ['intro_image_file', __('lf.LF_course_template_intro_image'), $introImageMedia?->display_name, 'image',
+                            $introImageMedia?->signed_url ? ['kind' => 'image', 'url' => $introImageMedia->signed_url, 'mimeType' => $introImageMedia->mime_type] : null],
+                        ['intro_video_source', __('lf.LF_course_template_intro_video'), $introVideoName, 'video',
+                            $introVideoMedia?->signed_url
+                                ? ['kind' => 'video', 'url' => $introVideoMedia->signed_url, 'mimeType' => $introVideoMedia->mime_type]
+                                : ($introVideoEmbedUrl ? ['kind' => 'embed', 'url' => $introVideoEmbedUrl, 'mimeType' => ''] : null)],
+                        ['intro_document_file', __('lf.LF_course_template_intro_document'), $introDocumentMedia?->display_name, 'document',
+                            $introDocumentMedia?->signed_url ? ['kind' => 'document', 'url' => $introDocumentMedia->signed_url, 'mimeType' => $introDocumentMedia->mime_type] : null],
+                    ]],
+                    'content' => [__('lf.LF_course_template_summary_content'), [
+                        ['short_description', __('lf.LF_course_template_common_short_description'), $template->short_description],
+                        ['description', __('lf.LF_course_template_common_description'), $template->description ? \Illuminate\Support\Str::limit(strip_tags((string) $template->description), 320) : null],
+                    ]],
                 ];
             @endphp
-            <div class="lf-admin-ui lf-admin-ui--list" data-ui-dialog-form-scope>
+            <div class="lf-admin-ui lf-admin-ui--list" data-ui-dialog-form-scope
+                 x-data="{
+                     previewOpen: false,
+                     preview: { name: '', url: '', mimeType: '', mediaType: '' },
+                     openPreview(detail) {
+                         if (! ['image', 'video', 'embed'].includes(detail.kind)) {
+                             window.open(detail.url, '_blank', 'noopener');
+                             return;
+                         }
+                         this.preview = { name: detail.name, url: detail.url, mimeType: detail.mimeType || '', mediaType: detail.kind };
+                         this.previewOpen = true;
+                     },
+                     closePreview() {
+                         this.previewOpen = false;
+                         this.preview = { name: '', url: '', mimeType: '', mediaType: '' };
+                     },
+                 }">
                 <x-ui-list-toasts />
 
                 <section class="mk-section" aria-labelledby="course-template-information-title">
                     <div class="ui-summary-head">
-                        <h2 id="course-template-information-title" class="admin-form-section-title">{{ __('lf.LF_course_template_tab_information') }}</h2>
+                        <h2 id="course-template-information-title">{{ __('lf.LF_course_template_tab_information') }}</h2>
                         <button type="button" class="ui-button ui-button--primary cursor-interaction"
                                 data-ui-dialog-form-open data-ui-dialog-form-hash-open aria-haspopup="dialog"
                                 data-url="{{ route($routePrefix.'.form', ['id' => $template->id, 'context' => 'workspace']) }}">
@@ -144,20 +171,46 @@
                         </button>
                     </div>
 
-                    <dl class="ui-summary">
-                        @foreach ($summary as [$field, $label, $value])
-                            <div class="ui-summary__item" data-summary-field="{{ $field }}" @class(['ui-summary__item--wide' => in_array($field, ['short_description', 'description'], true)])>
-                                <dt class="ui-field__label">{{ $label }}</dt>
-                                <dd>
-                                    @if ($field === 'status')
-                                        <span class="ui-status ui-status--{{ $template->status }}">{{ __('lf.LF_course_template_common_'.$template->status) }}</span>
-                                    @else
-                                        {{ $value !== null && $value !== '' ? $value : $dash }}
-                                    @endif
-                                </dd>
-                            </div>
-                        @endforeach
-                    </dl>
+                    @foreach ($groups as $groupKey => [$groupTitle, $items])
+                        <section class="ui-summary-group" aria-labelledby="course-template-summary-{{ $groupKey }}">
+                            <h3 id="course-template-summary-{{ $groupKey }}">{{ $groupTitle }}</h3>
+                            <dl @class(['ui-summary', 'ui-summary--media' => $groupKey === 'media'])>
+                                @foreach ($items as $item)
+                                    @php([$field, $label, $value] = $item)
+                                    @php($icon = $item[3] ?? null)
+                                    @php($preview = $item[4] ?? null)
+                                    <div data-summary-field="{{ $field }}" @class(['ui-summary__item', 'ui-summary__item--wide' => in_array($field, ['title', 'short_description', 'description'], true)])>
+                                        <dt class="ui-field__label">{{ $label }}</dt>
+                                        <dd>
+                                            @if ($field === 'status')
+                                                <span class="ui-status ui-status--{{ $template->status }}">{{ __('lf.LF_course_template_common_'.$template->status) }}</span>
+                                            @elseif ($groupKey === 'media')
+                                                @if ($preview)
+                                                    <button type="button" class="ui-summary__file ui-summary__file--action cursor-interaction"
+                                                            aria-haspopup="dialog"
+                                                            aria-label="{{ __('lf.LF_media_slot_view') }}: {{ $value }}"
+                                                            x-on:click="openPreview(@js(['name' => $value] + $preview))">
+                                                        <x-backend-icon :name="$icon" class="ui-icon" />
+                                                        <span class="ui-summary__file-name">{{ $value }}</span>
+                                                        <x-backend-icon name="eye" class="ui-icon ui-summary__file-view" />
+                                                    </button>
+                                                @else
+                                                    <span @class(['ui-summary__file', 'ui-summary__file--empty' => $value === null || $value === ''])>
+                                                        @if ($value !== null && $value !== '')
+                                                            <x-backend-icon :name="$icon" class="ui-icon" />
+                                                        @endif
+                                                        {{ $value !== null && $value !== '' ? $value : $dash }}
+                                                    </span>
+                                                @endif
+                                            @else
+                                                {{ $value !== null && $value !== '' ? $value : $dash }}
+                                            @endif
+                                        </dd>
+                                    </div>
+                                @endforeach
+                            </dl>
+                        </section>
+                    @endforeach
 
                     @if ($template->status === \App\Support\CourseTemplateStatus::INACTIVE
                         && \Illuminate\Support\Facades\Route::has($routePrefix.'.archive'))
@@ -176,6 +229,20 @@
                         </div>
                     @endif
                 </section>
+
+                <x-media-preview-modal ui-kit id="course-template-summary-preview-title" show="previewOpen" close="closePreview()" title="preview.name" compact="false">
+                    <template x-if="previewOpen && preview.mediaType === 'image'">
+                        <img x-bind:src="preview.url" x-bind:alt="preview.name">
+                    </template>
+                    <template x-if="previewOpen && preview.mediaType === 'video'">
+                        <video controls preload="metadata" autoplay x-bind:src="preview.url"></video>
+                    </template>
+                    <template x-if="previewOpen && preview.mediaType === 'embed'">
+                        <iframe x-bind:src="preview.url" x-bind:title="preview.name" loading="lazy"
+                                sandbox="allow-scripts allow-same-origin allow-presentation"
+                                allow="fullscreen; picture-in-picture" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+                    </template>
+                </x-media-preview-modal>
 
                 <dialog class="ui-modal" data-columns="2" aria-labelledby="template-dialog-title" data-ui-dialog-form data-field-id-prefix="template-form-"
                         data-msg-load-error="{{ __('lf.LF_course_template_dialog_load_error') }}"
