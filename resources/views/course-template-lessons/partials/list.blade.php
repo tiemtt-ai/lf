@@ -133,13 +133,11 @@
                                     x-bind:aria-expanded="open.toString()" aria-expanded="true"
                                     x-on:click="open = ! open"><x-backend-icon name="chevron-down" class="ui-icon course-template-activity-fold-icon" x-bind:class="{ 'is-collapsed': ! open }" />{{ __('lf.LF_course_template_activity_common_list_title') }} ({{ $lessonActivities->count() }})</button>
                         </h5>
-                        <a href="{{ route(
-                            $activityRoutePrefix.'.create',
-                            $lessonParameters
-                        ) }}"
-                           class="admin-text-action">
+                        <button type="button" class="admin-link-button admin-text-action"
+                                data-ui-dialog-form-open aria-haspopup="dialog"
+                                data-url="{{ route($activityRoutePrefix.'.create', $lessonParameters) }}">
                             {{ __('lf.LF_course_template_activity_common_add_action') }}
-                        </a>
+                        </button>
                     </div>
 
                     <div class="course-template-activity-list" id="course-template-lesson-{{ $lesson->id }}-activity-list" x-show="open">
@@ -309,6 +307,15 @@
                                             <x-backend-icon name="eye" class="ui-icon" />
                                             <span class="ui-sr-only">{{ __('lf.LF_common_button_view') }}</span>
                                         </button>
+                                    @elseif (! in_array(($activity->view_kind ?? 'readonly'), ['media', 'external'], true))
+                                        <button type="button" class="admin-link-button admin-text-action ui-row-action"
+                                                data-ui-dialog-form-open aria-haspopup="dialog"
+                                                data-url="{{ $activityViewUrl }}"
+                                                aria-label="{{ __('lf.LF_common_button_view') }}: {{ $activity->title }}"
+                                                data-tooltip="{{ __('lf.LF_common_button_view') }}">
+                                            <x-backend-icon name="eye" class="ui-icon" />
+                                            <span class="ui-sr-only">{{ __('lf.LF_common_button_view') }}</span>
+                                        </button>
                                     @else
                                         <a class="admin-text-action ui-row-action" href="{{ $activityViewUrl }}"
                                            aria-label="{{ __('lf.LF_common_button_view') }}: {{ $activity->title }}"
@@ -321,59 +328,32 @@
                                             <span class="ui-sr-only">{{ __('lf.LF_common_button_view') }}</span>
                                         </a>
                                     @endif
-                                    <a class="admin-text-action ui-row-action" href="{{ route(
-                                        $activityRoutePrefix.'.edit',
-                                        $activityParameters
-                                    ) }}"
-                                       aria-label="{{ __('lf.LF_course_template_activity_common_edit') }}: {{ $activity->title }}"
-                                       data-tooltip="{{ __('lf.LF_course_template_activity_common_edit') }}">
+                                    <button type="button" class="admin-link-button admin-text-action ui-row-action"
+                                            data-ui-dialog-form-open aria-haspopup="dialog"
+                                            data-url="{{ route($activityRoutePrefix.'.edit', $activityParameters) }}"
+                                            aria-label="{{ __('lf.LF_course_template_activity_common_edit') }}: {{ $activity->title }}"
+                                            data-tooltip="{{ __('lf.LF_course_template_activity_common_edit') }}">
                                         <x-backend-icon name="pencil" class="ui-icon" />
                                         <span class="ui-sr-only">{{ __('lf.LF_course_template_activity_common_edit') }}</span>
-                                    </a>
+                                    </button>
+                                    @php
+                                        $activityBlocker = ($activityDeleteBlockers ?? [])[(int) $activity->id] ?? null;
+                                    @endphp
                                     <button type="button"
                                             class="admin-link-button admin-text-action ui-row-action ui-row-action--danger"
+                                            data-ui-row-delete
+                                            data-url="{{ route($activityRoutePrefix.'.destroy', $activityParameters) }}"
+                                            data-confirm-title="{{ __('lf.LF_course_template_activity_delete_title') }}"
+                                            data-confirm-message="{{ __('lf.LF_course_template_activity_delete_confirm', ['name' => $activity->title]) }}"
+                                            data-confirm-label="{{ __('lf.LF_course_template_activity_delete_label') }}"
+                                            @if ($activityBlocker) disabled aria-disabled="true" @endif
                                             aria-label="{{ __('lf.LF_common_button_delete') }}: {{ $activity->title }}"
-                                            data-tooltip="{{ __('lf.LF_common_button_delete') }}"
-                                            x-data
-                                            x-on:click="$dispatch(
-                                                'open-modal',
-                                                'delete-course-template-activity-{{ $activity->id }}'
-                                            )">
+                                            data-tooltip="{{ $activityBlocker ?? __('lf.LF_common_button_delete') }}">
                                         <x-backend-icon name="trash-2" class="ui-icon" />
                                         <span class="ui-sr-only">{{ __('lf.LF_common_button_delete') }}</span>
                                     </button>
                                 </div>
 
-                                <x-modal name="delete-course-template-activity-{{ $activity->id }}"
-                                         focusable>
-                                    <div class="lf-modal-card">
-                                        <h2>
-                                            {{ __('lf.LF_course_template_activity_common_delete_confirm') }}
-                                        </h2>
-                                        <div class="lf-modal-actions">
-                                            <button type="button"
-                                                    class="btn"
-                                                    x-on:click="$dispatch(
-                                                        'close-modal',
-                                                        'delete-course-template-activity-{{ $activity->id }}'
-                                                    )">
-                                                {{ __('lf.LF_course_template_activity_common_delete_no') }}
-                                            </button>
-                                            <form method="POST"
-                                                  action="{{ route(
-                                                      $activityRoutePrefix.'.destroy',
-                                                      $activityParameters
-                                                  ) }}">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit"
-                                                        class="btn btn-primary">
-                                                    {{ __('lf.LF_course_template_activity_common_delete_yes') }}
-                                                </button>
-                                            </form>
-                                        </div>
-                                    </div>
-                                </x-modal>
                             </div>
                         @empty
                             <p class="course-template-activity-empty">

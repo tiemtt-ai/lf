@@ -14,6 +14,7 @@ use App\Services\MediaThumbnailPresenter;
 use App\Services\TrustedVideoUrlService;
 use App\Support\AuditLog;
 use App\Support\CourseTemplateStatus;
+use App\Support\ListReturnUrl;
 use App\Support\TenantContext;
 use App\Support\UploadLimit;
 use Illuminate\Database\QueryException;
@@ -43,6 +44,8 @@ class CourseTemplateController extends Controller
 
     public function index(Request $request): View
     {
+        ListReturnUrl::remember($request, 'course-templates.'.$this->routePrefix($request));
+
         $customerId = $this->customerId();
         $keyword = trim((string) $request->query('keyword', ''));
         $status = $request->query('status');
@@ -257,6 +260,8 @@ class CourseTemplateController extends Controller
             'lessonsBySection' => $publishGraph->lessons->whereNotNull('template_section_id')->groupBy('template_section_id'),
             'activitiesByLesson' => $activitiesByLesson,
             'lessonDeleteBlockers' => $this->lessonDeleteBlockers($customerId, $id, $activitiesByLesson),
+            'activityDeleteBlockers' => $this->activityDeleteBlockers($customerId, $id),
+            'backUrl' => ListReturnUrl::get($request, 'course-templates.'.$routePrefix, route($routePrefix.'.index')),
             ...$this->introductionMediaViewData($template, $customerId, $routePrefix, $publishReadiness),
             'teacherAssignments' => $this->teacherAssignments(
                 $customerId,
@@ -886,6 +891,26 @@ class CourseTemplateController extends Controller
             if (count($activities) > 0) {
                 $blockers[(int) $lessonId] = __('lf.LF_course_template_lesson_delete_blocked_activities');
             }
+        }
+
+        return $blockers;
+    }
+
+    /**
+     * Activities that cannot be deleted because another activity unlocks after them (activity id => message).
+     *
+     * @return array<int, string>
+     */
+    private function activityDeleteBlockers(int $customerId, int $templateId): array
+    {
+        $blockers = [];
+
+        foreach (DB::table('core_course_template_activities')
+            ->where('customer_id', $customerId)
+            ->where('template_id', $templateId)
+            ->whereNotNull('unlock_after_activity_id')
+            ->pluck('unlock_after_activity_id') as $activityId) {
+            $blockers[(int) $activityId] = __('lf.LF_course_template_activity_delete_blocked_unlock');
         }
 
         return $blockers;

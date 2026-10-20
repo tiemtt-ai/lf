@@ -115,6 +115,44 @@ class CourseTemplateManagementTest extends TestCase
         $this->assertSame('11', trim($secondPageSequence->item(0)->textContent));
     }
 
+    public function test_workspace_links_back_to_the_last_list_with_its_filters_for_admin_and_teacher(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $teacher = $this->createUser($customerId, 'teacher');
+        $templateId = $this->createTemplate($customerId, 'Back Link Template', 'back-link-template', $teacher->id);
+
+        foreach ([[$admin, 'admin'], [$teacher, 'teacher']] as [$user, $area]) {
+            $edit = "https://tenant-a.localhost/{$area}/course-templates/{$templateId}/edit";
+            $index = "https://tenant-a.localhost/{$area}/course-templates";
+
+            // No list visited yet in this session: the plain list.
+            $this->actingAs($user)->get($edit)->assertOk()
+                ->assertSee('<div class="page-back">', false)
+                ->assertSee('href="'.$index.'"', false)
+                ->assertSeeText(__('lf.LF_course_template_common_title'));
+
+            // After filtering the list, the link returns to that exact view.
+            $this->actingAs($user)->get($index.'?keyword=Back&status=active&page=1')->assertOk();
+            $this->actingAs($user)->get($edit)->assertOk()
+                ->assertSee('href="'.$index.'?keyword=Back&amp;page=1&amp;status=active"', false);
+        }
+    }
+
+    public function test_back_link_never_points_to_another_host(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, 'Host Template', 'host-template');
+
+        $this->actingAs($admin)
+            ->withSession(['list_return.course-templates.admin.course-templates' => 'https://evil.example/admin/course-templates'])
+            ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit")
+            ->assertOk()
+            ->assertDontSee('evil.example', false)
+            ->assertSee('href="https://tenant-a.localhost/admin/course-templates"', false);
+    }
+
     public function test_template_index_uses_standard_empty_states_for_default_and_filtered_lists(): void
     {
         $customerId = $this->createTenant();

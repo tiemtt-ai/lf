@@ -611,3 +611,15 @@ test('without a chosen file the save still uses fetch (no progress UI)', async (
     assert.equal(t.fetches.length, 2);
     assert.equal(form.progress.hidden, true);
 });
+
+test('opening another form while one is shown (View -> Edit) replaces it and the close of the old one does not tear the new one down', async () => {
+    const t = setup();
+    await opened(t);
+    t.dialog.close = () => { if (!t.dialog.open) return; t.dialog.open = false; t.dialog.calls.push('close'); queueMicrotask(() => t.dialog.listeners.get('close')?.({ target: t.dialog })); };
+    t.clickOn(t.trigger, 'data-ui-dialog-form-open');
+    t.respond(1, t.html('FORM2'));
+    await t.tick(); await t.tick(); await t.tick();
+    assert.equal(t.forms.length, 2);
+    assert.equal(t.dialog.open, true, 'the second form is shown');
+    assert.equal(t.dialog.children.at(-1), t.forms[1], 'and it is still the dialog content after the old close event fired');
+});

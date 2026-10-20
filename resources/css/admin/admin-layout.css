@@ -268,6 +268,11 @@
 #admin-app .admin-content > .page-heading > h1 { margin: 0 0 6px; font: 500 20px/1.45 Arial, sans-serif; }
 #admin-app .page-heading--with-actions { margin-bottom: 16px; }
 #admin-app .admin-content > .page-heading--with-actions > h1 { margin: 0; }
+#admin-app .page-back { margin: 0 0 6px; }
+#admin-app .page-back__link { display: inline-flex; align-items: center; gap: 4px; color: var(--admin-text-muted, #6b7280); font-size: 13px; line-height: 1.4; text-decoration: none; }
+#admin-app .page-back__link:hover { color: var(--admin-primary, #485cc7); }
+#admin-app .page-back__link:focus-visible { outline: 2px solid var(--admin-primary, #485cc7); outline-offset: 2px; border-radius: 3px; }
+#admin-app .page-back__icon { width: 14px; height: 14px; transform: rotate(90deg); }
 #admin-app .page-heading__actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; flex: none; }
 #admin-app .admin-breadcrumb a { color: inherit; }
 #admin-app .admin-breadcrumb a:hover { color: var(--nav-primary); }

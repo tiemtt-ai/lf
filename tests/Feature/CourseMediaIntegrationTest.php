@@ -1808,13 +1808,14 @@ class CourseMediaIntegrationTest extends TestCase
         }
 
         $this->actingAs($teacher)
+            ->withHeaders($this->ajaxHeaders())
             ->get(
                 "https://tenant-a.localhost/teacher/course-templates/{$templateId}/lessons/{$lessonId}/activities/{$activityId}/edit"
             )
             ->assertOk()
-            ->assertSeeText(__('lf.LF_media_replace_video'))
             ->assertDontSeeText('activity-video.mp4')
-            ->assertSee('data-current-media-state="available"', false);
+            ->assertSee('data-saved="true"', false)
+            ->assertSee('name="remove_activity_media"', false);
 
         $outline = $this->actingAs($teacher)
             ->get(
@@ -1909,16 +1910,12 @@ class CourseMediaIntegrationTest extends TestCase
         ]);
 
         $editUrl = "{$collection}/{$activity->id}/edit";
-        $this->actingAs($admin)->get($editUrl)
+        $this->actingAs($admin)->withHeaders($this->ajaxHeaders())->get($editUrl)
             ->assertOk()
-            ->assertSeeText(__('lf.LF_course_template_activity_media_duration'))
             ->assertSee('storedDurationSeconds: 125', false)
             ->assertSee('storedEstimateMinutes: 3', false)
             ->assertSee('x-model.number="estimatedDurationMinutes"', false)
-            ->assertSee(
-                "this.estimatedDurationMinutes = unchanged\n                 ? this.storedEstimateMinutes\n                 : null;",
-                false
-            )
+            ->assertSee('this.estimatedDurationMinutes = unchanged ? this.storedEstimateMinutes : null;', false)
             ->assertSeeText(__('lf.LF_course_template_activity_media_actual_duration'))
             ->assertDontSee('course-template-activity-auto-duration', false)
             ->assertSee(
@@ -2090,50 +2087,33 @@ class CourseMediaIntegrationTest extends TestCase
                 ->value('media_file_id');
             $previewUrl = "https://tenant-a.localhost/admin/course-templates/{$templateId}/activities/{$activityId}/media/{$type}/{$mediaId}";
 
-            $response = $this->actingAs($admin)->get(
+            $response = $this->actingAs($admin)->withHeaders($this->ajaxHeaders())->get(
                 "https://tenant-a.localhost/admin/course-templates/{$templateId}/lessons/{$lessonId}/activities/{$activityId}/edit"
             )->assertOk()
                 ->assertDontSeeText(__('lf.LF_course_template_activity_media_current_file'))
                 ->assertDontSeeText($filename)
-                ->assertSee('data-current-media-state="available"', false)
                 ->assertSee('name="'.$field.'"', false)
                 ->assertDontSee('name="'.$field.'" value=', false)
                 ->assertSeeText('Định dạng:')
                 ->assertSeeText('Tối đa:');
 
+            // Only the slot of the saved type shows the file and can mark it for removal.
             $this->assertSame(1, $this->htmlElementCount(
                 $response->getContent(),
-                '//div[@data-current-media-state="available"]'
-                .'//div[@data-authoring-media-current-row]'
-                .'[.//*[contains(concat(" ", normalize-space(@class), " "), " media-thumbnail ")]'
-                .' and .//*[self::a or self::button][normalize-space()="Xem"]]'
-            ));
-            $this->assertSame(0, $this->htmlElementCount(
-                $response->getContent(),
-                '//div[@data-current-media-state="available"]'
-                .'//*[contains(concat(" ", normalize-space(@class), " "), " course-activity-current-media-required ")]'
+                '//*[@data-ui-media-slot and @data-saved="true" and @data-saved-preview-url="'.$previewUrl.'"]'
+                .'[.//input[@name="'.$field.'"] and .//input[@name="remove_activity_media"]]'
             ));
             $this->assertSame(1, $this->htmlElementCount(
                 $response->getContent(),
-                '//div[contains(concat(" ", normalize-space(@class), " "), " course-template-activity-source-field ")]'
-                .'[.//input[@name="'.$field.'"]'
-                .' and .//div[contains(concat(" ", normalize-space(@class), " "), " course-activity-current-media ")]'
-                .' and .//*[contains(concat(" ", normalize-space(@class), " "), " authoring-media-help ")]]'
+                '//input[@name="remove_activity_media"]'
             ));
-            $this->assertSame(1, $this->htmlElementCount(
+            $this->assertSame(2, $this->htmlElementCount(
                 $response->getContent(),
-                '//div[@data-current-media-state="available"]//input[@name="remove_activity_media"]'
+                '//*[@data-ui-media-slot and @data-saved="false"]'
             ));
 
             if ($type === 'document') {
-                $response
-                    ->assertSee('data-media-thumbnail-kind="pdf"', false)
-                    ->assertSee($previewUrl, false);
-            } else {
-                $this->assertStringContainsString(
-                    str_replace('/', '\\/', $previewUrl),
-                    $response->getContent()
-                );
+                $response->assertSee('data-kind="pdf"', false);
             }
 
             $this->actingAs($admin)->get($previewUrl)
@@ -2159,11 +2139,11 @@ class CourseMediaIntegrationTest extends TestCase
         ]);
         $editUrl = "https://tenant-a.localhost/admin/course-templates/{$templateId}/lessons/{$lessonId}/activities/{$activityId}/edit";
 
-        $this->actingAs($admin)->get($editUrl)
+        $this->actingAs($admin)->withHeaders($this->ajaxHeaders())->get($editUrl)
             ->assertOk()
             ->assertDontSeeText(__('lf.LF_course_template_activity_media_empty'))
             ->assertDontSeeText(__('lf.LF_course_template_activity_media_required_before_publish'))
-            ->assertDontSee('data-current-media-state="empty"', false)
+            ->assertDontSee('data-saved="true"', false)
             ->assertDontSee("/activities/{$activityId}/media/document/", false);
 
         DB::table('core_course_template_activities')->where('id', $activityId)->update([
@@ -2200,16 +2180,14 @@ class CourseMediaIntegrationTest extends TestCase
             ]);
             DB::table($table)->where('id', $id)->update($mutation);
 
-            $response = $this->actingAs($admin)->get($editUrl)
+            $response = $this->actingAs($admin)->withHeaders($this->ajaxHeaders())->get($editUrl)
                 ->assertOk()
                 ->assertSeeText(__('lf.LF_course_template_activity_media_unavailable'))
                 ->assertDontSeeText(__('lf.LF_course_template_activity_media_required_before_publish'))
-                ->assertSee('data-current-media-state="unavailable"', false)
                 ->assertDontSee("/activities/{$activityId}/media/document/{$mediaId}", false);
             $this->assertSame(0, $this->htmlElementCount(
                 $response->getContent(),
-                '//div[@data-current-media-state="unavailable"]'
-                .'//*[self::a or self::button][normalize-space()="Xem"]'
+                '//*[@data-ui-media-slot and @data-saved="true"]'
             ));
         }
     }
@@ -2228,6 +2206,7 @@ class CourseMediaIntegrationTest extends TestCase
         $activityId = DB::table('core_course_template_activities')->where('template_id', $templateId)->value('id');
         $mediaId = DB::table('media_file_usages')->where('owner_type', 'course_activity')->where('owner_id', $activityId)->value('media_file_id');
         $showUrl = $storeUrl.'/'.$activityId;
+        $this->withHeaders($this->ajaxHeaders());
         $ready = $this->get($showUrl)->assertOk()->assertSeeText('Document detail fallback');
         $signedUrl = $ready->viewData('activityMedia')->first()->signed_url;
         $this->assertNotEmpty($signedUrl);
@@ -2451,11 +2430,11 @@ class CourseMediaIntegrationTest extends TestCase
             ->where('usage_type', 'video')->where('status', 'active')->value('media_file_id');
         $this->assertDatabaseHas('media_files', ['id' => $originalMedia->id, 'status' => 'deleted']);
         Storage::disk('media_local')->assertMissing($originalMedia->storage_key);
-        $response = $this->actingAs($admin)->get($editUrl)
+        $response = $this->actingAs($admin)->withHeaders($this->ajaxHeaders())->get($editUrl)
             ->assertOk()
             ->assertDontSeeText('after.mp4')->assertDontSeeText('before.mp4');
         $this->assertStringContainsString(
-            "\\/activities\\/{$activityId}\\/media\\/video\\/{$replacementMediaId}",
+            "/activities/{$activityId}/media/video/{$replacementMediaId}",
             $response->getContent()
         );
 
@@ -2467,7 +2446,7 @@ class CourseMediaIntegrationTest extends TestCase
             ->assertOk()
             ->assertDontSeeText('after.mp4')->assertDontSeeText('invalid.txt');
         $this->assertStringContainsString(
-            "\\/activities\\/{$activityId}\\/media\\/video\\/{$replacementMediaId}",
+            "/activities/{$activityId}/media/video/{$replacementMediaId}",
             $response->getContent()
         );
 
@@ -2650,6 +2629,12 @@ class CourseMediaIntegrationTest extends TestCase
             ->whereIn('usage_type', ['intro_image', 'intro_video', 'intro_document'])
             ->where('status', 'active')
             ->count();
+    }
+
+    /** The activity form is a popup fragment: it answers only XHR. */
+    private function ajaxHeaders(): array
+    {
+        return ['X-Requested-With' => 'XMLHttpRequest'];
     }
 
     private function htmlElementCount(string $html, string $xpath): int

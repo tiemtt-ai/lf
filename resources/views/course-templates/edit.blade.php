@@ -3,6 +3,10 @@
 @section('title', __('lf.LF_course_template_common_edit'))
 @section('page_title', __('lf.LF_course_template_common_edit'))
 
+@section('page_back')
+    <x-page-back-link :href="$backUrl" :label="__('lf.LF_course_template_common_title')" />
+@endsection
+
 @section('vite')
     @parent
     @vite(['resources/css/admin/admin-ui-kit.css', 'resources/js/admin-ui-kit-controls.js', 'resources/js/admin-ui-kit-dialog-form.js', 'resources/js/admin-ui-kit-row-actions.js'])

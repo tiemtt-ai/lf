@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
@@ -196,7 +197,7 @@ class CourseTemplateActivityManagementTest extends TestCase
         )->item(0);
         $this->assertNotNull($activityRow);
         $viewAction = $xpath->query(
-            './/div[contains(concat(" ", normalize-space(@class), " "), " admin-table-actions ")]//a[normalize-space()="Xem"]',
+            './/div[contains(concat(" ", normalize-space(@class), " "), " admin-table-actions ")]//button[normalize-space()="Xem" and @data-ui-dialog-form-open]',
             $activityRow
         )->item(0);
         $this->assertNotNull($viewAction);
@@ -215,7 +216,7 @@ class CourseTemplateActivityManagementTest extends TestCase
                 $templateId,
                 $directLessonId
             )."/{$directActivityId}",
-            $viewAction->getAttribute('href')
+            $viewAction->getAttribute('data-url')
         );
         $this->assertSame(
             0,
@@ -235,7 +236,7 @@ class CourseTemplateActivityManagementTest extends TestCase
         $this->assertSame(
             1,
             $xpath->query(
-                './/div[contains(concat(" ", normalize-space(@class), " "), " admin-table-actions ")]//a[normalize-space()="Sửa"]',
+                './/div[contains(concat(" ", normalize-space(@class), " "), " admin-table-actions ")]//button[normalize-space()="Sửa" and @data-ui-dialog-form-open]',
                 $activityRow
             )->length
         );
@@ -250,21 +251,24 @@ class CourseTemplateActivityManagementTest extends TestCase
         $activityBefore = DB::table('core_course_template_activities')
             ->where('id', $directActivityId)
             ->first();
+        // The read-only view is a popup fragment (XHR only): details, Close and Edit, no field.
+        $viewUrl = $viewAction->getAttribute('data-url');
+        $this->actingAs($admin)->get($viewUrl)->assertNotFound();
         $showResponse = $this->actingAs($admin)
-            ->get($viewAction->getAttribute('href'))
+            ->withHeaders($this->ajaxHeaders())
+            ->get($viewUrl)
             ->assertOk()
             ->assertSeeText('Direct Outline Activity')
-            ->assertSeeText('Quay lại')
+            ->assertSeeText('Đóng')
             ->assertSeeText('Sửa');
         $showXpath = $this->xpath($showResponse->getContent());
-        $readonlyCard = $showXpath->query(
-            '//div[contains(concat(" ", normalize-space(@class), " "), " admin-card ")]'
-            .'[.//h2[normalize-space()="Direct Outline Activity"]]'
-        )->item(0);
-        $this->assertNotNull($readonlyCard);
         $this->assertSame(
             0,
-            $showXpath->query('.//form|.//input|.//select|.//textarea', $readonlyCard)->length
+            $showXpath->query('//input[not(@type="hidden")]|//select|//textarea')->length
+        );
+        $this->assertSame(
+            1,
+            $showXpath->query('//button[@data-ui-dialog-form-open and contains(@data-url, "/activities/'.$directActivityId.'/edit")]')->length
         );
         $this->assertEquals(
             $activityBefore,
@@ -430,9 +434,11 @@ class CourseTemplateActivityManagementTest extends TestCase
             );
 
             $this->actingAs($user)
+                ->withHeaders($this->ajaxHeaders())
                 ->get($collectionUrl.'/create')
                 ->assertOk()
                 ->assertSeeText('Direct Lesson');
+            $this->actingAs($user)->withoutHeader('X-Requested-With')->get($collectionUrl.'/create')->assertNotFound();
 
             $this->actingAs($user)
                 ->post(
@@ -758,7 +764,7 @@ class CourseTemplateActivityManagementTest extends TestCase
         $admin = $this->createUser($customerId, 'customer_admin');
         $url = $this->activityCollectionUrl('admin', $templateId, $sectionId, $lessonId);
 
-        $this->actingAs($admin)->get("{$url}/create")
+        $this->actingAs($admin)->withHeaders($this->ajaxHeaders())->get("{$url}/create")
             ->assertOk()
             ->assertSeeText(__('lf.LF_course_template_activity_learning_availability'))
             ->assertSee('name="learning_phases[]"', false)
@@ -780,7 +786,7 @@ class CourseTemplateActivityManagementTest extends TestCase
             ->where('title', 'After class resource')
             ->value('id');
 
-        $this->actingAs($admin)->get("{$url}/{$activityId}")
+        $this->actingAs($admin)->withHeaders($this->ajaxHeaders())->get("{$url}/{$activityId}")
             ->assertOk()
             ->assertSeeText(__('lf.LF_course_template_activity_learning_availability_after_session'));
     }
@@ -1029,11 +1035,13 @@ class CourseTemplateActivityManagementTest extends TestCase
             )
             ->assertOk()
             ->assertSeeText('+ Thêm hoạt động')
-            ->assertSeeText('Bạn có chắc chắn muốn xóa Activity này không?')
-            ->assertSeeText('Có, xóa')
-            ->assertSeeText('Không');
+            ->assertSee('data-ui-row-delete', false)
+            ->assertSee('data-confirm-title="Xoá hoạt động?"', false)
+            ->assertSee('data-confirm-message="Hoạt động «UI Activity» sẽ bị xoá vĩnh viễn cùng tệp đính kèm và không thể hoàn tác."', false)
+            ->assertDontSeeText('Bạn có chắc chắn muốn xóa Activity này không?');
 
         $response = $this->actingAs($admin)
+            ->withHeaders($this->ajaxHeaders())
             ->get(
                 $this->activityCollectionUrl(
                     'admin',
@@ -1046,7 +1054,7 @@ class CourseTemplateActivityManagementTest extends TestCase
 
         $response
             ->assertSee('completionRuleLabelsByType', false)
-            ->assertSee('x-text="completionRuleLabel(rule)"', false);
+            ->assertSee('syncCompletionOptions', false);
         $this->assertSame(
             'Nghe nội dung',
             __('lf.LF_course_template_activity_common_completion_audio_view')
@@ -1146,6 +1154,7 @@ class CourseTemplateActivityManagementTest extends TestCase
         );
 
         $createResponse = $this->actingAs($admin)
+            ->withHeaders($this->ajaxHeaders())
             ->get("{$collectionUrl}/create")
             ->assertOk()
             ->assertSeeText('Loại hoạt động')
@@ -1158,10 +1167,7 @@ class CourseTemplateActivityManagementTest extends TestCase
         $this->assertActivityTypeSelector($createResponse->getContent());
         $this->assertSame(
             3,
-            substr_count(
-                $createResponse->getContent(),
-                'authoring-media-upload-tile'
-            )
+            $this->xpath($createResponse->getContent())->query('//*[@data-ui-media-slot]')->length
         );
 
         $editResponse = $this->actingAs($admin)
@@ -1175,10 +1181,7 @@ class CourseTemplateActivityManagementTest extends TestCase
         );
         $this->assertSame(
             3,
-            substr_count(
-                $editResponse->getContent(),
-                'authoring-media-upload-tile'
-            )
+            $this->xpath($editResponse->getContent())->query('//*[@data-ui-media-slot]')->length
         );
 
         app()->setLocale('en');
@@ -1189,6 +1192,91 @@ class CourseTemplateActivityManagementTest extends TestCase
             ->assertSee('placeholder="Enter activity description"', false)
             ->assertSee('Select a prerequisite activity')
             ->assertSee('placeholder="Example: 1"', false);
+    }
+
+    public function test_popup_save_answers_json_with_the_toast_redirect_and_keeps_the_background_notice(): void
+    {
+        [$customerId, $templateId, $sectionId, $lessonId] = $this->createHierarchy();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $teacher = $this->createUser($customerId, 'teacher');
+        DB::table('core_course_templates')->where('id', $templateId)->update(['created_by' => $teacher->id]);
+
+        foreach ([[$admin, 'admin'], [$teacher, 'teacher']] as [$user, $area]) {
+            $url = $this->activityCollectionUrl($area, $templateId, $sectionId, $lessonId);
+            $structure = "https://tenant-a.localhost/{$area}/course-templates/{$templateId}/edit"
+                ."?tab=structure#course-template-lesson-{$lessonId}-activities";
+
+            $this->actingAs($user)
+                ->postJson($url, $this->validActivityData(['title' => "{$area} popup activity"]))
+                ->assertCreated()
+                ->assertJson(['message' => __('lf.LF_course_template_activity_common_created'), 'redirect' => $structure])
+                ->assertSessionHas('success', __('lf.LF_course_template_activity_common_created'));
+            $activityId = (int) DB::table('core_course_template_activities')->where('title', "{$area} popup activity")->value('id');
+
+            $this->actingAs($user)
+                ->putJson("{$url}/{$activityId}", $this->validActivityData(['title' => "{$area} popup renamed"]))
+                ->assertOk()
+                ->assertJson(['message' => __('lf.LF_course_template_activity_common_updated'), 'redirect' => $structure]);
+            $this->assertDatabaseHas('core_course_template_activities', ['id' => $activityId, 'title' => "{$area} popup renamed"]);
+
+            $this->actingAs($user)
+                ->postJson($url, $this->validActivityData(['title' => '', 'completion_rule' => 'bogus']))
+                ->assertUnprocessable()
+                ->assertJsonValidationErrors(['title', 'completion_rule']);
+        }
+
+        // Queued background work is announced next to the success toast, in JSON mode too.
+        $this->actingAs($admin)
+            ->postJson($this->activityCollectionUrl('admin', $templateId, $sectionId, $lessonId), $this->validActivityData([
+                'title' => 'Audio with transcription',
+                'activity_type' => 'audio',
+                'completion_rule' => 'view',
+                'speech_to_text' => 1,
+                'processing_locales' => ['vi'],
+                'activity_audio_file' => UploadedFile::fake()->create('lesson.mp3', 32, 'audio/mpeg'),
+            ]))
+            ->assertCreated()
+            ->assertSessionHas('info', __('lf.LF_course_template_activity_stt_queued_notice'));
+    }
+
+    public function test_delete_answers_json_and_an_activity_that_another_unlocks_after_is_blocked_with_a_disabled_button(): void
+    {
+        [$customerId, $templateId, $sectionId, $lessonId] = $this->createHierarchy();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $teacher = $this->createUser($customerId, 'teacher');
+        DB::table('core_course_templates')->where('id', $templateId)->update(['created_by' => $teacher->id]);
+        $firstId = $this->createActivity($customerId, $templateId, $lessonId, 'Unlock First');
+        $secondId = $this->createActivity($customerId, $templateId, $lessonId, 'Unlock Second');
+        $freeId = $this->createActivity($customerId, $templateId, $lessonId, 'Free Activity');
+        DB::table('core_course_template_activities')->where('id', $secondId)->update([
+            'unlock_rule' => 'previous_activity_completed',
+            'unlock_after_activity_id' => $firstId,
+        ]);
+        $url = $this->activityCollectionUrl('admin', $templateId, $sectionId, $lessonId);
+
+        $this->actingAs($admin)->deleteJson("{$url}/{$firstId}")
+            ->assertStatus(409)
+            ->assertJson(['message' => __('lf.LF_course_template_activity_delete_blocked_unlock')]);
+        $this->assertDatabaseHas('core_course_template_activities', ['id' => $firstId]);
+
+        $xpath = $this->xpath($this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit")->getContent());
+        foreach ([$firstId => true, $secondId => false, $freeId => false] as $id => $blocked) {
+            $button = $xpath->query('//button[@data-ui-row-delete and contains(@data-url, "/activities/'.$id.'")]')->item(0);
+            $this->assertNotNull($button);
+            $this->assertSame($blocked, $button->hasAttribute('disabled'));
+        }
+
+        $structure = "https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=structure#course-template-lesson-{$lessonId}-activities";
+        $this->actingAs($admin)->deleteJson("{$url}/{$secondId}")
+            ->assertOk()
+            ->assertJson(['message' => __('lf.LF_course_template_activity_common_deleted'), 'redirect' => $structure])
+            ->assertSessionHas('success', __('lf.LF_course_template_activity_common_deleted'));
+        $this->assertDatabaseMissing('core_course_template_activities', ['id' => $secondId]);
+
+        // Once the dependant is gone the first one can be deleted too (teacher, own template).
+        $teacherUrl = $this->activityCollectionUrl('teacher', $templateId, $sectionId, $lessonId);
+        $this->actingAs($teacher)->deleteJson("{$teacherUrl}/{$firstId}")->assertOk();
+        $this->assertDatabaseMissing('core_course_template_activities', ['id' => $firstId]);
     }
 
     public function test_guest_and_student_cannot_access_activity_management(): void
@@ -1450,6 +1538,12 @@ class CourseTemplateActivityManagementTest extends TestCase
             ."{$templateId}/lessons/{$lessonId}/activities";
     }
 
+    /** The activity form is a popup fragment: it answers only XHR. */
+    private function ajaxHeaders(): array
+    {
+        return ['X-Requested-With' => 'XMLHttpRequest'];
+    }
+
     private function requiredIndicatorCount(string $html, string $field): int
     {
         $previous = libxml_use_internal_errors(true);
@@ -1459,7 +1553,7 @@ class CourseTemplateActivityManagementTest extends TestCase
         libxml_use_internal_errors($previous);
         $xpath = new \DOMXPath($document);
         $query = sprintf(
-            '//label[@for="%s"]//span[contains(concat(" ", normalize-space(@class), " "), " lf-required-indicator ")]',
+            '//label[@for="activity-form-%s"]//span[contains(concat(" ", normalize-space(@class), " "), " ui-field__required ")]',
             $field
         );
 
@@ -1477,7 +1571,7 @@ class CourseTemplateActivityManagementTest extends TestCase
         libxml_use_internal_errors($previous);
         $xpath = new \DOMXPath($document);
         $selectors = $xpath->query(
-            '//select[@id="activity_type" and @name="activity_type"'
+            '//select[@id="activity-form-activity_type" and @name="activity_type"'
             .' and @required]'
         );
 
@@ -1526,7 +1620,7 @@ class CourseTemplateActivityManagementTest extends TestCase
             .' " course-template-lesson-item ")][.//strong[normalize-space()="%s"]]'
             .'//section[contains(concat(" ", normalize-space(@class), " "),'
             .' " course-template-activity-panel ")]'
-            .'//a[@href="%s" and normalize-space()="+ Thêm hoạt động"]',
+            .'//button[@data-ui-dialog-form-open and @data-url="%s" and normalize-space()="+ Thêm hoạt động"]',
             $lessonTitle,
             $expectedUrl
         );

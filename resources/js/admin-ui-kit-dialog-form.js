@@ -50,6 +50,8 @@ export function initUiKitDialogForm(scope, deps = {}) {
     let controls = [];
     let confirming = false;
     let activeXhr = null;
+    // A form replaced by another one (View -> Edit) closes the dialog first; that `close` event must not tear the new form down.
+    let replacedCloses = 0;
     let userCancelled = false;
     const Xhr = deps.XMLHttpRequest ?? win.XMLHttpRequest;
     const abortInFlight = () => { controller?.abort(); activeXhr?.abort?.(); };
@@ -259,7 +261,7 @@ export function initUiKitDialogForm(scope, deps = {}) {
             if (mine !== seq) return;
             const fragment = parse(html).querySelector('form.ui-modal__form');
             if (!fragment) { pageError(message('load-error')); return; }
-            if (dialog.open) closeNow();
+            if (dialog.open) { replacedCloses += 1; closeNow(); }
             teardown();
             const node = win.document.importNode(fragment, true);
             dialog.replaceChildren(node);
@@ -361,6 +363,7 @@ export function initUiKitDialogForm(scope, deps = {}) {
     };
     const onClose = event => {
         if (event.target !== dialog) return;
+        if (replacedCloses > 0) { replacedCloses -= 1; return; }
         seq++;
         abortInFlight();
         teardown();

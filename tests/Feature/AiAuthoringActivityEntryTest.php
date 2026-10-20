@@ -105,7 +105,10 @@ class AiAuthoringActivityEntryTest extends TestCase
         foreach (['document', 'quiz'] as $type) {
             $activityId = $this->activity($this->lessonId, $type);
 
-            $page = $this->actingAs($this->user('customer_admin'))->get($this->activityUrl($activityId));
+            // The activity details are a popup fragment (XHR only).
+            $page = $this->actingAs($this->user('customer_admin'))
+                ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+                ->get($this->activityUrl($activityId));
 
             $page->assertOk();
             $page->assertDontSee('id="ai-authoring"', false);

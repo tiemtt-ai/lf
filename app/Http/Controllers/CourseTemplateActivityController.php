@@ -317,6 +317,8 @@ class CourseTemplateActivityController extends Controller
         int $lessonId,
         ?int $sectionId
     ): View {
+        abort_unless($request->ajax(), 404);
+
         $customerId = $this->customerId();
         [$template, $section, $lesson] = $this->findHierarchy(
             $customerId,
@@ -325,7 +327,7 @@ class CourseTemplateActivityController extends Controller
             $lessonId
         );
 
-        return view('course-template-activities.create', [
+        return view('course-template-activities.dialog', [
             'template' => $template,
             'section' => $section,
             'lesson' => $lesson,
@@ -418,29 +420,17 @@ class CourseTemplateActivityController extends Controller
             return $activityId;
         });
 
-        $response = redirect()
-            ->to(
-                route(
-                    $this->templateRoutePrefix($request).'.edit',
-                    $templateId
-                )."?tab=structure#course-template-lesson-{$lessonId}-activities"
+        return $this->savedResponse(
+            $request,
+            'lf.LF_course_template_activity_common_created',
+            route($this->templateRoutePrefix($request).'.edit', $templateId)
+                ."?tab=structure#course-template-lesson-{$lessonId}-activities",
+            201,
+            fn () => redirect()->to(
+                route($this->templateRoutePrefix($request).'.edit', $templateId)
+                    ."?tab=structure#course-template-lesson-{$lessonId}-activities"
             )
-            ->with('success', __('lf.LF_course_template_activity_common_created'));
-
-        if ($this->structuredExtractionRequested($request)) {
-            $response->with('info', __('lf.LF_course_template_activity_structured_queued_notice'));
-        } elseif ($this->audioSpeechToTextRequested($request)) {
-            $response->with('info', __('lf.LF_course_template_activity_stt_queued_notice'));
-        } elseif ($this->videoSpeechToTextRequested($request)) {
-            $response->with(
-                $this->videoSttQualification->isQualified() ? 'info' : 'warning',
-                __($this->videoSttQualification->isQualified()
-                    ? 'lf.LF_course_template_activity_video_stt_queued_notice'
-                    : $this->videoSttQualification->status()['message_key'])
-            );
-        }
-
-        return $response;
+        );
     }
 
     private function editView(
@@ -450,6 +440,8 @@ class CourseTemplateActivityController extends Controller
         int $activityId,
         ?int $sectionId
     ): View {
+        abort_unless($request->ajax(), 404);
+
         $customerId = $this->customerId();
         [$template, $section, $lesson] = $this->findHierarchy(
             $customerId,
@@ -472,7 +464,7 @@ class CourseTemplateActivityController extends Controller
             );
         }
 
-        return view('course-template-activities.edit', [
+        return view('course-template-activities.dialog', [
             'template' => $template,
             'section' => $section,
             'lesson' => $lesson,
@@ -504,6 +496,8 @@ class CourseTemplateActivityController extends Controller
         int $activityId,
         ?int $sectionId
     ): View {
+        abort_unless($request->ajax(), 404);
+
         $customerId = $this->customerId();
         [$template, $section, $lesson] = $this->findHierarchy(
             $customerId,
@@ -518,7 +512,7 @@ class CourseTemplateActivityController extends Controller
             $activityId
         );
 
-        return view('course-template-activities.show', [
+        return view('course-template-activities.view-dialog', [
             'template' => $template,
             'section' => $section,
             'lesson' => $lesson,
@@ -596,32 +590,17 @@ class CourseTemplateActivityController extends Controller
             $this->recalculateLessonDuration($customerId, $templateId, $lessonId);
         });
 
-        $response = redirect()
-            ->route(
+        return $this->savedResponse(
+            $request,
+            'lf.LF_course_template_activity_common_updated',
+            route($this->templateRoutePrefix($request).'.edit', $templateId)
+                ."?tab=structure#course-template-lesson-{$lessonId}-activities",
+            200,
+            fn () => redirect()->route(
                 $this->routePrefix($request, $sectionId).'.edit',
-                $this->activityRouteParameters(
-                    $templateId,
-                    $lessonId,
-                    $activityId,
-                    $sectionId
-                )
+                $this->activityRouteParameters($templateId, $lessonId, $activityId, $sectionId)
             )
-            ->with('success', __('lf.LF_course_template_activity_common_updated'));
-
-        if ($this->structuredExtractionRequested($request)) {
-            $response->with('info', __('lf.LF_course_template_activity_structured_queued_notice'));
-        } elseif ($this->audioSpeechToTextRequested($request)) {
-            $response->with('info', __('lf.LF_course_template_activity_stt_queued_notice'));
-        } elseif ($this->videoSpeechToTextRequested($request)) {
-            $response->with(
-                $this->videoSttQualification->isQualified() ? 'info' : 'warning',
-                __($this->videoSttQualification->isQualified()
-                    ? 'lf.LF_course_template_activity_video_stt_queued_notice'
-                    : $this->videoSttQualification->status()['message_key'])
-            );
-        }
-
-        return $response;
+        );
     }
 
     private function destroyActivity(
@@ -652,6 +631,12 @@ class CourseTemplateActivityController extends Controller
                 ->where('unlock_after_activity_id', $activityId)
                 ->exists()
         ) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => __('lf.LF_course_template_activity_delete_blocked_unlock'),
+                ], 409);
+            }
+
             return back()->withErrors([
                 'activity' => __(
                     'lf.LF_course_template_activity_common_delete_blocked'
@@ -689,13 +674,22 @@ class CourseTemplateActivityController extends Controller
             );
         });
 
+        $structureUrl = route(
+            $this->templateRoutePrefix($request).'.edit',
+            $templateId
+        )."?tab=structure#course-template-lesson-{$lessonId}-activities";
+
+        if ($request->expectsJson()) {
+            $request->session()->flash('success', __('lf.LF_course_template_activity_common_deleted'));
+
+            return response()->json([
+                'message' => __('lf.LF_course_template_activity_common_deleted'),
+                'redirect' => $structureUrl,
+            ]);
+        }
+
         return redirect()
-            ->to(
-                route(
-                    $this->templateRoutePrefix($request).'.edit',
-                    $templateId
-                )."?tab=structure#course-template-lesson-{$lessonId}-activities"
-            )
+            ->to($structureUrl)
             ->with('success', __('lf.LF_course_template_activity_common_deleted'));
     }
 
@@ -1270,6 +1264,42 @@ class CourseTemplateActivityController extends Controller
         }
 
         return null;
+    }
+
+    /**
+     * The answer to a successful save: for the popup JSON with a redirect to the structure tab (the dialog reloads
+     * it); for a plain form the legacy redirect. Either way the same messages are flashed: success, and at most one
+     * notice about the background processing that was queued (transcription, structure extraction).
+     */
+    private function savedResponse(Request $request, string $successKey, string $structureUrl, int $status, \Closure $legacyRedirect)
+    {
+        $flash = ['success' => __($successKey)];
+
+        if ($this->structuredExtractionRequested($request)) {
+            $flash['info'] = __('lf.LF_course_template_activity_structured_queued_notice');
+        } elseif ($this->audioSpeechToTextRequested($request)) {
+            $flash['info'] = __('lf.LF_course_template_activity_stt_queued_notice');
+        } elseif ($this->videoSpeechToTextRequested($request)) {
+            $qualified = $this->videoSttQualification->isQualified();
+            $flash[$qualified ? 'info' : 'warning'] = __($qualified
+                ? 'lf.LF_course_template_activity_video_stt_queued_notice'
+                : $this->videoSttQualification->status()['message_key']);
+        }
+
+        if ($request->expectsJson()) {
+            foreach ($flash as $key => $text) {
+                $request->session()->flash($key, $text);
+            }
+
+            return response()->json(['message' => $flash['success'], 'redirect' => $structureUrl], $status);
+        }
+
+        $response = $legacyRedirect();
+        foreach ($flash as $key => $text) {
+            $response->with($key, $text);
+        }
+
+        return $response;
     }
 
     private function structuredExtractionRequested(Request $request): bool

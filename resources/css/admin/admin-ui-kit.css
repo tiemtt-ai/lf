@@ -1879,7 +1879,7 @@
 .lf-admin-ui.ui-structure .course-template-lesson-item:hover,
 .lf-admin-ui.ui-structure .course-template-lesson-item:focus-within { background: transparent; }
 .lf-admin-ui.ui-structure .course-template-lesson-summary { align-items: flex-start; justify-content: flex-start; gap: 12px; padding: 0 0 16px; }
-.lf-admin-ui.ui-structure .course-template-lesson-number { display: grid; place-items: center; flex: none; width: 30px; height: 30px; border-radius: 5px; background: var(--ui-color-f3f4fc); color: var(--ui-primary); font-size: 12px; }
+.lf-admin-ui.ui-structure .course-template-lesson-number { display: grid; place-items: center; flex: none; width: 30px; height: 30px; border-radius: 5px; background: var(--ui-color-f3f4fc); color: var(--ui-primary); font-size: 14px; }
 .lf-admin-ui.ui-structure .course-template-lesson-copy { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .lf-admin-ui.ui-structure .course-template-lesson-copy strong { display: block; color: var(--ui-text); font-size: 14px; font-weight: 500; }
 .lf-admin-ui.ui-structure .course-template-lesson-copy .lf-secondary-text { margin-top: 5px; color: var(--ui-color-687184); font-size: 12px; }
@@ -1937,4 +1937,15 @@
 .lf-admin-ui .ui-progress__text { min-width: 110px; color: var(--ui-muted); font-size: 12px; text-align: right; font-variant-numeric: tabular-nums; }
 @media (prefers-reduced-motion: reduce) { .lf-admin-ui .ui-progress__bar { transition: none; } }
 @media (max-width: 520px) { .lf-admin-ui .ui-modal__progress { flex-wrap: wrap; padding: 10px 14px; } .lf-admin-ui .ui-progress__text { text-align: left; } }
+/* Long popup forms: titled groups inside the grid, collapsible detail text, inline check lists. */
+.lf-admin-ui .ui-modal__section-title { margin: 6px 0 0; padding-top: 14px; border-top: 1px solid var(--ui-color-eceef3); font-size: 15px; font-weight: 500; color: var(--ui-text); }
+.lf-admin-ui .ui-modal__grid > .ui-modal__section-title:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+.lf-admin-ui .ui-details { font-size: 12px; color: var(--ui-muted); }
+.lf-admin-ui .ui-details summary { cursor: pointer; color: var(--ui-primary); }
+.lf-admin-ui .ui-details p { margin: 6px 0 0; }
+.lf-admin-ui .ui-badge { display: inline-block; margin-left: 8px; padding: 1px 7px; border: 1px solid var(--ui-color-aeb7e8); border-radius: 20px; background: var(--ui-color-eef0fb); color: var(--ui-primary); font-size: 12px; }
+.lf-admin-ui .ui-check-list--inline { display: flex; flex-wrap: wrap; gap: 4px 18px; max-height: none; }
+/* Read-only details inside a dialog (activity view): the summary list without its own padding. */
+.lf-admin-ui .ui-modal__body .ui-summary { padding: 0; gap: 18px 22px; }
+.lf-admin-ui .ui-summary__files { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
 

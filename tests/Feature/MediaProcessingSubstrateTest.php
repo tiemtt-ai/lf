@@ -2259,7 +2259,7 @@ class MediaProcessingSubstrateTest extends TestCase
     {
         [$templateId, $lessonId] = $this->courseFixture();
 
-        $this->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/lessons/{$lessonId}/activities/create")
+        $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/lessons/{$lessonId}/activities/create")
             ->assertOk()
             ->assertSee('name="speech_to_text"', false)
             ->assertSee('checked', false)
@@ -2275,7 +2275,7 @@ class MediaProcessingSubstrateTest extends TestCase
         ]);
         [$templateId, $lessonId] = $this->courseFixture();
 
-        $this->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/lessons/{$lessonId}/activities/create")
+        $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/lessons/{$lessonId}/activities/create")
             ->assertOk()
             ->assertSee('name="video_speech_to_text"', false)
             ->assertSee(':disabled="activityType !== \'video\' || !videoSttQualified"', false)
@@ -2305,7 +2305,7 @@ class MediaProcessingSubstrateTest extends TestCase
                 $this->assertNotSame($key, __($key, [], $locale));
             }
         }
-        $this->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/lessons/{$lessonId}/activities/create")
+        $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/lessons/{$lessonId}/activities/create")
             ->assertOk()
             ->assertDontSee('lf.LF_course_template_activity_video_stt_', false)
             ->assertSee('<details', false)
