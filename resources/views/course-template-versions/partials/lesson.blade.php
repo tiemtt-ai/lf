@@ -41,7 +41,7 @@
                         'audio' => 'audio',
                         'quiz', 'assignment' => 'clipboard-check',
                         'live_class', 'liveclass' => 'video',
-                        default => 'document',
+                        default => 'file-text',
                     };
                 @endphp
 

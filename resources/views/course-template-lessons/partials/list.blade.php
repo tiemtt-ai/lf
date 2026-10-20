@@ -44,11 +44,16 @@
                 {{ $panelTitle }} ({{ $lessons->count() }})
             </h4>
         @else
-            <strong id="{{ $panelId }}-title">
-                {{ trans_choice('lf.LF_course_template_lesson_common_count', $lessons->count(), [
-                    'count' => $lessons->count(),
-                ]) }}
-            </strong>
+            <div class="course-template-content-count">
+                <strong id="{{ $panelId }}-title">
+                    {{ trans_choice('lf.LF_course_template_lesson_common_count', $lessons->count(), [
+                        'count' => $lessons->count(),
+                    ]) }}
+                </strong>
+                @if ($lessons->isNotEmpty())
+                    <span class="lf-secondary-text">{{ trans_choice('lf.LF_course_template_activity_common_count', $totalActivities = $lessons->sum(fn (object $item): int => $activitiesByLesson->get($item->id, collect())->count()), ['count' => $totalActivities]) }}</span>
+                @endif
+            </div>
         @endif
         @if (($section && $section->allows_lessons) || (! $section && $lessons->isNotEmpty()))
             <a href="{{ route(
@@ -57,7 +62,7 @@
             ) }}"
                @class([
                    'admin-text-action' => $section,
-                   'btn admin-primary-outline-action' => ! $section,
+                   'btn admin-primary-outline-action ui-button ui-button--primary' => ! $section,
                ])>
                 {{ __($section
                     ? 'lf.LF_course_template_lesson_common_attach_action'
@@ -80,7 +85,8 @@
             @endphp
             <article class="course-template-lesson-item">
                 <div class="course-template-lesson-summary">
-                    <div>
+                    <span class="course-template-lesson-number" aria-hidden="true">{{ str_pad((string) $loop->iteration, 2, '0', STR_PAD_LEFT) }}</span>
+                    <div class="course-template-lesson-copy">
                         <strong>{{ $lesson->title }}</strong>
                         @if ($lesson->short_description || $lesson->description)
                             <span class="lf-secondary-text lf-line-clamp-2">
@@ -89,29 +95,41 @@
                         @endif
                     </div>
                     <div class="admin-table-actions">
-                        <a class="admin-text-action" href="{{ route(
+                        <a class="admin-text-action ui-row-action" href="{{ route(
                             $lessonRoutePrefix.'.edit',
                             $lessonParameters
-                        ) }}">
-                            {{ __('lf.LF_course_template_lesson_common_edit') }}
+                        ) }}"
+                           aria-label="{{ __('lf.LF_course_template_lesson_common_edit') }}: {{ $lesson->title }}"
+                           data-tooltip="{{ __('lf.LF_course_template_lesson_common_edit') }}">
+                            <x-backend-icon name="pencil" class="ui-icon" />
+                            <span class="ui-sr-only">{{ __('lf.LF_course_template_lesson_common_edit') }}</span>
                         </a>
                         <button type="button"
-                                class="admin-link-button admin-text-action"
+                                class="admin-link-button admin-text-action ui-row-action ui-row-action--danger"
+                                aria-label="{{ __('lf.LF_common_button_delete') }}: {{ $lesson->title }}"
+                                data-tooltip="{{ __('lf.LF_common_button_delete') }}"
                                 x-data
                                 x-on:click="$dispatch(
                                     'open-modal',
                                     'delete-course-template-lesson-{{ $lesson->id }}'
                                 )">
-                            {{ __('lf.LF_common_button_delete') }}
+                            <x-backend-icon name="trash-2" class="ui-icon" />
+                            <span class="ui-sr-only">{{ __('lf.LF_common_button_delete') }}</span>
                         </button>
                     </div>
                 </div>
 
                 <section id="course-template-lesson-{{ $lesson->id }}-activities"
                          class="course-template-activity-panel"
+                         x-data="{ open: true }"
                          aria-labelledby="course-template-lesson-{{ $lesson->id }}-activities-title">
                     <div class="course-template-activity-toolbar">
-                        <h5 id="course-template-lesson-{{ $lesson->id }}-activities-title">{{ __('lf.LF_course_template_activity_common_list_title') }} ({{ $lessonActivities->count() }})</h5>
+                        <h5 id="course-template-lesson-{{ $lesson->id }}-activities-title">
+                            <button type="button" class="course-template-activity-fold"
+                                    aria-controls="course-template-lesson-{{ $lesson->id }}-activity-list"
+                                    x-bind:aria-expanded="open.toString()" aria-expanded="true"
+                                    x-on:click="open = ! open"><x-backend-icon name="chevron-down" class="ui-icon course-template-activity-fold-icon" x-bind:class="{ 'is-collapsed': ! open }" />{{ __('lf.LF_course_template_activity_common_list_title') }} ({{ $lessonActivities->count() }})</button>
+                        </h5>
                         <a href="{{ route(
                             $activityRoutePrefix.'.create',
                             $lessonParameters
@@ -121,7 +139,7 @@
                         </a>
                     </div>
 
-                    <div class="course-template-activity-list">
+                    <div class="course-template-activity-list" id="course-template-lesson-{{ $lesson->id }}-activity-list" x-show="open">
                         @forelse ($lessonActivities as $activity)
                             @php
                                 $activityParameters = array_merge(
@@ -135,7 +153,7 @@
                                     'audio' => 'audio',
                                     'quiz', 'assignment' => 'clipboard-check',
                                     'live_class', 'liveclass' => 'video',
-                                    default => 'document',
+                                    default => 'file-text',
                                 };
                                 $activityViewUrl = match ($activity->view_kind ?? 'readonly') {
                                     'media', 'external' => $activity->view_url,
@@ -277,37 +295,49 @@
                                 <div class="admin-table-actions">
                                     @if (($activity->view_behavior ?? null) === 'popup' || (($activity->view_kind ?? null) === 'none' && in_array($activity->activity_type, ['audio', 'video'], true)))
                                         <button type="button"
-                                                class="admin-link-button admin-text-action"
+                                                class="admin-link-button admin-text-action ui-row-action"
+                                                aria-label="{{ __('lf.LF_common_button_view') }}: {{ $activity->title }}"
+                                                data-tooltip="{{ __('lf.LF_common_button_view') }}"
                                                 x-on:click="openActivityPreview(
                                                     @js($activity->title),
                                                     @js(($activity->view_kind ?? null) === 'none' ? '' : $activityViewUrl),
                                                     @js(($activity->view_kind ?? null) === 'none' ? 'unavailable' : $activity->activity_type)
                                                 )">
-                                            {{ __('lf.LF_common_button_view') }}
+                                            <x-backend-icon name="eye" class="ui-icon" />
+                                            <span class="ui-sr-only">{{ __('lf.LF_common_button_view') }}</span>
                                         </button>
                                     @else
-                                        <a class="admin-text-action" href="{{ $activityViewUrl }}"
+                                        <a class="admin-text-action ui-row-action" href="{{ $activityViewUrl }}"
+                                           aria-label="{{ __('lf.LF_common_button_view') }}: {{ $activity->title }}"
+                                           data-tooltip="{{ __('lf.LF_common_button_view') }}"
                                            @if (in_array(($activity->view_behavior ?? null), ['new_tab'], true))
                                                target="_blank"
                                                rel="noopener noreferrer"
                                            @endif>
-                                            {{ __('lf.LF_common_button_view') }}
+                                            <x-backend-icon name="eye" class="ui-icon" />
+                                            <span class="ui-sr-only">{{ __('lf.LF_common_button_view') }}</span>
                                         </a>
                                     @endif
-                                    <a class="admin-text-action" href="{{ route(
+                                    <a class="admin-text-action ui-row-action" href="{{ route(
                                         $activityRoutePrefix.'.edit',
                                         $activityParameters
-                                    ) }}">
-                                        {{ __('lf.LF_course_template_activity_common_edit') }}
+                                    ) }}"
+                                       aria-label="{{ __('lf.LF_course_template_activity_common_edit') }}: {{ $activity->title }}"
+                                       data-tooltip="{{ __('lf.LF_course_template_activity_common_edit') }}">
+                                        <x-backend-icon name="pencil" class="ui-icon" />
+                                        <span class="ui-sr-only">{{ __('lf.LF_course_template_activity_common_edit') }}</span>
                                     </a>
                                     <button type="button"
-                                            class="admin-link-button admin-text-action"
+                                            class="admin-link-button admin-text-action ui-row-action ui-row-action--danger"
+                                            aria-label="{{ __('lf.LF_common_button_delete') }}: {{ $activity->title }}"
+                                            data-tooltip="{{ __('lf.LF_common_button_delete') }}"
                                             x-data
                                             x-on:click="$dispatch(
                                                 'open-modal',
                                                 'delete-course-template-activity-{{ $activity->id }}'
                                             )">
-                                        {{ __('lf.LF_common_button_delete') }}
+                                        <x-backend-icon name="trash-2" class="ui-icon" />
+                                        <span class="ui-sr-only">{{ __('lf.LF_common_button_delete') }}</span>
                                     </button>
                                 </div>
 

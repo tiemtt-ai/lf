@@ -1,5 +1,5 @@
 <section id="course-template-sections"
-         class="admin-card admin-form-card course-template-section-card"
+         class="admin-card admin-form-card course-template-section-card lf-admin-ui lf-admin-ui--list ui-structure"
          aria-labelledby="course-template-sections-title"
          x-data="{
              activeStructureTab: @js(
