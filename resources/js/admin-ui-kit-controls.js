@@ -673,3 +673,20 @@ if (typeof document !== 'undefined') {
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initialize, { once: true });
     else initialize();
 }
+
+/**
+ * Go where the server says after a save or delete. When the target is the page already open (only the #hash or
+ * nothing differs), assigning the URL would not reload it, so reload to show the new data and the flashed message.
+ */
+export function followRedirect(win, url) {
+    let sameDocument = false;
+    try {
+        const target = new URL(String(url), win.location.href);
+        sameDocument = target.origin === win.location.origin && target.pathname === win.location.pathname && target.search === win.location.search;
+        win.location.assign(target.href);
+    } catch (error) {
+        win.location.assign(String(url));
+        return;
+    }
+    if (sameDocument) win.location.reload?.();
+}

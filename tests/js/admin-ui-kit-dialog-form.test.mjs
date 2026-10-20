@@ -59,6 +59,7 @@ function makeForm({ field = true } = {}) {
     form.feedbackNode = feedbackNode;
     form.querySelector = selector => {
         if (selector.includes('feedback')) return feedbackNode;
+        if (selector.includes('data-ui-dialog-form-progress')) return form.progress;
         if (selector.includes('name="name"')) return field ? nameInput : null;
         if (selector.startsWith('#') && form.byId?.[selector.slice(1)]) return form.byId[selector.slice(1)];
         if (selector.startsWith('label[for=')) return form.labelFor ? form.labelFor(selector) : { textContent: '* Tên danh mục' };
@@ -73,8 +74,15 @@ function makeForm({ field = true } = {}) {
         if (selector.includes('data-ui-dialog-form-error')) return nameField.children;
         if (selector.includes('aria-invalid')) return [nameInput];
         if (selector.includes('select[data-ui-kit-select]')) return [form.selectEl];
+        if (selector.includes('input[type="file"]')) return form.fileInputs;
         return [];
     };
+    form.fileInputs = [];
+    form.progress = new El({ 'data-text-uploading': 'Uploading :percent%', 'data-text-processing': 'Processing', 'data-text-cancelled': 'Upload cancelled' });
+    form.progress.hidden = true;
+    form.progressBar = new El(); form.progressBar.style = {};
+    form.progressText = new El();
+    form.progress.querySelector = selector => (selector.includes('progress-bar') ? form.progressBar : form.progressText);
     form.selectEl = new El();
     form.other = new El();
     form.other.scrolled = 0;
@@ -127,8 +135,22 @@ function setup({ snapshotValue = 'a', defer = () => Promise.resolve(), hash = ''
             return promise;
         },
     };
+    const xhrs = [];
+    class FakeXhr {
+        constructor() { this.headers = {}; this.upload = {}; this.aborted = 0; xhrs.push(this); }
+        open(method, url) { this.method = method; this.url = url; }
+        setRequestHeader(name, value) { this.headers[name] = value; }
+        send(body) { this.body = body; }
+        abort() { this.aborted += 1; this.onabort?.(); }
+        progress(loaded, total) { this.upload.onprogress({ lengthComputable: true, loaded, total }); }
+        finish(status, payload) { this.status = status; this.responseText = JSON.stringify(payload); this.onload(); }
+    }
+    const beforeUnload = { added: 0, removed: 0 };
+    win.addEventListener = (type, fn) => { if (type === 'beforeunload') beforeUnload.added += 1; else hashListeners.set(type, fn); };
+    win.removeEventListener = type => { if (type === 'beforeunload') beforeUnload.removed += 1; else hashListeners.delete(type); };
     const instance = initUiKitDialogForm(scope, {
         window: win,
+        XMLHttpRequest: FakeXhr,
         parse: html => ({ querySelector: () => (html === 'NO-FORM' ? null : (forms.push(makeForm()), forms.at(-1))) }),
         serialize: () => state.value,
         initSelect: () => ({ destroy: () => destroyed.push('select') }),
@@ -145,7 +167,7 @@ function setup({ snapshotValue = 'a', defer = () => Promise.resolve(), hash = ''
     const respond = (index, response) => pending[index].resolve(response);
     const html = body => ({ ok: true, redirected: false, text: async () => body });
     const json = (status, payload) => ({ ok: status >= 200 && status < 300, status, json: async () => payload });
-    return { confirms, hashListeners, docListeners, win, dialog, scope, scopeEvents, trigger, flash, pageError, fetches, pending, forms, destroyed, nav, state, instance, win, clickOn, tick, respond, html, json };
+    return { xhrs, beforeUnload, confirms, hashListeners, docListeners, win, dialog, scope, scopeEvents, trigger, flash, pageError, fetches, pending, forms, destroyed, nav, state, instance, win, clickOn, tick, respond, html, json };
 }
 
 async function opened(t) {
@@ -505,4 +527,87 @@ test('a heading button outside the scope opens this scope\'s dialog only when it
     assert.equal(t.fetches[0].url, '/admin/course-categories/create');
     t.instance.destroy();
     assert.equal(t.docListeners.size, 0);
+});
+
+async function openedWithFile(t) {
+    const form = await opened(t);
+    form.fileInputs.push({ files: [{ name: 'big.mp4' }] });
+    t.state.value = 'changed';
+    return form;
+}
+
+test('a chosen file is sent by XHR with progress; nothing can close the dialog meanwhile; success closes it', async () => {
+    const t = setup();
+    const form = await openedWithFile(t);
+    t.scope.listeners.get('submit')({ target: form, preventDefault() {} });
+    assert.equal(t.fetches.length, 1, 'only the form fetch happened, the save went by XHR');
+    const xhr = t.xhrs[0];
+    assert.equal(xhr.method, 'POST');
+    assert.equal(xhr.url, '/admin/course-categories');
+    assert.equal(xhr.headers.Accept, 'application/json');
+    assert.equal(xhr.headers['X-Requested-With'], 'XMLHttpRequest');
+    assert.equal(xhr.withCredentials, true);
+    assert.equal(form.progress.hidden, false);
+    assert.equal(form.submit.disabled, true);
+    assert.equal(t.beforeUnload.added, 1, 'leaving the page is warned about while uploading');
+    xhr.progress(40, 100);
+    assert.equal(form.progressBar.style.width, '40%');
+    assert.equal(form.progressBar.getAttribute('aria-valuenow'), '40');
+    assert.equal(form.progressText.textContent, 'Uploading 40%');
+    t.dialog.listeners.get('cancel')({ target: t.dialog, preventDefault() {} });
+    await t.tick();
+    assert.equal(t.dialog.open, true, 'Escape does nothing while uploading');
+    xhr.progress(100, 100);
+    assert.equal(form.progressText.textContent, 'Processing', 'all bytes sent: the server is still working');
+    xhr.finish(201, { message: 'Created' });
+    await t.tick(); await t.tick();
+    assert.equal(t.beforeUnload.removed, 1);
+    assert.equal(t.dialog.open, false);
+    assert.equal(t.flash.textContent, 'Created');
+});
+
+test('cancelling the upload aborts it, keeps the dialog and the input, and says so without an error', async () => {
+    const t = setup();
+    const form = await openedWithFile(t);
+    t.scope.listeners.get('submit')({ target: form, preventDefault() {} });
+    const cancel = new El({ 'data-ui-dialog-form-upload-cancel': '' });
+    t.xhrs[0].progress(10, 100);
+    t.scope.listeners.get('click')({ target: { closest: () => cancel } });
+    await t.tick(); await t.tick();
+    assert.equal(t.xhrs[0].aborted, 1);
+    assert.equal(t.dialog.open, true);
+    assert.equal(form.progress.hidden, true);
+    assert.equal(form.submit.disabled, false);
+    assert.equal(form.cancel.disabled, false);
+    assert.equal(form.feedbackNode.textContent, 'Upload cancelled');
+    assert.equal(t.beforeUnload.removed, 1);
+    t.scope.listeners.get('submit')({ target: form, preventDefault() {} });
+    assert.equal(t.xhrs.length, 2, 'the user can try again');
+});
+
+test('a validation failure or a network error during an upload is reported and the form is usable again', async () => {
+    const t = setup();
+    const form = await openedWithFile(t);
+    t.scope.listeners.get('submit')({ target: form, preventDefault() {} });
+    t.xhrs[0].finish(422, { errors: { name: ['Name taken'] } });
+    await t.tick(); await t.tick();
+    assert.equal(t.dialog.open, true);
+    assert.equal(form.progress.hidden, true);
+    assert.equal(form.submit.disabled, false);
+    assert.equal(form.nameField.children.at(-1).textContent, 'Name taken');
+    t.scope.listeners.get('submit')({ target: form, preventDefault() {} });
+    t.xhrs[1].onerror();
+    await t.tick(); await t.tick();
+    assert.equal(form.feedbackNode.textContent, 'SAVE');
+    assert.equal(form.submit.disabled, false);
+});
+
+test('without a chosen file the save still uses fetch (no progress UI)', async () => {
+    const t = setup();
+    const form = await opened(t);
+    t.state.value = 'changed';
+    t.scope.listeners.get('submit')({ target: form, preventDefault() {} });
+    assert.equal(t.xhrs.length, 0);
+    assert.equal(t.fetches.length, 2);
+    assert.equal(form.progress.hidden, true);
 });

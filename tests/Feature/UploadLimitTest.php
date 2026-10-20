@@ -77,14 +77,18 @@ class UploadLimitTest extends TestCase
         );
     }
 
-    public function test_policy_limits_video_to_one_gigabyte_and_other_media_to_five_hundred_megabytes(): void
+    public function test_policy_limits_video_to_one_and_a_half_gigabytes_and_other_media_to_five_hundred_megabytes(): void
     {
         // Even when the environment allows more, the policy caps apply (PHP's own limits are not involved here).
         config(['media.max_upload_kilobytes' => 4 * 1024 * 1024, 'media.video_max_upload_kilobytes' => 8 * 1024 * 1024]);
         $big = '10G';
+        $this->assertSame(
+            UploadLimit::MAX_VIDEO_KILOBYTES,
+            UploadLimit::effectiveKilobytes(UploadLimit::MAX_VIDEO_KILOBYTES, $big, $big)
+        );
 
         $this->assertSame(500 * 1024, UploadLimit::MAX_OTHER_KILOBYTES);
-        $this->assertSame(1024 * 1024, UploadLimit::MAX_VIDEO_KILOBYTES);
+        $this->assertSame(1536 * 1024, UploadLimit::MAX_VIDEO_KILOBYTES);
         $this->assertSame(
             UploadLimit::MAX_OTHER_KILOBYTES,
             UploadLimit::effectiveKilobytes(uploadMaxFilesize: $big, postMaxSize: $big)

@@ -30,7 +30,9 @@ function setup({ confirm = async () => true, trigger = {} } = {}) {
     const button = new El({ 'data-url': '/admin/course-categories/7', 'data-confirm-title': 'Delete?', 'data-confirm-message': 'Sure?', 'data-confirm-label': 'Delete', ...trigger });
     const target = { closest: () => button };
     const fetches = []; const confirms = []; const pending = [];
+    const nav = [];
     const win = {
+        location: { href: 'https://x.test/admin/course-templates/3/edit?tab=structure', origin: 'https://x.test', pathname: '/admin/course-templates/3/edit', search: '?tab=structure', assign: url => nav.push(url), reload: () => nav.push('reload') },
         FormData: class { constructor() { this.rows = []; } append(k, v) { this.rows.push([k, v]); } },
         fetch: (url, options) => { fetches.push({ url, options }); return new Promise((resolve, reject) => pending.push({ resolve, reject })); },
     };
@@ -42,7 +44,7 @@ function setup({ confirm = async () => true, trigger = {} } = {}) {
     const click = () => scope.listeners.get('click')({ target });
     const tick = () => new Promise(resolve => setImmediate(resolve));
     const json = (status, payload) => ({ ok: status >= 200 && status < 300, status, json: async () => payload });
-    return { scope, button, flash, pageError, create, events, fetches, confirms, pending, instance, click, tick, json };
+    return { scope, button, flash, pageError, create, events, fetches, confirms, pending, instance, click, tick, json, nav };
 }
 
 test('confirmed delete sends DELETE as JSON with the token, then toasts, refreshes and refocuses', async () => {
@@ -108,4 +110,19 @@ test('expired session, server errors and network failures show a message and do 
     assert.equal(net.pageError.textContent, 'DELETE-ERROR');
     net.instance.destroy();
     assert.equal(net.scope.listeners.size, 0);
+});
+
+test('a success that answers a redirect reloads that page instead of toasting in place (same page: assign, then reload)', async () => {
+    const t = setup();
+    t.click(); await t.tick();
+    t.pending[0].resolve(t.json(200, { message: 'Deleted', redirect: '/admin/course-templates/3/edit?tab=structure#course-template-direct-lessons' }));
+    await t.tick(); await t.tick();
+    assert.deepEqual(t.nav, ['https://x.test/admin/course-templates/3/edit?tab=structure#course-template-direct-lessons', 'reload']);
+    assert.equal(t.flash.textContent, '');
+    assert.deepEqual(t.events, []);
+    const other = setup();
+    other.click(); await other.tick();
+    other.pending[0].resolve(other.json(200, { redirect: '/admin/course-templates' }));
+    await other.tick(); await other.tick();
+    assert.deepEqual(other.nav, ['https://x.test/admin/course-templates'], 'a different page is a plain navigation');
 });

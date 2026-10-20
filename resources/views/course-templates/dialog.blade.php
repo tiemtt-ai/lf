@@ -20,6 +20,7 @@
     <div class="ui-modal__body">
         @include('course-templates.partials.dialog-fields')
     </div>
+    <x-ui-upload-progress />
     <footer class="ui-modal__footer">
         <span class="ui-caption ui-field__error" role="alert" data-ui-dialog-form-feedback></span>
         <button type="button" class="ui-button cursor-interaction" data-ui-dialog-form-cancel>

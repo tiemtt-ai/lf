@@ -159,9 +159,13 @@ class CourseTemplateLessonManagementTest extends TestCase
             );
 
             $this->actingAs($user)
+                ->withHeaders($this->ajaxHeaders())
                 ->get($collectionUrl.'/create')
                 ->assertOk()
                 ->assertSeeText('Bài học độc lập');
+
+            // The form exists only as the popup fragment.
+            $this->actingAs($user)->withoutHeader('X-Requested-With')->get($collectionUrl.'/create')->assertNotFound();
 
             $this->actingAs($user)
                 ->post(
@@ -213,7 +217,7 @@ class CourseTemplateLessonManagementTest extends TestCase
             $createAction = $xpath->query(
                 '//section[@id="course-template-direct-lessons"]'
                 .'//div[contains(concat(" ", normalize-space(@class), " "), " course-template-section-action-bar ")]'
-                .'//a[normalize-space()="+ Thêm bài học"]'
+                .'//button[normalize-space()="+ Thêm bài học" and @data-ui-dialog-form-open]'
             )->item(0);
 
             $this->assertNotNull($createAction);
@@ -221,7 +225,7 @@ class CourseTemplateLessonManagementTest extends TestCase
                 1,
                 $xpath->query(
                     '//section[@id="course-template-direct-lessons"]'
-                    .'//a[normalize-space()="+ Thêm bài học"]'
+                    .'//button[normalize-space()="+ Thêm bài học"]'
                 )->length
             );
             $this->assertStringContainsString(
@@ -271,7 +275,7 @@ class CourseTemplateLessonManagementTest extends TestCase
             ))
             ->update(['sort_order' => 9]);
 
-        $directCreate = $this->actingAs($admin)->get(
+        $directCreate = $this->actingAs($admin)->withHeaders($this->ajaxHeaders())->get(
             $this->directLessonCollectionUrl('admin', $templateId).'/create'
         );
         $this->assertSame(
@@ -281,7 +285,7 @@ class CourseTemplateLessonManagementTest extends TestCase
                 ->item(0)
                 ->getAttribute('value')
         );
-        $firstSectionCreate = $this->actingAs($admin)->get(
+        $firstSectionCreate = $this->actingAs($admin)->withHeaders($this->ajaxHeaders())->get(
             $this->lessonCollectionUrl(
                 'admin',
                 $templateId,
@@ -295,7 +299,7 @@ class CourseTemplateLessonManagementTest extends TestCase
                 ->item(0)
                 ->getAttribute('value')
         );
-        $secondSectionCreate = $this->actingAs($admin)->get(
+        $secondSectionCreate = $this->actingAs($admin)->withHeaders($this->ajaxHeaders())->get(
             $this->lessonCollectionUrl(
                 'admin',
                 $templateId,
@@ -1218,11 +1222,8 @@ class CourseTemplateLessonManagementTest extends TestCase
             'admin',
             $templateId
         );
-        $createUrl = $collectionUrl.'/create';
-
         $this->actingAs($admin)
-            ->from($createUrl)
-            ->post(
+            ->postJson(
                 $collectionUrl,
                 $this->validLessonData([
                     'title' => 'Preserved Invalid Lesson',
@@ -1232,29 +1233,17 @@ class CourseTemplateLessonManagementTest extends TestCase
                     'prerequisite_lesson_ids' => [$futureId],
                 ])
             )
-            ->assertRedirect($createUrl)
-            ->assertSessionHasErrors('prerequisite_lesson_ids');
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('prerequisite_lesson_ids');
 
-        $response = $this->actingAs($admin)
-            ->get($createUrl)
-            ->assertOk()
-            ->assertSeeText(
-                __('lf.LF_course_template_lesson_common_invalid_prerequisite')
-            );
-        $xpath = $this->xpath($response->getContent());
-        $this->assertSame(
-            'any',
-            $xpath->query(
-                '//select[@name="prerequisite_match"]/option[@selected]'
-            )->item(0)?->getAttribute('value')
-        );
-        $this->assertSame(
-            'checked',
-            $xpath->query(
-                '//input[@name="prerequisite_lesson_ids[]" and @value="'
-                .$futureId.'"]'
-            )->item(0)?->getAttribute('checked')
-        );
+        $this->assertDatabaseMissing('core_course_template_lessons', [
+            'customer_id' => $customerId,
+            'title' => 'Preserved Invalid Lesson',
+        ]);
+
+        // The popup keeps what was typed (it is never reloaded); the fragment marks where the error goes.
+        $xpath = $this->xpath($this->actingAs($admin)->withHeaders($this->ajaxHeaders())->get($collectionUrl.'/create')->assertOk()->getContent());
+        $this->assertSame(1, $xpath->query('//fieldset[@data-ui-error-for="prerequisite_lesson_ids"]//input[@name="prerequisite_lesson_ids[]" and @value="'.$futureId.'"]')->length);
     }
 
     public function test_wildcard_prerequisite_error_is_rendered_adjacent_to_the_accessible_control(): void
@@ -1282,11 +1271,8 @@ class CourseTemplateLessonManagementTest extends TestCase
             'admin',
             $templateId
         );
-        $createUrl = $collectionUrl.'/create';
-
         $this->actingAs($admin)
-            ->from($createUrl)
-            ->post(
+            ->postJson(
                 $collectionUrl,
                 $this->validLessonData([
                     'title' => 'Invalid Foreign Prerequisite',
@@ -1296,27 +1282,13 @@ class CourseTemplateLessonManagementTest extends TestCase
                     'prerequisite_lesson_ids' => [$otherLessonId],
                 ])
             )
-            ->assertRedirect($createUrl)
-            ->assertSessionHasErrors('prerequisite_lesson_ids.0');
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('prerequisite_lesson_ids.0');
 
-        $response = $this->actingAs($admin)
-            ->get($createUrl)
-            ->assertOk();
-        $xpath = $this->xpath($response->getContent());
-        $this->assertSame(
-            1,
-            $xpath->query(
-                '//fieldset[@aria-invalid="true" and '
-                .'@aria-describedby="prerequisite_lesson_ids_error"]'
-            )->length
-        );
-        $this->assertSame(
-            1,
-            $xpath->query(
-                '//fieldset//p[@id="prerequisite_lesson_ids_error" '
-                .'and contains(@class, "lf-form-error")]'
-            )->length
-        );
+        $this->assertDatabaseMissing('core_course_template_lessons', [
+            'customer_id' => $customerId,
+            'title' => 'Invalid Foreign Prerequisite',
+        ]);
     }
 
     public function test_delete_is_blocked_when_another_lesson_uses_the_prerequisite(): void
@@ -1452,11 +1424,13 @@ class CourseTemplateLessonManagementTest extends TestCase
             ->assertSeeText('Gắn bài học')
             ->assertSeeText('Sửa')
             ->assertSeeText('Xóa')
-            ->assertSeeText('Bạn có chắc chắn muốn xóa bài học này không?')
-            ->assertSeeText('Có, xóa')
-            ->assertSeeText('Không');
+            ->assertSee('data-ui-row-delete', false)
+            ->assertSee('data-confirm-title="Xoá bài học?"', false)
+            ->assertSee('data-confirm-message="Bài học «UI Lesson» sẽ bị xoá vĩnh viễn và không thể hoàn tác."', false)
+            ->assertDontSeeText('Bạn có chắc chắn muốn xóa bài học này không?');
 
         $response = $this->actingAs($admin)
+            ->withHeaders($this->ajaxHeaders())
             ->get(
                 $this->lessonCollectionUrl(
                     'admin',
@@ -1524,16 +1498,17 @@ class CourseTemplateLessonManagementTest extends TestCase
         );
         $responses = [
             $this->actingAs($admin)
+                ->withHeaders($this->ajaxHeaders())
                 ->get("{$collectionUrl}/create")
                 ->assertOk(),
             $this->actingAs($admin)
+                ->withHeaders($this->ajaxHeaders())
                 ->get("{$collectionUrl}/{$lessonId}/edit")
                 ->assertOk(),
         ];
 
         $responses[0]
-            ->assertSee('class="course-template-prerequisite-list"', false)
-            ->assertSee('class="admin-checkbox-option course-template-prerequisite-option"', false);
+            ->assertSee('class="ui-check-list"', false);
 
         foreach ($responses as $response) {
             foreach ([
@@ -1560,19 +1535,15 @@ class CourseTemplateLessonManagementTest extends TestCase
                 strpos($content, 'name="lesson_type"')
             );
             $response
-                ->assertSee('class="admin-form-standard"', false)
-                ->assertSee('aria-labelledby="lesson-information"', false)
-                ->assertSee('aria-labelledby="lesson-display"', false)
-                ->assertSee('aria-labelledby="lesson-unlock"', false)
-                ->assertSee('class="admin-form-footer"', false)
-                ->assertSee('class="btn btn-secondary"', false)
-                ->assertSee('class="btn btn-primary"', false)
-                ->assertDontSee('class="admin-form-cancel"', false)
+                ->assertSee('class="ui-modal__form"', false)
+                ->assertSee('data-ui-dialog-form-submit', false)
+                ->assertSee('data-ui-dialog-form-cancel', false)
+                ->assertDontSee('class="admin-form-standard"', false)
                 ->assertSeeText(__('lf.LF_course_template_lesson_common_type'));
-            $footerContent = substr($content, strpos($content, 'class="admin-form-footer"'));
+            $footerContent = substr($content, strpos($content, 'class="ui-modal__footer"'));
             $this->assertLessThan(
-                strpos($footerContent, 'class="btn btn-primary"'),
-                strpos($footerContent, 'class="btn btn-secondary"')
+                strpos($footerContent, 'data-ui-dialog-form-submit'),
+                strpos($footerContent, 'data-ui-dialog-form-cancel')
             );
 
             foreach ([
@@ -1594,6 +1565,93 @@ class CourseTemplateLessonManagementTest extends TestCase
             ] as $field) {
                 $response->assertDontSee('name="'.$field.'"', false);
             }
+        }
+    }
+
+    public function test_popup_save_and_delete_answer_json_and_flash_the_toast_for_the_reloaded_structure_tab(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $teacher = $this->createUser($customerId, 'teacher');
+        $templateId = $this->createTemplate($customerId, 'Popup Course', 'popup-course', null, $teacher->id);
+        $sectionId = $this->createSection($customerId, $templateId, 'Popup Section');
+
+        foreach ([
+            [$admin, 'admin'],
+            [$teacher, 'teacher'],
+        ] as [$user, $area]) {
+            $directUrl = $this->directLessonCollectionUrl($area, $templateId);
+            $structure = "https://tenant-a.localhost/{$area}/course-templates/{$templateId}/edit?tab=structure";
+
+            $this->actingAs($user)
+                ->postJson($directUrl, $this->validLessonData(['title' => "{$area} direct"]))
+                ->assertCreated()
+                ->assertJson([
+                    'message' => __('lf.LF_course_template_lesson_common_created'),
+                    'redirect' => $structure.'#course-template-direct-lessons',
+                ])
+                ->assertSessionHas('success', __('lf.LF_course_template_lesson_common_created'));
+
+            $lessonId = (int) DB::table('core_course_template_lessons')
+                ->where('title', "{$area} direct")->value('id');
+
+            $this->actingAs($user)
+                ->putJson("{$directUrl}/{$lessonId}", $this->validLessonData(['title' => "{$area} direct renamed", 'sort_order' => 1]))
+                ->assertOk()
+                ->assertJson([
+                    'message' => __('lf.LF_course_template_lesson_common_updated'),
+                    'redirect' => $structure.'#course-template-direct-lessons',
+                ]);
+            $this->assertDatabaseHas('core_course_template_lessons', ['id' => $lessonId, 'title' => "{$area} direct renamed"]);
+
+            $this->actingAs($user)
+                ->postJson($this->lessonCollectionUrl($area, $templateId, $sectionId), $this->validLessonData(['title' => "{$area} in section"]))
+                ->assertCreated()
+                ->assertJsonPath('redirect', $structure."#course-template-section-{$sectionId}-lessons");
+
+            $this->actingAs($user)
+                ->deleteJson("{$directUrl}/{$lessonId}")
+                ->assertOk()
+                ->assertJson([
+                    'message' => __('lf.LF_course_template_lesson_common_deleted'),
+                    'redirect' => $structure.'#course-template-direct-lessons',
+                ]);
+            $this->assertDatabaseMissing('core_course_template_lessons', ['id' => $lessonId]);
+        }
+    }
+
+    public function test_delete_json_refuses_with_the_reason_and_the_button_is_disabled_for_a_blocked_lesson(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, 'Blocked Course', 'blocked-course');
+        $prerequisiteId = $this->createLesson($customerId, $templateId, null, 'Needed First');
+        $this->createLesson($customerId, $templateId, null, 'Dependent', unlockAfterLessonId: $prerequisiteId);
+        $withActivityId = $this->createLesson($customerId, $templateId, null, 'Has Activity');
+        $freeId = $this->createLesson($customerId, $templateId, null, 'Free Lesson');
+
+        DB::table('core_course_template_activities')->insert([
+            'customer_id' => $customerId, 'template_id' => $templateId, 'template_lesson_id' => $withActivityId,
+            'title' => 'Attached', 'description' => null, 'sort_order' => 0, 'activity_type' => 'text',
+            'external_video_url' => null, 'live_class_url' => null, 'assessment_quiz_id' => null, 'duration_seconds' => 0,
+            'is_required' => true, 'completion_rule' => 'view', 'completion_threshold' => null, 'is_preview' => false,
+            'unlock_rule' => 'none', 'unlock_after_activity_id' => null, 'unlock_at' => null, 'created_by' => null,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $directUrl = $this->directLessonCollectionUrl('admin', $templateId);
+
+        $this->actingAs($admin)->deleteJson("{$directUrl}/{$prerequisiteId}")
+            ->assertStatus(409)->assertJson(['message' => __('lf.LF_course_template_lesson_delete_blocked_referenced')]);
+        $this->actingAs($admin)->deleteJson("{$directUrl}/{$withActivityId}")
+            ->assertStatus(409)->assertJson(['message' => __('lf.LF_course_template_lesson_delete_blocked_activities')]);
+        $this->assertDatabaseHas('core_course_template_lessons', ['id' => $prerequisiteId]);
+        $this->assertDatabaseHas('core_course_template_lessons', ['id' => $withActivityId]);
+
+        $xpath = $this->xpath($this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit")->getContent());
+        foreach ([$prerequisiteId => true, $withActivityId => true, $freeId => false] as $id => $blocked) {
+            $button = $xpath->query('//button[@data-ui-row-delete and contains(@data-url, "/lessons/'.$id.'")]')->item(0);
+            $this->assertNotNull($button);
+            $this->assertSame($blocked, $button->hasAttribute('disabled'));
         }
     }
 
@@ -1789,6 +1847,12 @@ class CourseTemplateLessonManagementTest extends TestCase
             ."{$templateId}/lessons";
     }
 
+    /** The lesson form is a popup fragment: it answers only XHR. */
+    private function ajaxHeaders(): array
+    {
+        return ['X-Requested-With' => 'XMLHttpRequest'];
+    }
+
     private function requiredIndicatorCount(string $html, string $field): int
     {
         $previous = libxml_use_internal_errors(true);
@@ -1798,7 +1862,7 @@ class CourseTemplateLessonManagementTest extends TestCase
         libxml_use_internal_errors($previous);
         $xpath = new \DOMXPath($document);
         $query = sprintf(
-            '//label[@for="%s"]//span[contains(concat(" ", normalize-space(@class), " "), " lf-required-indicator ")]',
+            '//label[@for="lesson-form-%s"]//span[contains(concat(" ", normalize-space(@class), " "), " ui-field__required ")]',
             $field
         );
 

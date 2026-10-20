@@ -5,7 +5,7 @@
 
 @section('vite')
     @parent
-    @vite(['resources/css/admin/admin-ui-kit.css', 'resources/js/admin-ui-kit-controls.js', 'resources/js/admin-ui-kit-dialog-form.js'])
+    @vite(['resources/css/admin/admin-ui-kit.css', 'resources/js/admin-ui-kit-controls.js', 'resources/js/admin-ui-kit-dialog-form.js', 'resources/js/admin-ui-kit-row-actions.js'])
 @endsection
 
 @section('content')
@@ -60,7 +60,8 @@
                 {{ session('course_template_created_guidance') }}
             </p>
         </div>
-    @elseif (session('success'))
+    @elseif (session('success') && ! in_array($activeTab, ['information', 'structure'], true))
+        {{-- These tabs show the message as a toast. --}}
         <div class="admin-alert admin-alert-success admin-form-card">
             {{ session('success') }}
         </div>

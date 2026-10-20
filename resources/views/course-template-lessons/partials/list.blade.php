@@ -56,18 +56,18 @@
             </div>
         @endif
         @if (($section && $section->allows_lessons) || (! $section && $lessons->isNotEmpty()))
-            <a href="{{ route(
-                $lessonRoutePrefix.'.create',
-                $lessonBaseParameters
-            ) }}"
-               @class([
-                   'admin-text-action' => $section,
-                   'btn admin-primary-outline-action ui-button ui-button--primary' => ! $section,
-               ])>
+            <button type="button"
+                    data-ui-dialog-form-open
+                    data-url="{{ route($lessonRoutePrefix.'.create', $lessonBaseParameters) }}"
+                    aria-haspopup="dialog"
+                    @class([
+                        'admin-link-button admin-text-action' => $section,
+                        'btn admin-primary-outline-action ui-button ui-button--primary' => ! $section,
+                    ])>
                 {{ __($section
                     ? 'lf.LF_course_template_lesson_common_attach_action'
                     : 'lf.LF_course_template_lesson_common_add_action') }}
-            </a>
+            </button>
         @endif
     </div>
 
@@ -95,24 +95,27 @@
                         @endif
                     </div>
                     <div class="admin-table-actions">
-                        <a class="admin-text-action ui-row-action" href="{{ route(
-                            $lessonRoutePrefix.'.edit',
-                            $lessonParameters
-                        ) }}"
-                           aria-label="{{ __('lf.LF_course_template_lesson_common_edit') }}: {{ $lesson->title }}"
-                           data-tooltip="{{ __('lf.LF_course_template_lesson_common_edit') }}">
+                        <button type="button" class="admin-link-button admin-text-action ui-row-action"
+                                data-ui-dialog-form-open aria-haspopup="dialog"
+                                data-url="{{ route($lessonRoutePrefix.'.edit', $lessonParameters) }}"
+                                aria-label="{{ __('lf.LF_course_template_lesson_common_edit') }}: {{ $lesson->title }}"
+                                data-tooltip="{{ __('lf.LF_course_template_lesson_common_edit') }}">
                             <x-backend-icon name="pencil" class="ui-icon" />
                             <span class="ui-sr-only">{{ __('lf.LF_course_template_lesson_common_edit') }}</span>
-                        </a>
+                        </button>
+                        @php
+                            $lessonBlocker = ($lessonDeleteBlockers ?? [])[(int) $lesson->id] ?? null;
+                        @endphp
                         <button type="button"
                                 class="admin-link-button admin-text-action ui-row-action ui-row-action--danger"
+                                data-ui-row-delete
+                                data-url="{{ route($lessonRoutePrefix.'.destroy', $lessonParameters) }}"
+                                data-confirm-title="{{ __('lf.LF_course_template_lesson_delete_title') }}"
+                                data-confirm-message="{{ __('lf.LF_course_template_lesson_delete_confirm', ['name' => $lesson->title]) }}"
+                                data-confirm-label="{{ __('lf.LF_course_template_lesson_delete_label') }}"
+                                @if ($lessonBlocker) disabled aria-disabled="true" @endif
                                 aria-label="{{ __('lf.LF_common_button_delete') }}: {{ $lesson->title }}"
-                                data-tooltip="{{ __('lf.LF_common_button_delete') }}"
-                                x-data
-                                x-on:click="$dispatch(
-                                    'open-modal',
-                                    'delete-course-template-lesson-{{ $lesson->id }}'
-                                )">
+                                data-tooltip="{{ $lessonBlocker ?? __('lf.LF_common_button_delete') }}">
                             <x-backend-icon name="trash-2" class="ui-icon" />
                             <span class="ui-sr-only">{{ __('lf.LF_common_button_delete') }}</span>
                         </button>
@@ -379,36 +382,6 @@
                         @endforelse
                     </div>
                 </section>
-
-                <x-modal name="delete-course-template-lesson-{{ $lesson->id }}"
-                         focusable>
-                    <div class="lf-modal-card">
-                        <h2>
-                            {{ __('lf.LF_course_template_lesson_common_delete_confirm') }}
-                        </h2>
-                        <div class="lf-modal-actions">
-                            <button type="button"
-                                    class="btn"
-                                    x-on:click="$dispatch(
-                                        'close-modal',
-                                        'delete-course-template-lesson-{{ $lesson->id }}'
-                                    )">
-                                {{ __('lf.LF_course_template_lesson_common_delete_no') }}
-                            </button>
-                            <form method="POST"
-                                  action="{{ route(
-                                      $lessonRoutePrefix.'.destroy',
-                                      $lessonParameters
-                                  ) }}">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="btn btn-primary">
-                                    {{ __('lf.LF_course_template_lesson_common_delete_yes') }}
-                                </button>
-                            </form>
-                        </div>
-                    </div>
-                </x-modal>
             </article>
         @empty
             @if ($section)
@@ -418,10 +391,11 @@
                     <span class="course-template-content-empty-icon" aria-hidden="true">＋</span>
                     <strong>{{ __('lf.LF_course_template_lesson_common_direct_empty_title') }}</strong>
                     <p>{{ $emptyMessage }}</p>
-                    <a href="{{ route($lessonRoutePrefix.'.create', $lessonBaseParameters) }}"
-                       class="btn admin-primary-outline-action">
+                    <button type="button" class="btn admin-primary-outline-action ui-button ui-button--primary"
+                            data-ui-dialog-form-open aria-haspopup="dialog"
+                            data-url="{{ route($lessonRoutePrefix.'.create', $lessonBaseParameters) }}">
                         {{ __('lf.LF_course_template_lesson_common_add_action') }}
-                    </a>
+                    </button>
                 </div>
             @endif
         @endforelse

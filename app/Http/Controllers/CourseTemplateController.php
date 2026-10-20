@@ -241,6 +241,8 @@ class CourseTemplateController extends Controller
             ctype_digit((string) $request->query('ai_activity')) ? (int) $request->query('ai_activity') : null,
         );
 
+        $activitiesByLesson = $this->activitiesByLesson($customerId, $id);
+
         return view('course-templates.edit', [
             'template' => $template,
             'versions' => $versions,
@@ -253,7 +255,8 @@ class CourseTemplateController extends Controller
             'sections' => $publishGraph->sections,
             'directLessons' => $publishGraph->lessons->whereNull('template_section_id'),
             'lessonsBySection' => $publishGraph->lessons->whereNotNull('template_section_id')->groupBy('template_section_id'),
-            'activitiesByLesson' => $this->activitiesByLesson($customerId, $id),
+            'activitiesByLesson' => $activitiesByLesson,
+            'lessonDeleteBlockers' => $this->lessonDeleteBlockers($customerId, $id, $activitiesByLesson),
             ...$this->introductionMediaViewData($template, $customerId, $routePrefix, $publishReadiness),
             'teacherAssignments' => $this->teacherAssignments(
                 $customerId,
@@ -852,6 +855,40 @@ class CourseTemplateController extends Controller
             ->orderBy('sort_order')
             ->orderBy('id')
             ->get();
+    }
+
+    /**
+     * Why a lesson of this template cannot be deleted (lesson id => message): it still has activities, or another
+     * lesson unlocks after it. The delete button of such a lesson is disabled with the reason.
+     *
+     * @return array<int, string>
+     */
+    private function lessonDeleteBlockers(int $customerId, int $templateId, $activitiesByLesson): array
+    {
+        $referenced = DB::table('core_course_template_lesson_prerequisites')
+            ->where('customer_id', $customerId)
+            ->where('template_id', $templateId)
+            ->pluck('prerequisite_lesson_id')
+            ->merge(
+                DB::table('core_course_template_lessons')
+                    ->where('customer_id', $customerId)
+                    ->where('template_id', $templateId)
+                    ->whereNotNull('unlock_after_lesson_id')
+                    ->pluck('unlock_after_lesson_id')
+            )
+            ->map(static fn ($id): int => (int) $id);
+
+        $blockers = [];
+        foreach ($referenced as $lessonId) {
+            $blockers[$lessonId] = __('lf.LF_course_template_lesson_delete_blocked_referenced');
+        }
+        foreach ($activitiesByLesson as $lessonId => $activities) {
+            if (count($activities) > 0) {
+                $blockers[(int) $lessonId] = __('lf.LF_course_template_lesson_delete_blocked_activities');
+            }
+        }
+
+        return $blockers;
     }
 
     private function activitiesByLesson(int $customerId, int $templateId)

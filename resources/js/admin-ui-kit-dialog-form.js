@@ -8,7 +8,7 @@
  * (X-Requested-With request); a successful save answers 2xx JSON {message}, a validation failure 422 JSON
  * {errors}. Closing a form that has unsaved changes asks first through the shared LF confirmation dialog (window.LFConfirm). Only the latest open request may touch the page; one submit at a time.
  */
-import { initUiKitSelect, initUiKitMediaSlots, initUiKitEmbedSlots, showUiToast, hideUiToast, claimOnce, releaseClaim } from './admin-ui-kit-controls.js';
+import { initUiKitSelect, initUiKitMediaSlots, initUiKitEmbedSlots, showUiToast, hideUiToast, claimOnce, releaseClaim, followRedirect } from './admin-ui-kit-controls.js';
 
 const instances = new WeakMap();
 export const UI_DIALOG_FORM_SAVED_EVENT = 'ui-dialog-form-saved';
@@ -49,6 +49,10 @@ export function initUiKitDialogForm(scope, deps = {}) {
     let submitting = false;
     let controls = [];
     let confirming = false;
+    let activeXhr = null;
+    let userCancelled = false;
+    const Xhr = deps.XMLHttpRequest ?? win.XMLHttpRequest;
+    const abortInFlight = () => { controller?.abort(); activeXhr?.abort?.(); };
 
     const pageError = text => {
         const node = part('page-error');
@@ -98,10 +102,62 @@ export function initUiKitDialogForm(scope, deps = {}) {
             confirming = false;
         }
     }
+    // Upload progress (only when a file is chosen): a bar inside the form, a cancel button, and a leave-page warning.
+    const progressNode = () => form?.querySelector('[data-ui-dialog-form-progress]') ?? null;
+    const progressText = (node, name, percent) => String(node?.getAttribute(`data-text-${name}`) ?? '').replace(':percent', String(percent));
+    const showProgress = fraction => {
+        const node = progressNode();
+        if (!node) return;
+        const percent = Math.min(100, Math.floor(fraction * 100));
+        node.hidden = false;
+        const bar = node.querySelector('[data-ui-dialog-form-progress-bar]');
+        if (bar) { bar.style.width = `${percent}%`; bar.setAttribute('aria-valuenow', String(percent)); }
+        const text = node.querySelector('[data-ui-dialog-form-progress-text]');
+        if (text) text.textContent = progressText(node, percent >= 100 ? 'processing' : 'uploading', percent);
+    };
+    const hideProgress = () => {
+        const node = progressNode();
+        if (node) node.hidden = true;
+    };
+    const hasUpload = candidate => [...(candidate.querySelectorAll?.('input[type="file"]') ?? [])].some(input => (input.files?.length ?? 0) > 0);
+    function sendWithProgress(current) {
+        return new Promise((resolve, reject) => {
+            const xhr = new Xhr();
+            const guard = event => { event.preventDefault?.(); event.returnValue = ''; };
+            const done = () => { activeXhr = null; win.removeEventListener?.('beforeunload', guard); };
+            activeXhr = xhr;
+            userCancelled = false;
+            win.addEventListener?.('beforeunload', guard);
+            xhr.open('POST', current.getAttribute('action'));
+            xhr.setRequestHeader('Accept', 'application/json');
+            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+            xhr.withCredentials = true;
+            showProgress(0);
+            xhr.upload.onprogress = event => { if (event.lengthComputable && event.total > 0) showProgress(event.loaded / event.total); };
+            xhr.onload = () => {
+                done();
+                resolve({
+                    ok: xhr.status >= 200 && xhr.status < 300,
+                    status: xhr.status,
+                    json: async () => JSON.parse(xhr.responseText),
+                });
+            };
+            xhr.onerror = () => { done(); reject(new Error('network')); };
+            xhr.onabort = () => { done(); reject(Object.assign(new Error('aborted'), { name: 'AbortError' })); };
+            xhr.send(new win.FormData(current));
+        });
+    }
+    // The cancel button of the progress bar: stop the upload and let the user edit and try again.
+    function cancelUpload() {
+        if (!activeXhr) return;
+        userCancelled = true;
+        activeXhr.abort();
+    }
     const setSubmitting = on => {
         submitting = on;
         form?.setAttribute('aria-busy', String(on));
         form?.querySelectorAll('[data-ui-dialog-form-submit], [data-ui-dialog-form-cancel]').forEach(node => { node.disabled = on; });
+        if (!on) hideProgress();
     };
 
     const unmark = node => {
@@ -186,7 +242,7 @@ export function initUiKitDialogForm(scope, deps = {}) {
         const url = trigger.getAttribute('data-url');
         if (!url || submitting) return;
         const mine = ++seq;
-        controller?.abort();
+        abortInFlight();
         controller = new win.AbortController();
         pageError('');
         trigger.setAttribute('aria-busy', 'true');
@@ -234,27 +290,29 @@ export function initUiKitDialogForm(scope, deps = {}) {
         if (submitting) return;
         const mine = ++seq;
         const current = form;
-        controller?.abort();
+        abortInFlight();
         controller = new win.AbortController();
         clearErrors();
         const missing = requiredErrors();
         if (Object.keys(missing).length > 0) { showErrors(missing); return; }
         setSubmitting(true);
         try {
-            const response = await win.fetch(current.getAttribute('action'), {
-                method: 'POST',
-                body: new win.FormData(current),
-                headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-                credentials: 'same-origin',
-                signal: controller.signal,
-            });
+            const response = Xhr && hasUpload(current)
+                ? await sendWithProgress(current)
+                : await win.fetch(current.getAttribute('action'), {
+                    method: 'POST',
+                    body: new win.FormData(current),
+                    headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                    credentials: 'same-origin',
+                    signal: controller.signal,
+                });
             if (mine !== seq || form !== current) return;
             let payload = null;
             try { payload = await response.json(); } catch (error) { payload = null; }
             if (mine !== seq || form !== current) return;
             if (response.ok && payload?.redirect) {
                 // e.g. a new record continues on its own page; the server flashed what that page should show.
-                win.location.assign(String(payload.redirect));
+                followRedirect(win, payload.redirect);
                 return;
             }
             if (response.ok) {
@@ -271,15 +329,20 @@ export function initUiKitDialogForm(scope, deps = {}) {
             else feedback(response.status === 419 || response.status === 401 ? message('session-expired') : message('save-error'));
         } catch (error) {
             if (mine !== seq || form !== current) return;
+            const cancelledByUser = userCancelled;
+            userCancelled = false;
+            hideProgress();
             setSubmitting(false);
-            if (error?.name !== 'AbortError') feedback(message('save-error'));
+            if (cancelledByUser) feedback(progressText(progressNode(), 'cancelled', 0));
+            else if (error?.name !== 'AbortError') feedback(message('save-error'));
         }
     }
 
     const onClick = event => {
-        const target = event.target?.closest?.('[data-ui-dialog-form-open], [data-ui-dialog-form-cancel]');
+        const target = event.target?.closest?.('[data-ui-dialog-form-open], [data-ui-dialog-form-cancel], [data-ui-dialog-form-upload-cancel]');
         if (!target || !scope.contains(target)) return;
-        if (target.hasAttribute('data-ui-dialog-form-open')) open(target, { focus: target.getAttribute('data-ui-dialog-form-focus') });
+        if (target.hasAttribute('data-ui-dialog-form-upload-cancel')) cancelUpload();
+        else if (target.hasAttribute('data-ui-dialog-form-open')) open(target, { focus: target.getAttribute('data-ui-dialog-form-focus') });
         else requestClose();
     };
     // A primary action in the page heading lives outside the scope: it opens this scope's dialog when
@@ -299,7 +362,7 @@ export function initUiKitDialogForm(scope, deps = {}) {
     const onClose = event => {
         if (event.target !== dialog) return;
         seq++;
-        controller?.abort();
+        abortInFlight();
         teardown();
         restoreFocus();
     };
@@ -321,7 +384,7 @@ export function initUiKitDialogForm(scope, deps = {}) {
     dialog.addEventListener('close', onClose);
     const instance = { destroy() {
         seq++;
-        controller?.abort();
+        abortInFlight();
         win.removeEventListener?.('hashchange', autoOpen);
         scope.removeEventListener('click', onClick);
         win.document?.removeEventListener?.('click', onOutsideClick);

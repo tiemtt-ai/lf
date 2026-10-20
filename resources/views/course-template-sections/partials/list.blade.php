@@ -1,6 +1,10 @@
 <section id="course-template-sections"
          class="admin-card admin-form-card course-template-section-card lf-admin-ui lf-admin-ui--list ui-structure"
          aria-labelledby="course-template-sections-title"
+         data-ui-dialog-form-scope data-ui-row-actions
+         data-csrf="{{ csrf_token() }}"
+         data-msg-delete-error="{{ __('lf.LF_course_template_lesson_delete_error') }}"
+         data-msg-session-expired="{{ __('lf.LF_course_template_lesson_dialog_session_expired') }}"
          x-data="{
              activeStructureTab: @js(
                  $sections->isNotEmpty() && $directLessons->isEmpty()
@@ -29,6 +33,8 @@
             fn (object $section): string => (string) ($section->parent_section_id ?? 'root')
         );
     @endphp
+
+    <x-ui-list-toasts />
 
     <header class="course-template-section-header">
         <h2 id="course-template-sections-title" class="admin-form-section-title">
@@ -108,10 +114,11 @@
              aria-label="{{ __('lf.LF_course_template_section_common_actions') }}">
             <strong>{{ trans_choice('lf.LF_course_template_section_common_count', $sections->count(), ['count' => $sections->count()]) }}</strong>
             @if ($hasSections)
-                <a href="{{ route($sectionRoutePrefix.'.create', $template->id) }}"
-                   class="btn admin-primary-outline-action">
+                <button type="button" class="btn admin-primary-outline-action ui-button ui-button--primary"
+                        data-ui-dialog-form-open aria-haspopup="dialog"
+                        data-url="{{ route($sectionRoutePrefix.'.create', $template->id) }}">
                     {{ __('lf.LF_course_template_section_common_add_action') }}
-                </a>
+                </button>
             @endif
         </div>
 
@@ -127,12 +134,23 @@
                     </span>
                     <strong>{{ __('lf.LF_course_template_section_common_empty_title') }}</strong>
                     <p>{{ __('lf.LF_course_template_section_common_empty') }}</p>
-                    <a href="{{ route($sectionRoutePrefix.'.create', $template->id) }}"
-                       class="btn admin-primary-outline-action">
+                    <button type="button" class="btn admin-primary-outline-action ui-button ui-button--primary"
+                            data-ui-dialog-form-open aria-haspopup="dialog"
+                            data-url="{{ route($sectionRoutePrefix.'.create', $template->id) }}">
                         {{ __('lf.LF_course_template_section_common_add_action') }}
-                    </a>
+                    </button>
                 </div>
             @endforelse
         </div>
     </div>
+
+    <dialog class="ui-modal" data-columns="2" aria-labelledby="structure-dialog-title" data-ui-dialog-form data-field-id-prefix="lesson-form-"
+            data-msg-load-error="{{ __('lf.LF_course_template_lesson_dialog_load_error') }}"
+            data-msg-discard-title="{{ __('lf.LF_course_template_lesson_dialog_discard_title') }}"
+            data-msg-discard-text="{{ __('lf.LF_course_template_lesson_dialog_discard_text') }}"
+            data-msg-discard="{{ __('lf.LF_course_template_lesson_dialog_discard') }}"
+            data-msg-save-error="{{ __('lf.LF_course_template_lesson_dialog_save_error') }}"
+            data-msg-session-expired="{{ __('lf.LF_course_template_lesson_dialog_session_expired') }}"
+            data-msg-required-input="{{ __('lf.LF_course_template_lesson_dialog_required_input') }}"
+            data-msg-required-select="{{ __('lf.LF_course_template_lesson_dialog_required_select') }}"></dialog>
 </section>

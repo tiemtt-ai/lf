@@ -24,6 +24,8 @@ class CourseTemplateSectionController extends Controller
 
     public function create(Request $request, int $templateId): View
     {
+        abort_unless($request->ajax(), 404);
+
         $customerId = $this->customerId();
         $template = $this->findTemplate($customerId, $templateId);
         $parentSections = $this->parentSections($customerId, $templateId);
@@ -36,7 +38,7 @@ class CourseTemplateSectionController extends Controller
                 ? $requestedParentId
                 : null;
 
-        return view('course-template-sections.create', [
+        return view('course-template-sections.dialog', [
             'template' => $template,
             'parentSections' => $parentSections,
             'nextDisplayOrders' => $this->nextDisplayOrders(
@@ -44,6 +46,7 @@ class CourseTemplateSectionController extends Controller
                 $templateId,
                 $parentSections
             ),
+            'parentSectionId' => $parentSectionId,
             'suggestedDisplayOrder' => $this->nextDisplayOrder(
                 $customerId,
                 $templateId,
@@ -97,13 +100,23 @@ class CourseTemplateSectionController extends Controller
             );
         });
 
+        $structureUrl = route(
+            $this->templateRoutePrefix($request).'.edit',
+            $templateId
+        ).'?tab=structure#course-template-sections';
+
+        if ($request->expectsJson()) {
+            // The structure tab is rendered by the page: the dialog reloads it, where the flashed message shows as a toast.
+            $request->session()->flash('success', __('lf.LF_course_template_section_common_created'));
+
+            return response()->json([
+                'message' => __('lf.LF_course_template_section_common_created'),
+                'redirect' => $structureUrl,
+            ], 201);
+        }
+
         return redirect()
-            ->to(
-                route(
-                    $this->templateRoutePrefix($request).'.edit',
-                    $templateId
-                ).'?tab=structure#course-template-sections'
-            )
+            ->to($structureUrl)
             ->with('success', __('lf.LF_course_template_section_common_created'));
     }
 
@@ -112,6 +125,8 @@ class CourseTemplateSectionController extends Controller
         int $templateId,
         int $sectionId
     ): View {
+        abort_unless($request->ajax(), 404);
+
         $customerId = $this->customerId();
         $template = $this->findTemplate($customerId, $templateId);
         $section = $this->findSection(
@@ -120,7 +135,7 @@ class CourseTemplateSectionController extends Controller
             $sectionId
         );
 
-        return view('course-template-sections.edit', [
+        return view('course-template-sections.dialog', [
             'template' => $template,
             'section' => $section,
             'parentSections' => $this->parentSections(
@@ -167,6 +182,18 @@ class CourseTemplateSectionController extends Controller
                 ]));
         });
 
+        if ($request->expectsJson()) {
+            $request->session()->flash('success', __('lf.LF_course_template_section_common_updated'));
+
+            return response()->json([
+                'message' => __('lf.LF_course_template_section_common_updated'),
+                'redirect' => route(
+                    $this->templateRoutePrefix($request).'.edit',
+                    $templateId
+                ).'?tab=structure#course-template-sections',
+            ]);
+        }
+
         return redirect()
             ->route(
                 $this->routePrefix($request).'.edit',
@@ -186,7 +213,7 @@ class CourseTemplateSectionController extends Controller
 
         $deleted = DB::transaction(function () use ($customerId, $templateId, $sectionId): bool {
             $this->lockTemplate($customerId, $templateId);
-            if ($this->hasReferences($customerId, $templateId, $sectionId)) {
+            if ($this->deleteBlockReason($customerId, $templateId, $sectionId) !== null) {
                 return false;
             }
             DB::table('core_course_template_sections')
@@ -197,19 +224,38 @@ class CourseTemplateSectionController extends Controller
 
             return true;
         });
+        $structureUrl = route(
+            $this->templateRoutePrefix($request).'.edit',
+            $templateId
+        ).'?tab=structure#course-template-sections';
+
         if (! $deleted) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => match ($this->deleteBlockReason($customerId, $templateId, $sectionId)) {
+                        'children' => __('lf.LF_course_template_section_delete_blocked_children'),
+                        'lessons' => __('lf.LF_course_template_section_delete_blocked_lessons'),
+                        default => __('lf.LF_course_template_section_common_delete_blocked'),
+                    },
+                ], 409);
+            }
+
             return back()->withErrors([
                 'section' => __('lf.LF_course_template_section_common_delete_blocked'),
             ]);
         }
 
+        if ($request->expectsJson()) {
+            $request->session()->flash('success', __('lf.LF_course_template_section_common_deleted'));
+
+            return response()->json([
+                'message' => __('lf.LF_course_template_section_common_deleted'),
+                'redirect' => $structureUrl,
+            ]);
+        }
+
         return redirect()
-            ->to(
-                route(
-                    $this->templateRoutePrefix($request).'.edit',
-                    $templateId
-                ).'?tab=structure#course-template-sections'
-            )
+            ->to($structureUrl)
             ->with('success', __('lf.LF_course_template_section_common_deleted'));
     }
 
@@ -446,19 +492,18 @@ class CourseTemplateSectionController extends Controller
         return $descendantIds;
     }
 
-    private function hasReferences(
+    /** Why the section cannot be deleted: 'children' (it has sub-sections), 'lessons' (it has lessons) or null. */
+    private function deleteBlockReason(
         int $customerId,
         int $templateId,
         int $sectionId
-    ): bool {
-        if (
-            DB::table('core_course_template_sections')
-                ->where('customer_id', $customerId)
-                ->where('template_id', $templateId)
-                ->where('parent_section_id', $sectionId)
-                ->exists()
-        ) {
-            return true;
+    ): ?string {
+        if (DB::table('core_course_template_sections')
+            ->where('customer_id', $customerId)
+            ->where('template_id', $templateId)
+            ->where('parent_section_id', $sectionId)
+            ->exists()) {
+            return 'children';
         }
 
         return Schema::hasTable('core_course_template_lessons')
@@ -466,7 +511,9 @@ class CourseTemplateSectionController extends Controller
                 ->where('customer_id', $customerId)
                 ->where('template_id', $templateId)
                 ->where('template_section_id', $sectionId)
-                ->exists();
+                ->exists()
+            ? 'lessons'
+            : null;
     }
 
     private function findTemplate(int $customerId, int $templateId): object

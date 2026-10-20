@@ -38,23 +38,35 @@
         </h3>
         <div class="admin-table-actions">
 
-            <a class="admin-text-action" href="{{ route($sectionRoutePrefix.'.create', $template->id) }}?parent_section_id={{ $currentSection->id }}">
+            <button type="button" class="admin-link-button admin-text-action"
+                    data-ui-dialog-form-open aria-haspopup="dialog"
+                    data-url="{{ route($sectionRoutePrefix.'.create', $template->id) }}?parent_section_id={{ $currentSection->id }}">
                 {{ __('lf.LF_course_template_section_common_add_child_action') }}
-            </a>
-            <a class="admin-text-action" href="{{ route(
-                $sectionRoutePrefix.'.edit',
-                [$template->id, $currentSection->id]
-            ) }}">
-                {{ __('lf.LF_common_button_edit') }}
-            </a>
-            <button type="button"
-                    class="admin-link-button admin-text-action"
-                    x-data
-                    x-on:click="$dispatch(
-                        'open-modal',
-                        'delete-course-template-section-{{ $currentSection->id }}'
-                    )">
-                {{ __('lf.LF_common_button_delete') }}
+            </button>
+            <button type="button" class="admin-link-button admin-text-action ui-row-action"
+                    data-ui-dialog-form-open aria-haspopup="dialog"
+                    data-url="{{ route($sectionRoutePrefix.'.edit', [$template->id, $currentSection->id]) }}"
+                    aria-label="{{ __('lf.LF_common_button_edit') }}: {{ $currentSection->title }}"
+                    data-tooltip="{{ __('lf.LF_common_button_edit') }}">
+                <x-backend-icon name="pencil" class="ui-icon" />
+                <span class="ui-sr-only">{{ __('lf.LF_common_button_edit') }}</span>
+            </button>
+            @php
+                $sectionBlocker = $childSections->isNotEmpty()
+                    ? __('lf.LF_course_template_section_delete_blocked_children')
+                    : ($sectionLessons->isNotEmpty() ? __('lf.LF_course_template_section_delete_blocked_lessons') : null);
+            @endphp
+            <button type="button" class="admin-link-button admin-text-action ui-row-action ui-row-action--danger"
+                    data-ui-row-delete
+                    data-url="{{ route($sectionRoutePrefix.'.destroy', [$template->id, $currentSection->id]) }}"
+                    data-confirm-title="{{ __('lf.LF_course_template_section_delete_title') }}"
+                    data-confirm-message="{{ __('lf.LF_course_template_section_delete_confirm', ['name' => $currentSection->title]) }}"
+                    data-confirm-label="{{ __('lf.LF_course_template_section_delete_label') }}"
+                    @if ($sectionBlocker) disabled aria-disabled="true" @endif
+                    aria-label="{{ __('lf.LF_common_button_delete') }}: {{ $currentSection->title }}"
+                    data-tooltip="{{ $sectionBlocker ?? __('lf.LF_common_button_delete') }}">
+                <x-backend-icon name="trash-2" class="ui-icon" />
+                <span class="ui-sr-only">{{ __('lf.LF_common_button_delete') }}</span>
             </button>
         </div>
     </header>
@@ -86,33 +98,4 @@
         @endif
     </div>
 
-    <x-modal name="delete-course-template-section-{{ $currentSection->id }}"
-             focusable>
-        <div class="lf-modal-card">
-            <h2>
-                {{ __('lf.LF_course_template_section_common_delete_confirm') }}
-            </h2>
-            <div class="lf-modal-actions">
-                <button type="button"
-                        class="btn"
-                        x-on:click="$dispatch(
-                            'close-modal',
-                            'delete-course-template-section-{{ $currentSection->id }}'
-                        )">
-                    {{ __('lf.LF_course_template_section_common_delete_no') }}
-                </button>
-                <form method="POST"
-                      action="{{ route(
-                          $sectionRoutePrefix.'.destroy',
-                          [$template->id, $currentSection->id]
-                      ) }}">
-                    @csrf
-                    @method('DELETE')
-                    <button type="submit" class="btn btn-primary">
-                        {{ __('lf.LF_course_template_section_common_delete_yes') }}
-                    </button>
-                </form>
-            </div>
-        </div>
-    </x-modal>
 </article>

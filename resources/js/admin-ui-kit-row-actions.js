@@ -1,10 +1,10 @@
 /**
  * Row actions for UI Kit lists. `[data-ui-row-delete]` (data-url, data-confirm-title/-message/-label) asks through the
  * shared LF confirmation dialog (window.LFConfirm, danger tone), then sends DELETE (method spoofing) as XHR/JSON.
- * Success: a toast and `ui-dialog-form-saved` so the list refetches. A refusal (409) shows the server's reason.
+ * Success: a toast and `ui-dialog-form-saved` so the list refetches (or, when the server answers `redirect`, a reload there). A refusal (409) shows the server's reason.
  * One request at a time; a disabled button (the server said it cannot be deleted) does nothing.
  */
-import { showUiToast, claimOnce, releaseClaim } from './admin-ui-kit-controls.js';
+import { showUiToast, claimOnce, releaseClaim, followRedirect } from './admin-ui-kit-controls.js';
 
 const instances = new WeakMap();
 
@@ -52,7 +52,10 @@ export function initUiKitRowActions(scope, deps = {}) {
             }
             let payload = null;
             try { payload = await response.json(); } catch (error) { payload = null; }
-            if (response.ok) {
+            if (response.ok && payload?.redirect) {
+                // The list is rendered by the page itself (e.g. lessons in the structure tab): reload it; the server flashed the message.
+                followRedirect(win, payload.redirect);
+            } else if (response.ok) {
                 report('flash', String(payload?.message ?? ''));
                 scope.dispatchEvent(createEvent('ui-dialog-form-saved', { message: String(payload?.message ?? '') }));
                 scope.querySelector('[data-ui-dialog-form-open]')?.focus?.();

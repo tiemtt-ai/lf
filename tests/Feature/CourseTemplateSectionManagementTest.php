@@ -62,7 +62,7 @@ class CourseTemplateSectionManagementTest extends TestCase
             $xpath = $this->xpath($response->getContent());
             $createAction = $xpath->query(
                 '//div[contains(concat(" ", normalize-space(@class), " "), " course-template-section-action-bar ")]'
-                .'//a[normalize-space()="+ Thêm phần học"]'
+                .'//button[normalize-space()="+ Thêm phần học" and @data-ui-dialog-form-open]'
             )->item(0);
 
             $this->assertNotNull($createAction);
@@ -328,7 +328,7 @@ class CourseTemplateSectionManagementTest extends TestCase
             'Empty Section Scope',
             'empty-section-scope'
         );
-        $emptyCreate = $this->actingAs($admin)->get(
+        $emptyCreate = $this->actingAs($admin)->withHeaders($this->ajaxHeaders())->get(
             "https://tenant-a.localhost/admin/course-templates/{$emptyTemplateId}/sections/create"
         );
         $this->assertSame(
@@ -370,7 +370,7 @@ class CourseTemplateSectionManagementTest extends TestCase
             $parentId
         );
 
-        $rootCreate = $this->actingAs($admin)->get(
+        $rootCreate = $this->actingAs($admin)->withHeaders($this->ajaxHeaders())->get(
             "https://tenant-a.localhost/admin/course-templates/{$templateId}/sections/create"
         );
         $this->assertSame(
@@ -380,7 +380,7 @@ class CourseTemplateSectionManagementTest extends TestCase
                 ->item(0)
                 ->getAttribute('value')
         );
-        $childCreate = $this->actingAs($admin)->get(
+        $childCreate = $this->actingAs($admin)->withHeaders($this->ajaxHeaders())->get(
             "https://tenant-a.localhost/admin/course-templates/{$templateId}/sections/create?parent_section_id={$parentId}"
         );
         $this->assertSame(
@@ -390,22 +390,9 @@ class CourseTemplateSectionManagementTest extends TestCase
                 ->item(0)
                 ->getAttribute('value')
         );
-        $oldInputCreate = $this->withSession([
-            '_old_input' => ['display_order' => '3'],
-        ])->actingAs($admin)->get(
-            "https://tenant-a.localhost/admin/course-templates/{$templateId}/sections/create"
+        $edit = $this->actingAs($admin)->get(
+            "https://tenant-a.localhost/admin/course-templates/{$templateId}/sections/{$parentId}/edit"
         );
-        $this->assertSame(
-            '3',
-            $this->xpath($oldInputCreate->getContent())
-                ->query('//input[@name="display_order"]')
-                ->item(0)
-                ->getAttribute('value')
-        );
-        $edit = $this->withSession(['_old_input' => []])
-            ->actingAs($admin)->get(
-                "https://tenant-a.localhost/admin/course-templates/{$templateId}/sections/{$parentId}/edit"
-            );
         $this->assertSame(
             '7',
             $this->xpath($edit->getContent())
@@ -944,25 +931,22 @@ class CourseTemplateSectionManagementTest extends TestCase
             ->assertSeeText('1 phần học')
             ->assertSeeText('Sửa')
             ->assertSeeText('Xóa')
-            ->assertSeeText('Bạn có chắc chắn muốn xóa phần học này không?')
-            ->assertSeeText('Có, xóa')
-            ->assertSeeText('Không');
+            ->assertSee('data-ui-row-delete', false)
+            ->assertSee('data-confirm-title="Xoá phần học?"', false)
+            ->assertSee('data-confirm-message="Phần học «UI Section» sẽ bị xoá vĩnh viễn và không thể hoàn tác."', false)
+            ->assertDontSeeText('Bạn có chắc chắn muốn xóa phần học này không?');
 
         $response = $this->actingAs($admin)
+            ->withHeaders($this->ajaxHeaders())
             ->get(
                 'https://tenant-a.localhost/admin/course-templates/'
                 ."{$templateId}/sections/create"
             )
             ->assertOk()
-            ->assertSee('class="course-template-tab-panel course-template-section-form-page"', false)
-            ->assertSee('class="admin-card admin-form-card course-template-section-form-card"', false)
-            ->assertSee('class="course-template-section-context"', false)
-            ->assertSee('class="admin-form-flow course-template-section-form"', false)
-            ->assertSeeText('Vị trí nội dung')
-            ->assertSeeText('Thông tin phần học')
-            ->assertSeeText('Tổ chức phần học')
-            ->assertSee('class="admin-form-field-grid admin-form-field-grid--three"', false)
-            ->assertSee('id="display_order"', false)
+            ->assertSee('class="ui-modal__form"', false)
+            ->assertSee('data-ui-dialog-form-submit', false)
+            ->assertSeeText('Vị trí')
+            ->assertSee('id="section-form-display_order"', false)
             ->assertSee('readonly', false)
             ->assertDontSeeText('Hệ thống đề xuất thứ tự tiếp theo; có thể điều chỉnh khi cần.')
             ->assertSee('placeholder="Nhập tên phần học"', false)
@@ -1003,6 +987,78 @@ class CourseTemplateSectionManagementTest extends TestCase
         $this->assertStringContainsString('.course-template-section-form-card {', $css);
         $this->assertStringContainsString('max-width: none;', $css);
         $this->assertStringContainsString('.admin-form-field-grid--three', $css);
+    }
+
+    public function test_popup_save_and_delete_answer_json_and_the_fragment_prefills_the_parent(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $teacher = $this->createUser($customerId, 'teacher');
+        $templateId = $this->createTemplate($customerId, 'Popup Course', 'popup-course', $teacher->id);
+
+        foreach ([[$admin, 'admin'], [$teacher, 'teacher']] as [$user, $area]) {
+            $base = "https://tenant-a.localhost/{$area}/course-templates/{$templateId}/sections";
+            $structure = "https://tenant-a.localhost/{$area}/course-templates/{$templateId}/edit?tab=structure#course-template-sections";
+
+            $this->actingAs($user)->withoutHeader('X-Requested-With')->get("{$base}/create")->assertNotFound();
+
+            $this->actingAs($user)
+                ->postJson($base, $this->validSectionData(['title' => "{$area} root"]))
+                ->assertCreated()
+                ->assertJson(['message' => __('lf.LF_course_template_section_common_created'), 'redirect' => $structure])
+                ->assertSessionHas('success', __('lf.LF_course_template_section_common_created'));
+            $rootId = (int) DB::table('core_course_template_sections')->where('title', "{$area} root")->value('id');
+
+            $xpath = $this->xpath($this->actingAs($user)->withHeaders($this->ajaxHeaders())->get("{$base}/create?parent_section_id={$rootId}")->assertOk()->getContent());
+            $this->assertSame(
+                (string) $rootId,
+                $xpath->query('//select[@name="parent_section_id"]/option[@selected]')->item(0)?->getAttribute('value')
+            );
+
+            $this->actingAs($user)
+                ->putJson("{$base}/{$rootId}", $this->validSectionData(['title' => "{$area} root renamed", 'display_order' => 1]))
+                ->assertOk()
+                ->assertJson(['message' => __('lf.LF_course_template_section_common_updated'), 'redirect' => $structure]);
+            $this->assertDatabaseHas('core_course_template_sections', ['id' => $rootId, 'title' => "{$area} root renamed"]);
+
+            $this->actingAs($user)
+                ->postJson($base, ['allows_lessons' => 1])
+                ->assertUnprocessable()
+                ->assertJsonValidationErrors('title');
+
+            $this->actingAs($user)
+                ->deleteJson("{$base}/{$rootId}")
+                ->assertOk()
+                ->assertJson(['message' => __('lf.LF_course_template_section_common_deleted'), 'redirect' => $structure]);
+            $this->assertDatabaseMissing('core_course_template_sections', ['id' => $rootId]);
+        }
+    }
+
+    public function test_delete_json_refuses_with_the_reason_and_the_button_is_disabled_for_a_blocked_section(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, 'Blocked Sections', 'blocked-sections');
+        $parentId = $this->createSection($customerId, $templateId, 'Has Child', 1);
+        $this->createSection($customerId, $templateId, 'Child', 1, $parentId);
+        $withLessonId = $this->createSection($customerId, $templateId, 'Has Lesson', 2);
+        $this->createLesson($customerId, $templateId, $withLessonId, 'Attached Lesson');
+        $freeId = $this->createSection($customerId, $templateId, 'Free', 3);
+        $base = "https://tenant-a.localhost/admin/course-templates/{$templateId}/sections";
+
+        $this->actingAs($admin)->deleteJson("{$base}/{$parentId}")
+            ->assertStatus(409)->assertJson(['message' => __('lf.LF_course_template_section_delete_blocked_children')]);
+        $this->actingAs($admin)->deleteJson("{$base}/{$withLessonId}")
+            ->assertStatus(409)->assertJson(['message' => __('lf.LF_course_template_section_delete_blocked_lessons')]);
+        $this->assertDatabaseHas('core_course_template_sections', ['id' => $parentId]);
+        $this->assertDatabaseHas('core_course_template_sections', ['id' => $withLessonId]);
+
+        $xpath = $this->xpath($this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit")->getContent());
+        foreach ([$parentId => true, $withLessonId => true, $freeId => false] as $id => $blocked) {
+            $button = $xpath->query('//button[@data-ui-row-delete and contains(@data-url, "/sections/'.$id.'")]')->item(0);
+            $this->assertNotNull($button);
+            $this->assertSame($blocked, $button->hasAttribute('disabled'));
+        }
     }
 
     public function test_guest_and_student_cannot_access_section_management(): void
@@ -1148,6 +1204,12 @@ class CourseTemplateSectionManagementTest extends TestCase
         ], $overrides);
     }
 
+    /** The section form is a popup fragment: it answers only XHR. */
+    private function ajaxHeaders(): array
+    {
+        return ['X-Requested-With' => 'XMLHttpRequest'];
+    }
+
     private function requiredIndicatorCount(string $html, string $field): int
     {
         $previous = libxml_use_internal_errors(true);
@@ -1157,7 +1219,7 @@ class CourseTemplateSectionManagementTest extends TestCase
         libxml_use_internal_errors($previous);
         $xpath = new \DOMXPath($document);
         $query = sprintf(
-            '//label[@for="%s"]//span[contains(concat(" ", normalize-space(@class), " "), " lf-required-indicator ")]',
+            '//label[@for="section-form-%s"]//span[contains(concat(" ", normalize-space(@class), " "), " ui-field__required ")]',
             $field
         );
 

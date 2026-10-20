@@ -6,8 +6,8 @@ use Illuminate\Http\UploadedFile;
 
 class UploadLimit
 {
-    /** Policy: a video may be up to 1 GB, any other media up to 500 MB. */
-    public const MAX_VIDEO_KILOBYTES = 1048576;
+    /** Policy: a video may be up to 1.5 GB, any other media up to 500 MB. */
+    public const MAX_VIDEO_KILOBYTES = 1572864;
 
     public const MAX_OTHER_KILOBYTES = 512000;
 

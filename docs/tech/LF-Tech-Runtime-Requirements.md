@@ -261,6 +261,8 @@ Với **SQS**, deployment phải đồng thời chứng minh:
 | `MEDIA_DISK` | `media_local` cho local; S3 disk cho production |
 | `MEDIA_SIGNED_URL_TTL_MINUTES` | `10` |
 | `MEDIA_MAX_UPLOAD_KILOBYTES` | `.env.example` đặt `1048576` (1 GB); mặc định trong `config/media.php` là `102400` (100 MB) |
+| `MEDIA_VIDEO_MAX_UPLOAD_KILOBYTES` | `.env.example` đặt `1572864` (1,5 GB) cho video; media khác tối đa 500 MB (`MEDIA_MAX_UPLOAD_KILOBYTES`). Chính sách cố định trong `App\Support\UploadLimit`, env chỉ hạ thấp được |
+| PHP `upload_max_filesize` / `post_max_size` | Phải ≥ `1536M` (khuyến nghị `post_max_size` `1600M`) thì video 1,5 GB mới tải lên được; nếu thấp hơn, giới hạn hiệu lực (hiển thị ở gợi ý tải lên) là giá trị PHP. Máy local: `php.ini` của PHP đang chạy (`php --ini`) |
 | `MEDIA_AWS_*` | bucket, region, endpoint, path-style |
 
 Storage luôn riêng tư; mọi truy cập qua signed delivery có thời hạn.

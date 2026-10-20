@@ -128,9 +128,11 @@ class CourseTemplateLessonController extends Controller
         int $templateId,
         ?int $sectionId
     ): View {
+        abort_unless($request->ajax(), 404);
+
         $customerId = $this->customerId();
 
-        return view('course-template-lessons.create', [
+        return view('course-template-lessons.dialog', [
             'template' => $this->findTemplate($customerId, $templateId),
             'section' => $sectionId === null
                 ? null
@@ -239,13 +241,23 @@ class CourseTemplateLessonController extends Controller
             return $lessonId;
         });
 
+        $structureUrl = route(
+            $this->templateRoutePrefix($request).'.edit',
+            $templateId
+        ).$this->lessonAnchor($sectionId);
+
+        if ($request->expectsJson()) {
+            // The structure tab is rendered by the page: the dialog reloads it, where the flashed message shows as a toast.
+            $request->session()->flash('success', __('lf.LF_course_template_lesson_common_created'));
+
+            return response()->json([
+                'message' => __('lf.LF_course_template_lesson_common_created'),
+                'redirect' => $structureUrl,
+            ], 201);
+        }
+
         return redirect()
-            ->to(
-                route(
-                    $this->templateRoutePrefix($request).'.edit',
-                    $templateId
-                ).$this->lessonAnchor($sectionId)
-            )
+            ->to($structureUrl)
             ->with('success', __('lf.LF_course_template_lesson_common_created'));
     }
 
@@ -255,9 +267,11 @@ class CourseTemplateLessonController extends Controller
         int $lessonId,
         ?int $sectionId
     ): View {
+        abort_unless($request->ajax(), 404);
+
         $customerId = $this->customerId();
 
-        return view('course-template-lessons.edit', [
+        return view('course-template-lessons.dialog', [
             'template' => $this->findTemplate($customerId, $templateId),
             'section' => $sectionId === null
                 ? null
@@ -345,6 +359,18 @@ class CourseTemplateLessonController extends Controller
             );
         });
 
+        if ($request->expectsJson()) {
+            $request->session()->flash('success', __('lf.LF_course_template_lesson_common_updated'));
+
+            return response()->json([
+                'message' => __('lf.LF_course_template_lesson_common_updated'),
+                'redirect' => route(
+                    $this->templateRoutePrefix($request).'.edit',
+                    $templateId
+                ).$this->lessonAnchor($sectionId),
+            ]);
+        }
+
         return redirect()
             ->route(
                 $this->routePrefix($request, $sectionId).'.edit',
@@ -379,7 +405,7 @@ class CourseTemplateLessonController extends Controller
 
         $deleted = DB::transaction(function () use ($customerId, $templateId, $sectionId, $lessonId): bool {
             $this->lockTemplate($customerId, $templateId);
-            if ($this->hasReferences($customerId, $templateId, $lessonId)) {
+            if ($this->deleteBlockReason($customerId, $templateId, $lessonId) !== null) {
                 return false;
             }
             DB::table('core_course_template_lesson_prerequisites')
@@ -400,7 +426,20 @@ class CourseTemplateLessonController extends Controller
 
             return true;
         });
+        $structureUrl = route(
+            $this->templateRoutePrefix($request).'.edit',
+            $templateId
+        ).$this->lessonAnchor($sectionId);
+
         if (! $deleted) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => $this->deleteBlockMessage(
+                        $this->deleteBlockReason($customerId, $templateId, $lessonId)
+                    ),
+                ], 409);
+            }
+
             return back()->withErrors([
                 'lesson' => __(
                     'lf.LF_course_template_lesson_common_delete_blocked'
@@ -408,13 +447,17 @@ class CourseTemplateLessonController extends Controller
             ]);
         }
 
+        if ($request->expectsJson()) {
+            $request->session()->flash('success', __('lf.LF_course_template_lesson_common_deleted'));
+
+            return response()->json([
+                'message' => __('lf.LF_course_template_lesson_common_deleted'),
+                'redirect' => $structureUrl,
+            ]);
+        }
+
         return redirect()
-            ->to(
-                route(
-                    $this->templateRoutePrefix($request).'.edit',
-                    $templateId
-                ).$this->lessonAnchor($sectionId)
-            )
+            ->to($structureUrl)
             ->with('success', __('lf.LF_course_template_lesson_common_deleted'));
     }
 
@@ -834,33 +877,44 @@ class CourseTemplateLessonController extends Controller
         return false;
     }
 
-    private function hasReferences(
+    /** Why the lesson cannot be deleted: 'activities', 'referenced' (another lesson unlocks after it) or null. */
+    private function deleteBlockReason(
         int $customerId,
         int $templateId,
         int $lessonId
-    ): bool {
-        if (
-            DB::table('core_course_template_lesson_prerequisites')
-                ->where('customer_id', $customerId)
-                ->where('template_id', $templateId)
-                ->where('prerequisite_lesson_id', $lessonId)
-                ->exists()
-            ||
-            DB::table('core_course_template_lessons')
-                ->where('customer_id', $customerId)
-                ->where('template_id', $templateId)
-                ->where('unlock_after_lesson_id', $lessonId)
-                ->exists()
-        ) {
-            return true;
-        }
-
-        return Schema::hasTable('core_course_template_activities')
+    ): ?string {
+        if (Schema::hasTable('core_course_template_activities')
             && DB::table('core_course_template_activities')
                 ->where('customer_id', $customerId)
                 ->where('template_id', $templateId)
                 ->where('template_lesson_id', $lessonId)
-                ->exists();
+                ->exists()) {
+            return 'activities';
+        }
+
+        if (DB::table('core_course_template_lesson_prerequisites')
+            ->where('customer_id', $customerId)
+            ->where('template_id', $templateId)
+            ->where('prerequisite_lesson_id', $lessonId)
+            ->exists()
+            || DB::table('core_course_template_lessons')
+                ->where('customer_id', $customerId)
+                ->where('template_id', $templateId)
+                ->where('unlock_after_lesson_id', $lessonId)
+                ->exists()) {
+            return 'referenced';
+        }
+
+        return null;
+    }
+
+    private function deleteBlockMessage(?string $reason): string
+    {
+        return match ($reason) {
+            'activities' => __('lf.LF_course_template_lesson_delete_blocked_activities'),
+            'referenced' => __('lf.LF_course_template_lesson_delete_blocked_referenced'),
+            default => __('lf.LF_course_template_lesson_common_delete_blocked'),
+        };
     }
 
     private function findTemplate(int $customerId, int $templateId): object
