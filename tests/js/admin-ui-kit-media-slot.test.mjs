@@ -38,6 +38,7 @@ function setup({ saved = true, removable = true, kind = 'image', previewable = t
     if (flag) flag.value = '0';
     const map = { ...parts, 'remove-flag': flag };
     const events = [];
+    const slotListeners = new Map();
     const urls = { created: [], revoked: [] };
     const formListeners = new Map();
     const timers = [];
@@ -52,6 +53,8 @@ function setup({ saved = true, removable = true, kind = 'image', previewable = t
         removeEventListener: type => formListeners.delete(type),
     });
     slot.dispatchEvent = event => events.push(event);
+    slot.addEventListener = (type, fn) => slotListeners.set(type, fn);
+    slot.removeEventListener = type => slotListeners.delete(type);
     const instance = initUiKitMediaSlot(slot, {
         url: {
             createObjectURL: file => { const url = `blob:${file.name}:${urls.created.length}`; urls.created.push(url); return url; },
@@ -70,7 +73,7 @@ function setup({ saved = true, removable = true, kind = 'image', previewable = t
     const click = (el) => el.listeners.get('click')();
     const state = () => slot.getAttribute('data-state');
     const alive = () => urls.created.filter(url => !urls.revoked.includes(url));
-    return { slot, parts, flag, events, urls, instance, choose, click, state, alive, formListeners, timers, changes };
+    return { slot, parts, flag, events, urls, instance, choose, click, state, alive, formListeners, timers, changes, slotListeners };
 }
 
 test('saved image fills the tile with View and Remove, no upload tile', () => {
@@ -233,4 +236,20 @@ test('discarding a chosen file tells the form (a change event); removing a saved
     const saved = setup();
     saved.click(saved.parts.remove);
     assert.deepEqual(saved.changes, []);
+});
+
+test('an external clear (the embed alternative was chosen) empties a saved or chosen file without moving focus', () => {
+    const saved = setup();
+    saved.slotListeners.get('ui-media-clear')();
+    assert.equal(saved.flag.value, '1');
+    assert.equal(saved.state(), 'empty');
+    assert.equal(saved.parts.input.focused, 0);
+    const chosen = setup({ saved: false, savedImage: '' });
+    chosen.choose('new.png');
+    chosen.slotListeners.get('ui-media-clear')();
+    assert.equal(chosen.state(), 'empty');
+    assert.deepEqual(chosen.alive(), []);
+    assert.deepEqual(chosen.changes, ['change']);
+    chosen.slotListeners.get('ui-media-clear')();
+    assert.deepEqual(chosen.changes, ['change'], 'clearing an empty tile does nothing');
 });

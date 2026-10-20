@@ -212,6 +212,10 @@ export function initUiKitToasts(scope = document, deps = {}) {
 }
 
 export const UI_MEDIA_PREVIEW_EVENT = 'ui-media-preview';
+/** Ask a media slot to empty itself (e.g. because its alternative was chosen). */
+export const UI_MEDIA_CLEAR_EVENT = 'ui-media-clear';
+export const UI_EMBED_CHANGE_EVENT = 'ui-embed-change';
+export const UI_EMBED_CLEAR_EVENT = 'ui-embed-clear';
 
 /**
  * Media slot: one tile per file (markup: components/ui-media-slot.blade.php).
@@ -284,7 +288,8 @@ export function initUiKitMediaSlot(slot, deps = {}) {
         if (pending) announce(selectedText.replace(':name', pending.file.name));
         render();
     };
-    const onRemove = () => {
+    // Empties the tile: a chosen file is discarded, a saved one is marked for removal. Returns whether anything changed.
+    const clear = () => {
         if (pending) {
             discardPending();
             input.value = '';
@@ -294,10 +299,14 @@ export function initUiKitMediaSlot(slot, deps = {}) {
             removed = true;
             flag.value = '1';
         } else {
-            return;
+            return false;
         }
         announce(removedText);
         render();
+        return true;
+    };
+    const onRemove = () => {
+        if (!clear()) return;
         if (empty.hidden) viewButton.hidden ? removeButton.focus?.() : viewButton.focus?.();
         else input.focus?.();
     };
@@ -325,6 +334,7 @@ export function initUiKitMediaSlot(slot, deps = {}) {
     viewButton.addEventListener('click', onView);
     image.addEventListener('error', onImageError);
     form?.addEventListener('reset', onReset);
+    slot.addEventListener?.(UI_MEDIA_CLEAR_EVENT, clear);
     syncFromInput();
     render();
     const instance = { destroy() {
@@ -334,11 +344,190 @@ export function initUiKitMediaSlot(slot, deps = {}) {
         viewButton.removeEventListener('click', onView);
         image.removeEventListener('error', onImageError);
         form?.removeEventListener('reset', onReset);
+        slot.removeEventListener?.(UI_MEDIA_CLEAR_EVENT, clear);
         releaseClaim(slot, 'MediaSlot');
         instances.delete(slot);
     } };
     instances.set(slot, instance);
     return instance;
+}
+
+/**
+ * Mirrors the server's trusted video link rules (TrustedVideoUrlService): HTTPS only, YouTube or Vimeo. Returns the
+ * normalised link, the embed URL for the preview and a thumbnail (YouTube only), or null when the link is not accepted.
+ * The server stays the authority; this only lets the tile answer at once.
+ */
+export function parseEmbedLink(input) {
+    let url;
+    try { url = new URL(String(input ?? '').trim()); } catch (error) { return null; }
+    if (url.protocol !== 'https:') return null;
+    const host = url.hostname.toLowerCase();
+    const path = url.pathname.replace(/^\/+|\/+$/g, '');
+    const youtube = id => (/^[A-Za-z0-9_-]{11}$/.test(id ?? '') ? {
+        provider: 'youtube',
+        id,
+        url: `https://www.youtube.com/watch?v=${id}`,
+        embedUrl: `https://www.youtube-nocookie.com/embed/${id}`,
+        thumbnail: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
+    } : null);
+    if (['youtube.com', 'www.youtube.com', 'm.youtube.com'].includes(host)) {
+        const parts = path.split('/');
+        if (path === 'watch') return youtube(url.searchParams.get('v'));
+        return parts[0] === 'shorts' || parts[0] === 'embed' ? youtube(parts[1]) : null;
+    }
+    if (host === 'youtu.be') return youtube(path.split('/')[0]);
+    if (['vimeo.com', 'www.vimeo.com', 'player.vimeo.com'].includes(host)) {
+        const id = path.split('/').filter(Boolean).at(-1);
+        return /^\d+$/.test(id ?? '') ? { provider: 'vimeo', id, url: `https://vimeo.com/${id}`, embedUrl: `https://player.vimeo.com/video/${id}`, thumbnail: '' } : null;
+    }
+    return null;
+}
+
+/**
+ * Embedded-video tile (markup: components/ui-embed-slot.blade.php), same look as a media slot: empty = "+ Nhúng",
+ * click opens a small link editor; OK shows the video in the tile itself (thumbnail, View/Remove on hover). The
+ * committed link lives in a hidden input. Choosing a video file elsewhere empties it through `ui-embed-clear`.
+ */
+export function initUiKitEmbedSlot(slot, deps = {}) {
+    if (instances.has(slot)) return instances.get(slot);
+    const part = name => slot.querySelector(`[data-ui-embed-${name}]`);
+    const value = part('value');
+    if (!value) return null;
+    if (!claimOnce(slot, 'EmbedSlot')) return null;
+    const filled = part('filled');
+    const addButton = part('add');
+    const image = part('image');
+    const fallback = part('fallback');
+    const viewButton = part('view');
+    const removeButton = part('remove');
+    const editor = part('editor');
+    const input = part('input');
+    const okButton = part('ok');
+    const cancelButton = part('cancel');
+    const errorNode = part('error');
+    const statusNode = part('status');
+    const createEvent = deps.createEvent ?? ((type, detail) => new CustomEvent(type, { bubbles: true, detail }));
+    const doc = deps.document ?? globalThis.document;
+    const savedUrl = value.value || '';
+    const savedPreview = slot.getAttribute('data-saved-preview-url') || '';
+    const savedImage = slot.getAttribute('data-saved-image') || '';
+    const savedName = slot.getAttribute('data-saved-name') || '';
+    const removedText = slot.getAttribute('data-status-removed') || '';
+    let editing = false;
+
+    // The saved link keeps what the server decided to show (thumbnail, preview); a link typed now is derived here.
+    const parsed = () => (value.value && value.value !== savedUrl ? parseEmbedLink(value.value) : null);
+    const announce = text => { if (statusNode) statusNode.textContent = text; };
+    const setError = text => {
+        errorNode.textContent = text;
+        errorNode.hidden = text === '';
+        input.setAttribute('aria-invalid', text === '' ? 'false' : 'true');
+    };
+    const render = () => {
+        const isFilled = value.value !== '';
+        const info = parsed();
+        const thumb = info ? info.thumbnail : (value.value === savedUrl ? savedImage : '');
+        slot.setAttribute('data-state', isFilled ? 'filled' : 'empty');
+        filled.hidden = !isFilled;
+        addButton.hidden = isFilled;
+        addButton.setAttribute('aria-expanded', String(editing));
+        if (isFilled && thumb) image.setAttribute('src', thumb); else image.removeAttribute('src');
+        image.hidden = !(isFilled && thumb);
+        fallback.hidden = isFilled && Boolean(thumb);
+        const preview = info ? info.embedUrl : (value.value === savedUrl ? savedPreview : '');
+        viewButton.hidden = !isFilled || preview === '';
+        editor.hidden = !editing;
+    };
+    const emitChange = () => slot.dispatchEvent(createEvent(UI_EMBED_CHANGE_EVENT, { url: value.value }));
+    const openEditor = () => {
+        editing = true;
+        input.value = value.value;
+        setError('');
+        render();
+        input.focus?.();
+    };
+    const closeEditor = (refocus = true) => {
+        editing = false;
+        setError('');
+        render();
+        if (refocus) (value.value === '' ? addButton : viewButton.hidden ? removeButton : viewButton).focus?.();
+    };
+    const commit = () => {
+        const link = parseEmbedLink(input.value);
+        if (!link) {
+            setError(slot.getAttribute('data-invalid-message') || 'Invalid link');
+            input.focus?.();
+            return;
+        }
+        value.value = link.url;
+        editing = false;
+        setError('');
+        render();
+        emitChange();
+        viewButton.hidden ? removeButton.focus?.() : viewButton.focus?.();
+    };
+    const clear = () => {
+        if (value.value === '') return false;
+        value.value = '';
+        announce(removedText);
+        render();
+        emitChange();
+        return true;
+    };
+    const onRemove = () => { if (clear()) addButton.focus?.(); };
+    const onView = () => {
+        const info = parsed();
+        const url = info ? info.embedUrl : (value.value === savedUrl ? savedPreview : '');
+        if (!url) return;
+        slot.dispatchEvent(createEvent(UI_MEDIA_PREVIEW_EVENT, {
+            name: info ? (info.provider === 'youtube' ? 'YouTube' : 'Vimeo') : savedName,
+            url,
+            kind: 'embed',
+            mimeType: 'text/html',
+        }));
+    };
+    const onKeydown = event => {
+        if (event.key === 'Enter') { event.preventDefault(); commit(); }
+        else if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeEditor(); }
+    };
+    const onOutside = event => {
+        if (editing && !slot.contains(event.target)) closeEditor(false);
+    };
+    const onReset = () => {
+        value.value = savedUrl;
+        editing = false;
+        render();
+        emitChange();
+    };
+    const form = slot.closest?.('form') ?? null;
+    addButton.addEventListener('click', openEditor);
+    okButton.addEventListener('click', commit);
+    cancelButton.addEventListener('click', () => closeEditor());
+    removeButton.addEventListener('click', onRemove);
+    viewButton.addEventListener('click', onView);
+    editor.addEventListener('keydown', onKeydown);
+    doc?.addEventListener?.('pointerdown', onOutside);
+    form?.addEventListener('reset', onReset);
+    slot.addEventListener?.(UI_EMBED_CLEAR_EVENT, clear);
+    render();
+    const instance = { destroy() {
+        doc?.removeEventListener?.('pointerdown', onOutside);
+        form?.removeEventListener('reset', onReset);
+        slot.removeEventListener?.(UI_EMBED_CLEAR_EVENT, clear);
+        addButton.removeEventListener('click', openEditor);
+        okButton.removeEventListener('click', commit);
+        removeButton.removeEventListener('click', onRemove);
+        viewButton.removeEventListener('click', onView);
+        editor.removeEventListener('keydown', onKeydown);
+        releaseClaim(slot, 'EmbedSlot');
+        instances.delete(slot);
+    } };
+    instances.set(slot, instance);
+    return instance;
+}
+
+export function initUiKitEmbedSlots(scope = document) {
+    return [...scope.querySelectorAll('[data-ui-embed-slot]')].map(slot => initUiKitEmbedSlot(slot)).filter(Boolean);
 }
 
 export function initUiKitMediaSlots(scope = document) {
@@ -478,6 +667,7 @@ if (typeof document !== 'undefined') {
         document.querySelectorAll('.lf-admin-ui select[data-ui-kit-select]').forEach(initUiKitSelect);
         document.querySelectorAll('.lf-admin-ui form[data-ui-live-filter]').forEach(form => initUiKitLiveFilter(form));
         initUiKitMediaSlots(document);
+        initUiKitEmbedSlots(document);
         initUiKitToasts(document);
     };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initialize, { once: true });

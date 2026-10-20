@@ -974,3 +974,24 @@ now asks through the shared `window.LFConfirm` (danger tone, warning icon, Cance
 chưa lưu?", text "Bạn có thay đổi chưa lưu. Nếu đóng bây giờ, các thay đổi này sẽ bị mất.", action "Bỏ thay đổi". Applies to the
 category and template popups. Verification: Node 228 tests (confirm flow, 5 mutations killed), PHP limits tests, browser
 check of the layout, the hints (500 MB / 1 GB / 500 MB) and the confirmation. Not verified: a real 1 GB upload.
+
+### Template popup: embedded video as a tile — 2026-10-20
+
+Owner asked for the embedded video to look like the media tiles. The popup row is now: image | video (upload) | **embed video** |
+document. `x-ui-embed-slot` + `initUiKitEmbedSlot` (`admin-ui-kit-controls.js`) reuse the media-tile look: empty = "+ Nhúng";
+a click opens a small link editor under the tile (Enter or "Xác nhận" confirms, Esc / "Hủy" / an outside click cancel without
+closing the dialog); a valid link fills the tile itself (YouTube thumbnail, the video icon for Vimeo) with View (embed preview) and
+Remove on hover. `parseEmbedLink` mirrors `TrustedVideoUrlService` (HTTPS; YouTube incl. youtu.be/shorts/embed; Vimeo) so the
+tile answers at once with "Chỉ hỗ trợ liên kết HTTPS của YouTube hoặc Vimeo."; the server stays the authority (422 on
+`intro_video_embed_url` is shown on the tile through `data-ui-error-for`). The committed (normalised) link is the hidden
+`intro_video_embed_url`.
+
+Business rule kept: one intro video, an uploaded file **or** an embedded link. The hidden `intro_video_source` follows the last
+action (`embed` when a link is set, `upload` when a file is chosen or a saved upload remains, else empty); entering a link empties
+the video tile (a saved file is marked for removal, a chosen one discarded via `ui-media-clear`) and choosing a file empties the
+embed tile (`ui-embed-clear`). A saved embed shows the server-decided thumbnail/preview (nothing to preview when readiness blocks
+it). Verification: PHP (empty/saved/Vimeo tiles, source switching embed -> invalid -> upload -> none on the server), Node 241 tests
+(embed tile 12 + link parser, 7 mutations killed), browser on rendered pages (editor, invalid link, Enter does not submit, Esc keeps
+the dialog, thumbnail, both exclusion directions, saved embed preview) and on the real local app after logging in with the test
+account (create popup with 4 tiles and the 500 MB / 1 GB hints, edit popup of a real template with a saved embed). Not verified:
+saving a real template (no data was written), a real 1 GB upload.

@@ -1055,6 +1055,88 @@ class CourseTemplateManagementTest extends TestCase
         $this->assertSame(0, $this->templateHtmlCount($fragments['edit'], '//fieldset[@disabled]'));
     }
 
+    public function test_embed_tile_is_empty_for_new_templates_and_shows_the_saved_embed(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $youtube = $this->createTemplate($customerId, 'YouTube template', 'youtube-template', $admin->id);
+        $vimeo = $this->createTemplate($customerId, 'Vimeo template', 'vimeo-template', $admin->id);
+        $plain = $this->createTemplate($customerId, 'No video template', 'no-video-template', $admin->id);
+        DB::table('core_course_templates')->where('id', $youtube)->update([
+            'intro_video_source' => 'embed', 'intro_video_embed_url' => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', 'intro_video_provider' => 'youtube',
+        ]);
+        DB::table('core_course_templates')->where('id', $vimeo)->update([
+            'intro_video_source' => 'embed', 'intro_video_embed_url' => 'https://vimeo.com/76979871', 'intro_video_provider' => 'vimeo',
+        ]);
+        $get = fn (string $url) => $this->actingAs($admin)->withHeader('X-Requested-With', 'XMLHttpRequest')->get($url)->assertOk()->getContent();
+        $base = 'https://tenant-a.localhost/admin/course-templates';
+        $embed = '//div[@data-ui-embed-slot]';
+
+        $create = $get($base.'/create');
+        $this->assertSame(1, $this->templateHtmlCount($create, $embed.'[@data-state="empty"][@data-ui-error-for="intro_video_embed_url"]'));
+        $this->assertSame(1, $this->templateHtmlCount($create, $embed.'//input[@type="hidden" and @name="intro_video_embed_url" and @value=""]'));
+        $this->assertSame(1, $this->templateHtmlCount($create, $embed.'//button[@data-ui-embed-add and @aria-haspopup="true"]'));
+        $this->assertSame(1, $this->templateHtmlCount($create, $embed.'//div[@data-ui-embed-editor and @hidden]//input[@type="url"]'));
+        $this->assertSame(1, $this->templateHtmlCount($create, '//p[normalize-space(.)="'.__('lf.LF_course_template_video_embed').'"]'));
+        $this->assertSame(1, $this->templateHtmlCount($create, '//input[@type="hidden" and @name="intro_video_source"]'));
+
+        $withYoutube = $get($base."/{$youtube}/form");
+        $this->assertSame(1, $this->templateHtmlCount($withYoutube, $embed.'[@data-state="filled"]'));
+        $this->assertSame(1, $this->templateHtmlCount($withYoutube, $embed.'//input[@name="intro_video_embed_url" and @value="https://www.youtube.com/watch?v=dQw4w9WgXcQ"]'));
+        $this->assertSame(1, $this->templateHtmlCount($withYoutube, $embed.'//img[@data-ui-embed-image and @src="https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg"]'));
+        $this->assertStringContainsString('data-saved-preview-url="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ"', $withYoutube);
+
+        $withVimeo = $get($base."/{$vimeo}/form");
+        $this->assertSame(1, $this->templateHtmlCount($withVimeo, $embed.'[@data-state="filled"]'));
+        $this->assertSame(0, $this->templateHtmlCount($withVimeo, $embed.'//img[@data-ui-embed-image and @src]'), 'Vimeo has no thumbnail: the tile shows the video icon');
+
+        $this->assertSame(1, $this->templateHtmlCount($get($base."/{$plain}/form"), $embed.'[@data-state="empty"]'));
+    }
+
+    public function test_choosing_an_embed_or_an_upload_switches_the_saved_video_source_on_the_server(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $this->createCategory($customerId, 'General', 'general');
+        $templateId = $this->createTemplate($customerId, 'Switch', 'switch', $admin->id);
+        $url = "https://tenant-a.localhost/admin/course-templates/{$templateId}";
+
+        $this->actingAs($admin)
+            ->putJson($url, $this->validTemplateData([
+                'intro_image_file' => null,
+                'intro_video_source' => 'embed',
+                'intro_video_embed_url' => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+            ]))
+            ->assertOk();
+        $this->assertDatabaseHas('core_course_templates', ['id' => $templateId, 'intro_video_source' => 'embed', 'intro_video_provider' => 'youtube', 'intro_video_media_file_id' => null]);
+
+        $this->actingAs($admin)
+            ->putJson($url, $this->validTemplateData([
+                'intro_image_file' => null,
+                'intro_video_source' => 'embed',
+                'intro_video_embed_url' => 'https://example.com/not-a-trusted-provider',
+            ]))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['intro_video_embed_url']);
+
+        $this->actingAs($admin)
+            ->putJson($url, $this->validTemplateData([
+                'intro_image_file' => null,
+                'intro_video_source' => 'upload',
+                'intro_video_file' => UploadedFile::fake()->create('clip.mp4', 32, 'video/mp4'),
+            ]))
+            ->assertOk();
+        $this->assertDatabaseHas('core_course_templates', ['id' => $templateId, 'intro_video_source' => 'upload', 'intro_video_embed_url' => null]);
+
+        $this->actingAs($admin)
+            ->putJson($url, $this->validTemplateData([
+                'intro_image_file' => null,
+                'intro_video_source' => null,
+            ]))
+            ->assertOk();
+        $this->assertDatabaseHas('core_course_templates', ['id' => $templateId, 'intro_video_source' => null, 'intro_video_media_file_id' => null, 'intro_video_embed_url' => null]);
+    }
+
     public function test_template_dialog_fragments_are_ajax_only_and_scoped(): void
     {
         $customerId = $this->createTenant();

@@ -13,6 +13,7 @@
 <div x-data="{
          savedVideoSource: @js($selectedVideoSource),
          videoFileChosen: false,
+         embedUrl: @js($selectedVideoSource === 'embed' ? (string) $formTemplate?->intro_video_embed_url : ''),
          previewOpen: false,
          preview: { name: '', url: '', mimeType: '', mediaType: '' },
          openPreview(detail) {
@@ -93,12 +94,10 @@
             </div>
 
             <div class="ui-field ui-field--full"
-                 x-on:change="if ($event.target.name === 'intro_video_file') videoFileChosen = ($event.target.files?.length ?? 0) > 0">
-                {{-- Embedded video is hidden for now: a saved embed is carried through untouched until a video file is chosen. --}}
-                <input type="hidden" name="intro_video_source" :value="videoFileChosen ? 'upload' : (savedVideoSource || '')">
-                @if ($selectedVideoSource === 'embed')
-                    <input type="hidden" name="intro_video_embed_url" value="{{ $formTemplate?->intro_video_embed_url }}" :disabled="videoFileChosen">
-                @endif
+                 x-on:change="if ($event.target.name === 'intro_video_file') { videoFileChosen = ($event.target.files?.length ?? 0) > 0; if (videoFileChosen) $root.querySelector('[data-ui-embed-slot]')?.dispatchEvent(new CustomEvent('ui-embed-clear')); }"
+                 x-on:ui-embed-change="embedUrl = $event.detail.url; if (embedUrl) { videoFileChosen = false; $root.querySelector('[data-ui-media-slot][data-kind=video]')?.dispatchEvent(new CustomEvent('ui-media-clear')); }">
+                {{-- One intro video: an uploaded file OR an embedded link. The source follows whichever the user last set. --}}
+                <input type="hidden" name="intro_video_source" :value="embedUrl ? 'embed' : (videoFileChosen ? 'upload' : (savedVideoSource === 'upload' ? 'upload' : ''))">
                 <div class="ui-field-row">
                     <div class="ui-field">
                         <p class="ui-field__label" id="template-intro-image-label">{{ __('lf.LF_course_template_intro_image') }}</p>
@@ -131,6 +130,18 @@
                             :remove-label="__('lf.LF_course_template_remove_current_video')">
                             <x-upload-hint ui-kit :formats="['MP4', 'WEBM', 'MOV', 'AVI']" :max-size="\App\Support\UploadLimit::effectiveVideoKilobytes()" />
                         </x-ui-media-slot>
+                    </div>
+
+                    <div class="ui-field">
+                        <p class="ui-field__label" id="template-intro-embed-label">{{ __('lf.LF_course_template_video_embed') }}</p>
+                        <x-ui-embed-slot id="template-form-intro_video_embed_url" name="intro_video_embed_url"
+                            labelledby="template-intro-embed-label"
+                            :value="$selectedVideoSource === 'embed' ? $formTemplate?->intro_video_embed_url : null"
+                            :thumbnail="($introVideoThumbnail['state'] ?? null) === 'provider_video_thumbnail' ? ($introVideoThumbnail['url'] ?? null) : null"
+                            :preview-url="$introVideoEmbedUrl"
+                            :display-name="ucfirst((string) $formTemplate?->intro_video_provider)">
+                            {{ __('lf.LF_course_template_embed_hint') }}
+                        </x-ui-embed-slot>
                     </div>
 
                     <div class="ui-field">

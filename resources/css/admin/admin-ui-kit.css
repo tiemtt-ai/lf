@@ -1796,6 +1796,10 @@
 .lf-admin-ui .ui-media-tile__action:hover { background: var(--ui-color-ffffff1c); }
 .lf-admin-ui .ui-media-tile__action:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--ui-white); }
 .lf-admin-ui .ui-media-slot__hint { margin: 0; }
+.lf-admin-ui .ui-embed-slot .ui-media-tile__empty { font: inherit; cursor: pointer; }
+.lf-admin-ui .ui-embed-editor[hidden] { display: none; }
+.lf-admin-ui .ui-embed-editor { position: absolute; top: 120px; left: 0; z-index: 6; display: grid; gap: 8px; width: min(320px, calc(100cqw - 8px)); padding: 12px; border: 1px solid var(--ui-border); border-radius: var(--ui-control-radius); background: var(--ui-white); box-shadow: 0 8px 24px var(--ui-color-17233b14); }
+.lf-admin-ui .ui-embed-editor__actions { display: flex; justify-content: flex-end; gap: 8px; }
 /* Where hover exists, the format/size hint is a tooltip above the empty upload tile; on touch (and very narrow
    screens) it stays a normal caption. It remains in the accessibility tree (opacity, not visibility). */
 @media (hover: hover) and (min-width: 521px) {
