@@ -802,7 +802,7 @@ class BackendLayoutNavigationTest extends TestCase
         $this->assertStringContainsString("storedManualPreference === 'true'", $script);
         $this->assertStringContainsString('this.sidebarCollapsed = this.resolveInitialSidebarState(hasStoredPreference, storedPreference);', $script);
         $this->assertStringContainsString("return storedPreference === 'true';", $script);
-        $this->assertStringContainsString('return false;', $script);
+        $this->assertStringContainsString("return window.matchMedia('(min-width: 681px) and (max-width: 1024px)').matches;", $script);
         $this->assertStringContainsString('this.hasManualPreference = true;', $script);
         $this->assertStringContainsString("window.localStorage.setItem(this.manualStorageKey, 'true')", $script);
         $this->assertStringContainsString("'is-backend-sidebar-collapsed'", $script);
@@ -933,5 +933,15 @@ class BackendLayoutNavigationTest extends TestCase
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+    }
+
+    public function test_sidebar_and_top_bar_stay_fixed_while_the_page_scrolls(): void
+    {
+        $css = file_get_contents(base_path('resources/css/admin/admin-layout.css'));
+
+        // sticky only works when no ancestor clips with overflow:hidden
+        $this->assertStringContainsString('overflow:clip;color-scheme:light', $css);
+        $this->assertStringContainsString('#admin-app .admin-shell>.admin-sidebar{position:sticky;top:0;', $css);
+        $this->assertStringContainsString('#admin-app .admin-header{flex-shrink:0;position:sticky;top:0;z-index:40}', $css);
     }
 }

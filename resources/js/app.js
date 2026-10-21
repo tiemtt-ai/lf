@@ -240,7 +240,8 @@ window.backendSidebar = () => ({
             return storedPreference === 'true';
         }
 
-        return false;
+        // Tablet widths start as the icon rail so the content keeps its room; a manual choice still wins.
+        return window.matchMedia('(min-width: 681px) and (max-width: 1024px)').matches;
     },
 
     setManualSidebarState(value) {

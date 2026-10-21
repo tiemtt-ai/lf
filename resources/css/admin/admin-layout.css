@@ -57,7 +57,7 @@
 [x-cloak] { display: none !important; }
 /* Admin/Teacher shell from docs/ui-demo/admin-layout-developer. CRUD demo rules are excluded. */
 
-#admin-app{--nav-primary:#485cc7;--nav-tint:#f0f2fc;--nav-border:#e8ebf1;overflow:hidden;color-scheme:light}
+#admin-app{--nav-primary:#485cc7;--nav-tint:#f0f2fc;--nav-border:#e8ebf1;overflow:clip;color-scheme:light}
 
 #admin-app *{box-sizing:border-box}
 
@@ -254,9 +254,9 @@
 /* Stretch the shell to the viewport; footer remains in document flow. */
 #admin-app{min-height:100vh;min-height:100dvh}
 #admin-app .admin-shell{min-height:100vh;min-height:100dvh;align-items:stretch}
-#admin-app .admin-shell>.admin-sidebar{height:auto;min-height:0;align-self:stretch;overflow:visible}
+#admin-app .admin-shell>.admin-sidebar{position:sticky;top:0;z-index:30;height:100vh;height:100dvh;min-height:0;align-self:flex-start;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain}
 #admin-app .admin-main{display:flex;flex-direction:column;min-height:100vh;min-height:100dvh}
-#admin-app .admin-header{flex-shrink:0}
+#admin-app .admin-header{flex-shrink:0;position:sticky;top:0;z-index:40}
 #admin-app .admin-content{flex:1 0 auto}
 #admin-app .admin-page-footer{flex-shrink:0;margin-top:auto;border-top:1px solid var(--admin-color-e3e7ef);padding:22px 24px;min-height:64px;display:flex;align-items:center;justify-content:center;text-align:center;background:var(--admin-color-f7f8fb);color:var(--admin-color-78818e);font:400 12px/1.5 Arial,sans-serif;overflow-wrap:anywhere}
 @media(max-width:680px){#admin-app .admin-page-footer{padding:18px 16px}}

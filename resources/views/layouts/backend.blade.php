@@ -4,7 +4,7 @@
     <script>
         (() => {
             const collapsedKey = 'lf.backend.sidebar.collapsed';
-            let shouldCollapse = false;
+            let shouldCollapse = window.matchMedia('(min-width: 681px) and (max-width: 1024px)').matches;
 
             try {
                 const storedPreference = window.localStorage.getItem(collapsedKey);
@@ -13,7 +13,7 @@
                     shouldCollapse = storedPreference === 'true';
                 }
             } catch (error) {
-                shouldCollapse = false;
+                // keep the width-based default
             }
 
             document.documentElement.classList.add('is-backend-sidebar-initializing');
