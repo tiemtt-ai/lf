@@ -112,17 +112,17 @@
                             <span class="ui-status ui-status--{{ $template->status }}">{{ __('lf.LF_course_template_common_'.$template->status) }}</span>
                         </td>
                         <td class="ux-action-cell" data-label="{{ __('lf.table_actions') }}">
+                            <a class="ux-row-edit cursor-interaction" href="{{ route($routePrefix.'.edit', $template->id) }}"
+                               aria-label="{{ __('lf.LF_course_template_action_manage') }}: {{ $template->title }}"
+                               data-tooltip="{{ __('lf.LF_course_template_action_manage') }}">
+                                <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 17 2 2 4-4" /><path d="m3 7 2 2 4-4" /><path d="M13 6h8" /><path d="M13 12h8" /><path d="M13 18h8" /></svg>
+                            </a>
                             <button type="button" class="ux-row-edit cursor-interaction" data-ui-dialog-form-open
                                     data-url="{{ route($routePrefix.'.form', $template->id) }}" aria-haspopup="dialog"
                                     aria-label="{{ __('lf.LF_course_template_action_edit_info') }}: {{ $template->title }}"
                                     data-tooltip="{{ __('lf.LF_course_template_action_edit_info') }}">
                                 <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z" /></svg>
                             </button>
-                            <a class="ux-row-edit cursor-interaction" href="{{ route($routePrefix.'.edit', $template->id) }}"
-                               aria-label="{{ __('lf.LF_course_template_action_manage') }}: {{ $template->title }}"
-                               data-tooltip="{{ __('lf.LF_course_template_action_manage') }}">
-                                <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 17 2 2 4-4" /><path d="m3 7 2 2 4-4" /><path d="M13 6h8" /><path d="M13 12h8" /><path d="M13 18h8" /></svg>
-                            </a>
                             <button type="button" class="ux-row-delete cursor-interaction" data-ui-row-delete
                                     data-url="{{ route($routePrefix.'.destroy', $template->id) }}"
                                     data-confirm-title="{{ __('lf.LF_course_template_delete_title') }}"

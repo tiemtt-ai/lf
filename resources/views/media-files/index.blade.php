@@ -8,6 +8,22 @@
     @vite(['resources/css/admin/admin-ui-kit.css', 'resources/js/admin-ui-kit-controls.js', 'resources/js/admin-ui-kit-row-actions.js', 'resources/js/admin-ui-kit-multiselect.js'])
 @endsection
 
+@section('page_actions')
+    {{-- Clean-up of orphan storage: no schedule, the admin chooses when. It sits in the heading (secondary, outline) so the
+         filters keep one row; the button reaches the list's row actions through data-ui-row-actions-for. --}}
+    <button type="button" class="ui-button ui-button--outline cursor-interaction" data-ui-confirm-post
+            data-ui-row-actions-for="media-list"
+            data-url="{{ route('admin.media.purge-orphan-storage', $listFilters) }}"
+            data-confirm-title="{{ __('lf.LF_media_storage_purge_title') }}"
+            data-confirm-message="{{ __('lf.LF_media_storage_purge_confirm') }}"
+            data-confirm-label="{{ __('lf.LF_media_storage_purge_action') }}"
+            title="{{ __('lf.LF_media_storage_purge_note') }}"
+            aria-describedby="media-storage-purge-note">
+        {{ __('lf.LF_media_storage_purge_short') }}
+    </button>
+    <span id="media-storage-purge-note" class="ui-sr-only"><strong>{{ __('lf.LF_media_storage_purge_title') }}</strong> {{ __('lf.LF_media_storage_purge_note') }}</span>
+@endsection
+
 @section('content')
 @php
     $tabLabels = [
@@ -146,18 +162,6 @@
                     </a>
                 @endif
             </span>
-
-            {{-- Clean-up of orphan storage: no schedule, the admin chooses when. The note stays readable for assistive technology. --}}
-            <button type="button" class="ui-button cursor-interaction mk-toolbar-action" data-ui-confirm-post
-                    data-url="{{ route('admin.media.purge-orphan-storage', $listFilters) }}"
-                    data-confirm-title="{{ __('lf.LF_media_storage_purge_title') }}"
-                    data-confirm-message="{{ __('lf.LF_media_storage_purge_confirm') }}"
-                    data-confirm-label="{{ __('lf.LF_media_storage_purge_action') }}"
-                    title="{{ __('lf.LF_media_storage_purge_note') }}"
-                    aria-describedby="media-storage-purge-note">
-                {{ __('lf.LF_media_storage_purge_short') }}
-            </button>
-            <span id="media-storage-purge-note" class="ui-sr-only"><strong>{{ __('lf.LF_media_storage_purge_title') }}</strong> {{ __('lf.LF_media_storage_purge_note') }}</span>
         </form>
 
         <div class="mk-table-top" data-ui-live-region="summary">

@@ -32,7 +32,9 @@ function setup({ confirm = async () => true, trigger = {} } = {}) {
     const target = { closest: () => button };
     const fetches = []; const confirms = []; const pending = [];
     const nav = [];
+    const docListeners = new Map();
     const win = {
+        document: { addEventListener: (type, fn) => docListeners.set(type, fn), removeEventListener: type => docListeners.delete(type) },
         location: { href: 'https://x.test/admin/course-templates/3/edit?tab=structure', origin: 'https://x.test', pathname: '/admin/course-templates/3/edit', search: '?tab=structure', assign: url => nav.push(url), reload: () => nav.push('reload') },
         FormData: class { constructor() { this.rows = []; } append(k, v) { this.rows.push([k, v]); } },
         fetch: (url, options) => { fetches.push({ url, options }); return new Promise((resolve, reject) => pending.push({ resolve, reject })); },
@@ -45,7 +47,7 @@ function setup({ confirm = async () => true, trigger = {} } = {}) {
     const click = () => scope.listeners.get('click')({ target });
     const tick = () => new Promise(resolve => setImmediate(resolve));
     const json = (status, payload) => ({ ok: status >= 200 && status < 300, status, json: async () => payload });
-    return { scope, button, flash, pageError, create, events, fetches, confirms, pending, instance, click, tick, json, nav };
+    return { scope, button, flash, pageError, create, events, fetches, confirms, pending, instance, click, tick, json, nav, docListeners };
 }
 
 test('confirmed delete sends DELETE as JSON with the token, then toasts, refreshes and refocuses', async () => {
@@ -195,4 +197,22 @@ test('a confirmed POST action (clean-up) sends a plain POST without method spoof
     t.pending[0].resolve(t.json(200, { message: 'Done' }));
     await t.tick(); await t.tick();
     assert.equal(t.flash.textContent, 'Done');
+});
+
+test('a confirmed POST button in the page heading (outside the scope) is handled when it names the scope', async () => {
+    const t = setup();
+    t.scope.id = 'media-list';
+    t.scope.contains = () => false;
+    const named = new El({ 'data-url': '/admin/media/purge-orphan-storage', 'data-ui-confirm-post': '', 'data-ui-row-actions-for': 'media-list', 'data-confirm-title': 'Purge?', 'data-confirm-message': 'Sure?', 'data-confirm-label': 'Purge' });
+    const fake = el => ({ target: { closest: selector => (selector.includes('data-ui-row-actions-for="media-list"') && el === named ? el : null) } });
+    const other = new El({ 'data-ui-confirm-post': '', 'data-ui-row-actions-for': 'other' });
+    t.docListeners.get('click')(fake(other));
+    await t.tick();
+    assert.equal(t.fetches.length, 0, 'a button naming another scope is ignored');
+    t.docListeners.get('click')(fake(named));
+    await t.tick();
+    assert.equal(t.confirms[0].title, 'Purge?');
+    assert.equal(t.fetches[0].url, '/admin/media/purge-orphan-storage');
+    t.instance.destroy();
+    assert.equal(t.docListeners.size, 0);
 });

@@ -5,7 +5,8 @@
  *  - `[data-ui-bulk-delete]`: DELETE of every checked `[data-ui-bulk-item]` (their values go as `data-ui-bulk-name`,
  *    default `ids[]`; ":count" in the confirm message is replaced), with the select-all box
  *    `[data-ui-bulk-select-all]` and the bar `[data-ui-bulk-bar]` (hidden until something is checked) kept in step;
- *  - `[data-ui-confirm-post]`: a plain POST (e.g. a clean-up that is not tied to a row).
+ *  - `[data-ui-confirm-post]`: a plain POST (e.g. a clean-up that is not tied to a row). Such a button may live outside
+ *    the scope (the page heading): `data-ui-row-actions-for="<scope id>"` hands it to that scope.
  * Success: a toast and `ui-dialog-form-saved` so the list refetches (or, when the server answers `redirect`, a reload
  * there). A refusal (409) shows the server's reason. One request at a time; a disabled button does nothing.
  */
@@ -121,11 +122,19 @@ export function initUiKitRowActions(scope, deps = {}) {
         else if (trigger.hasAttribute('data-ui-confirm-post')) perform(trigger, { method: 'POST' });
         else remove(trigger);
     };
+    // A heading button naming this scope (`data-ui-row-actions-for`) is handled here too.
+    const onOutsideClick = event => {
+        if (!scope.id) return;
+        const trigger = event.target?.closest?.(`[data-ui-confirm-post][data-ui-row-actions-for="${scope.id}"]`);
+        if (trigger && !scope.contains(trigger)) perform(trigger, { method: 'POST' });
+    };
     scope.addEventListener('click', onClick);
     scope.addEventListener('change', onChange);
+    win.document?.addEventListener?.('click', onOutsideClick);
     const instance = { destroy() {
         scope.removeEventListener('click', onClick);
         scope.removeEventListener('change', onChange);
+        win.document?.removeEventListener?.('click', onOutsideClick);
         releaseClaim(scope, 'RowActions');
         instances.delete(scope);
     } };

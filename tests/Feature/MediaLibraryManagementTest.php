@@ -712,7 +712,12 @@ class MediaLibraryManagementTest extends TestCase
             ->get('https://tenant-a.localhost/admin/media')
             ->assertOk()
             ->assertSeeText(__('lf.LF_media_storage_purge_short'))
-            ->assertSeeText(__('lf.LF_media_storage_purge_note'));
+            ->assertSeeText(__('lf.LF_media_storage_purge_note'))
+            ->assertSee('page-heading page-heading--with-actions', false);
+
+        $xpath = $this->xpath($this->actingAs($admin)->get('https://tenant-a.localhost/admin/media')->getContent());
+        $this->assertSame(1, $xpath->query('//div[contains(@class, "page-heading__actions")]//button[@data-ui-confirm-post and @data-ui-row-actions-for="media-list"]')->length);
+        $this->assertSame(0, $xpath->query('//form//button[@data-ui-confirm-post]')->length, 'the purge button is not in the filter form');
     }
 
     public function test_sweeper_never_touches_a_media_with_a_structured_job_in_flight(): void
