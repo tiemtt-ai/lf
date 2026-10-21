@@ -224,6 +224,7 @@
                         $usageItems = $mediaFile->active_usages->map(fn ($usage) => [
                             'type' => (string) ($ownerTypeOptions[$usage->owner_type] ?? str($usage->owner_type)->replace('_', ' ')->headline()),
                             'name' => (string) $usage->owner_name,
+                            'url' => $usage->owner_url ?? null,
                         ])->values()->all();
                     @endphp
                     <tr>
@@ -292,9 +293,6 @@
                             <span @class(['ui-status', 'ui-status--active' => ! $isUnused, 'ui-status--archived' => $isUnused])>
                                 {{ $isUnused ? __('lf.LF_media_file_common_unused') : __('lf.LF_media_file_common_in_use') }}
                             </span>
-                            <p class="ui-caption">
-                                {{ $isUnused ? __('lf.LF_media_file_status_can_delete') : trans_choice('lf.LF_media_file_usage_count', count($usageItems), ['count' => count($usageItems)]) }}
-                            </p>
                         </td>
                     </tr>
                 @empty
@@ -386,12 +384,28 @@
     </x-media-preview-modal>
 
     <x-media-preview-modal ui-kit id="media-library-usage-title" show="usageOpen" close="closeUsage()" title="usage.name" compact="true">
-        <h4 class="ui-modal__section-title">{{ __('lf.LF_media_file_usage_all_places') }}</h4>
-        <ul class="ui-usage-list">
-            <template x-for="item in usage.items" x-bind:key="item.type + item.name">
-                <li><span class="ui-caption" x-text="item.type"></span> <span x-text="item.name"></span></li>
-            </template>
-        </ul>
+        <div class="ui-usage">
+            <h4 class="ui-usage__title">{{ __('lf.LF_media_file_usage_all_places') }} <span class="ui-count-pill" x-text="usage.items.length"></span></h4>
+            <ul class="ui-usage-list">
+                <template x-for="item in usage.items" x-bind:key="item.type + item.name">
+                    <li>
+                    <template x-if="item.url">
+                        <a class="ui-usage-list__row" x-bind:href="item.url">
+                            <span class="ui-usage-list__type" x-text="item.type"></span>
+                            <span class="ui-usage-list__name" x-text="item.name"></span>
+                            <x-backend-icon name="external-link" class="ui-icon ui-usage-list__go" />
+                        </a>
+                    </template>
+                    <template x-if="! item.url">
+                        <div class="ui-usage-list__row">
+                            <span class="ui-usage-list__type" x-text="item.type"></span>
+                            <span class="ui-usage-list__name" x-text="item.name"></span>
+                        </div>
+                    </template>
+                </li>
+                </template>
+            </ul>
+        </div>
     </x-media-preview-modal>
 </div>
 @endsection

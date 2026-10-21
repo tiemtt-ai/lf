@@ -1981,8 +1981,17 @@
 .lf-admin-ui a.ui-file-tile, .lf-admin-ui button.ui-file-tile { cursor: pointer; }
 .lf-admin-ui .ui-file-tile:is(:hover, :focus-visible) .ui-file-tile__overlay { opacity: 1; }
 .lf-admin-ui .ui-bulk-box { width: 16px; height: 16px; margin: 0 0 0 8px; vertical-align: middle; accent-color: var(--ui-primary); }
-.lf-admin-ui .ui-usage-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
-.lf-admin-ui .ui-usage-list li { display: flex; flex-direction: column; gap: 2px; }
+.lf-admin-ui .ui-usage { width: 100%; min-width: min(480px, 100%); display: grid; gap: 12px; text-align: left; }
+.lf-admin-ui .ui-usage__title { margin: 0; font-size: 14px; font-weight: 500; color: var(--ui-color-697386); }
+.lf-admin-ui .ui-usage-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 0; border: 1px solid var(--ui-color-e6e8ee); border-radius: 10px; overflow: hidden; }
+.lf-admin-ui .ui-usage-list li { display: block; }
+.lf-admin-ui .ui-usage-list__row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; color: inherit; text-decoration: none; }
+.lf-admin-ui a.ui-usage-list__row:is(:hover, :focus-visible) { background: var(--ui-color-eef0fb); }
+.lf-admin-ui .ui-usage-list__go { flex: none; margin-left: auto; width: 16px; height: 16px; color: var(--ui-color-697386); }
+.lf-admin-ui .ui-usage-list li + li { border-top: 1px solid var(--ui-color-e6e8ee); }
+.lf-admin-ui .ui-usage-list__type { flex: none; padding: 2px 10px; border-radius: 20px; background: var(--ui-color-eef0fb); color: var(--ui-primary); font-size: 12px; line-height: 1.5; white-space: nowrap; }
+.lf-admin-ui .ui-usage-list__name { min-width: 0; color: var(--ui-text); font-size: 14px; font-weight: 500; overflow-wrap: anywhere; }
+.lf-admin-ui .ui-count-pill { display: inline-block; margin-left: 6px; padding: 0 8px; border-radius: 20px; background: var(--ui-color-eef0fb); color: var(--ui-primary); font-size: 12px; font-weight: 600; vertical-align: middle; }
 .lf-admin-ui .ui-media-table .ux-action-cell { white-space: nowrap; }
 .lf-admin-ui .ui-media-table { min-width: 960px; }
 .lf-admin-ui .ui-col-media { min-width: 260px; }

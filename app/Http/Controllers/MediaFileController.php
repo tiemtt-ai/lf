@@ -497,14 +497,55 @@ class MediaFileController extends Controller
     private function attachOwnerNames(int $customerId, Collection $usages): Collection
     {
         $ownerNames = $this->ownerNames($customerId, $usages);
+        $ownerUrls = $this->ownerUrls($customerId, $usages);
 
-        return $usages->map(function (object $usage) use ($ownerNames): object {
+        return $usages->map(function (object $usage) use ($ownerNames, $ownerUrls): object {
             $key = $usage->owner_type.':'.$usage->owner_id;
             $usage->owner_name = $ownerNames[$key]
                 ?? __('lf.LF_media_file_usage_unknown_owner');
+            $usage->owner_url = $ownerUrls[$key] ?? null;
 
             return $usage;
         });
+    }
+
+    /**
+     * Where each usage can be opened (keyed like the names); an owner without a page of its own links to its list.
+     *
+     * @return array<string, string>
+     */
+    private function ownerUrls(int $customerId, Collection $usages): array
+    {
+        $urls = [];
+
+        foreach ($usages as $usage) {
+            $id = (int) $usage->owner_id;
+            $url = match ($usage->owner_type) {
+                'course_template' => route('admin.course-templates.edit', ['id' => $id]),
+                'course_cohort' => route('admin.course-cohorts.show', ['id' => $id]),
+                'course_product' => route('admin.course-products.edit', ['id' => $id]),
+                'course_category' => route('admin.course-categories.index'),
+                default => null,
+            };
+
+            if ($url !== null) {
+                $urls[$usage->owner_type.':'.$id] = $url;
+            }
+        }
+
+        $activityIds = $usages->where('owner_type', 'course_activity')->pluck('owner_id')->map(fn ($id): int => (int) $id)->unique()->all();
+
+        if ($activityIds !== []) {
+            $rows = DB::table('core_course_template_activities as a')
+                ->where('a.customer_id', $customerId)->whereIn('a.id', $activityIds)
+                ->get(['a.id', 'a.template_id']);
+
+            foreach ($rows as $row) {
+                $urls['course_activity:'.$row->id] = route('admin.course-templates.edit', ['id' => $row->template_id, 'tab' => 'structure']);
+            }
+        }
+
+        return $urls;
     }
 
     private function ownerNames(int $customerId, Collection $usages): array

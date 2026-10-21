@@ -1178,7 +1178,6 @@ class MediaLibraryManagementTest extends TestCase
             ->assertDontSee('data-ui-row-delete', false)
             ->assertSee('data-ui-bulk-delete', false)
             ->assertSee('data-confirm-title="'.__('lf.LF_media_file_bulk_delete_confirm').'"', false)
-            ->assertSeeText(__('lf.LF_media_file_status_can_delete'))
             ->assertDontSee('onclick="return confirm', false);
 
         $this->actingAs($admin)
