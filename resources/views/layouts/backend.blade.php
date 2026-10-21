@@ -150,7 +150,8 @@
                     @hasSection('page_back')
                         <div class="page-back">@yield('page_back')</div>
                     @endif
-                    <div @class(['page-heading', 'page-heading--with-actions' => $__env->hasSection('page_actions')])>
+                    {{-- A page may hide its visible title (`page_title_hidden`): the breadcrumb already names it; the h1 stays for screen readers. --}}
+                    <div @class(['page-heading', 'page-heading--with-actions' => $__env->hasSection('page_actions'), 'page-heading--hidden' => $__env->hasSection('page_title_hidden')])>
                         <h1 id="admin-page-title">@yield('page_title', __('lf.LF_common_title_common_dashboard'))</h1>
                         @hasSection('page_actions')
                             <div class="page-heading__actions lf-admin-ui lf-admin-ui--list">@yield('page_actions')</div>

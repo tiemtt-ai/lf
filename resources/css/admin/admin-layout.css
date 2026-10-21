@@ -330,3 +330,8 @@
 @media (max-width: 680px) {
     #admin-app .admin-account-identity strong { flex-basis: 100%; }
 }
+/* A list page names itself in the breadcrumb: the visible title goes (kept for screen readers) and the list moves up under the top bar. */
+#admin-app .page-heading--hidden { margin: 0; height: 0; }
+#admin-app .page-heading--hidden > h1 { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+/* The current page in the breadcrumb gets a light chip so it reads as "you are here" without shouting. */
+#admin-app .admin-breadcrumb strong[aria-current="page"] { display: inline-block; padding: 3px 10px; border-radius: 6px; background: var(--nav-tint); color: var(--nav-primary); }

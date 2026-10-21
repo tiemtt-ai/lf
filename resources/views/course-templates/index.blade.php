@@ -3,6 +3,8 @@
 @section('title', __('lf.LF_course_template_common_title'))
 @section('page_title', __('lf.LF_course_template_common_title'))
 
+@section('page_title_hidden', '1')
+
 @section('vite')
     @parent
     @vite(['resources/css/admin/admin-ui-kit.css', 'resources/js/admin-ui-kit-controls.js', 'resources/js/admin-ui-kit-dialog-form.js', 'resources/js/admin-ui-kit-row-actions.js'])
@@ -33,7 +35,7 @@
         <div class="mk-tablebar mk-tablebar--filters">
         <form class="mk-filter-form" method="GET" action="{{ route($routePrefix.'.index') }}" data-ui-live-filter>
             <div class="ui-field mk-search">
-                <label class="ui-field__label" for="keyword">
+                <label class="ui-field__label ui-sr-only" for="keyword">
                     {{ __('lf.LF_course_template_common_keyword') }}
                 </label>
                 <div class="ui-search">
@@ -46,7 +48,7 @@
             </div>
 
             <div class="ui-field mk-search">
-                <label class="ui-field__label" for="status">
+                <label class="ui-field__label ui-sr-only" for="status">
                     {{ __('lf.LF_course_template_common_status') }}
                 </label>
                 <select id="status" name="status" data-ui-kit-select

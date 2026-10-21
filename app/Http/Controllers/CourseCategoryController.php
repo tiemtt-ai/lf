@@ -206,60 +206,6 @@ class CourseCategoryController extends Controller
      * A category can be deleted only when nothing depends on it: no product, no course template and no child
      * category (all three are RESTRICT foreign keys). Its image usages are detached first, in the same transaction.
      */
-    public function destroy(Request $request, int $id)
-    {
-        $customerId = $this->customerId();
-        $this->findCategory($customerId, $id);
-
-        try {
-            $blocked = DB::transaction(function () use ($customerId, $id): ?string {
-                $locked = DB::table('core_course_categories')
-                    ->where('customer_id', $customerId)
-                    ->where('id', $id)
-                    ->lockForUpdate()
-                    ->first();
-
-                abort_if(! $locked, 404);
-
-                $blockers = $this->deletionBlockers($customerId, $id);
-
-                if ($blockers !== []) {
-                    $reason = array_key_first($blockers);
-
-                    return __('lf.LF_course_category_delete_blocked_'.$reason, ['count' => $blockers[$reason]]);
-                }
-
-                foreach (['thumbnail', 'banner_image'] as $usageType) {
-                    $this->detachExistingMedia($id, $usageType);
-                }
-
-                DB::table('core_course_categories')
-                    ->where('customer_id', $customerId)
-                    ->where('id', $id)
-                    ->delete();
-
-                return null;
-            });
-        } catch (QueryException $exception) {
-            // A product, template or child was attached between the check and the delete.
-            $blocked = __('lf.LF_course_category_delete_blocked_generic');
-        }
-
-        if ($blocked !== null) {
-            return $request->expectsJson()
-                ? response()->json(['message' => $blocked], 409)
-                : back()->withErrors(['category' => $blocked]);
-        }
-
-        if ($request->expectsJson()) {
-            return response()->json(['message' => __('lf.LF_course_category_common_deleted')]);
-        }
-
-        return redirect()
-            ->route($this->routePrefix($request).'.index')
-            ->with('success', __('lf.LF_course_category_common_deleted'));
-    }
-
     public function bulkDestroy(Request $request)
     {
         $validated = $request->validate([

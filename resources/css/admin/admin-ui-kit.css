@@ -1782,14 +1782,14 @@
 /* Media slot (Owner reference 2026-10-19): one 112px tile per file; View/Remove appear on hover or focus. */
 .lf-admin-ui .ui-sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 /* Toast: top-right, just below the top menu (.admin-header is 66px high), so it never covers the account menu. */
-.lf-admin-ui .ui-toast-region { position: fixed; top: 78px; right: 24px; z-index: 60; display: grid; gap: 10px; width: min(380px, calc(100vw - 32px)); pointer-events: none; }
+.lf-admin-ui .ui-toast-region { position: fixed; top: 9px; right: 24px; z-index: 60; display: grid; gap: 10px; width: max-content; max-width: min(420px, calc(100vw - 32px)); pointer-events: none; }
 .lf-admin-ui .ui-toast { pointer-events: auto; display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; border: 1px solid var(--ui-success-border); border-radius: var(--ui-control-radius); background: var(--ui-success-soft); color: var(--ui-success); box-shadow: 0 8px 24px var(--ui-color-17233b14); font-size: 14px; font-weight: 500; }
 .lf-admin-ui .ui-toast[hidden] { display: none; }
 .lf-admin-ui .ui-toast--danger { border-color: var(--ui-invalid); background: var(--ui-danger-soft); color: var(--ui-color-bd3d46); }
 .lf-admin-ui .ui-toast__text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .lf-admin-ui .ui-toast__close { flex: none; display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: inherit; font: 20px/1 var(--ui-font-family); }
 .lf-admin-ui .ui-toast__close:hover { background: var(--ui-color-ffffff1c); filter: brightness(.9); }
-@media (max-width: 520px) { .lf-admin-ui .ui-toast-region { right: 16px; } }
+@media (max-width: 520px) { .lf-admin-ui .ui-toast-region { top: 8px; right: 16px; } }
 .lf-admin-ui .ui-summary-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 22px; border-bottom: 1px solid var(--ui-color-e6e8ee); }
 .lf-admin-ui .ui-summary-head h2 { margin: 0; font-size: 18px; font-weight: 500; }
 .lf-admin-ui .ui-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 28px; margin: 0; padding: 20px; }

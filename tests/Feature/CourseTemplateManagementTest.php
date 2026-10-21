@@ -884,7 +884,8 @@ class CourseTemplateManagementTest extends TestCase
 
         $this->actingAs($admin)
             ->delete(
-                "https://tenant-a.localhost/admin/course-templates/{$otherTemplateId}"
+                'https://tenant-a.localhost/admin/course-templates',
+                ['ids' => [$otherTemplateId]]
             )
             ->assertNotFound();
 
@@ -926,7 +927,8 @@ class CourseTemplateManagementTest extends TestCase
 
         $this->actingAs($admin)
             ->delete(
-                "https://tenant-a.localhost/admin/course-templates/{$templateId}"
+                'https://tenant-a.localhost/admin/course-templates',
+                ['ids' => [$templateId]]
             )
             ->assertRedirect();
 
@@ -967,21 +969,21 @@ class CourseTemplateManagementTest extends TestCase
 
         foreach ([[$withSection, 'sections'], [$withTeacher, 'teachers'], [$withProduct, 'products']] as [$id, $reason]) {
             $this->actingAs($admin)
-                ->deleteJson("https://tenant-a.localhost/admin/course-templates/{$id}")
+                ->deleteJson('https://tenant-a.localhost/admin/course-templates', ['ids' => [$id]])
                 ->assertStatus(409)
-                ->assertJson(['message' => __('lf.LF_course_template_delete_blocked_'.$reason, ['count' => 1])]);
+                ->assertJsonPath('message', fn ($message) => str_contains($message, __('lf.LF_course_template_delete_blocked_'.$reason, ['count' => 1])));
             $this->assertDatabaseHas('core_course_templates', ['id' => $id]);
         }
 
         $this->actingAs($admin)
-            ->deleteJson("https://tenant-a.localhost/admin/course-templates/{$free}")
+            ->deleteJson('https://tenant-a.localhost/admin/course-templates', ['ids' => [$free]])
             ->assertOk()
-            ->assertJson(['message' => __('lf.LF_course_template_common_deleted')]);
+            ->assertJson(['message' => trans_choice('lf.LF_course_template_bulk_deleted', 1, ['count' => 1])]);
         $this->assertDatabaseMissing('core_course_templates', ['id' => $free]);
 
         $this->actingAs($admin)
             ->from('https://tenant-a.localhost/admin/course-templates')
-            ->delete("https://tenant-a.localhost/admin/course-templates/{$withSection}")
+            ->delete('https://tenant-a.localhost/admin/course-templates', ['ids' => [$withSection]])
             ->assertRedirect('https://tenant-a.localhost/admin/course-templates')
             ->assertSessionHasErrors(['template']);
     }
@@ -996,12 +998,12 @@ class CourseTemplateManagementTest extends TestCase
         $others = $this->createTemplate($otherCustomerId, 'Other tenant', 'other-tenant');
         $own = $this->createTemplate($customerId, 'Own template', 'own-template', $teacher->id);
 
-        $this->actingAs($admin)->deleteJson("https://tenant-a.localhost/admin/course-templates/{$others}")->assertNotFound();
+        $this->actingAs($admin)->deleteJson('https://tenant-a.localhost/admin/course-templates', ['ids' => [$others]])->assertNotFound();
         $this->assertDatabaseHas('core_course_templates', ['id' => $others]);
         // A teacher with no access to the template does not even learn that it exists.
-        $this->actingAs($stranger)->deleteJson("https://tenant-a.localhost/teacher/course-templates/{$own}")->assertNotFound();
+        $this->actingAs($stranger)->deleteJson('https://tenant-a.localhost/teacher/course-templates', ['ids' => [$own]])->assertNotFound();
         $this->assertDatabaseHas('core_course_templates', ['id' => $own]);
-        $this->actingAs($teacher)->deleteJson("https://tenant-a.localhost/teacher/course-templates/{$own}")->assertOk();
+        $this->actingAs($teacher)->deleteJson('https://tenant-a.localhost/teacher/course-templates', ['ids' => [$own]])->assertOk();
         $this->assertDatabaseMissing('core_course_templates', ['id' => $own]);
     }
 
@@ -1063,17 +1065,16 @@ class CourseTemplateManagementTest extends TestCase
         $html = $this->actingAs($assigned)->get($base)->assertOk()->assertSeeText('Shared work')
             ->assertSee(__('lf.LF_course_template_delete_blocked_teachers', ['count' => 1]), false)->getContent();
         $this->assertSame(0, substr_count($html, 'data-ui-bulk-item'), 'no selectable row for the assigned teacher');
-        $this->actingAs($assigned)->deleteJson("{$base}/{$template}")->assertForbidden();
         $this->actingAs($assigned)->deleteJson($base, ['ids' => [$template]])->assertForbidden();
         $this->assertDatabaseHas('core_course_templates', ['id' => $template]);
 
         // Once nothing hangs on it, the creator deletes it; for the assigned teacher the reason is now "not the creator".
         DB::table('core_course_template_teachers')->where('template_id', $template)->delete();
-        $this->actingAs($creator)->deleteJson("{$base}/{$template}")->assertOk();
+        $this->actingAs($creator)->deleteJson($base, ['ids' => [$template]])->assertOk();
         $this->assertDatabaseMissing('core_course_templates', ['id' => $template]);
 
         $other = $this->createTemplate($customerId, 'Admin removes', 'admin-removes', $creator->id);
-        $this->actingAs($admin)->deleteJson("https://tenant-a.localhost/admin/course-templates/{$other}")->assertOk();
+        $this->actingAs($admin)->deleteJson('https://tenant-a.localhost/admin/course-templates', ['ids' => [$other]])->assertOk();
     }
 
     public function test_template_index_enables_delete_only_for_unused_templates_and_explains_why_not(): void

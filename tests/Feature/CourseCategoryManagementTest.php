@@ -7,6 +7,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -233,9 +234,9 @@ class CourseCategoryManagementTest extends TestCase
         $this->assertSame(1, DB::table('media_file_usages')->where('owner_type', 'course_category')->where('owner_id', $categoryId)->where('status', 'active')->count());
 
         $this->actingAs($admin)
-            ->deleteJson("https://tenant-a.localhost/admin/course-categories/{$categoryId}")
+            ->deleteJson('https://tenant-a.localhost/admin/course-categories', ['ids' => [$categoryId]])
             ->assertOk()
-            ->assertJson(['message' => __('lf.LF_course_category_common_deleted')]);
+            ->assertJson(['message' => trans_choice('lf.LF_course_category_bulk_deleted', 1, ['count' => 1])]);
 
         $this->assertNull(DB::table('core_course_categories')->where('id', $categoryId)->first());
         $this->assertNotNull(DB::table('core_course_categories')->where('id', $otherId)->first());
@@ -264,9 +265,9 @@ class CourseCategoryManagementTest extends TestCase
             [$withChild, 'children', 1],
         ] as [$id, $reason, $count]) {
             $this->actingAs($admin)
-                ->deleteJson("https://tenant-a.localhost/admin/course-categories/{$id}")
+                ->deleteJson('https://tenant-a.localhost/admin/course-categories', ['ids' => [$id]])
                 ->assertStatus(409)
-                ->assertJson(['message' => __('lf.LF_course_category_delete_blocked_'.$reason, ['count' => $count])]);
+                ->assertJsonPath('message', fn ($message) => str_contains($message, __('lf.LF_course_category_delete_blocked_'.$reason, ['count' => $count])));
             $this->assertNotNull(DB::table('core_course_categories')->where('id', $id)->first(), $reason);
         }
     }
@@ -280,13 +281,24 @@ class CourseCategoryManagementTest extends TestCase
         $theirs = $this->createCategory($otherCustomerId, 'Theirs', 'theirs');
 
         $this->actingAs($admin)
-            ->deleteJson("https://tenant-a.localhost/admin/course-categories/{$theirs}")
+            ->deleteJson('https://tenant-a.localhost/admin/course-categories', ['ids' => [$theirs]])
             ->assertNotFound();
         $this->assertNotNull(DB::table('core_course_categories')->where('id', $theirs)->first());
 
         $this->actingAs($admin)
-            ->deleteJson("https://tenant-a.localhost/admin/course-categories/{$mine}")
+            ->deleteJson('https://tenant-a.localhost/admin/course-categories', ['ids' => [$mine]])
             ->assertOk();
+    }
+
+    public function test_there_is_no_single_row_delete_route_for_categories_and_templates(): void
+    {
+        // Deleting one or many goes through the bulk routes (`DELETE /course-categories`, `DELETE /course-templates`) only.
+        foreach (['admin', 'teacher'] as $area) {
+            $this->assertFalse(Route::has($area.'.course-categories.destroy'), $area);
+            $this->assertFalse(Route::has($area.'.course-templates.destroy'), $area);
+        }
+        $this->assertTrue(Route::has('admin.course-categories.bulk-destroy'));
+        $this->assertTrue(Route::has('admin.course-templates.bulk-destroy'));
     }
 
     public function test_a_teacher_cannot_change_categories_in_any_way(): void
@@ -320,12 +332,12 @@ class CourseCategoryManagementTest extends TestCase
         $this->createProduct($customerId, $used, 'p1');
 
         $this->actingAs($admin)
-            ->delete("https://tenant-a.localhost/admin/course-categories/{$free}")
+            ->delete('https://tenant-a.localhost/admin/course-categories', ['ids' => [$free]])
             ->assertRedirect('https://tenant-a.localhost/admin/course-categories')
-            ->assertSessionHas('success', __('lf.LF_course_category_common_deleted'));
+            ->assertSessionHas('success', trans_choice('lf.LF_course_category_bulk_deleted', 1, ['count' => 1]));
         $this->actingAs($admin)
             ->from('https://tenant-a.localhost/admin/course-categories')
-            ->delete("https://tenant-a.localhost/admin/course-categories/{$used}")
+            ->delete('https://tenant-a.localhost/admin/course-categories', ['ids' => [$used]])
             ->assertRedirect('https://tenant-a.localhost/admin/course-categories')
             ->assertSessionHasErrors(['category']);
         $this->assertNotNull(DB::table('core_course_categories')->where('id', $used)->first());

@@ -3,6 +3,8 @@
 @section('title', __('lf.LF_media_file_common_title'))
 @section('page_title', __('lf.LF_media_file_common_title'))
 
+@section('page_title_hidden', '1')
+
 @section('vite')
     @parent
     @vite(['resources/css/admin/admin-ui-kit.css', 'resources/js/admin-ui-kit-controls.js', 'resources/js/admin-ui-kit-row-actions.js', 'resources/js/admin-ui-kit-multiselect.js', 'resources/js/admin-ui-kit-cleanup.js'])
@@ -158,7 +160,7 @@
             <input type="hidden" name="tab" value="{{ $tab }}">
 
             <div class="ui-field mk-search">
-                <label class="ui-field__label" for="keyword">{{ __('lf.LF_media_file_common_keyword') }}</label>
+                <label class="ui-field__label ui-sr-only" for="keyword">{{ __('lf.LF_media_file_common_keyword') }}</label>
                 <div class="ui-search">
                     <input id="keyword" type="search" name="keyword" value="{{ $keyword }}"
                            placeholder="{{ __('lf.LF_media_file_common_keyword_placeholder') }}">
@@ -170,7 +172,7 @@
 
             @if ($isTeacher)
                 <div class="ui-field mk-search">
-                    <label class="ui-field__label" for="source">{{ __('lf.LF_media_source_filter') }}</label>
+                    <label class="ui-field__label ui-sr-only" for="source">{{ __('lf.LF_media_source_filter') }}</label>
                     <select id="source" name="source" {!! $selectAttributes !!}>
                         <option value="">{{ __('lf.LF_media_source_all') }}</option>
                         <option value="mine" @selected($source === 'mine')>{{ __('lf.LF_media_source_mine') }}</option>
@@ -181,7 +183,7 @@
                 </div>
             @else
             <div class="ui-field mk-search">
-                <label class="ui-field__label" for="owner_type">{{ __('lf.LF_media_file_common_owner_type') }}</label>
+                <label class="ui-field__label ui-sr-only" for="owner_type">{{ __('lf.LF_media_file_common_owner_type') }}</label>
                 <select id="owner_type" name="owner_type" {!! $selectAttributes !!}>
                     <option value="">{{ __('lf.LF_media_file_common_all_owner_types') }}</option>
                     @foreach ($ownerTypeOptions as $value => $label)
@@ -191,7 +193,7 @@
             </div>
 
             <div class="ui-field mk-search">
-                <span class="ui-field__label" id="owner-objects-label">{{ __('lf.LF_media_filter_objects') }}</span>
+                <span class="ui-field__label ui-sr-only" id="owner-objects-label">{{ __('lf.LF_media_filter_objects') }}</span>
                 <div class="ux-combo ui-multiselect" data-ui-multiselect data-ms-depends-on="owner_type" data-ms-name="owner_refs[]"
                      data-ms-options='@json($ownerObjects)'
                      data-text-pick-first="{{ __('lf.LF_media_filter_pick_type_first') }}"
@@ -218,7 +220,7 @@
             </div>
 
             <div class="ui-field mk-search">
-                <label class="ui-field__label" for="usage_status">{{ __('lf.LF_media_file_usage_status') }}</label>
+                <label class="ui-field__label ui-sr-only" for="usage_status">{{ __('lf.LF_media_file_usage_status') }}</label>
                 <select id="usage_status" name="usage_status" {!! $selectAttributes !!}>
                     <option value="">{{ __('lf.LF_media_file_usage_status_all') }}</option>
                     <option value="in_use" @selected($usageStatus === 'in_use')>{{ __('lf.LF_media_file_common_in_use') }}</option>
@@ -227,7 +229,7 @@
             </div>
 
             <div class="ui-field mk-search">
-                <label class="ui-field__label" for="share">{{ __('lf.LF_media_share_filter') }}</label>
+                <label class="ui-field__label ui-sr-only" for="share">{{ __('lf.LF_media_share_filter') }}</label>
                 <select id="share" name="share" {!! $selectAttributes !!}>
                     <option value="">{{ __('lf.LF_media_share_filter_all') }}</option>
                     <option value="private" @selected($share === 'private')>{{ __('lf.LF_media_share_state_private') }}</option>

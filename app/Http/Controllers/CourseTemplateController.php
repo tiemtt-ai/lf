@@ -512,58 +512,6 @@ class CourseTemplateController extends Controller
             ->with('success', __('lf.LF_course_template_status_archived_success'));
     }
 
-    public function destroy(Request $request, int $id)
-    {
-        $customerId = $this->customerId();
-        abort_unless($this->mayDeleteTemplate($this->findTemplate($customerId, $id)), 403);
-
-        try {
-            $blocked = DB::transaction(function () use ($customerId, $id): ?string {
-                $locked = DB::table('core_course_templates')
-                    ->where('customer_id', $customerId)
-                    ->where('id', $id)
-                    ->lockForUpdate()
-                    ->first();
-
-                abort_if(! $locked, 404);
-
-                $reasons = $this->deletionBlockers($customerId, [$id])[$id] ?? [];
-
-                if ($reasons !== []) {
-                    return $this->deletionBlockMessage($reasons);
-                }
-
-                foreach (['intro_image', 'intro_video', 'intro_document'] as $usageType) {
-                    $this->detachOwnerMedia($id, $usageType);
-                }
-
-                DB::table('core_course_templates')
-                    ->where('customer_id', $customerId)
-                    ->where('id', $id)
-                    ->delete();
-
-                return null;
-            });
-        } catch (QueryException $exception) {
-            // Something was attached between the check and the delete (all references are RESTRICT keys).
-            $blocked = __('lf.LF_course_template_delete_blocked_generic');
-        }
-
-        if ($blocked !== null) {
-            return $request->expectsJson()
-                ? response()->json(['message' => $blocked], 409)
-                : back()->withErrors(['template' => $blocked]);
-        }
-
-        if ($request->expectsJson()) {
-            return response()->json(['message' => __('lf.LF_course_template_common_deleted')]);
-        }
-
-        return redirect()
-            ->route($this->routePrefix($request).'.index')
-            ->with('success', __('lf.LF_course_template_common_deleted'));
-    }
-
     public function bulkDestroy(Request $request)
     {
         $validated = $request->validate([

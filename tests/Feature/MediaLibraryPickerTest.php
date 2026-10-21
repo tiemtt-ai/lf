@@ -93,6 +93,26 @@ class MediaLibraryPickerTest extends TestCase
         $this->assertSame('ready', DB::table('media_files')->where('id', $shared)->value('status'), 'a Media someone else uploaded is not deleted');
     }
 
+    public function test_the_activity_form_state_is_whole_and_knows_about_library_media(): void
+    {
+        [$customerId, $admin, $teachers] = $this->world();
+        [$templateId, $lessonId] = $this->hierarchy($customerId, $teachers[0]->id);
+        $html = $this->actingAs($teachers[0])->withHeader('X-Requested-With', 'XMLHttpRequest')
+            ->get("https://tenant-a.localhost/teacher/course-templates/{$templateId}/lessons/{$lessonId}/activities/create")->assertOk()->getContent();
+
+        $document = new \DOMDocument;
+        @$document->loadHTML('<?xml encoding="UTF-8">'.$html);
+        $state = (string) (new \DOMXPath($document))->query('//*[@x-data and contains(@x-data, "activityType")]/@x-data')->item(0)?->nodeValue;
+        // A raw double quote in a script comment would cut the attribute short and leave the form without its state.
+        $this->assertStringContainsString('libraryMedia', $state);
+        $this->assertStringContainsString('formattedMediaDuration', $state);
+        $this->assertStringEndsWith('}', trim($state));
+        $this->assertSame(substr_count($state, '{'), substr_count($state, '}'));
+        // Choosing a library Media hides the processing choices that only make sense for a new upload.
+        $this->assertSame(3, substr_count($html, 'x-on:library-media.window') + 2, 'one listener for the three pickers');
+        $this->assertGreaterThanOrEqual(5, substr_count($html, '! libraryMedia'));
+    }
+
     public function test_a_teacher_cannot_use_media_that_is_not_theirs_or_shared_or_of_the_wrong_type(): void
     {
         [$customerId, $admin, $teachers] = $this->world();

@@ -27,8 +27,9 @@
              }
          },
          search() { clearTimeout(this.timer); this.timer = setTimeout(() => this.load(), 250); },
-         choose(item) { this.chosen = item; this.open = false; },
-         clear() { this.chosen = null; },
+         choose(item) { this.chosen = item; this.open = false; this.announce(true); },
+         clear() { this.chosen = null; this.announce(false); },
+         announce(chosen) { this.$dispatch('library-media', { type: @js($type), chosen }); },
      }"
      x-on:change.window="if ($event.target && $event.target.name === @js('activity_'.$type.'_file') && $event.target.files && $event.target.files.length) clear()">
     <input type="hidden" name="existing_media_id" x-bind:value="chosen ? chosen.id : ''" x-bind:disabled="! chosen || activityType !== @js($type)">

@@ -57,6 +57,8 @@
 
 <div x-data="{
          activityType: @js($selectedActivityType ?? ''),
+         libraryChosen: { video: false, audio: false, document: false },
+         get libraryMedia() { return !! this.libraryChosen[this.activityType]; },
          initialActivityType: @js($formActivity?->activity_type),
          storedDurationSeconds: @js($storedDurationSeconds),
          storedEstimateMinutes: @js($storedEstimateMinutes),
@@ -175,6 +177,9 @@
              this.processingLocaleRequired = this.activityType === 'video' && this.mediaDurationState !== 'invalid_type' && this.videoSpeechToTextEnabled;
          },
          languageProfileEnabled() {
+             // A Media picked from the library keeps what was already processed: no language or processing choice applies.
+             if (this.libraryMedia) return false;
+
              return this.activityType === 'document'
                  || (this.activityType === 'audio' && this.speechToTextEnabled)
                  || (this.activityType === 'video' && this.videoSpeechToTextEnabled);
@@ -218,6 +223,7 @@
         else if ($event.target.name === 'activity_audio_file') readMediaDuration($event, 'audio');
         else if ($event.target.name === 'activity_document_file') documentFileChanged($event);
      ">
+    <span hidden x-on:library-media.window="libraryChosen[$event.detail.type] = $event.detail.chosen"></span>
     <div class="ui-modal__grid">
         <h4 class="ui-modal__section-title ui-field--full">{{ __('lf.LF_course_template_activity_section_information') }}</h4>
 
@@ -282,7 +288,7 @@
                 <span class="ui-field__hint">{{ __('lf.LF_course_template_activity_media_unavailable') }}</span>
             @endif
             <span class="ui-field__error" role="alert" x-show="mediaDurationState === 'invalid_type' && mediaTypeError === 'video'" x-cloak>{{ __('lf.LF_course_template_activity_media_invalid_video') }}</span>
-            <label class="ui-check">
+            <label class="ui-check" x-show="! libraryMedia">
                 <input type="hidden" name="video_speech_to_text" value="0" :disabled="activityType !== 'video'">
                 <input id="activity-form-video_speech_to_text" type="checkbox" name="video_speech_to_text" value="1"
                        x-model="videoSpeechToTextEnabled" x-on:change="videoSpeechToTextChanged()"
@@ -291,8 +297,8 @@
                        @checked($selectedVideoSpeechToText && $videoSttQualification['qualified'])>
                 <span>{{ __('lf.LF_course_template_activity_video_stt_option') }}</span>
             </label>
-            <span @class(['ui-field__hint', 'ui-field__error' => ! $videoSttQualification['qualified']])>{{ __($videoSttQualification['message_key']) }}</span>
-            <details class="ui-details">
+            <span x-show="! libraryMedia" @class(['ui-field__hint', 'ui-field__error' => ! $videoSttQualification['qualified']])>{{ __($videoSttQualification['message_key']) }}</span>
+            <details class="ui-details" x-show="! libraryMedia">
                 <summary>{{ __('lf.LF_media_processing_details') }}</summary>
                 <p>{{ __('lf.LF_course_template_activity_video_stt_help') }}</p>
                 <p>{{ __('lf.LF_media_processing_video_short_warning') }}</p>
@@ -334,14 +340,14 @@
                 <span class="ui-field__hint">{{ __('lf.LF_course_template_activity_media_unavailable') }}</span>
             @endif
             <span class="ui-field__error" role="alert" x-show="mediaDurationState === 'invalid_type' && mediaTypeError === 'audio'" x-cloak>{{ __('lf.LF_course_template_activity_media_invalid_audio') }}</span>
-            <label class="ui-check">
+            <label class="ui-check" x-show="! libraryMedia">
                 <input type="hidden" name="speech_to_text" value="0" :disabled="activityType !== 'audio'">
                 <input id="activity-form-speech_to_text" type="checkbox" name="speech_to_text" value="1"
                        x-model="speechToTextEnabled" x-on:change="speechToTextChanged()"
                        :disabled="activityType !== 'audio'" @checked($storedSpeechToText)>
                 <span>Tự động phiên âm nội dung audio</span>
             </label>
-            <details class="ui-details">
+            <details class="ui-details" x-show="! libraryMedia">
                 <summary>{{ __('lf.LF_media_processing_details') }}</summary>
                 <p>{{ __('lf.LF_media_processing_audio_limits', ['minutes' => config('media.processing.speech_to_text.max_duration_seconds') / 60, 'gib' => config('media.processing.speech_to_text.max_bytes') / 1073741824]) }}</p>
                 <p>{{ __('lf.LF_media_processing_processing_requirements') }}</p>
@@ -372,11 +378,11 @@
             @if (($currentMedia['type'] ?? null) === 'document' && ($currentMedia['state'] ?? '') === 'unavailable')
                 <span class="ui-field__hint">{{ __('lf.LF_course_template_activity_media_unavailable') }}</span>
             @endif
-            <label class="ui-check" x-show="documentIsPdf" x-cloak>
+            <label class="ui-check" x-show="documentIsPdf && ! libraryMedia" x-cloak>
                 <input id="activity-form-structured_extraction" type="checkbox" name="structured_extraction" value="1" :disabled="! documentIsPdf">
                 <span>Trích xuất cấu trúc tài liệu (bảng, tiêu đề, thứ tự đọc)</span>
             </label>
-            <details class="ui-details">
+            <details class="ui-details" x-show="! libraryMedia">
                 <summary>{{ __('lf.LF_media_processing_details') }}</summary>
                 <p>Tệp phải đồng thời không vượt quá giới hạn dung lượng và, nếu là PDF, không vượt quá 100 trang. Giới hạn 100 trang áp dụng cả khi không bật phân tích cấu trúc tài liệu.</p>
                 <p>Không tick trích xuất cấu trúc: hệ thống vẫn trích xuất toàn bộ text như bình thường. Tick: chạy thêm một bước phân tích cấu trúc để nhận diện bảng, vai trò từng khối và thứ tự đọc — phục vụ AI đọc tài liệu. Bước này nặng hơn và chạy nền; nếu nó thất bại thì tài liệu vẫn dùng được bình thường. Tùy chọn này chỉ xuất hiện với tệp PDF; với Word, Excel hoặc PowerPoint hãy xuất ra PDF rồi tải bản PDF lên. Ảnh và biểu đồ chỉ được đánh dấu vị trí, chưa được diễn giải nội dung.</p>

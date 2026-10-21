@@ -3,6 +3,8 @@
 @section('title', __('lf.LF_course_category_common_title'))
 @section('page_title', __('lf.LF_course_category_common_title'))
 
+@section('page_title_hidden', '1')
+
 @section('vite')
     @parent
     @vite(['resources/css/admin/admin-ui-kit.css', 'resources/js/admin-ui-kit-controls.js', 'resources/js/admin-ui-kit-dialog-form.js', 'resources/js/admin-ui-kit-row-actions.js'])
@@ -35,7 +37,7 @@
         <div class="mk-tablebar mk-tablebar--filters">
         <form class="mk-filter-form" method="GET" action="{{ route($routePrefix.'.index') }}" data-ui-live-filter>
             <div class="ui-field mk-search">
-                <label class="ui-field__label" for="keyword">
+                <label class="ui-field__label ui-sr-only" for="keyword">
                     {{ __('lf.LF_course_category_common_keyword') }}
                 </label>
                 <div class="ui-search">
@@ -60,7 +62,7 @@
                 choose(item) { if (!item) return; const changed = this.value !== item.value; this.value = item.value; this.close(); this.$refs.input.focus(); this.open = false; if (changed) this.$nextTick(() => this.$refs.input.form?.requestSubmit()); },
                 move(step) { this.open = true; this.active = Math.max(0, Math.min(this.matches.length - 1, this.active + step)); }
             }" @click.outside="close()" @focusout="if (!$el.contains($event.relatedTarget)) close()">
-                <label class="ui-field__label" for="status" x-bind:for="'category-status-input'">
+                <label class="ui-field__label ui-sr-only" for="status" x-bind:for="'category-status-input'">
                     {{ __('lf.LF_course_category_common_status') }}
                 </label>
                 <select id="status" name="status" x-model="value" x-show="false">

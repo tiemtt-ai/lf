@@ -44,8 +44,6 @@ if ($registerCategoryManagement ?? true) {
     Route::delete('/course-categories', [CourseCategoryController::class, 'bulkDestroy'])
         ->name('course-categories.bulk-destroy');
 
-    Route::delete('/course-categories/{id}', [CourseCategoryController::class, 'destroy'])
-        ->name('course-categories.destroy');
 }
 
 if ($registerCourseProductRoutes ?? false) {
@@ -285,9 +283,6 @@ Route::delete('/course-templates/{templateId}/learning-mappings/{intentId}', [Co
 
 Route::delete('/course-templates', [CourseTemplateController::class, 'bulkDestroy'])
     ->name('course-templates.bulk-destroy');
-
-Route::delete('/course-templates/{id}', [CourseTemplateController::class, 'destroy'])
-    ->name('course-templates.destroy');
 
 Route::get(
     '/course-templates/{templateId}/teachers',
