@@ -115,7 +115,7 @@
                             <a class="ux-row-edit cursor-interaction" href="{{ route($routePrefix.'.edit', $template->id) }}"
                                aria-label="{{ __('lf.LF_course_template_action_manage') }}: {{ $template->title }}"
                                data-tooltip="{{ __('lf.LF_course_template_action_manage') }}">
-                                <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 17 2 2 4-4" /><path d="m3 7 2 2 4-4" /><path d="M13 6h8" /><path d="M13 12h8" /><path d="M13 18h8" /></svg>
+                                <x-backend-icon name="sliders" class="ui-icon" />
                             </a>
                             <button type="button" class="ux-row-edit cursor-interaction" data-ui-dialog-form-open
                                     data-url="{{ route($routePrefix.'.form', $template->id) }}" aria-haspopup="dialog"

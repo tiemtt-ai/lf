@@ -60,7 +60,33 @@
          previewOpen: false,
          preview: { name: '', url: '', mimeType: '', mediaType: '' },
          usageOpen: false,
-         usage: { name: '', items: [] },
+         shareOpen: false,
+         shareFor: { name: '', meta: '' },
+         usageCountText: @js(trans_choice('lf.LF_media_file_usage_count', 2, ['count' => ':count'])),
+         usageNoneText: @js(__('lf.LF_media_file_usage_none')),
+         shareScope: 'private',
+         shareIds: [],
+         shareSearch: '',
+         shareFeedback: '',
+         teachers: @js($shareTeachers),
+         get shareMatches() {
+             const text = this.shareSearch.trim().toLocaleLowerCase();
+             return this.teachers.filter(t => (t.name + ' ' + t.email + ' ' + (t.role === 'customer_admin' ? @js(__('lf.LF_media_share_role_admin')) : @js(__('lf.LF_media_share_role_teacher')))).toLocaleLowerCase().includes(text));
+         },
+         resetShare() {
+             this.shareScope = 'private';
+             this.shareIds = [];
+             this.shareSearch = '';
+             this.shareFeedback = '';
+         },
+         saveShare() {
+             this.shareFeedback = this.shareScope === 'public'
+                 ? @js(__('lf.LF_media_share_feedback_public'))
+                 : (this.shareScope === 'teachers' && this.shareIds.length === 0
+                     ? @js(__('lf.LF_media_share_feedback_none'))
+                     : @js(__('lf.LF_media_share_feedback_preview')));
+         },
+         usage: { name: '', items: [], meta: '' },
          openMediaPreview(name, url, mimeType, mediaType) {
              this.preview = { name, url, mimeType, mediaType };
              this.previewOpen = true;
@@ -69,13 +95,24 @@
              this.previewOpen = false;
              this.preview = { name: '', url: '', mimeType: '', mediaType: '' };
          },
-         openUsage(name, items) {
-             this.usage = { name, items };
+         openUsage(name, items, meta) {
+             this.usage = { name, items, meta };
              this.usageOpen = true;
+         },
+         openShare(name, meta) {
+             this.shareFor = { name, meta };
+             this.resetShare();
+             this.shareOpen = true;
+         },
+         closeShare() {
+             this.shareOpen = false;
+         },
+         get usageSubtitle() {
+             return this.usage.name + ' · ' + (this.usage.items.length === 0 ? this.usageNoneText : this.usageCountText.replace(':count', this.usage.items.length));
          },
          closeUsage() {
              this.usageOpen = false;
-             this.usage = { name: '', items: [] };
+             this.usage = { name: '', items: [], meta: '' };
          },
      }">
     <x-ui-list-toasts />
@@ -195,7 +232,7 @@
                     <col class="ui-col-type">
                     <col class="ui-col-upload">
                     <col class="ui-col-usage">
-                    <col class="mk-col-status">
+                    <col class="ui-col-actions">
                 </colgroup>
                 <thead>
                 <tr>
@@ -207,9 +244,8 @@
                     <th scope="col" class="mk-text-cell">{{ __('lf.LF_media_file_common_file') }}</th>
                     <th scope="col" class="mk-text-cell">{{ __('lf.LF_media_file_common_type_and_size') }}</th>
                     <th scope="col" class="mk-text-cell">{{ __('lf.LF_media_file_common_upload_information') }}</th>
-                    <th scope="col" class="mk-text-cell">{{ __('lf.LF_media_file_common_usage') }}</th>
-                    <th scope="col" class="ux-action-cell">{{ __('lf.LF_media_file_common_status') }}</th>
-
+                    <th scope="col" class="mk-text-cell ui-center-cell">{{ __('lf.LF_media_file_common_status') }}</th>
+                    <th scope="col" class="ux-action-cell">{{ __('lf.table_actions') }}</th>
                 </tr>
                 </thead>
                 <tbody>
@@ -222,7 +258,11 @@
                             ->map(fn ($logicalOwnerType) => $ownerTypeOptions[$logicalOwnerType] ?? str($logicalOwnerType)->replace('_', ' ')->headline())
                             ->values();
                         $usageItems = $mediaFile->active_usages->map(fn ($usage) => [
-                            'type' => (string) ($ownerTypeOptions[$usage->owner_type] ?? str($usage->owner_type)->replace('_', ' ')->headline()),
+                            'type' => match ($usage->owner_type) {
+                                'course_version_activity' => __('lf.LF_media_usage_type_version_activity'),
+                                'course_template_version' => __('lf.LF_media_usage_type_template_version'),
+                                default => (string) ($ownerTypeOptions[$usage->owner_type] ?? str($usage->owner_type)->replace('_', ' ')->headline()),
+                            },
                             'name' => (string) $usage->owner_name,
                             'url' => $usage->owner_url ?? null,
                         ])->values()->all();
@@ -276,23 +316,27 @@
                             {{ $mediaFile->uploaded_by_name ?? '—' }}
                             <p class="ui-caption">{{ \Illuminate\Support\Carbon::parse($mediaFile->created_at)->format('d/m/Y H:i') }}</p>
                         </td>
-                        <td class="mk-text-cell" data-label="{{ __('lf.LF_media_file_common_usage') }}">
-                            @if ($usageItems !== [])
-                                <button type="button" class="ui-link-button cursor-interaction" aria-haspopup="dialog"
-                                        x-on:click="openUsage(@js($mediaFile->display_name), @js($usageItems))">
-                                    {{ trans_choice('lf.LF_media_file_usage_count', count($usageItems), ['count' => count($usageItems)]) }}
-                                </button>
-                                <p class="ui-caption">
-                                    {{ $usageOwnerLabels->first() }}@if ($usageOwnerLabels->count() > 1) {{ __('lf.LF_media_file_usage_more', ['count' => $usageOwnerLabels->count() - 1]) }}@endif
-                                </p>
-                            @else
-                                <span class="ui-caption">{{ __('lf.LF_media_file_usage_none') }}</span>
-                            @endif
-                        </td>
-                        <td class="ux-action-cell" data-label="{{ __('lf.LF_media_file_common_status') }}">
+                        <td class="mk-text-cell ui-center-cell" data-label="{{ __('lf.LF_media_file_common_status') }}">
                             <span @class(['ui-status', 'ui-status--active' => ! $isUnused, 'ui-status--archived' => $isUnused])>
                                 {{ $isUnused ? __('lf.LF_media_file_common_unused') : __('lf.LF_media_file_common_in_use') }}
                             </span>
+                            <p class="ui-caption">
+                                {{ $isUnused ? __('lf.LF_media_file_status_can_delete') : trans_choice('lf.LF_media_file_usage_count', count($usageItems), ['count' => count($usageItems)]) }}
+                            </p>
+                        </td>
+                        <td class="ux-action-cell" data-label="{{ __('lf.table_actions') }}">
+                            <button type="button" class="ux-row-edit cursor-interaction" aria-haspopup="dialog"
+                                    aria-label="{{ __('lf.LF_media_file_action_uses') }}: {{ $mediaFile->display_name }}"
+                                    data-tooltip="{{ __('lf.LF_media_file_action_uses') }}"
+                                    x-on:click="openUsage(@js($mediaFile->display_name), @js($usageItems), @js(trim(($typeLabels[$mediaFile->file_type] ?? '').' · '.strtoupper((string) $mediaFile->extension), ' ·')))">
+                                <x-backend-icon name="link-2" class="ui-icon" />
+                            </button>
+                            <button type="button" class="ux-row-edit cursor-interaction" aria-haspopup="dialog"
+                                    aria-label="{{ __('lf.LF_media_file_action_share') }}: {{ $mediaFile->display_name }}"
+                                    data-tooltip="{{ __('lf.LF_media_file_action_share') }}"
+                                    x-on:click="openShare(@js($mediaFile->display_name), @js(trim(($typeLabels[$mediaFile->file_type] ?? '').' · '.strtoupper((string) $mediaFile->extension), ' ·')))">
+                                <x-backend-icon name="user-cog" class="ui-icon" />
+                            </button>
                         </td>
                     </tr>
                 @empty
@@ -383,29 +427,83 @@
         </template>
     </x-media-preview-modal>
 
-    <x-media-preview-modal ui-kit id="media-library-usage-title" show="usageOpen" close="closeUsage()" title="usage.name" compact="true">
-        <div class="ui-usage">
-            <h4 class="ui-usage__title">{{ __('lf.LF_media_file_usage_all_places') }} <span class="ui-count-pill" x-text="usage.items.length"></span></h4>
-            <ul class="ui-usage-list">
-                <template x-for="item in usage.items" x-bind:key="item.type + item.name">
-                    <li>
-                    <template x-if="item.url">
-                        <a class="ui-usage-list__row" x-bind:href="item.url">
-                            <span class="ui-usage-list__type" x-text="item.type"></span>
-                            <span class="ui-usage-list__name" x-text="item.name"></span>
-                            <x-backend-icon name="external-link" class="ui-icon ui-usage-list__go" />
-                        </a>
+    <dialog class="ui-modal ui-share" data-columns="1" aria-labelledby="media-library-usage-title"
+            x-effect="if (usageOpen && !$el.open) $el.showModal(); else if (!usageOpen && $el.open) $el.close()"
+            @close="closeUsage()">
+        <div class="ui-modal__form">
+            <header class="ui-modal__header">
+                <div>
+                    <h3 id="media-library-usage-title">{{ __('lf.LF_media_file_uses_title') }}</h3>
+                    <span class="ui-caption" x-text="usageSubtitle"></span>
+                </div>
+                <button type="button" class="ui-modal__close cursor-interaction" aria-label="{{ __('lf.LF_common_button_close') }}" @click="closeUsage()">×</button>
+            </header>
+            <div class="ui-modal__body">
+                <p class="ui-caption" x-show="usage.items.length === 0">{{ __('lf.LF_media_file_usage_none') }}</p>
+                <ul class="ui-usage-list" x-show="usage.items.length > 0">
+                    <template x-for="(item, index) in usage.items" x-bind:key="index">
+                        <li class="ui-usage-list__item">
+                            <x-backend-icon name="book-open" class="ui-icon ui-usage-list__lead" />
+                            <div class="ui-usage-list__text"><span x-text="item.name"></span><div class="ui-caption" x-text="item.type"></div></div>
+                            <template x-if="item.url">
+                                <a class="ux-row-edit cursor-interaction" x-bind:href="item.url" x-bind:target="'_blank'" x-bind:rel="'noopener'" data-tooltip="{{ __('lf.LF_media_file_usage_open') }}" x-bind:aria-label="@js(__('lf.LF_media_file_usage_open')) + ': ' + item.name"><x-backend-icon name="external-link" class="ui-icon" /></a>
+                            </template>
+                        </li>
                     </template>
-                    <template x-if="! item.url">
-                        <div class="ui-usage-list__row">
-                            <span class="ui-usage-list__type" x-text="item.type"></span>
-                            <span class="ui-usage-list__name" x-text="item.name"></span>
-                        </div>
-                    </template>
-                </li>
-                </template>
-            </ul>
+                </ul>
+            </div>
+            <footer class="ui-modal__footer">
+                <button type="button" class="ui-button cursor-interaction" @click="closeUsage()">{{ __('lf.LF_common_button_close') }}</button>
+            </footer>
         </div>
-    </x-media-preview-modal>
+    </dialog>
+
+    <dialog class="ui-modal ui-share" data-columns="1" aria-labelledby="media-library-share-title"
+            x-effect="if (shareOpen && !$el.open) $el.showModal(); else if (!shareOpen && $el.open) $el.close()"
+            @close="closeShare()">
+        <div class="ui-modal__form">
+            <header class="ui-modal__header">
+                <div>
+                    <h3 id="media-library-share-title">{{ __('lf.LF_media_share_title') }}</h3>
+                    <span class="ui-caption"><span x-text="shareFor.name"></span><span x-show="shareFor.meta"> · <span x-text="shareFor.meta"></span></span></span>
+                </div>
+                <button type="button" class="ui-modal__close cursor-interaction" aria-label="{{ __('lf.LF_common_button_close') }}" @click="closeShare()">×</button>
+            </header>
+            <div class="ui-modal__body">
+                <div class="ui-share__stack">
+                    <div class="ui-field">
+                        <label class="ui-field__label" for="media-share-scope">{{ __('lf.LF_media_share_with') }}</label>
+                        <select id="media-share-scope" x-model="shareScope">
+                            <option value="private">{{ __('lf.LF_media_share_scope_private') }}</option>
+                            <option value="teachers">{{ __('lf.LF_media_share_scope_teachers') }}</option>
+                            <option value="public">{{ __('lf.LF_media_share_scope_public_option') }}</option>
+                        </select>
+                    </div>
+                    <div x-show="shareScope === 'teachers'">
+                        <div class="ui-field">
+                            <label class="ui-field__label" for="media-share-search">{{ __('lf.LF_media_share_pick_teachers') }}</label>
+                            <input id="media-share-search" type="search" x-model="shareSearch" placeholder="{{ __('lf.LF_media_share_search_placeholder') }}" autocomplete="off">
+                        </div>
+                        <p class="ui-caption" x-show="teachers.length === 0">{{ __('lf.LF_media_share_no_teachers') }}</p>
+                        <div class="ui-share__people">
+                            <template x-for="person in shareMatches" x-bind:key="person.id">
+                                <label class="ui-share__person ui-check cursor-interaction">
+                                    <input type="checkbox" x-bind:value="person.id" x-model.number="shareIds">
+                                    <span class="ui-share__copy"><span x-text="person.name"></span><span class="ui-caption"><span x-text="person.role === 'customer_admin' ? @js(__('lf.LF_media_share_role_admin')) : @js(__('lf.LF_media_share_role_teacher'))"></span> · <span x-text="person.email"></span></span></span>
+                                </label>
+                            </template>
+                        </div>
+                        <p class="ui-caption" aria-live="polite" x-text="@js(__('lf.LF_media_share_selected')) + ' ' + shareIds.length"></p>
+                    </div>
+                    <p class="ui-caption" x-show="shareScope === 'public'">{{ __('lf.LF_media_share_public_note') }}</p>
+                </div>
+            </div>
+            <footer class="ui-modal__footer">
+                <span class="ui-caption" role="status" aria-live="polite" x-text="shareFeedback"></span>
+                <button type="button" class="ui-button cursor-interaction" @click="closeShare()">{{ __('lf.LF_media_share_cancel') }}</button>
+                <button type="button" class="ui-button ui-button--primary cursor-interaction" @click="saveShare()">{{ __('lf.LF_media_share_save') }}</button>
+            </footer>
+        </div>
+    </dialog>
 </div>
 @endsection

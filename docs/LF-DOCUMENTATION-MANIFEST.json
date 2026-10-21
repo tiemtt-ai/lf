@@ -5,7 +5,7 @@
   "default_locale": "vi",
   "fallback_locale": "en",
   "source_of_truth": "docs/LF-INDEX.md",
-  "document_count": 308,
+  "document_count": 309,
   "documents": [
     {
       "path": "LF-Core-Overview.md",
@@ -11674,6 +11674,48 @@
         "platform/LF-Media-Read-Contract.md",
         "platform/LF-Media-Processing-Contract.md",
         "quality/LF-Media-Processing-Substrate-Architecture-Review.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "quality/LF-Media-Sharing-Proposal.md",
+      "title": "LF Media Sharing Proposal",
+      "area": "quality",
+      "document_type": "architecture_review",
+      "document_status": "Review",
+      "implementation_status": "Not Applicable",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": [
+        "media",
+        "sharing",
+        "permissions",
+        "tenant"
+      ],
+      "keywords": {
+        "vi": [
+          "chia sẻ media",
+          "phân quyền media",
+          "thu hồi chia sẻ",
+          "nguồn chia sẻ"
+        ],
+        "en": [
+          "media sharing",
+          "media permissions",
+          "revoke share",
+          "share source"
+        ]
+      },
+      "identifiers": [
+        "media_files.visibility",
+        "media_file_usages"
+      ],
+      "related_documents": [
+        "adr/ADR-0004-Media-Foundation.md",
+        "database/media/media_files.md",
+        "governance/LF-Architecture-Guardrails.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"

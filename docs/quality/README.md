@@ -39,6 +39,7 @@ criteria hay không.
   `Existing-Feature Change`; canonical Audit Level là `LOW`, `MEDIUM`, `HIGH`
   và độ sâu kiểm chứng theo mức cao nhất áp dụng.
 * [LF-UI-Async-State-Engineering-Practice.md](LF-UI-Async-State-Engineering-Practice.md) — nguyên tắc và danh sách kiểm cho giao diện có nhiều luồng bất đồng bộ dùng chung trạng thái (2026-09-30).
+* [LF-Media-Sharing-Proposal.md](LF-Media-Sharing-Proposal.md) — đề xuất chia sẻ Media trong tenant, chờ Owner quyết trước khi viết ADR (2026-10-21).
 * [LF-Documentation-Conflicts.md](LF-Documentation-Conflicts.md) — canonical
   register cho inconsistency đã xác minh; kiểm tra register và dừng affected
   concern khi hai official sources không thể đồng thời được thỏa mãn.

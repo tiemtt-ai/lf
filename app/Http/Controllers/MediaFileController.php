@@ -262,6 +262,10 @@ class MediaFileController extends Controller
             'ownerType' => $ownerType,
             'usageStatus' => $usageStatus,
             'ownerTypeOptions' => $ownerTypeOptions,
+            // Candidates for the (not yet saved) sharing tab of the manage dialog: the other active admins and teachers of this tenant.
+            'shareTeachers' => DB::table('users')->where('customer_id', $customerId)->whereIn('role', ['teacher', 'customer_admin'])
+                ->where('status', 'active')->where('id', '<>', (int) $request->user()->id)->orderBy('name')->get(['id', 'name', 'email', 'role'])
+                ->map(fn ($u): array => ['id' => (int) $u->id, 'name' => (string) $u->name, 'email' => (string) $u->email, 'role' => (string) $u->role])->all(),
             'ownerObjects' => $ownerObjects,
             'ownerRefs' => $ownerRefs,
             'tabCounts' => $this->tabCounts($customerId),
@@ -449,6 +453,14 @@ class MediaFileController extends Controller
                 ->where('customer_id', $customerId)
                 ->whereIn('id', $versionActivityIds)
                 ->pluck('source_template_activity_id', 'id');
+        // A snapshot whose source activity was deleted later stays a version activity: there is no live activity to point at.
+        if ($sourceActivityIds->isNotEmpty()) {
+            $liveActivityIds = DB::table('core_course_template_activities')
+                ->where('customer_id', $customerId)
+                ->whereIn('id', $sourceActivityIds->filter()->values()->all())
+                ->pluck('id')->map(fn ($id): int => (int) $id);
+            $sourceActivityIds = $sourceActivityIds->filter(fn ($id): bool => $liveActivityIds->contains((int) $id));
+        }
         $templateVersionIds = $usages
             ->where('owner_type', 'course_template_version')
             ->pluck('owner_id')
@@ -462,6 +474,15 @@ class MediaFileController extends Controller
                 ->where('customer_id', $customerId)
                 ->whereIn('id', $templateVersionIds)
                 ->pluck('template_id', 'id');
+
+        // Same for a version whose template was deleted later: keep pointing at the version.
+        if ($sourceTemplateIds->isNotEmpty()) {
+            $liveTemplateIds = DB::table('core_course_templates')
+                ->where('customer_id', $customerId)
+                ->whereIn('id', $sourceTemplateIds->filter()->values()->all())
+                ->pluck('id')->map(fn ($id): int => (int) $id);
+            $sourceTemplateIds = $sourceTemplateIds->filter(fn ($id): bool => $liveTemplateIds->contains((int) $id));
+        }
 
         return $usages
             ->map(function (object $usage) use (
@@ -533,6 +554,28 @@ class MediaFileController extends Controller
             }
         }
 
+        foreach ($usages->where('owner_type', 'course_template_version') as $usage) {
+            $versionRow = DB::table('core_course_template_versions')
+                ->where('customer_id', $customerId)->where('id', (int) $usage->owner_id)->first(['id', 'template_id']);
+
+            if ($versionRow !== null) {
+                $urls['course_template_version:'.$versionRow->id] = route('admin.course-templates.versions.show', ['templateId' => $versionRow->template_id, 'versionId' => $versionRow->id]);
+            }
+        }
+
+        $versionActivityIds = $usages->where('owner_type', 'course_version_activity')->pluck('owner_id')->map(fn ($id): int => (int) $id)->unique()->all();
+
+        if ($versionActivityIds !== []) {
+            $versions = DB::table('core_course_template_version_activities as va')
+                ->join('core_course_template_versions as v', 'v.id', '=', 'va.template_version_id')
+                ->where('va.customer_id', $customerId)->whereIn('va.id', $versionActivityIds)
+                ->get(['va.id', 'v.id as version_id', 'v.template_id']);
+
+            foreach ($versions as $row) {
+                $urls['course_version_activity:'.$row->id] = route('admin.course-templates.versions.show', ['templateId' => $row->template_id, 'versionId' => $row->version_id]);
+            }
+        }
+
         $activityIds = $usages->where('owner_type', 'course_activity')->pluck('owner_id')->map(fn ($id): int => (int) $id)->unique()->all();
 
         if ($activityIds !== []) {
@@ -560,6 +603,7 @@ class MediaFileController extends Controller
                 'core_course_template_version_activities',
                 'title_snapshot',
             ],
+            'course_template_version' => ['core_course_template_versions', 'title_snapshot'],
             'course_cohort' => ['core_course_cohorts', 'name'],
         ];
 

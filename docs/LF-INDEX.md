@@ -392,6 +392,7 @@ docs/quality/
 | [quality/LF-Admin-Teacher-Layout-Adoption-Audit.md](quality/LF-Admin-Teacher-Layout-Adoption-Audit.md) | Admin/Teacher shell adoption, browser evidence và giới hạn nghiệm thu |
 | [quality/LF-Regression-Audit.md](quality/LF-Regression-Audit.md) | Mandatory `LOW`/`MEDIUM`/`HIGH` audit for every Existing-Feature Change |
 | [quality/LF-UI-Async-State-Engineering-Practice.md](quality/LF-UI-Async-State-Engineering-Practice.md) | Nguyên tắc làm giao diện có nhiều luồng bất đồng bộ (bất biến trước, test đối kháng, đột biến, đi thử từ menu, danh sách kiểm trước khi gửi review); rút từ 6 lượt review P3-A |
+| [quality/LF-Media-Sharing-Proposal.md](quality/LF-Media-Sharing-Proposal.md) | Đề xuất chia sẻ Media trong tenant (phạm vi, quyền, thu hồi, bảng dữ liệu); chưa phải ADR |
 | [quality/LF-Documentation-Conflicts.md](quality/LF-Documentation-Conflicts.md) | Canonical classification, STOP rule and traceable register for verified documentation conflicts |
 | [quality/LF-Course-Template-Version-Snapshot-Architecture-Review.md](quality/LF-Course-Template-Version-Snapshot-Architecture-Review.md) | Approved Course Template Version snapshot architecture review |
 | [quality/LF-Course-Template-Version-Duplicate-to-Draft-Architecture-Review.md](quality/LF-Course-Template-Version-Duplicate-to-Draft-Architecture-Review.md) | Approved Course Template Version duplicate-to-draft architecture review |

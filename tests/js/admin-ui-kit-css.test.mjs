@@ -29,3 +29,27 @@ test('UI Kit stays out of existing production style entries', () => {
     const vite = fs.readFileSync(new URL('../../vite.config.js', import.meta.url), 'utf8');
     assert.ok(vite.includes("'resources/css/admin/admin-ui-kit.css'"));
 });
+
+test('row action icon buttons share one size and hover standard', () => {
+    // Standard: 30x30, 4px radius; hover is --ui-color-eef0fb (danger: --ui-danger-soft). No other size may be declared.
+    const sizes = new Map();
+    const hovers = new Map();
+    ast.walkRules(rule => {
+        for (const selector of rule.selectors) {
+            const match = selector.trim().match(/\.(ux-row-edit|ux-row-delete|ui-row-action)(--danger)?(:hover(?::not\([^)]*\))?)?$/);
+            if (!match || selector.includes('[data-tooltip')) continue;
+            rule.walkDecls(decl => {
+                if (!match[3] && ['width', 'height', 'min-width', 'min-height'].includes(decl.prop) && !selector.includes(':disabled')) {
+                    sizes.set(`${match[1]}${match[2] || ''} ${decl.prop}`, decl.value.trim());
+                }
+                if (match[3] && decl.prop === 'background') hovers.set(`${match[1]}${match[2] || ''}`, decl.value.trim());
+            });
+        }
+    });
+    assert.ok(sizes.size >= 4, 'row action sizes are declared');
+    for (const [key, value] of sizes) assert.equal(value, '30px', key);
+    for (const [key, value] of hovers) {
+        const danger = key === 'ux-row-delete' || key.endsWith('--danger');
+        assert.equal(value, danger ? 'var(--ui-danger-soft)' : 'var(--ui-color-eef0fb)', key);
+    }
+});
