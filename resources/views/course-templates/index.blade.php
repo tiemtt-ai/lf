@@ -8,14 +8,6 @@
     @vite(['resources/css/admin/admin-ui-kit.css', 'resources/js/admin-ui-kit-controls.js', 'resources/js/admin-ui-kit-dialog-form.js', 'resources/js/admin-ui-kit-row-actions.js'])
 @endsection
 
-@section('page_actions')
-    <button type="button" class="ui-button ui-button--primary cursor-interaction"
-            data-ui-dialog-form-open data-ui-dialog-form-for="template-list" data-url="{{ route($routePrefix.'.create') }}" aria-haspopup="dialog">
-        <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
-        {{ __('lf.LF_course_template_common_create_short') }}
-    </button>
-@endsection
-
 @section('content')
 <div id="template-list" class="lf-admin-ui lf-admin-ui--list" data-ui-dialog-form-scope data-ui-row-actions
      data-csrf="{{ csrf_token() }}"
@@ -38,7 +30,8 @@
     @endif
 
     <section class="mk-section" aria-labelledby="admin-page-title">
-        <form class="mk-tablebar mk-tablebar--filters" method="GET" action="{{ route($routePrefix.'.index') }}" data-ui-live-filter>
+        <div class="mk-tablebar mk-tablebar--filters">
+        <form class="mk-filter-form" method="GET" action="{{ route($routePrefix.'.index') }}" data-ui-live-filter>
             <div class="ui-field mk-search">
                 <label class="ui-field__label" for="keyword">
                     {{ __('lf.LF_course_template_common_keyword') }}
@@ -77,9 +70,24 @@
             </span>
         </form>
 
+        <x-ui-list-toolbar :url="route($routePrefix.'.bulk-destroy')" name="ids[]"
+            :label="__('lf.LF_course_template_bulk_delete')"
+            :confirm-title="__('lf.LF_course_template_bulk_delete_title')" :confirm-message="__('lf.LF_course_template_bulk_delete_confirm', ['count' => ':count'])"
+            :confirm-label="__('lf.LF_common_button_confirm')">
+            <x-slot:create>
+                <button type="button" class="ui-button ui-button--outline cursor-interaction"
+                data-ui-dialog-form-open data-ui-dialog-form-for="template-list" data-url="{{ route($routePrefix.'.create') }}" aria-haspopup="dialog">
+            <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+            {{ __('lf.LF_course_template_common_create_short') }}
+        </button>
+            </x-slot:create>
+        </x-ui-list-toolbar>
+        </div>
+
         <div class="mk-table-scroll" data-ui-live-region="table" role="region" aria-label="{{ __('lf.LF_course_template_common_title') }}" tabindex="0">
             <table aria-labelledby="admin-page-title">
                 <colgroup>
+                    <col class="ui-col-check">
                     <col class="mk-col-sequence">
                     <col>
                     <col class="mk-col-secondary">
@@ -88,6 +96,9 @@
                 </colgroup>
                 <thead>
                 <tr>
+                    <th scope="col" class="ui-check-cell">
+                        <input type="checkbox" class="ui-bulk-box" data-ui-bulk-select-all aria-label="{{ __('lf.LF_course_template_select_all') }}">
+                    </th>
                     <th scope="col" class="mk-sequence">{{ __('lf.table_no') }}</th>
                     <th scope="col" class="mk-text-cell">{{ __('lf.LF_course_template_common_name') }}</th>
                     <th scope="col" class="mk-text-cell">{{ __('lf.LF_course_template_common_category') }}</th>
@@ -98,6 +109,16 @@
                 <tbody>
                 @forelse ($templates as $template)
                     <tr>
+                        <td class="ui-check-cell" data-label="{{ __('lf.LF_course_template_select') }}">
+                            @if ($template->delete_blocker)
+                                <span class="ui-bulk-lock" tabindex="0" data-tooltip="{{ $template->delete_blocker }}" data-tooltip-align="start">
+                                    <input type="checkbox" class="ui-bulk-box" disabled aria-label="{{ $template->delete_blocker }}">
+                                </span>
+                            @else
+                                <input type="checkbox" class="ui-bulk-box" data-ui-bulk-item value="{{ $template->id }}"
+                                       aria-label="{{ __('lf.LF_course_template_select') }}: {{ $template->title }}">
+                            @endif
+                        </td>
                         <td class="mk-sequence" data-label="{{ __('lf.table_no') }}">
                             {{ $templates->firstItem() + $loop->index }}
                         </td>
@@ -123,26 +144,16 @@
                                     data-tooltip="{{ __('lf.LF_course_template_action_edit_info') }}">
                                 <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z" /></svg>
                             </button>
-                            <button type="button" class="ux-row-delete cursor-interaction" data-ui-row-delete
-                                    data-url="{{ route($routePrefix.'.destroy', $template->id) }}"
-                                    data-confirm-title="{{ __('lf.LF_course_template_delete_title') }}"
-                                    data-confirm-message="{{ __('lf.LF_course_template_delete_confirm', ['name' => $template->title]) }}"
-                                    data-confirm-label="{{ __('lf.LF_course_template_delete_label') }}"
-                                    @if ($template->delete_blocker) disabled aria-disabled="true" data-tooltip="{{ $template->delete_blocker }}"
-                                    @else data-tooltip="{{ __('lf.LF_course_template_action_delete') }}" @endif
-                                    aria-label="{{ __('lf.LF_course_template_action_delete') }}: {{ $template->title }}">
-                                <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /><line x1="10" x2="10" y1="11" y2="17" /><line x1="14" x2="14" y1="11" y2="17" /></svg>
-                            </button>
                         </td>
                     </tr>
                 @empty
                     <tr class="mk-empty-row">
-                        <td class="mk-empty" colspan="5">
+                        <td class="mk-empty" colspan="6">
                             <div role="status">
                                 <strong>{{ $hasActiveFilters ? __('lf.LF_course_template_filter_empty') : __('lf.LF_course_template_common_empty') }}</strong>
                                 <p class="ui-caption">{{ $hasActiveFilters ? __('lf.LF_course_template_filter_empty_help') : __('lf.LF_course_template_empty_help') }}</p>
                                 @unless ($hasActiveFilters)
-                                    <button type="button" class="ui-button ui-button--primary cursor-interaction"
+                                    <button type="button" class="ui-button ui-button--outline cursor-interaction"
                                             data-ui-dialog-form-open data-url="{{ route($routePrefix.'.create') }}" aria-haspopup="dialog">
                                         {{ __('lf.LF_course_template_common_create_short') }}
                                     </button>

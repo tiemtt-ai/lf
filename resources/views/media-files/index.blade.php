@@ -8,29 +8,6 @@
     @vite(['resources/css/admin/admin-ui-kit.css', 'resources/js/admin-ui-kit-controls.js', 'resources/js/admin-ui-kit-row-actions.js', 'resources/js/admin-ui-kit-multiselect.js', 'resources/js/admin-ui-kit-cleanup.js'])
 @endsection
 
-@section('page_actions')
-    {{-- Clean-up of orphan storage files (no longer tied to any Media): a dialog that scans first, then purges with progress.
-         It sits in the heading (secondary, outline) so the filters keep one row. --}}
-    @php
-        $cleanupState = $cleanupStatus === null ? 'unknown' : ((int) $cleanupStatus['items'] === 0 ? 'clean' : 'dirty');
-    @endphp
-    {{-- A small status label beside the button; the button itself never changes. --}}
-    <span class="ui-cleanup-status" data-cleanup-status data-state="{{ $cleanupState }}" @if ($cleanupState === 'unknown') hidden @endif
-          data-text-clean="{{ __('lf.LF_media_cleanup_status_clean') }}" data-text-dirty="{{ __('lf.LF_media_cleanup_status_dirty', ['count' => ':count']) }}"
-          role="status">{{ match ($cleanupState) {
-              'clean' => __('lf.LF_media_cleanup_status_clean'),
-              'dirty' => __('lf.LF_media_cleanup_status_dirty', ['count' => $cleanupStatus['items']]),
-              default => '',
-          } }}</span>
-    <button type="button" class="ui-button ui-button--outline cursor-interaction" data-ui-cleanup-open="media-cleanup-dialog"
-            aria-haspopup="dialog" aria-describedby="media-storage-purge-note"
-            data-tooltip="{{ __('lf.LF_media_storage_purge_tooltip') }}" data-tooltip-placement="bottom">
-        <x-backend-icon name="brush-cleaning" class="ui-icon" />
-        {{ __('lf.LF_media_storage_purge_short') }}
-    </button>
-    <span id="media-storage-purge-note" class="ui-sr-only"><strong>{{ __('lf.LF_media_storage_purge_title') }}</strong> {{ __('lf.LF_media_storage_purge_note') }}</span>
-@endsection
-
 @section('content')
 @php
     $tabLabels = [
@@ -139,7 +116,8 @@
             @endforeach
         </nav>
 
-        <form class="mk-tablebar mk-tablebar--filters ui-media-filters" method="GET" action="{{ route('admin.media.index') }}" data-ui-live-filter>
+        <div class="mk-tablebar mk-tablebar--filters ui-media-filters">
+        <form class="mk-filter-form" method="GET" action="{{ route('admin.media.index') }}" data-ui-live-filter>
             <input type="hidden" name="tab" value="{{ $tab }}">
 
             <div class="ui-field mk-search">
@@ -208,19 +186,26 @@
             </span>
         </form>
 
-        <div class="mk-table-top" data-ui-live-region="summary">
-            <strong class="mk-table-top__count" role="status">{{ trans_choice('lf.LF_media_file_count', $mediaFiles->total(), ['count' => $mediaFiles->total()]) }}</strong>
-            <div class="mk-table-top__bulk" data-ui-bulk-bar hidden data-text-selected="{{ __('lf.LF_media_file_bulk_selected', ['count' => ':count']) }}">
-                <span data-ui-bulk-count></span>
-                <button type="button" class="ui-button ui-button--danger cursor-interaction" data-ui-bulk-delete data-ui-bulk-name="media_ids[]"
-                        data-url="{{ route('admin.media.bulk-destroy', $listFilters) }}"
-                        data-confirm-title="{{ __('lf.LF_media_file_bulk_delete_confirm') }}"
-                        data-confirm-message="{{ __('lf.LF_media_file_bulk_delete_body', ['count' => ':count']) }}"
-                        data-confirm-label="{{ __('lf.LF_media_file_common_delete') }}">
-                    {{ __('lf.LF_media_file_bulk_delete') }}
-                </button>
-            </div>
-            <span class="ui-caption mk-table-top__hint">{{ __('lf.LF_media_file_select_unused_hint') }}</span>
+        <x-ui-list-toolbar :url="route('admin.media.bulk-destroy', $listFilters)" name="media_ids[]"
+            :label="__('lf.LF_media_file_bulk_delete')"
+            :confirm-title="__('lf.LF_media_file_bulk_delete_confirm')" :confirm-message="__('lf.LF_media_file_bulk_delete_body', ['count' => ':count'])"
+            :confirm-label="__('lf.LF_common_button_confirm')">
+
+    {{-- Clean-up of orphan storage files (no longer tied to any Media): a dialog that scans first, then purges with progress.
+         It sits in the list toolbar (secondary, outline). --}}
+    @php
+        $cleanupState = $cleanupStatus === null ? 'unknown' : ((int) $cleanupStatus['items'] === 0 ? 'clean' : 'dirty');
+    @endphp
+    <button type="button" class="ui-button ui-button--outline cursor-interaction" data-ui-cleanup-open="media-cleanup-dialog"
+            aria-haspopup="dialog" aria-describedby="media-storage-purge-note"
+            data-state="{{ $cleanupState }}" @disabled($cleanupState === 'clean')
+            data-tooltip="{{ $cleanupState === 'clean' ? __('lf.LF_media_cleanup_tooltip_clean') : __('lf.LF_media_storage_purge_tooltip') }}"
+            data-tooltip-default="{{ __('lf.LF_media_storage_purge_tooltip') }}" data-tooltip-clean="{{ __('lf.LF_media_cleanup_tooltip_clean') }}">
+        <x-backend-icon name="brush-cleaning" class="ui-icon" />
+        {{ __('lf.LF_media_storage_purge_short') }}
+    </button>
+    <span id="media-storage-purge-note" class="ui-sr-only"><strong>{{ __('lf.LF_media_storage_purge_title') }}</strong> {{ __('lf.LF_media_storage_purge_note') }}</span>
+        </x-ui-list-toolbar>
         </div>
 
         <div class="mk-table-scroll" data-ui-live-region="table" role="region" aria-label="{{ __('lf.LF_media_file_common_title') }}" tabindex="0">
@@ -410,7 +395,7 @@
             <footer class="ui-modal__footer">
                 <button type="button" class="ui-button cursor-interaction" data-cleanup-close>{{ __('lf.LF_common_button_close') }}</button>
                 <button type="button" class="ui-button cursor-interaction" data-cleanup-retry hidden>{{ __('lf.LF_media_cleanup_retry') }}</button>
-                <button type="button" class="ui-button ui-button--danger cursor-interaction" data-cleanup-run hidden>{{ __('lf.LF_media_storage_purge_action') }}</button>
+                <button type="button" class="ui-button ui-button--danger-outline cursor-interaction" data-cleanup-run hidden>{{ __('lf.LF_media_storage_purge_action') }}</button>
             </footer>
         </div>
     </dialog>
@@ -501,7 +486,7 @@
             <footer class="ui-modal__footer">
                 <span class="ui-caption" role="status" aria-live="polite" x-text="shareFeedback"></span>
                 <button type="button" class="ui-button cursor-interaction" @click="closeShare()">{{ __('lf.LF_media_share_cancel') }}</button>
-                <button type="button" class="ui-button ui-button--primary cursor-interaction" @click="saveShare()">{{ __('lf.LF_media_share_save') }}</button>
+                <button type="button" class="ui-button ui-button--primary cursor-interaction" @click="saveShare()"><x-backend-icon name="check" class="ui-icon" />{{ __('lf.LF_common_button_confirm') }}</button>
             </footer>
         </div>
     </dialog>

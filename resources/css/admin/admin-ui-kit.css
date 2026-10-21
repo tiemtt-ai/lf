@@ -92,6 +92,11 @@
     --ui-success-soft: #dcfce7;
     --ui-success-border: #bbf7d0;
     --ui-danger-soft: #fdecee;
+    --ui-button-danger: #e60012;
+    --ui-button-danger-soft: #fff3f4;
+    --ui-button-disabled-bg: #f5f5f5;
+    --ui-button-disabled-text: #929292;
+    --ui-button-disabled-border: #d9d9d9;
     --ui-featured: #e0a100;
     --ui-warning: #92400e;
     --ui-warning-soft: #fef3c7;
@@ -253,10 +258,27 @@
     color: var(--ui-primary);
     border-color: var(--ui-primary)
 }
+.lf-admin-ui .ui-button--danger-outline {
+    color: var(--ui-button-danger);
+    border-color: var(--ui-button-danger);
+    background: var(--ui-white)
+}
+.lf-admin-ui .ui-button--danger-outline:hover:not(:disabled) {
+    background: var(--ui-button-danger-soft)
+}
 .lf-admin-ui .ui-button:disabled {
-    background: var(--ui-color-f3f4f7);
-    color: var(--ui-color-a0a6b1);
-    border-color: var(--ui-color-e1e4eb)
+    background: var(--ui-button-disabled-bg);
+    color: var(--ui-button-disabled-text);
+    border-color: var(--ui-button-disabled-border);
+    opacity: 1 !important; /* the admin shell dims every disabled button (#admin-app button:disabled); the kit colours already say disabled */
+    cursor: not-allowed
+}
+.lf-admin-ui .ui-button {
+    max-width: 100%;
+    overflow-wrap: anywhere
+}
+.lf-admin-ui .ui-button:active:not(:disabled) {
+    filter: brightness(.97)
 }
 .lf-admin-ui .ui-icon {
     width: 16px;
@@ -1838,6 +1860,11 @@
 }
 @media (prefers-reduced-motion: reduce) { .lf-admin-ui .ui-media-tile__empty, .lf-admin-ui .ui-media-tile__actions, .lf-admin-ui .ui-media-slot__hint { transition: none; } }
 .lf-admin-ui .ui-live-slot { display: contents; }
+/* The filters and the list buttons share one wrapping row (.mk-tablebar): the form adds no box of its own, and the button group is one flex
+   item, so it either stays on the filter row or moves down whole, right-aligned. */
+.lf-admin-ui .mk-filter-form { display: contents; }
+.lf-admin-ui .mk-table-top__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-left: auto; }
+.lf-admin-ui .mk-tablebar[data-wrapped] .mk-table-top__actions { margin-left: 0; }
 .lf-admin-ui[aria-busy=true] [data-ui-live-region=table] { opacity: .6; transition: opacity .12s; }
 .lf-admin-ui .mk-col-secondary { width: 26%; }
 .lf-admin-ui .mk-col-count { width: 120px; }
@@ -1961,13 +1988,6 @@
 .lf-admin-ui .ui-multiselect__panel { display: grid; gap: 8px; padding: 10px; }
 .lf-admin-ui .ui-multiselect__panel[hidden] { display: none; }
 .lf-admin-ui .ui-multiselect__list { max-height: 200px; border: 0; padding: 0; }
-.lf-admin-ui .mk-table-top { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 12px 20px; border-top: 1px solid var(--ui-color-eceef3); }
-.lf-admin-ui .mk-table-top__count { font-weight: 500; }
-.lf-admin-ui .mk-table-top__bulk { display: flex; align-items: center; gap: 10px; margin-left: 12px; margin-right: auto; }
-.lf-admin-ui .mk-table-top__bulk[hidden] { display: none; }
-.lf-admin-ui .mk-table-top__hint { margin-left: auto; }
-.lf-admin-ui .ui-button--danger { color: var(--ui-color-bd3d46); border-color: var(--ui-color-bd3d46); }
-.lf-admin-ui .ui-button--danger:hover:not(:disabled) { background: var(--ui-danger-soft); }
 .lf-admin-ui .ui-link-button { padding: 0; border: 0; background: none; color: var(--ui-primary); font: inherit; cursor: pointer; text-align: left; }
 .lf-admin-ui .ui-link-button:hover { text-decoration: underline; }
 .lf-admin-ui .ui-file-identity { display: flex; align-items: center; gap: 12px; min-width: 0; }

@@ -8,9 +8,9 @@
  * dialog, `:placeholders` replaced), buttons are `[data-cleanup-run|close|retry]`. Opened by any element with
  * `data-ui-cleanup-open="<dialog id>"` (the heading button lives outside the list).
  *
- * A small status label beside the opening button says what is known about the storage so nobody clicks for nothing:
- * `clean`, `dirty` ("orphan files in N Media") or `unknown` (label hidden; asked from
- * `data-status-url` after the page loads; a scan or a run updates it too). The button never changes.
+ * The opening button follows what is known about the storage so nobody clicks for nothing: `data-state` is `clean` (the button
+ * is disabled, like the disabled Delete button, with `data-tooltip-clean`), `dirty` or `unknown` (asked from `data-status-url`
+ * after the page loads; a scan or a run updates it too).
  */
 import { claimOnce, releaseClaim } from './admin-ui-kit-controls.js';
 
@@ -38,14 +38,14 @@ export function initUiKitCleanup(dialog, deps = {}) {
     let scanned = null;
     let running = false;
 
-    // What is known about the storage: a small label (`[data-cleanup-status]`) says it; the button itself never changes. items = Media with leftovers (null = unknown).
+    // What is known about the storage (items = Media with leftovers, null = unknown): when it is clean the opening button is disabled
+    // like the disabled Delete button (nothing to clean); otherwise it stays as it is. No label.
     const applyStatus = items => {
         const state = items === null ? 'unknown' : items === 0 ? 'clean' : 'dirty';
-        const label = doc.querySelector?.('[data-cleanup-status]');
-        if (label) {
-            label.setAttribute('data-state', state);
-            label.hidden = state === 'unknown';
-            label.textContent = state === 'clean' ? label.getAttribute('data-text-clean') || '' : state === 'dirty' ? (label.getAttribute('data-text-dirty') || '').replace(':count', String(items)) : '';
+        for (const button of triggers()) {
+            button.setAttribute('data-state', state);
+            button.disabled = state === 'clean';
+            button.setAttribute('data-tooltip', button.getAttribute(state === 'clean' ? 'data-tooltip-clean' : 'data-tooltip-default') || '');
         }
     };
     async function loadStatus() {

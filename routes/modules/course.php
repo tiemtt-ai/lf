@@ -39,6 +39,9 @@ Route::put('/course-categories/{id}', [CourseCategoryController::class, 'update'
 Route::post('/course-categories/{id}/toggle-status', [CourseCategoryController::class, 'toggleStatus'])
     ->name('course-categories.toggle-status');
 
+Route::delete('/course-categories', [CourseCategoryController::class, 'bulkDestroy'])
+    ->name('course-categories.bulk-destroy');
+
 Route::delete('/course-categories/{id}', [CourseCategoryController::class, 'destroy'])
     ->name('course-categories.destroy');
 
@@ -276,6 +279,9 @@ Route::post('/course-templates/{templateId}/learning-mappings', [CourseTemplateL
     ->name('course-templates.learning-mappings.store');
 Route::delete('/course-templates/{templateId}/learning-mappings/{intentId}', [CourseTemplateLearningMappingController::class, 'destroy'])
     ->name('course-templates.learning-mappings.destroy');
+
+Route::delete('/course-templates', [CourseTemplateController::class, 'bulkDestroy'])
+    ->name('course-templates.bulk-destroy');
 
 Route::delete('/course-templates/{id}', [CourseTemplateController::class, 'destroy'])
     ->name('course-templates.destroy');

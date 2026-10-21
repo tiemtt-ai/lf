@@ -62,7 +62,7 @@
                     aria-haspopup="dialog"
                     @class([
                         'admin-link-button admin-text-action' => $section,
-                        'btn admin-primary-outline-action ui-button ui-button--primary' => ! $section,
+                        'btn admin-primary-outline-action ui-button ui-button--outline' => ! $section,
                     ])>
                 {{ __($section
                     ? 'lf.LF_course_template_lesson_common_attach_action'
@@ -112,7 +112,7 @@
                                 data-url="{{ route($lessonRoutePrefix.'.destroy', $lessonParameters) }}"
                                 data-confirm-title="{{ __('lf.LF_course_template_lesson_delete_title') }}"
                                 data-confirm-message="{{ __('lf.LF_course_template_lesson_delete_confirm', ['name' => $lesson->title]) }}"
-                                data-confirm-label="{{ __('lf.LF_course_template_lesson_delete_label') }}"
+                                data-confirm-label="{{ __('lf.LF_common_button_confirm') }}"
                                 @if ($lessonBlocker) disabled aria-disabled="true" @endif
                                 aria-label="{{ __('lf.LF_common_button_delete') }}: {{ $lesson->title }}"
                                 data-tooltip="{{ $lessonBlocker ?? __('lf.LF_common_button_delete') }}">
@@ -345,7 +345,7 @@
                                             data-url="{{ route($activityRoutePrefix.'.destroy', $activityParameters) }}"
                                             data-confirm-title="{{ __('lf.LF_course_template_activity_delete_title') }}"
                                             data-confirm-message="{{ __('lf.LF_course_template_activity_delete_confirm', ['name' => $activity->title]) }}"
-                                            data-confirm-label="{{ __('lf.LF_course_template_activity_delete_label') }}"
+                                            data-confirm-label="{{ __('lf.LF_common_button_confirm') }}"
                                             @if ($activityBlocker) disabled aria-disabled="true" @endif
                                             aria-label="{{ __('lf.LF_common_button_delete') }}: {{ $activity->title }}"
                                             data-tooltip="{{ $activityBlocker ?? __('lf.LF_common_button_delete') }}">
@@ -371,7 +371,7 @@
                     <span class="course-template-content-empty-icon" aria-hidden="true">＋</span>
                     <strong>{{ __('lf.LF_course_template_lesson_common_direct_empty_title') }}</strong>
                     <p>{{ $emptyMessage }}</p>
-                    <button type="button" class="btn admin-primary-outline-action ui-button ui-button--primary"
+                    <button type="button" class="btn admin-primary-outline-action ui-button ui-button--outline"
                             data-ui-dialog-form-open aria-haspopup="dialog"
                             data-url="{{ route($lessonRoutePrefix.'.create', $lessonBaseParameters) }}">
                         {{ __('lf.LF_course_template_lesson_common_add_action') }}

@@ -264,6 +264,67 @@ class CourseCategoryController extends Controller
             ->with('success', __('lf.LF_course_category_common_deleted'));
     }
 
+    public function bulkDestroy(Request $request)
+    {
+        $validated = $request->validate([
+            'ids' => ['required', 'array', 'min:1', 'max:100'],
+            'ids.*' => ['required', 'integer', 'distinct'],
+        ]);
+        $customerId = $this->customerId();
+        $ids = array_map('intval', $validated['ids']);
+
+        try {
+            $blocked = DB::transaction(function () use ($customerId, $ids): ?string {
+                $locked = DB::table('core_course_categories')
+                    ->where('customer_id', $customerId)
+                    ->whereIn('id', $ids)
+                    ->orderBy('id')
+                    ->lockForUpdate()
+                    ->get(['id', 'name']);
+
+                abort_if($locked->count() !== count($ids), 404);
+
+                // All or nothing: one category that is still in use refuses the whole request and says which.
+                foreach ($locked as $category) {
+                    $blockers = $this->deletionBlockers($customerId, (int) $category->id);
+
+                    if ($blockers !== []) {
+                        $reason = array_key_first($blockers);
+
+                        return '«'.$category->name.'» — '.__('lf.LF_course_category_delete_blocked_'.$reason, ['count' => $blockers[$reason]]);
+                    }
+                }
+
+                foreach ($ids as $id) {
+                    foreach (['thumbnail', 'banner_image'] as $usageType) {
+                        $this->detachExistingMedia($id, $usageType);
+                    }
+                }
+
+                DB::table('core_course_categories')
+                    ->where('customer_id', $customerId)
+                    ->whereIn('id', $ids)
+                    ->delete();
+
+                return null;
+            });
+        } catch (QueryException $exception) {
+            $blocked = __('lf.LF_course_category_delete_blocked_generic');
+        }
+
+        if ($blocked !== null) {
+            return $request->expectsJson()
+                ? response()->json(['message' => $blocked], 409)
+                : back()->withErrors(['category' => $blocked]);
+        }
+
+        $message = trans_choice('lf.LF_course_category_bulk_deleted', count($ids), ['count' => count($ids)]);
+
+        return $request->expectsJson()
+            ? response()->json(['message' => $message])
+            : redirect()->route($this->routePrefix($request).'.index')->with('success', $message);
+    }
+
     /**
      * @return array<string, int> reason => how many records still depend on the category
      */

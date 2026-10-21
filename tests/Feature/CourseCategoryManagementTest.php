@@ -65,22 +65,26 @@ class CourseCategoryManagementTest extends TestCase
             ->assertDontSeeText(__('lf.LF_course_category_common_thumbnail_image'))
             ->assertDontSeeText('Private Tenant Category');
         $this->assertSame(
-            __('lf.table_no'),
+            '',
             $this->tableHeaderText($adminResponse->getContent(), 1)
         );
         $this->assertSame(
-            __('lf.LF_course_category_common_name'),
+            __('lf.table_no'),
             $this->tableHeaderText($adminResponse->getContent(), 2)
         );
         $this->assertSame(
-            __('lf.LF_course_category_common_parent'),
+            __('lf.LF_course_category_common_name'),
             $this->tableHeaderText($adminResponse->getContent(), 3)
         );
         $this->assertSame(
-            __('lf.LF_course_category_index_product_count'),
+            __('lf.LF_course_category_common_parent'),
             $this->tableHeaderText($adminResponse->getContent(), 4)
         );
-        $this->assertSame(6, preg_match_all('/<th\b/', $adminResponse->getContent()));
+        $this->assertSame(
+            __('lf.LF_course_category_index_product_count'),
+            $this->tableHeaderText($adminResponse->getContent(), 5)
+        );
+        $this->assertSame(7, preg_match_all('/<th\b/', $adminResponse->getContent()));
         $this->assertMatchesRegularExpression(
             '/<th\b[^>]*\bclass="(?:[^" ]+ )*mk-sequence(?: [^"]*)?"/',
             $adminResponse->getContent()
@@ -107,15 +111,15 @@ class CourseCategoryManagementTest extends TestCase
             ->assertDontSeeText('Private Tenant Category');
         $this->assertSame(
             __('lf.table_no'),
-            $this->tableHeaderText($teacherResponse->getContent(), 1)
-        );
-        $this->assertSame(
-            __('lf.LF_course_category_common_name'),
             $this->tableHeaderText($teacherResponse->getContent(), 2)
         );
         $this->assertSame(
-            __('lf.LF_course_category_common_parent'),
+            __('lf.LF_course_category_common_name'),
             $this->tableHeaderText($teacherResponse->getContent(), 3)
+        );
+        $this->assertSame(
+            __('lf.LF_course_category_common_parent'),
+            $this->tableHeaderText($teacherResponse->getContent(), 4)
         );
     }
 
@@ -140,13 +144,13 @@ class CourseCategoryManagementTest extends TestCase
         $counts = [];
         $statuses = [];
         foreach ($xpath->query('//table/tbody/tr') as $row) {
-            $name = trim($xpath->query('./td[2]/span', $row)->item(0)->textContent);
-            $counts[$name] = trim($xpath->query('./td[4]', $row)->item(0)->textContent);
-            $switch = $xpath->query('./td[5]/form/button[@role="switch"]', $row)->item(0);
+            $name = trim($xpath->query('./td[3]/span', $row)->item(0)->textContent);
+            $counts[$name] = trim($xpath->query('./td[5]', $row)->item(0)->textContent);
+            $switch = $xpath->query('./td[6]/form/button[@role="switch"]', $row)->item(0);
             $statuses[$name] = [
                 $switch->getAttribute('class'),
                 $switch->getAttribute('aria-checked'),
-                $xpath->query('./td[5]/form', $row)->item(0)->getAttribute('action'),
+                $xpath->query('./td[6]/form', $row)->item(0)->getAttribute('action'),
             ];
         }
 
@@ -331,6 +335,35 @@ class CourseCategoryManagementTest extends TestCase
         $this->assertNotNull(DB::table('core_course_categories')->where('id', $used)->first());
     }
 
+    public function test_bulk_delete_removes_unused_categories_only_all_or_nothing_and_never_across_tenants(): void
+    {
+        $customerId = $this->createTenant();
+        $otherCustomerId = $this->createTenant('tenant-b');
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $one = $this->createCategory($customerId, 'Bulk one', 'bulk-one');
+        $two = $this->createCategory($customerId, 'Bulk two', 'bulk-two');
+        $used = $this->createCategory($customerId, 'Bulk used', 'bulk-used');
+        $foreign = $this->createCategory($otherCustomerId, 'Foreign', 'foreign-bulk');
+        $this->createProduct($customerId, $used, 'bulk-p1');
+        $url = 'https://tenant-a.localhost/admin/course-categories';
+
+        $this->actingAs($admin)->deleteJson($url, ['ids' => [$one, $used]])
+            ->assertStatus(409)->assertJsonPath('message', fn ($m) => str_contains($m, 'Bulk used'));
+        $this->assertSame(2, DB::table('core_course_categories')->whereIn('id', [$one, $used])->count(), 'a blocked one refuses the whole request');
+
+        $this->actingAs($admin)->deleteJson($url, ['ids' => [$one, $foreign]])->assertNotFound();
+        $this->assertNotNull(DB::table('core_course_categories')->where('id', $foreign)->first(), 'another tenant is untouched');
+        $this->assertNotNull(DB::table('core_course_categories')->where('id', $one)->first());
+
+        $this->actingAs($admin)->deleteJson($url, ['ids' => [$one, $two]])
+            ->assertOk()->assertJsonPath('message', trans_choice('lf.LF_course_category_bulk_deleted', 2, ['count' => 2]));
+        $this->assertSame(0, DB::table('core_course_categories')->whereIn('id', [$one, $two])->count());
+        $this->assertNotNull(DB::table('core_course_categories')->where('id', $used)->first());
+
+        $this->actingAs($admin)->deleteJson($url, ['ids' => []])->assertStatus(422);
+        $this->actingAs($admin)->deleteJson($url, [])->assertStatus(422);
+    }
+
     public function test_index_enables_delete_only_for_unused_categories_and_explains_why_not(): void
     {
         $customerId = $this->createTenant();
@@ -344,14 +377,22 @@ class CourseCategoryManagementTest extends TestCase
             ->assertOk()
             ->getContent();
 
-        $this->assertSame(2, $this->htmlElementCount($content, '//button[@data-ui-row-delete]'));
+        $this->assertSame(0, $this->htmlElementCount($content, '//button[@data-ui-row-delete]'), 'no delete icon on the rows any more');
         $this->assertSame(
             1,
-            $this->htmlElementCount($content, '//button[@data-ui-row-delete and not(@disabled) and @data-url="https://tenant-a.localhost/admin/course-categories/'.$free.'"]')
+            $this->htmlElementCount($content, '//input[@data-ui-bulk-item and not(@disabled) and @value="'.$free.'"]')
         );
         $this->assertSame(
             1,
-            $this->htmlElementCount($content, '//button[@data-ui-row-delete and @disabled and @aria-disabled="true" and contains(@data-tooltip, "1 ") and not(@title)]')
+            $this->htmlElementCount($content, '//span[@class="ui-bulk-lock" and contains(@data-tooltip, "1 ")]/input[@disabled]')
+        );
+        $this->assertSame(1, $this->htmlElementCount($content, '//input[@data-ui-bulk-select-all]'));
+        $this->assertSame(1, $this->htmlElementCount($content, '//div[contains(@class, "mk-table-top__actions")]/button[1][@data-ui-dialog-form-open]'), 'the create button is the first one in the toolbar');
+        $this->assertSame(0, $this->htmlElementCount($content, '//div[contains(@class, "page-heading__actions")]'), 'the heading carries no list buttons');
+        $this->assertSame(
+            1,
+            $this->htmlElementCount($content, '//button[@data-ui-bulk-delete and @disabled and @data-ui-bulk-name="ids[]" and @data-url="https://tenant-a.localhost/admin/course-categories"]'),
+            'the delete button is always there, disabled until a row is checked'
         );
         $this->assertStringContainsString(__('lf.LF_course_category_delete_blocked_products', ['count' => 1]), $content);
         $this->assertStringContainsString('data-csrf=', $content);
@@ -576,9 +617,10 @@ class CourseCategoryManagementTest extends TestCase
             );
         }
 
-        $this->assertStringContainsString(
-            __('lf.LF_common_button_save_changes'),
-            $fragments['edit']->getContent()
+        $this->assertMatchesRegularExpression(
+            '/<button[^>]*type="submit"[^>]*>.*?'.preg_quote(__('lf.LF_common_button_confirm'), '/').'\s*<\/button>/s',
+            $fragments['edit']->getContent(),
+            'the popup submit button reads Xác nhận'
         );
         $this->assertStringContainsString(
             "/teacher/course-categories/{$categoryId}",

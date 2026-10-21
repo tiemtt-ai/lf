@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { initUiKitRowActions } from '../../resources/js/admin-ui-kit-row-actions.js';
+import { initUiKitRowActions, initUiKitToolbarWrap } from '../../resources/js/admin-ui-kit-row-actions.js';
 
 // Invariants: nothing is sent without an explicit confirmation; a disabled button and a second click while busy do
 // nothing; success refreshes the list and shows the message; a refusal shows the server's reason and refreshes too.
@@ -136,21 +136,20 @@ function bulkSetup({ confirm = async () => true } = {}) {
     boxes.forEach((box, i) => { box.value = String(10 + i); box.checked = false; });
     boxes[2].disabled = true;
     const all = new El({ 'data-ui-bulk-select-all': '' }); all.checked = false; all.indeterminate = false;
-    const countNode = new El(); const bar = new El({ 'data-text-selected': 'Selected :count' }); bar.hidden = true;
-    bar.querySelector = () => countNode;
+    const countNode = new El({ 'data-text-selected': 'Selected :count' });
     const trigger = new El({ 'data-url': '/admin/media/bulk', 'data-ui-bulk-delete': '', 'data-ui-bulk-name': 'media_ids[]', 'data-confirm-title': 'Delete files?', 'data-confirm-message': 'Delete :count files?', 'data-confirm-label': 'Delete' });
     const baseQuery = t.scope.querySelector;
-    t.scope.querySelectorAll = selector => (selector.includes('bulk-item') ? boxes : []);
-    t.scope.querySelector = selector => (selector.includes('select-all') ? all : selector.includes('bulk-bar') ? bar : baseQuery(selector));
-    return { ...t, boxes, all, bar, countNode, trigger, bulkClick: () => t.scope.listeners.get('click')({ target: { closest: () => trigger } }), change: target => t.scope.listeners.get('change')({ target }) };
+    t.scope.querySelectorAll = selector => (selector.includes('bulk-item') ? boxes : selector.includes('bulk-delete') ? [trigger] : []);
+    t.scope.querySelector = selector => (selector.includes('select-all') ? all : selector.includes('bulk-count') ? countNode : baseQuery(selector));
+    return { ...t, boxes, all, countNode, trigger, bulkClick: () => t.scope.listeners.get('click')({ target: { closest: () => trigger } }), change: target => t.scope.listeners.get('change')({ target }) };
 }
 
-test('bulk selection: select-all checks the selectable items only, shows the bar with the count, and follows each item', () => {
+test('bulk selection: select-all checks the selectable items only, shows the count and enables the delete button, and follows each item', () => {
     const t = bulkSetup();
     t.all.checked = true;
     t.change(t.all);
     assert.deepEqual(t.boxes.map(b => b.checked), [true, true, false], 'a disabled item is never chosen');
-    assert.equal(t.bar.hidden, false);
+    assert.equal(t.trigger.disabled, false, 'a selection enables the delete button');
     assert.equal(t.countNode.textContent, 'Selected 2');
     assert.equal(t.all.indeterminate, false);
     t.boxes[0].checked = false;
@@ -160,7 +159,8 @@ test('bulk selection: select-all checks the selectable items only, shows the bar
     assert.equal(t.countNode.textContent, 'Selected 1');
     t.boxes[1].checked = false;
     t.change(t.boxes[1]);
-    assert.equal(t.bar.hidden, true);
+    assert.equal(t.trigger.disabled, true, 'no selection disables it again');
+    assert.equal(t.countNode.textContent, '');
     assert.equal(t.all.indeterminate, false);
 });
 
@@ -215,4 +215,25 @@ test('a confirmed POST button in the page heading (outside the scope) is handled
     assert.equal(t.fetches[0].url, '/admin/media/purge-orphan-storage');
     t.instance.destroy();
     assert.equal(t.docListeners.size, 0);
+});
+
+test('the list buttons line up left under the filters when they wrap, and stay at the right end when they share the filter row', () => {
+    const rect = (top, bottom) => ({ getBoundingClientRect: () => ({ top, bottom }) });
+    const make = (groupRect, fieldRect) => {
+        const attrs = new Map();
+        const bar = { setAttribute: (k, v) => attrs.set(k, v), removeAttribute: k => attrs.delete(k), attrs,
+            querySelector: selector => (selector.includes('actions') ? groupRect : selector.includes('mk-search') ? fieldRect : null) };
+        const observed = [];
+        const win = { ResizeObserver: class { constructor(fn) { observed.push(fn); } observe() {} disconnect() {} }, MutationObserver: class { constructor(fn) { observed.push(fn); } observe() {} disconnect() {} } };
+        return { bar, win, observed, attrs };
+    };
+    const same = make(rect(60, 96), rect(20, 96)); // the group's top is inside the field's box: same row
+    initUiKitToolbarWrap(same.bar, { window: same.win });
+    assert.equal(same.attrs.has('data-wrapped'), false);
+
+    const below = make(rect(110, 146), rect(20, 96)); // the group starts under the field: its own row
+    const instance = initUiKitToolbarWrap(below.bar, { window: below.win });
+    assert.equal(below.attrs.has('data-wrapped'), true);
+    assert.equal(below.observed.length, 2, 'recomputed on resize and when the live filter swaps the group');
+    instance.destroy();
 });

@@ -27,7 +27,8 @@
             {{ __('lf.LF_common_button_cancel') }}
         </button>
         <button type="submit" class="ui-button ui-button--primary cursor-interaction" data-ui-dialog-form-submit @disabled($archived)>
-            {{ $isEdit ? __('lf.LF_common_button_save_changes') : __('lf.LF_course_template_action_create') }}
+            <x-backend-icon name="check" class="ui-icon" />
+            {{ __('lf.LF_common_button_confirm') }}
         </button>
     </footer>
 </form>

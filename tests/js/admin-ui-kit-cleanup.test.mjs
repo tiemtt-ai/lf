@@ -50,17 +50,15 @@ function setup({ initialState = 'dirty', status = { items: 0, files: 0 }, scan =
             return { ok: next.status === undefined, status: next.status ?? 200, json: async () => next.body };
         },
     };
-    const trigger = new El({ 'data-state': initialState, 'data-tooltip': 'DEF' });
+    const trigger = new El({ 'data-state': initialState, 'data-tooltip': 'DEF', 'data-tooltip-default': 'DEF', 'data-tooltip-clean': 'CLEAN' });
     trigger.disabled = false;
-    const label = new El({ 'data-state': initialState, 'data-text-clean': 'Storage is clean', 'data-text-dirty': 'Orphans in :count Media' }); label.hidden = true;
     win.document.querySelectorAll = () => [trigger];
-    win.document.querySelector = selector => (selector.includes('cleanup-status') ? label : null);
     dialog.attrs.set('data-status-url', '/status');
     const instance = initUiKitCleanup(dialog, { window: win });
     const tick = () => new Promise(r => setImmediate(r));
     const visible = () => Object.entries(panels).filter(([, p]) => !p.hidden).map(([n]) => n);
     const openDialog = async () => { win.document.listeners.get('click')({ target: { closest: s => (s.includes('media-cleanup-dialog') ? {} : null) } }); await tick(); await tick(); };
-    return { trigger, label, dialog, panels, texts, bar, run, retry, closeA, closeB, requests, win, instance, tick, visible, openDialog };
+    return { trigger, dialog, panels, texts, bar, run, retry, closeA, closeB, requests, win, instance, tick, visible, openDialog };
 }
 
 test('opening scans and deletes nothing; the result shows the counts and the run button', async () => {
@@ -124,38 +122,38 @@ test('destroy removes every listener', async () => {
     assert.equal(t.win.document.listeners.size + t.dialog.listeners.size + t.run.listeners.size + t.retry.listeners.size + t.closeA.listeners.size, 0);
 });
 
-test('the status label says clean or how many Media have leftovers; the button is never touched', async () => {
+test('a clean storage disables the opening button like the Delete button; a dirty or known one leaves it alone', async () => {
     const clean = setup({ initialState: 'unknown', status: { items: 0, files: 0 } });
     await clean.tick(); await clean.tick();
     assert.equal(clean.requests[0].url, '/status');
-    assert.equal(clean.label.hidden, false);
-    assert.equal(clean.label.textContent, 'Storage is clean');
-    assert.equal(clean.label.getAttribute('data-state'), 'clean');
+    assert.equal(clean.trigger.getAttribute('data-state'), 'clean');
+    assert.equal(clean.trigger.disabled, true);
+    assert.equal(clean.trigger.getAttribute('data-tooltip'), 'CLEAN');
 
     const dirty = setup({ initialState: 'unknown', status: { items: 4, files: 9 } });
     await dirty.tick(); await dirty.tick();
-    assert.equal(dirty.label.textContent, 'Orphans in 4 Media');
-    assert.equal(dirty.label.getAttribute('data-state'), 'dirty');
+    assert.equal(dirty.trigger.getAttribute('data-state'), 'dirty');
+    assert.equal(dirty.trigger.disabled, false);
+    assert.equal(dirty.trigger.getAttribute('data-tooltip'), 'DEF');
 
     const known = setup({ initialState: 'dirty' });
     await known.tick(); await known.tick();
     assert.equal(known.trigger.disabled, false);
-    assert.equal(known.trigger.getAttribute('data-tooltip'), 'DEF');
     assert.equal(known.requests.length, 0, 'a state the server already knew is not asked again');
 });
 
-test('a scan and a finished run keep the label in step: nothing left means clean, failures remain as a count', async () => {
+test('a finished run keeps the button in step: nothing left disables it, failures leave it enabled', async () => {
     const t = setup({ initialState: 'dirty', runs: [{ body: { processed: 3, purged: 6, failed: 0, total: 3, next: 3, finished: true } }] });
     await t.openDialog();
     t.run.listeners.get('click')();
     for (let i = 0; i < 6; i++) await t.tick();
-    assert.equal(t.label.getAttribute('data-state'), 'clean');
-    assert.equal(t.trigger.disabled, false);
+    assert.equal(t.trigger.getAttribute('data-state'), 'clean');
+    assert.equal(t.trigger.disabled, true);
 
     const partial = setup({ initialState: 'dirty', runs: [{ body: { processed: 3, purged: 4, failed: 2, total: 3, next: 3, finished: true } }] });
     await partial.openDialog();
     partial.run.listeners.get('click')();
     for (let i = 0; i < 6; i++) await partial.tick();
-    assert.equal(partial.label.getAttribute('data-state'), 'dirty');
-    assert.equal(partial.label.textContent, 'Orphans in 2 Media');
+    assert.equal(partial.trigger.getAttribute('data-state'), 'dirty');
+    assert.equal(partial.trigger.disabled, false);
 });

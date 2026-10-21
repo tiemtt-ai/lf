@@ -134,3 +134,6 @@ const code=document.createElement('code');code.className='ui-field__code';code.t
 
 if(typeof lucide!=="undefined")lucide.createIcons();
 document.querySelectorAll("[data-tooltip]").forEach(el=>el.title=el.dataset.tooltip);
+
+// Reference buttons: local preview only, no upload or delete request.
+(()=>{const root=document.getElementById('ui-catalog-soft');if(!root)return;const feedback=root.querySelector('#reference-button-feedback');root.querySelectorAll('[data-button-demo]').forEach(b=>b.addEventListener('click',()=>{feedback.textContent=b.dataset.buttonDemo+' — thao tác minh họa, chưa kết nối nghiệp vụ.';}));const input=root.querySelector('#reference-cv-file');root.querySelector('#reference-upload-cv')?.addEventListener('click',()=>input.click());input?.addEventListener('change',()=>{feedback.textContent=input.files.length?'Đã chọn: '+input.files[0].name+' (chưa tải lên máy chủ).':'Chưa chọn CV.';});})();

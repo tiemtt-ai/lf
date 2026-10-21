@@ -266,3 +266,11 @@
 
 
 body{margin:0;background:#f7f8fb}#ui-catalog-soft{max-width:1440px;margin:auto}.cursor-interaction{cursor:pointer}button:disabled{cursor:not-allowed}code{background:transparent}svg.ui-icon{display:inline-block;width:16px;height:16px;stroke-width:1.7}
+
+/* Reference button extension. Uses existing ui-button geometry and icon contract. */
+#ui-catalog-soft{--ui-danger:#e60012;--ui-danger-soft:#fff3f4;--ui-button-disabled-bg:#f5f5f5;--ui-button-disabled-text:#929292;--ui-button-disabled-border:#d9d9d9}
+#ui-catalog-soft .ui-button--danger-outline{color:var(--ui-danger);border-color:var(--ui-danger);background:white}
+#ui-catalog-soft .ui-button--danger-outline:hover:not(:disabled){background:var(--ui-danger-soft)}
+#ui-catalog-soft .ui-button:disabled{color:var(--ui-button-disabled-text);border-color:var(--ui-button-disabled-border);background:var(--ui-button-disabled-bg);opacity:1}
+#ui-catalog-soft .ui-button{max-width:100%;overflow-wrap:anywhere}
+#ui-catalog-soft .ui-button:active:not(:disabled){filter:brightness(.97)}

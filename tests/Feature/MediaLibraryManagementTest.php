@@ -753,7 +753,7 @@ class MediaLibraryManagementTest extends TestCase
         $this->actingAs($other)->postJson($base.'/run', ['token' => $token, 'offset' => 0, 'limit' => 5])->assertStatus(410);
     }
 
-    public function test_cleanup_status_is_cached_shown_as_a_small_label_and_forgotten_when_something_changes(): void
+    public function test_cleanup_status_is_cached_disables_the_button_when_clean_and_is_forgotten_when_something_changes(): void
     {
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
@@ -761,26 +761,27 @@ class MediaLibraryManagementTest extends TestCase
         TenantContext::set((object) ['id' => $customerId]);
         $key = 'media-cleanup-status:'.$customerId;
         $button = fn () => $this->xpath($this->actingAs($admin)->get('https://tenant-a.localhost/admin/media')->getContent())
-            ->query('//*[@data-cleanup-status]')->item(0);
+            ->query('//button[@data-ui-cleanup-open]')->item(0);
 
         // Nothing known yet: the page does not scan while rendering; the button asks afterwards.
         $this->assertSame('unknown', $button()->getAttribute('data-state'));
-        $this->assertTrue($button()->hasAttribute('hidden'));
+        $this->assertFalse($button()->hasAttribute('disabled'));
 
         $mine = $this->uploadUnattachedMedia($admin, 'Mine', 'document', 'mine.pdf');
         DB::table('media_files')->where('id', $mine->id)->update(['status' => 'deleted']);
         $this->actingAs($admin)->getJson('https://tenant-a.localhost/admin/media/cleanup/status')->assertOk()->assertJson(['items' => 1]);
         $this->assertSame(1, Cache::get($key)['items']);
         $this->assertSame('dirty', $button()->getAttribute('data-state'));
-        $this->assertSame(__('lf.LF_media_cleanup_status_dirty', ['count' => 1]), trim($this->xpath($this->actingAs($admin)->get('https://tenant-a.localhost/admin/media')->getContent())->query('//*[@data-cleanup-status]')->item(0)->textContent));
+        $this->assertFalse($button()->hasAttribute('disabled'), 'leftovers: the button stays enabled');
 
-        // A finished clean-up forgets the answer; an empty storage is then reported as clean (the button itself never changes).
+        // A finished clean-up forgets the answer; an empty storage is then reported as clean and the button is disabled like Delete.
         $token = $this->actingAs($admin)->getJson('https://tenant-a.localhost/admin/media/cleanup/scan')->json('token');
         $this->actingAs($admin)->postJson('https://tenant-a.localhost/admin/media/cleanup/run', ['token' => $token, 'offset' => 0, 'limit' => 5])->assertOk();
         $this->assertNull(Cache::get($key));
         $this->actingAs($admin)->getJson('https://tenant-a.localhost/admin/media/cleanup/status')->assertOk()->assertJson(['items' => 0]);
         $this->assertSame('clean', $button()->getAttribute('data-state'));
-        $this->assertSame(__('lf.LF_media_cleanup_status_clean'), trim($button()->textContent));
+        $this->assertTrue($button()->hasAttribute('disabled'));
+        $this->assertSame(__('lf.LF_media_cleanup_tooltip_clean'), $button()->getAttribute('data-tooltip'));
 
         // Deleting a Media may leave leftovers, so the answer is forgotten again.
         $second = $this->uploadUnattachedMedia($admin, 'Second', 'image', 'second.png');
@@ -800,10 +801,12 @@ class MediaLibraryManagementTest extends TestCase
             ->assertOk()
             ->assertSeeText(__('lf.LF_media_storage_purge_short'))
             ->assertSeeText(__('lf.LF_media_storage_purge_note'))
-            ->assertSee('page-heading page-heading--with-actions', false);
+            ->assertDontSee('page-heading--with-actions', false);
 
         $xpath = $this->xpath($this->actingAs($admin)->get('https://tenant-a.localhost/admin/media')->getContent());
-        $this->assertSame(1, $xpath->query('//div[contains(@class, "page-heading__actions")]//button[@data-ui-cleanup-open="media-cleanup-dialog"]')->length);
+        $this->assertSame(1, $xpath->query('//div[contains(@class, "mk-table-top__actions")]//button[@data-ui-cleanup-open="media-cleanup-dialog"]')->length, 'the clean-up button sits in the list toolbar');
+        $this->assertSame(0, $xpath->query('//div[contains(@class, "page-heading__actions")]')->length, 'the heading carries no list buttons');
+        $this->assertSame(1, $xpath->query('//div[contains(@class, "mk-table-top__actions")]/button[1][@data-ui-bulk-delete]')->length, 'priority order: delete before the clean-up button');
         $this->assertSame(0, $xpath->query('//form//button[@data-ui-cleanup-open]')->length, 'the clean-up button is not in the filter form');
         $this->assertSame(1, $xpath->query('//dialog[@id="media-cleanup-dialog" and @data-scan-url and @data-run-url]')->length);
     }
@@ -1382,6 +1385,145 @@ class MediaLibraryManagementTest extends TestCase
             'audio' => UploadedFile::fake()->create($filename, 32, 'audio/mpeg'),
             default => UploadedFile::fake()->create($filename, 32, 'application/pdf'),
         };
+    }
+
+    public function test_usage_items_list_every_place_and_link_to_the_version_when_the_source_was_deleted(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $versionId = $this->createVersion($customerId, $admin->id, 'Snapshot Version');
+        $lessonId = $this->createVersionLesson($customerId, $versionId);
+        $first = $this->createVersionActivity($customerId, $versionId, $lessonId);
+        $second = $this->createVersionActivity($customerId, $versionId, $lessonId);
+
+        $this->actingAs($admin);
+        TenantContext::set((object) ['id' => $customerId]);
+        // Two places with the same type and name; their source activities do not exist any more.
+        $media = $this->uploadManagedMedia($admin, 'Shared Document', 'document', 'shared.pdf', 'course_version_activity', $first, 'document');
+        app(MediaService::class)->attachUsage((int) $media->id, 'course_version_activity', $second, 'attachment');
+
+        $html = $this->actingAs($admin)->get('https://tenant-a.localhost/admin/media')->assertOk()->getContent();
+        preg_match("/openUsage\\('Shared Document', JSON\\.parse\\('(.*?)'\\), /s", html_entity_decode($html, ENT_QUOTES), $match);
+        $this->assertNotEmpty($match, 'the usage button is rendered');
+        $items = json_decode(json_decode('"'.$match[1].'"'), true);
+
+        $this->assertCount(2, $items, 'every place is listed');
+        $versionUrl = route('admin.course-templates.versions.show', [
+            'templateId' => DB::table('core_course_template_versions')->where('id', $versionId)->value('template_id'),
+            'versionId' => $versionId,
+        ]);
+        foreach ($items as $item) {
+            $this->assertSame($versionUrl, $item['url'], 'a snapshot whose source is gone still links to its version');
+            $this->assertSame(__('lf.LF_media_usage_type_version_activity'), $item['type']);
+            $this->assertSame('Snapshot Activity', $item['name']);
+        }
+        // Rows are keyed by position, so two identical places both render.
+        $this->assertStringContainsString('x-bind:key="index"', $html);
+    }
+
+    private function createTemplate(
+        int $customerId,
+        int $userId,
+        string $title = 'TOPIK Template'
+    ): int {
+        $now = now();
+
+        return DB::table('core_course_templates')->insertGetId([
+            'customer_id' => $customerId,
+            'category_id' => null,
+            'title' => $title,
+            'short_description' => null,
+            'description' => null,
+            'publisher_name' => null,
+            'intro_video_source' => null,
+            'intro_image_media_file_id' => null,
+            'intro_video_media_file_id' => null,
+            'difficulty_level' => null,
+            'estimated_minutes_per_lesson' => 0,
+            'estimated_lesson_count' => null,
+            'lesson_count' => 0,
+            'meta_title' => null,
+            'meta_description' => null,
+            'meta_keywords' => null,
+            'working_revision' => 1,
+            'status' => 'active',
+            'created_by' => $userId,
+            'last_version_published_at' => null,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+    }
+
+    private function createVersion(
+        int $customerId,
+        int $userId,
+        string $title = 'TOPIK Version',
+        string $status = 'published',
+        ?int $templateId = null,
+        int $versionNumber = 1,
+        ?bool $isCurrent = null
+    ): int {
+        $now = now();
+        $templateId ??= $this->createTemplate($customerId, $userId, $title);
+
+        return DB::table('core_course_template_versions')->insertGetId([
+            'customer_id' => $customerId,
+            'template_id' => $templateId,
+            'version_number' => $versionNumber,
+            'version_code' => 'VERSION-'.$templateId.'-'.$versionNumber,
+            'is_current' => $isCurrent ?? $status === 'published',
+            'source_category_id' => null,
+            'category_name_snapshot' => null,
+            'title_snapshot' => $title,
+            'short_description_snapshot' => null,
+            'description_snapshot' => null,
+            'publisher_name_snapshot' => null,
+            'intro_video_source_snapshot' => null,
+            'intro_image_media_file_id_snapshot' => null,
+            'intro_video_media_file_id_snapshot' => null,
+            'difficulty_level_snapshot' => null,
+            'estimated_minutes_per_lesson_snapshot' => 0,
+            'estimated_lesson_count_snapshot' => null,
+            'lesson_count_snapshot' => 0,
+            'meta_title_snapshot' => null,
+            'meta_description_snapshot' => null,
+            'meta_keywords_snapshot' => null,
+            'source_working_revision' => 1,
+            'status' => $status,
+            'published_at' => $status === 'published' ? $now : null,
+            'published_by' => $userId,
+            'source_template_updated_at' => $now,
+            'metadata' => null,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+    }
+
+    private function createVersionLesson(int $customerId, int $versionId): int
+    {
+        return DB::table('core_course_template_version_lessons')->insertGetId([
+            'customer_id' => $customerId, 'template_version_id' => $versionId, 'version_section_id' => null,
+            'source_template_lesson_id' => random_int(100000, 999999), 'title_snapshot' => 'Snapshot Lesson',
+            'short_description_snapshot' => null, 'description_snapshot' => null, 'sort_order' => 0,
+            'is_preview' => false, 'lesson_type' => 'regular', 'duration_seconds' => 0, 'activity_count' => 1,
+            'unlock_rule_snapshot' => 'none', 'unlock_after_version_lesson_id' => null, 'unlock_at_snapshot' => null,
+            'created_by_snapshot' => null, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+    }
+
+    private function createVersionActivity(int $customerId, int $versionId, int $lessonId): int
+    {
+        return DB::table('core_course_template_version_activities')->insertGetId([
+            'customer_id' => $customerId, 'template_version_id' => $versionId, 'version_lesson_id' => $lessonId,
+            'source_template_activity_id' => random_int(100000, 999999), 'title_snapshot' => 'Snapshot Activity',
+            'description_snapshot' => null, 'sort_order' => 0, 'activity_type' => 'video', 'media_file_id' => null,
+            'external_video_url_snapshot' => null, 'live_class_url_snapshot' => null,
+            'assessment_quiz_id_snapshot' => null, 'duration_seconds' => 0,
+            'estimated_duration_seconds_snapshot' => null, 'is_required' => true, 'completion_rule' => 'view',
+            'completion_threshold' => null, 'is_preview' => false, 'unlock_rule_snapshot' => 'none',
+            'unlock_after_version_activity_id' => null, 'unlock_at_snapshot' => null, 'created_by_snapshot' => null,
+            'metadata' => null, 'created_at' => now(), 'updated_at' => now(),
+        ]);
     }
 
     private function createTenant(string $slug = 'tenant-a'): int

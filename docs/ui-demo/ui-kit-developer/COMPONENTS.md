@@ -6,7 +6,7 @@ Document Status: Review
 
 Implementation Status: Not Applicable
 
-Last Updated: 2026-10-18
+Last Updated: 2026-10-21
 
 Document Path: ui-demo/ui-kit-developer/COMPONENTS.md
 
@@ -34,3 +34,10 @@ Document Path: ui-demo/ui-kit-developer/COMPONENTS.md
 | x-ui.modal-form | 1–3 cột, responsive, cuộn nội dung |
 
 Tên trên mô tả API triển khai dự kiến; gói chỉ chứa bản HTML/CSS/JS thiết kế. Các biến thể được trưng bày một lần; popup dùng lại chúng để minh họa bố cục.
+
+## Bổ sung nút theo ảnh tham chiếu
+
+- `ui-button ui-button--outline`: Thêm mới (`plus`), Tải xuống (`download`), Tải lên CV (`upload`).
+- `ui-button ui-button--danger-outline`: Xóa (`trash-2`). Dùng native `disabled` khi không có quyền hoặc chưa chọn đối tượng.
+- Dùng chung base geometry; không tạo component riêng cho mỗi nghiệp vụ.
+- Chỉ bổ sung vào bản thiết kế đính kèm. Khi đưa vào LF, chuyển variant vào shared CSS sau khi review; không nạp CSS scoped demo vào production.

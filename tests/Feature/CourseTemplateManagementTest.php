@@ -448,12 +448,12 @@ class CourseTemplateManagementTest extends TestCase
         $create = $this->actingAs($admin)
             ->withHeader('X-Requested-With', 'XMLHttpRequest')
             ->get('https://tenant-a.localhost/admin/course-templates/create')
-            ->assertOk()->assertSeeText('Tạo Template')->getContent();
+            ->assertOk()->assertSeeText('Xác nhận')->getContent();
         $edit = $this->withHeader('X-Requested-With', 'XMLHttpRequest')
             ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/form")
-            ->assertOk()->assertSeeText('Lưu thay đổi')->getContent();
-        $this->assertMatchesRegularExpression('/<button[^>]*type="submit"[^>]*>\s*Tạo Template\s*<\/button>/', $create);
-        $this->assertMatchesRegularExpression('/<button[^>]*type="submit"[^>]*>\s*Lưu thay đổi\s*<\/button>/', $edit);
+            ->assertOk()->assertSeeText('Xác nhận')->getContent();
+        $this->assertMatchesRegularExpression('/<button[^>]*type="submit"[^>]*>.*?Xác nhận\s*<\/button>/s', $create);
+        $this->assertMatchesRegularExpression('/<button[^>]*type="submit"[^>]*>.*?Xác nhận\s*<\/button>/s', $edit);
         $this->assertStringContainsString('class="ui-modal__footer"', $create);
         $this->assertStringContainsString('class="ui-modal__footer"', $edit);
 
@@ -464,12 +464,12 @@ class CourseTemplateManagementTest extends TestCase
         $englishCreate = $this->withSession(['locale' => 'en'])->actingAs($admin)
             ->withHeader('X-Requested-With', 'XMLHttpRequest')
             ->get('https://tenant-a.localhost/admin/course-templates/create')
-            ->assertOk()->assertSeeText('Create Template')->getContent();
+            ->assertOk()->assertSeeText('Confirm')->getContent();
         $englishEdit = $this->withHeader('X-Requested-With', 'XMLHttpRequest')
             ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/form")
-            ->assertOk()->assertSeeText('Save Changes')->getContent();
-        $this->assertMatchesRegularExpression('/<button[^>]*type="submit"[^>]*>\s*Create Template\s*<\/button>/', $englishCreate);
-        $this->assertMatchesRegularExpression('/<button[^>]*type="submit"[^>]*>\s*Save Changes\s*<\/button>/', $englishEdit);
+            ->assertOk()->assertSeeText('Confirm')->getContent();
+        $this->assertMatchesRegularExpression('/<button[^>]*type="submit"[^>]*>.*?Confirm\s*<\/button>/s', $englishCreate);
+        $this->assertMatchesRegularExpression('/<button[^>]*type="submit"[^>]*>.*?Confirm\s*<\/button>/s', $englishEdit);
     }
 
     public function test_only_four_canonical_template_statuses_are_accepted(): void
@@ -1005,6 +1005,46 @@ class CourseTemplateManagementTest extends TestCase
         $this->assertDatabaseMissing('core_course_templates', ['id' => $own]);
     }
 
+    public function test_template_bulk_delete_is_all_or_nothing_and_respects_tenant_and_teacher_scope(): void
+    {
+        $customerId = $this->createTenant();
+        $otherCustomerId = $this->createTenant('tenant-b');
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $teacher = $this->createUser($customerId, 'teacher');
+        $one = $this->createTemplate($customerId, 'Bulk one', 'bulk-one');
+        $two = $this->createTemplate($customerId, 'Bulk two', 'bulk-two');
+        $used = $this->createTemplate($customerId, 'Bulk used', 'bulk-used');
+        $foreign = $this->createTemplate($otherCustomerId, 'Foreign bulk', 'foreign-bulk');
+        DB::table('core_course_template_sections')->insert([
+            'customer_id' => $customerId, 'template_id' => $used, 'parent_section_id' => null,
+            'allows_lessons' => true, 'title' => 'S', 'description' => 'S', 'display_order' => 1,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $url = 'https://tenant-a.localhost/admin/course-templates';
+
+        $this->actingAs($admin)->deleteJson($url, ['ids' => [$one, $used]])
+            ->assertStatus(409)->assertJsonPath('message', fn ($m) => str_contains($m, 'Bulk used'));
+        $this->assertSame(2, DB::table('core_course_templates')->whereIn('id', [$one, $used])->count(), 'a blocked one refuses the whole request');
+
+        $this->actingAs($admin)->deleteJson($url, ['ids' => [$one, $foreign]])->assertNotFound();
+        $this->assertDatabaseHas('core_course_templates', ['id' => $foreign]);
+        $this->assertDatabaseHas('core_course_templates', ['id' => $one]);
+
+        $this->actingAs($teacher)->deleteJson('https://tenant-a.localhost/teacher/course-templates', ['ids' => [$two]])->assertNotFound();
+        $this->assertDatabaseHas('core_course_templates', ['id' => $two]);
+        $own = $this->createTemplate($customerId, 'Teacher own', 'teacher-own', $teacher->id);
+        $this->actingAs($teacher)->deleteJson('https://tenant-a.localhost/teacher/course-templates', ['ids' => [$own]])->assertOk();
+        $this->assertDatabaseMissing('core_course_templates', ['id' => $own]);
+
+        $this->actingAs($admin)->deleteJson($url, ['ids' => [$one, $two]])
+            ->assertOk()->assertJsonPath('message', trans_choice('lf.LF_course_template_bulk_deleted', 2, ['count' => 2]));
+        $this->assertDatabaseMissing('core_course_templates', ['id' => $one]);
+        $this->assertDatabaseMissing('core_course_templates', ['id' => $two]);
+        $this->assertDatabaseHas('core_course_templates', ['id' => $used]);
+
+        $this->actingAs($admin)->deleteJson($url, ['ids' => []])->assertStatus(422);
+    }
+
     public function test_template_index_enables_delete_only_for_unused_templates_and_explains_why_not(): void
     {
         $customerId = $this->createTenant();
@@ -1028,14 +1068,16 @@ class CourseTemplateManagementTest extends TestCase
         $document = new \DOMDocument;
         @$document->loadHTML('<?xml encoding="UTF-8">'.$content);
         $xpath = new \DOMXPath($document);
-        $this->assertSame(2, $xpath->query('//button[@data-ui-row-delete]')->length);
+        $this->assertSame(0, $xpath->query('//button[@data-ui-row-delete]')->length, 'no delete icon on the rows any more');
+        $this->assertSame(1, $xpath->query('//input[@data-ui-bulk-item and not(@disabled) and @value="'.$free.'"]')->length);
+        $this->assertSame(1, $xpath->query('//span[@class="ui-bulk-lock"]/input[@disabled]')->length, 'a used Template has a locked checkbox with the reason');
+        $this->assertSame(1, $xpath->query('//input[@data-ui-bulk-select-all]')->length);
+        $this->assertSame(1, $xpath->query('//div[contains(@class, "mk-table-top__actions")]/button[1][@data-ui-dialog-form-open]')->length, 'the create button is the first one in the toolbar');
+        $this->assertSame(0, $xpath->query('//div[contains(@class, "page-heading__actions")]')->length, 'the heading carries no list buttons');
         $this->assertSame(
             1,
-            $xpath->query('//button[@data-ui-row-delete and not(@disabled) and @data-url="https://tenant-a.localhost/admin/course-templates/'.$free.'"]')->length
-        );
-        $this->assertSame(
-            1,
-            $xpath->query('//button[@data-ui-row-delete and @disabled and @aria-disabled="true" and @data-url="https://tenant-a.localhost/admin/course-templates/'.$used.'"]')->length
+            $xpath->query('//button[@data-ui-bulk-delete and @disabled and @data-url="https://tenant-a.localhost/admin/course-templates"]')->length,
+            'the delete button is always there, disabled until a row is checked'
         );
     }
 

@@ -562,6 +562,71 @@ class CourseTemplateController extends Controller
             ->with('success', __('lf.LF_course_template_common_deleted'));
     }
 
+    public function bulkDestroy(Request $request)
+    {
+        $validated = $request->validate([
+            'ids' => ['required', 'array', 'min:1', 'max:100'],
+            'ids.*' => ['required', 'integer', 'distinct'],
+        ]);
+        $customerId = $this->customerId();
+        $ids = array_map('intval', $validated['ids']);
+
+        foreach ($ids as $id) {
+            $this->findTemplate($customerId, $id);
+        }
+
+        try {
+            $blocked = DB::transaction(function () use ($customerId, $ids): ?string {
+                $locked = DB::table('core_course_templates')
+                    ->where('customer_id', $customerId)
+                    ->whereIn('id', $ids)
+                    ->orderBy('id')
+                    ->lockForUpdate()
+                    ->get(['id', 'title']);
+
+                abort_if($locked->count() !== count($ids), 404);
+
+                // All or nothing: one Template that is still in use refuses the whole request and says which.
+                $blockers = $this->deletionBlockers($customerId, $ids);
+
+                foreach ($locked as $template) {
+                    $reasons = $blockers[(int) $template->id] ?? [];
+
+                    if ($reasons !== []) {
+                        return '«'.$template->title.'» — '.$this->deletionBlockMessage($reasons);
+                    }
+                }
+
+                foreach ($ids as $id) {
+                    foreach (['intro_image', 'intro_video', 'intro_document'] as $usageType) {
+                        $this->detachOwnerMedia($id, $usageType);
+                    }
+                }
+
+                DB::table('core_course_templates')
+                    ->where('customer_id', $customerId)
+                    ->whereIn('id', $ids)
+                    ->delete();
+
+                return null;
+            });
+        } catch (QueryException $exception) {
+            $blocked = __('lf.LF_course_template_delete_blocked_generic');
+        }
+
+        if ($blocked !== null) {
+            return $request->expectsJson()
+                ? response()->json(['message' => $blocked], 409)
+                : back()->withErrors(['template' => $blocked]);
+        }
+
+        $message = trans_choice('lf.LF_course_template_bulk_deleted', count($ids), ['count' => count($ids)]);
+
+        return $request->expectsJson()
+            ? response()->json(['message' => $message])
+            : redirect()->route($this->routePrefix($request).'.index')->with('success', $message);
+    }
+
     private function validatedData(
         Request $request,
         int $customerId,

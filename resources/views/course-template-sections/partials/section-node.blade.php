@@ -61,7 +61,7 @@
                     data-url="{{ route($sectionRoutePrefix.'.destroy', [$template->id, $currentSection->id]) }}"
                     data-confirm-title="{{ __('lf.LF_course_template_section_delete_title') }}"
                     data-confirm-message="{{ __('lf.LF_course_template_section_delete_confirm', ['name' => $currentSection->title]) }}"
-                    data-confirm-label="{{ __('lf.LF_course_template_section_delete_label') }}"
+                    data-confirm-label="{{ __('lf.LF_common_button_confirm') }}"
                     @if ($sectionBlocker) disabled aria-disabled="true" @endif
                     aria-label="{{ __('lf.LF_common_button_delete') }}: {{ $currentSection->title }}"
                     data-tooltip="{{ $sectionBlocker ?? __('lf.LF_common_button_delete') }}">

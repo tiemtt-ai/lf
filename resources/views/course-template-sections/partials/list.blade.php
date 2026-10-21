@@ -114,7 +114,7 @@
              aria-label="{{ __('lf.LF_course_template_section_common_actions') }}">
             <strong>{{ trans_choice('lf.LF_course_template_section_common_count', $sections->count(), ['count' => $sections->count()]) }}</strong>
             @if ($hasSections)
-                <button type="button" class="btn admin-primary-outline-action ui-button ui-button--primary"
+                <button type="button" class="btn admin-primary-outline-action ui-button ui-button--outline"
                         data-ui-dialog-form-open aria-haspopup="dialog"
                         data-url="{{ route($sectionRoutePrefix.'.create', $template->id) }}">
                     {{ __('lf.LF_course_template_section_common_add_action') }}
@@ -134,7 +134,7 @@
                     </span>
                     <strong>{{ __('lf.LF_course_template_section_common_empty_title') }}</strong>
                     <p>{{ __('lf.LF_course_template_section_common_empty') }}</p>
-                    <button type="button" class="btn admin-primary-outline-action ui-button ui-button--primary"
+                    <button type="button" class="btn admin-primary-outline-action ui-button ui-button--outline"
                             data-ui-dialog-form-open aria-haspopup="dialog"
                             data-url="{{ route($sectionRoutePrefix.'.create', $template->id) }}">
                         {{ __('lf.LF_course_template_section_common_add_action') }}

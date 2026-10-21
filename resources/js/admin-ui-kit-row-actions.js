@@ -4,7 +4,8 @@
  *  - `[data-ui-row-delete]` (data-url, data-confirm-title/-message/-label): DELETE (method spoofing);
  *  - `[data-ui-bulk-delete]`: DELETE of every checked `[data-ui-bulk-item]` (their values go as `data-ui-bulk-name`,
  *    default `ids[]`; ":count" in the confirm message is replaced), with the select-all box
- *    `[data-ui-bulk-select-all]` and the bar `[data-ui-bulk-bar]` (hidden until something is checked) kept in step;
+ *    `[data-ui-bulk-select-all]`, the count text `[data-ui-bulk-count]` (its `data-text-selected`, empty when nothing is
+ *    checked) and the delete button itself (always there, disabled until something is checked) kept in step;
  *  - `[data-ui-confirm-post]`: a plain POST (e.g. a clean-up that is not tied to a row). Such a button may live outside
  *    the scope (the page heading): `data-ui-row-actions-for="<scope id>"` hands it to that scope.
  * Success: a toast and `ui-dialog-form-saved` so the list refetches (or, when the server answers `redirect`, a reload
@@ -98,12 +99,9 @@ export function initUiKitRowActions(scope, deps = {}) {
             all.checked = items.length > 0 && chosen === items.length;
             all.indeterminate = chosen > 0 && chosen < items.length;
         }
-        const bar = scope.querySelector('[data-ui-bulk-bar]');
-        if (bar) {
-            bar.hidden = chosen === 0;
-            const count = bar.querySelector('[data-ui-bulk-count]');
-            if (count) count.textContent = attr(bar, 'data-text-selected').replace(':count', String(chosen));
-        }
+        const count = scope.querySelector('[data-ui-bulk-count]');
+        if (count) count.textContent = chosen === 0 ? '' : attr(count, 'data-text-selected').replace(':count', String(chosen));
+        for (const button of scope.querySelectorAll('[data-ui-bulk-delete]')) button.disabled = chosen === 0;
     }
     const onChange = event => {
         const target = event.target;
@@ -115,6 +113,7 @@ export function initUiKitRowActions(scope, deps = {}) {
         }
     };
 
+    if (typeof scope.querySelectorAll === 'function') syncBulk();
     const onClick = event => {
         const trigger = event.target?.closest?.('[data-ui-row-delete], [data-ui-bulk-delete], [data-ui-confirm-post]');
         if (!trigger || !scope.contains(trigger)) return;
@@ -142,7 +141,32 @@ export function initUiKitRowActions(scope, deps = {}) {
     return instance;
 }
 
+/**
+ * The list buttons (`.mk-table-top__actions`) share the wrapping filter row (`.mk-tablebar`). On the filter row they sit at its right
+ * end; when they no longer fit they move down WHOLE and then line up with the filters on the left, so the rows below and above share
+ * one edge. The bar gets `data-wrapped` while the group is on its own row (CSS does the alignment); recomputed on resize and when the
+ * live filter swaps the group.
+ */
+export function initUiKitToolbarWrap(bar, deps = {}) {
+    const win = deps.window ?? window;
+    const update = () => {
+        const group = bar.querySelector('.mk-table-top__actions');
+        const field = bar.querySelector('.mk-search');
+        if (!group || !field) return;
+        const wrapped = group.getBoundingClientRect().top >= field.getBoundingClientRect().bottom - 1;
+        if (wrapped) bar.setAttribute('data-wrapped', ''); else bar.removeAttribute('data-wrapped');
+    };
+    update();
+    const observers = [];
+    if (win.ResizeObserver) observers.push(new win.ResizeObserver(update));
+    if (win.MutationObserver) observers.push(new win.MutationObserver(update));
+    observers[0]?.observe(bar);
+    observers[1]?.observe(bar, { childList: true, subtree: true });
+    return { update, destroy: () => observers.forEach(observer => observer.disconnect()) };
+}
+
 if (typeof document !== 'undefined') {
+    document.querySelectorAll('.lf-admin-ui .mk-tablebar').forEach(bar => { if (bar.querySelector('.mk-table-top__actions')) initUiKitToolbarWrap(bar); });
     const initialize = () => document.querySelectorAll('.lf-admin-ui[data-ui-row-actions]').forEach(scope => initUiKitRowActions(scope));
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initialize, { once: true });
     else initialize();
