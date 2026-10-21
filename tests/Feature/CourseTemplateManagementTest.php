@@ -1045,6 +1045,37 @@ class CourseTemplateManagementTest extends TestCase
         $this->actingAs($admin)->deleteJson($url, ['ids' => []])->assertStatus(422);
     }
 
+    public function test_an_assigned_teacher_may_work_on_a_template_but_only_its_creator_or_an_admin_deletes_it(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $creator = $this->createUser($customerId, 'teacher');
+        $assigned = $this->createUser($customerId, 'teacher');
+        $template = $this->createTemplate($customerId, 'Shared work', 'shared-work', $creator->id);
+        // An assignment that is no longer active never granted deletion either: access comes from the active one only.
+        DB::table('core_course_template_teachers')->insert([
+            'customer_id' => $customerId, 'template_id' => $template, 'teacher_id' => $assigned->id,
+            'role' => 'lead', 'sort_order' => 0, 'status' => 'active', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $base = 'https://tenant-a.localhost/teacher/course-templates';
+
+        // The assigned teacher sees the Template, but the list locks it with the reason, and the server refuses (403, not the 409 of "still assigned").
+        $html = $this->actingAs($assigned)->get($base)->assertOk()->assertSeeText('Shared work')
+            ->assertSee(__('lf.LF_course_template_delete_blocked_teachers', ['count' => 1]), false)->getContent();
+        $this->assertSame(0, substr_count($html, 'data-ui-bulk-item'), 'no selectable row for the assigned teacher');
+        $this->actingAs($assigned)->deleteJson("{$base}/{$template}")->assertForbidden();
+        $this->actingAs($assigned)->deleteJson($base, ['ids' => [$template]])->assertForbidden();
+        $this->assertDatabaseHas('core_course_templates', ['id' => $template]);
+
+        // Once nothing hangs on it, the creator deletes it; for the assigned teacher the reason is now "not the creator".
+        DB::table('core_course_template_teachers')->where('template_id', $template)->delete();
+        $this->actingAs($creator)->deleteJson("{$base}/{$template}")->assertOk();
+        $this->assertDatabaseMissing('core_course_templates', ['id' => $template]);
+
+        $other = $this->createTemplate($customerId, 'Admin removes', 'admin-removes', $creator->id);
+        $this->actingAs($admin)->deleteJson("https://tenant-a.localhost/admin/course-templates/{$other}")->assertOk();
+    }
+
     public function test_template_index_enables_delete_only_for_unused_templates_and_explains_why_not(): void
     {
         $customerId = $this->createTenant();

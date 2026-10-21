@@ -93,7 +93,9 @@ class CourseTemplateController extends Controller
         $blockers = $this->deletionBlockers($customerId, $templates->getCollection()->pluck('id')->map(fn ($id) => (int) $id)->all());
         $templates->getCollection()->each(function (object $template) use ($blockers): void {
             $reasons = $blockers[(int) $template->id] ?? [];
-            $template->delete_blocker = $reasons === [] ? null : $this->deletionBlockMessage($reasons);
+            $template->delete_blocker = $reasons === []
+                ? ($this->mayDeleteTemplate($template) ? null : __('lf.LF_course_template_delete_blocked_not_creator'))
+                : $this->deletionBlockMessage($reasons);
         });
 
         return view('course-templates.index', [
@@ -513,7 +515,7 @@ class CourseTemplateController extends Controller
     public function destroy(Request $request, int $id)
     {
         $customerId = $this->customerId();
-        $this->findTemplate($customerId, $id);
+        abort_unless($this->mayDeleteTemplate($this->findTemplate($customerId, $id)), 403);
 
         try {
             $blocked = DB::transaction(function () use ($customerId, $id): ?string {
@@ -572,7 +574,7 @@ class CourseTemplateController extends Controller
         $ids = array_map('intval', $validated['ids']);
 
         foreach ($ids as $id) {
-            $this->findTemplate($customerId, $id);
+            abort_unless($this->mayDeleteTemplate($this->findTemplate($customerId, $id)), 403);
         }
 
         try {
@@ -1402,6 +1404,14 @@ class CourseTemplateController extends Controller
         $this->authorizeTemplateAccess($customerId, $template);
 
         return $template;
+    }
+
+    /** Deleting a Template is for the person who created it and for admins; an assigned teacher may work on it but not delete it. */
+    private function mayDeleteTemplate(object $template): bool
+    {
+        $user = request()->user();
+
+        return $user?->role === 'customer_admin' || (int) $template->created_by === (int) $user?->id;
     }
 
     private function authorizeTemplateAccess(int $customerId, object $template): void

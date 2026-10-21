@@ -23,9 +23,9 @@
         'document' => __('lf.LF_media_file_common_tab_documents'),
         'audio' => __('lf.LF_media_file_common_tab_audio'),
     ];
-    $hasActiveFilters = $keyword !== null || $ownerType !== null || $usageStatus !== null;
+    $hasActiveFilters = $keyword !== null || $ownerType !== null || $usageStatus !== null || $source !== null || $share !== null;
     $selectAttributes = 'data-ui-kit-select data-ui-empty-label="'.e(__('lf.LF_media_file_select_no_options')).'" data-ui-clear-label="'.e(__('lf.LF_media_file_common_clear_filters')).'"';
-    $tabQuery = array_filter(['keyword' => $keyword, 'owner_type' => $ownerType, 'owner_refs' => $ownerRefs, 'usage_status' => $usageStatus]);
+    $tabQuery = array_filter(['keyword' => $keyword, 'owner_type' => $ownerType, 'owner_refs' => $ownerRefs, 'usage_status' => $usageStatus, 'source' => $source, 'share' => $share]);
     $objectChoices = $ownerObjects[$ownerType] ?? [];
 @endphp
 
@@ -38,32 +38,63 @@
          preview: { name: '', url: '', mimeType: '', mediaType: '' },
          usageOpen: false,
          shareOpen: false,
-         shareFor: { name: '', meta: '' },
+         shareFor: { id: 0, name: '', meta: '' },
+         shareSaving: false,
+         shareUrlTemplate: @js(route($routePrefix.'.media.shares.update', ['id' => '__ID__'])),
+         csrf: @js(csrf_token()),
          usageCountText: @js(trans_choice('lf.LF_media_file_usage_count', 2, ['count' => ':count'])),
-         usageNoneText: @js(__('lf.LF_media_file_usage_none')),
+         usageNoneText: @js($isTeacher ? __('lf.LF_media_usage_popup_mine_none') : __('lf.LF_media_file_usage_none')),
+         usageMineText: @js(__('lf.LF_media_file_status_used_by_you', ['count' => ':count'])),
+         usageOthersText: @js(__('lf.LF_media_usage_popup_others', ['count' => ':count'])),
+         isTeacher: @js($isTeacher),
          shareScope: 'private',
          shareIds: [],
          shareSearch: '',
+         shareNote: '',
          shareFeedback: '',
          teachers: @js($shareTeachers),
          get shareMatches() {
              const text = this.shareSearch.trim().toLocaleLowerCase();
              return this.teachers.filter(t => (t.name + ' ' + t.email + ' ' + (t.role === 'customer_admin' ? @js(__('lf.LF_media_share_role_admin')) : @js(__('lf.LF_media_share_role_teacher')))).toLocaleLowerCase().includes(text));
          },
-         resetShare() {
-             this.shareScope = 'private';
-             this.shareIds = [];
+         resetShare(state = null) {
+             this.shareScope = state?.scope ?? 'private';
+             this.shareIds = [...(state?.user_ids ?? [])];
              this.shareSearch = '';
+             this.shareNote = state?.note ?? '';
              this.shareFeedback = '';
          },
-         saveShare() {
-             this.shareFeedback = this.shareScope === 'public'
-                 ? @js(__('lf.LF_media_share_feedback_public'))
-                 : (this.shareScope === 'teachers' && this.shareIds.length === 0
-                     ? @js(__('lf.LF_media_share_feedback_none'))
-                     : @js(__('lf.LF_media_share_feedback_preview')));
+         async saveShare() {
+             if (this.shareSaving) return;
+             if (this.shareScope === 'teachers' && this.shareIds.length === 0) {
+                 this.shareFeedback = @js(__('lf.LF_media_share_feedback_none'));
+                 return;
+             }
+             this.shareSaving = true;
+             this.shareFeedback = '';
+             try {
+                 const response = await fetch(this.shareUrlTemplate.replace('__ID__', this.shareFor.id), {
+                     method: 'PUT',
+                     headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': this.csrf },
+                     credentials: 'same-origin',
+                     body: JSON.stringify({ scope: this.shareScope, user_ids: this.shareScope === 'teachers' ? this.shareIds : [], note: this.shareScope === 'private' ? '' : this.shareNote }),
+                 });
+                 let payload = null;
+                 try { payload = await response.json(); } catch (error) { payload = null; }
+                 if (response.ok) {
+                     // The server flashed the message: the reloaded list shows it as a toast (a toast shown now would vanish with the reload).
+                     this.shareOpen = false;
+                     window.location.reload();
+                     return;
+                 }
+                 this.shareFeedback = payload?.message ?? Object.values(payload?.errors ?? {}).flat()[0] ?? @js(__('lf.LF_media_share_error_generic'));
+             } catch (error) {
+                 this.shareFeedback = @js(__('lf.LF_media_share_error_generic'));
+             } finally {
+                 this.shareSaving = false;
+             }
          },
-         usage: { name: '', items: [], meta: '' },
+         usage: { name: '', items: [], meta: '', note: '', others: 0 },
          openMediaPreview(name, url, mimeType, mediaType) {
              this.preview = { name, url, mimeType, mediaType };
              this.previewOpen = true;
@@ -72,24 +103,30 @@
              this.previewOpen = false;
              this.preview = { name: '', url: '', mimeType: '', mediaType: '' };
          },
-         openUsage(name, items, meta) {
-             this.usage = { name, items, meta };
+         openUsage(name, items, meta, note, others) {
+             this.usage = { name, items, meta, note: note || '', others: others || 0 };
              this.usageOpen = true;
          },
-         openShare(name, meta) {
-             this.shareFor = { name, meta };
-             this.resetShare();
+         openShare(id, name, meta, state) {
+             this.shareFor = { id, name, meta };
+             this.resetShare(state);
              this.shareOpen = true;
          },
          closeShare() {
              this.shareOpen = false;
          },
          get usageSubtitle() {
-             return this.usage.name + ' · ' + (this.usage.items.length === 0 ? this.usageNoneText : this.usageCountText.replace(':count', this.usage.items.length));
+             const count = this.usage.items.length;
+             // A teacher is told about their own use only; an admin about every place.
+             const tail = this.isTeacher
+                 ? (count === 0 ? this.usageNoneText : this.usageMineText.replace(':count', count))
+                 : (count === 0 ? this.usageNoneText : this.usageCountText.replace(':count', count));
+
+             return this.usage.name + ' · ' + tail;
          },
          closeUsage() {
              this.usageOpen = false;
-             this.usage = { name: '', items: [], meta: '' };
+             this.usage = { name: '', items: [], meta: '', note: '', others: 0 };
          },
      }">
     <x-ui-list-toasts />
@@ -107,7 +144,7 @@
     <section class="mk-section" aria-labelledby="admin-page-title">
         <nav class="mk-tabs" data-ui-live-region="tabs" aria-label="{{ __('lf.LF_media_file_common_type') }}">
             @foreach ($tabs as $availableTab)
-                <a href="{{ route('admin.media.index', array_merge(['tab' => $availableTab], $tabQuery)) }}"
+                <a href="{{ route($routePrefix.'.media.index', array_merge(['tab' => $availableTab], $tabQuery)) }}"
                    class="mk-tab cursor-interaction"
                    @if ($tab === $availableTab) aria-current="page" @endif>
                     {{ $tabLabels[$availableTab] }}
@@ -117,7 +154,7 @@
         </nav>
 
         <div class="mk-tablebar mk-tablebar--filters ui-media-filters">
-        <form class="mk-filter-form" method="GET" action="{{ route('admin.media.index') }}" data-ui-live-filter>
+        <form class="mk-filter-form" method="GET" action="{{ route($routePrefix.'.media.index') }}" data-ui-live-filter>
             <input type="hidden" name="tab" value="{{ $tab }}">
 
             <div class="ui-field mk-search">
@@ -131,6 +168,18 @@
                 </div>
             </div>
 
+            @if ($isTeacher)
+                <div class="ui-field mk-search">
+                    <label class="ui-field__label" for="source">{{ __('lf.LF_media_source_filter') }}</label>
+                    <select id="source" name="source" {!! $selectAttributes !!}>
+                        <option value="">{{ __('lf.LF_media_source_all') }}</option>
+                        <option value="mine" @selected($source === 'mine')>{{ __('lf.LF_media_source_mine') }}</option>
+                        <option value="mine_private" @selected($source === 'mine_private')>{{ __('lf.LF_media_source_mine_private') }}</option>
+                        <option value="mine_shared" @selected($source === 'mine_shared')>{{ __('lf.LF_media_source_mine_shared') }}</option>
+                        <option value="shared" @selected($source === 'shared')>{{ __('lf.LF_media_source_shared') }}</option>
+                    </select>
+                </div>
+            @else
             <div class="ui-field mk-search">
                 <label class="ui-field__label" for="owner_type">{{ __('lf.LF_media_file_common_owner_type') }}</label>
                 <select id="owner_type" name="owner_type" {!! $selectAttributes !!}>
@@ -177,20 +226,33 @@
                 </select>
             </div>
 
+            <div class="ui-field mk-search">
+                <label class="ui-field__label" for="share">{{ __('lf.LF_media_share_filter') }}</label>
+                <select id="share" name="share" {!! $selectAttributes !!}>
+                    <option value="">{{ __('lf.LF_media_share_filter_all') }}</option>
+                    <option value="private" @selected($share === 'private')>{{ __('lf.LF_media_share_state_private') }}</option>
+                    <option value="teachers" @selected($share === 'teachers')>{{ __('lf.LF_media_share_filter_teachers') }}</option>
+                    <option value="all_teachers" @selected($share === 'all_teachers')>{{ __('lf.LF_media_share_state_all') }}</option>
+                </select>
+            </div>
+
+            @endif
+
             <span class="ui-live-slot" data-ui-live-region="clear-filters">
                 @if ($hasActiveFilters)
-                    <a class="ui-button ui-button--outline cursor-interaction" href="{{ route('admin.media.index', ['tab' => $tab]) }}">
+                    <a class="ui-button ui-button--outline cursor-interaction" href="{{ route($routePrefix.'.media.index', ['tab' => $tab]) }}">
                         {{ __('lf.LF_media_file_common_clear_filters') }}
                     </a>
                 @endif
             </span>
         </form>
 
-        <x-ui-list-toolbar :url="route('admin.media.bulk-destroy', $listFilters)" name="media_ids[]"
+        <x-ui-list-toolbar :url="route($routePrefix.'.media.bulk-destroy', $listFilters)" name="media_ids[]"
             :label="__('lf.LF_media_file_bulk_delete')"
             :confirm-title="__('lf.LF_media_file_bulk_delete_confirm')" :confirm-message="__('lf.LF_media_file_bulk_delete_body', ['count' => ':count'])"
             :confirm-label="__('lf.LF_common_button_confirm')">
 
+    @unless ($isTeacher)
     {{-- Clean-up of orphan storage files (no longer tied to any Media): a dialog that scans first, then purges with progress.
          It sits in the list toolbar (secondary, outline). --}}
     @php
@@ -205,6 +267,7 @@
         {{ __('lf.LF_media_storage_purge_short') }}
     </button>
     <span id="media-storage-purge-note" class="ui-sr-only"><strong>{{ __('lf.LF_media_storage_purge_title') }}</strong> {{ __('lf.LF_media_storage_purge_note') }}</span>
+    @endunless
         </x-ui-list-toolbar>
         </div>
 
@@ -228,7 +291,7 @@
                     <th scope="col" class="mk-sequence admin-table-sequence">{{ __('lf.table_no') }}</th>
                     <th scope="col" class="mk-text-cell">{{ __('lf.LF_media_file_common_file') }}</th>
                     <th scope="col" class="mk-text-cell">{{ __('lf.LF_media_file_common_type_and_size') }}</th>
-                    <th scope="col" class="mk-text-cell">{{ __('lf.LF_media_file_common_upload_information') }}</th>
+                    <th scope="col" class="mk-text-cell">{{ $isTeacher ? __('lf.LF_media_source_filter') : __('lf.LF_media_file_common_upload_information') }}</th>
                     <th scope="col" class="mk-text-cell ui-center-cell">{{ __('lf.LF_media_file_common_status') }}</th>
                     <th scope="col" class="ux-action-cell">{{ __('lf.table_actions') }}</th>
                 </tr>
@@ -254,13 +317,16 @@
                     @endphp
                     <tr>
                         <td class="ui-check-cell" data-label="{{ __('lf.LF_media_file_select_label') }}">
-                            @if ($isUnused)
+                            @if ($isUnused && $mediaFile->is_mine)
                                 <input type="checkbox" class="ui-bulk-box media-library-selection-checkbox" data-ui-bulk-item value="{{ $mediaFile->id }}"
                                        aria-label="{{ __('lf.LF_media_file_select_unused_named', ['name' => $mediaFile->display_name]) }}">
                             @else
                                 {{-- A file in use cannot be deleted: the box is locked and says why. --}}
-                                <span class="ui-bulk-lock" tabindex="0" data-tooltip="{{ __('lf.LF_media_file_locked_in_use', ['count' => count($usageItems)]) }}" data-tooltip-align="start">
-                                    <input type="checkbox" class="ui-bulk-box" disabled aria-label="{{ __('lf.LF_media_file_locked_in_use', ['count' => count($usageItems)]) }}">
+                                @php
+                                    $lockReason = $mediaFile->is_mine ? __('lf.LF_media_file_locked_in_use', ['count' => count($usageItems)]) : __('lf.LF_media_file_locked_not_owner');
+                                @endphp
+                                <span class="ui-bulk-lock" tabindex="0" data-tooltip="{{ $lockReason }}" data-tooltip-align="start">
+                                    <input type="checkbox" class="ui-bulk-box" disabled aria-label="{{ $lockReason }}">
                                 </span>
                             @endif
                         </td>
@@ -297,31 +363,65 @@
                             {{ $typeLabels[$mediaFile->file_type] ?? __('lf.LF_media_file_common_other') }}
                             <p class="ui-caption">{{ number_format(((int) $mediaFile->file_size_bytes) / 1024, 1) }} KB</p>
                         </td>
-                        <td class="mk-text-cell" data-label="{{ __('lf.LF_media_file_common_upload_information') }}">
-                            {{ $mediaFile->uploaded_by_name ?? '—' }}
+                        <td class="mk-text-cell" data-label="{{ $isTeacher ? __('lf.LF_media_source_filter') : __('lf.LF_media_file_common_upload_information') }}">
+                            {{-- A teacher reads this as the Media's origin: whose it is, how it reached them, and when it was uploaded. --}}
+                            @if ($isTeacher && $mediaFile->is_mine)
+                                {{ __('lf.LF_media_source_mine') }}
+                            @elseif ($isTeacher)
+                                {{-- Shared with this teacher: the icon is the only mark, and says by whom (name and account). --}}
+                                <span class="mk-source-name">
+                                    {{ $mediaFile->uploaded_by_name ?? '—' }}
+                                    <span class="ui-source-icon" tabindex="0" data-tooltip="{{ __('lf.LF_media_source_shared_tip', ['name' => $mediaFile->uploaded_by_name ?? '—', 'email' => $mediaFile->uploaded_by_email ?? '—']) }}" data-tooltip-align="start"
+                                          aria-label="{{ __('lf.LF_media_source_shared_tip', ['name' => $mediaFile->uploaded_by_name ?? '—', 'email' => $mediaFile->uploaded_by_email ?? '—']) }}">
+                                        <x-backend-icon name="share-2" class="ui-icon" />
+                                    </span>
+                                </span>
+                            @else
+                                {{ $mediaFile->uploaded_by_name ?? '—' }}
+                            @endif
                             <p class="ui-caption">{{ \Illuminate\Support\Carbon::parse($mediaFile->created_at)->format('d/m/Y H:i') }}</p>
                         </td>
                         <td class="mk-text-cell ui-center-cell" data-label="{{ __('lf.LF_media_file_common_status') }}">
-                            <span @class(['ui-status', 'ui-status--active' => ! $isUnused, 'ui-status--archived' => $isUnused])>
-                                {{ $isUnused ? __('lf.LF_media_file_common_unused') : __('lf.LF_media_file_common_in_use') }}
+                            @php
+                                // A teacher sees their own Media as used by anyone, and a shared one as used by themselves only; either way they
+                                // get a glimpse of how many other places use it (a count, never what other people built).
+                                $myUse = (int) $mediaFile->my_usage_count;
+                                $shownUnused = $isTeacher && ! $mediaFile->is_mine ? $myUse === 0 : $isUnused;
+                                $othersUse = $isTeacher ? max(0, (int) $mediaFile->usage_count - $myUse) : 0;
+                            @endphp
+                            <span @class(['ui-status', 'ui-status--active' => ! $shownUnused, 'ui-status--archived' => $shownUnused])>
+                                {{ $shownUnused ? __('lf.LF_media_file_common_unused') : __('lf.LF_media_file_common_in_use') }}
                             </span>
                             <p class="ui-caption">
-                                {{ $isUnused ? __('lf.LF_media_file_status_can_delete') : trans_choice('lf.LF_media_file_usage_count', count($usageItems), ['count' => count($usageItems)]) }}
+                                @if ($isTeacher)
+                                    @php
+                                        $parts = array_filter([
+                                            $myUse > 0 ? __('lf.LF_media_file_status_used_by_you', ['count' => $myUse]) : null,
+                                            $othersUse > 0 ? __('lf.LF_media_file_status_used_by_others', ['count' => $othersUse]) : null,
+                                        ]);
+                                    @endphp
+                                    {{ $parts !== [] ? implode(' · ', $parts) : ($mediaFile->is_mine ? __('lf.LF_media_file_status_can_delete') : __('lf.LF_media_file_status_nobody_uses')) }}
+                                @else
+                                    {{ $isUnused ? __('lf.LF_media_file_status_can_delete') : trans_choice('lf.LF_media_file_usage_count', count($usageItems), ['count' => count($usageItems)]) }}
+                                @endif
                             </p>
                         </td>
                         <td class="ux-action-cell" data-label="{{ __('lf.table_actions') }}">
                             <button type="button" class="ux-row-edit cursor-interaction" aria-haspopup="dialog"
                                     aria-label="{{ __('lf.LF_media_file_action_uses') }}: {{ $mediaFile->display_name }}"
                                     data-tooltip="{{ __('lf.LF_media_file_action_uses') }}"
-                                    x-on:click="openUsage(@js($mediaFile->display_name), @js($usageItems), @js(trim(($typeLabels[$mediaFile->file_type] ?? '').' · '.strtoupper((string) $mediaFile->extension), ' ·')))">
+                                    x-on:click="openUsage(@js($mediaFile->display_name), @js($usageItems), @js(trim(($typeLabels[$mediaFile->file_type] ?? '').' · '.strtoupper((string) $mediaFile->extension), ' ·')), @js($mediaFile->share_note), @js($othersUse))">
                                 <x-backend-icon name="link-2" class="ui-icon" />
                             </button>
+                            @if ($mediaFile->is_mine)
                             <button type="button" class="ux-row-edit cursor-interaction" aria-haspopup="dialog"
                                     aria-label="{{ __('lf.LF_media_file_action_share') }}: {{ $mediaFile->display_name }}"
                                     data-tooltip="{{ __('lf.LF_media_file_action_share') }}"
-                                    x-on:click="openShare(@js($mediaFile->display_name), @js(trim(($typeLabels[$mediaFile->file_type] ?? '').' · '.strtoupper((string) $mediaFile->extension), ' ·')))">
+                                    @if ($mediaFile->share_state['scope'] !== 'private') data-shared @endif
+                                    x-on:click="openShare(@js((int) $mediaFile->id), @js($mediaFile->display_name), @js(trim(($typeLabels[$mediaFile->file_type] ?? '').' · '.strtoupper((string) $mediaFile->extension), ' ·')), @js($mediaFile->share_state))">
                                 <x-backend-icon name="user-cog" class="ui-icon" />
                             </button>
+                            @endif
                         </td>
                     </tr>
                 @empty
@@ -344,6 +444,7 @@
             :page-size-option="__('lf.LF_media_file_page_size_option', ['count' => $mediaFiles->perPage()])" />
     </section>
 
+    @unless ($isTeacher)
     <dialog class="ui-modal" id="media-cleanup-dialog" data-columns="1" aria-labelledby="media-cleanup-title" data-ui-cleanup
             data-status-url="{{ route('admin.media.cleanup-status') }}" data-scan-url="{{ route('admin.media.cleanup-scan') }}" data-run-url="{{ route('admin.media.cleanup-run') }}"
             data-csrf="{{ csrf_token() }}" data-batch="20"
@@ -399,6 +500,7 @@
             </footer>
         </div>
     </dialog>
+    @endunless
 
     <x-media-preview-modal ui-kit id="media-library-preview-title" show="previewOpen" close="closeMediaPreview()" title="preview.name" compact="false">
         <template x-if="previewOpen && preview.mediaType === 'image'">
@@ -424,7 +526,12 @@
                 <button type="button" class="ui-modal__close cursor-interaction" aria-label="{{ __('lf.LF_common_button_close') }}" @click="closeUsage()">×</button>
             </header>
             <div class="ui-modal__body">
-                <p class="ui-caption" x-show="usage.items.length === 0">{{ __('lf.LF_media_file_usage_none') }}</p>
+                <div class="ui-note-card" x-show="usage.note" x-cloak>
+                    <p class="ui-note-card__title"><x-backend-icon name="message-square" class="ui-icon" /> {{ __('lf.LF_media_share_note_short') }}</p>
+                    <p class="ui-note-card__text" x-text="usage.note"></p>
+                </div>
+                <p class="ui-caption" x-show="usage.items.length === 0 && ! isTeacher">{{ __('lf.LF_media_file_usage_none') }}</p>
+                <p class="ui-field__hint" x-show="usage.items.length === 0 && isTeacher" x-cloak>{{ __('lf.LF_media_usage_popup_mine_none_long') }}</p>
                 <ul class="ui-usage-list" x-show="usage.items.length > 0">
                     <template x-for="(item, index) in usage.items" x-bind:key="index">
                         <li class="ui-usage-list__item">
@@ -436,6 +543,7 @@
                         </li>
                     </template>
                 </ul>
+                <p class="ui-caption ui-usage-others" x-show="isTeacher && usage.others > 0" x-cloak x-text="usageOthersText.replace(':count', usage.others)"></p>
             </div>
             <footer class="ui-modal__footer">
                 <button type="button" class="ui-button cursor-interaction" @click="closeUsage()">{{ __('lf.LF_common_button_close') }}</button>
@@ -461,7 +569,7 @@
                         <select id="media-share-scope" x-model="shareScope">
                             <option value="private">{{ __('lf.LF_media_share_scope_private') }}</option>
                             <option value="teachers">{{ __('lf.LF_media_share_scope_teachers') }}</option>
-                            <option value="public">{{ __('lf.LF_media_share_scope_public_option') }}</option>
+                            <option value="all_teachers">{{ __('lf.LF_media_share_scope_public_option') }}</option>
                         </select>
                     </div>
                     <div x-show="shareScope === 'teachers'">
@@ -480,13 +588,18 @@
                         </div>
                         <p class="ui-caption" aria-live="polite" x-text="@js(__('lf.LF_media_share_selected')) + ' ' + shareIds.length"></p>
                     </div>
-                    <p class="ui-caption" x-show="shareScope === 'public'">{{ __('lf.LF_media_share_public_note') }}</p>
+                    <p class="ui-caption" x-show="shareScope === 'all_teachers'">{{ __('lf.LF_media_share_public_note') }}</p>
+                    <div class="ui-field" x-show="shareScope !== 'private'">
+                        <label class="ui-field__label" for="media-share-note">{{ __('lf.LF_media_share_note_label') }}</label>
+                        <textarea id="media-share-note" rows="3" maxlength="300" x-model="shareNote" placeholder="{{ __('lf.LF_media_share_note_placeholder') }}"></textarea>
+                        <span class="ui-field__hint"><span x-text="shareNote.length"></span>/300 · {{ __('lf.LF_media_share_note_hint') }}</span>
+                    </div>
                 </div>
             </div>
             <footer class="ui-modal__footer">
                 <span class="ui-caption" role="status" aria-live="polite" x-text="shareFeedback"></span>
                 <button type="button" class="ui-button cursor-interaction" @click="closeShare()">{{ __('lf.LF_media_share_cancel') }}</button>
-                <button type="button" class="ui-button ui-button--primary cursor-interaction" @click="saveShare()"><x-backend-icon name="check" class="ui-icon" />{{ __('lf.LF_common_button_confirm') }}</button>
+                <button type="button" class="ui-button ui-button--primary cursor-interaction" @click="saveShare()" x-bind:disabled="shareSaving"><x-backend-icon name="check" class="ui-icon" />{{ __('lf.LF_common_button_confirm') }}</button>
             </footer>
         </div>
     </dialog>

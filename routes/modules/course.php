@@ -24,26 +24,29 @@ require __DIR__.'/ai-authoring.php';
 Route::get('/course-categories', [CourseCategoryController::class, 'index'])
     ->name('course-categories.index');
 
-Route::get('/course-categories/create', [CourseCategoryController::class, 'create'])
-    ->name('course-categories.create');
+// Managing categories (create, edit, status, delete) is for admins; a teacher only reads the list and picks a category in the Template form.
+if ($registerCategoryManagement ?? true) {
+    Route::get('/course-categories/create', [CourseCategoryController::class, 'create'])
+        ->name('course-categories.create');
 
-Route::post('/course-categories', [CourseCategoryController::class, 'store'])
-    ->name('course-categories.store');
+    Route::post('/course-categories', [CourseCategoryController::class, 'store'])
+        ->name('course-categories.store');
 
-Route::get('/course-categories/{id}/edit', [CourseCategoryController::class, 'edit'])
-    ->name('course-categories.edit');
+    Route::get('/course-categories/{id}/edit', [CourseCategoryController::class, 'edit'])
+        ->name('course-categories.edit');
 
-Route::put('/course-categories/{id}', [CourseCategoryController::class, 'update'])
-    ->name('course-categories.update');
+    Route::put('/course-categories/{id}', [CourseCategoryController::class, 'update'])
+        ->name('course-categories.update');
 
-Route::post('/course-categories/{id}/toggle-status', [CourseCategoryController::class, 'toggleStatus'])
-    ->name('course-categories.toggle-status');
+    Route::post('/course-categories/{id}/toggle-status', [CourseCategoryController::class, 'toggleStatus'])
+        ->name('course-categories.toggle-status');
 
-Route::delete('/course-categories', [CourseCategoryController::class, 'bulkDestroy'])
-    ->name('course-categories.bulk-destroy');
+    Route::delete('/course-categories', [CourseCategoryController::class, 'bulkDestroy'])
+        ->name('course-categories.bulk-destroy');
 
-Route::delete('/course-categories/{id}', [CourseCategoryController::class, 'destroy'])
-    ->name('course-categories.destroy');
+    Route::delete('/course-categories/{id}', [CourseCategoryController::class, 'destroy'])
+        ->name('course-categories.destroy');
+}
 
 if ($registerCourseProductRoutes ?? false) {
     Route::get('/course-cohorts', [CourseCohortController::class, 'index'])
@@ -291,30 +294,33 @@ Route::get(
     [CourseTemplateTeacherController::class, 'index']
 )->name('course-templates.teachers.index');
 
-Route::get(
-    '/course-templates/{templateId}/teachers/create',
-    [CourseTemplateTeacherController::class, 'create']
-)->name('course-templates.teachers.create');
+// Who teaches a Template is decided by admins: a teacher only reads the assignments (the list on the Template page).
+if ($registerTemplateTeacherManagement ?? true) {
+    Route::get(
+        '/course-templates/{templateId}/teachers/create',
+        [CourseTemplateTeacherController::class, 'create']
+    )->name('course-templates.teachers.create');
 
-Route::post(
-    '/course-templates/{templateId}/teachers',
-    [CourseTemplateTeacherController::class, 'store']
-)->name('course-templates.teachers.store');
+    Route::post(
+        '/course-templates/{templateId}/teachers',
+        [CourseTemplateTeacherController::class, 'store']
+    )->name('course-templates.teachers.store');
 
-Route::get(
-    '/course-templates/{templateId}/teachers/{assignmentId}/edit',
-    [CourseTemplateTeacherController::class, 'edit']
-)->name('course-templates.teachers.edit');
+    Route::get(
+        '/course-templates/{templateId}/teachers/{assignmentId}/edit',
+        [CourseTemplateTeacherController::class, 'edit']
+    )->name('course-templates.teachers.edit');
 
-Route::put(
-    '/course-templates/{templateId}/teachers/{assignmentId}',
-    [CourseTemplateTeacherController::class, 'update']
-)->name('course-templates.teachers.update');
+    Route::put(
+        '/course-templates/{templateId}/teachers/{assignmentId}',
+        [CourseTemplateTeacherController::class, 'update']
+    )->name('course-templates.teachers.update');
 
-Route::delete(
-    '/course-templates/{templateId}/teachers/{assignmentId}',
-    [CourseTemplateTeacherController::class, 'destroy']
-)->name('course-templates.teachers.destroy');
+    Route::delete(
+        '/course-templates/{templateId}/teachers/{assignmentId}',
+        [CourseTemplateTeacherController::class, 'destroy']
+    )->name('course-templates.teachers.destroy');
+}
 
 Route::get(
     '/course-templates/{templateId}/lessons/create',

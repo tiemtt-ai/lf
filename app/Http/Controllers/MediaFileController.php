@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Services\MediaService;
+use App\Services\MediaShareBlockedException;
+use App\Services\MediaShareService;
 use App\Services\MediaStorageResidueSweeper;
 use App\Services\MediaThumbnailPresenter;
 use App\Support\TenantContext;
@@ -35,8 +37,33 @@ class MediaFileController extends Controller
     public function __construct(
         private readonly MediaService $mediaService,
         private readonly MediaThumbnailPresenter $thumbnails,
-        private readonly MediaStorageResidueSweeper $sweeper
+        private readonly MediaStorageResidueSweeper $sweeper,
+        private readonly MediaShareService $shares
     ) {}
+
+    /**
+     * Set who a Media is shared with: nobody, chosen teachers, or every teacher (ADR-0021).
+     */
+    public function updateShares(Request $request, int $id): JsonResponse
+    {
+        $validated = $request->validate([
+            'scope' => ['required', 'string', 'in:'.implode(',', MediaShareService::SCOPES)],
+            'user_ids' => ['nullable', 'array', 'max:200'],
+            'user_ids.*' => ['integer', 'distinct'],
+            'note' => ['nullable', 'string', 'max:300'],
+        ]);
+
+        try {
+            $state = $this->shares->apply($request->user(), $this->customerId(), $id, $validated['scope'], $validated['user_ids'] ?? [], $validated['note'] ?? null);
+        } catch (MediaShareBlockedException $exception) {
+            return response()->json(['message' => $exception->getMessage(), 'blocked' => $exception->users], 409);
+        }
+
+        // The list reloads right after this answer, so the message is flashed for it to show as a toast.
+        $request->session()->flash('success', __('lf.LF_media_share_saved'));
+
+        return response()->json(['message' => __('lf.LF_media_share_saved'), 'state' => $state]);
+    }
 
     /**
      * Don file mo coi tren storage cho tenant hien tai.
@@ -179,9 +206,22 @@ class MediaFileController extends Controller
      * UI Kit's XHR, JSON with that same URL (the page reloads there and shows the flashed message as a toast). A
      * failure is a 409 with its message.
      */
+    /** A teacher sees the library through their own and shared Media (ADR-0021); an admin sees the whole tenant. */
+    private function teacherId(): ?int
+    {
+        $user = request()->user();
+
+        return $user?->role === 'teacher' ? (int) $user->id : null;
+    }
+
+    private function routePrefix(): string
+    {
+        return $this->teacherId() !== null ? 'teacher' : 'admin';
+    }
+
     private function listResponse(Request $request, string $flashKey, string $message): RedirectResponse|JsonResponse
     {
-        $url = route('admin.media.index', $this->listFilters($request));
+        $url = route($this->routePrefix().'.media.index', $this->listFilters($request));
 
         if ($request->expectsJson()) {
             if ($flashKey === 'error') {
@@ -198,19 +238,24 @@ class MediaFileController extends Controller
     public function index(Request $request): View
     {
         $customerId = $this->customerId();
+        $teacherId = $this->teacherId();
         $tab = $this->normalizedTab($request);
         $type = $this->normalizedType($request);
         $keyword = $this->normalizedKeyword($request);
         $ownerTypeOptions = $this->ownerTypeOptions($customerId);
-        $ownerType = $this->normalizedValue(
+        // The "where it is used" filters look across the tenant: only admins have them.
+        $ownerType = $teacherId !== null ? null : $this->normalizedValue(
             $request->query('owner_type'),
             $ownerTypeOptions->keys()->all()
         );
+        $source = $teacherId !== null ? $this->normalizedValue($request->query('source'), ['mine', 'mine_private', 'mine_shared', 'shared']) : null;
+        // Admins can also filter by how a Media is shared (nobody / chosen teachers / all teachers).
+        $share = $teacherId === null ? $this->normalizedValue($request->query('share'), ['private', 'teachers', 'all_teachers']) : null;
         $usageStatus = $this->normalizedValue(
             $request->query('usage_status'),
             self::USAGE_STATUSES
         );
-        $ownerObjects = $this->ownerObjects($customerId);
+        $ownerObjects = $teacherId !== null ? [] : $this->ownerObjects($customerId);
         $request->validate(['owner_refs' => ['nullable', 'array', 'max:100'], 'owner_refs.*' => ['string', 'max:100']]);
         $ownerRefs = array_values(array_intersect($request->query('owner_refs', []), array_column($ownerObjects[$ownerType] ?? [], 'value')));
         $fileType = $type ?? self::TAB_TYPES[$tab] ?? null;
@@ -222,15 +267,18 @@ class MediaFileController extends Controller
                 $queryRefs[] = 'course_template_version:'.$id;
             }
         }
-        $mediaFiles = $this->mediaQuery($customerId, $fileType, $keyword, $ownerType, $usageStatus, $queryRefs)
+        $mediaFiles = $this->mediaQuery($customerId, $fileType, $keyword, $ownerType, $usageStatus, $queryRefs, $teacherId, $source, $share)
             ->orderByDesc('media_files.created_at')
             ->orderByDesc('media_files.id')
             ->paginate(10)
             ->withQueryString();
 
-        $usageGroups = $this->usageGroups($customerId, $mediaFiles->getCollection()->pluck('id'));
-        $mediaFiles->setCollection($mediaFiles->getCollection()->map(function (object $mediaFile) use ($usageGroups): object {
+        $usageGroups = $this->usageGroups($customerId, $mediaFiles->getCollection()->pluck('id'), $teacherId);
+        $shareStates = $this->shares->stateFor($customerId, $mediaFiles->getCollection()->pluck('id'));
+        $mediaFiles->setCollection($mediaFiles->getCollection()->map(function (object $mediaFile) use ($usageGroups, $shareStates, $teacherId): object {
             $mediaFile->active_usages = $usageGroups->get((int) $mediaFile->id, collect());
+            $mediaFile->share_state = $shareStates[(int) $mediaFile->id];
+            $mediaFile->is_mine = $teacherId === null || (int) $mediaFile->uploaded_by === $teacherId;
             $mediaFile->preview_url = $this->previewUrl($mediaFile);
             $mediaFile->preview_mode = match ($mediaFile->file_type) {
                 'image', 'video', 'audio' => $mediaFile->preview_url ? 'popup' : null,
@@ -262,17 +310,52 @@ class MediaFileController extends Controller
             'ownerType' => $ownerType,
             'usageStatus' => $usageStatus,
             'ownerTypeOptions' => $ownerTypeOptions,
-            // Candidates for the (not yet saved) sharing tab of the manage dialog: the other active admins and teachers of this tenant.
-            'shareTeachers' => DB::table('users')->where('customer_id', $customerId)->whereIn('role', ['teacher', 'customer_admin'])
+            // Candidates for the (not yet saved) sharing dialog: the active teachers of this tenant (admins already see every Media).
+            'shareTeachers' => DB::table('users')->where('customer_id', $customerId)->where('role', 'teacher')
                 ->where('status', 'active')->where('id', '<>', (int) $request->user()->id)->orderBy('name')->get(['id', 'name', 'email', 'role'])
                 ->map(fn ($u): array => ['id' => (int) $u->id, 'name' => (string) $u->name, 'email' => (string) $u->email, 'role' => (string) $u->role])->all(),
             'ownerObjects' => $ownerObjects,
             'ownerRefs' => $ownerRefs,
-            'tabCounts' => $this->tabCounts($customerId),
+            'tabCounts' => $this->tabCounts($customerId, $teacherId),
+            'isTeacher' => $teacherId !== null,
+            'routePrefix' => $this->routePrefix(),
+            'source' => $source,
+            'share' => $share,
             'listFilters' => $this->listFilters($request),
             // Only what is already known (no scan while the page renders); null = unknown, the page asks afterwards.
             'cleanupStatus' => Cache::get($this->cleanupStatusKey()),
         ]);
+    }
+
+    /**
+     * The Media a form may pick from its library (JSON): ready ones of one type, an admin from the whole tenant, a teacher from
+     * their own and what was shared with them. Newest first, 30 at most; `keyword` narrows by name.
+     */
+    public function picker(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'type' => ['required', 'string', 'in:video,audio,document'],
+            'keyword' => ['nullable', 'string', 'max:100'],
+        ]);
+        $customerId = $this->customerId();
+        $teacherId = $this->teacherId();
+        $keyword = trim((string) ($validated['keyword'] ?? ''));
+
+        $rows = $this->mediaQuery($customerId, $validated['type'], $keyword !== '' ? $keyword : null, null, null, [], $teacherId)
+            ->where('media_files.status', 'ready')
+            ->orderByDesc('media_files.created_at')->orderByDesc('media_files.id')
+            ->limit(30)->get();
+
+        return response()->json(['items' => $rows->map(fn (object $row): array => [
+            'id' => (int) $row->id,
+            'name' => (string) $row->display_name,
+            'file' => (string) $row->original_name,
+            'size' => number_format(((int) $row->file_size_bytes) / 1024, 1).' KB',
+            'note' => (string) ($row->share_note ?? ''),
+            'source' => $teacherId !== null && (int) $row->uploaded_by !== $teacherId
+                ? __('lf.LF_media_source_shared_by', ['name' => $row->uploaded_by_name ?? '—'])
+                : ($teacherId !== null ? __('lf.LF_media_source_mine') : (string) ($row->uploaded_by_name ?? '—')),
+        ])->values()->all()]);
     }
 
     public function destroy(Request $request, int $id): RedirectResponse|JsonResponse
@@ -314,6 +397,8 @@ class MediaFileController extends Controller
             'keyword' => (string) $request->input('keyword', ''),
             'owner_type' => (string) $request->input('owner_type', ''),
             'usage_status' => (string) $request->input('usage_status', ''),
+            'source' => (string) $request->input('source', ''),
+            'share' => (string) $request->input('share', ''),
             'page' => (string) $request->input('page', ''),
         ], static fn (string $value): bool => $value !== '');
         foreach (array_slice((array) $request->input('owner_refs', []), 0, 100) as $index => $ref) {
@@ -331,6 +416,14 @@ class MediaFileController extends Controller
             'media_ids' => ['required', 'array', 'min:1', 'max:100'],
             'media_ids.*' => ['required', 'integer', 'distinct'],
         ]);
+
+        $teacherId = $this->teacherId();
+        if ($teacherId !== null) {
+            // A teacher deletes their own Media only (and only when nothing uses it: the service refuses otherwise).
+            $own = DB::table('media_files')->where('customer_id', $this->customerId())->where('uploaded_by', $teacherId)
+                ->whereIn('id', $validated['media_ids'])->count();
+            abort_if($own !== count($validated['media_ids']), 403);
+        }
 
         try {
             $deletedCount = $this->mediaService->deleteUnusedMedia(
@@ -353,13 +446,28 @@ class MediaFileController extends Controller
         ));
     }
 
+    /** Subquery: the Media has an active share (of a kind, when given). */
+    private function activeShares(int $customerId, ?string $granteeType = null): \Closure
+    {
+        return function ($query) use ($customerId, $granteeType): void {
+            $query->selectRaw('1')->from('media_file_shares as active_shares')
+                ->whereColumn('active_shares.media_file_id', 'media_files.id')
+                ->where('active_shares.customer_id', $customerId)
+                ->whereNull('active_shares.revoked_at')
+                ->when($granteeType !== null, fn ($q) => $q->where('active_shares.grantee_type', $granteeType));
+        };
+    }
+
     private function mediaQuery(
         int $customerId,
         ?string $fileType,
         ?string $keyword,
         ?string $ownerType,
         ?string $usageStatus,
-        array $ownerRefs = []
+        array $ownerRefs = [],
+        ?int $teacherId = null,
+        ?string $source = null,
+        ?string $share = null
     ) {
         $usageCounts = DB::table('media_file_usages')
             ->where('customer_id', $customerId)
@@ -377,6 +485,15 @@ class MediaFileController extends Controller
             })
             ->where('media_files.customer_id', $customerId)
             ->where('media_files.status', '!=', 'deleted')
+            ->when($teacherId !== null, fn ($query) => $query->whereIn('media_files.id', $this->shares->visibleToTeacher($customerId, $teacherId)->select('media_files.id')))
+            ->when($teacherId !== null && $source === 'mine', fn ($query) => $query->where('media_files.uploaded_by', $teacherId))
+            ->when($teacherId !== null && $source === 'shared', fn ($query) => $query->where('media_files.uploaded_by', '!=', $teacherId))
+            ->when($teacherId !== null && in_array($source, ['mine_private', 'mine_shared'], true), fn ($query) => $query->where('media_files.uploaded_by', $teacherId))
+            ->when($source === 'mine_private', fn ($query) => $query->whereNotExists($this->activeShares($customerId)))
+            ->when($source === 'mine_shared', fn ($query) => $query->whereExists($this->activeShares($customerId)))
+            ->when($share === 'private', fn ($query) => $query->whereNotExists($this->activeShares($customerId)))
+            ->when($share === 'all_teachers', fn ($query) => $query->whereExists($this->activeShares($customerId, 'role')))
+            ->when($share === 'teachers', fn ($query) => $query->whereExists($this->activeShares($customerId, 'user'))->whereNotExists($this->activeShares($customerId, 'role')))
             ->when($fileType, fn ($query) => $query->where('media_files.file_type', $fileType))
             ->when($keyword, function ($query) use ($keyword): void {
                 $query->where(function ($keywordQuery) use ($keyword): void {
@@ -410,11 +527,15 @@ class MediaFileController extends Controller
             ->select([
                 'media_files.*',
                 'users.name as uploaded_by_name',
+                'users.email as uploaded_by_email',
                 DB::raw('COALESCE(usage_counts.usage_count, 0) as usage_count'),
+                DB::raw($teacherId !== null
+                    ? '(SELECT COUNT(*) FROM media_file_usages mine WHERE mine.customer_id = media_files.customer_id AND mine.media_file_id = media_files.id AND mine.status = \'active\' AND mine.created_by = '.(int) $teacherId.') as my_usage_count'
+                    : '0 as my_usage_count'),
             ]);
     }
 
-    private function usageGroups(int $customerId, Collection $mediaFileIds): Collection
+    private function usageGroups(int $customerId, Collection $mediaFileIds, ?int $onlyCreatedBy = null): Collection
     {
         $ids = $mediaFileIds->map(fn ($id): int => (int) $id)->all();
 
@@ -426,6 +547,8 @@ class MediaFileController extends Controller
             ->where('customer_id', $customerId)
             ->whereIn('media_file_id', $ids)
             ->where('status', 'active')
+            // A teacher is told where they use a Media, never what other people built with it.
+            ->when($onlyCreatedBy !== null, fn ($query) => $query->where('created_by', $onlyCreatedBy))
             ->orderBy('owner_type')
             ->orderBy('usage_type')
             ->get();
@@ -541,11 +664,12 @@ class MediaFileController extends Controller
 
         foreach ($usages as $usage) {
             $id = (int) $usage->owner_id;
+            $prefix = $this->routePrefix();
             $url = match ($usage->owner_type) {
-                'course_template' => route('admin.course-templates.edit', ['id' => $id]),
-                'course_cohort' => route('admin.course-cohorts.show', ['id' => $id]),
-                'course_product' => route('admin.course-products.edit', ['id' => $id]),
-                'course_category' => route('admin.course-categories.index'),
+                'course_template' => route($prefix.'.course-templates.edit', ['id' => $id]),
+                'course_cohort' => $prefix === 'admin' ? route('admin.course-cohorts.show', ['id' => $id]) : null,
+                'course_product' => $prefix === 'admin' ? route('admin.course-products.edit', ['id' => $id]) : null,
+                'course_category' => route($prefix.'.course-categories.index'),
                 default => null,
             };
 
@@ -558,7 +682,7 @@ class MediaFileController extends Controller
             $versionRow = DB::table('core_course_template_versions')
                 ->where('customer_id', $customerId)->where('id', (int) $usage->owner_id)->first(['id', 'template_id']);
 
-            if ($versionRow !== null) {
+            if ($versionRow !== null && $this->routePrefix() === 'admin') {
                 $urls['course_template_version:'.$versionRow->id] = route('admin.course-templates.versions.show', ['templateId' => $versionRow->template_id, 'versionId' => $versionRow->id]);
             }
         }
@@ -572,7 +696,9 @@ class MediaFileController extends Controller
                 ->get(['va.id', 'v.id as version_id', 'v.template_id']);
 
             foreach ($versions as $row) {
-                $urls['course_version_activity:'.$row->id] = route('admin.course-templates.versions.show', ['templateId' => $row->template_id, 'versionId' => $row->version_id]);
+                if ($this->routePrefix() === 'admin') {
+                    $urls['course_version_activity:'.$row->id] = route('admin.course-templates.versions.show', ['templateId' => $row->template_id, 'versionId' => $row->version_id]);
+                }
             }
         }
 
@@ -584,7 +710,7 @@ class MediaFileController extends Controller
                 ->get(['a.id', 'a.template_id']);
 
             foreach ($rows as $row) {
-                $urls['course_activity:'.$row->id] = route('admin.course-templates.edit', ['id' => $row->template_id, 'tab' => 'structure']);
+                $urls['course_activity:'.$row->id] = route($this->routePrefix().'.course-templates.edit', ['id' => $row->template_id, 'tab' => 'structure']);
             }
         }
 
@@ -692,11 +818,12 @@ class MediaFileController extends Controller
         };
     }
 
-    private function tabCounts(int $customerId): array
+    private function tabCounts(int $customerId, ?int $teacherId = null): array
     {
         $counts = DB::table('media_files')
             ->where('customer_id', $customerId)
             ->where('status', '!=', 'deleted')
+            ->when($teacherId !== null, fn ($query) => $query->whereIn('id', $this->shares->visibleToTeacher($customerId, $teacherId)->select('media_files.id')))
             ->select('file_type', DB::raw('COUNT(*) as aggregate'))
             ->groupBy('file_type')
             ->pluck('aggregate', 'file_type')

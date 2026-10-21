@@ -5,7 +5,7 @@
   "default_locale": "vi",
   "fallback_locale": "en",
   "source_of_truth": "docs/LF-INDEX.md",
-  "document_count": 309,
+  "document_count": 311,
   "documents": [
     {
       "path": "LF-Core-Overview.md",
@@ -1154,6 +1154,50 @@
         "adr/ADR-0019-Media-Structured-Extraction-Boundary.md",
         "platform/LF-Media-Read-Contract.md",
         "database/ai/ai_model_runs.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "adr/ADR-0021-Media-Sharing-Within-Tenant.md",
+      "title": "ADR-0021 — Media Sharing Within Tenant",
+      "area": "adr",
+      "document_type": "adr",
+      "document_status": "Approved",
+      "implementation_status": "Partial",
+      "metadata_complete": true,
+      "authority": "architecture_decision",
+      "canonical_for": [],
+      "topics": [
+        "media",
+        "sharing",
+        "permissions",
+        "tenant"
+      ],
+      "keywords": {
+        "vi": [
+          "chia sẻ media",
+          "quyền thư viện media",
+          "thu hồi chia sẻ",
+          "nhóm vai trò giáo viên"
+        ],
+        "en": [
+          "media sharing",
+          "media library permissions",
+          "revoke share",
+          "teacher role group"
+        ]
+      },
+      "identifiers": [
+        "media_file_shares",
+        "grantee_type"
+      ],
+      "related_documents": [
+        "adr/ADR-0004-Media-Foundation.md",
+        "adr/ADR-0007-SaaS-Tenant-Foundation.md",
+        "adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md",
+        "database/media/media_file_shares.md",
+        "quality/LF-Media-Sharing-Proposal.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"
@@ -6120,6 +6164,47 @@
         "platform/LF-Media-Processing-Contract.md",
         "database/media/README.md",
         "database/media/media_processing_jobs.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "database/media/media_file_shares.md",
+      "title": "Table: media_file_shares",
+      "area": "database",
+      "document_type": "table_schema",
+      "document_status": "Approved",
+      "implementation_status": "Implemented",
+      "metadata_complete": true,
+      "authority": "database",
+      "canonical_for": [],
+      "topics": [
+        "media",
+        "file",
+        "sharing"
+      ],
+      "keywords": {
+        "vi": [
+          "lược đồ bảng",
+          "tài liệu cơ sở dữ liệu",
+          "chia sẻ media",
+          "người nhận",
+          "nhóm vai trò"
+        ],
+        "en": [
+          "table schema",
+          "database documentation",
+          "media sharing",
+          "grantee",
+          "role group"
+        ]
+      },
+      "identifiers": [
+        "media_file_shares"
+      ],
+      "related_documents": [
+        "database/media/README.md",
+        "adr/ADR-0021-Media-Sharing-Within-Tenant.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"

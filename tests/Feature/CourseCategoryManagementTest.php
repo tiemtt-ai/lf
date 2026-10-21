@@ -30,7 +30,7 @@ class CourseCategoryManagementTest extends TestCase
         Storage::fake('media_local');
     }
 
-    public function test_admin_and_teacher_can_view_their_tenant_category_list(): void
+    public function test_admin_manages_and_teacher_only_reads_the_tenant_category_list(): void
     {
         $customerId = $this->createTenant();
         $otherCustomerId = $this->createTenant('tenant-b');
@@ -101,26 +101,19 @@ class CourseCategoryManagementTest extends TestCase
             $css
         );
 
+        // A teacher only reads: every category of the tenant (to know what to pick in a Template), nothing of another tenant.
         $teacherResponse = $this->actingAs($teacher)
             ->get('https://tenant-a.localhost/teacher/course-categories')
             ->assertOk()
             ->assertSeeText('Teacher Category')
+            ->assertSeeText('Admin Category')
             ->assertSeeText(__('lf.LF_navigation_menu_common_product_categories'))
             ->assertDontSeeText(__('lf.LF_course_category_common_thumbnail_image'))
-            ->assertDontSeeText('Admin Category')
             ->assertDontSeeText('Private Tenant Category');
-        $this->assertSame(
-            __('lf.table_no'),
-            $this->tableHeaderText($teacherResponse->getContent(), 2)
-        );
-        $this->assertSame(
-            __('lf.LF_course_category_common_name'),
-            $this->tableHeaderText($teacherResponse->getContent(), 3)
-        );
-        $this->assertSame(
-            __('lf.LF_course_category_common_parent'),
-            $this->tableHeaderText($teacherResponse->getContent(), 4)
-        );
+        $this->assertSame(__('lf.table_no'), $this->tableHeaderText($teacherResponse->getContent(), 1));
+        $this->assertSame(__('lf.LF_course_category_common_name'), $this->tableHeaderText($teacherResponse->getContent(), 2));
+        $this->assertSame(__('lf.LF_course_category_common_parent'), $this->tableHeaderText($teacherResponse->getContent(), 3));
+        $this->assertSame(0, $this->htmlElementCount($teacherResponse->getContent(), '//input[@type="checkbox"] | //button[@data-ui-bulk-delete] | //button[@data-ui-dialog-form-open] | //button[@role="switch"]'), 'no controls to change anything');
     }
 
     public function test_category_index_shows_tenant_scoped_product_count_and_status_switch(): void
@@ -296,23 +289,26 @@ class CourseCategoryManagementTest extends TestCase
             ->assertOk();
     }
 
-    public function test_teacher_can_delete_only_their_own_empty_category_and_guests_cannot_delete(): void
+    public function test_a_teacher_cannot_change_categories_in_any_way(): void
     {
         $customerId = $this->createTenant();
         $teacher = $this->createUser($customerId, 'teacher');
-        $admin = $this->createUser($customerId, 'customer_admin');
         $own = $this->createCategory($customerId, 'Own', 'own', createdBy: $teacher->id);
-        $others = $this->createCategory($customerId, 'Others', 'others', createdBy: $admin->id);
+        $base = 'https://tenant-a.localhost/teacher/course-categories';
+        $this->actingAs($teacher);
 
-        $this->deleteJson("https://tenant-a.localhost/teacher/course-categories/{$own}")->assertUnauthorized();
-        $this->actingAs($teacher)
-            ->deleteJson("https://tenant-a.localhost/teacher/course-categories/{$others}")
-            ->assertForbidden();
-        $this->assertNotNull(DB::table('core_course_categories')->where('id', $others)->first());
-        $this->actingAs($teacher)
-            ->deleteJson("https://tenant-a.localhost/teacher/course-categories/{$own}")
-            ->assertOk();
-        $this->assertNull(DB::table('core_course_categories')->where('id', $own)->first());
+        $notAllowed = fn ($response) => $this->assertContains($response->getStatusCode(), [403, 404, 405]);
+        $notAllowed($this->postJson($base, $this->validCategoryData(['name' => 'Mine', 'slug' => 'mine'])));
+        $notAllowed($this->getJson("{$base}/create"));
+        $notAllowed($this->getJson("{$base}/{$own}/edit"));
+        $notAllowed($this->putJson("{$base}/{$own}", $this->validCategoryData(['name' => 'Renamed', 'slug' => 'own'])));
+        $notAllowed($this->postJson("{$base}/{$own}/toggle-status"));
+        $notAllowed($this->deleteJson("{$base}/{$own}"));
+        $notAllowed($this->deleteJson($base, ['ids' => [$own]]));
+
+        $this->assertSame('Own', DB::table('core_course_categories')->where('id', $own)->value('name'));
+        $this->assertSame(1, DB::table('core_course_categories')->count(), 'nothing was created or deleted');
+        $this->assertSame('active', DB::table('core_course_categories')->where('id', $own)->value('status'));
     }
 
     public function test_non_json_delete_redirects_with_a_message_or_the_reason(): void
@@ -565,9 +561,9 @@ class CourseCategoryManagementTest extends TestCase
                 ->withHeader('X-Requested-With', 'XMLHttpRequest')
                 ->get('https://tenant-a.localhost/admin/course-categories/create')
                 ->assertOk(),
-            'edit' => $this->actingAs($teacher)
+            'edit' => $this->actingAs($admin)
                 ->withHeader('X-Requested-With', 'XMLHttpRequest')
-                ->get("https://tenant-a.localhost/teacher/course-categories/{$categoryId}/edit")
+                ->get("https://tenant-a.localhost/admin/course-categories/{$categoryId}/edit")
                 ->assertOk(),
         ];
 
@@ -623,7 +619,7 @@ class CourseCategoryManagementTest extends TestCase
             'the popup submit button reads Xác nhận'
         );
         $this->assertStringContainsString(
-            "/teacher/course-categories/{$categoryId}",
+            "/admin/course-categories/{$categoryId}",
             $fragments['edit']->getContent()
         );
     }
@@ -728,29 +724,6 @@ class CourseCategoryManagementTest extends TestCase
             'meta_title' => 'Legacy SEO Title',
             'meta_description' => 'Legacy SEO description',
             'meta_keywords' => 'legacy,seo',
-        ]);
-    }
-
-    public function test_teacher_can_create_a_child_category(): void
-    {
-        $customerId = $this->createTenant();
-        $teacher = $this->createUser($customerId, 'teacher');
-        $parentId = $this->createCategory($customerId, 'Korean', 'korean');
-
-        $this->actingAs($teacher)
-            ->post('https://tenant-a.localhost/teacher/course-categories', $this->validCategoryData([
-                'parent_id' => $parentId,
-                'name' => 'TOPIK',
-                'slug' => 'topik',
-            ]))
-            ->assertRedirect('https://tenant-a.localhost/teacher/course-categories');
-
-        $this->assertDatabaseHas('core_course_categories', [
-            'customer_id' => $customerId,
-            'parent_id' => $parentId,
-            'name' => 'TOPIK',
-            'slug' => 'topik',
-            'created_by' => $teacher->id,
         ]);
     }
 
@@ -905,76 +878,6 @@ class CourseCategoryManagementTest extends TestCase
                 ->count()
         );
         Storage::disk('media_local')->assertExists($mediaFile->storage_key);
-    }
-
-    public function test_teacher_can_upload_images_for_authorized_category(): void
-    {
-        $customerId = $this->createTenant();
-        $teacher = $this->createUser($customerId, 'teacher');
-        $categoryId = $this->createCategory(
-            $customerId,
-            'Teacher Category',
-            'teacher-category',
-            createdBy: $teacher->id
-        );
-
-        $this->actingAs($teacher)
-            ->put(
-                "https://tenant-a.localhost/teacher/course-categories/{$categoryId}",
-                $this->validCategoryData([
-                    'name' => 'Teacher Category',
-                    'slug' => 'teacher-category',
-                    'thumbnail_image_file' => UploadedFile::fake()->image(
-                        'teacher-thumbnail.png',
-                        120,
-                        120
-                    ),
-                    'banner_image_file' => UploadedFile::fake()->image(
-                        'teacher-banner.jpg',
-                        1200,
-                        320
-                    ),
-                ])
-            )
-            ->assertRedirect('https://tenant-a.localhost/teacher/course-categories');
-
-        $this->assertActiveMediaUsage($customerId, $categoryId, 'thumbnail');
-        $this->assertActiveMediaUsage($customerId, $categoryId, 'banner_image');
-    }
-
-    public function test_unauthorized_teacher_receives_403_for_category_image_upload(): void
-    {
-        $customerId = $this->createTenant();
-        $owner = $this->createUser($customerId, 'teacher');
-        $teacher = $this->createUser($customerId, 'teacher');
-        $categoryId = $this->createCategory(
-            $customerId,
-            'Owner Category',
-            'owner-category',
-            createdBy: $owner->id
-        );
-
-        $this->actingAs($teacher)
-            ->put(
-                "https://tenant-a.localhost/teacher/course-categories/{$categoryId}",
-                $this->validCategoryData([
-                    'name' => 'Owner Category',
-                    'slug' => 'owner-category',
-                    'thumbnail_image_file' => UploadedFile::fake()->image(
-                        'blocked-thumbnail.png',
-                        120,
-                        120
-                    ),
-                ])
-            )
-            ->assertForbidden();
-
-        $this->assertDatabaseMissing('media_file_usages', [
-            'customer_id' => $customerId,
-            'owner_type' => 'course_category',
-            'owner_id' => $categoryId,
-            'usage_type' => 'thumbnail',
-        ]);
     }
 
     public function test_category_validation_rejects_invalid_data(): void

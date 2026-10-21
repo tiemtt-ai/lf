@@ -52,10 +52,4 @@
             @endif
         @endforeach
     </nav>
-    <div class="admin-sidebar__footer">
-        <div class="admin-user">
-            <span class="admin-avatar" aria-hidden="true">{{ $initials }}</span>
-            <span class="admin-user__text">{{ $portalUser->name }}<small>{{ $navigationLabel }}</small></span>
-        </div>
-    </div>
 </aside>

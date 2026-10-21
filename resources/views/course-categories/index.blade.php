@@ -15,6 +15,8 @@
      data-msg-session-expired="{{ __('lf.LF_course_category_dialog_session_expired') }}">
     @php
         $hasActiveFilters = $keyword !== '' || $status;
+        // Only admins manage categories; a teacher reads the list (and picks a category in the Template form).
+        $canManage = str_starts_with($routePrefix, 'admin');
     @endphp
 
     <x-ui-list-toasts />
@@ -103,6 +105,7 @@
             </span>
         </form>
 
+    @if ($canManage)
     <x-ui-list-toolbar :url="route($routePrefix.'.bulk-destroy')" name="ids[]"
         :label="__('lf.LF_course_category_bulk_delete')"
         :confirm-title="__('lf.LF_course_category_bulk_delete_title')" :confirm-message="__('lf.LF_course_category_bulk_delete_confirm', ['count' => ':count'])"
@@ -115,30 +118,33 @@
         </button>
             </x-slot:create>
         </x-ui-list-toolbar>
+    @endif
         </div>
 
     <div class="mk-table-scroll" data-ui-live-region="table" role="region" aria-label="{{ __('lf.LF_course_category_common_title') }}" tabindex="0">
         <table aria-labelledby="admin-page-title">
             <colgroup>
-                <col class="ui-col-check">
+                @if ($canManage)<col class="ui-col-check">@endif
                 <col class="mk-col-sequence">
                 <col>
                 <col class="mk-col-parent">
                 <col class="mk-col-count">
                 <col class="mk-col-status">
-                <col class="mk-col-action">
+                @if ($canManage)<col class="mk-col-action">@endif
             </colgroup>
             <thead>
             <tr>
+                @if ($canManage)
                 <th scope="col" class="ui-check-cell">
                     <input type="checkbox" class="ui-bulk-box" data-ui-bulk-select-all aria-label="{{ __('lf.LF_course_category_select_all') }}">
                 </th>
+                @endif
                 <th scope="col" class="mk-sequence">{{ __('lf.table_no') }}</th>
                 <th scope="col" class="mk-text-cell">{{ __('lf.LF_course_category_common_name') }}</th>
                 <th scope="col" class="mk-text-cell">{{ __('lf.LF_course_category_common_parent') }}</th>
                 <th scope="col" class="mk-count-cell">{{ __('lf.LF_course_category_index_product_count') }}</th>
                 <th scope="col" class="ux-action-cell">{{ __('lf.LF_course_category_common_status') }}</th>
-                <th scope="col" class="ux-action-cell">{{ __('lf.table_actions') }}</th>
+                @if ($canManage)<th scope="col" class="ux-action-cell">{{ __('lf.table_actions') }}</th>@endif
             </tr>
             </thead>
             <tbody>
@@ -152,6 +158,7 @@
                     };
                 @endphp
                 <tr>
+                    @if ($canManage)
                     <td class="ui-check-cell" data-label="{{ __('lf.LF_course_category_select') }}">
                         @if ($deleteBlocker)
                             <span class="ui-bulk-lock" tabindex="0" data-tooltip="{{ $deleteBlocker }}" data-tooltip-align="start">
@@ -162,6 +169,7 @@
                                    aria-label="{{ __('lf.LF_course_category_select') }}: {{ $category->name }}">
                         @endif
                     </td>
+                    @endif
                     <td class="mk-sequence" data-label="{{ __('lf.table_no') }}">
                         {{ $categories->firstItem() + $loop->index }}
                     </td>
@@ -186,6 +194,7 @@
                         {{ number_format((int) $category->product_count) }}
                     </td>
                     <td class="ux-action-cell" data-label="{{ __('lf.LF_course_category_common_status') }}">
+                        @if ($canManage)
                         <form method="POST" action="{{ route($routePrefix.'.toggle-status', $category->id) }}">
                             @csrf
                             <button type="submit" class="ux-row-switch cursor-interaction" role="switch"
@@ -193,7 +202,13 @@
                                     aria-label="{{ __('lf.LF_course_category_action_toggle_status') }}: {{ $category->name }}"
                                     title="{{ $category->status === 'active' ? __('lf.LF_common_status_common_active') : __('lf.LF_common_status_common_inactive') }}"></button>
                         </form>
+                        @else
+                            <span @class(['ui-status', 'ui-status--active' => $category->status === 'active', 'ui-status--archived' => $category->status !== 'active'])>
+                                {{ $category->status === 'active' ? __('lf.LF_common_status_common_active') : __('lf.LF_common_status_common_inactive') }}
+                            </span>
+                        @endif
                     </td>
+                    @if ($canManage)
                     <td class="ux-action-cell" data-label="{{ __('lf.table_actions') }}">
                         <button type="button" class="ux-row-edit cursor-interaction" data-ui-dialog-form-open
                                 data-url="{{ route($routePrefix.'.edit', $category->id) }}" aria-haspopup="dialog"
@@ -202,19 +217,20 @@
                         </button>
 
                     </td>
+                    @endif
                 </tr>
             @empty
                 <tr class="mk-empty-row">
-                    <td class="mk-empty" colspan="7">
+                    <td class="mk-empty" colspan="{{ $canManage ? 7 : 5 }}">
                         <div role="status">
                             <strong>{{ $hasActiveFilters ? __('lf.LF_course_category_filter_empty') : __('lf.LF_course_category_common_empty') }}</strong>
                             <p class="ui-caption">{{ $hasActiveFilters ? __('lf.LF_course_category_filter_empty_help') : __('lf.LF_course_category_empty_help') }}</p>
-                            @unless ($hasActiveFilters)
+                            @if ($canManage && ! $hasActiveFilters)
                                 <button type="button" class="ui-button ui-button--outline cursor-interaction"
                                         data-ui-dialog-form-open data-url="{{ route($routePrefix.'.create') }}" aria-haspopup="dialog">
                                     {{ __('lf.LF_course_category_common_create_short') }}
                                 </button>
-                            @endunless
+                            @endif
                         </div>
                     </td>
                 </tr>

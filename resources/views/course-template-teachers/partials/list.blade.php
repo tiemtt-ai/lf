@@ -1,3 +1,7 @@
+@php
+    // Only admins assign teachers; a teacher reads who is assigned.
+    $canAssign = str_starts_with($teacherRoutePrefix, 'admin');
+@endphp
 <section id="course-template-teachers"
          class="admin-card admin-form-card course-template-section-card"
          aria-labelledby="course-template-teachers-title">
@@ -8,10 +12,12 @@
             </h2>
             <p>{{ __('lf.LF_course_template_teacher_common_list_help') }}</p>
         </div>
+        @if ($canAssign)
         <a href="{{ route($teacherRoutePrefix.'.create', $template->id) }}"
            class="btn admin-primary-outline-action course-template-teacher-add-action">
             {{ __('lf.LF_course_template_teacher_common_add_action') }}
         </a>
+        @endif
     </header>
 
     @if ($teacherAssignments->isEmpty())
@@ -41,7 +47,7 @@
                     <th>{{ __('lf.LF_course_template_teacher_common_email') }}</th>
                     <th>{{ __('lf.LF_course_template_teacher_common_role') }}</th>
                     <th>{{ __('lf.LF_course_template_teacher_common_status') }}</th>
-                    <th>{{ __('lf.table_actions') }}</th>
+                    @if ($canAssign)<th>{{ __('lf.table_actions') }}</th>@endif
                 </tr>
                 </thead>
                 <tbody>
@@ -61,6 +67,7 @@
                                 {{ __('lf.LF_course_template_teacher_common_status_'.$assignment->status) }}
                             </span>
                         </td>
+                        @if ($canAssign)
                         <td>
                             <x-admin-action-menu :label="__('lf.table_actions').': '.$assignment->teacher_name">
                                 <a class="admin-table-action-link admin-text-action" href="{{ route(
@@ -120,6 +127,7 @@
                                 </x-modal>
                             @endif
                         </td>
+                        @endif
                     </tr>
                 @endforeach
                 </tbody>

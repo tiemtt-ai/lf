@@ -25157,6 +25157,283 @@
       "views": []
     },
     {
+      "name": "media_file_shares",
+      "documentation": "database/media/media_file_shares.md",
+      "implementation_status": "implemented",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": true,
+          "generated": null
+        },
+        {
+          "name": "customer_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "media_file_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "grantee_type",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "grantee_user_id",
+          "type": "bigint",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "grantee_role",
+          "type": "varchar",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "grantee_key",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "shared_by",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "revoked_by",
+          "type": "bigint",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "revoked_at",
+          "type": "timestamp",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "active_flag",
+          "type": "tinyint",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": {
+            "type": "stored",
+            "expression": "case when `revoked_at` is null then 1 end"
+          }
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "grantee_user_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "media_file_id",
+            "customer_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "revoked_by"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "shared_by"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "media_file_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "grantee_role",
+            "revoked_at"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "grantee_user_id",
+            "revoked_at"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "media_file_id",
+            "grantee_key",
+            "active_flag"
+          ],
+          "unique": true,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "id",
+            "customer_id"
+          ],
+          "unique": true,
+          "type": "btree"
+        }
+      ],
+      "foreign_keys": [
+        {
+          "columns": [
+            "customer_id"
+          ],
+          "foreign_table": "saas_customers",
+          "foreign_columns": [
+            "id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "grantee_user_id"
+          ],
+          "foreign_table": "users",
+          "foreign_columns": [
+            "id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "media_file_id",
+            "customer_id"
+          ],
+          "foreign_table": "media_files",
+          "foreign_columns": [
+            "id",
+            "customer_id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "revoked_by"
+          ],
+          "foreign_table": "users",
+          "foreign_columns": [
+            "id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "shared_by"
+          ],
+          "foreign_table": "users",
+          "foreign_columns": [
+            "id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        }
+      ],
+      "checks": [
+        {
+          "expression": "`grantee_type` in ('user','role')"
+        },
+        {
+          "expression": "`grantee_type` = 'user' and `grantee_user_id` is not null and `grantee_role` is null or `grantee_type` = 'role' and `grantee_role` is not null and `grantee_user_id` is null"
+        },
+        {
+          "expression": "`grantee_role` is null or `grantee_role` = 'teacher'"
+        }
+      ],
+      "triggers": [],
+      "views": []
+    },
+    {
       "name": "media_file_usages",
       "documentation": "database/media/media_file_usages.md",
       "implementation_status": "implemented",
@@ -25593,6 +25870,15 @@
           "type": "varchar",
           "nullable": false,
           "default": "'private'",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "share_note",
+          "type": "varchar",
+          "nullable": true,
+          "default": "NULL",
           "unsigned": false,
           "auto_increment": false,
           "generated": null

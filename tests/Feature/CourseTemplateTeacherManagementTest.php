@@ -66,6 +66,7 @@ class CourseTemplateTeacherManagementTest extends TestCase
             [$admin, 'admin'],
             [$viewer, 'teacher'],
         ] as [$user, $area]) {
+            $canAssign = $area === 'admin';
             $response = $this->actingAs($user)
                 ->get(
                     "https://tenant-a.localhost/{$area}/course-templates/"
@@ -73,27 +74,27 @@ class CourseTemplateTeacherManagementTest extends TestCase
                 )
                 ->assertOk()
                 ->assertSeeText('Nhóm phụ trách Template')
-                ->assertSeeText('+ Phân công giáo viên')
                 ->assertSeeText('Assigned Teacher')
                 ->assertSeeText($assignedTeacher->email)
                 ->assertSeeText('Chủ trì nội dung')
-                ->assertSeeText(
-                    'Bạn có chắc chắn muốn xóa giáo viên khỏi Template này không?'
-                )
-                ->assertDontSeeText('Private Teacher')
-                ->assertSee(
-                    $this->assignmentCollectionUrl(
-                        $area,
-                        $templateId
-                    )."/{$assignmentId}/edit",
-                    false
-                );
+                ->assertDontSeeText('Private Teacher');
+
+            // Only admins can assign: a teacher reads the list without any control to change it.
+            if ($canAssign) {
+                $response->assertSeeText('+ Phân công giáo viên')
+                    ->assertSeeText('Bạn có chắc chắn muốn xóa giáo viên khỏi Template này không?')
+                    ->assertSee($this->assignmentCollectionUrl($area, $templateId)."/{$assignmentId}/edit", false);
+            } else {
+                $response->assertDontSeeText('+ Phân công giáo viên')
+                    ->assertDontSeeText('Bạn có chắc chắn muốn xóa giáo viên khỏi Template này không?')
+                    ->assertDontSee($this->assignmentCollectionUrl($area, $templateId)."/{$assignmentId}/edit", false);
+            }
 
             $document = new \DOMDocument;
             @$document->loadHTML($response->getContent());
             $xpath = new \DOMXPath($document);
 
-            $this->assertSame(5, $xpath->query(
+            $this->assertSame($canAssign ? 5 : 4, $xpath->query(
                 '//section[@id="course-template-teachers"]//table/thead/tr/th'
             )->length);
             $this->assertSame(0, $xpath->query(
@@ -158,36 +159,26 @@ class CourseTemplateTeacherManagementTest extends TestCase
         ]);
     }
 
-    public function test_teacher_can_assign_teacher_inside_own_tenant(): void
+    public function test_a_teacher_cannot_assign_or_change_assignments_even_on_their_own_template(): void
     {
         $customerId = $this->createTenant();
         $actor = $this->createUser($customerId, 'teacher', 'Actor Teacher');
-        $assignedTeacher = $this->createUser(
-            $customerId,
-            'teacher',
-            'Peer Teacher'
-        );
-        $templateId = $this->createTemplate(
-            $customerId,
-            'Teacher Template',
-            $actor->id
-        );
+        $peer = $this->createUser($customerId, 'teacher', 'Peer Teacher');
+        $templateId = $this->createTemplate($customerId, 'Teacher Template', $actor->id);
+        $assignmentId = $this->createAssignment($customerId, $templateId, $peer->id, 'primary');
+        $base = $this->assignmentCollectionUrl('teacher', $templateId);
+        $this->actingAs($actor);
 
-        $this->actingAs($actor)
-            ->post(
-                $this->assignmentCollectionUrl('teacher', $templateId),
-                $this->validAssignmentData([
-                    'teacher_id' => $assignedTeacher->id,
-                ])
-            )
-            ->assertRedirect();
+        $notAllowed = fn ($response) => $this->assertContains($response->getStatusCode(), [403, 404, 405]);
+        $notAllowed($this->postJson($base, $this->validAssignmentData(['teacher_id' => $peer->id])));
+        $notAllowed($this->getJson("{$base}/create"));
+        $notAllowed($this->getJson("{$base}/{$assignmentId}/edit"));
+        $notAllowed($this->putJson("{$base}/{$assignmentId}", $this->validAssignmentData(['teacher_id' => $peer->id, 'role' => 'assistant'])));
+        $notAllowed($this->deleteJson("{$base}/{$assignmentId}"));
 
-        $this->assertDatabaseHas('core_course_template_teachers', [
-            'customer_id' => $customerId,
-            'template_id' => $templateId,
-            'teacher_id' => $assignedTeacher->id,
-            'assigned_by' => $actor->id,
-        ]);
+        $this->assertSame(1, DB::table('core_course_template_teachers')->where('template_id', $templateId)->count());
+        $this->assertSame('active', DB::table('core_course_template_teachers')->where('id', $assignmentId)->value('status'));
+        $this->assertSame('primary', DB::table('core_course_template_teachers')->where('id', $assignmentId)->value('role'));
     }
 
     public function test_assignment_order_is_automatic_and_scoped_to_template(): void

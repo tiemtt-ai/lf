@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { showUiToast, hideUiToast, initUiKitToasts } from '../../resources/js/admin-ui-kit-controls.js';
+import { showUiToast, hideUiToast, initUiKitToasts, initUiKitToastEvents } from '../../resources/js/admin-ui-kit-controls.js';
 
 // Invariants: showing replaces the text and restarts one timer; the timer hides; a timeout of 0 stays until closed;
 // closing or hiding clears the pending timer; a toast that is already visible on load starts its timer.
@@ -68,4 +68,25 @@ test('a toast already visible on load (server flash) starts its timer', () => {
     assert.equal(t.text.textContent, 'Flash from the server');
     hideUiToast(t.node, t.deps);
     assert.equal(t.timers.size, 0);
+});
+
+test('a ui-toast-show event shows the matching toast, success by default and danger on request', () => {
+    const success = setup(); const danger = setup('0');
+    const listeners = new Map();
+    const doc = {
+        querySelector: selector => (selector.includes('flash') ? success.node : selector.includes('page-error') ? danger.node : null),
+        addEventListener: (type, fn) => listeners.set(type, fn),
+        removeEventListener: type => listeners.delete(type),
+    };
+    const stop = initUiKitToastEvents(doc, success.deps);
+    listeners.get('ui-toast-show')({ detail: { message: 'Saved' } });
+    assert.equal(success.text.textContent, 'Saved');
+    assert.equal(success.node.hidden, false);
+    listeners.get('ui-toast-show')({ detail: { kind: 'danger', message: 'No' } });
+    assert.equal(danger.text.textContent, 'No');
+    assert.equal(danger.node.hidden, false);
+    listeners.get('ui-toast-show')({ detail: { message: '' } });
+    assert.equal(success.text.textContent, 'Saved', 'an empty message shows nothing');
+    stop();
+    assert.equal(listeners.size, 0);
 });

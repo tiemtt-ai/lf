@@ -277,6 +277,7 @@
                 :remove-label="__('lf.LF_course_template_activity_media_remove_current')">
                 <x-upload-hint ui-kit :formats="['MP4', 'WEBM', 'MOV', 'AVI']" :max-size="\App\Support\UploadLimit::effectiveVideoKilobytes()" />
             </x-ui-media-slot>
+            <x-media-library-picker type="video" />
             @if (($currentMedia['type'] ?? null) === 'video' && ($currentMedia['state'] ?? '') === 'unavailable')
                 <span class="ui-field__hint">{{ __('lf.LF_course_template_activity_media_unavailable') }}</span>
             @endif
@@ -328,6 +329,7 @@
                 :remove-label="__('lf.LF_course_template_activity_media_remove_current')">
                 <x-upload-hint ui-kit :formats="['MP3', 'WAV', 'M4A', 'AAC', 'OGG']" />
             </x-ui-media-slot>
+            <x-media-library-picker type="audio" />
             @if (($currentMedia['type'] ?? null) === 'audio' && ($currentMedia['state'] ?? '') === 'unavailable')
                 <span class="ui-field__hint">{{ __('lf.LF_course_template_activity_media_unavailable') }}</span>
             @endif
@@ -366,6 +368,7 @@
                 :remove-label="__('lf.LF_course_template_activity_media_remove_current')">
                 <x-upload-hint ui-kit :formats="['PDF', 'DOC', 'DOCX', 'XLS', 'XLSX', 'PPT', 'PPTX', 'TXT']" />
             </x-ui-media-slot>
+            <x-media-library-picker type="document" />
             @if (($currentMedia['type'] ?? null) === 'document' && ($currentMedia['state'] ?? '') === 'unavailable')
                 <span class="ui-field__hint">{{ __('lf.LF_course_template_activity_media_unavailable') }}</span>
             @endif

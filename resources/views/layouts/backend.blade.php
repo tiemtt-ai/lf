@@ -58,6 +58,7 @@
                 ['label' => __('lf.LF_navigation_menu_common_product_categories'), 'route' => 'teacher.course-categories.index', 'active' => 'teacher.course-categories.*', 'visible' => true, 'icon' => 'folder'],
                 ['label' => __('lf.LF_navigation_menu_common_course_templates'), 'route' => 'teacher.course-templates.index', 'active' => 'teacher.course-templates.*', 'visible' => true, 'icon' => 'book-open'],
                 ['label' => __('lf.LF_navigation_menu_teacher_cohorts'), 'route' => 'teacher.cohorts.index', 'active' => 'teacher.cohorts.*', 'visible' => true, 'icon' => 'users'],
+                ['label' => __('lf.LF_navigation_menu_admin_media'), 'route' => 'teacher.media.index', 'active' => 'teacher.media.*', 'visible' => true, 'icon' => 'image'],
             ]
             : [
                 ['label' => __('lf.LF_navigation_menu_admin_dashboard'), 'route' => 'admin.dashboard', 'active' => 'admin.dashboard', 'visible' => true, 'icon' => 'home'],

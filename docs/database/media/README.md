@@ -50,6 +50,7 @@ mình.
 | Bảng | Mô tả |
 |------|------|
 | **media_file_usages** | Tham chiếu từ tài sản đến bản ghi của miền nghiệp vụ tiêu thụ |
+| [**media_file_shares**](media_file_shares.md) | Chia sẻ tài sản cho giáo viên trong tenant (ADR-0021) |
 
 ---
 

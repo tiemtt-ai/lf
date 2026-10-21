@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\OrganizationController;
 use App\Http\Controllers\Admin\ProfileController as AdminProfileController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\CustomerRegisterController;
+use App\Http\Controllers\MediaFileController;
 use App\Http\Controllers\MediaFileDeliveryController;
 use App\Http\Controllers\PublicSiteController;
 use App\Http\Controllers\RoleProfileController;
@@ -201,8 +202,16 @@ Route::middleware([
     Route::get('/cohorts/{cohort}/judgments', [TeacherCohortJudgmentController::class, 'show'])->whereNumber('cohort')->name('cohorts.show');
     Route::post('/cohorts/{cohort}/judgments', [TeacherCohortJudgmentController::class, 'store'])->whereNumber('cohort')->name('cohorts.judgments.store');
 
+    // Media library for teachers: their own Media and what was shared with them (ADR-0021).
+    Route::get('/media', [MediaFileController::class, 'index'])->name('media.index');
+    Route::get('/media/picker', [MediaFileController::class, 'picker'])->name('media.picker');
+    Route::put('/media/{id}/shares', [MediaFileController::class, 'updateShares'])->whereNumber('id')->name('media.shares.update');
+    Route::delete('/media/bulk', [MediaFileController::class, 'bulkDestroy'])->name('media.bulk-destroy');
+
     $registerCourseProductRoutes = false;
     $registerCourseTemplateLifecycleRoutes = false;
+    $registerCategoryManagement = false;
+    $registerTemplateTeacherManagement = false;
     require __DIR__.'/modules/course.php';
 });
 

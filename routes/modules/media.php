@@ -8,6 +8,10 @@ Route::get('/media', [MediaFileController::class, 'index'])
     ->name('media.index');
 
 // Storage clean-up dialog: scan (nothing deleted), then purge the findings in small batches with progress.
+// The library as a picker for forms: ready Media of one type (JSON).
+Route::get('/media/picker', [MediaFileController::class, 'picker'])
+    ->name('media.picker');
+
 Route::get('/media/cleanup/status', [MediaFileController::class, 'cleanupStatus'])
     ->name('media.cleanup-status');
 
@@ -19,6 +23,10 @@ Route::post('/media/cleanup/run', [MediaFileController::class, 'cleanupRun'])
 
 Route::delete('/media/bulk', [MediaFileController::class, 'bulkDestroy'])
     ->name('media.bulk-destroy');
+
+// Who a Media is shared with (ADR-0021): owner or admin; a share someone still uses cannot be revoked (409).
+Route::put('/media/{id}/shares', [MediaFileController::class, 'updateShares'])
+    ->name('media.shares.update');
 
 Route::delete('/media/{id}', [MediaFileController::class, 'destroy'])
     ->name('media.destroy');

@@ -46,10 +46,6 @@ class CourseCategoryController extends Controller
             ->when($status, function ($query) use ($status): void {
                 $query->where('categories.status', $status);
             })
-            ->when(
-                $request->user()?->role === 'teacher',
-                fn ($query) => $query->where('categories.created_by', $request->user()->id)
-            )
             ->orderByDesc('categories.created_at')
             ->orderByDesc('categories.id')
             ->select('categories.*', 'parent.name as parent_name')
@@ -656,15 +652,8 @@ class CourseCategoryController extends Controller
     {
         $user = request()->user();
 
-        if ($user?->role === 'customer_admin') {
-            return;
-        }
-
-        abort_unless(
-            $user?->role === 'teacher'
-            && (int) $category->created_by === (int) $user->id,
-            403
-        );
+        // Teachers have no category management routes; this is the second lock behind them.
+        abort_unless($user?->role === 'customer_admin', 403);
     }
 
     private function customerId(): int

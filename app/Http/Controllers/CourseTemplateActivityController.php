@@ -6,6 +6,7 @@ use App\Services\CourseActivityMediaPresenter;
 use App\Services\DocumentProcessRunner;
 use App\Services\MediaProcessingOrchestrator;
 use App\Services\MediaService;
+use App\Services\MediaShareService;
 use App\Services\TrustedVideoUrlService;
 use App\Services\VideoSttQualification;
 use App\Support\TenantContext;
@@ -16,6 +17,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use InvalidArgumentException;
 use Throwable;
@@ -409,7 +411,8 @@ class CourseTemplateActivityController extends Controller
                 'updated_at' => $now,
             ]));
             $this->detachInactiveMedia($activityId, $validated['activity_type'], $request);
-            $uploadedMedia = $this->attachUploadedMedia($request, $activityId);
+            $uploadedMedia = $this->attachUploadedMedia($request, $activityId)
+                ?? $this->attachLibraryMedia($request, $activityId, $validated['activity_type']);
             $this->synchronizeUploadedMediaDuration(
                 $activityId,
                 $validated['activity_type'],
@@ -581,7 +584,8 @@ class CourseTemplateActivityController extends Controller
                     $activity
                 ));
             $this->detachInactiveMedia($activityId, $validated['activity_type'], $request);
-            $uploadedMedia = $this->attachUploadedMedia($request, $activityId);
+            $uploadedMedia = $this->attachUploadedMedia($request, $activityId)
+                ?? $this->attachLibraryMedia($request, $activityId, $validated['activity_type']);
             $this->synchronizeUploadedMediaDuration(
                 $activityId,
                 $validated['activity_type'],
@@ -1204,6 +1208,39 @@ class CourseTemplateActivityController extends Controller
         return $activity;
     }
 
+    /**
+     * Use a Media that already exists in the library (picked in the form) instead of uploading a file. An admin may pick any
+     * Media of the tenant; a teacher only their own or one shared with them (ADR-0021). The type must match the activity and
+     * nothing is processed again: the Media keeps what its first upload produced.
+     */
+    private function attachLibraryMedia(Request $request, int $activityId, string $activityType): ?object
+    {
+        $mediaId = (int) $request->input('existing_media_id');
+
+        if ($mediaId <= 0 || ! in_array($activityType, ['video', 'audio', 'document'], true) || $request->hasFile("activity_{$activityType}_file")) {
+            return null;
+        }
+
+        $customerId = $this->customerId();
+        $media = DB::table('media_files')->where('customer_id', $customerId)->where('id', $mediaId)
+            ->where('file_type', $activityType)->where('status', 'ready')->first();
+
+        if (! $media) {
+            throw ValidationException::withMessages(['existing_media_id' => __('lf.LF_media_pick_invalid')]);
+        }
+
+        $user = $request->user();
+        abort_if(
+            $user->role === 'teacher'
+            && ! app(MediaShareService::class)->visibleToTeacher($customerId, (int) $user->id)->where('media_files.id', $mediaId)->exists(),
+            403
+        );
+
+        $this->mediaService->attachUsage($mediaId, 'course_activity', $activityId, $activityType);
+
+        return $media;
+    }
+
     private function attachUploadedMedia(
         Request $request,
         int $activityId
@@ -1357,7 +1394,7 @@ class CourseTemplateActivityController extends Controller
             ? $activityType
             : null;
         $replacingActiveMedia = $activeUsage !== null
-            && $request->hasFile("activity_{$activeUsage}_file");
+            && ($request->hasFile("activity_{$activeUsage}_file") || (int) $request->input('existing_media_id') > 0);
         $removingActiveMedia = $activeUsage !== null
             && $request->boolean('remove_activity_media')
             && ! $replacingActiveMedia;
@@ -1410,8 +1447,16 @@ class CourseTemplateActivityController extends Controller
             return;
         }
 
-        DB::afterCommit(function () use ($mediaFileIds): void {
+        // Only the person who uploaded a Media may have it removed with the activity: a Media picked from the library
+        // (someone else's, shared) stays in the library when this activity lets go of it.
+        $actorId = (int) auth()->id();
+
+        DB::afterCommit(function () use ($mediaFileIds, $actorId): void {
             foreach ($mediaFileIds as $mediaFileId) {
+                if ((int) DB::table('media_files')->where('id', $mediaFileId)->value('uploaded_by') !== $actorId) {
+                    continue;
+                }
+
                 try {
                     $this->mediaService->deleteMediaIfUnused($mediaFileId);
                 } catch (Throwable $exception) {

@@ -211,6 +211,20 @@ export function initUiKitToasts(scope = document, deps = {}) {
     });
 }
 
+/**
+ * Any script on the page (an Alpine dialog, say) can show the list toasts without importing this module:
+ * `document.dispatchEvent(new CustomEvent('ui-toast-show', { detail: { kind: 'success' | 'danger', message } }))`.
+ */
+export function initUiKitToastEvents(doc = document, deps = {}) {
+    const onShow = event => {
+        const { kind = 'success', message = '' } = event.detail ?? {};
+        const node = doc.querySelector(kind === 'danger' ? '[data-ui-dialog-form-page-error]' : '[data-ui-dialog-form-flash]');
+        if (node && message) showUiToast(node, String(message), deps);
+    };
+    doc.addEventListener('ui-toast-show', onShow);
+    return () => doc.removeEventListener('ui-toast-show', onShow);
+}
+
 export const UI_MEDIA_PREVIEW_EVENT = 'ui-media-preview';
 /** Ask a media slot to empty itself (e.g. because its alternative was chosen). */
 export const UI_MEDIA_CLEAR_EVENT = 'ui-media-clear';
@@ -672,6 +686,7 @@ if (typeof document !== 'undefined') {
         initUiKitMediaSlots(document);
         initUiKitEmbedSlots(document);
         initUiKitToasts(document);
+        initUiKitToastEvents(document);
     };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initialize, { once: true });
     else initialize();

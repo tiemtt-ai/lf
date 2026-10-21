@@ -256,6 +256,7 @@ tenants.
 | page_count | INT UNSIGNED NULL | Số trang document. |
 | language | VARCHAR(20) NULL | Ngôn ngữ asset. |
 | visibility | VARCHAR(50) NOT NULL DEFAULT 'private' | `private`, `organization`, `public`. |
+| share_note | VARCHAR(300) NULL | Ghi chú của chủ sở hữu cho người được chia sẻ (mục đích, dùng ở đâu); rỗng khi Media riêng tư ([ADR-0021](../../adr/ADR-0021-Media-Sharing-Within-Tenant.md) D11). |
 | status | VARCHAR(50) NOT NULL DEFAULT 'uploading' | Deliverability của file nhị phân. |
 | processing_locale | VARCHAR(20) NULL | Locale canonical BCP 47 cho required output profile. |
 | processing_error_code | VARCHAR(100) NULL | Lý do cấu hình processing không hợp lệ. |
