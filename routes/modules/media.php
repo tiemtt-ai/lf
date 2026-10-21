@@ -7,6 +7,16 @@ use Illuminate\Support\Facades\Route;
 Route::get('/media', [MediaFileController::class, 'index'])
     ->name('media.index');
 
+// Storage clean-up dialog: scan (nothing deleted), then purge the findings in small batches with progress.
+Route::get('/media/cleanup/status', [MediaFileController::class, 'cleanupStatus'])
+    ->name('media.cleanup-status');
+
+Route::get('/media/cleanup/scan', [MediaFileController::class, 'cleanupScan'])
+    ->name('media.cleanup-scan');
+
+Route::post('/media/cleanup/run', [MediaFileController::class, 'cleanupRun'])
+    ->name('media.cleanup-run');
+
 Route::delete('/media/bulk', [MediaFileController::class, 'bulkDestroy'])
     ->name('media.bulk-destroy');
 

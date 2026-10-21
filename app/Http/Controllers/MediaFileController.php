@@ -10,8 +10,10 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Lang;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
@@ -48,6 +50,7 @@ class MediaFileController extends Controller
      */
     public function purgeOrphanStorage(Request $request): RedirectResponse|JsonResponse
     {
+        Cache::forget($this->cleanupStatusKey());
         $found = $this->sweeper->scan($this->customerId());
 
         if ($found === []) {
@@ -74,6 +77,101 @@ class MediaFileController extends Controller
                 'count' => $purged,
                 'failed' => $failed,
             ]));
+    }
+
+    /**
+     * Whether the storage has leftovers, for the heading button (clean, or N to clean). The scan can be slow on a big
+     * storage, so the answer is kept for ten minutes and forgotten whenever something may have changed (a Media
+     * deleted, a clean-up run). Nothing is deleted here.
+     */
+    public function cleanupStatus(Request $request): JsonResponse
+    {
+        $status = Cache::get($this->cleanupStatusKey());
+
+        if (! is_array($status)) {
+            $found = array_filter($this->sweeper->scan($this->customerId()), static fn (array $item): bool => $item['keys'] !== []);
+            $status = ['items' => count($found), 'files' => array_sum(array_map(static fn (array $item): int => count($item['keys']), $found))];
+            Cache::put($this->cleanupStatusKey(), $status, now()->addMinutes(10));
+        }
+
+        return response()->json($status);
+    }
+
+    private function cleanupStatusKey(): string
+    {
+        return 'media-cleanup-status:'.$this->customerId();
+    }
+
+    /**
+     * Step 1 of the storage clean-up dialog: scan this tenant's storage for leftovers and keep the findings for a few
+     * minutes under a token, so the next calls can purge them in small batches (with real progress) without scanning
+     * again. Nothing is deleted here.
+     */
+    public function cleanupScan(Request $request): JsonResponse
+    {
+        $found = $this->sweeper->scan($this->customerId());
+        $purgeable = array_values(array_filter($found, static fn (array $item): bool => $item['keys'] !== []));
+        $token = Str::random(32);
+        Cache::put($this->cleanupCacheKey($request, $token), $purgeable, now()->addMinutes(15));
+        Cache::put($this->cleanupStatusKey(), [
+            'items' => count($purgeable),
+            'files' => array_sum(array_map(static fn (array $item): int => count($item['keys']), $purgeable)),
+        ], now()->addMinutes(10));
+
+        return response()->json([
+            'token' => $token,
+            'items' => count($purgeable),
+            'files' => array_sum(array_map(static fn (array $item): int => count($item['keys']), $purgeable)),
+            // Media whose storage could not be read: reported, never touched.
+            'unreadable' => count($found) - count($purgeable),
+        ]);
+    }
+
+    /**
+     * Step 3: purge one batch of the findings of a scan. The sweeper re-checks every reference before deleting, so a
+     * leftover that became referenced since the scan is kept (reported as not purged).
+     */
+    public function cleanupRun(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'token' => ['required', 'string', 'size:32'],
+            'offset' => ['required', 'integer', 'min:0'],
+            'limit' => ['required', 'integer', 'min:1', 'max:25'],
+        ]);
+        $key = $this->cleanupCacheKey($request, $validated['token']);
+        $items = Cache::get($key);
+
+        if (! is_array($items)) {
+            return response()->json(['message' => __('lf.LF_media_cleanup_expired')], 410);
+        }
+
+        $batch = array_slice($items, (int) $validated['offset'], (int) $validated['limit']);
+        $purged = 0;
+        $failed = 0;
+        foreach ($batch as $item) {
+            $result = $this->sweeper->purge($item);
+            $result['success'] ? $purged += $result['deleted_count'] : $failed++;
+        }
+        $next = (int) $validated['offset'] + count($batch);
+        $finished = $next >= count($items);
+        if ($finished) {
+            Cache::forget($key);
+            Cache::forget($this->cleanupStatusKey());
+        }
+
+        return response()->json([
+            'processed' => count($batch),
+            'purged' => $purged,
+            'failed' => $failed,
+            'total' => count($items),
+            'next' => $next,
+            'finished' => $finished,
+        ]);
+    }
+
+    private function cleanupCacheKey(Request $request, string $token): string
+    {
+        return 'media-cleanup:'.$this->customerId().':'.$request->user()?->id.':'.$token;
     }
 
     /**
@@ -168,6 +266,8 @@ class MediaFileController extends Controller
             'ownerRefs' => $ownerRefs,
             'tabCounts' => $this->tabCounts($customerId),
             'listFilters' => $this->listFilters($request),
+            // Only what is already known (no scan while the page renders); null = unknown, the page asks afterwards.
+            'cleanupStatus' => Cache::get($this->cleanupStatusKey()),
         ]);
     }
 
@@ -182,6 +282,8 @@ class MediaFileController extends Controller
 
             throw $exception;
         }
+
+        Cache::forget($this->cleanupStatusKey());
 
         return $this->listResponse($request, 'success', __('lf.LF_media_file_common_deleted'));
     }
@@ -237,6 +339,8 @@ class MediaFileController extends Controller
 
             throw $exception;
         }
+
+        Cache::forget($this->cleanupStatusKey());
 
         return $this->listResponse($request, 'success', trans_choice(
             'lf.LF_media_file_bulk_deleted',

@@ -1832,9 +1832,9 @@
    (no native title delay). Anchored to the right edge so it never leaves the scrolling table; the name for assistive
    technology stays in aria-label. */
 @media (hover: hover) {
-    .lf-admin-ui :is(.ux-row-edit, .ux-row-delete, .ui-row-action, .ui-button)[data-tooltip] { position: relative; }
-    .lf-admin-ui :is(.ux-row-edit, .ux-row-delete, .ui-row-action, .ui-button)[data-tooltip]::after { content: attr(data-tooltip); position: absolute; bottom: calc(100% + 6px); right: 0; z-index: 5; width: max-content; max-width: 220px; padding: 8px 10px; border-radius: var(--ui-control-radius); background: var(--ui-text); color: var(--ui-white); font-size: 12px; font-weight: 400; line-height: 1.4; text-align: left; text-wrap: balance; opacity: 0; pointer-events: none; transition: none; }
-    .lf-admin-ui :is(.ux-row-edit, .ux-row-delete, .ui-row-action, .ui-button)[data-tooltip]:is(:hover, :focus-visible)::after { opacity: 1; }
+    .lf-admin-ui :is(.ux-row-edit, .ux-row-delete, .ui-row-action, .ui-button, .ui-bulk-lock)[data-tooltip] { position: relative; }
+    .lf-admin-ui :is(.ux-row-edit, .ux-row-delete, .ui-row-action, .ui-button, .ui-bulk-lock)[data-tooltip]::after { content: attr(data-tooltip); position: absolute; bottom: calc(100% + 6px); right: 0; z-index: 5; width: max-content; max-width: 220px; padding: 8px 10px; border-radius: var(--ui-control-radius); background: var(--ui-text); color: var(--ui-white); font-size: 12px; font-weight: 400; line-height: 1.4; text-align: left; text-wrap: balance; opacity: 0; pointer-events: none; transition: none; }
+    .lf-admin-ui :is(.ux-row-edit, .ux-row-delete, .ui-row-action, .ui-button, .ui-bulk-lock)[data-tooltip]:is(:hover, :focus-visible)::after { opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) { .lf-admin-ui .ui-media-tile__empty, .lf-admin-ui .ui-media-tile__actions, .lf-admin-ui .ui-media-slot__hint { transition: none; } }
 .lf-admin-ui .ui-live-slot { display: contents; }
@@ -1991,6 +1991,31 @@
 .lf-admin-ui .ui-col-usage { width: 190px; }
 /* A tooltip that opens below its control (e.g. a button in the page heading, where there is no room above). */
 @media (hover: hover) {
-    .lf-admin-ui :is(.ux-row-edit, .ux-row-delete, .ui-row-action, .ui-button)[data-tooltip][data-tooltip-placement=bottom]::after { bottom: auto; top: calc(100% + 6px); }
+    .lf-admin-ui :is(.ux-row-edit, .ux-row-delete, .ui-row-action, .ui-button, .ui-bulk-lock)[data-tooltip][data-tooltip-placement=bottom]::after { bottom: auto; top: calc(100% + 6px); }
 }
+.lf-admin-ui .ui-col-check { width: 44px; }
+.lf-admin-ui :is(th, td).ui-check-cell { text-align: center; padding-left: 12px; padding-right: 4px; }
+.lf-admin-ui .ui-bulk-lock { display: inline-flex; cursor: not-allowed; }
+.lf-admin-ui .ui-bulk-box:disabled { cursor: not-allowed; opacity: .5; }
+.lf-admin-ui .ui-bulk-box { margin: 0; }
+/* A tooltip that opens to the right of a control near the left edge (e.g. the locked checkbox). */
+@media (hover: hover) {
+    .lf-admin-ui :is(.ux-row-edit, .ux-row-delete, .ui-row-action, .ui-button, .ui-bulk-lock)[data-tooltip][data-tooltip-align=start]::after { right: auto; left: 0; }
+}
+.lf-admin-ui .ui-cleanup { display: grid; gap: 18px; }
+.lf-admin-ui .ui-cleanup__step { display: flex; align-items: flex-start; gap: 14px; min-height: 52px; }
+.lf-admin-ui .ui-cleanup__step[hidden] { display: none; }
+.lf-admin-ui .ui-cleanup__step--stack { display: grid; gap: 8px; }
+.lf-admin-ui .ui-cleanup__step strong { font-size: 15px; font-weight: 500; }
+.lf-admin-ui .ui-cleanup__step p { margin: 4px 0 0; }
+.lf-admin-ui .ui-cleanup__icon { display: grid; place-items: center; flex: none; width: 32px; height: 32px; border-radius: 50%; font-size: 16px; font-weight: 600; line-height: 1; }
+.lf-admin-ui .ui-cleanup__icon--ok { background: var(--ui-success-soft); color: var(--ui-success); }
+.lf-admin-ui .ui-cleanup__icon--warn { background: var(--ui-warning-soft); color: var(--ui-warning); }
+.lf-admin-ui .ui-cleanup__icon--bad { background: var(--ui-danger-soft); color: var(--ui-color-bd3d46); }
+.lf-admin-ui .ui-cleanup__icon--wait { background: var(--ui-color-eef0fb); color: var(--ui-primary); }
+.lf-admin-ui .ui-cleanup__note { margin: 0; padding: 10px 12px; border-radius: var(--ui-control-radius); background: var(--ui-color-fafbfe); color: var(--ui-muted); font-size: 12px; line-height: 1.5; }
+.lf-admin-ui .ui-cleanup-status { display: inline-flex; align-items: center; padding: 3px 10px; border: 1px solid var(--ui-color-e6e8ee); border-radius: 20px; background: var(--ui-white); color: var(--ui-muted); font-size: 12px; line-height: 1.4; white-space: nowrap; }
+.lf-admin-ui .ui-cleanup-status[hidden] { display: none; }
+.lf-admin-ui .ui-cleanup-status[data-state=clean] { border-color: var(--ui-success-border); background: var(--ui-success-soft); color: var(--ui-success); }
+.lf-admin-ui .ui-cleanup-status[data-state=dirty] { border-color: var(--ui-warning-soft); background: var(--ui-warning-soft); color: var(--ui-warning); }
 

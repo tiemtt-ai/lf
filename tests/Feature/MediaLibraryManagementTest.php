@@ -11,6 +11,7 @@ use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
@@ -69,7 +70,7 @@ class MediaLibraryManagementTest extends TestCase
             ->assertSee('data-ui-multiselect', false)
             ->assertSee('mk-tab-count', false)
             ->assertSee('ui-media-table', false)
-            ->assertSee('media-library-action-empty', false)
+            ->assertSee('ui-bulk-lock', false)
             ->assertSee('media-library-sequence-number', false)
             ->assertSee('media-library-preview-button', false)
             ->assertDontSee('name="type"', false)
@@ -188,8 +189,8 @@ class MediaLibraryManagementTest extends TestCase
 
         $this->assertSame(0, $this->tableMediaElementCount($response->getContent(), 'video'));
         $this->assertSame(0, $this->tableMediaElementCount($response->getContent(), 'img'));
-        $this->assertSame(1, $this->mediaLibraryPreviewButtonCount($response->getContent(), 2));
-        $this->assertSame(0, $this->mediaLibraryPreviewButtonCount($response->getContent(), 3));
+        $this->assertSame(1, $this->mediaLibraryPreviewButtonCount($response->getContent(), 3));
+        $this->assertSame(0, $this->mediaLibraryPreviewButtonCount($response->getContent(), 4));
         $this->assertMediaLibraryPreviewButtonCss();
         $this->assertSame(1, substr_count($response->getContent(), '<video'));
         $signedUrl = app(MediaService::class)->generateSignedUrl((int) $mediaFile->id);
@@ -247,8 +248,8 @@ class MediaLibraryManagementTest extends TestCase
 
         $this->assertSame(1, $this->tableMediaElementCount($response->getContent(), 'img'));
         $this->assertSame(0, $this->tableMediaElementCount($response->getContent(), 'video'));
-        $this->assertSame(1, $this->mediaLibraryPreviewButtonCount($response->getContent(), 2));
-        $this->assertSame(0, $this->mediaLibraryPreviewButtonCount($response->getContent(), 3));
+        $this->assertSame(1, $this->mediaLibraryPreviewButtonCount($response->getContent(), 3));
+        $this->assertSame(0, $this->mediaLibraryPreviewButtonCount($response->getContent(), 4));
         $this->assertMediaLibraryPreviewButtonCss();
         $this->assertStringContainsString('preview.mediaType === \'image\'', $response->getContent());
 
@@ -701,6 +702,92 @@ class MediaLibraryManagementTest extends TestCase
         $this->assertSame($otherId, $otherId);
     }
 
+    public function test_cleanup_dialog_scans_first_then_purges_the_findings_in_batches_for_the_current_tenant_only(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $this->actingAs($admin);
+        TenantContext::set((object) ['id' => $customerId]);
+
+        $mine = $this->uploadUnattachedMedia($admin, 'Mine', 'document', 'mine.pdf');
+        DB::table('media_files')->where('id', $mine->id)->update(['status' => 'deleted']);
+        $otherCustomerId = $this->createTenant('tenant-b');
+        DB::table('media_files')->insert([
+            'customer_id' => $otherCustomerId, 'uploaded_by' => $admin->id,
+            'file_type' => 'document', 'mime_type' => 'application/pdf',
+            'original_name' => 'other.pdf', 'display_name' => 'Other', 'extension' => 'pdf',
+            'storage_disk' => 'media_local', 'storage_bucket' => 'lf-local',
+            'storage_key' => 'tenants/'.$otherCustomerId.'/other.pdf',
+            'file_size_bytes' => 10, 'visibility' => 'private', 'status' => 'deleted',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        Storage::disk('media_local')->put('tenants/'.$otherCustomerId.'/other.pdf', 'pdf');
+        $base = 'https://tenant-a.localhost/admin/media/cleanup';
+
+        $scan = $this->actingAs($admin)->getJson($base.'/scan')->assertOk()
+            ->assertJsonStructure(['token', 'items', 'files', 'unreadable'])
+            ->assertJson(['items' => 1, 'unreadable' => 0]);
+        $this->assertGreaterThanOrEqual(1, $scan->json('files'));
+        Storage::disk('media_local')->assertExists($mine->storage_key);   // scanning deletes nothing
+        $token = $scan->json('token');
+
+        $this->actingAs($admin)->postJson($base.'/run', ['token' => $token, 'offset' => 0, 'limit' => 26])->assertUnprocessable();
+        $this->actingAs($admin)->postJson($base.'/run', ['token' => 'x', 'offset' => 0, 'limit' => 5])->assertUnprocessable();
+        $this->actingAs($admin)->postJson($base.'/run', ['token' => str_repeat('a', 32), 'offset' => 0, 'limit' => 5])
+            ->assertStatus(410)->assertJson(['message' => __('lf.LF_media_cleanup_expired')]);
+
+        $run = $this->actingAs($admin)->postJson($base.'/run', ['token' => $token, 'offset' => 0, 'limit' => 5])->assertOk()
+            ->assertJson(['processed' => 1, 'failed' => 0, 'total' => 1, 'next' => 1, 'finished' => true]);
+        $this->assertGreaterThanOrEqual(1, $run->json('purged'));
+        Storage::disk('media_local')->assertMissing($mine->storage_key);
+        Storage::disk('media_local')->assertExists('tenants/'.$otherCustomerId.'/other.pdf');
+
+        // A finished scan is spent: its token no longer works.
+        $this->actingAs($admin)->postJson($base.'/run', ['token' => $token, 'offset' => 0, 'limit' => 5])->assertStatus(410);
+        // Nothing left to find.
+        $this->actingAs($admin)->getJson($base.'/scan')->assertOk()->assertJson(['items' => 0, 'files' => 0]);
+
+        // A scan belongs to the admin who made it.
+        $other = $this->createUser($customerId, 'customer_admin');
+        $token = $this->actingAs($admin)->getJson($base.'/scan')->json('token');
+        $this->actingAs($other)->postJson($base.'/run', ['token' => $token, 'offset' => 0, 'limit' => 5])->assertStatus(410);
+    }
+
+    public function test_cleanup_status_is_cached_shown_as_a_small_label_and_forgotten_when_something_changes(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $this->actingAs($admin);
+        TenantContext::set((object) ['id' => $customerId]);
+        $key = 'media-cleanup-status:'.$customerId;
+        $button = fn () => $this->xpath($this->actingAs($admin)->get('https://tenant-a.localhost/admin/media')->getContent())
+            ->query('//*[@data-cleanup-status]')->item(0);
+
+        // Nothing known yet: the page does not scan while rendering; the button asks afterwards.
+        $this->assertSame('unknown', $button()->getAttribute('data-state'));
+        $this->assertTrue($button()->hasAttribute('hidden'));
+
+        $mine = $this->uploadUnattachedMedia($admin, 'Mine', 'document', 'mine.pdf');
+        DB::table('media_files')->where('id', $mine->id)->update(['status' => 'deleted']);
+        $this->actingAs($admin)->getJson('https://tenant-a.localhost/admin/media/cleanup/status')->assertOk()->assertJson(['items' => 1]);
+        $this->assertSame(1, Cache::get($key)['items']);
+        $this->assertSame('dirty', $button()->getAttribute('data-state'));
+        $this->assertSame(__('lf.LF_media_cleanup_status_dirty', ['count' => 1]), trim($this->xpath($this->actingAs($admin)->get('https://tenant-a.localhost/admin/media')->getContent())->query('//*[@data-cleanup-status]')->item(0)->textContent));
+
+        // A finished clean-up forgets the answer; an empty storage is then reported as clean (the button itself never changes).
+        $token = $this->actingAs($admin)->getJson('https://tenant-a.localhost/admin/media/cleanup/scan')->json('token');
+        $this->actingAs($admin)->postJson('https://tenant-a.localhost/admin/media/cleanup/run', ['token' => $token, 'offset' => 0, 'limit' => 5])->assertOk();
+        $this->assertNull(Cache::get($key));
+        $this->actingAs($admin)->getJson('https://tenant-a.localhost/admin/media/cleanup/status')->assertOk()->assertJson(['items' => 0]);
+        $this->assertSame('clean', $button()->getAttribute('data-state'));
+        $this->assertSame(__('lf.LF_media_cleanup_status_clean'), trim($button()->textContent));
+
+        // Deleting a Media may leave leftovers, so the answer is forgotten again.
+        $second = $this->uploadUnattachedMedia($admin, 'Second', 'image', 'second.png');
+        $this->actingAs($admin)->deleteJson('https://tenant-a.localhost/admin/media/'.$second->id)->assertOk();
+        $this->assertNull(Cache::get($key));
+    }
+
     public function test_media_index_explains_that_nothing_is_deleted_automatically(): void
     {
         $customerId = $this->createTenant();
@@ -716,8 +803,9 @@ class MediaLibraryManagementTest extends TestCase
             ->assertSee('page-heading page-heading--with-actions', false);
 
         $xpath = $this->xpath($this->actingAs($admin)->get('https://tenant-a.localhost/admin/media')->getContent());
-        $this->assertSame(1, $xpath->query('//div[contains(@class, "page-heading__actions")]//button[@data-ui-confirm-post and @data-ui-row-actions-for="media-list"]')->length);
-        $this->assertSame(0, $xpath->query('//form//button[@data-ui-confirm-post]')->length, 'the purge button is not in the filter form');
+        $this->assertSame(1, $xpath->query('//div[contains(@class, "page-heading__actions")]//button[@data-ui-cleanup-open="media-cleanup-dialog"]')->length);
+        $this->assertSame(0, $xpath->query('//form//button[@data-ui-cleanup-open]')->length, 'the clean-up button is not in the filter form');
+        $this->assertSame(1, $xpath->query('//dialog[@id="media-cleanup-dialog" and @data-scan-url and @data-run-url]')->length);
     }
 
     public function test_sweeper_never_touches_a_media_with_a_structured_job_in_flight(): void
@@ -1086,10 +1174,11 @@ class MediaLibraryManagementTest extends TestCase
             ->get('https://tenant-a.localhost/admin/media')
             ->assertOk()
             ->assertSeeText('Unused Image')
-            ->assertSee("admin/media/{$mediaFile->id}", false)
-            ->assertSee('data-ui-row-delete', false)
-            ->assertSee('data-confirm-title="'.__('lf.LF_media_file_common_delete_confirm').'"', false)
-            ->assertSee(__('lf.LF_media_file_delete_confirm_warning'), false)
+            ->assertSee('data-ui-bulk-item value="'.$mediaFile->id.'"', false)
+            ->assertDontSee('data-ui-row-delete', false)
+            ->assertSee('data-ui-bulk-delete', false)
+            ->assertSee('data-confirm-title="'.__('lf.LF_media_file_bulk_delete_confirm').'"', false)
+            ->assertSeeText(__('lf.LF_media_file_status_can_delete'))
             ->assertDontSee('onclick="return confirm', false);
 
         $this->actingAs($admin)
@@ -1125,9 +1214,9 @@ class MediaLibraryManagementTest extends TestCase
 
         // The page hands the buttons URLs that already carry the filters the user is viewing.
         $html = $this->actingAs($admin)->get($list)->assertOk()->getContent();
-        $this->assertStringContainsString('data-url="https://tenant-a.localhost/admin/media/'.$single->id.'?tab=all&amp;usage_status=unused"', $html);
+        $this->assertStringContainsString('data-ui-bulk-item value="'.$single->id.'"', $html);
         $this->assertStringContainsString('data-url="https://tenant-a.localhost/admin/media/bulk?tab=all&amp;usage_status=unused"', $html);
-        $this->assertStringContainsString('data-ui-confirm-post', $html);
+        $this->assertStringContainsString('data-ui-cleanup-open="media-cleanup-dialog"', $html);
 
         $this->actingAs($admin)->deleteJson('https://tenant-a.localhost/admin/media/'.$single->id.'?tab=all&usage_status=unused')
             ->assertOk()

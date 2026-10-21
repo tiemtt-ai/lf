@@ -5,20 +5,26 @@
 
 @section('vite')
     @parent
-    @vite(['resources/css/admin/admin-ui-kit.css', 'resources/js/admin-ui-kit-controls.js', 'resources/js/admin-ui-kit-row-actions.js', 'resources/js/admin-ui-kit-multiselect.js'])
+    @vite(['resources/css/admin/admin-ui-kit.css', 'resources/js/admin-ui-kit-controls.js', 'resources/js/admin-ui-kit-row-actions.js', 'resources/js/admin-ui-kit-multiselect.js', 'resources/js/admin-ui-kit-cleanup.js'])
 @endsection
 
 @section('page_actions')
-    {{-- Clean-up of orphan storage: no schedule, the admin chooses when. It sits in the heading (secondary, outline) so the
-         filters keep one row; the button reaches the list's row actions through data-ui-row-actions-for. --}}
-    <button type="button" class="ui-button ui-button--outline cursor-interaction" data-ui-confirm-post
-            data-ui-row-actions-for="media-list"
-            data-url="{{ route('admin.media.purge-orphan-storage', $listFilters) }}"
-            data-confirm-title="{{ __('lf.LF_media_storage_purge_title') }}"
-            data-confirm-message="{{ __('lf.LF_media_storage_purge_note') }} {{ __('lf.LF_media_storage_purge_confirm') }}"
-            data-confirm-label="{{ __('lf.LF_media_storage_purge_action') }}"
-            data-tooltip="{{ __('lf.LF_media_storage_purge_tooltip') }}" data-tooltip-placement="bottom"
-            aria-describedby="media-storage-purge-note">
+    {{-- Clean-up of orphan storage files (no longer tied to any Media): a dialog that scans first, then purges with progress.
+         It sits in the heading (secondary, outline) so the filters keep one row. --}}
+    @php
+        $cleanupState = $cleanupStatus === null ? 'unknown' : ((int) $cleanupStatus['items'] === 0 ? 'clean' : 'dirty');
+    @endphp
+    {{-- A small status label beside the button; the button itself never changes. --}}
+    <span class="ui-cleanup-status" data-cleanup-status data-state="{{ $cleanupState }}" @if ($cleanupState === 'unknown') hidden @endif
+          data-text-clean="{{ __('lf.LF_media_cleanup_status_clean') }}" data-text-dirty="{{ __('lf.LF_media_cleanup_status_dirty', ['count' => ':count']) }}"
+          role="status">{{ match ($cleanupState) {
+              'clean' => __('lf.LF_media_cleanup_status_clean'),
+              'dirty' => __('lf.LF_media_cleanup_status_dirty', ['count' => $cleanupStatus['items']]),
+              default => '',
+          } }}</span>
+    <button type="button" class="ui-button ui-button--outline cursor-interaction" data-ui-cleanup-open="media-cleanup-dialog"
+            aria-haspopup="dialog" aria-describedby="media-storage-purge-note"
+            data-tooltip="{{ __('lf.LF_media_storage_purge_tooltip') }}" data-tooltip-placement="bottom">
         <x-backend-icon name="brush-cleaning" class="ui-icon" />
         {{ __('lf.LF_media_storage_purge_short') }}
     </button>
@@ -183,27 +189,27 @@
         <div class="mk-table-scroll" data-ui-live-region="table" role="region" aria-label="{{ __('lf.LF_media_file_common_title') }}" tabindex="0">
             <table aria-labelledby="admin-page-title" class="ui-media-table">
                 <colgroup>
+                    <col class="ui-col-check">
                     <col class="mk-col-sequence">
                     <col class="ui-col-media">
                     <col class="ui-col-type">
                     <col class="ui-col-upload">
                     <col class="ui-col-usage">
                     <col class="mk-col-status">
-                    <col class="mk-col-action-wide">
                 </colgroup>
                 <thead>
                 <tr>
+                    <th scope="col" class="ui-check-cell">
+                        <input type="checkbox" class="ui-bulk-box" data-ui-bulk-select-all
+                               aria-label="{{ __('lf.LF_media_file_select_all_unused') }}">
+                    </th>
                     <th scope="col" class="mk-sequence admin-table-sequence">{{ __('lf.table_no') }}</th>
                     <th scope="col" class="mk-text-cell">{{ __('lf.LF_media_file_common_file') }}</th>
                     <th scope="col" class="mk-text-cell">{{ __('lf.LF_media_file_common_type_and_size') }}</th>
                     <th scope="col" class="mk-text-cell">{{ __('lf.LF_media_file_common_upload_information') }}</th>
                     <th scope="col" class="mk-text-cell">{{ __('lf.LF_media_file_common_usage') }}</th>
                     <th scope="col" class="ux-action-cell">{{ __('lf.LF_media_file_common_status') }}</th>
-                    <th scope="col" class="ux-action-cell">
-                        {{ __('lf.table_actions') }}
-                        <input type="checkbox" class="ui-bulk-box" data-ui-bulk-select-all
-                               aria-label="{{ __('lf.LF_media_file_select_all_unused') }}">
-                    </th>
+
                 </tr>
                 </thead>
                 <tbody>
@@ -221,6 +227,17 @@
                         ])->values()->all();
                     @endphp
                     <tr>
+                        <td class="ui-check-cell" data-label="{{ __('lf.LF_media_file_select_label') }}">
+                            @if ($isUnused)
+                                <input type="checkbox" class="ui-bulk-box media-library-selection-checkbox" data-ui-bulk-item value="{{ $mediaFile->id }}"
+                                       aria-label="{{ __('lf.LF_media_file_select_unused_named', ['name' => $mediaFile->display_name]) }}">
+                            @else
+                                {{-- A file in use cannot be deleted: the box is locked and says why. --}}
+                                <span class="ui-bulk-lock" tabindex="0" data-tooltip="{{ __('lf.LF_media_file_locked_in_use', ['count' => count($usageItems)]) }}" data-tooltip-align="start">
+                                    <input type="checkbox" class="ui-bulk-box" disabled aria-label="{{ __('lf.LF_media_file_locked_in_use', ['count' => count($usageItems)]) }}">
+                                </span>
+                            @endif
+                        </td>
                         <td class="mk-sequence admin-table-sequence" data-label="{{ __('lf.table_no') }}">
                             <span class="media-library-sequence-number">{{ $mediaFiles->firstItem() + $loop->index }}</span>
                         </td>
@@ -275,23 +292,9 @@
                             <span @class(['ui-status', 'ui-status--active' => ! $isUnused, 'ui-status--archived' => $isUnused])>
                                 {{ $isUnused ? __('lf.LF_media_file_common_unused') : __('lf.LF_media_file_common_in_use') }}
                             </span>
-                        </td>
-                        <td class="ux-action-cell" data-label="{{ __('lf.table_actions') }}">
-                            @if ($isUnused)
-                                <button type="button" class="ux-row-delete cursor-interaction" data-ui-row-delete
-                                        data-url="{{ route('admin.media.destroy', array_merge(['id' => $mediaFile->id], $listFilters)) }}"
-                                        data-confirm-title="{{ __('lf.LF_media_file_common_delete_confirm') }}"
-                                        data-confirm-message="{{ __('lf.LF_media_file_delete_confirm_body', ['name' => $mediaFile->display_name]) }} {{ __('lf.LF_media_file_delete_confirm_warning') }}"
-                                        data-confirm-label="{{ __('lf.LF_media_file_common_delete') }}"
-                                        data-tooltip="{{ __('lf.LF_media_file_common_delete') }}"
-                                        aria-label="{{ __('lf.LF_media_file_common_delete') }}: {{ $mediaFile->display_name }}">
-                                    <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /><line x1="10" x2="10" y1="11" y2="17" /><line x1="14" x2="14" y1="11" y2="17" /></svg>
-                                </button>
-                                <input type="checkbox" class="ui-bulk-box media-library-selection-checkbox" data-ui-bulk-item value="{{ $mediaFile->id }}"
-                                       aria-label="{{ __('lf.LF_media_file_select_unused_named', ['name' => $mediaFile->display_name]) }}">
-                            @else
-                                <span class="ui-caption media-library-action-empty" aria-label="{{ __('lf.LF_media_file_common_no_actions') }}">—</span>
-                            @endif
+                            <p class="ui-caption">
+                                {{ $isUnused ? __('lf.LF_media_file_status_can_delete') : trans_choice('lf.LF_media_file_usage_count', count($usageItems), ['count' => count($usageItems)]) }}
+                            </p>
                         </td>
                     </tr>
                 @empty
@@ -313,6 +316,62 @@
             :page-size-label="__('lf.LF_media_file_page_size')"
             :page-size-option="__('lf.LF_media_file_page_size_option', ['count' => $mediaFiles->perPage()])" />
     </section>
+
+    <dialog class="ui-modal" id="media-cleanup-dialog" data-columns="1" aria-labelledby="media-cleanup-title" data-ui-cleanup
+            data-status-url="{{ route('admin.media.cleanup-status') }}" data-scan-url="{{ route('admin.media.cleanup-scan') }}" data-run-url="{{ route('admin.media.cleanup-run') }}"
+            data-csrf="{{ csrf_token() }}" data-batch="20"
+            data-text-found="{{ __('lf.LF_media_cleanup_found') }}" data-text-unreadable="{{ __('lf.LF_media_cleanup_unreadable') }}"
+            data-text-progress="{{ __('lf.LF_media_cleanup_progress') }}" data-text-done="{{ __('lf.LF_media_cleanup_done') }}"
+            data-text-done-failed="{{ __('lf.LF_media_cleanup_done_failed') }}" data-text-error="{{ __('lf.LF_media_cleanup_error') }}">
+        <div class="ui-modal__form">
+            <header class="ui-modal__header">
+                <div>
+                    <h3 id="media-cleanup-title">{{ __('lf.LF_media_storage_purge_short') }}</h3>
+                </div>
+                <button type="button" class="ui-modal__close cursor-interaction" data-cleanup-close data-cleanup-x aria-label="{{ __('lf.LF_common_button_close') }}">×</button>
+            </header>
+            <div class="ui-modal__body ui-cleanup" aria-live="polite">
+                <div data-cleanup-step="scan" role="status" class="ui-cleanup__step">
+                    <span class="ui-cleanup__icon ui-cleanup__icon--wait" aria-hidden="true">…</span>
+                    <div><strong>{{ __('lf.LF_media_cleanup_scanning') }}</strong></div>
+                </div>
+                <div data-cleanup-step="result" hidden class="ui-cleanup__step">
+                    <span class="ui-cleanup__icon ui-cleanup__icon--warn" aria-hidden="true">!</span>
+                    <div>
+                        <strong data-cleanup-text="found"></strong>
+                        <p class="ui-caption" data-cleanup-text="unreadable" hidden></p>
+                        <p class="ui-caption">{{ __('lf.LF_media_cleanup_irreversible') }}</p>
+                    </div>
+                </div>
+                <div data-cleanup-step="empty" hidden role="status" class="ui-cleanup__step">
+                    <span class="ui-cleanup__icon ui-cleanup__icon--ok" aria-hidden="true">✓</span>
+                    <div>
+                        <strong>{{ __('lf.LF_media_cleanup_clean') }}</strong>
+                        <p class="ui-caption">{{ __('lf.LF_media_storage_purge_nothing') }}</p>
+                    </div>
+                </div>
+                <div data-cleanup-step="run" hidden class="ui-cleanup__step ui-cleanup__step--stack">
+                    <div class="ui-progress"><span class="ui-progress__bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"
+                                                   aria-label="{{ __('lf.LF_media_cleanup_scanning') }}" data-cleanup-bar></span></div>
+                    <p class="ui-caption" data-cleanup-text="progress"></p>
+                </div>
+                <div data-cleanup-step="done" hidden role="status" class="ui-cleanup__step">
+                    <span class="ui-cleanup__icon ui-cleanup__icon--ok" aria-hidden="true">✓</span>
+                    <div><strong data-cleanup-text="done"></strong></div>
+                </div>
+                <div data-cleanup-step="error" hidden role="alert" class="ui-cleanup__step">
+                    <span class="ui-cleanup__icon ui-cleanup__icon--bad" aria-hidden="true">×</span>
+                    <div><strong data-cleanup-text="error"></strong></div>
+                </div>
+                <p class="ui-cleanup__note">{{ __('lf.LF_media_cleanup_intro') }}</p>
+            </div>
+            <footer class="ui-modal__footer">
+                <button type="button" class="ui-button cursor-interaction" data-cleanup-close>{{ __('lf.LF_common_button_close') }}</button>
+                <button type="button" class="ui-button cursor-interaction" data-cleanup-retry hidden>{{ __('lf.LF_media_cleanup_retry') }}</button>
+                <button type="button" class="ui-button ui-button--danger cursor-interaction" data-cleanup-run hidden>{{ __('lf.LF_media_storage_purge_action') }}</button>
+            </footer>
+        </div>
+    </dialog>
 
     <x-media-preview-modal ui-kit id="media-library-preview-title" show="previewOpen" close="closeMediaPreview()" title="preview.name" compact="false">
         <template x-if="previewOpen && preview.mediaType === 'image'">
