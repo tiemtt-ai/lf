@@ -15,10 +15,11 @@
             data-ui-row-actions-for="media-list"
             data-url="{{ route('admin.media.purge-orphan-storage', $listFilters) }}"
             data-confirm-title="{{ __('lf.LF_media_storage_purge_title') }}"
-            data-confirm-message="{{ __('lf.LF_media_storage_purge_confirm') }}"
+            data-confirm-message="{{ __('lf.LF_media_storage_purge_note') }} {{ __('lf.LF_media_storage_purge_confirm') }}"
             data-confirm-label="{{ __('lf.LF_media_storage_purge_action') }}"
-            title="{{ __('lf.LF_media_storage_purge_note') }}"
+            data-tooltip="{{ __('lf.LF_media_storage_purge_tooltip') }}" data-tooltip-placement="bottom"
             aria-describedby="media-storage-purge-note">
+        <x-backend-icon name="brush-cleaning" class="ui-icon" />
         {{ __('lf.LF_media_storage_purge_short') }}
     </button>
     <span id="media-storage-purge-note" class="ui-sr-only"><strong>{{ __('lf.LF_media_storage_purge_title') }}</strong> {{ __('lf.LF_media_storage_purge_note') }}</span>

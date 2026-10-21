@@ -1832,9 +1832,9 @@
    (no native title delay). Anchored to the right edge so it never leaves the scrolling table; the name for assistive
    technology stays in aria-label. */
 @media (hover: hover) {
-    .lf-admin-ui :is(.ux-row-edit, .ux-row-delete, .ui-row-action)[data-tooltip] { position: relative; }
-    .lf-admin-ui :is(.ux-row-edit, .ux-row-delete, .ui-row-action)[data-tooltip]::after { content: attr(data-tooltip); position: absolute; bottom: calc(100% + 6px); right: 0; z-index: 5; width: max-content; max-width: 220px; padding: 8px 10px; border-radius: var(--ui-control-radius); background: var(--ui-text); color: var(--ui-white); font-size: 12px; font-weight: 400; line-height: 1.4; text-align: left; text-wrap: balance; opacity: 0; pointer-events: none; transition: none; }
-    .lf-admin-ui :is(.ux-row-edit, .ux-row-delete, .ui-row-action)[data-tooltip]:is(:hover, :focus-visible)::after { opacity: 1; }
+    .lf-admin-ui :is(.ux-row-edit, .ux-row-delete, .ui-row-action, .ui-button)[data-tooltip] { position: relative; }
+    .lf-admin-ui :is(.ux-row-edit, .ux-row-delete, .ui-row-action, .ui-button)[data-tooltip]::after { content: attr(data-tooltip); position: absolute; bottom: calc(100% + 6px); right: 0; z-index: 5; width: max-content; max-width: 220px; padding: 8px 10px; border-radius: var(--ui-control-radius); background: var(--ui-text); color: var(--ui-white); font-size: 12px; font-weight: 400; line-height: 1.4; text-align: left; text-wrap: balance; opacity: 0; pointer-events: none; transition: none; }
+    .lf-admin-ui :is(.ux-row-edit, .ux-row-delete, .ui-row-action, .ui-button)[data-tooltip]:is(:hover, :focus-visible)::after { opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) { .lf-admin-ui .ui-media-tile__empty, .lf-admin-ui .ui-media-tile__actions, .lf-admin-ui .ui-media-slot__hint { transition: none; } }
 .lf-admin-ui .ui-live-slot { display: contents; }
@@ -1989,4 +1989,8 @@
 .lf-admin-ui .ui-col-type { width: 130px; }
 .lf-admin-ui .ui-col-upload { width: 160px; }
 .lf-admin-ui .ui-col-usage { width: 190px; }
+/* A tooltip that opens below its control (e.g. a button in the page heading, where there is no room above). */
+@media (hover: hover) {
+    .lf-admin-ui :is(.ux-row-edit, .ux-row-delete, .ui-row-action, .ui-button)[data-tooltip][data-tooltip-placement=bottom]::after { bottom: auto; top: calc(100% + 6px); }
+}
 
