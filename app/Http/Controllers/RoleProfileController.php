@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Support\TenantContext;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -14,12 +15,13 @@ use Illuminate\View\View;
 
 class RoleProfileController extends Controller
 {
-    public function editTeacher(): View
+    public function editTeacher(Request $request): View
     {
-        return $this->edit('teacher', 'teacher.profile.edit');
+        // The teacher dashboard opens this form as a UI Kit popup (XHR); the full page stays for direct visits.
+        return $this->edit('teacher', $request->ajax() ? 'teacher.profile.dialog' : 'teacher.profile.edit');
     }
 
-    public function updateTeacher(Request $request): RedirectResponse
+    public function updateTeacher(Request $request): RedirectResponse|JsonResponse
     {
         return $this->update($request, 'teacher', 'teacher.profile.edit');
     }
@@ -57,7 +59,7 @@ class RoleProfileController extends Controller
         return view($view, compact('user'));
     }
 
-    private function update(Request $request, string $role, string $route): RedirectResponse
+    private function update(Request $request, string $role, string $route): RedirectResponse|JsonResponse
     {
         $userId = auth()->id();
         $customerId = TenantContext::customerId();
@@ -107,6 +109,13 @@ class RoleProfileController extends Controller
                 ->where('role', $role)
                 ->update($attributes);
         });
+
+        if ($request->expectsJson()) {
+            $message = __('lf.LF_admin_message_my_account_updated');
+            session()->flash('success', $message);
+
+            return response()->json(['message' => $message, 'redirect' => $role === 'teacher' ? route('teacher.dashboard') : route($route)]);
+        }
 
         return redirect()
             ->route($route)

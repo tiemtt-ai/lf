@@ -93,8 +93,11 @@ class RoleProfileTest extends TestCase
         $this->actingAs($teacher)
             ->get('https://tenant-a.localhost/teacher')
             ->assertOk()
-            ->assertSeeText(__('lf.LF_teacher_title_teacher_pending_gradings'))
-            ->assertSeeText(__('lf.LF_teacher_title_teacher_upcoming_classes'))
+            ->assertSee('class="ui-dash-shortcuts"', false)
+            ->assertSee('class="ui-dash-shortcut" href="https://tenant-a.localhost/teacher/cohorts"', false)
+            ->assertSee('class="ui-dash-shortcut" href="https://tenant-a.localhost/teacher/course-templates"', false)
+            ->assertSee('class="ui-dash-shortcut" href="https://tenant-a.localhost/teacher/media"', false)
+            ->assertDontSeeText('--')
             ->assertSee('href="https://tenant-a.localhost/teacher/profile"', false)
             ->assertSeeText(__('lf.LF_navigation_menu_admin_my_account'))
             ->assertDontSee('href="https://tenant-a.localhost/admin"', false);

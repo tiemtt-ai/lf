@@ -1,147 +1,3 @@
-.admin-dashboard-intro {
-    margin: 0 0 20px;
-    padding: 16px 18px;
-    border: 1px solid color-mix(in srgb, var(--admin-primary) 20%, var(--admin-border));
-    border-radius: 10px;
-    background: linear-gradient(105deg, color-mix(in srgb, var(--admin-primary) 6%, #ffffff), #ffffff 72%);
-}
-
-.admin-dashboard-intro h2,
-.admin-dashboard-intro p {
-    margin: 0;
-}
-
-.admin-dashboard-intro h2 {
-    color: var(--admin-text);
-    font-size: 17px;
-    font-weight: 600;
-}
-
-.admin-dashboard-intro p {
-    margin-top: 5px;
-    color: var(--admin-text-muted);
-    font-size: 14px;
-    line-height: 1.5;
-}
-
-.admin-dashboard-quick-section {
-    margin-bottom: 20px;
-}
-
-.admin-dashboard-subsection-title {
-    margin: 0 0 12px;
-    color: var(--admin-control-text);
-    font-size: 15px;
-    font-weight: 600;
-}
-
-.admin-dashboard-quick-grid {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 14px;
-}
-
-.admin-dashboard-quick-action {
-    min-width: 0;
-    min-height: 76px;
-    padding: 12px 14px;
-    display: grid;
-    grid-template-columns: 36px minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 12px;
-    border: 1px solid var(--admin-border);
-    border-radius: 10px;
-    color: var(--admin-text);
-    background: var(--admin-surface);
-    box-shadow: 0 1px 2px rgb(15 23 42 / 3%);
-    text-decoration: none;
-    transition: border-color .16s ease, background-color .16s ease, box-shadow .16s ease, transform .16s ease;
-}
-
-.admin-dashboard-quick-action:hover,
-.admin-dashboard-quick-action:focus-visible {
-    border-color: color-mix(in srgb, var(--admin-primary) 50%, var(--admin-border));
-    background: color-mix(in srgb, var(--admin-primary) 3%, #ffffff);
-    box-shadow: 0 8px 20px rgb(15 23 42 / 7%);
-    transform: translateY(-1px);
-}
-
-.admin-dashboard-quick-action:focus-visible {
-    outline: 2px solid var(--admin-primary);
-    outline-offset: 2px;
-}
-
-.admin-dashboard-quick-action-copy,
-.admin-dashboard-quick-action-copy strong,
-.admin-dashboard-quick-action-copy > span {
-    display: block;
-}
-
-.admin-dashboard-quick-action strong {
-    color: var(--admin-primary);
-    font-size: 15px;
-}
-
-.admin-dashboard-quick-action-copy > span {
-    margin-top: 4px;
-    color: var(--admin-text-muted);
-    font-size: 13px;
-    line-height: 1.45;
-}
-
-.admin-dashboard-quick-action-icon {
-    width: 36px;
-    height: 36px;
-    display: grid;
-    place-items: center;
-    border-radius: 9px;
-    color: var(--admin-primary);
-    background: color-mix(in srgb, var(--admin-primary) 9%, #ffffff);
-}
-
-.admin-dashboard-quick-action-icon .backend-sidebar-icon {
-    width: 19px;
-    height: 19px;
-}
-
-.admin-dashboard-quick-action-arrow {
-    color: #94a3b8;
-    font-size: 18px;
-    transition: color .16s ease, transform .16s ease;
-}
-
-.admin-dashboard-quick-action:hover .admin-dashboard-quick-action-arrow,
-.admin-dashboard-quick-action:focus-visible .admin-dashboard-quick-action-arrow {
-    color: var(--admin-primary);
-    transform: translateX(2px);
-}
-
-.admin-dashboard-info-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 20px;
-}
-
-.admin-dashboard-info-card {
-    padding: 20px;
-    border-radius: 10px;
-}
-
-.admin-dashboard-section-title {
-    margin: 0;
-    color: var(--admin-primary);
-    font-size: 18px;
-    font-weight: 600;
-}
-
-.admin-dashboard-card-header {
-    margin-bottom: 16px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-}
-
 .admin-profile-summary {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -4072,38 +3928,6 @@
     max-width: none;
 }
 
-.teacher-dashboard-grid {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 18px;
-}
-
-.teacher-dashboard-card {
-    min-height: 170px;
-    display: flex;
-    flex-direction: column;
-}
-
-.teacher-dashboard-card p {
-    margin: 0;
-    color: var(--admin-primary);
-    font-weight: 600;
-}
-
-.teacher-dashboard-card strong {
-    margin: 18px 0 12px;
-    color: var(--admin-active);
-    font-size: 30px;
-    font-weight: 600;
-}
-
-.teacher-dashboard-card span {
-    margin-top: auto;
-    color: #777777;
-    font-size: 14px;
-    line-height: 1.5;
-}
-
 .teacher-password-success {
     max-width: 720px;
     margin-top: 20px;
@@ -4114,17 +3938,8 @@
         width: 100%;
     }
 
-    .admin-dashboard-info-grid,
     .admin-profile-summary {
         grid-template-columns: 1fr;
-    }
-
-    .admin-dashboard-quick-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .teacher-dashboard-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .course-version-summary-grid,
@@ -5920,14 +5735,6 @@
     .course-version-item-heading {
         align-items: flex-start;
         flex-direction: column;
-    }
-
-    .teacher-dashboard-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .teacher-dashboard-card {
-        min-height: 150px;
     }
 
     .course-template-section-action-bar {

@@ -1790,6 +1790,7 @@
 .lf-admin-ui .ui-toast__close { flex: none; display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: inherit; font: 20px/1 var(--ui-font-family); }
 .lf-admin-ui .ui-toast__close:hover { background: var(--ui-color-ffffff1c); filter: brightness(.9); }
 @media (max-width: 520px) { .lf-admin-ui .ui-toast-region { top: 8px; right: 16px; } }
+@media (max-width: 680px) { .lf-admin-ui .ui-toast-region { top: 74px; } } /* phone: sit under the 66px top bar, not over the language and account buttons */
 .lf-admin-ui .ui-summary-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 22px; border-bottom: 1px solid var(--ui-color-e6e8ee); }
 .lf-admin-ui .ui-summary-head h2 { margin: 0; font-size: 18px; font-weight: 500; }
 .lf-admin-ui .ui-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 28px; margin: 0; padding: 20px; }
@@ -2069,3 +2070,32 @@
 .lf-admin-ui .mk-source-name { display: inline-flex; align-items: center; gap: 6px; }
 .lf-admin-ui .ui-source-icon { display: inline-flex; align-items: center; color: var(--ui-primary); cursor: default; }
 .lf-admin-ui .ui-source-icon .ui-icon { width: 14px; height: 14px; }
+
+/* Dashboard (admin and teacher), 2026-10-22: shortcuts + summary cards from the Owner's redesign. */
+.lf-admin-ui--dashboard { background: transparent; padding: 0; }
+.lf-admin-ui .ui-dash-welcome { margin: 0 0 26px; color: var(--ui-muted); }
+.lf-admin-ui .ui-dash-welcome strong { font-weight: 500; color: var(--ui-text); }
+.lf-admin-ui .ui-dash-title { margin: 0 0 12px; font-size: 15px; font-weight: 500; }
+.lf-admin-ui .ui-dash-shortcuts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 24px; }
+.lf-admin-ui .ui-dash-shortcut { display: flex; align-items: flex-start; gap: 12px; min-width: 0; padding: 16px; border: 1px solid var(--ui-border); border-radius: 7px; background: var(--ui-white); color: var(--ui-text); text-decoration: none; transition: border-color .14s ease, background-color .14s ease; }
+.lf-admin-ui .ui-dash-shortcut:hover { border-color: var(--ui-border-hover); background: var(--ui-color-fafbfe); }
+.lf-admin-ui .ui-dash-shortcut:focus-visible { outline: 2px solid var(--ui-color-485cc74d); outline-offset: 2px; }
+.lf-admin-ui .ui-dash-shortcut__icon { display: flex; align-items: center; justify-content: center; flex: none; width: 36px; height: 36px; border-radius: var(--ui-control-radius); background: var(--ui-color-eef0fb); color: var(--ui-primary); }
+.lf-admin-ui .ui-dash-shortcut__icon svg { width: 18px; height: 18px; }
+.lf-admin-ui .ui-dash-shortcut__copy { flex: 1; min-width: 0; }
+.lf-admin-ui .ui-dash-shortcut__copy strong { display: block; margin-bottom: 5px; font-weight: 500; }
+.lf-admin-ui .ui-dash-shortcut__copy small { display: block; font-size: 12px; line-height: 1.5; color: var(--ui-muted); }
+.lf-admin-ui .ui-dash-shortcut__arrow { flex: none; margin-top: 8px; color: var(--ui-muted); }
+.lf-admin-ui .ui-dash-shortcut__arrow svg { width: 16px; height: 16px; }
+.lf-admin-ui .ui-dash-info { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; align-items: start; }
+.lf-admin-ui .ui-dash-info--single { grid-template-columns: minmax(0, 1fr); max-width: 50%; }
+.lf-admin-ui .ui-dash-card { min-width: 0; border: 1px solid var(--ui-border); border-radius: 7px; background: var(--ui-white); }
+.lf-admin-ui .ui-dash-card__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--ui-color-eceef3); }
+.lf-admin-ui .ui-dash-card__head h2 { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; min-width: 0; margin: 0; font-size: 15px; font-weight: 500; }
+.lf-admin-ui .ui-dash-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 24px; margin: 0; padding: 20px; }
+.lf-admin-ui .ui-dash-summary > div { min-width: 0; }
+.lf-admin-ui .ui-dash-summary dt { margin-bottom: 6px; font-size: 12px; color: var(--ui-muted); }
+.lf-admin-ui .ui-dash-summary dd { margin: 0; overflow-wrap: anywhere; }
+@media (max-width: 1100px) { .lf-admin-ui .ui-dash-info--single { max-width: none; } }
+@media (max-width: 900px) { .lf-admin-ui .ui-dash-shortcuts, .lf-admin-ui .ui-dash-info { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 420px) { .lf-admin-ui .ui-dash-summary { grid-template-columns: minmax(0, 1fr); } }

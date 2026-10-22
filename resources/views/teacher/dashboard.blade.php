@@ -3,25 +3,30 @@
 @section('title', __('lf.LF_teacher_title_teacher_dashboard'))
 @section('page_title', __('lf.LF_navigation_menu_teacher_dashboard'))
 
-@section('content')
-    <p class="admin-dashboard-welcome">
-        {{ __('lf.LF_teacher_message_teacher_welcome', ['name' => auth()->user()->name]) }}
-    </p>
+@section('vite')
+    @parent
+    @vite(['resources/css/admin/admin-ui-kit.css', 'resources/js/admin-ui-kit-controls.js', 'resources/js/admin-ui-kit-dialog-form.js'])
+@endsection
 
-    <div class="teacher-dashboard-grid">
-        @foreach ([
-            ['label' => __('lf.LF_teacher_title_teacher_my_courses'), 'value' => '--', 'copy' => __('lf.LF_teacher_card_teacher_courses')],
-            ['label' => __('lf.LF_teacher_title_teacher_students'), 'value' => '--', 'copy' => __('lf.LF_teacher_card_teacher_students')],
-            ['label' => __('lf.LF_teacher_title_teacher_pending_gradings'), 'value' => '--', 'copy' => __('lf.LF_teacher_card_teacher_pending_gradings')],
-            ['label' => __('lf.LF_teacher_title_teacher_upcoming_classes'), 'value' => '--', 'copy' => __('lf.LF_teacher_card_teacher_upcoming_classes')],
-            ['label' => __('lf.LF_teacher_title_teacher_reports'), 'value' => '--', 'copy' => __('lf.LF_teacher_card_teacher_reports')],
-            ['label' => __('lf.LF_teacher_title_teacher_ai_assistant'), 'value' => 'AI', 'copy' => __('lf.LF_teacher_card_teacher_ai_assistant')],
-        ] as $card)
-            <section class="admin-card teacher-dashboard-card">
-                <p>{{ $card['label'] }}</p>
-                <strong>{{ $card['value'] }}</strong>
-                <span>{{ $card['copy'] }}</span>
-            </section>
-        @endforeach
+@section('content')
+    <div class="lf-admin-ui lf-admin-ui--dashboard" data-ui-dialog-form-scope>
+        <x-ui-list-toasts />
+
+        <p class="ui-dash-welcome"><strong>{{ __('lf.LF_teacher_message_teacher_welcome', ['name' => auth()->user()->name]) }}</strong> {{ __('lf.LF_teacher_message_dashboard_guidance') }}</p>
+
+        <section aria-labelledby="teacher-dashboard-quick-actions">
+            <h2 id="teacher-dashboard-quick-actions" class="ui-dash-title">{{ __('lf.LF_admin_title_quick_actions') }}</h2>
+            <div class="ui-dash-shortcuts">
+                <x-dashboard-shortcut :href="route('teacher.cohorts.index')" icon="users" :title="__('lf.LF_navigation_menu_teacher_cohorts')" :help="__('lf.LF_teacher_action_cohorts_help')" />
+                <x-dashboard-shortcut :href="route('teacher.course-templates.index')" icon="book-open" :title="__('lf.LF_navigation_menu_common_course_templates')" :help="__('lf.LF_teacher_action_templates_help')" />
+                <x-dashboard-shortcut :href="route('teacher.media.index')" icon="image" :title="__('lf.LF_navigation_menu_admin_media')" :help="__('lf.LF_teacher_action_media_help')" />
+            </div>
+        </section>
+
+        <div class="ui-dash-info ui-dash-info--single">
+            @include('partials.dashboard.user-card', ['user' => auth()->user(), 'editUrl' => route('teacher.profile.edit')])
+        </div>
+
+        <x-ui-form-dialog-host title-id="dashboard-dialog-title" />
     </div>
 @endsection

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Support\TenantContext;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -11,14 +12,15 @@ use Illuminate\View\View;
 
 class OrganizationController extends Controller
 {
-    public function edit(): View
+    public function edit(Request $request): View
     {
-        return view('admin.organization.edit', [
+        // The dashboard opens this form as a UI Kit popup (XHR); the full page stays for direct visits.
+        return view($request->ajax() ? 'admin.organization.dialog' : 'admin.organization.edit', [
             'tenant' => $this->tenant(),
         ]);
     }
 
-    public function update(Request $request): RedirectResponse
+    public function update(Request $request): RedirectResponse|JsonResponse
     {
         $customerId = TenantContext::customerId();
 
@@ -47,6 +49,13 @@ class OrganizationController extends Controller
                     'updated_at' => now(),
                 ]);
         });
+
+        if ($request->expectsJson()) {
+            $message = __('lf.LF_admin_message_organization_updated');
+            session()->flash('success', $message);
+
+            return response()->json(['message' => $message, 'redirect' => route('admin.dashboard')]);
+        }
 
         return redirect()
             ->route('admin.organization.edit')

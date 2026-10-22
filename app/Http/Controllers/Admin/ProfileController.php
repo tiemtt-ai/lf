@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Support\TenantContext;
 use Closure;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -15,14 +16,14 @@ use Illuminate\View\View;
 
 class ProfileController extends Controller
 {
-    public function edit(): View
+    public function edit(Request $request): View
     {
-        return view('admin.my-account.edit', [
+        return view($request->ajax() ? 'admin.my-account.dialog' : 'admin.my-account.edit', [
             'user' => $this->admin(),
         ]);
     }
 
-    public function update(Request $request): RedirectResponse
+    public function update(Request $request): RedirectResponse|JsonResponse
     {
         $user = $request->user();
         $userId = $user?->id;
@@ -64,6 +65,13 @@ class ProfileController extends Controller
                     'updated_at' => now(),
                 ]);
         });
+
+        if ($request->expectsJson()) {
+            $message = __('lf.LF_admin_message_my_account_updated');
+            session()->flash('success', $message);
+
+            return response()->json(['message' => $message, 'redirect' => route('admin.dashboard')]);
+        }
 
         return redirect()
             ->route('admin.my-account.edit')
