@@ -54,7 +54,7 @@ class OrganizationController extends Controller
             $message = __('lf.LF_admin_message_organization_updated');
             session()->flash('success', $message);
 
-            return response()->json(['message' => $message, 'redirect' => route('admin.dashboard')]);
+            return response()->json(['message' => $message, 'redirect' => $request->input('return') === 'page' ? route('admin.organization.edit') : route('admin.dashboard')]);
         }
 
         return redirect()

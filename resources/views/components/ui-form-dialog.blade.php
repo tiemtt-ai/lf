@@ -3,7 +3,9 @@
 
 <form class="ui-modal__form" method="POST" novalidate action="{{ $action }}">
     @csrf
-    @method($method)
+    @unless (strtoupper($method) === 'POST')
+        @method($method)
+    @endunless
     <header class="ui-modal__header">
         <div><h3 id="{{ $titleId }}">{{ $title }}</h3></div>
         <button class="ui-modal__close cursor-interaction" type="button" data-ui-dialog-form-cancel

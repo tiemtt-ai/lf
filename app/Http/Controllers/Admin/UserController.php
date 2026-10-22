@@ -77,7 +77,8 @@ class UserController extends Controller
             ? $request->query('role')
             : 'customer_admin';
 
-        return view('admin.users.create', compact('role'));
+        // The users list opens this form as a UI Kit popup (XHR); the full page stays for direct visits.
+        return view($request->ajax() ? 'admin.users.dialog' : 'admin.users.create', ['role' => $role, 'user' => null]);
     }
 
     public function store(Request $request)
@@ -121,12 +122,19 @@ class UserController extends Controller
             );
         });
 
+        if ($request->expectsJson()) {
+            $message = __('lf.LF_admin_user_message_created');
+            session()->flash('success', $message);
+
+            return response()->json(['message' => $message, 'redirect' => route('admin.users.index', ['role' => $request->role])], 201);
+        }
+
         return redirect()
             ->route('admin.users.index')
             ->with('success', 'User created successfully.');
     }
 
-    public function edit($id)
+    public function edit(Request $request, $id)
     {
         $user = DB::table('users')
             ->where('customer_id', TenantContext::customerId())
@@ -135,7 +143,21 @@ class UserController extends Controller
 
         abort_if(! $user, 404);
 
-        return view('admin.users.edit', compact('user'));
+        return view($request->ajax() ? 'admin.users.dialog' : 'admin.users.edit', ['user' => $user, 'role' => $user->role]);
+    }
+
+    public function editPassword(Request $request, $id)
+    {
+        abort_unless($request->ajax(), 404);
+
+        $user = DB::table('users')
+            ->where('customer_id', TenantContext::customerId())
+            ->where('id', $id)
+            ->first();
+
+        abort_if(! $user, 404);
+
+        return view('admin.users.password-dialog', ['user' => $user]);
     }
 
     public function update(Request $request, $id)
@@ -224,6 +246,10 @@ class UserController extends Controller
             return ['blocked' => false, 'email_changed' => $emailChanged];
         });
 
+        if ($result['blocked'] && $request->expectsJson()) {
+            return response()->json(['message' => 'The given data was invalid.', 'errors' => ['role' => [__('lf.LF_admin_user_error_last_admin')]]], 422);
+        }
+
         if ($result['blocked']) {
             return back()
                 ->withErrors(['role' => 'This tenant must have at least one active customer admin.'])
@@ -238,6 +264,13 @@ class UserController extends Controller
             if ($updatedUser instanceof MustVerifyEmail) {
                 $updatedUser->sendEmailVerificationNotification();
             }
+        }
+
+        if ($request->expectsJson()) {
+            $message = __('lf.LF_admin_user_message_updated');
+            session()->flash('success', $message);
+
+            return response()->json(['message' => $message, 'redirect' => route('admin.users.index', ['role' => $request->role])]);
         }
 
         return redirect()
@@ -319,9 +352,23 @@ class UserController extends Controller
             $request->session()->invalidate();
             $request->session()->regenerateToken();
 
+            if ($request->expectsJson()) {
+                $message = __('lf.LF_auth_message_password_changed_login_again');
+                session()->flash('status', $message);
+
+                return response()->json(['message' => $message, 'redirect' => route('login')]);
+            }
+
             return redirect()
                 ->route('login')
                 ->with('status', __('lf.LF_auth_message_password_changed_login_again'));
+        }
+
+        if ($request->expectsJson()) {
+            $message = __('lf.LF_admin_user_message_password_reset');
+            session()->flash('success', $message);
+
+            return response()->json(['message' => $message, 'redirect' => route('admin.users.index', ['role' => $user->role])]);
         }
 
         return redirect()

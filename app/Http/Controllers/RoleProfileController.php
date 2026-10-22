@@ -26,7 +26,14 @@ class RoleProfileController extends Controller
         return $this->update($request, 'teacher', 'teacher.profile.edit');
     }
 
-    public function updateTeacherPassword(Request $request): RedirectResponse
+    public function editTeacherPassword(Request $request): View
+    {
+        abort_unless($request->ajax(), 404);
+
+        return view('partials.account.password-dialog', ['action' => route('teacher.profile.password.update')]);
+    }
+
+    public function updateTeacherPassword(Request $request): RedirectResponse|JsonResponse
     {
         return $this->updatePassword($request, 'teacher');
     }
@@ -114,7 +121,7 @@ class RoleProfileController extends Controller
             $message = __('lf.LF_admin_message_my_account_updated');
             session()->flash('success', $message);
 
-            return response()->json(['message' => $message, 'redirect' => $role === 'teacher' ? route('teacher.dashboard') : route($route)]);
+            return response()->json(['message' => $message, 'redirect' => $role === 'teacher' && $request->input('return') !== 'page' ? route('teacher.dashboard') : route($route)]);
         }
 
         return redirect()
@@ -122,7 +129,7 @@ class RoleProfileController extends Controller
             ->with('profile_success', 'Profile updated successfully.');
     }
 
-    private function updatePassword(Request $request, string $role): RedirectResponse
+    private function updatePassword(Request $request, string $role): RedirectResponse|JsonResponse
     {
         $userId = auth()->id();
         $customerId = TenantContext::customerId();
@@ -174,6 +181,13 @@ class RoleProfileController extends Controller
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
+
+        if ($request->expectsJson()) {
+            $message = __('lf.LF_auth_message_password_changed_login_again');
+            session()->flash('status', $message);
+
+            return response()->json(['message' => $message, 'redirect' => route('login')]);
+        }
 
         return redirect()
             ->route('login')

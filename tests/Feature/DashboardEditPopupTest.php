@@ -95,4 +95,34 @@ class DashboardEditPopupTest extends TestCase
 
         return [$make('customer_admin', 'admin@example.test'), $make('teacher', 'teacher@example.test')];
     }
+
+    public function test_the_password_popup_loads_for_both_roles_and_signs_the_user_out_after_a_change(): void
+    {
+        [$admin, $teacher] = $this->people();
+
+        foreach ([[$admin, '/admin/my-account/password'], [$teacher, '/teacher/profile/password']] as [$user, $path]) {
+            $this->actingAs($user)->withHeaders(self::AJAX)->get('https://tenant-a.localhost'.$path)->assertOk()
+                ->assertSee('class="ui-modal__form"', false)->assertSee('name="current_password"', false);
+            $this->flushHeaders();
+            $this->actingAs($user)->get('https://tenant-a.localhost'.$path)->assertNotFound();
+        }
+
+        $this->actingAs($teacher)->patchJson('https://tenant-a.localhost/teacher/profile/password', ['current_password' => 'nope', 'password' => 'new-password-456', 'password_confirmation' => 'new-password-456'])
+            ->assertStatus(422)->assertJsonValidationErrors(['current_password']);
+
+        $this->actingAs($teacher)->patchJson('https://tenant-a.localhost/teacher/profile/password', ['current_password' => 'password123', 'password' => 'new-password-456', 'password_confirmation' => 'new-password-456'])
+            ->assertOk()->assertJson(['redirect' => 'https://tenant-a.localhost/login', 'message' => __('lf.LF_auth_message_password_changed_login_again')]);
+        $this->assertGuest();
+        $this->assertTrue(Hash::check('new-password-456', $teacher->fresh()->password));
+    }
+
+    public function test_the_account_pages_return_to_themselves_after_a_popup_save(): void
+    {
+        [$admin, $teacher] = $this->people();
+
+        $this->actingAs($admin)->patchJson('https://tenant-a.localhost/admin/my-account', ['name' => 'Admin', 'return' => 'page'])
+            ->assertOk()->assertJson(['redirect' => 'https://tenant-a.localhost/admin/my-account']);
+        $this->actingAs($teacher)->patchJson('https://tenant-a.localhost/teacher/profile', ['name' => 'Teacher', 'email' => 'teacher@example.test', 'return' => 'page'])
+            ->assertOk()->assertJson(['redirect' => 'https://tenant-a.localhost/teacher/profile']);
+    }
 }

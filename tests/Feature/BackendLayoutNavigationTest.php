@@ -77,10 +77,8 @@ class BackendLayoutNavigationTest extends TestCase
             ->assertSee('class="backend-sidebar-icon admin-icon"', false)
             ->assertSee('data-sidebar-icon="home"', false)
             ->assertSee('data-sidebar-icon="users"', false)
-            ->assertSee('data-sidebar-icon="book-open"', false)
-            ->assertSee('data-sidebar-icon="package"', false)
+            ->assertSee('data-sidebar-icon="book-marked"', false)
             ->assertDontSee('data-sidebar-icon="shopping-bag"', false)
-            ->assertSee('data-sidebar-icon="image"', false)
             ->assertSee('href="https://tenant-a.localhost/admin/learning-frameworks"', false)
             ->assertSeeText(__('lf.LF_learning_frameworks'))
             ->assertDontSee('x-on:click="handleSidebarNavigation($event)"', false);
@@ -90,9 +88,33 @@ class BackendLayoutNavigationTest extends TestCase
             ->assertOk()
             ->assertSee('class="backend-sidebar-icon admin-icon"', false)
             ->assertSee('data-sidebar-icon="home"', false)
-            ->assertSee('data-sidebar-icon="folder"', false)
-            ->assertSee('data-sidebar-icon="book-open"', false)
+            ->assertSee('data-sidebar-icon="users"', false)
             ->assertDontSee('x-on:click="handleSidebarNavigation($event)"', false);
+    }
+
+    public function test_course_content_pages_are_grouped_in_one_collapsible_menu_group(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $teacher = $this->createUser($customerId, 'teacher');
+        $group = __('lf.LF_navigation_group_course_content');
+
+        $adminHtml = $this->actingAs($admin)->get('https://tenant-a.localhost/admin/course-products')->assertOk()->getContent();
+        $this->assertMatchesRegularExpression('/<button[^>]+aria-label="'.preg_quote($group, '/').'"[^>]+data-active-parent="true"/', $adminHtml);
+        foreach (['course-categories', 'course-templates', 'course-products', 'media'] as $page) {
+            $this->assertMatchesRegularExpression('/class="admin-nav__child" href="[^"]+\/admin\/'.$page.'"/', $adminHtml);
+        }
+        $this->assertMatchesRegularExpression('/class="admin-nav__child" href="[^"]+\/admin\/course-products"[^>]*aria-current="page"/', $adminHtml);
+        // Enrolment, classes and learning outcomes stay first-level, after the group.
+        $this->assertLessThan(strpos($adminHtml, '/admin/course-enrollments'), strpos($adminHtml, '/admin/media'));
+        $this->assertMatchesRegularExpression('/class="admin-nav__item" href="[^"]+\/admin\/course-enrollments"/', $adminHtml);
+
+        $teacherHtml = $this->actingAs($teacher)->get('https://tenant-a.localhost/teacher/media')->assertOk()->getContent();
+        $this->assertMatchesRegularExpression('/<button[^>]+aria-label="'.preg_quote($group, '/').'"[^>]+data-active-parent="true"/', $teacherHtml);
+        foreach (['course-categories', 'course-templates', 'media'] as $page) {
+            $this->assertMatchesRegularExpression('/class="admin-nav__child" href="[^"]+\/teacher\/'.$page.'"/', $teacherHtml);
+        }
+        $this->assertDoesNotMatchRegularExpression('/admin-nav__child" href="[^"]+\/teacher\/course-products/', $teacherHtml);
     }
 
     public function test_learning_framework_create_uses_the_standard_admin_form_contract(): void
@@ -142,31 +164,6 @@ class BackendLayoutNavigationTest extends TestCase
             ->assertOk()
             ->assertSee('class="page-heading"', false)
             ->assertDontSee('page-heading--with-actions', false);
-    }
-
-    public function test_course_products_uses_the_package_icon_when_active_and_inactive(): void
-    {
-        $customerId = $this->createTenant();
-        $admin = $this->createUser($customerId, 'customer_admin');
-
-        $inactiveHtml = $this->actingAs($admin)
-            ->get('https://tenant-a.localhost/admin')
-            ->assertOk()
-            ->getContent();
-        $activeHtml = $this->actingAs($admin)
-            ->get('https://tenant-a.localhost/admin/course-products')
-            ->assertOk()
-            ->getContent();
-
-        $this->assertMatchesRegularExpression(
-            '/class="admin-nav__item" href="[^"]+\/admin\/course-products"[^>]+data-sidebar-icon="package"/',
-            $inactiveHtml
-        );
-        $this->assertMatchesRegularExpression(
-            '/class="admin-nav__item" href="[^"]+\/admin\/course-products"[^>]+data-sidebar-icon="package"[^>]+aria-current="page"/',
-            $activeHtml
-        );
-        $this->assertStringNotContainsString('data-sidebar-icon="shopping-bag"', $activeHtml);
     }
 
     public function test_enrollment_navigation_precedes_class_navigation(): void
@@ -328,7 +325,7 @@ class BackendLayoutNavigationTest extends TestCase
             $this->assertStringContainsString('lf.table_no', $blade, $file);
             $this->assertStringContainsString('lf.table_actions', $blade, $file);
             $this->assertStringContainsString('firstItem() + $loop->index', $blade, $file);
-            $this->assertStringContainsString('->links()', $blade, $file);
+            $this->assertTrue(str_contains($blade, '->links()') || str_contains($blade, '<x-ui-list-foot'), $file);
             $this->assertStringNotContainsString('LF_common_label_common_id', $blade, $file);
             $this->assertStringNotContainsString('LF_common_label_common_action', $blade, $file);
             $this->assertStringNotContainsString('toggle-status', $blade, $file);
@@ -605,7 +602,6 @@ class BackendLayoutNavigationTest extends TestCase
     public function test_admin_tables_use_the_canonical_sticky_action_menu_contract(): void
     {
         $tableViews = [
-            'resources/views/admin/users/index.blade.php',
             'resources/views/course-cohort-students/index.blade.php',
             'resources/views/course-cohorts/index.blade.php',
             'resources/views/course-cohorts/show.blade.php',
@@ -943,5 +939,42 @@ class BackendLayoutNavigationTest extends TestCase
         $this->assertStringContainsString('overflow:clip;color-scheme:light', $css);
         $this->assertStringContainsString('#admin-app .admin-shell>.admin-sidebar{position:sticky;top:0;', $css);
         $this->assertStringContainsString('#admin-app .admin-header{flex-shrink:0;position:sticky;top:0;z-index:40}', $css);
+    }
+
+    public function test_admin_users_list_follows_the_ui_kit_list_contract(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $teacher = $this->createUser($customerId, 'teacher');
+        DB::table('users')->where('id', $teacher->id)->update(['name' => 'Giao Vien Mot', 'phone' => '0911222333']);
+
+        $html = $this->actingAs($admin)->get('https://tenant-a.localhost/admin/users?role=teacher')
+            ->assertOk()
+            ->assertSee('class="lf-admin-ui lf-admin-ui--list"', false)
+            ->assertSee('class="page-heading page-heading--hidden"', false)
+            ->assertSee('class="mk-tabs"', false)
+            ->assertSee('data-ui-live-filter', false)
+            ->assertSee('data-ui-kit-select', false)
+            ->assertSee('class="mk-table-scroll"', false)
+            ->assertSee('data-url="https://tenant-a.localhost/admin/users/'.$teacher->id.'/edit"', false)
+            ->assertSee('data-url="https://tenant-a.localhost/admin/users/'.$teacher->id.'/password"', false)
+            ->assertSee('data-ui-dialog-form-scope', false)
+            ->assertSee('class="ui-status ui-status--active"', false)
+            ->assertSee(__('lf.LF_admin_user_create_teacher'))
+            ->assertSee(__('lf.LF_admin_user_status_filter_all'))
+            ->assertSeeText('Giao Vien Mot')
+            ->assertSeeText('0911222333')
+            ->assertDontSee('admin-user-table', false)
+            ->assertDontSee('admin-action-menu', false)
+            ->getContent();
+
+        // The tab counts and the role stay in the tab links; a filter is kept when the role changes.
+        $this->actingAs($admin)->get('https://tenant-a.localhost/admin/users?role=teacher&keyword=Giao')
+            ->assertOk()->assertSee('role=customer_admin&amp;keyword=Giao', false);
+
+        // An empty result offers to clear the filters instead of creating.
+        $this->actingAs($admin)->get('https://tenant-a.localhost/admin/users?role=teacher&keyword=khongco')
+            ->assertOk()->assertSeeText(__('lf.LF_admin_user_filter_empty'))
+            ->assertSeeText(__('lf.LF_admin_user_clear_filters'));
     }
 }

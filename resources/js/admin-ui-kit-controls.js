@@ -1,4 +1,8 @@
 /** Opt-in adapters for real native selects. All presentation is shared CSS. */
+import { initUiKitDateInputs } from './admin-ui-kit-date.js';
+
+export { initUiKitDateInputs };
+
 const instances = new WeakMap();
 
 /**
@@ -683,6 +687,7 @@ if (typeof document !== 'undefined') {
     const initialize = () => {
         document.querySelectorAll('.lf-admin-ui select[data-ui-kit-select]').forEach(initUiKitSelect);
         document.querySelectorAll('.lf-admin-ui form[data-ui-live-filter]').forEach(form => initUiKitLiveFilter(form));
+        initUiKitDateInputs(document);
         initUiKitMediaSlots(document);
         initUiKitEmbedSlots(document);
         initUiKitToasts(document);

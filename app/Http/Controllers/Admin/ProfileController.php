@@ -70,7 +70,7 @@ class ProfileController extends Controller
             $message = __('lf.LF_admin_message_my_account_updated');
             session()->flash('success', $message);
 
-            return response()->json(['message' => $message, 'redirect' => route('admin.dashboard')]);
+            return response()->json(['message' => $message, 'redirect' => $request->input('return') === 'page' ? route('admin.my-account.edit') : route('admin.dashboard')]);
         }
 
         return redirect()
@@ -78,7 +78,14 @@ class ProfileController extends Controller
             ->with('profile_success', __('lf.LF_admin_message_my_account_updated'));
     }
 
-    public function updatePassword(Request $request): RedirectResponse
+    public function editPassword(Request $request): View
+    {
+        abort_unless($request->ajax(), 404);
+
+        return view('partials.account.password-dialog', ['action' => route('admin.my-account.password.update')]);
+    }
+
+    public function updatePassword(Request $request): RedirectResponse|JsonResponse
     {
         $user = $this->admin();
 
@@ -119,6 +126,13 @@ class ProfileController extends Controller
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
+
+        if ($request->expectsJson()) {
+            $message = __('lf.LF_auth_message_password_changed_login_again');
+            session()->flash('status', $message);
+
+            return response()->json(['message' => $message, 'redirect' => route('login')]);
+        }
 
         return redirect()
             ->route('login')

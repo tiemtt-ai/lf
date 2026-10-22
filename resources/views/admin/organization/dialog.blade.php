@@ -1,4 +1,5 @@
 <x-ui-form-dialog :action="route('admin.organization.update')" :title="__('lf.LF_admin_dialog_organization_title')" title-id="dashboard-dialog-title">
+    <input type="hidden" name="return" value="{{ request()->query('return') === 'page' ? 'page' : 'dashboard' }}">
     <div class="ui-modal__grid">
         <div class="ui-field ui-field--full">
             <label class="ui-field__label" for="organization-form-name"><span class="ui-field__required" aria-hidden="true">*</span>{{ __('lf.LF_admin_label_tenant_name') }}</label>

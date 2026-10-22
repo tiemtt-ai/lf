@@ -143,6 +143,9 @@ Route::middleware([
     Route::patch('/my-account', [AdminProfileController::class, 'update'])
         ->name('my-account.update');
 
+    Route::get('/my-account/password', [AdminProfileController::class, 'editPassword'])
+        ->name('my-account.password.edit');
+
     Route::patch('/my-account/password', [AdminProfileController::class, 'updatePassword'])
         ->name('my-account.password.update');
 
@@ -157,6 +160,9 @@ Route::middleware([
 
     Route::get('/users/{id}/edit', [UserController::class, 'edit'])
         ->name('users.edit');
+
+    Route::get('/users/{id}/password', [UserController::class, 'editPassword'])
+        ->name('users.password.edit');
 
     Route::put('/users/{id}', [UserController::class, 'update'])
         ->name('users.update');
@@ -193,6 +199,9 @@ Route::middleware([
 
     Route::patch('/profile', [RoleProfileController::class, 'updateTeacher'])
         ->name('profile.update');
+
+    Route::get('/profile/password', [RoleProfileController::class, 'editTeacherPassword'])
+        ->name('profile.password.edit');
 
     Route::patch('/profile/password', [RoleProfileController::class, 'updateTeacherPassword'])
         ->name('profile.password.update');

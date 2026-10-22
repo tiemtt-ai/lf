@@ -996,13 +996,21 @@
     align-items: center;
     justify-content: flex-end;
     gap: 10px;
+    flex-wrap: wrap;
     padding: 14px 22px;
     border-top: 1px solid var(--ui-color-eceef3);
     flex-shrink: 0;
     background: var(--ui-white)
 }
 .lf-admin-ui .ui-modal__footer>span {
-    margin-right: auto
+    margin-right: auto;
+    flex: 1 1 200px;
+    min-width: 0;
+    overflow-wrap: anywhere
+}
+.lf-admin-ui .ui-modal__footer>.ui-button {
+    flex: none;
+    white-space: nowrap
 }
 .lf-admin-ui .ui-modal .ui-field__code,
 .lf-admin-ui .ui-modal .ui-state-cycle {
@@ -2099,3 +2107,8 @@
 @media (max-width: 1100px) { .lf-admin-ui .ui-dash-info--single { max-width: none; } }
 @media (max-width: 900px) { .lf-admin-ui .ui-dash-shortcuts, .lf-admin-ui .ui-dash-info { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 420px) { .lf-admin-ui .ui-dash-summary { grid-template-columns: minmax(0, 1fr); } }
+.lf-admin-ui .ui-dash-card__body { display: grid; justify-items: start; gap: 12px; padding: 20px; }
+.lf-admin-ui .ui-dash-card__note { margin: 0; padding: 0 20px 18px; }
+.lf-admin-ui .ui-dash-summary code { font: 13px/1.4 monospace; color: var(--ui-color-5b6371); }
+.lf-admin-ui .mk-text-cell--nowrap { white-space: nowrap; } /* email and phone: never broken mid-value; the table scrolls inside its card instead */
+.lf-admin-ui .ux-date input[readonly] { background: var(--ui-white); cursor: pointer; } /* a read-only text field that opens the calendar still reads as editable */

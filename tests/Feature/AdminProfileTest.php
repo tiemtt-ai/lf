@@ -39,20 +39,9 @@ class AdminProfileTest extends TestCase
         $response = $this->actingAs($admin)
             ->get('https://tenant-a.localhost/admin/my-account')
             ->assertOk()
-            ->assertSeeText(__('lf.LF_profile_title_common_information'))
             ->assertSeeText('admin@example.test')
             ->assertDontSee('name="email"', false)
             ->assertSeeText(__('lf.LF_common_button_common_change_password'))
-            ->assertSee('open-modal')
-            ->assertSee('name="current_password"', false)
-            ->assertSee('name="password"', false)
-            ->assertSee('name="password_confirmation"', false)
-            ->assertSee('class="lf-modal-card admin-password-modal"', false)
-            ->assertSee('class="admin-password-modal-header"', false)
-            ->assertSee(__('lf.LF_profile_placeholder_current_password'))
-            ->assertSee(__('lf.LF_profile_placeholder_new_password'))
-            ->assertSee(__('lf.LF_profile_placeholder_confirm_new_password'))
-            ->assertSee(__('lf.LF_profile_help_new_password'))
             ->assertSeeText(__('lf.LF_navigation_menu_admin_organization'))
             ->assertSeeText(__('lf.LF_navigation_menu_admin_users'))
             ->assertSeeText(__('lf.LF_navigation_menu_admin_my_account'))
@@ -63,40 +52,24 @@ class AdminProfileTest extends TestCase
             ->assertDontSeeText(__('lf.LF_navigation_group_admin_account_organization'))
             ->assertDontSee('admin-sidebar-link-child is-active', false);
 
-        $response->assertSee('class="admin-form-standard"', false)
-            ->assertSee('class="admin-form-flow"', false)
-            ->assertSee('aria-labelledby="admin-account-information"', false)
-            ->assertSee('aria-labelledby="admin-personal-information"', false)
-            ->assertSee('aria-labelledby="admin-account-security"', false)
-            ->assertSee('admin-form-field-grid--three', false)
-            ->assertSee('admin-form-readonly', false)
-            ->assertSee('class="admin-form-footer"', false)
-            ->assertDontSee('class="admin-form-grid"', false);
+        $response->assertSee('class="ui-dash-card"', false)
+            ->assertSee('data-ui-dialog-form-scope', false)
+            ->assertSee('data-url="https://tenant-a.localhost/admin/my-account?return=page"', false)
+            ->assertSee('data-url="https://tenant-a.localhost/admin/my-account/password"', false)
+            ->assertSeeText(__('lf.LF_profile_group_admin_personal'))
+            ->assertSeeText(__('lf.LF_profile_group_admin_security'))
+            ->assertDontSee('name="email"', false)
+            ->assertDontSee('name="current_password"', false);
 
-        $content = $response->getContent();
-
-        $modalContent = substr($content, strpos($content, 'admin-password-modal'));
-        $this->assertSame(3, substr_count(
-            $modalContent,
-            'class="lf-required-indicator"'
-        ));
-        $this->assertSame(3, substr_count(
-            $modalContent,
-            'aria-required="true"'
-        ));
-        $this->assertSame(6, substr_count(
-            $modalContent,
-            'class="admin-password-eye"'
-        ));
-
-        $this->assertLessThan(
-            strpos($content, 'name="password"'),
-            strpos($content, 'name="current_password"')
-        );
-        $this->assertLessThan(
-            strpos($content, 'name="password_confirmation"'),
-            strpos($content, 'name="password"')
-        );
+        // The change-password popup is a UI Kit form fragment loaded on demand: current, new, confirmation, in that order.
+        $fragment = $this->actingAs($admin)->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get('https://tenant-a.localhost/admin/my-account/password')->assertOk()
+            ->assertSee('class="ui-modal__form"', false)->assertDontSee('<html', false)->getContent();
+        $this->flushHeaders();
+        $this->assertSame(3, substr_count($fragment, 'class="ui-field__required"'));
+        $this->assertLessThan(strpos($fragment, 'name="password"'), strpos($fragment, 'name="current_password"'));
+        $this->assertLessThan(strpos($fragment, 'name="password_confirmation"'), strpos($fragment, 'name="password"'));
+        $this->actingAs($admin)->get('https://tenant-a.localhost/admin/my-account/password')->assertNotFound();
 
         $this->actingAs($admin)
             ->patch('https://tenant-a.localhost/admin/my-account/password', [
@@ -128,7 +101,7 @@ class AdminProfileTest extends TestCase
     {
         $admin = $this->createAdmin();
 
-        $wrongPasswordResponse = $this->actingAs($admin)
+        $this->actingAs($admin)
             ->from('https://tenant-a.localhost/admin/my-account')
             ->patch('https://tenant-a.localhost/admin/my-account/password', [
                 'current_password' => 'wrong-password',
@@ -137,9 +110,12 @@ class AdminProfileTest extends TestCase
             ])
             ->assertSessionHasErrors('current_password', null, 'updatePassword');
 
-        $this->followRedirects($wrongPasswordResponse)
-            ->assertOk()
-            ->assertSee('style="display: block;"', false);
+        // The popup posts JSON and gets the field errors back with 422.
+        $this->actingAs($admin)->patchJson('https://tenant-a.localhost/admin/my-account/password', [
+            'current_password' => 'wrong-password',
+            'password' => 'new-password-456',
+            'password_confirmation' => 'new-password-456',
+        ])->assertStatus(422)->assertJsonValidationErrors(['current_password']);
 
         $this->actingAs($admin)
             ->from('https://tenant-a.localhost/admin/my-account')
@@ -271,79 +247,48 @@ class AdminProfileTest extends TestCase
         ]);
     }
 
-    public function test_admin_organization_uses_the_shared_adaptive_form_contract(): void
+    public function test_admin_organization_page_is_a_summary_with_a_popup_edit_form(): void
     {
         $admin = $this->createAdmin();
+        DB::table('saas_customers')->where('id', $admin->customer_id)->update(['email' => 'org@example.test', 'phone' => '0900111222']);
 
-        $response = $this->actingAs($admin)
+        $this->actingAs($admin)
             ->get('https://tenant-a.localhost/admin/organization')
             ->assertOk()
-            ->assertSee('class="admin-card admin-form-card admin-form-surface admin-organization-form"', false)
-            ->assertSee('id="organization-update-form"', false)
-            ->assertSee('class="admin-form-standard"', false)
-            ->assertSee('class="admin-form-flow"', false)
-            ->assertSee('admin-form-field-grid--three', false)
-            ->assertSee('admin-profile-summary--three admin-readonly-summary admin-readonly-summary--standalone', false)
+            ->assertSee('data-ui-dialog-form-scope', false)
+            ->assertSee('data-url="https://tenant-a.localhost/admin/organization?return=page"', false)
             ->assertSee('aria-labelledby="organization-contact-title"', false)
             ->assertSee('aria-labelledby="organization-system-title"', false)
-            ->assertSee('placeholder="'.__('lf.LF_admin_placeholder_organization_name').'"', false)
-            ->assertSee('placeholder="'.__('lf.LF_admin_placeholder_organization_email').'"', false)
-            ->assertSee('placeholder="'.__('lf.LF_admin_placeholder_organization_phone').'"', false)
-            ->assertSee('class="admin-form-footer"', false)
-            ->assertSee('class="admin-form-footer-primary"', false)
-            ->assertSee('name="name"', false)
-            ->assertSee('name="email"', false)
-            ->assertSee('name="phone"', false)
-            ->assertSee('method="POST"', false)
-            ->assertSee('value="PATCH"', false)
-            ->assertDontSee('backend-form-columns', false)
-            ->assertDontSee('admin-form-actions', false);
+            ->assertSeeText('org@example.test')
+            ->assertSeeText('0900111222')
+            ->assertSeeText(__('lf.LF_common_status_common_active'))
+            ->assertDontSee('id="organization-update-form"', false)
+            ->assertDontSee('name="phone"', false);
 
-        $content = $response->getContent();
+        $fragment = $this->actingAs($admin)->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get('https://tenant-a.localhost/admin/organization?return=page')->assertOk();
+        $fragment->assertSee('class="ui-modal__form"', false)
+            ->assertSee('placeholder="'.__('lf.LF_admin_placeholder_organization_name').'"', false)
+            ->assertSee('name="return" value="page"', false);
+        $content = $fragment->getContent();
         $this->assertLessThan(strpos($content, 'name="email"'), strpos($content, 'name="name"'));
         $this->assertLessThan(strpos($content, 'name="phone"'), strpos($content, 'name="email"'));
-
-        $view = file_get_contents(resource_path('views/admin/organization/edit.blade.php'));
-        $this->assertStringNotContainsString('style=', $view);
-        $this->assertStringNotContainsString('<style', $view);
-
-        $css = file_get_contents(resource_path('css/admin/admin-components.css'));
-        $this->assertStringContainsString(
-            ':root.is-backend-sidebar-collapsed .backend-shell .admin-form-field-grid',
-            $css
-        );
-        $this->assertStringContainsString(
-            'grid-template-columns: repeat(2, minmax(0, 1fr));',
-            $css
-        );
-        $this->assertMatchesRegularExpression(
-            '/@media \(max-width: 900px\).*?\.admin-form-field-grid.*?grid-template-columns: minmax\(0, 1fr\);/s',
-            $css
-        );
-        $this->assertStringContainsString('@media (max-width: 575.98px)', $css);
     }
 
-    public function test_admin_organization_keeps_field_errors_adjacent_and_accessible(): void
+    public function test_admin_organization_popup_returns_field_errors_and_the_page_it_came_from(): void
     {
         $admin = $this->createAdmin();
 
-        $invalid = $this->actingAs($admin)
-            ->from('https://tenant-a.localhost/admin/organization')
-            ->patch('https://tenant-a.localhost/admin/organization', [
-                'name' => '',
-                'email' => 'not-an-email',
-                'phone' => str_repeat('1', 31),
-            ])
-            ->assertSessionHasErrors(['name', 'email', 'phone']);
+        $this->actingAs($admin)->patchJson('https://tenant-a.localhost/admin/organization', [
+            'name' => '',
+            'email' => 'not-an-email',
+            'phone' => str_repeat('1', 31),
+        ])->assertStatus(422)->assertJsonValidationErrors(['name', 'email', 'phone']);
 
-        $this->followRedirects($invalid)
-            ->assertOk()
-            ->assertSee('id="organization_name_error" class="lf-form-error"', false)
-            ->assertSee('aria-invalid="true" aria-describedby="organization_name_error"', false)
-            ->assertSee('id="organization_email_error" class="lf-form-error"', false)
-            ->assertSee('aria-invalid="true" aria-describedby="organization_email_error"', false)
-            ->assertSee('id="organization_phone_error" class="lf-form-error"', false)
-            ->assertSee('aria-invalid="true" aria-describedby="organization_phone_error"', false);
+        $this->actingAs($admin)->patchJson('https://tenant-a.localhost/admin/organization', ['name' => 'Academy', 'return' => 'page'])
+            ->assertOk()->assertJson(['redirect' => 'https://tenant-a.localhost/admin/organization']);
+        $this->actingAs($admin)->patchJson('https://tenant-a.localhost/admin/organization', ['name' => 'Academy 2'])
+            ->assertOk()->assertJson(['redirect' => 'https://tenant-a.localhost/admin']);
     }
 
     private function createAdmin(): User

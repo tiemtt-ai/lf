@@ -8,7 +8,7 @@
  * (X-Requested-With request); a successful save answers 2xx JSON {message}, a validation failure 422 JSON
  * {errors}. Closing a form that has unsaved changes asks first through the shared LF confirmation dialog (window.LFConfirm). Only the latest open request may touch the page; one submit at a time.
  */
-import { initUiKitSelect, initUiKitMediaSlots, initUiKitEmbedSlots, showUiToast, hideUiToast, claimOnce, releaseClaim, followRedirect } from './admin-ui-kit-controls.js';
+import { initUiKitSelect, initUiKitDateInputs, initUiKitMediaSlots, initUiKitEmbedSlots, showUiToast, hideUiToast, claimOnce, releaseClaim, followRedirect } from './admin-ui-kit-controls.js';
 
 const instances = new WeakMap();
 export const UI_DIALOG_FORM_SAVED_EVENT = 'ui-dialog-form-saved';
@@ -32,7 +32,7 @@ export function initUiKitDialogForm(scope, deps = {}) {
     const parse = deps.parse ?? (html => new win.DOMParser().parseFromString(html, 'text/html'));
     const snapshotOf = deps.serialize ?? (form => serializeForm(form));
     const initSelect = deps.initSelect ?? initUiKitSelect;
-    const initSlots = deps.initSlots ?? (scopeNode => [...initUiKitMediaSlots(scopeNode), ...initUiKitEmbedSlots(scopeNode)]);
+    const initSlots = deps.initSlots ?? (scopeNode => [...initUiKitDateInputs(scopeNode), ...initUiKitMediaSlots(scopeNode), ...initUiKitEmbedSlots(scopeNode)]);
     const confirmAction = deps.confirm ?? (options => win.LFConfirm.open(options));
     const createEvent = deps.createEvent ?? ((type, detail) => new CustomEvent(type, { bubbles: true, detail }));
     const defer = deps.defer ?? (() => new Promise(resolve => win.setTimeout(resolve, 0)));
