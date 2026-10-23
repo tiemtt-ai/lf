@@ -2384,7 +2384,7 @@ class CourseProductManagementTest extends TestCase
         );
         $this->assertStringContainsString("control.classList.toggle('is-lf-placeholder', isPlaceholder);", $appJs);
         $this->assertStringContainsString('font-size: 14px;', $css);
-        $this->assertStringContainsString('font-weight: 300;', $css);
+        $this->assertStringContainsString('font-weight: 400;', $css);
         $this->assertStringContainsString('.admin-form-footer-danger,', $css);
         $this->assertStringContainsString('.admin-form-footer-primary {', $css);
         $this->assertStringNotContainsString('form {\n    width: 100%;\n    max-width: none;', $css);

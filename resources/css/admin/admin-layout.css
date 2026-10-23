@@ -38,14 +38,14 @@
     --admin-primary-contrast: #ffffff;
     --admin-active: #597ef7;
     --admin-sidebar: #e6f7ff;
-    --admin-text-muted: #6b7280;
-    --admin-text: #1f2937;
-    --admin-control-text: #374151;
+    --admin-text-muted: #5f6779;
+    --admin-text: #232834;
+    --admin-control-text: #232834;
     --admin-border: #e5e7eb;
     --admin-control-border: #d9dee5;
     --admin-surface: #ffffff;
     --admin-surface-subtle: #f8fafc;
-    --admin-danger: #b42318;
+    --admin-danger: #bf3434;
     --admin-danger-soft: #fff5f4;
     margin: 0;
     color: var(--admin-color-212529);
@@ -73,7 +73,7 @@
 
 #admin-app .admin-nav{display:flex;flex-direction:column;gap:5px}
 
-#admin-app .admin-nav__item{display:flex;align-items:center;gap:11px;width:100%;min-height:40px;padding:9px 12px;border:0;border-radius:6px;background:white;color:var(--admin-color-626c80);text-align:left;text-decoration:none;white-space:nowrap;transition:background .14s,color .14s}
+#admin-app .admin-nav__item{display:flex;align-items:center;gap:11px;width:100%;min-height:40px;padding:9px 12px;border:0;border-radius:6px;background:white;color:#4b5366;font-weight:500;text-align:left;text-decoration:none;white-space:nowrap;transition:background .14s,color .14s}
 
 #admin-app .admin-nav__item:hover{background:var(--admin-color-f4f5fb);color:var(--admin-color-485cc7)}
 
@@ -89,11 +89,11 @@
 
 #admin-app .admin-nav__children{display:flex;flex-direction:column;gap:3px;margin:5px 0 5px 20px;padding-left:13px;border-left:1px solid var(--admin-color-e5e9f3)}
 
-#admin-app .admin-nav__child{display:block;position:relative;border:0;text-decoration:none;text-align:left;border-radius:5px;padding:8px 10px;background:white;color:var(--admin-color-727c8e);min-height:36px;font-size:13px}
+#admin-app .admin-nav__child{display:block;position:relative;border:0;text-decoration:none;text-align:left;border-radius:5px;padding:8px 10px;background:white;color:#4b5366;min-height:36px;font-size:13px}
 
 #admin-app .admin-nav__child:hover{background:var(--admin-color-f5f6fc);color:var(--admin-color-485cc7)}
 
-#admin-app .admin-nav__child[aria-current=page]{color:var(--admin-color-485cc7);background:var(--admin-color-eef1fc);font-weight:500}
+#admin-app .admin-nav__child[aria-current=page]{color:var(--admin-color-485cc7);background:var(--admin-color-eef1fc);font-weight:600}
 
 #admin-app .admin-nav__child[aria-current=page]::before{content:'';position:absolute;left:-15px;top:11px;width:3px;height:14px;background:var(--admin-color-485cc7);border-radius:3px}
 
@@ -225,7 +225,7 @@
 #admin-app .admin-top-dropdown strong{font-weight:500}
 
 
-#admin-app{font:14px/1.45 Arial,sans-serif;color:var(--admin-color-30343d);background:var(--admin-color-f7f8fb)}
+#admin-app{font:14px/1.45 Arial,sans-serif;color:var(--admin-text);background:var(--admin-color-f7f8fb)}
 
 #admin-app .admin-sidebar__brand{background:var(--admin-color-fff);border-bottom:1px solid var(--admin-color-e8ebf1);height:66px;min-height:66px;padding:0 24px;justify-content:center}
 
@@ -258,18 +258,18 @@
 #admin-app .admin-main{display:flex;flex-direction:column;min-height:100vh;min-height:100dvh}
 #admin-app .admin-header{flex-shrink:0;position:sticky;top:0;z-index:40}
 #admin-app .admin-content{flex:1 0 auto}
-#admin-app .admin-page-footer{flex-shrink:0;margin-top:auto;border-top:1px solid var(--admin-color-e3e7ef);padding:22px 24px;min-height:64px;display:flex;align-items:center;justify-content:center;text-align:center;background:var(--admin-color-f7f8fb);color:var(--admin-color-78818e);font:400 12px/1.5 Arial,sans-serif;overflow-wrap:anywhere}
+#admin-app .admin-page-footer{flex-shrink:0;margin-top:auto;border-top:1px solid var(--admin-color-e3e7ef);padding:22px 24px;min-height:64px;display:flex;align-items:center;justify-content:center;text-align:center;background:var(--admin-color-f7f8fb);color:var(--admin-text-muted);font:400 12px/1.5 Arial,sans-serif;overflow-wrap:anywhere}
 @media(max-width:680px){#admin-app .admin-page-footer{padding:18px 16px}}
 
 /* Laravel integration: preserve native typography under Tailwind's reset. */
 #admin-app .admin-header :is(button, a), #admin-app .admin-sidebar :is(button, a) { line-height: inherit; }
 #admin-app .admin-brand-image { max-width: 100%; }
 #admin-app .admin-sidebar__brand > a { display: flex; align-items: center; justify-content: center; }
-#admin-app .admin-content > .page-heading > h1 { margin: 0 0 6px; font: 500 20px/1.45 Arial, sans-serif; }
+#admin-app .admin-content > .page-heading > h1 { margin: 0 0 6px; font: 600 20px/1.45 Arial, sans-serif; }
 #admin-app .page-heading--with-actions { margin-bottom: 16px; }
 #admin-app .admin-content > .page-heading--with-actions > h1 { margin: 0; }
 #admin-app .page-back { margin: 0 0 6px; }
-#admin-app .page-back__link { display: inline-flex; align-items: center; gap: 4px; color: var(--admin-text-muted, #6b7280); font-size: 13px; line-height: 1.4; text-decoration: none; }
+#admin-app .page-back__link { display: inline-flex; align-items: center; gap: 4px; color: var(--admin-text-muted, #5f6779); font-size: 13px; line-height: 1.4; text-decoration: none; }
 #admin-app .page-back__link:hover { color: var(--admin-primary, #485cc7); }
 #admin-app .page-back__link:focus-visible { outline: 2px solid var(--admin-primary, #485cc7); outline-offset: 2px; border-radius: 3px; }
 #admin-app .page-back__icon { width: 14px; height: 14px; transform: rotate(90deg); }
@@ -306,7 +306,7 @@
 #admin-app .admin-account-logout { margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--nav-border); }
 
 /* Owner reference: compact flag + locale code, with the alternative below. */
-#admin-app .admin-language-button { gap: 8px; padding: 0 10px; background: transparent; color: var(--admin-color-30343d); border-radius: 10px; }
+#admin-app .admin-language-button { gap: 8px; padding: 0 10px; background: transparent; color: var(--admin-text); border-radius: 10px; }
 #admin-app .admin-language-button #current-language { color: inherit; font-weight: 400; }
 #admin-app .admin-language-flag { width: 24px; height: 16px; object-fit: cover; border-radius: 3px; box-shadow: 0 0 0 1px var(--nav-border); flex: none; }
 #admin-app .admin-language-caret { width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 5px solid var(--admin-color-727c8e); }

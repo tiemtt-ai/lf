@@ -8,7 +8,7 @@
     --ui-background: #f7f8fb;
     --ui-white: #ffffff;
     --ui-color-e6e8ee: #e6e8ee;
-    --ui-text: #30343d;
+    --ui-text: #232834;
     --ui-color-d34651: #d34651;
     --ui-color-9198a5: #9198a5;
     --ui-color-a0a5ae: #a0a5ae;
@@ -115,8 +115,10 @@
 .lf-admin-ui {
     --ui-primary: #485cc7;
     --ui-border: #d9dde5;
-    --ui-text: #30343d;
-    --ui-muted: #78818e;
+    --ui-text: #232834;
+    --ui-muted: #5f6779;
+    --ui-dark-surface: #30343d;
+    --ui-placeholder: #6f7788;
     font: 14px/1.45 var(--ui-font-family);
     color: var(--ui-text);
     background: var(--ui-background);
@@ -192,7 +194,7 @@
 }
 .lf-admin-ui input::placeholder,
 .lf-admin-ui textarea::placeholder {
-    color: var(--ui-color-a0a5ae);
+    color: var(--ui-placeholder);
     opacity: 1;
     font-weight: 400
 }
@@ -239,7 +241,7 @@
     border-radius: var(--ui-control-radius);
     padding: 7px 12px;
     min-height: var(--ui-control-height);
-    color: var(--ui-color-5b6371);
+    color: var(--ui-muted);
     background: var(--ui-white);
     transition: background-color .14s ease,color .14s ease
 }
@@ -480,7 +482,7 @@
     align-items: center;
     justify-content: center;
     border-radius: 4px;
-    color: var(--ui-color-687184)
+    color: var(--ui-muted)
 }
 .lf-admin-ui .ui-editor__content {
     padding: 14px 16px;
@@ -508,7 +510,7 @@
     position: relative;
     background: transparent;
     border: 0;
-    color: var(--ui-color-6e7787);
+    color: var(--ui-muted);
     padding: 8px 14px;
     min-height: var(--ui-control-height);
     white-space: nowrap
@@ -639,7 +641,7 @@
     border-radius: 4px 4px 0 0;
     padding: 8px 16px;
     background: transparent;
-    color: var(--ui-color-697386);
+    color: var(--ui-muted);
     font-weight: 500;
     min-height: var(--ui-control-height);
     line-height: 20px;
@@ -1427,11 +1429,11 @@
     background: var(--ui-color-eef0fb)
 }
 /* Read-only lifecycle status pill (a status that is not a simple on/off switch). */
-.lf-admin-ui .ui-status { display: inline-flex; align-items: center; padding: 2px 12px; border-radius: 999px; font-size: 13px; font-weight: 400; line-height: 20px; white-space: nowrap; background: var(--ui-color-eef0f5); color: var(--ui-color-5b6371); }
+.lf-admin-ui .ui-status { display: inline-flex; align-items: center; padding: 2px 12px; border-radius: 999px; font-size: 13px; font-weight: 400; line-height: 20px; white-space: nowrap; background: var(--ui-color-eef0f5); color: var(--ui-muted); }
 .lf-admin-ui .ui-status--draft { background: var(--ui-color-eef0fb); color: var(--ui-color-354494); }
 .lf-admin-ui .ui-status--active { background: var(--ui-success-soft); color: var(--ui-success); }
 .lf-admin-ui .ui-status--inactive { background: var(--ui-warning-soft); color: var(--ui-warning); }
-.lf-admin-ui .ui-status--archived { background: var(--ui-color-eef0f5); color: var(--ui-color-5b6371); }
+.lf-admin-ui .ui-status--archived { background: var(--ui-color-eef0f5); color: var(--ui-muted); }
 .lf-admin-ui .mk-name-line { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .lf-admin-ui .mk-name-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lf-admin-ui .mk-featured { display: inline-flex; flex: none; color: var(--ui-featured); }
@@ -1775,7 +1777,7 @@
 /* Media preview (image, video, embedded video): a narrower dialog, media centred and sized by itself, 16:9 for video. */
 .lf-admin-ui .ui-modal[data-preview] { --modal-width: 760px; }
 .lf-admin-ui .ui-modal[data-preview] .ui-modal__body { display: grid; justify-items: center; padding: 16px 22px 22px; }
-.lf-admin-ui .ui-modal[data-preview] :is(iframe, video) { display: block; width: 100%; aspect-ratio: 16 / 9; height: auto; max-height: 70dvh; border: 0; border-radius: 4px; background: var(--ui-text); }
+.lf-admin-ui .ui-modal[data-preview] :is(iframe, video) { display: block; width: 100%; aspect-ratio: 16 / 9; height: auto; max-height: 70dvh; border: 0; border-radius: 4px; background: var(--ui-dark-surface); }
 .lf-admin-ui .ui-modal[data-preview] video { object-fit: contain; }
 .lf-admin-ui .ui-modal[data-preview] img { display: block; max-height: 70dvh; width: auto; border-radius: 4px; }
 
@@ -1855,7 +1857,7 @@
 /* Where hover exists, the format/size hint is a tooltip above the empty upload tile; on touch (and very narrow
    screens) it stays a normal caption. It remains in the accessibility tree (opacity, not visibility). */
 @media (hover: hover) and (min-width: 521px) {
-    .lf-admin-ui .ui-media-slot__hint { position: absolute; bottom: calc(100% + 6px); left: 0; z-index: 5; width: max-content; max-width: 220px; padding: 8px 10px; border-radius: var(--ui-control-radius); background: var(--ui-text); color: var(--ui-white); font-size: 12px; line-height: 1.4; text-wrap: balance; opacity: 0; pointer-events: none; transition: opacity .14s; }
+    .lf-admin-ui .ui-media-slot__hint { position: absolute; bottom: calc(100% + 6px); left: 0; z-index: 5; width: max-content; max-width: 220px; padding: 8px 10px; border-radius: var(--ui-control-radius); background: var(--ui-dark-surface); color: var(--ui-white); font-size: 12px; line-height: 1.4; text-wrap: balance; opacity: 0; pointer-events: none; transition: opacity .14s; }
     .lf-admin-ui .ui-media-slot__hint .ui-caption { color: inherit; }
     .lf-admin-ui .ui-media-slot[data-state=empty] .ui-media-tile:is(:hover, :focus-within) ~ .ui-media-slot__hint { opacity: 1; }
 }
@@ -1864,7 +1866,7 @@
    technology stays in aria-label. */
 @media (hover: hover) {
     .lf-admin-ui :is(.ux-row-edit, .ux-row-delete, .ui-row-action, .ui-button, .ui-bulk-lock, .ui-source-icon)[data-tooltip] { position: relative; }
-    .lf-admin-ui :is(.ux-row-edit, .ux-row-delete, .ui-row-action, .ui-button, .ui-bulk-lock, .ui-source-icon)[data-tooltip]::after { content: attr(data-tooltip); position: absolute; bottom: calc(100% + 6px); right: 0; z-index: 5; width: max-content; max-width: 220px; padding: 8px 10px; border-radius: var(--ui-control-radius); background: var(--ui-text); color: var(--ui-white); font-size: 12px; font-weight: 400; line-height: 1.4; text-align: left; text-wrap: balance; opacity: 0; pointer-events: none; transition: none; }
+    .lf-admin-ui :is(.ux-row-edit, .ux-row-delete, .ui-row-action, .ui-button, .ui-bulk-lock, .ui-source-icon)[data-tooltip]::after { content: attr(data-tooltip); position: absolute; bottom: calc(100% + 6px); right: 0; z-index: 5; width: max-content; max-width: 220px; padding: 8px 10px; border-radius: var(--ui-control-radius); background: var(--ui-dark-surface); color: var(--ui-white); font-size: 12px; font-weight: 400; line-height: 1.4; text-align: left; text-wrap: balance; opacity: 0; pointer-events: none; transition: none; }
     .lf-admin-ui :is(.ux-row-edit, .ux-row-delete, .ui-row-action, .ui-button, .ui-bulk-lock, .ui-source-icon)[data-tooltip]:is(:hover, :focus-visible)::after { opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) { .lf-admin-ui .ui-media-tile__empty, .lf-admin-ui .ui-media-tile__actions, .lf-admin-ui .ui-media-slot__hint { transition: none; } }
@@ -1894,19 +1896,19 @@
 .lf-admin-ui.ui-structure { max-width: none; margin: 0; padding: 0; overflow: hidden; border: 1px solid var(--ui-color-e6e8ee); border-radius: 7px; background: var(--ui-white); box-shadow: none; }
 .lf-admin-ui.ui-structure .course-template-section-header { padding: 20px; }
 .lf-admin-ui.ui-structure .course-template-section-header h2 { margin: 0; color: var(--ui-text); font-size: 20px; font-weight: 500; }
-.lf-admin-ui.ui-structure .course-template-section-header p { margin: 5px 0 0; color: var(--ui-color-687184); font-size: 14px; }
+.lf-admin-ui.ui-structure .course-template-section-header p { margin: 5px 0 0; color: var(--ui-muted); font-size: 14px; }
 .lf-admin-ui.ui-structure .course-template-structure-note { margin: 0 20px 12px; }
 .lf-admin-ui.ui-structure .course-template-structure-tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; width: fit-content; max-width: calc(100% - 40px); margin: 0 20px; padding: 4px; border: 0; border-radius: 6px; background: var(--ui-color-f3f4f7); }
-.lf-admin-ui.ui-structure .course-template-structure-tabs button { min-width: 0; padding: 7px 12px; border-radius: 4px; background: transparent; color: var(--ui-color-687184); font: 14px/20px var(--ui-font-family); font-weight: 400; box-shadow: none; }
+.lf-admin-ui.ui-structure .course-template-structure-tabs button { min-width: 0; padding: 7px 12px; border-radius: 4px; background: transparent; color: var(--ui-muted); font: 14px/20px var(--ui-font-family); font-weight: 400; box-shadow: none; }
 .lf-admin-ui.ui-structure .course-template-structure-tabs button:hover { background: transparent; color: var(--ui-primary); }
 .lf-admin-ui.ui-structure .course-template-structure-tabs button.is-active { background: var(--ui-white); color: var(--ui-primary); box-shadow: 0 1px 3px var(--ui-color-17233b14); }
 .lf-admin-ui.ui-structure .course-template-structure-tabs button:focus-visible { outline: 2px solid var(--ui-primary); outline-offset: 2px; }
-.lf-admin-ui.ui-structure .course-template-structure-tab-help { min-height: 0; margin: 10px 20px 18px; color: var(--ui-color-687184); font-size: 12px; font-weight: 400; }
+.lf-admin-ui.ui-structure .course-template-structure-tab-help { min-height: 0; margin: 10px 20px 18px; color: var(--ui-muted); font-size: 12px; font-weight: 400; }
 .lf-admin-ui.ui-structure .course-template-structure-panel { padding: 0; }
 .lf-admin-ui.ui-structure .course-template-content-toolbar { margin: 0; padding: 12px 20px; border: 0; border-top: 1px solid var(--ui-color-e6e8ee); border-radius: 0; background: var(--ui-color-fafbfe); }
 .lf-admin-ui.ui-structure .course-template-content-count { display: flex; align-items: baseline; flex-wrap: wrap; gap: 3px 8px; min-width: 0; }
 .lf-admin-ui.ui-structure .course-template-content-toolbar strong { color: var(--ui-text); font-size: 14px; font-weight: 500; }
-.lf-admin-ui.ui-structure .course-template-content-toolbar .lf-secondary-text { margin: 0; color: var(--ui-color-687184); font-size: 14px; }
+.lf-admin-ui.ui-structure .course-template-content-toolbar .lf-secondary-text { margin: 0; color: var(--ui-muted); font-size: 14px; }
 .lf-admin-ui.ui-structure .course-template-direct-lesson-panel { margin: 0; padding: 0; border: 0; border-radius: 0; background: transparent; }
 .lf-admin-ui.ui-structure .course-template-direct-lesson-panel .course-template-lesson-list { gap: 0; padding: 0 20px; }
 .lf-admin-ui.ui-structure .course-template-outline-sections { padding: 0 20px 20px; }
@@ -1918,7 +1920,7 @@
 .lf-admin-ui.ui-structure .course-template-lesson-number { display: grid; place-items: center; flex: none; width: 30px; height: 30px; border-radius: 5px; background: var(--ui-color-f3f4fc); color: var(--ui-primary); font-size: 14px; }
 .lf-admin-ui.ui-structure .course-template-lesson-copy { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .lf-admin-ui.ui-structure .course-template-lesson-copy strong { display: block; color: var(--ui-text); font-size: 14px; font-weight: 500; }
-.lf-admin-ui.ui-structure .course-template-lesson-copy .lf-secondary-text { margin-top: 5px; color: var(--ui-color-687184); font-size: 12px; }
+.lf-admin-ui.ui-structure .course-template-lesson-copy .lf-secondary-text { margin-top: 5px; color: var(--ui-muted); font-size: 12px; }
 .lf-admin-ui.ui-structure .course-template-lesson-summary > .admin-table-actions { display: flex; flex: none; flex-wrap: nowrap; align-items: center; gap: 4px; }
 .lf-admin-ui.ui-structure .ui-row-action { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; min-width: 30px; min-height: 30px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--ui-primary); text-decoration: none; cursor: pointer; }
 .lf-admin-ui.ui-structure .ui-row-action:hover { background: var(--ui-color-eef0fb); }
@@ -1926,8 +1928,8 @@
 .lf-admin-ui.ui-structure .ui-row-action:disabled { color: var(--ui-color-a0a6b1); background: transparent; cursor: not-allowed; }
 .lf-admin-ui.ui-structure .ui-row-action--danger:hover { background: var(--ui-danger-soft); }
 .lf-admin-ui.ui-structure .course-template-activity-panel { margin: 0 0 0 42px; padding: 0; border-top: 0; }
-.lf-admin-ui.ui-structure .course-template-activity-toolbar { margin: 0; padding: 5px 10px; border-radius: 4px; background: var(--ui-color-fafbfe); color: var(--ui-color-687184); font-size: 14px; }
-.lf-admin-ui.ui-structure .course-template-activity-toolbar h5 { margin: 0; color: var(--ui-color-687184); font-size: 14px; font-weight: 400; }
+.lf-admin-ui.ui-structure .course-template-activity-toolbar { margin: 0; padding: 5px 10px; border-radius: 4px; background: var(--ui-color-fafbfe); color: var(--ui-muted); font-size: 14px; }
+.lf-admin-ui.ui-structure .course-template-activity-toolbar h5 { margin: 0; color: var(--ui-muted); font-size: 14px; font-weight: 400; }
 .lf-admin-ui.ui-structure .course-template-activity-toolbar .admin-text-action { color: var(--ui-primary); font-size: 14px; }
 .lf-admin-ui.ui-structure .course-template-activity-fold { display: inline-flex; align-items: center; gap: 6px; padding: 7px 0; border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; }
 .lf-admin-ui.ui-structure .course-template-activity-fold:focus-visible { outline: 2px solid var(--ui-primary); outline-offset: 2px; }
@@ -1937,18 +1939,18 @@
 .lf-admin-ui.ui-structure .course-template-activity-item { min-height: 0; padding: 13px 10px; gap: 12px; border-top: 1px solid var(--ui-color-eceef3); border-bottom: 0; }
 .lf-admin-ui.ui-structure .course-template-activity-item:first-child { border-top: 0; }
 .lf-admin-ui.ui-structure .course-template-activity-identity { flex: 1; align-items: center; gap: 12px; }
-.lf-admin-ui.ui-structure .course-template-activity-icon { width: 18px; height: 18px; flex-basis: 18px; color: var(--ui-color-687184); }
+.lf-admin-ui.ui-structure .course-template-activity-icon { width: 18px; height: 18px; flex-basis: 18px; color: var(--ui-muted); }
 .lf-admin-ui.ui-structure .course-template-activity-type-icon { width: 18px; height: 18px; flex-basis: 18px; }
 .lf-admin-ui.ui-structure .course-template-activity-copy { flex: 1; gap: 5px; }
 .lf-admin-ui.ui-structure .course-template-activity-item > .admin-table-actions { display: flex; align-items: center; gap: 4px; }
-.lf-admin-ui.ui-structure .course-template-activity-structured-status { gap: 6px; color: var(--ui-color-687184); font-size: 12px; }
+.lf-admin-ui.ui-structure .course-template-activity-structured-status { gap: 6px; color: var(--ui-muted); font-size: 12px; }
 .lf-admin-ui.ui-structure .course-template-activity-structured-status .lf-secondary-text { color: inherit; }
-.lf-admin-ui.ui-structure .course-template-activity-structured-status .badge { padding: 2px 7px; border: 1px solid var(--ui-color-e6e8ee); border-radius: 20px; background: var(--ui-color-f3f4f7); color: var(--ui-color-687184); font-size: 12px; font-weight: 400; }
+.lf-admin-ui.ui-structure .course-template-activity-structured-status .badge { padding: 2px 7px; border: 1px solid var(--ui-color-e6e8ee); border-radius: 20px; background: var(--ui-color-f3f4f7); color: var(--ui-muted); font-size: 12px; font-weight: 400; }
 .lf-admin-ui.ui-structure .course-template-activity-structured-status .badge-success { border-color: var(--ui-success-border); background: var(--ui-success-soft); color: var(--ui-success); }
 .lf-admin-ui.ui-structure .course-template-activity-structured-status .badge-danger { border-color: var(--ui-invalid); background: var(--ui-danger-soft); color: var(--ui-color-bd3d46); }
 .lf-admin-ui.ui-structure .course-template-activity-structured-status .badge-info { border-color: var(--ui-color-aeb7e8); background: var(--ui-color-eef0fb); color: var(--ui-primary); }
 .lf-admin-ui.ui-structure .course-template-activity-empty,
-.lf-admin-ui.ui-structure .course-template-lesson-empty { padding: 12px 10px; border-top: 1px solid var(--ui-color-eceef3); color: var(--ui-color-687184); font-size: 12px; }
+.lf-admin-ui.ui-structure .course-template-lesson-empty { padding: 12px 10px; border-top: 1px solid var(--ui-color-eceef3); color: var(--ui-muted); font-size: 12px; }
 .lf-admin-ui.ui-structure .course-template-content-empty { min-height: 0; padding: 40px 20px; border: 0; border-top: 1px solid var(--ui-color-e6e8ee); border-radius: 0; background: var(--ui-white); }
 @media (max-width: 640px) {
     .lf-admin-ui.ui-structure .course-template-section-header,
@@ -1987,7 +1989,7 @@
 
 /* Media library list (Owner demo lf-media-list.html). */
 .lf-admin-ui .mk-tab { text-decoration: none; gap: 8px; }
-.lf-admin-ui .mk-tab-count { padding: 1px 6px; border-radius: 20px; background: var(--ui-color-eef0f5); color: var(--ui-color-697386); font-size: 12px; font-weight: 400; }
+.lf-admin-ui .mk-tab-count { padding: 1px 6px; border-radius: 20px; background: var(--ui-color-eef0f5); color: var(--ui-muted); font-size: 12px; font-weight: 400; }
 .lf-admin-ui .mk-tab:is([aria-selected=true], [aria-current=page]) .mk-tab-count { background: var(--ui-color-eef0fb); color: var(--ui-primary); }
 .lf-admin-ui .ui-media-filters { align-items: flex-end; }
 .lf-admin-ui .ui-multiselect { position: relative; }
@@ -2109,6 +2111,6 @@
 @media (max-width: 420px) { .lf-admin-ui .ui-dash-summary { grid-template-columns: minmax(0, 1fr); } }
 .lf-admin-ui .ui-dash-card__body { display: grid; justify-items: start; gap: 12px; padding: 20px; }
 .lf-admin-ui .ui-dash-card__note { margin: 0; padding: 0 20px 18px; }
-.lf-admin-ui .ui-dash-summary code { font: 13px/1.4 monospace; color: var(--ui-color-5b6371); }
+.lf-admin-ui .ui-dash-summary code { font: 13px/1.4 monospace; color: var(--ui-muted); }
 .lf-admin-ui .mk-text-cell--nowrap { white-space: nowrap; } /* email and phone: never broken mid-value; the table scrolls inside its card instead */
 .lf-admin-ui .ux-date input[readonly] { background: var(--ui-white); cursor: pointer; } /* a read-only text field that opens the calendar still reads as editable */

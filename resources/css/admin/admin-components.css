@@ -31,18 +31,18 @@
 }
 
 .lf-admin-page .lf-form-control::placeholder {
-    color: color-mix(in srgb, var(--admin-text-muted) 50%, var(--admin-surface));
+    color: #6f7788;
     font-size: 1rem;
-    font-weight: 300;
+    font-weight: 400;
     opacity: 1;
 }
 
 .lf-admin-page .lf-form-control.is-lf-placeholder:not(:focus),
 .lf-admin-page select.lf-form-control:not(.has-value):has(option[value=""]:checked):not(:focus),
 .lf-admin-page select.lf-form-control[data-placeholder-values="all"]:not(.has-value):has(option[value="all"]:checked):not(:focus) {
-    color: color-mix(in srgb, var(--admin-text-muted) 50%, var(--admin-surface));
+    color: #6f7788;
     font-size: 1rem;
-    font-weight: 300;
+    font-weight: 400;
     opacity: 1;
 }
 
@@ -124,7 +124,7 @@
 .lf-admin-page textarea.form-control[readonly],
 .lf-admin-page textarea.lf-form-control[readonly] {
     border-color: #d9dee5;
-    color: #374151;
+    color: #4b5366;
     background-color: #f8fafc;
     cursor: default;
 }
@@ -150,7 +150,7 @@
     padding: 5px 12px;
     border: 1px solid #ced4da !important;
     border-radius: 4px;
-    color: #6b7280 !important;
+    color: #5f6779 !important;
     background: #f8fafc !important;
     font-family: Arial, Helvetica, sans-serif;
     font-size: 1rem;
@@ -166,7 +166,7 @@
     padding: 5px 12px;
     border: 1px solid #ced4da !important;
     border-radius: 4px;
-    color: #6b7280 !important;
+    color: #5f6779 !important;
     background: #f8fafc !important;
     font-family: Arial, Helvetica, sans-serif;
     font-size: 1rem;
@@ -202,7 +202,7 @@
 
 .lf-admin-page .lf-form-help {
     color: var(--admin-text-muted);
-    font-weight: 300;
+    font-weight: 400;
 }
 
 .lf-admin-page .lf-form-error {
@@ -388,7 +388,7 @@
 .lf-admin-page .admin-form-standard .lf-form-label,
 .lf-admin-page .admin-form-surface .lf-form-label {
     font-size: 14px;
-    font-weight: 600;
+    font-weight: 500;
     line-height: 1.4;
 }
 
@@ -458,7 +458,7 @@
     margin: 5px 0 0;
     color: var(--admin-text-muted);
     font-size: 13px;
-    font-weight: 300;
+    font-weight: 400;
     line-height: 1.45;
 }
 
@@ -470,7 +470,7 @@
     gap: 7px;
     color: var(--admin-text-muted);
     font-size: 13px;
-    font-weight: 300;
+    font-weight: 400;
     line-height: 1.45;
 }
 
@@ -485,7 +485,7 @@
     border: 1px solid currentColor;
     border-radius: 50%;
     font-size: 10px;
-    font-weight: 700;
+    font-weight: 600;
     line-height: 1;
 }
 
@@ -941,10 +941,10 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border: 1px solid color-mix(in srgb, var(--admin-text-muted) 55%, transparent);
+    border: 1px solid color-mix(in srgb, #6b7280 55%, transparent);
     border-radius: 50%;
     font-size: 10px;
-    font-weight: 700;
+    font-weight: 600;
     line-height: 1;
 }
 
@@ -998,7 +998,7 @@
 
 .cohort-detail-action-group > .cohort-lifecycle-action .admin-danger-text-action:hover,
 .cohort-detail-action-group > .cohort-lifecycle-action .admin-danger-text-action:focus-visible {
-    background: color-mix(in srgb, var(--admin-danger) 7%, transparent);
+    background: color-mix(in srgb, #b42318 7%, transparent);
     text-decoration: none;
 }
 
@@ -1038,7 +1038,7 @@
     border: 1px solid currentColor;
     border-radius: 50%;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 600;
     line-height: 1;
 }
 
@@ -1084,7 +1084,7 @@
     margin: 0;
     color: var(--admin-text);
     font-size: 20px;
-    font-weight: 650;
+    font-weight: 600;
     line-height: 1.35;
 }
 
@@ -1137,7 +1137,7 @@
     display: grid;
     place-items: center;
     border-radius: 50%;
-    color: #b45309;
+    color: #8f5b00;
     background: #fffbeb;
 }
 
@@ -1159,7 +1159,7 @@
 .lf-confirm-dialog__heading h2 {
     margin: 0;
     font-size: 20px;
-    font-weight: 650;
+    font-weight: 600;
     line-height: 1.35;
 }
 
@@ -1191,8 +1191,8 @@
 
 .lf-admin-page .btn.btn-danger {
     color: #fff;
-    border-color: var(--admin-danger);
-    background: var(--admin-danger);
+    border-color: #b42318;
+    background: #b42318;
 }
 
 .lf-admin-page .btn.btn-danger:hover {
@@ -1885,7 +1885,7 @@
 }
 
 .admin-media-action-divider {
-    color: #6b7280;
+    color: #5f6779;
 }
 
 .admin-birth-fields {
@@ -1961,7 +1961,7 @@
 }
 
 .admin-alert-success {
-    color: #166534;
+    color: #1b7a4b;
     background: #dcfce7;
 }
 
@@ -1986,12 +1986,12 @@
 
 .admin-alert-danger,
 .lf-admin-page .lf-alert-danger {
-    color: #991b1b;
+    color: #bf3434;
     background: #fee2e2;
 }
 
 .admin-alert-warning {
-    color: #854d0e;
+    color: #8f5b00;
     background: #fef9c3;
 }
 
@@ -2011,7 +2011,7 @@
     padding: 10px 18px;
     border: 1px solid #e5e7eb;
     border-radius: 8px;
-    color: #374151;
+    color: #4b5366;
     background: #ffffff;
 }
 
@@ -2111,9 +2111,9 @@
 
 .course-cohort-filter-grid .lf-form-label {
     margin-bottom: 6px;
-    color: #475569;
+    color: #4b5366;
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 500;
 }
 
 .course-cohort-filter-grid .lf-form-control {
@@ -2236,9 +2236,9 @@
 
 .course-category-filter-grid .lf-form-label {
     margin-bottom: 6px;
-    color: #475569;
+    color: #4b5366;
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 500;
 }
 
 .course-category-filter-grid .lf-form-control {
@@ -2251,9 +2251,9 @@
 
 .course-template-filter-grid .lf-form-label {
     margin-bottom: 6px;
-    color: #475569;
+    color: #4b5366;
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 500;
 }
 
 .course-template-filter-grid .lf-form-control {
@@ -2286,9 +2286,9 @@
 
 .course-product-filter-grid .lf-form-label {
     margin-bottom: 6px;
-    color: #475569;
+    color: #4b5366;
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 500;
 }
 
 .course-product-filter-grid .lf-form-control {
@@ -2347,9 +2347,9 @@
 }
 
 .lf-admin-page .course-category-index-table th {
-    color: #475569;
+    color: #4b5366;
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: .01em;
 }
 
@@ -2368,9 +2368,9 @@
 }
 
 .lf-admin-page .course-template-index-table th {
-    color: #475569;
+    color: #4b5366;
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: .01em;
 }
 
@@ -2384,7 +2384,7 @@
 }
 
 .course-category-index-primary {
-    color: #1f2937;
+    color: #232834;
     font-size: 14px;
     font-weight: 600;
     line-height: 1.35;
@@ -2447,9 +2447,9 @@
 }
 
 .lf-admin-page .course-product-index-table th {
-    color: #475569;
+    color: #4b5366;
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: .01em;
 }
 
@@ -2478,7 +2478,7 @@
 
 .course-template-index-primary,
 .course-product-index-primary {
-    color: #1f2937;
+    color: #232834;
     font-weight: 600;
     line-height: 1.35;
 }
@@ -2499,13 +2499,13 @@
 .course-product-index-meta {
     display: block;
     margin-top: 3px;
-    color: #6b7280;
+    color: #5f6779;
     font-size: 12px;
     overflow-wrap: anywhere;
 }
 
 .lf-admin-page .admin-status-badge--neutral {
-    color: #475569;
+    color: #4b5366;
     background: #f1f5f9;
 }
 
@@ -2570,9 +2570,9 @@
 }
 
 .lf-admin-page .media-library-index-table th {
-    color: #475569;
+    color: #4b5366;
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: .01em;
 }
 
@@ -2773,11 +2773,11 @@
     flex: 0 0 16px;
     align-items: center;
     justify-content: center;
-    color: #64748b;
+    color: #5f6779;
     border: 1px solid #94a3b8;
     border-radius: 50%;
     font-size: 10px;
-    font-weight: 700;
+    font-weight: 600;
     line-height: 1;
 }
 
@@ -3086,7 +3086,7 @@
 .cohort-overview-eyebrow {
     color: var(--admin-primary);
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .cohort-overview-heading h2 {
@@ -3269,7 +3269,7 @@
     margin: 0;
     color: var(--admin-text);
     font-size: 15px;
-    font-weight: 650;
+    font-weight: 600;
 }
 
 .cohort-overview-notes {
@@ -3331,7 +3331,7 @@
     display: block;
     color: var(--admin-primary);
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 600;
     line-height: 1.4;
 }
 
@@ -3481,7 +3481,7 @@
     margin-bottom: 2px;
     color: var(--admin-text-muted);
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: .04em;
     text-transform: uppercase;
 }
@@ -3490,12 +3490,12 @@
     margin: 0;
     color: var(--admin-text);
     font-size: 14px;
-    font-weight: 700;
+    font-weight: 600;
     line-height: 1.4;
 }
 
 .cohort-product-registration-window__badge {
-    color: #475569;
+    color: #4b5366;
     background: #e2e8f0;
     white-space: nowrap;
 }
@@ -3522,7 +3522,7 @@
     margin: 0;
     color: var(--admin-text);
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .cohort-product-registration-window > p {
@@ -3673,7 +3673,7 @@
     color: var(--admin-primary);
     background: color-mix(in srgb, var(--admin-primary) 9%, #fff);
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 600;
     line-height: normal;
     white-space: nowrap;
 }
@@ -3747,10 +3747,10 @@
 .lf-admin-page .course-cohort-roster-table th {
     padding-top: 12px;
     padding-bottom: 12px;
-    color: #475569;
+    color: #4b5366;
     background: #f8fafc;
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .lf-admin-page .course-cohort-roster-table th:first-child,
@@ -3760,7 +3760,7 @@
 
 .lf-admin-page .course-cohort-roster-table td {
     padding: 14px 16px;
-    color: #334155;
+    color: #4b5366;
     font-size: 14px;
     vertical-align: middle;
 }
@@ -3820,7 +3820,7 @@
     color: var(--admin-primary);
     background: color-mix(in srgb, var(--admin-primary) 10%, #fff);
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .cohort-student-identity__content {
@@ -4123,9 +4123,9 @@
 }
 
 .lf-admin-page .course-cohort-index-table th {
-    color: #475569;
+    color: #4b5366;
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: .01em;
 }
 
@@ -4147,7 +4147,7 @@
 
 .course-cohort-index-table .course-cohort-index-sequence {
     width: 64px;
-    color: #64748b;
+    color: #5f6779;
     text-align: center;
 }
 
@@ -4183,7 +4183,7 @@
 
 .course-cohort-index-primary {
     display: block;
-    color: #1f2937;
+    color: #232834;
     font-size: 14px;
     font-weight: 600;
     line-height: 1.35;
@@ -4192,7 +4192,7 @@
 .course-cohort-index-meta {
     margin-top: 3px;
     display: block;
-    color: #6b7280;
+    color: #5f6779;
     font-size: 12px;
     line-height: 1.4;
 }
@@ -4200,7 +4200,7 @@
 .course-cohort-index-version {
     margin-top: 2px;
     display: block;
-    color: #475569;
+    color: #4b5366;
     font-size: 12px;
     font-weight: 500;
     line-height: 1.4;
@@ -4212,7 +4212,7 @@
 }
 
 .lf-admin-page .course-cohort-status-badge--draft {
-    color: #475569;
+    color: #4b5366;
     background: #f1f5f9;
 }
 
@@ -4527,7 +4527,7 @@
     color: var(--admin-primary);
     background: color-mix(in srgb, var(--admin-primary) 10%, var(--admin-surface));
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .course-cohort-teacher-assignment {
@@ -4618,10 +4618,10 @@
     grid-column: 3 / 5;
     margin: -4px 0 0;
     padding: 8px 10px;
-    border-left: 3px solid var(--admin-danger);
+    border-left: 3px solid #b42318;
     border-radius: 0 6px 6px 0;
     color: var(--admin-danger);
-    background: color-mix(in srgb, var(--admin-danger) 7%, var(--admin-surface));
+    background: color-mix(in srgb, #b42318 7%, var(--admin-surface));
     font-size: 12px;
     line-height: 1.45;
 }
@@ -4725,7 +4725,7 @@
     color: var(--admin-primary);
     background: color-mix(in srgb, var(--admin-primary) 10%, #fff);
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .course-cohort-teacher-identity__content {
@@ -4738,7 +4738,7 @@
 }
 
 .course-cohort-teacher-identity__content > strong {
-    color: #1f2937;
+    color: #232834;
     font-size: 14px;
     font-weight: 600;
     line-height: 1.35;
@@ -4746,7 +4746,7 @@
 
 .course-cohort-teacher-identity__content > .cohort-student-option-meta {
     margin-top: 3px;
-    color: #6b7280;
+    color: #5f6779;
     font-size: 12px;
     font-weight: 400;
     line-height: 1.4;
@@ -4776,11 +4776,11 @@
     align-items: start;
     gap: 12px;
     padding: 14px 16px;
-    border: 1px solid color-mix(in srgb, var(--admin-danger) 22%, var(--admin-border));
-    border-left: 3px solid var(--admin-danger);
+    border: 1px solid color-mix(in srgb, #b42318 22%, var(--admin-border));
+    border-left: 3px solid #b42318;
     border-radius: 8px;
     color: var(--admin-text);
-    background: color-mix(in srgb, var(--admin-danger) 4%, var(--admin-surface));
+    background: color-mix(in srgb, #b42318 4%, var(--admin-surface));
     text-align: left;
 }
 
@@ -4792,9 +4792,9 @@
     justify-content: center;
     border-radius: 50%;
     color: #fff;
-    background: var(--admin-danger);
+    background: #b42318;
     font-size: 13px;
-    font-weight: 800;
+    font-weight: 600;
 }
 
 .course-cohort-teacher-removal-error__content {
@@ -4833,7 +4833,7 @@
 .course-cohort-teacher-removal-error__close:hover,
 .course-cohort-teacher-removal-error__close:focus-visible {
     color: var(--admin-danger);
-    background: color-mix(in srgb, var(--admin-danger) 9%, transparent);
+    background: color-mix(in srgb, #b42318 9%, transparent);
     outline: none;
 }
 
@@ -4929,7 +4929,7 @@
     color: var(--admin-primary);
     background: color-mix(in srgb, var(--admin-primary) 9%, #fff);
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 600;
     white-space: nowrap;
 }
 
@@ -4964,7 +4964,7 @@
     background: color-mix(in srgb, var(--admin-primary) 9%, #fff);
     color: var(--admin-primary);
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 600;
     white-space: nowrap;
 }
 
@@ -5011,10 +5011,10 @@
 }
 
 .lf-admin-page .course-cohort-schedules__table th {
-    color: #475569;
+    color: #4b5366;
     background: #f8fafc;
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: .01em;
     line-height: 1.35;
 }
@@ -5240,7 +5240,7 @@
 .course-cohort-schedule-form__section .lf-form-label {
     margin-bottom: 6px;
     font-size: 14px;
-    font-weight: 600;
+    font-weight: 500;
     line-height: 1.4;
 }
 
@@ -5290,7 +5290,7 @@
     background: color-mix(in srgb, var(--admin-primary) 9%, var(--admin-surface));
     color: var(--admin-primary);
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .course-cohort-schedule-form__row-actions {
@@ -5381,7 +5381,7 @@
 
 .course-cohort-schedule-form__row-action--remove:hover,
 .course-cohort-schedule-form__row-action--remove:focus-visible {
-    background: color-mix(in srgb, var(--admin-danger) 9%, var(--admin-surface));
+    background: color-mix(in srgb, #b42318 9%, var(--admin-surface));
 }
 
 .course-cohort-schedule-form__empty-repeater {
@@ -5555,10 +5555,10 @@
 }
 
 .lf-admin-page .course-cohort-schedule-detail__table th {
-    color: #475569;
+    color: #4b5366;
     background: #f8fafc;
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 600;
     line-height: 1.35;
 }
 
@@ -5851,7 +5851,7 @@
     align-items: center;
     gap: 10px;
     border-bottom: 1px solid var(--admin-border);
-    color: #475569;
+    color: #4b5366;
     background: var(--admin-surface-subtle);
     font-size: 14px;
     font-weight: 600;
@@ -5976,15 +5976,15 @@
 }
 
 .course-cohort-session-batch-item.is-incomplete .course-cohort-session-batch-item__state {
-    color: #92400e;
+    color: #8f5b00;
     background: #fef3c7;
 }
 
 .course-cohort-session-batch-item__chevron {
     width: 8px;
     height: 8px;
-    border-right: 1.5px solid var(--admin-text-muted);
-    border-bottom: 1.5px solid var(--admin-text-muted);
+    border-right: 1.5px solid #6b7280;
+    border-bottom: 1.5px solid #6b7280;
     transform: rotate(45deg) translate(-2px, -2px);
     transition: transform 150ms ease;
 }
@@ -5994,7 +5994,7 @@
 }
 
 .course-cohort-session-batch-item.has-error .course-cohort-session-batch-item__state {
-    color: #b42318;
+    color: #bf3434;
     background: #fef3f2;
 }
 
@@ -6061,7 +6061,7 @@
 
 .course-cohort-session-batch-item__form .lf-form-label {
     margin-bottom: 6px;
-    color: #475569;
+    color: #4b5366;
     font-size: 13px;
     font-weight: 500;
     line-height: 1.35;
@@ -6354,10 +6354,10 @@
     font-weight: 400;
 }
 
-.course-cohort-session-origin-badge--on_schedule { color: #166534; background: #dcfce7; }
-.course-cohort-session-origin-badge--rescheduled { color: #92400e; background: #fef3c7; }
+.course-cohort-session-origin-badge--on_schedule { color: #1b7a4b; background: #dcfce7; }
+.course-cohort-session-origin-badge--rescheduled { color: #8f5b00; background: #fef3c7; }
 .course-cohort-session-origin-badge--off_schedule { color: #3730a3; background: #eef2ff; }
-.course-cohort-session-origin-badge--source_unknown { color: #475569; background: #f1f5f9; }
+.course-cohort-session-origin-badge--source_unknown { color: #4b5366; background: #f1f5f9; }
 
 .course-cohort-session-type__options,
 .course-cohort-session-form__grid {
@@ -6517,10 +6517,10 @@
 }
 
 .lf-admin-page .course-cohort-session-table th {
-    color: #475569;
+    color: #4b5366;
     background: #f8fafc;
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: .01em;
     line-height: 1.35;
     white-space: nowrap;
@@ -6550,7 +6550,7 @@
 }
 
 .course-cohort-session-table__primary {
-    color: #1f2937;
+    color: #232834;
     font-size: 14px;
     font-weight: 600;
     line-height: 1.35;
@@ -6558,7 +6558,7 @@
 
 .course-cohort-session-table__meta {
     margin-top: 3px;
-    color: #6b7280;
+    color: #5f6779;
     font-size: 12px;
     line-height: 1.4;
 }
@@ -6616,7 +6616,7 @@
 }
 
 .course-cohort-session-type-badge {
-    color: #475569;
+    color: #4b5366;
     background: #f1f5f9;
 }
 
@@ -6627,7 +6627,7 @@
 
 .lf-admin-page .course-cohort-session-status-badge--draft,
 .lf-admin-page .course-cohort-session-status-badge--scheduled {
-    color: #475569;
+    color: #4b5366;
     background: #f1f5f9;
 }
 
@@ -6637,13 +6637,13 @@
 }
 
 .lf-admin-page .course-cohort-session-status-badge--completed {
-    color: #166534;
+    color: #1b7a4b;
     background: #dcfce7;
 }
 
 .lf-admin-page .course-cohort-session-status-badge--cancelled,
 .lf-admin-page .course-cohort-session-status-badge--no_show {
-    color: #991b1b;
+    color: #bf3434;
     background: #fee2e2;
 }
 
@@ -6950,7 +6950,7 @@
 .course-cohort-session-modal__eyebrow {
     color: var(--admin-text-muted);
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: .06em;
     text-transform: uppercase;
 }
@@ -6987,7 +6987,7 @@
     margin: 0 0 12px;
     color: var(--admin-primary);
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 600;
     line-height: 1.4;
 }
 
@@ -7032,7 +7032,7 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .course-cohort-session-modal > .admin-form-footer {
@@ -7106,7 +7106,7 @@
     margin: 0;
     color: var(--admin-text);
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .course-cohort-session-reschedule-modal textarea.lf-form-control {
@@ -7527,7 +7527,7 @@
 
 .enrollment-create-metadata dt {
     margin-bottom: .35rem;
-    color: var(--color-text-muted, #6b7280);
+    color: var(--color-text-muted, #5f6779);
     font-size: .875rem;
 }
 
@@ -7573,7 +7573,7 @@
 .cohort-enrollment-detail-modal__eyebrow {
     color: var(--admin-text-muted);
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: .06em;
     line-height: 1.4;
     text-transform: uppercase;
@@ -7607,14 +7607,14 @@
     display: block;
     margin-top: .2rem;
     overflow-wrap: anywhere;
-    color: var(--color-text-muted, #6b7280);
+    color: var(--color-text-muted, #5f6779);
     font-size: .875rem;
 }
 
 .cohort-student-combobox-state {
     margin: 0;
     padding: .75rem;
-    color: var(--color-text-muted, #6b7280);
+    color: var(--color-text-muted, #5f6779);
 }
 
 .cohort-student-selected-heading {
@@ -7814,7 +7814,7 @@
     flex-shrink: 0;
     border: none;
     background: transparent;
-    color: var(--color-text-muted, #6b7280);
+    color: var(--color-text-muted, #5f6779);
     font-size: 1.25rem;
     line-height: 1;
     cursor: pointer;
@@ -7911,7 +7911,7 @@
 .admin-danger-text-action.admin-table-action-link:hover,
 .admin-danger-text-action.admin-table-action-link:focus,
 .admin-danger-text-action.admin-table-action-link:focus-visible {
-    background: color-mix(in srgb, var(--admin-danger) 8%, transparent);
+    background: color-mix(in srgb, #b42318 8%, transparent);
 }
 
 .admin-text-action:focus-visible {
@@ -7939,7 +7939,7 @@
 
 .admin-danger-text-action:focus-visible {
     border-radius: 2px;
-    outline: 2px solid var(--admin-danger);
+    outline: 2px solid #b42318;
     outline-offset: 2px;
 }
 
@@ -7961,17 +7961,17 @@
 }
 
 .lf-admin-page .badge-success {
-    color: #166534;
+    color: #1b7a4b;
     background: #dcfce7;
 }
 
 .lf-admin-page .badge-danger {
-    color: #991b1b;
+    color: #bf3434;
     background: #fee2e2;
 }
 
 .lf-admin-page .badge-neutral {
-    color: #475569;
+    color: #4b5366;
     background: #e2e8f0;
 }
 
@@ -8122,7 +8122,7 @@
 
 .admin-password-modal .lf-form-error {
     margin: 7px 0 0;
-    color: #b42318;
+    color: #bf3434;
     font-size: 13px;
     line-height: 1.45;
 }
@@ -8204,11 +8204,11 @@
 .media-owner-combobox .media-owner-combobox-trigger { position: relative; display: flex; height: 42px; box-sizing: border-box; align-items: center; gap: 4px; flex-wrap: nowrap; overflow: hidden; text-align: left; padding-right: 28px; cursor: pointer; }
 .media-owner-combobox-trigger.is-disabled { background: #f1f5f9; cursor: not-allowed; }
 .media-owner-combobox-trigger.is-disabled::after { opacity: .4; }
-.media-owner-placeholder { color: #64748b; white-space: nowrap; }
+.media-owner-placeholder { color: #5f6779; white-space: nowrap; }
 .media-owner-chip { display: inline-flex; white-space: nowrap; align-items: center; gap: 4px; min-width: 0; max-width: 100%; flex: 0 1 auto; font-size: 12px; background: #eef2ff; border-radius: 4px; padding: 2px 4px 2px 6px; }
 .media-owner-chip-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .media-owner-chip-more { flex: none; padding-right: 6px; font-weight: 600; }
-.media-owner-chip-remove { flex: none; border: 0; background: transparent; padding: 0 2px; line-height: 1; font-size: 14px; color: #475569; cursor: pointer; }
+.media-owner-chip-remove { flex: none; border: 0; background: transparent; padding: 0 2px; line-height: 1; font-size: 14px; color: #4b5366; cursor: pointer; }
 .media-owner-chip-remove:hover { color: #0f172a; }
 .media-owner-combobox-trigger::after { content: '▾'; position: absolute; right: 12px; top: 50%; transform: translateY(-50%); }
 .media-owner-combobox .media-owner-object-choices { position: absolute; top: 100%; left: 0; right: 0; z-index: 30; margin-top: 4px; box-shadow: 0 6px 18px rgb(0 0 0 / 12%); max-height: 280px; }
@@ -8231,10 +8231,10 @@
     padding: 0;
     border: 1px solid #94a3b8;
     border-radius: 50%;
-    color: #475569;
+    color: #4b5366;
     background: #fff;
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 500;
     line-height: 1;
     cursor: help;
 }

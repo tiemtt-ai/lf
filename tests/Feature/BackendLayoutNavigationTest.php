@@ -294,7 +294,7 @@ class BackendLayoutNavigationTest extends TestCase
             $componentCss
         );
         $this->assertStringContainsString('background-color: #f8fafc;', $componentCss);
-        $this->assertStringContainsString('color: #374151;', $componentCss);
+        $this->assertStringContainsString('color: #4b5366;', $componentCss);
         $this->assertStringContainsString('cursor: default;', $componentCss);
         $this->assertStringContainsString('.admin-form-card {', $pageCss);
         $this->assertStringContainsString('max-width: 720px;', $pageCss);
