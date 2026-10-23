@@ -515,9 +515,6 @@
     min-height: var(--ui-control-height);
     white-space: nowrap
 }
-.lf-admin-ui .ui-tabs__tab:hover {
-    background: var(--ui-color-f7f8fc)
-}
 .lf-admin-ui .ui-tabs__tab[aria-selected=true] {
     color: var(--ui-primary)
 }
@@ -657,10 +654,6 @@
     height: 2px;
     border-radius: 2px 2px 0 0;
     background: transparent
-}
-.lf-admin-ui .mk-tab:hover {
-    background: var(--ui-color-f7f8fc);
-    color: var(--ui-primary)
 }
 .lf-admin-ui .mk-tab:is([aria-selected=true], [aria-current=page]) {
     color: var(--ui-primary);
@@ -1929,12 +1922,12 @@
 .lf-admin-ui.ui-structure .ui-row-action--danger:hover { background: var(--ui-danger-soft); }
 .lf-admin-ui.ui-structure .course-template-activity-panel { margin: 0 0 0 42px; padding: 0; border-top: 0; }
 .lf-admin-ui.ui-structure .course-template-activity-toolbar { margin: 0; padding: 5px 10px; border-radius: 4px; background: var(--ui-color-fafbfe); color: var(--ui-muted); font-size: 14px; }
+.lf-admin-ui.ui-structure .course-template-activity-tabs { margin: 0; border-bottom: 0; gap: 2px; }
+.lf-admin-ui.ui-structure .course-template-activity-tabs .ui-tabs__tab { min-height: 36px; padding: 6px 12px; font-size: 14px; font-weight: 500; }
+.lf-admin-ui.ui-structure .course-template-activity-tabs .ui-tabs__count { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; margin-left: 6px; padding: 0 6px; border-radius: 999px; background: var(--ui-color-eef0f5); color: var(--ui-muted); font-size: 12px; font-weight: 600; line-height: 1; }
+.lf-admin-ui.ui-structure .course-template-activity-tabs .ui-tabs__tab[aria-selected=true] .ui-tabs__count { background: var(--ui-color-f0f2fc); color: var(--ui-primary); }
 .lf-admin-ui.ui-structure .course-template-activity-toolbar h5 { margin: 0; color: var(--ui-muted); font-size: 14px; font-weight: 400; }
 .lf-admin-ui.ui-structure .course-template-activity-toolbar .admin-text-action { color: var(--ui-primary); font-size: 14px; }
-.lf-admin-ui.ui-structure .course-template-activity-fold { display: inline-flex; align-items: center; gap: 6px; padding: 7px 0; border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; }
-.lf-admin-ui.ui-structure .course-template-activity-fold:focus-visible { outline: 2px solid var(--ui-primary); outline-offset: 2px; }
-.lf-admin-ui.ui-structure .course-template-activity-fold-icon { transition: transform .14s; }
-.lf-admin-ui.ui-structure .course-template-activity-fold-icon.is-collapsed { transform: rotate(-90deg); }
 .lf-admin-ui.ui-structure .course-template-activity-list { gap: 0; }
 .lf-admin-ui.ui-structure .course-template-activity-item { min-height: 0; padding: 13px 10px; gap: 12px; border-top: 1px solid var(--ui-color-eceef3); border-bottom: 0; }
 .lf-admin-ui.ui-structure .course-template-activity-item:first-child { border-top: 0; }

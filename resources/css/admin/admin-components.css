@@ -2015,6 +2015,25 @@
     background: #ffffff;
 }
 
+/* Underline tabs: hover shows the active underline in the tab's own text colour. */
+.lf-admin-ui .ui-tabs__tab:not([aria-selected=true]):hover::after {
+    content: '';
+    height: 2px;
+    position: absolute;
+    bottom: 0;
+    left: 12px;
+    right: 12px;
+    background: currentColor;
+}
+
+.lf-admin-ui .mk-tab:not([aria-selected=true], [aria-current=page]):hover::after {
+    background: currentColor;
+}
+
+.course-template-tab:not(.is-active):is(:hover, :focus-visible) {
+    border-bottom-color: currentColor;
+}
+
 .admin-tab.is-active {
     border-color: var(--admin-active);
     color: #ffffff;

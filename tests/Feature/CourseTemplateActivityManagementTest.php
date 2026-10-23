@@ -61,7 +61,7 @@ class CourseTemplateActivityManagementTest extends TestCase
                 ->assertOk()
                 ->assertSeeText('Bài học (1)')
                 ->assertSeeText('+ Gắn bài học')
-                ->assertSeeText('Hoạt động (1)')
+                ->assertSeeText('Trước buổi học')
                 ->assertSeeText('+ Thêm hoạt động')
                 ->assertSeeText('Alphabet Text')
                 ->assertDontSeeText('Private Tenant Activity');
@@ -1105,7 +1105,7 @@ class CourseTemplateActivityManagementTest extends TestCase
                 ."{$templateId}/edit"
             )
             ->assertOk()
-            ->assertSeeText('Hoạt động (0)')
+            ->assertSeeText('Trước buổi học')
             ->assertSeeText('+ Thêm hoạt động')
             ->assertSeeText('Chưa có hoạt động.')
             ->assertDontSeeText('Chưa có hoạt động học tập nào.');
@@ -1620,7 +1620,7 @@ class CourseTemplateActivityManagementTest extends TestCase
             .' " course-template-lesson-item ")][.//strong[normalize-space()="%s"]]'
             .'//section[contains(concat(" ", normalize-space(@class), " "),'
             .' " course-template-activity-panel ")]'
-            .'//button[@data-ui-dialog-form-open and @data-url="%s" and normalize-space()="+ Thêm hoạt động"]',
+            .'//button[@data-ui-dialog-form-open and starts-with(@data-url, "%s?phase=") and normalize-space()="+ Thêm hoạt động"]',
             $lessonTitle,
             $expectedUrl
         );

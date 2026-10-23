@@ -28,7 +28,7 @@
             'during_session' => (bool) ($formActivity->available_during_session ?? false),
             'after_session' => (bool) ($formActivity->available_after_session ?? false),
         ]))
-        : ['anytime'];
+        : [($presetPhase ?? null) ?: 'anytime'];
     $storedEstimateMinutes = $formActivity?->estimated_duration_seconds !== null
         ? (int) ceil($formActivity->estimated_duration_seconds / 60)
         : null;

@@ -122,25 +122,52 @@
                     </div>
                 </div>
 
+                @php
+                    $activityPhases = [
+                        'before_session' => 'available_before_session',
+                        'during_session' => 'available_during_session',
+                        'after_session' => 'available_after_session',
+                    ];
+                    $activityPhaseCounts = [];
+                    foreach ($activityPhases as $phase => $column) {
+                        $activityPhaseCounts[$phase] = $lessonActivities
+                            ->filter(static fn ($activity): bool => (bool) ($activity->available_anytime ?? false) || (bool) ($activity->{$column} ?? false))
+                            ->count();
+                    }
+                    $activityDefaultPhase = collect($activityPhaseCounts)->filter(static fn (int $count): bool => $count > 0)->keys()->first() ?? 'before_session';
+                    $activityCreateUrl = route($activityRoutePrefix.'.create', $lessonParameters);
+                    $activityCreateUrls = collect(array_keys($activityPhases))
+                        ->mapWithKeys(static fn (string $phase): array => [$phase => $activityCreateUrl.'?phase='.$phase])
+                        ->all();
+                @endphp
                 <section id="course-template-lesson-{{ $lesson->id }}-activities"
                          class="course-template-activity-panel"
-                         x-data="{ open: true }"
-                         aria-labelledby="course-template-lesson-{{ $lesson->id }}-activities-title">
+                         x-data="{ phase: @js($activityDefaultPhase), counts: @js($activityPhaseCounts), createUrls: @js($activityCreateUrls) }">
                     <div class="course-template-activity-toolbar">
-                        <h5 id="course-template-lesson-{{ $lesson->id }}-activities-title">
-                            <button type="button" class="course-template-activity-fold"
-                                    aria-controls="course-template-lesson-{{ $lesson->id }}-activity-list"
-                                    x-bind:aria-expanded="open.toString()" aria-expanded="true"
-                                    x-on:click="open = ! open"><x-backend-icon name="chevron-down" class="ui-icon course-template-activity-fold-icon" x-bind:class="{ 'is-collapsed': ! open }" />{{ __('lf.LF_course_template_activity_common_list_title') }} ({{ $lessonActivities->count() }})</button>
-                        </h5>
+                        <div class="ui-tabs course-template-activity-tabs" role="tablist"
+                             aria-label="{{ __('lf.LF_course_template_activity_common_list_title') }}">
+                            @foreach ($activityPhases as $phase => $column)
+                                <button type="button" role="tab" class="ui-tabs__tab"
+                                        id="course-template-lesson-{{ $lesson->id }}-tab-{{ $phase }}"
+                                        aria-controls="course-template-lesson-{{ $lesson->id }}-activity-list"
+                                        aria-selected="{{ $phase === $activityDefaultPhase ? 'true' : 'false' }}"
+                                        x-bind:aria-selected="(phase === '{{ $phase }}').toString()"
+                                        x-on:click="phase = '{{ $phase }}'">
+                                    {{ __('lf.LF_course_template_activity_learning_availability_'.$phase) }}
+                                    <span class="ui-tabs__count">{{ $activityPhaseCounts[$phase] }}</span>
+                                </button>
+                            @endforeach
+                        </div>
                         <button type="button" class="admin-link-button admin-text-action"
                                 data-ui-dialog-form-open aria-haspopup="dialog"
-                                data-url="{{ route($activityRoutePrefix.'.create', $lessonParameters) }}">
+                                data-url="{{ $activityCreateUrls[$activityDefaultPhase] }}"
+                                x-bind:data-url="createUrls[phase]">
                             {{ __('lf.LF_course_template_activity_common_add_action') }}
                         </button>
                     </div>
 
-                    <div class="course-template-activity-list" id="course-template-lesson-{{ $lesson->id }}-activity-list" x-show="open">
+                    <div class="course-template-activity-list" id="course-template-lesson-{{ $lesson->id }}-activity-list"
+                         role="tabpanel" x-bind:aria-labelledby="'course-template-lesson-{{ $lesson->id }}-tab-' + phase">
                         @forelse ($lessonActivities as $activity)
                             @php
                                 $activityParameters = array_merge(
@@ -164,7 +191,9 @@
                                     ),
                                 };
                             @endphp
-                            <div class="course-template-activity-item">
+                            <div class="course-template-activity-item"
+                                 x-show="@js((bool) ($activity->available_anytime ?? false) ? array_keys($activityPhases) : array_values(array_keys(array_filter(array_map(static fn (string $column): bool => (bool) ($activity->{$column} ?? false), $activityPhases)))))
+                                     .includes(phase)">
                                 <div class="course-template-activity-identity">
                                     <span class="course-template-activity-icon" aria-hidden="true">
                                         <x-backend-icon :name="$activityIcon" class="course-template-activity-type-icon" />
@@ -360,6 +389,11 @@
                                 {{ __('lf.LF_course_template_activity_common_empty') }}
                             </p>
                         @endforelse
+                        @if ($lessonActivities->isNotEmpty())
+                            <p class="course-template-activity-empty" x-show="counts[phase] === 0" x-cloak>
+                                {{ __('lf.LF_course_template_activity_common_empty') }}
+                            </p>
+                        @endif
                     </div>
                 </section>
             </article>
