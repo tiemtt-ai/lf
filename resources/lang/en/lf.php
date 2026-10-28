@@ -597,6 +597,7 @@ return [
     'LF_media_usage_label_avatar_image' => 'Avatar Image',
     'LF_media_usage_label_source_material' => 'Source Material',
     'LF_course_product_common_title' => 'Course Products',
+    'LF_course_product_common_create_short' => 'New product',
     'LF_course_product_common_create' => 'Create Course Product',
     'LF_course_product_common_edit' => 'Edit Course Product',
     'LF_course_product_common_keyword' => 'Keyword',

@@ -110,7 +110,7 @@ class CourseProductManagementTest extends TestCase
             ->assertSee('mk-empty', false)
             ->assertSeeText(__('lf.LF_course_product_common_empty'))
             ->assertSeeText(__('lf.LF_course_product_empty_help'))
-            ->assertSeeText(__('lf.LF_course_product_common_create'));
+            ->assertSeeText(__('lf.LF_course_product_common_create_short'));
 
         $this->createProduct($customerId, 'Existing Product', 'existing-product');
 

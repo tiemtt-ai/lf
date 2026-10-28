@@ -102,7 +102,7 @@
                     <button type="button" class="ui-button ui-button--outline cursor-interaction"
                             data-ui-dialog-form-open data-ui-dialog-form-for="product-list" data-url="{{ route($routePrefix.'.create') }}" aria-haspopup="dialog">
                         <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
-                        {{ __('lf.LF_course_product_common_create') }}
+                        {{ __('lf.LF_course_product_common_create_short') }}
                     </button>
                 </x-slot:create>
             </x-ui-list-toolbar>
@@ -192,7 +192,7 @@
                                 @unless ($hasActiveFilters)
                                     <button type="button" class="ui-button ui-button--outline cursor-interaction"
                                             data-ui-dialog-form-open data-url="{{ route($routePrefix.'.create') }}" aria-haspopup="dialog">
-                                        {{ __('lf.LF_course_product_common_create') }}
+                                        {{ __('lf.LF_course_product_common_create_short') }}
                                     </button>
                                 @endunless
                             </div>

@@ -597,6 +597,7 @@ return [
     'LF_media_usage_label_avatar_image' => 'Ảnh đại diện',
     'LF_media_usage_label_source_material' => 'Tài liệu nguồn',
     'LF_course_product_common_title' => 'Sản phẩm khóa học',
+    'LF_course_product_common_create_short' => 'Tạo sản phẩm',
     'LF_course_product_common_create' => 'Tạo sản phẩm khóa học',
     'LF_course_product_common_edit' => 'Sửa sản phẩm khóa học',
     'LF_course_product_common_keyword' => 'Từ khóa',
