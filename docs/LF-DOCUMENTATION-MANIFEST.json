@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_or_updated_at": "2026-10-19",
+  "generated_or_updated_at": "2026-10-28",
   "root": "docs",
   "default_locale": "vi",
   "fallback_locale": "en",
@@ -12546,20 +12546,23 @@
       "topics": [
         "css",
         "admin-teacher-layout",
-        "admin-layout-developer"
+        "admin-layout-developer",
+        "static-design"
       ],
       "keywords": {
         "vi": [
           "tiêu chuẩn kỹ thuật",
           "công nghệ và hạ tầng",
           "kiến trúc CSS",
-          "khung giao diện quản trị và giáo viên"
+          "khung giao diện quản trị và giáo viên",
+          "thiết kế tĩnh"
         ],
         "en": [
           "technical standard",
           "technology and infrastructure",
           "CSS architecture",
-          "Admin and Teacher shared layout"
+          "Admin and Teacher shared layout",
+          "static design"
         ]
       },
       "identifiers": [

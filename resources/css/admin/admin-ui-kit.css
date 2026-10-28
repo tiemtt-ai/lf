@@ -1826,7 +1826,11 @@
 .lf-admin-ui .ui-summary-group + .ui-summary-group { border-top: 1px solid var(--ui-color-e6e8ee); }
 .lf-admin-ui .ui-summary-group > h3 { margin: 0 0 20px; font-size: 16px; font-weight: 600; }
 .lf-admin-ui .ui-summary-group .ui-summary { padding: 0; gap: 26px 32px; }
-.lf-admin-ui .ui-summary--media { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+.lf-admin-ui .ui-summary--media { display: flex; flex-wrap: wrap; gap: 18px 22px; }
+/* Read-only media tiles on a summary reuse the edit form's 112px .ui-media-tile; an empty one shows a dash. */
+.lf-admin-ui .ui-summary--media .ui-media-tile { width: 112px; height: 112px; }
+.lf-admin-ui .ui-media-tile__empty--readonly { color: var(--ui-muted); cursor: default; }
+.lf-admin-ui .ui-media-tile__empty--readonly:hover { border-color: var(--ui-color-d3d8e3); background: var(--ui-color-fafbfe); }
 .lf-admin-ui .ui-summary__version-main { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
 .lf-admin-ui .ui-summary__version-meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; margin-top: 4px; font-weight: 400; }
 .lf-admin-ui .ui-summary__version-meta a { white-space: nowrap; }

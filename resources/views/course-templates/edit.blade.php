@@ -122,7 +122,7 @@
                 $introVideoName = $introVideoMedia?->display_name
                     ?? ($introVideoEmbedUrl ? ucfirst((string) $template->intro_video_provider) : null);
                 $groups = [
-                    'general' => [__('lf.LF_course_template_summary_general'), [
+                    'general' => [
                         ['title', __('lf.LF_course_template_common_name'), $template->title],
                         ['category_id', __('lf.LF_course_template_common_category'), $categoryName],
                         ['publisher_name', __('lf.LF_course_template_common_publisher_name'), $template->publisher_name],
@@ -130,21 +130,28 @@
                         ['estimated_minutes_per_lesson', __('lf.LF_course_template_estimated_minutes_per_lesson'), $template->estimated_minutes_per_lesson],
                         ['estimated_lesson_count', __('lf.LF_course_template_estimated_lesson_count'), $template->estimated_lesson_count],
                         ['status', __('lf.LF_course_template_common_status'), null],
-                    ]],
-                    'media' => [__('lf.LF_course_template_summary_media'), [
+                    ],
+                    'media' => [
                         ['intro_image_file', __('lf.LF_course_template_intro_image'), $introImageMedia?->display_name, 'image',
-                            $introImageMedia?->signed_url ? ['kind' => 'image', 'url' => $introImageMedia->signed_url, 'mimeType' => $introImageMedia->mime_type] : null],
+                            $introImageMedia?->signed_url ? ['kind' => 'image', 'url' => $introImageMedia->signed_url, 'mimeType' => $introImageMedia->mime_type] : null,
+                            ($introImageThumbnail['state'] ?? null) === 'image' ? $introImageThumbnail['url'] : null],
                         ['intro_video_source', __('lf.LF_course_template_intro_video'), $introVideoName, 'video',
                             $introVideoMedia?->signed_url
                                 ? ['kind' => 'video', 'url' => $introVideoMedia->signed_url, 'mimeType' => $introVideoMedia->mime_type]
-                                : ($introVideoEmbedUrl ? ['kind' => 'embed', 'url' => $introVideoEmbedUrl, 'mimeType' => ''] : null)],
-                        ['intro_document_file', __('lf.LF_course_template_intro_document'), $introDocumentMedia?->display_name, 'document',
-                            $introDocumentMedia?->signed_url ? ['kind' => 'document', 'url' => $introDocumentMedia->signed_url, 'mimeType' => $introDocumentMedia->mime_type] : null],
-                    ]],
-                    'content' => [__('lf.LF_course_template_summary_content'), [
+                                : ($introVideoEmbedUrl ? ['kind' => 'embed', 'url' => $introVideoEmbedUrl, 'mimeType' => ''] : null),
+                            ($introVideoThumbnail['state'] ?? null) === 'provider_video_thumbnail' ? $introVideoThumbnail['url'] : null],
+                        ['intro_document_file', __('lf.LF_course_template_intro_document'), $introDocumentMedia?->display_name,
+                            match ($introDocumentThumbnail['kind'] ?? null) {
+                                'pdf' => 'file-pdf', 'word' => 'file-text', 'spreadsheet' => 'file-spreadsheet',
+                                'presentation' => 'file-presentation', default => 'document',
+                            },
+                            $introDocumentMedia?->signed_url ? ['kind' => 'document', 'url' => $introDocumentMedia->signed_url, 'mimeType' => $introDocumentMedia->mime_type] : null,
+                            null],
+                    ],
+                    'content' => [
                         ['short_description', __('lf.LF_course_template_common_short_description'), $template->short_description],
                         ['description', __('lf.LF_course_template_common_description'), $template->description ? \Illuminate\Support\Str::limit(strip_tags((string) $template->description), 320) : null],
-                    ]],
+                    ],
                 ];
             @endphp
             <div class="lf-admin-ui lf-admin-ui--list" data-ui-dialog-form-scope
@@ -176,9 +183,8 @@
                         </button>
                     </div>
 
-                    @foreach ($groups as $groupKey => [$groupTitle, $items])
-                        <section class="ui-summary-group" aria-labelledby="course-template-summary-{{ $groupKey }}">
-                            <h3 id="course-template-summary-{{ $groupKey }}">{{ $groupTitle }}</h3>
+                    @foreach ($groups as $groupKey => $items)
+                        <div class="ui-summary-group" data-summary-group="{{ $groupKey }}">
                             <dl @class(['ui-summary', 'ui-summary--media' => $groupKey === 'media'])>
                                 @foreach ($items as $item)
                                     @php([$field, $label, $value] = $item)
@@ -190,23 +196,34 @@
                                             @if ($field === 'status')
                                                 <span class="ui-status ui-status--{{ $template->status }}">{{ __('lf.LF_course_template_common_'.$template->status) }}</span>
                                             @elseif ($groupKey === 'media')
-                                                @if ($preview)
-                                                    <button type="button" class="ui-summary__file ui-summary__file--action cursor-interaction"
-                                                            aria-haspopup="dialog"
-                                                            aria-label="{{ __('lf.LF_media_slot_view') }}: {{ $value }}"
-                                                            x-on:click="openPreview(@js(['name' => $value] + $preview))">
-                                                        <x-backend-icon :name="$icon" class="ui-icon" />
-                                                        <span class="ui-summary__file-name">{{ $value }}</span>
-                                                        <x-backend-icon name="eye" class="ui-icon ui-summary__file-view" />
-                                                    </button>
-                                                @else
-                                                    <span @class(['ui-summary__file', 'ui-summary__file--empty' => $value === null || $value === ''])>
-                                                        @if ($value !== null && $value !== '')
-                                                            <x-backend-icon :name="$icon" class="ui-icon" />
-                                                        @endif
-                                                        {{ $value !== null && $value !== '' ? $value : $dash }}
-                                                    </span>
-                                                @endif
+                                                {{-- Same 112px tile as the media slots of the edit form (x-ui-media-slot), read-only: View on hover, no Upload or Remove. --}}
+                                                @php($thumb = $item[5] ?? null)
+                                                <div class="ui-media-tile" @if ($value !== null && $value !== '') title="{{ $value }}" @endif>
+                                                    @if ($value !== null && $value !== '')
+                                                        <div class="ui-media-tile__filled">
+                                                            @if ($thumb)
+                                                                <img class="ui-media-tile__image" src="{{ $thumb }}" alt="{{ $value }}" loading="lazy">
+                                                            @else
+                                                                <span class="ui-media-tile__fallback" role="img" aria-label="{{ $value }}">
+                                                                    <x-backend-icon :name="$icon" class="ui-icon" />
+                                                                </span>
+                                                            @endif
+                                                            @if ($preview)
+                                                                <div class="ui-media-tile__actions">
+                                                                    <button type="button" class="ui-media-tile__action cursor-interaction"
+                                                                            aria-haspopup="dialog"
+                                                                            aria-label="{{ __('lf.LF_media_slot_view') }}: {{ $value }}"
+                                                                            title="{{ __('lf.LF_media_slot_view') }}"
+                                                                            x-on:click="openPreview(@js(['name' => $value] + $preview))">
+                                                                        <x-backend-icon name="eye" class="ui-icon" />
+                                                                    </button>
+                                                                </div>
+                                                            @endif
+                                                        </div>
+                                                    @else
+                                                        <span class="ui-media-tile__empty ui-media-tile__empty--readonly" aria-label="{{ __('lf.LF_course_template_summary_empty') }}">{{ $dash }}</span>
+                                                    @endif
+                                                </div>
                                             @else
                                                 @if ($value !== null && $value !== '')
                                                     {{ $value }}
@@ -218,7 +235,7 @@
                                     </div>
                                 @endforeach
                             </dl>
-                        </section>
+                        </div>
                     @endforeach
 
                     @if ($template->status === \App\Support\CourseTemplateStatus::INACTIVE

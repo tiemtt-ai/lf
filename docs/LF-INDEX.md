@@ -1,12 +1,12 @@
 # LF-INDEX.md
 
-Version: 2.36
+Version: 2.37
 
 Document Status: Approved
 
 Implementation Status: Not Applicable
 
-Last Updated: 2026-10-19
+Last Updated: 2026-10-28
 
 Document Path: LF-INDEX.md
 
@@ -758,6 +758,9 @@ Read:
 ## Frontend
 
 Nếu Owner nói “áp dụng UI KIT”, đọc thêm `tech/LF-Admin-UI-Kit-Shared-CSS.md`; chỉ áp dụng cho form được chỉ định.
+
+Nếu Owner yêu cầu thiết kế tĩnh mới, hoặc nói “áp dụng thiết kế `<ten>-design`
+cho `<chức năng>`”, đọc mục “Static Design” trong `tech/LF-Tech-CSS.md`.
 
 Read:
 

@@ -1,12 +1,12 @@
 # LF-Tech-CSS.md
 
-Version: 1.6
+Version: 1.7
 
 Document Status: Approved
 
 Implementation Status: Unknown
 
-Last Updated: 2026-10-19
+Last Updated: 2026-10-28
 
 Document Path: tech/LF-Tech-CSS.md
 
@@ -71,6 +71,53 @@ Không hiểu trigger này là quyền migrate hàng loạt hoặc thay đổi n
   gồm states và responsive; báo rõ phần chưa kiểm chứng.
 * Demo JS chỉ phục vụ preview. Tích hợp Alpine/Livewire và semantics thuộc
   từng task áp dụng form; không copy handler demo thành business integration.
+
+## Static Design — quy trình thiết kế tĩnh (Owner approved 2026-10-28)
+
+`docs/ui-demo/` chứa bản thiết kế tĩnh (HTML/CSS/JS mở trực tiếp bằng trình
+duyệt, không backend, không build). Bản thiết kế là visual reference, không
+phải code production.
+
+### Bước 1 — Tạo bản thiết kế
+
+* Mỗi màn hình/tính năng mới là một thư mục riêng:
+  `docs/ui-demo/<ten>-design/` gồm `index.html`, `README.md`, `assets/`.
+* Không sửa hai gói gốc `admin-layout-developer` và `ui-kit-developer`.
+* Thiết kế mới dùng lại token, font, màu và component của hai gói gốc; khác
+  biệt phải ghi rõ trong README kèm lý do.
+* README có metadata header chuẩn (Version, Document Status, Implementation
+  Status: Not Applicable, Last Updated, Document Path), mục "Phạm vi",
+  "Khác biệt so với UI Kit" và "Lịch sử thay đổi". Mỗi lần sửa tăng Version.
+* README phải được đăng ký trong `docs/LF-DOCUMENTATION-MANIFEST.json`
+  (area `ui-demo`) để `docs:lint` không báo lỗi.
+* Dữ liệu, thao tác và thông báo trong bản thiết kế chỉ để minh họa; không
+  được xem là quy tắc nghiệp vụ, validation hay phân quyền.
+
+### Duyệt
+
+* Document Status `Review` khi đang thiết kế; Owner duyệt thì chuyển `Approved`
+  và ghi "Owner duyệt ngày YYYY-MM-DD" trong README.
+* Sau khi Approved, mọi thay đổi phải tăng Version và được Owner duyệt lại.
+* Bản Approved là nguồn đối chiếu visual khi áp dụng; không sửa nó trong task
+  áp dụng.
+
+### Bước 2 — Áp dụng vào hệ thống
+
+Trigger: **“áp dụng thiết kế `<ten>-design` cho `<chức năng>`”**. Chỉ áp dụng
+bản thiết kế đã Approved, chỉ cho đúng chức năng được chỉ định.
+
+* Đọc README bản thiết kế, tài liệu này, `LF-Admin-Form-Design-Standard.md`
+  và `LF-Admin-UI-Kit-Shared-CSS.md` trước khi sửa.
+* Chuyển presentation vào shared CSS trong `resources/css/admin/` (mở rộng
+  Shared CSS hiện có, không tạo CSS cạnh tranh theo module). Không nạp CSS/JS
+  từ `docs/` vào production.
+* Blade sinh markup với route, user, locale và dữ liệu thật; Alpine quản lý
+  tương tác. Không copy dữ liệu mẫu hoặc handler demo.
+* Không đổi nghiệp vụ, payload, validation, tenant, auth, quyền hay luồng lưu
+  dữ liệu trừ khi Owner yêu cầu riêng.
+* Đối chiếu browser với bản thiết kế ở desktop/tablet/mobile và VI/EN; báo rõ
+  phần chưa kiểm chứng, không tuyên bố pixel parity nếu chưa đo.
+* Không tự migrate màn hình khác.
 
 ## Overview
 

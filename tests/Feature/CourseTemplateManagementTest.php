@@ -1532,7 +1532,10 @@ class CourseTemplateManagementTest extends TestCase
             ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit")
             ->assertOk()
             ->assertSee('data-summary-field="intro_video_source"', false)
-            ->assertSeeText('Youtube');
+            // Same tile as the form: the provider thumbnail, named by its alt text.
+            ->assertSee('src="https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg" alt="Youtube"', false)
+            // The summary is read-only: an empty resource is a dash, adding happens in the edit form.
+            ->assertDontSee('data-ui-dialog-form-focus="intro_document_file"', false);
 
         $this->withHeader('X-Requested-With', 'XMLHttpRequest')
             ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/form")
