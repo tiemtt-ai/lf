@@ -184,7 +184,7 @@
                                     @php([$field, $label, $value] = $item)
                                     @php($icon = $item[3] ?? null)
                                     @php($preview = $item[4] ?? null)
-                                    <div data-summary-field="{{ $field }}" @class(['ui-summary__item', 'ui-summary__item--wide' => in_array($field, ['title', 'short_description', 'description'], true)])>
+                                    <div data-summary-field="{{ $field }}" @class(['ui-summary__item', 'ui-summary__item--wide' => in_array($field, ['title', 'short_description', 'description'], true), 'ui-summary__item--title' => $field === 'title'])>
                                         <dt class="ui-field__label">{{ $label }}</dt>
                                         <dd>
                                             @if ($field === 'status')
@@ -208,7 +208,11 @@
                                                     </span>
                                                 @endif
                                             @else
-                                                {{ $value !== null && $value !== '' ? $value : $dash }}
+                                                @if ($value !== null && $value !== '')
+                                                    {{ $value }}
+                                                @else
+                                                    <span class="ui-summary__empty" aria-label="{{ __('lf.LF_course_template_summary_empty') }}">{{ $dash }}</span>
+                                                @endif
                                             @endif
                                         </dd>
                                     </div>

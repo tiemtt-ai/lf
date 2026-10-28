@@ -61,7 +61,8 @@ class CourseTemplateActivityManagementTest extends TestCase
                 ->assertOk()
                 ->assertSeeText('Bài học (1)')
                 ->assertSeeText('+ Gắn bài học')
-                ->assertSeeText('Trước buổi học')
+                ->assertSeeText('Học bất kỳ lúc nào')
+                ->assertDontSeeText('Trước buổi học')
                 ->assertSeeText('+ Thêm hoạt động')
                 ->assertSeeText('Alphabet Text')
                 ->assertDontSeeText('Private Tenant Activity');
@@ -1105,7 +1106,7 @@ class CourseTemplateActivityManagementTest extends TestCase
                 ."{$templateId}/edit"
             )
             ->assertOk()
-            ->assertSeeText('Trước buổi học')
+            ->assertDontSeeText('Trước buổi học')
             ->assertSeeText('+ Thêm hoạt động')
             ->assertSeeText('Chưa có hoạt động.')
             ->assertDontSeeText('Chưa có hoạt động học tập nào.');

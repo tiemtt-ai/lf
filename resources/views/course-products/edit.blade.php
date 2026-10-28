@@ -3,6 +3,11 @@
 @section('title', __('lf.LF_course_product_common_edit'))
 @section('page_title', __('lf.LF_course_product_common_edit'))
 
+@section('vite')
+    @parent
+    @vite(['resources/css/admin/admin-ui-kit.css', 'resources/js/admin-ui-kit-controls.js', 'resources/js/admin-ui-kit-dialog-form.js'])
+@endsection
+
 @section('content')
     @php
         $linkedProductItems = $productItems->whereNotNull('version_id');
@@ -105,23 +110,111 @@
                  x-show="activeTab === 'general'"
                  role="tabpanel"
                  aria-labelledby="course-product-tab-general">
-            <div class="admin-card admin-form-card admin-form-surface">
-                <form id="course-product-update-form"
-                      class="admin-form-standard"
-                      method="POST"
-                      action="{{ route($routePrefix.'.update', $product->id) }}"
-                      enctype="multipart/form-data">
-                    @csrf
-                    @method('PUT')
+            <div class="lf-admin-ui lf-admin-ui--list" data-ui-dialog-form-scope
+                 x-data="{
+                     previewOpen: false,
+                     preview: { name: '', url: '', mimeType: '', mediaType: '' },
+                     openPreview(detail) {
+                         if (! ['image', 'video', 'embed'].includes(detail.kind)) { window.open(detail.url, '_blank', 'noopener'); return }
+                         this.preview = { name: detail.name, url: detail.url, mimeType: detail.mimeType || '', mediaType: detail.kind }
+                         this.previewOpen = true
+                     },
+                     closePreview() { this.previewOpen = false; this.preview = { name: '', url: '', mimeType: '', mediaType: '' } },
+                 }">
+                <x-ui-list-toasts />
+                @php
+                    $dash = '—';
+                    $summaryCategory = $categories->firstWhere('id', (int) $product->category_id)?->name;
+                    $summaryTemplate = $templates->firstWhere('id', (int) ($selectedTemplateId ?? 0));
+                    $money = static fn ($value): string => number_format((float) $value, $product->currency === 'USD' ? 2 : 0).' '.$product->currency;
+                    $dateTime = static fn ($value): ?string => $value ? \Illuminate\Support\Carbon::parse($value)->format('d/m/Y H:i') : null;
+                    $window = static fn ($from, $to): ?string => $from || $to ? trim(($from ?? $dash).' → '.($to ?? $dash)) : null;
+                    $summaryGroups = [
+                        'basic' => [__('lf.LF_product_v2_group_basic'), [
+                            ['title', __('lf.LF_course_product_common_title_field'), $product->title],
+                            ['category', __('lf.LF_product_v2_category'), $summaryCategory],
+                            ['template', __('lf.LF_product_v2_template'), $summaryTemplate?->name],
+                            ['version', __('lf.LF_product_v2_version_in_use'), null],
+                            ['offering_type', __('lf.LF_product_v2_offering_type'), $product->offering_type ? __('lf.LF_product_v2_offering_'.$product->offering_type) : null],
+                            ['product_code', __('lf.LF_course_product_common_product_code'), $product->product_code],
+                            ['slug', __('lf.LF_course_product_common_slug'), $product->slug],
+                        ]],
+                        'pricing' => [__('lf.LF_product_v2_group_pricing'), [
+                            ['price', __('lf.LF_product_v2_list_price'), $money($product->price)],
+                            ['registration', __('lf.LF_product_v2_group_registration'), $window($dateTime($product->registration_starts_at), $dateTime($product->registration_ends_at))],
+                            ['promotion', __('lf.LF_product_v2_apply_promotion'), $product->promotion_enabled
+                                ? trim(($product->discount_type === 'percentage' ? rtrim(rtrim((string) $product->discount_value, '0'), '.').'%' : ($product->discount_value !== null ? $money($product->discount_value) : '')).' · '.($window($dateTime($product->sale_starts_at), $dateTime($product->sale_ends_at)) ?? ''), ' ·')
+                                : null],
+                            ['access', __('lf.LF_product_v2_access_days'), $product->access_duration_days],
+                        ]],
+                        'availability' => [__('lf.LF_product_v2_group_availability'), [
+                            ['status', __('lf.LF_course_product_common_status'), null],
+                            ['featured', __('lf.LF_course_product_common_is_featured'), $product->is_featured ? '✓' : null],
+                            ['short_description', __('lf.LF_course_product_common_short_description'), $product->uses_custom_description ? $product->short_description : null],
+                            ['description', __('lf.LF_course_product_common_description'), $product->uses_custom_description ? $product->description : null],
+                        ]],
+                    ];
+                @endphp
 
-                    @if($product->status === 'archived')<fieldset disabled>@endif
-                    @include('course-products.partials.form')
-                    @if($product->status === 'archived')</fieldset>@endif
+                <section class="mk-section" aria-labelledby="course-product-information-title">
+                    <div class="ui-summary-head">
+                        <h2 id="course-product-information-title">{{ __('lf.LF_course_product_tab_general') }}</h2>
+                        <button type="button" class="ui-button ui-button--primary cursor-interaction"
+                                data-ui-dialog-form-open data-ui-dialog-form-hash-open aria-haspopup="dialog"
+                                data-url="{{ route($routePrefix.'.form', ['id' => $product->id, 'context' => 'workspace']) }}">
+                            {{ __('lf.LF_course_template_action_edit_info') }}
+                        </button>
+                    </div>
 
-                </form>
+                    @foreach ($summaryGroups as $groupKey => [$groupTitle, $items])
+                        <section class="ui-summary-group" aria-labelledby="course-product-summary-{{ $groupKey }}">
+                            <h3 id="course-product-summary-{{ $groupKey }}">{{ $groupTitle }}</h3>
+                            <dl class="ui-summary">
+                                @foreach ($items as [$field, $label, $value])
+                                    <div data-summary-field="{{ $field }}" @class(['ui-summary__item', 'ui-summary__item--wide' => in_array($field, ['short_description', 'description'], true)])>
+                                        <dt class="ui-field__label">{{ $label }}</dt>
+                                        <dd>
+                                            @if ($field === 'version')
+                                                @if ($summaryTemplate?->version_summary)
+                                                    @php($versionSummary = $summaryTemplate->version_summary)
+                                                    <div class="ui-summary__version">
+                                                        <div class="ui-summary__version-main">
+                                                            <strong>{{ $versionSummary['code'] }}</strong>
+                                                            <span class="ui-status ui-status--active">{{ $versionSummary['status_label'] }}</span>
+                                                        </div>
+                                                        <div class="ui-summary__version-meta">
+                                                            <span class="ui-caption">{{ $versionSummary['number_label'] }} · {{ $versionSummary['lesson_text'] }} · {{ $versionSummary['activity_text'] }}</span>
+                                                            @if ($versionSummary['view_url'])
+                                                                <a class="ui-caption" href="{{ $versionSummary['view_url'] }}" target="_blank" rel="noopener noreferrer"
+                                                                   aria-label="{{ __('lf.LF_product_v2_view_version_new_tab') }}">{{ __('lf.LF_product_v2_view_version') }}</a>
+                                                            @endif
+                                                        </div>
+                                                    </div>
+                                                @elseif ($summaryTemplate?->integrity_warning)
+                                                    <span class="ui-field__error" role="alert">{{ $summaryTemplate->integrity_warning }}</span>
+                                                @elseif ($summaryTemplate)
+                                                    <span class="ui-caption" role="status">{{ __('lf.LF_product_v2_missing_version') }}</span>
+                                                @else
+                                                    {{ $dash }}
+                                                @endif
+                                            @elseif ($field === 'status')
+                                                <span class="ui-status ui-status--{{ $product->status }}">{{ __('lf.LF_course_product_common_'.$product->status) }}</span>
+                                            @else
+                                                @if ($value !== null && $value !== '')
+                                                    {{ $value }}
+                                                @else
+                                                    <span class="ui-summary__empty" aria-label="{{ __('lf.LF_course_template_summary_empty') }}">{{ $dash }}</span>
+                                                @endif
+                                            @endif
+                                        </dd>
+                                    </div>
+                                @endforeach
+                            </dl>
+                        </section>
+                    @endforeach
 
-                <footer class="admin-form-footer" data-actions-align="end">
-                    <div class="admin-form-footer-danger">
+                    @if (in_array($product->status, ['inactive', 'archived'], true))
+                        <div class="ui-summary-foot">
                         @if($product->status === 'inactive')
                             <form method="POST"
                                   action="{{ route($routePrefix.'.archive', $product->id) }}"
@@ -149,19 +242,19 @@
                                 </button>
                             </form>
                         @endif
-                    </div>
+                        </div>
+                    @endif
+                </section>
 
-                    <div class="admin-form-footer-primary">
-                        <a href="{{ route($routePrefix.'.index') }}" class="btn btn-secondary">
-                            {{ __('lf.LF_common_button_cancel') }}
-                        </a>
-                        @if($product->status !== 'archived')
-                            <button type="submit" form="course-product-update-form" class="btn btn-primary">
-                                {{ __('lf.LF_common_button_save_changes') }}
-                            </button>
-                        @endif
-                    </div>
-                </footer>
+                <dialog class="ui-modal" data-columns="3" aria-labelledby="product-dialog-title" data-ui-dialog-form data-field-id-prefix="product-form-"
+                        data-msg-load-error="{{ __('lf.LF_course_template_dialog_load_error') }}"
+                        data-msg-discard-title="{{ __('lf.LF_course_template_dialog_discard_title') }}"
+                        data-msg-discard-text="{{ __('lf.LF_course_template_dialog_discard_text') }}"
+                        data-msg-discard="{{ __('lf.LF_course_template_dialog_discard') }}"
+                        data-msg-save-error="{{ __('lf.LF_course_template_dialog_save_error') }}"
+                        data-msg-session-expired="{{ __('lf.LF_course_template_session_expired') }}"
+                        data-msg-required-input="{{ __('lf.LF_course_template_dialog_required_input') }}"
+                        data-msg-required-select="{{ __('lf.LF_course_template_dialog_required_select') }}"></dialog>
             </div>
         </section>
 

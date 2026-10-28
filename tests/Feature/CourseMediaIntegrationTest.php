@@ -217,12 +217,11 @@ class CourseMediaIntegrationTest extends TestCase
         $this->assertSignedDeliveryUrl($customerId, $mediaFile);
 
         $this->actingAs($admin)
-            ->get("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
+            ->get("https://tenant-a.localhost/admin/course-products/{$productId}/form", ['X-Requested-With' => 'XMLHttpRequest'])
             ->assertOk()
-            ->assertSeeText('Cover image upload')
+            ->assertDontSeeText('Cover image upload')
             ->assertSeeText('Định dạng: JPG, PNG, GIF, WEBP, SVG')
-            ->assertSeeText('Tối đa:')
-            ->assertSee('expiration=', false);
+            ->assertSeeText('Tối đa:');
     }
 
     public function test_admin_can_upload_course_template_introduction_image(): void

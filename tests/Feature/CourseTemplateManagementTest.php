@@ -817,6 +817,30 @@ class CourseTemplateManagementTest extends TestCase
         $this->assertDatabaseCount('core_course_templates', 0);
     }
 
+    public function test_estimated_counts_must_be_whole_numbers_within_the_column_range(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+
+        $this->actingAs($admin)
+            ->from('https://tenant-a.localhost/admin/course-templates/create')
+            ->post('https://tenant-a.localhost/admin/course-templates', $this->validTemplateData([
+                'estimated_minutes_per_lesson' => 10001,
+                'estimated_lesson_count' => 1.5,
+            ]))
+            ->assertSessionHasErrors(['estimated_minutes_per_lesson', 'estimated_lesson_count']);
+
+        $this->actingAs($admin)
+            ->from('https://tenant-a.localhost/admin/course-templates/create')
+            ->post('https://tenant-a.localhost/admin/course-templates', $this->validTemplateData([
+                'estimated_minutes_per_lesson' => 4294967296,
+                'estimated_lesson_count' => 1001,
+            ]))
+            ->assertSessionHasErrors(['estimated_minutes_per_lesson', 'estimated_lesson_count']);
+
+        $this->assertDatabaseCount('core_course_templates', 0);
+    }
+
     public function test_templates_do_not_require_slug_or_title_uniqueness(): void
     {
         $customerId = $this->createTenant();
@@ -1110,6 +1134,11 @@ class CourseTemplateManagementTest extends TestCase
             1,
             $xpath->query('//button[@data-ui-bulk-delete and @disabled and @data-url="https://tenant-a.localhost/admin/course-templates"]')->length,
             'the delete button is always there, disabled until a row is checked'
+        );
+        $this->assertSame(
+            __('lf.LF_course_template_bulk_delete'),
+            $xpath->query('//button[@data-ui-bulk-delete]')->item(0)?->getAttribute('data-confirm-label'),
+            'the confirm button names the action (Xóa), not a generic "Xác nhận"'
         );
     }
 

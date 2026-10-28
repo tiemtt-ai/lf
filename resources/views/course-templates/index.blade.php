@@ -75,7 +75,7 @@
         <x-ui-list-toolbar :url="route($routePrefix.'.bulk-destroy')" name="ids[]"
             :label="__('lf.LF_course_template_bulk_delete')"
             :confirm-title="__('lf.LF_course_template_bulk_delete_title')" :confirm-message="__('lf.LF_course_template_bulk_delete_confirm', ['count' => ':count'])"
-            :confirm-label="__('lf.LF_common_button_confirm')">
+            :confirm-label="__('lf.LF_course_template_bulk_delete')">
             <x-slot:create>
                 <button type="button" class="ui-button ui-button--outline cursor-interaction"
                 data-ui-dialog-form-open data-ui-dialog-form-for="template-list" data-url="{{ route($routePrefix.'.create') }}" aria-haspopup="dialog">

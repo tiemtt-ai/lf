@@ -68,13 +68,13 @@
 
             <div class="ui-field">
                 <label class="ui-field__label" for="template-form-estimated_minutes_per_lesson">{{ __('lf.LF_course_template_estimated_minutes_per_lesson') }}</label>
-                <input id="template-form-estimated_minutes_per_lesson" type="number" min="1" name="estimated_minutes_per_lesson"
+                <input id="template-form-estimated_minutes_per_lesson" type="number" min="1" max="10000" step="1" inputmode="numeric" name="estimated_minutes_per_lesson"
                        value="{{ $formTemplate?->estimated_minutes_per_lesson }}" placeholder="{{ __('lf.LF_course_template_placeholder_minutes') }}">
             </div>
 
             <div class="ui-field">
                 <label class="ui-field__label" for="template-form-estimated_lesson_count">{{ __('lf.LF_course_template_estimated_lesson_count') }}</label>
-                <input id="template-form-estimated_lesson_count" type="number" min="1" name="estimated_lesson_count"
+                <input id="template-form-estimated_lesson_count" type="number" min="1" max="1000" step="1" inputmode="numeric" name="estimated_lesson_count"
                        value="{{ $formTemplate?->estimated_lesson_count }}" placeholder="{{ __('lf.LF_course_template_placeholder_lesson_count') }}">
             </div>
 

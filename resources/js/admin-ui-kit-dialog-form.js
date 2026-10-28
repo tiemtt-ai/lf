@@ -277,7 +277,8 @@ export function initUiKitDialogForm(scope, deps = {}) {
             openerUrl = url;
             dialog.showModal();
             if (!(options.focus && focusField(options.focus))) {
-                node.querySelector('select, input:not([type="hidden"]):not([type="file"]), textarea')?.focus?.();
+                // The first field the user can change: a locked (read-only or disabled) field would look editable once focused.
+                node.querySelector('select:not(:disabled), input:not([type="hidden"]):not([type="file"]):not([hidden]):not([readonly]):not(:disabled), textarea:not([readonly]):not(:disabled)')?.focus?.();
             }
         } catch (error) {
             if (mine === seq && error?.name !== 'AbortError') pageError(message('load-error'));

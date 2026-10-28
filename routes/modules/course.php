@@ -200,6 +200,9 @@ if ($registerCourseProductRoutes ?? false) {
     Route::get('/course-products/{id}/edit', [CourseProductController::class, 'edit'])
         ->name('course-products.edit');
 
+    Route::get('/course-products/{id}/form', [CourseProductController::class, 'form'])
+        ->name('course-products.form');
+
     Route::put('/course-products/{id}', [CourseProductController::class, 'update'])
         ->name('course-products.update');
 
@@ -235,6 +238,9 @@ if ($registerCourseProductRoutes ?? false) {
 
     Route::delete('/course-products/{id}', [CourseProductController::class, 'destroy'])
         ->name('course-products.destroy');
+
+    Route::delete('/course-products', [CourseProductController::class, 'bulkDestroy'])
+        ->name('course-products.bulk-destroy');
 }
 
 Route::get('/course-templates', [CourseTemplateController::class, 'index'])

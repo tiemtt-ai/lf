@@ -47,6 +47,7 @@ class CourseProductManagementTest extends TestCase
             'edit',
             'update',
             'destroy',
+            'bulk-destroy',
         ] as $route) {
             $this->assertTrue(Route::has("admin.course-products.{$route}"));
             $this->assertFalse(Route::has("teacher.course-products.{$route}"));
@@ -89,12 +90,12 @@ class CourseProductManagementTest extends TestCase
             ->assertOk()
             ->assertSeeText('TOPIK Beginner')
             ->assertSeeText('Sản phẩm khóa học')
-            ->assertSee('course-product-index-toolbar', false)
-            ->assertSee('course-product-index-count', false)
-            ->assertSee('course-product-filter-grid', false)
-            ->assertSee('course-product-index-table', false)
-            ->assertSee('course-product-index-meta', false)
-            ->assertSee('course-product-status-badge', false)
+            ->assertSee('mk-tablebar', false)
+            ->assertSee('mk-filter-form', false)
+            ->assertSee('mk-table-scroll', false)
+            ->assertSee('mk-table-foot', false)
+            ->assertSee('ui-status ui-status--', false)
+            ->assertSee('data-ui-dialog-form-open', false)
             ->assertDontSeeText('Private Tenant Product');
     }
 
@@ -106,7 +107,7 @@ class CourseProductManagementTest extends TestCase
         $this->actingAs($admin)
             ->get('https://tenant-a.localhost/admin/course-products')
             ->assertOk()
-            ->assertSee('course-product-empty-state', false)
+            ->assertSee('mk-empty', false)
             ->assertSeeText(__('lf.LF_course_product_common_empty'))
             ->assertSeeText(__('lf.LF_course_product_empty_help'))
             ->assertSeeText(__('lf.LF_course_product_common_create'));
@@ -115,11 +116,76 @@ class CourseProductManagementTest extends TestCase
 
         $this->get('https://tenant-a.localhost/admin/course-products?keyword=missing')
             ->assertOk()
-            ->assertSee('course-product-empty-state', false)
+            ->assertSee('mk-empty', false)
             ->assertSeeText(__('lf.LF_course_product_filter_empty'))
             ->assertSeeText(__('lf.LF_course_product_filter_empty_help'))
             ->assertSeeText(__('lf.LF_course_product_common_clear_filters'))
             ->assertDontSeeText(__('lf.LF_course_product_common_empty'));
+    }
+
+    public function test_product_dialog_fragments_render_for_create_and_edit_and_reject_plain_requests(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $productId = $this->createProduct($customerId, 'Dialog Product', 'dialog-product');
+        $ajax = ['X-Requested-With' => 'XMLHttpRequest'];
+
+        $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/course-products/create', $ajax)
+            ->assertOk()
+            ->assertSee('ui-modal__form', false)
+            ->assertSee('name="title"', false)
+            ->assertDontSee('<html', false);
+
+        $this->get("https://tenant-a.localhost/admin/course-products/{$productId}/form", $ajax)
+            ->assertOk()
+            ->assertSee('ui-modal__form', false)
+            ->assertSee('Dialog Product');
+
+        $this->get("https://tenant-a.localhost/admin/course-products/{$productId}/form")->assertNotFound();
+    }
+
+    public function test_product_dialog_items_use_the_ui_kit_controls(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $productId = $this->createProduct($customerId, 'Kit Product', 'kit-product');
+        DB::table('core_course_products')->where('id', $productId)->update([
+            'registration_starts_at' => '2026-07-01 21:20:00',
+            'registration_ends_at' => '2026-08-15 21:20:00',
+        ]);
+
+        $content = $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-products/{$productId}/form", ['X-Requested-With' => 'XMLHttpRequest'])
+            ->assertOk()
+            ->getContent();
+
+        $document = new \DOMDocument;
+        @$document->loadHTML('<?xml encoding="UTF-8">'.$content);
+        $xpath = new \DOMXPath($document);
+
+        // The four date-time fields are the kit date input with a time, keeping the value format the server reads.
+        foreach (['registration_starts_at', 'registration_ends_at', 'sale_starts_at', 'sale_ends_at'] as $name) {
+            $this->assertSame(1, $xpath->query('//input[@name="'.$name.'" and @type="datetime-local" and @data-ui-kit-date and @data-now-label]')->length, $name);
+        }
+        $this->assertSame('2026-07-01T21:20', $xpath->query('//input[@name="registration_starts_at"]')->item(0)->getAttribute('value'));
+
+        // Featured is a switch like the category one, with no group label above it.
+        $this->assertSame(1, $xpath->query('//label[contains(@class, "ui-switch")]/input[@name="is_featured" and @role="switch"]')->length);
+        $this->assertStringNotContainsString(__('lf.LF_product_v2_group_display'), $content);
+        $this->assertSame(0, $xpath->query('//*[contains(@class, "ui-modal__section-title")]')->length, 'no group headings, only item labels');
+    }
+
+    public function test_product_dialog_update_answers_json_and_validation_errors_answer_422(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $productId = $this->createProduct($customerId, 'Json Product', 'json-product');
+
+        $this->actingAs($admin)
+            ->putJson("https://tenant-a.localhost/admin/course-products/{$productId}", ['title' => ''])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['title']);
     }
 
     public function test_admin_can_create_a_product_with_documented_fields(): void
@@ -224,8 +290,12 @@ class CourseProductManagementTest extends TestCase
         $this->actingAs($admin)
             ->get("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
             ->assertOk()
-            ->assertSee('value="TOPIK Beginner"', false)
+            ->assertSeeText('TOPIK Beginner')
             ->assertSeeText('Thông tin sản phẩm');
+
+        $this->get("https://tenant-a.localhost/admin/course-products/{$productId}/form", ['X-Requested-With' => 'XMLHttpRequest'])
+            ->assertOk()
+            ->assertSee('value="TOPIK Beginner"', false);
 
         $this->actingAs($admin)
             ->put(
@@ -259,6 +329,103 @@ class CourseProductManagementTest extends TestCase
             'customer_id' => $customerId,
             'status' => 'archived',
         ]);
+    }
+
+    public function test_product_index_refetch_with_empty_status_keeps_the_default_list_and_no_active_filter(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $this->createProduct($customerId, 'Draft listed', 'draft-listed');
+        $this->createProduct($customerId, 'Archived hidden', 'archived-hidden', status: 'archived');
+
+        // The live filter (e.g. after a delete) submits the whole form: "all statuses" must post an empty value, not "all".
+        $content = $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/course-products')
+            ->assertOk()
+            ->getContent();
+        $this->assertStringNotContainsString('value="all"', $content);
+
+        $this->get('https://tenant-a.localhost/admin/course-products?keyword=&status=&visibility=')
+            ->assertOk()
+            ->assertSeeText('Draft listed')
+            ->assertDontSeeText('Archived hidden')
+            ->assertDontSeeText(__('lf.LF_course_product_common_clear_filters'));
+
+        $this->get('https://tenant-a.localhost/admin/course-products?status=archived')
+            ->assertOk()
+            ->assertSeeText('Archived hidden');
+    }
+
+    public function test_product_index_enables_delete_only_for_unreferenced_products_and_explains_why_not(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $free = $this->createProduct($customerId, 'Free listed', 'free-listed');
+        $used = $this->createProduct($customerId, 'Used listed', 'used-listed');
+        $target = $this->createProduct($customerId, 'Related target', 'related-target');
+        $this->createProductRelation($customerId, $used, $target);
+
+        $content = $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/course-products')
+            ->assertOk()
+            ->assertSee('resources/js/admin-ui-kit-row-actions.js', false)
+            ->assertSee('data-csrf=', false)
+            ->assertSee(__('lf.LF_course_product_delete_blocked_relations', ['count' => 1]), false)
+            ->getContent();
+
+        $document = new \DOMDocument;
+        @$document->loadHTML('<?xml encoding="UTF-8">'.$content);
+        $xpath = new \DOMXPath($document);
+        $this->assertSame(1, $xpath->query('//input[@data-ui-bulk-item and not(@disabled) and @value="'.$free.'"]')->length);
+        $this->assertSame(0, $xpath->query('//input[@data-ui-bulk-item and @value="'.$used.'"]')->length);
+        $this->assertSame(2, $xpath->query('//span[@class="ui-bulk-lock"]/input[@disabled]')->length, 'both ends of a relation are locked with the reason');
+        $this->assertSame(1, $xpath->query('//input[@data-ui-bulk-select-all]')->length);
+        $this->assertSame(1, $xpath->query('//div[contains(@class, "mk-table-top__actions")]/button[1][@data-ui-dialog-form-open]')->length, 'the create button is the first one in the toolbar');
+        $this->assertSame(
+            1,
+            $xpath->query('//button[@data-ui-bulk-delete and @disabled and @data-url="https://tenant-a.localhost/admin/course-products"]')->length,
+            'the delete button is always there, disabled until a row is checked'
+        );
+        $this->assertSame(
+            __('lf.LF_course_product_bulk_delete'),
+            $xpath->query('//button[@data-ui-bulk-delete]')->item(0)?->getAttribute('data-confirm-label'),
+            'the confirm button names the action (Xóa), not a generic "Xác nhận"'
+        );
+    }
+
+    public function test_product_bulk_delete_is_all_or_nothing_tenant_isolated_and_admin_only(): void
+    {
+        $customerId = $this->createTenant();
+        $otherCustomerId = $this->createTenant('tenant-b');
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $teacher = $this->createUser($customerId, 'teacher');
+        $one = $this->createProduct($customerId, 'Bulk one', 'bulk-one', status: 'active');
+        $two = $this->createProduct($customerId, 'Bulk two', 'bulk-two');
+        $used = $this->createProduct($customerId, 'Bulk used', 'bulk-used');
+        $target = $this->createProduct($customerId, 'Bulk target', 'bulk-target');
+        $this->createProductRelation($customerId, $used, $target);
+        $foreign = $this->createProduct($otherCustomerId, 'Foreign bulk', 'foreign-bulk');
+        $url = 'https://tenant-a.localhost/admin/course-products';
+
+        $this->actingAs($admin)->deleteJson($url, ['ids' => [$one, $used]])
+            ->assertStatus(409)->assertJsonPath('message', fn ($m) => str_contains($m, 'Bulk used'));
+        $this->assertSame(2, DB::table('core_course_products')->whereIn('id', [$one, $used])->count(), 'a blocked one refuses the whole request');
+
+        $this->actingAs($admin)->deleteJson($url, ['ids' => [$one, $foreign]])->assertNotFound();
+        $this->assertDatabaseHas('core_course_products', ['id' => $foreign]);
+        $this->assertDatabaseHas('core_course_products', ['id' => $one]);
+
+        $this->actingAs($teacher)->deleteJson($url, ['ids' => [$two]])->assertForbidden();
+        $this->assertDatabaseHas('core_course_products', ['id' => $two]);
+
+        $this->actingAs($admin)->deleteJson($url, ['ids' => [$one, $two]])
+            ->assertOk()->assertJsonPath('message', trans_choice('lf.LF_course_product_bulk_deleted', 2, ['count' => 2]));
+        $this->assertDatabaseMissing('core_course_products', ['id' => $one]);
+        $this->assertDatabaseMissing('core_course_products', ['id' => $two]);
+        $this->assertDatabaseHas('core_course_products', ['id' => $used]);
+        $this->assertDatabaseHas('saas_audit_logs', ['customer_id' => $customerId, 'action' => 'course_product_delete']);
+
+        $this->actingAs($admin)->deleteJson($url, ['ids' => []])->assertStatus(422);
     }
 
     public function test_product_queries_and_mutations_are_tenant_isolated(): void
@@ -376,19 +543,16 @@ class CourseProductManagementTest extends TestCase
         $this->assertSame($beforeCount, DB::table('core_course_products')->where('customer_id', $customerId)->count());
 
         $this->actingAs($admin)
-            ->get("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
+            ->get("https://tenant-a.localhost/admin/course-products/{$productId}/form", ['X-Requested-With' => 'XMLHttpRequest'])
             ->assertOk()
             ->assertDontSee('name="product_code"', false)
-            ->assertSee('id="product_code"', false)
+            ->assertSee('id="product-form-product_code"', false)
             ->assertSee('value="TOPIK"', false)
-            ->assertSee('admin-copy-control__button', false)
-            ->assertSee('navigator.clipboard.writeText(generatedSlug)', false)
-            ->assertSee('name="slug"', false)
-            ->assertSee('readonly', false)
-            ->assertSeeText('TOPIK');
+            ->assertSee('readonly', false);
 
-        $this->assertSame('Sao chép mã sản phẩm', __('lf.LF_product_v2_copy_code'));
-        $this->assertSame('Sao chép đường dẫn', __('lf.LF_product_v2_copy_slug'));
+        $this->get("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
+            ->assertOk()
+            ->assertSeeText('TOPIK');
     }
 
     public function test_product_v2_custom_media_ui_restores_source_and_uses_template_media_structure(): void
@@ -430,6 +594,27 @@ class CourseProductManagementTest extends TestCase
                 'attribute' => __('lf.LF_course_template_intro_video'),
             ]),
         ]);
+    }
+
+    public function test_product_v2_amounts_durations_and_currency_stay_within_column_ranges(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        [$categoryId, $templateId] = $this->createProductV2CategoryAndTemplate($customerId, $admin->id);
+
+        $this->actingAs($admin)->post(
+            'https://tenant-a.localhost/admin/course-products',
+            $this->validProductV2Data($categoryId, $templateId, [
+                'price' => '1000000000000',
+                'currency' => 'EUR',
+                'offering_type' => 'self_paced_course',
+                'access_duration_days' => 36501,
+                'review_duration_days' => 36501,
+                'promotion_enabled' => 1,
+                'discount_type' => 'fixed_amount',
+                'discount_value' => '1000000000000',
+            ])
+        )->assertSessionHasErrors(['price', 'currency', 'access_duration_days', 'review_duration_days', 'discount_value']);
     }
 
     public function test_product_v2_custom_media_lifecycle_and_authorized_preview(): void
@@ -492,11 +677,11 @@ class CourseProductManagementTest extends TestCase
         $this->assertNull($updated->intro_video_media_file_id);
         $this->assertNull($updated->intro_document_media_file_id);
 
-        $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-products/{$product->id}/edit")
+        $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-products/{$product->id}/form", ['X-Requested-With' => 'XMLHttpRequest'])
             ->assertOk()
             ->assertSee('name="remove_intro_image"', false)
             ->assertSee('name="remove_intro_video"', false)
-            ->assertDontSee('name="remove_intro_document"', false);
+            ->assertSee('name="intro_document_file"', false);
 
         $this->actingAs($admin)->put("https://tenant-a.localhost/admin/course-products/{$product->id}", $this->validProductV2Data(
             $categoryId,
@@ -2152,7 +2337,6 @@ class CourseProductManagementTest extends TestCase
 
         foreach ([
             'https://tenant-a.localhost/admin/course-products/create',
-            "https://tenant-a.localhost/admin/course-products/{$productId}/edit",
         ] as $url) {
             $content = $this->actingAs($admin)->get($url)->assertOk()->getContent();
             $this->assertStringContainsString('class="admin-form-standard"', $content);
@@ -2213,27 +2397,23 @@ class CourseProductManagementTest extends TestCase
         $content = $this->actingAs($admin)
             ->get("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
             ->assertOk()
-            ->assertSeeText('Nội dung khóa học')
-            ->assertSeeText('Thông tin nhận diện')
+            ->assertSeeText('Thông tin sản phẩm')
             ->assertSeeTextInOrder([
+                'Tên sản phẩm',
                 'Danh mục sản phẩm',
-                'Course Template',
+                'Template khóa học',
                 'Phiên bản sử dụng',
                 'VERSION-'.$templateId.'-12',
                 'Đã xuất bản',
                 'Phiên bản 12 · 1 bài học · 1 hoạt động',
-                'Tên sản phẩm',
                 'Loại sản phẩm',
-                'Slug',
                 'Mã sản phẩm',
+                'Slug',
             ])
             ->getContent();
 
-        $this->assertMatchesRegularExpression('/<div class="admin-form-field--full">\s*<template x-for=.*lf-product-version-summary/s', $content);
-        $this->assertMatchesRegularExpression('/<input id="category_id"[^>]+admin-form-readonly[^>]+readonly|<input id="category_id"[^>]+readonly[^>]+admin-form-readonly/', $content);
-        $this->assertMatchesRegularExpression('/<input id="template_id"[^>]+admin-form-readonly[^>]+readonly|<input id="template_id"[^>]+readonly[^>]+admin-form-readonly/', $content);
-        $this->assertStringContainsString('class="badge badge-success"', $content);
-        $this->assertStringContainsString('course-product-code-control', $content);
+        $this->assertStringContainsString('data-summary-field="version"', $content);
+        $this->assertStringContainsString('data-ui-dialog-form-open', $content);
         $this->assertGreaterThan(0, $categoryId);
     }
 
@@ -2671,8 +2851,8 @@ class CourseProductManagementTest extends TestCase
         $productId = $this->createProduct($customerId, 'Frozen Product', 'frozen-product');
         $itemId = $this->createProductItem($customerId, $productId, $versionId);
 
-        $editResponse = $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-products/{$productId}/edit")->assertOk();
-        $this->assertMatchesRegularExpression('/<select(?=[^>]*\bid="template_id")(?=[^>]*\bname="template_id")(?![^>]*\bdisabled\b)[^>]*>/', $editResponse->getContent());
+        $editResponse = $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-products/{$productId}/form", ['X-Requested-With' => 'XMLHttpRequest'])->assertOk();
+        $this->assertMatchesRegularExpression('/<select(?=[^>]*\bid="product-form-template_id")(?=[^>]*\bname="template_id")(?![^>]*\bdisabled\b)[^>]*>/', $editResponse->getContent());
         $this->assertMatchesRegularExpression('/<option\s+value="'.preg_quote((string) $firstTemplateId, '/').'"[^>]*selected[^>]*>/', $editResponse->getContent());
         $this->assertMatchesRegularExpression('/<option\s+value="'.preg_quote((string) $secondTemplateId, '/').'"[^>]*>Blocked Replacement<\/option>/', $editResponse->getContent());
         $this->assertStringNotContainsString('gỡ liên kết phiên bản', mb_strtolower($editResponse->getContent()));
@@ -2735,12 +2915,14 @@ class CourseProductManagementTest extends TestCase
                 ]))->assertSessionHasErrors('template_id');
 
         $this->assertDatabaseHas('core_course_product_items', ['id' => $itemId, 'template_id' => $firstTemplateId, 'version_id' => $firstVersionId]);
-        $lockedResponse = $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
+        $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
             ->assertOk()
-            ->assertSeeText('Course Template đã được khóa vì sản phẩm đã phát sinh dữ liệu sử dụng.')
             ->assertSeeTextInOrder(['VERSION-'.$firstTemplateId.'-1', 'Đã xuất bản']);
-        $this->assertStringNotContainsString('<select id="template_id"', $lockedResponse->getContent());
-        $this->assertMatchesRegularExpression('/<input id="template_id"[^>]+admin-form-readonly[^>]+readonly|<input id="template_id"[^>]+readonly[^>]+admin-form-readonly/', $lockedResponse->getContent());
+        $lockedResponse = $this->get("https://tenant-a.localhost/admin/course-products/{$productId}/form", ['X-Requested-With' => 'XMLHttpRequest'])
+            ->assertOk()
+            ->assertSeeText('Template khóa học đã được khóa vì sản phẩm đã phát sinh dữ liệu sử dụng.');
+        $this->assertStringNotContainsString('<select id="product-form-template_id"', $lockedResponse->getContent());
+        $this->assertMatchesRegularExpression('/<input id="product-form-template_id"[^>]+readonly/', $lockedResponse->getContent());
     }
 
     public function test_overview_uses_distinct_compact_template_policy_notices_and_slug_metadata(): void
@@ -2763,36 +2945,29 @@ class CourseProductManagementTest extends TestCase
 
         $messages = [
             $activeId => 'Chỉ có thể đổi Course Template khi sản phẩm ở trạng thái Bản nháp.',
-            $usedId => 'Course Template đã được khóa vì sản phẩm đã phát sinh dữ liệu sử dụng.',
+            $usedId => 'Template khóa học đã được khóa vì sản phẩm đã phát sinh dữ liệu sử dụng.',
             $archivedId => 'Sản phẩm đã lưu trữ chỉ có thể xem.',
         ];
 
         foreach ($messages as $productId => $message) {
             $content = $this->actingAs($admin)
-                ->get("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
+                ->get("https://tenant-a.localhost/admin/course-products/{$productId}/form", ['X-Requested-With' => 'XMLHttpRequest'])
                 ->assertOk()
                 ->assertSeeText($message)
-                ->assertSeeText('Tự động')
-                ->assertDontSeeText('Tự động tạo từ tên sản phẩm.')
                 ->getContent();
 
-            $this->assertSame(1, substr_count($content, 'id="template-policy-notice"'));
-            $this->assertStringContainsString('class="admin-form-inline-notice course-product-template-lock-help"', $content);
-            $this->assertStringContainsString('aria-describedby="template-policy-notice"', $content);
-            $this->assertStringNotContainsString('id="template-policy-notice" class="lf-form-error', $content);
-            $this->assertMatchesRegularExpression('/<input id="slug"[^>]+readonly/', $content);
-            $this->assertStringContainsString('class="admin-form-label-metadata"', $content);
+            $this->assertSame(1, substr_count($content, 'id="product-form-template-policy"'));
+            $this->assertStringContainsString('aria-describedby="product-form-template-policy"', $content);
+            $this->assertStringNotContainsString('id="product-form-template-policy" class="ui-field__error', $content);
         }
 
         $englishContent = $this->withSession(['locale' => 'en'])->actingAs($admin)
-            ->get("https://tenant-a.localhost/admin/course-products/{$activeId}/edit")
+            ->get("https://tenant-a.localhost/admin/course-products/{$activeId}/form", ['X-Requested-With' => 'XMLHttpRequest'])
             ->assertOk()
             ->assertSeeText('The Course Template can only be changed while the product is in Draft status.')
-            ->assertSeeText('Automatic')
-            ->assertDontSeeText('Generated automatically from the Product name.')
             ->getContent();
 
-        $this->assertSame(1, substr_count($englishContent, 'id="template-policy-notice"'));
+        $this->assertSame(1, substr_count($englishContent, 'id="product-form-template-policy"'));
         $this->assertGreaterThan(0, $categoryId);
     }
 
@@ -2854,10 +3029,9 @@ class CourseProductManagementTest extends TestCase
             $response = $this->actingAs($admin)
                 ->get("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
                 ->assertOk()
-                ->assertSee('admin-form-footer-danger', false)
-                ->assertSee('admin-form-footer-primary', false)
+                ->assertSee('data-ui-dialog-form-open', false)
                 ->assertDontSee(route('admin.course-products.archive', $productId), false);
-            $this->assertStringContainsString('form="course-product-update-form"', $response->getContent());
+            $this->assertStringNotContainsString('course-product-update-form', $response->getContent());
         }
 
         $inactiveResponse = $this->actingAs($admin)
@@ -2979,10 +3153,6 @@ class CourseProductManagementTest extends TestCase
             ->assertDontSee(route('admin.course-templates.versions.show', [
                 'templateId' => $templateId, 'versionId' => $newerVersionId,
             ]), false);
-        $this->assertStringNotContainsString('lf-product-version-summary-number', $response->getContent());
-        $this->assertStringContainsString('lf-product-version-summary--in-use', $response->getContent());
-        $this->assertStringContainsString('lf-product-version-summary-action', $response->getContent());
-        $this->assertStringContainsString('<path d="M15 3h6v6"></path>', $response->getContent());
 
         $this->withSession(['locale' => 'en'])->actingAs($admin)
             ->get("https://tenant-a.localhost/admin/course-products/{$productId}/edit")

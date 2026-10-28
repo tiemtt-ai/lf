@@ -199,7 +199,8 @@
     font-weight: 400
 }
 .lf-admin-ui textarea {
-    height: 85px;
+    height: auto;
+    min-height: 85px;
     resize: vertical
 }
 .lf-admin-ui button {
@@ -1234,6 +1235,25 @@
 .lf-admin-ui .ux-calendar .ux-calendar__day[aria-pressed=true][data-today=true] {
     color: var(--ui-white)
 }
+.lf-admin-ui .ux-calendar__time {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border-top: 1px solid var(--ui-color-edf0f5);
+    margin-top: 10px;
+    padding-top: 9px;
+    color: var(--ui-color-596171)
+}
+.lf-admin-ui .ux-calendar__time span:first-child {
+    margin-right: auto
+}
+.lf-admin-ui .ux-calendar__time select {
+    width: 64px;
+    font-size: 13px;
+    height: 30px;
+    padding: 3px 6px;
+    font-variant-numeric: tabular-nums
+}
 .lf-admin-ui .ux-calendar__footer {
     display: flex;
     justify-content: space-between;
@@ -1799,15 +1819,20 @@
 .lf-admin-ui .ui-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 28px; margin: 0; padding: 20px; }
 .lf-admin-ui .ui-summary__item { min-width: 0; }
 .lf-admin-ui .ui-summary__item--wide { grid-column: 1 / -1; }
-.lf-admin-ui .ui-summary dt { margin: 0 0 6px; color: var(--ui-muted); }
-.lf-admin-ui .ui-summary dd { margin: 0; overflow-wrap: anywhere; }
+.lf-admin-ui .ui-summary dt { margin: 0 0 4px; font-size: 12.5px; line-height: 18px; font-weight: 500; letter-spacing: .01em; color: var(--ui-muted); } /* small muted label hugging its value so each pair reads as one unit */
+.lf-admin-ui .ui-summary dd { margin: 0; font-size: 15px; line-height: 22px; font-weight: 500; color: var(--ui-text); overflow-wrap: anywhere; }
 /* Summary grouped in titled sections (Owner demo lf-template-information.html): 22px padding, hairline between groups. */
 .lf-admin-ui .ui-summary-group { padding: 22px; }
 .lf-admin-ui .ui-summary-group + .ui-summary-group { border-top: 1px solid var(--ui-color-e6e8ee); }
-.lf-admin-ui .ui-summary-group > h3 { margin: 0 0 20px; font-size: 15px; font-weight: 500; }
-.lf-admin-ui .ui-summary-group .ui-summary { padding: 0; gap: 22px 32px; }
+.lf-admin-ui .ui-summary-group > h3 { margin: 0 0 20px; font-size: 16px; font-weight: 600; }
+.lf-admin-ui .ui-summary-group .ui-summary { padding: 0; gap: 26px 32px; }
 .lf-admin-ui .ui-summary--media { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
-.lf-admin-ui .ui-summary__file { display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 12px; border: 1px solid var(--ui-color-e6e8ee); border-radius: var(--ui-control-radius); background: var(--ui-background); }
+.lf-admin-ui .ui-summary__version-main { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+.lf-admin-ui .ui-summary__version-meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; margin-top: 4px; font-weight: 400; }
+.lf-admin-ui .ui-summary__version-meta a { white-space: nowrap; }
+.lf-admin-ui .ui-summary__empty { color: var(--ui-muted); font-weight: 400; opacity: .6; }
+.lf-admin-ui .ui-summary__item--title dd { font-size: 20px; line-height: 28px; font-weight: 600; }
+.lf-admin-ui .ui-summary__file { font-weight: 400; display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 12px; border: 1px solid var(--ui-color-e6e8ee); border-radius: var(--ui-control-radius); background: var(--ui-background); }
 .lf-admin-ui .ui-summary__file .ui-icon { color: var(--ui-muted); }
 .lf-admin-ui .ui-summary__file--empty { color: var(--ui-muted); }
 /* A resource that can be opened: the whole tile is a button (View icon on the right). */
@@ -1970,6 +1995,8 @@
 @media (max-width: 520px) { .lf-admin-ui .ui-modal__progress { flex-wrap: wrap; padding: 10px 14px; } .lf-admin-ui .ui-progress__text { text-align: left; } }
 /* Long popup forms: titled groups inside the grid, collapsible detail text, inline check lists. */
 .lf-admin-ui .ui-modal__section-title { margin: 6px 0 0; padding-top: 14px; border-top: 1px solid var(--ui-color-eceef3); font-size: 15px; font-weight: 500; color: var(--ui-text); }
+/* Starts the next fields on a new row without a visible heading (the empty row adds one extra row gap between the groups). */
+.lf-admin-ui .ui-modal__row-break { grid-column: 1 / -1; height: 0; }
 .lf-admin-ui .ui-modal__grid > .ui-modal__section-title:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
 .lf-admin-ui .ui-details { font-size: 12px; color: var(--ui-muted); }
 .lf-admin-ui .ui-details summary { cursor: pointer; color: var(--ui-primary); }
@@ -2019,8 +2046,11 @@
     .lf-admin-ui :is(.ux-row-edit, .ux-row-delete, .ui-row-action, .ui-button, .ui-bulk-lock, .ui-source-icon)[data-tooltip][data-tooltip-placement=bottom]::after { bottom: auto; top: calc(100% + 6px); }
 }
 .lf-admin-ui .ui-col-check { width: 44px; }
-.lf-admin-ui :is(th, td).ui-check-cell { text-align: center; padding-left: 12px; padding-right: 4px; }
+.lf-admin-ui :is(th, td).ui-check-cell { width: 44px; box-sizing: border-box; text-align: center; vertical-align: middle; padding-left: 8px; padding-right: 8px; }
 .lf-admin-ui .ui-bulk-lock { display: inline-flex; cursor: not-allowed; }
+/* Out of the line box (whose baseline strut pushed the box up) and centred both ways in the cell. */
+.lf-admin-ui .ui-check-cell > .ui-bulk-box { display: block; margin: 0 auto; }
+.lf-admin-ui .ui-check-cell > .ui-bulk-lock { display: flex; width: max-content; margin: 0 auto; }
 .lf-admin-ui .ui-bulk-box:disabled { cursor: not-allowed; opacity: .5; }
 .lf-admin-ui .ui-bulk-box { margin: 0; }
 /* A tooltip that opens to the right of a control near the left edge (e.g. the locked checkbox). */
@@ -2066,6 +2096,7 @@
 .lf-admin-ui .ux-row-edit[data-shared] { position: relative; }
 .lf-admin-ui .ux-row-edit[data-shared]::before { content: ''; position: absolute; top: 4px; right: 4px; width: 7px; height: 7px; border-radius: 50%; background: var(--ui-primary); box-shadow: 0 0 0 2px var(--ui-white); }
 .lf-admin-ui .ui-note-card { display: grid; gap: 4px; margin-bottom: 14px; padding: 12px 14px; border: 1px solid var(--ui-color-eceef3); border-left: 3px solid var(--ui-primary); border-radius: var(--ui-control-radius); background: var(--ui-color-f7f8fd); }
+.lf-admin-ui .ui-modal__grid > .ui-note-card { margin-bottom: 0; }
 .lf-admin-ui .ui-note-card__title { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--ui-primary); font-size: 12px; font-weight: 600; }
 .lf-admin-ui .ui-note-card__title .ui-icon { width: 14px; height: 14px; }
 .lf-admin-ui .ui-note-card__text { margin: 0; color: var(--ui-text); overflow-wrap: anywhere; white-space: pre-line; }
@@ -2106,4 +2137,4 @@
 .lf-admin-ui .ui-dash-card__note { margin: 0; padding: 0 20px 18px; }
 .lf-admin-ui .ui-dash-summary code { font: 13px/1.4 monospace; color: var(--ui-muted); }
 .lf-admin-ui .mk-text-cell--nowrap { white-space: nowrap; } /* email and phone: never broken mid-value; the table scrolls inside its card instead */
-.lf-admin-ui .ux-date input[readonly] { background: var(--ui-white); cursor: pointer; } /* a read-only text field that opens the calendar still reads as editable */
+.lf-admin-ui .ux-date input[readonly]:not(:disabled) { background: var(--ui-white)!important; color: var(--ui-text)!important; cursor: pointer; } /* a read-only text field that opens the calendar still reads as editable (beats the grey read-only rule, which is !important) */

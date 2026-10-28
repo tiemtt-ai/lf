@@ -127,14 +127,15 @@
                         'before_session' => 'available_before_session',
                         'during_session' => 'available_during_session',
                         'after_session' => 'available_after_session',
+                        'anytime' => 'available_anytime',
                     ];
                     $activityPhaseCounts = [];
                     foreach ($activityPhases as $phase => $column) {
                         $activityPhaseCounts[$phase] = $lessonActivities
-                            ->filter(static fn ($activity): bool => (bool) ($activity->available_anytime ?? false) || (bool) ($activity->{$column} ?? false))
+                            ->filter(static fn ($activity): bool => (bool) ($activity->{$column} ?? false))
                             ->count();
                     }
-                    $activityDefaultPhase = collect($activityPhaseCounts)->filter(static fn (int $count): bool => $count > 0)->keys()->first() ?? 'before_session';
+                    $activityDefaultPhase = collect($activityPhaseCounts)->filter(static fn (int $count): bool => $count > 0)->keys()->first() ?? 'anytime';
                     $activityCreateUrl = route($activityRoutePrefix.'.create', $lessonParameters);
                     $activityCreateUrls = collect(array_keys($activityPhases))
                         ->mapWithKeys(static fn (string $phase): array => [$phase => $activityCreateUrl.'?phase='.$phase])
@@ -147,6 +148,7 @@
                         <div class="ui-tabs course-template-activity-tabs" role="tablist"
                              aria-label="{{ __('lf.LF_course_template_activity_common_list_title') }}">
                             @foreach ($activityPhases as $phase => $column)
+                                @continue($activityPhaseCounts[$phase] === 0)
                                 <button type="button" role="tab" class="ui-tabs__tab"
                                         id="course-template-lesson-{{ $lesson->id }}-tab-{{ $phase }}"
                                         aria-controls="course-template-lesson-{{ $lesson->id }}-activity-list"
@@ -192,7 +194,7 @@
                                 };
                             @endphp
                             <div class="course-template-activity-item"
-                                 x-show="@js((bool) ($activity->available_anytime ?? false) ? array_keys($activityPhases) : array_values(array_keys(array_filter(array_map(static fn (string $column): bool => (bool) ($activity->{$column} ?? false), $activityPhases)))))
+                                 x-show="@js(array_values(array_keys(array_filter(array_map(static fn (string $column): bool => (bool) ($activity->{$column} ?? false), $activityPhases)))))
                                      .includes(phase)">
                                 <div class="course-template-activity-identity">
                                     <span class="course-template-activity-icon" aria-hidden="true">

@@ -162,8 +162,10 @@ class BackendLayoutNavigationTest extends TestCase
         $this->actingAs($admin)
             ->get('https://tenant-a.localhost/admin/course-products')
             ->assertOk()
-            ->assertSee('class="page-heading"', false)
-            ->assertDontSee('page-heading--with-actions', false);
+            ->assertSee('class="page-heading page-heading--hidden"', false)
+            ->assertDontSee('page-heading--with-actions', false)
+            ->assertSee('data-ui-dialog-form-for="product-list"', false)
+            ->assertSee('id="product-list"', false);
     }
 
     public function test_enrollment_navigation_precedes_class_navigation(): void
@@ -609,7 +611,6 @@ class BackendLayoutNavigationTest extends TestCase
             'resources/views/course-cohorts/partials/tabs/schedules.blade.php',
             'resources/views/course-cohorts/partials/tabs/sessions.blade.php',
             'resources/views/course-enrollments/index.blade.php',
-            'resources/views/course-products/index.blade.php',
             'resources/views/course-products/edit.blade.php',
             'resources/views/course-template-teachers/partials/list.blade.php',
             'resources/views/course-templates/edit.blade.php',

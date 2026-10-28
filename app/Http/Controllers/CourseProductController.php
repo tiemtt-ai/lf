@@ -17,6 +17,7 @@ use App\Support\UploadLimit;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -81,6 +82,12 @@ class CourseProductController extends Controller
             ->paginate(10)
             ->withQueryString();
 
+        $blockers = $this->deletionBlockers($customerId, $products->getCollection()->pluck('id')->map(fn ($id) => (int) $id)->all());
+        $products->getCollection()->each(function (object $product) use ($blockers): void {
+            $reasons = $blockers[(int) $product->id] ?? [];
+            $product->delete_blocker = $reasons === [] ? null : $this->deletionBlockMessage($reasons);
+        });
+
         return view('course-products.index', [
             'products' => $products,
             'keyword' => $keyword,
@@ -96,7 +103,7 @@ class CourseProductController extends Controller
         $customerId = $this->customerId();
         $versionState = $this->versionSummaryPresenter->present($customerId, null, true);
 
-        return view('course-products.create', [
+        return view($request->ajax() ? 'course-products.dialog' : 'course-products.create', [
             'requiredFields' => $this->requiredFields($customerId),
             'routePrefix' => $this->routePrefix($request),
             'coverImageMedia' => null,
@@ -108,6 +115,7 @@ class CourseProductController extends Controller
             'introDocumentThumbnail' => null,
             'introVideoEmbedUrl' => null,
             'hasActiveCourseVersion' => false,
+            'allowedStatuses' => ['draft'],
         ]);
     }
 
@@ -151,12 +159,38 @@ class CourseProductController extends Controller
             return $productId;
         });
 
+        $editUrl = route($this->routePrefix($request).'.edit', $productId);
+
+        if ($request->expectsJson()) {
+            $request->session()->flash('success', __('lf.LF_course_product_common_created_next_steps'));
+
+            return response()->json([
+                'message' => __('lf.LF_course_product_common_created_next_steps'),
+                'redirect' => $editUrl,
+            ], 201);
+        }
+
         return redirect()
-            ->route($this->routePrefix($request).'.edit', $productId)
+            ->to($editUrl)
             ->with('success', __('lf.LF_course_product_common_created_next_steps'));
     }
 
     public function edit(Request $request, int $id): View
+    {
+        return view('course-products.edit', $this->editViewData($request, $id));
+    }
+
+    /**
+     * The information form as a dialog fragment, for the list's popup.
+     */
+    public function form(Request $request, int $id): View
+    {
+        abort_unless($request->ajax(), 404);
+
+        return view('course-products.dialog', $this->editViewData($request, $id));
+    }
+
+    private function editViewData(Request $request, int $id): array
     {
         $this->authorizeAdmin($request);
 
@@ -171,7 +205,7 @@ class CourseProductController extends Controller
             ? $this->trustedVideos->embedUrl($product->intro_video_embed_url)
             : null;
 
-        return view('course-products.edit', [
+        return [
             'product' => $product,
             'productItems' => $this->productItems($customerId, $id),
             'publishedVersions' => $this->publishedVersions($customerId, $id),
@@ -203,7 +237,7 @@ class CourseProductController extends Controller
             'canChangeTemplate' => $templateChange['allowed'],
             'templateLockReason' => $templateChange['reason'],
             'allowedStatuses' => $this->lifecyclePolicy->allowedStatuses($product, $customerId),
-        ]);
+        ];
     }
 
     public function update(Request $request, int $id)
@@ -273,6 +307,19 @@ class CourseProductController extends Controller
             }
         });
 
+        if ($request->expectsJson()) {
+            if ($request->query('context') === 'workspace') {
+                $request->session()->flash('success', __('lf.LF_course_product_common_updated'));
+
+                return response()->json([
+                    'message' => __('lf.LF_course_product_common_updated'),
+                    'redirect' => route($this->routePrefix($request).'.edit', $id),
+                ]);
+            }
+
+            return response()->json(['message' => __('lf.LF_course_product_common_updated')]);
+        }
+
         return redirect()
             ->route($this->routePrefix($request).'.edit', $id)
             ->with('success', __('lf.LF_course_product_common_updated'));
@@ -305,6 +352,79 @@ class CourseProductController extends Controller
         return redirect()
             ->route($this->routePrefix($request).'.index')
             ->with('success', __('lf.LF_product_status_archived_success'));
+    }
+
+    /**
+     * Hard delete, allowed only for Products that nothing references (docs/database/course/core_course_products.md,
+     * Delete / Reference Rules). Everything else keeps the logical delete: archive.
+     */
+    public function bulkDestroy(Request $request)
+    {
+        $this->authorizeAdmin($request);
+
+        $validated = $request->validate([
+            'ids' => ['required', 'array', 'min:1', 'max:100'],
+            'ids.*' => ['required', 'integer', 'distinct'],
+        ]);
+        $customerId = $this->customerId();
+        $ids = array_map('intval', $validated['ids']);
+
+        try {
+            $blocked = DB::transaction(function () use ($request, $customerId, $ids): ?string {
+                $locked = DB::table('core_course_products')
+                    ->where('customer_id', $customerId)
+                    ->whereIn('id', $ids)
+                    ->orderBy('id')
+                    ->lockForUpdate()
+                    ->get(['id', 'title', 'product_code', 'status']);
+
+                abort_if($locked->count() !== count($ids), 404);
+
+                // All or nothing: one Product that is still referenced refuses the whole request and says which.
+                $blockers = $this->deletionBlockers($customerId, $ids);
+
+                foreach ($locked as $product) {
+                    $reasons = $blockers[(int) $product->id] ?? [];
+
+                    if ($reasons !== []) {
+                        return '«'.$product->title.'» — '.$this->deletionBlockMessage($reasons);
+                    }
+                }
+
+                foreach ($ids as $id) {
+                    foreach (['cover_image', ...CourseProductV2::MEDIA_PURPOSES] as $purpose) {
+                        $this->detachProductMedia($id, $purpose);
+                    }
+                }
+
+                DB::table('core_course_products')
+                    ->where('customer_id', $customerId)
+                    ->whereIn('id', $ids)
+                    ->delete();
+
+                foreach ($locked as $product) {
+                    AuditLog::record($request, $customerId, 'course_product_delete', null,
+                        ['product_id' => (int) $product->id, 'product_code' => $product->product_code, 'title' => $product->title, 'status' => $product->status],
+                        null);
+                }
+
+                return null;
+            });
+        } catch (QueryException $exception) {
+            $blocked = __('lf.LF_course_product_delete_blocked_generic');
+        }
+
+        if ($blocked !== null) {
+            return $request->expectsJson()
+                ? response()->json(['message' => $blocked], 409)
+                : back()->withErrors(['product' => $blocked]);
+        }
+
+        $message = trans_choice('lf.LF_course_product_bulk_deleted', count($ids), ['count' => count($ids)]);
+
+        return $request->expectsJson()
+            ? response()->json(['message' => $message])
+            : redirect()->route($this->routePrefix($request).'.index')->with('success', $message);
     }
 
     public function restore(Request $request, int $id)
@@ -690,21 +810,21 @@ class CourseProductController extends Controller
             ],
             'thumbnail_video_url' => ['nullable', 'string', 'max:1000'],
             'thumbnail_video_media_id' => ['nullable', 'integer', 'min:1'],
-            'price' => ['required', 'numeric', 'min:0'],
+            'price' => ['required', 'numeric', 'min:0', 'max:999999999999.99'],
             'promotion_enabled' => [$legacy ? 'nullable' : 'required', 'boolean'],
             'discount_type' => ['nullable', Rule::requiredIf(fn () => request()->boolean('promotion_enabled')), Rule::in(CourseProductV2::DISCOUNT_TYPES)],
-            'discount_value' => ['nullable', Rule::requiredIf(fn () => request()->boolean('promotion_enabled')), 'numeric', 'gt:0', Rule::when(request('discount_type') === 'percentage', ['max:100'])],
+            'discount_value' => ['nullable', Rule::requiredIf(fn () => request()->boolean('promotion_enabled')), 'numeric', 'gt:0', 'max:999999999999.99', Rule::when(request('discount_type') === 'percentage', ['max:100'])],
             'sale_price' => ['nullable', 'numeric', 'min:0'],
             'sale_starts_at' => ['nullable', 'required_with:sale_ends_at', 'date'],
             'sale_ends_at' => ['nullable', 'required_with:sale_starts_at', 'date', 'after:sale_starts_at'],
-            'currency' => ['required', 'string', 'max:10'],
+            'currency' => ['required', Rule::in(['VND', 'USD', 'KRW'])],
             'enrollment_type' => [
                 $legacy ? 'required' : 'nullable',
                 Rule::in(['free', 'paid', 'invitation']),
             ],
             'max_students' => ['nullable', 'integer', 'min:0'],
-            'access_duration_days' => ['nullable', Rule::requiredIf(fn () => request('offering_type') === 'self_paced_course'), 'integer', 'min:1'],
-            'review_duration_days' => ['nullable', 'integer', 'min:0'],
+            'access_duration_days' => ['nullable', Rule::requiredIf(fn () => request('offering_type') === 'self_paced_course'), 'integer', 'min:1', 'max:36500'],
+            'review_duration_days' => ['nullable', 'integer', 'min:0', 'max:36500'],
             'is_refundable' => [$legacy ? 'required' : 'nullable', 'boolean'],
             'refund_days' => ['nullable', 'integer', 'min:0'],
             'tags' => ['nullable', 'json'],
@@ -1398,6 +1518,70 @@ class CourseProductController extends Controller
             DB::table('core_course_products')->where('customer_id', $this->customerId())
                 ->where('id', $productId)->update($videoValues);
         }
+    }
+
+    /**
+     * What still references each Product: reason => count, per product id. A Product with any entry cannot be hard
+     * deleted (template items, relations, enrollments, cohorts, certificates, learning paths, progress, engagement).
+     *
+     * @param  array<int, int>  $productIds
+     * @return array<int, array<string, int>>
+     */
+    private function deletionBlockers(int $customerId, array $productIds): array
+    {
+        $blockers = [];
+
+        if ($productIds === []) {
+            return $blockers;
+        }
+
+        foreach ([
+            ['items', 'core_course_product_items', 'product_id'],
+            ['relations', 'core_course_product_relations', 'product_id'],
+            ['relations', 'core_course_product_relations', 'related_product_id'],
+            ['enrollments', 'core_course_enrollments', 'product_id'],
+            ['enrollments', 'core_course_cohort_students', 'product_id'],
+            ['cohorts', 'core_course_cohorts', 'product_id'],
+            ['certificates', 'core_certificate_template_products', 'product_id'],
+            ['certificates', 'core_certificate_issued_certificates', 'product_id'],
+            ['learning_paths', 'core_course_learning_path_items', 'product_id'],
+            ['learning_paths', 'core_course_learning_path_items', 'prerequisite_product_id'],
+            ['learning', 'core_course_progress', 'product_id'],
+            ['learning', 'core_course_lesson_progress', 'product_id'],
+            ['learning', 'core_course_activity_progress', 'product_id'],
+            ['learning', 'core_course_completions', 'product_id'],
+            ['engagement', 'core_course_reviews', 'product_id'],
+            ['engagement', 'core_course_notes', 'product_id'],
+            ['engagement', 'core_course_bookmarks', 'product_id'],
+            ['engagement', 'core_course_favorites', 'product_id'],
+        ] as [$reason, $table, $column]) {
+            if (! Schema::hasTable($table)) {
+                continue;
+            }
+
+            $counts = DB::table($table)
+                ->where('customer_id', $customerId)
+                ->whereIn($column, $productIds)
+                ->selectRaw($column.' as product_id, count(*) as aggregate')
+                ->groupBy($column)
+                ->pluck('aggregate', 'product_id');
+
+            foreach ($counts as $productId => $count) {
+                $blockers[(int) $productId][$reason] = ($blockers[(int) $productId][$reason] ?? 0) + (int) $count;
+            }
+        }
+
+        return $blockers;
+    }
+
+    /**
+     * @param  array<string, int>  $reasons
+     */
+    private function deletionBlockMessage(array $reasons): string
+    {
+        $reason = array_key_first($reasons);
+
+        return __('lf.LF_course_product_delete_blocked_'.$reason, ['count' => $reasons[$reason]]);
     }
 
     private function detachProductMedia(int $productId, string $purpose): void
