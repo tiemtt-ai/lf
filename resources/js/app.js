@@ -276,9 +276,10 @@ window.backendSidebar = () => ({
     },
 });
 
-window.courseTemplateSectionCollapse = (tenantId, templateId, sectionId) => ({
-    expanded: true,
-    storageKey: `lf.course-template.section.${tenantId}.${templateId}.${sectionId}.expanded`,
+// Shared by the section and lesson folds of the course template Content tab.
+const courseTemplateFold = (storageKey, expandedByDefault) => ({
+    expanded: expandedByDefault,
+    storageKey,
 
     init() {
         let storedState = null;
@@ -292,10 +293,28 @@ window.courseTemplateSectionCollapse = (tenantId, templateId, sectionId) => ({
         if (storedState === 'true' || storedState === 'false') {
             this.expanded = storedState === 'true';
         }
+
+        // A save redirects to an anchor inside the fold: keep it visible.
+        const target = window.location.hash
+            ? document.getElementById(decodeURIComponent(window.location.hash.slice(1)))
+            : null;
+
+        if (target && this.$el.contains(target)) {
+            this.expanded = true;
+        }
     },
 
     toggle() {
         this.expanded = ! this.expanded;
+        this.setExpanded(this.expanded, true);
+    },
+
+    setExpanded(value, persist = false) {
+        this.expanded = value;
+
+        if (! persist) {
+            return;
+        }
 
         try {
             window.localStorage.setItem(
@@ -305,6 +324,109 @@ window.courseTemplateSectionCollapse = (tenantId, templateId, sectionId) => ({
         } catch (error) {
             // Keep the current-page state when storage is unavailable.
         }
+    },
+});
+
+window.courseTemplateSectionCollapse = (tenantId, templateId, sectionId) => courseTemplateFold(
+    `lf.course-template.section.${tenantId}.${templateId}.${sectionId}.expanded`,
+    true,
+);
+
+window.courseTemplateLessonCollapse = (tenantId, templateId, lessonId, expandedByDefault) => courseTemplateFold(
+    `lf.course-template.lesson.${tenantId}.${templateId}.${lessonId}.expanded`,
+    expandedByDefault,
+);
+
+window.courseTemplateStructure = (initialTab, storageKey) => ({
+    activeStructureTab: initialTab,
+    storageKey,
+
+    init() {
+        let savedTab = null;
+
+        try {
+            savedTab = window.localStorage.getItem(this.storageKey);
+        } catch (error) {
+            savedTab = null;
+        }
+
+        if (['direct', 'sections'].includes(savedTab)) {
+            this.activeStructureTab = savedTab;
+        }
+    },
+
+    selectStructureTab(tab) {
+        this.activeStructureTab = tab;
+
+        try {
+            window.localStorage.setItem(this.storageKey, tab);
+        } catch (error) {
+            // The tab still switches for this page view.
+        }
+    },
+
+    revealSection(sectionId) {
+        const target = document.getElementById(`course-template-section-${sectionId}`);
+
+        if (! target) {
+            return;
+        }
+
+        for (let node = target; node; node = node.parentElement?.closest('.course-template-outline-section')) {
+            Alpine.$data(node).setExpanded(true);
+        }
+
+        this.$nextTick(() => {
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            target.classList.add('is-flash');
+            window.setTimeout(() => target.classList.remove('is-flash'), 1200);
+        });
+    },
+});
+
+// Search and fold-all of one structure panel (direct lessons or sections).
+window.courseTemplateContentTools = (foldSelector) => ({
+    query: '',
+    noResults: false,
+
+    filter() {
+        const query = this.query.trim().toLocaleLowerCase();
+        const matches = (node) => ! query || node.textContent.toLocaleLowerCase().includes(query);
+        const isShown = (node) => node.style.display !== 'none';
+
+        this.$root.querySelectorAll('.course-template-lesson-item').forEach((lesson) => {
+            const hit = matches(lesson);
+            lesson.style.display = hit ? '' : 'none';
+
+            if (query && hit) {
+                Alpine.$data(lesson).setExpanded(true);
+            }
+        });
+
+        // Deepest sections first, so a parent sees whether a child stayed visible.
+        [...this.$root.querySelectorAll('.course-template-outline-section')].reverse().forEach((section) => {
+            const title = section.querySelector(':scope > header .course-template-outline-section-title');
+            const branch = section.querySelector(':scope > .course-template-section-branch');
+            const childShown = branch
+                ? [...branch.querySelectorAll('.course-template-lesson-item, .course-template-outline-section')].some(isShown)
+                : false;
+            const shown = ! query || (title && matches(title)) || childShown;
+            section.style.display = shown ? '' : 'none';
+
+            if (query && shown) {
+                Alpine.$data(section).setExpanded(true);
+            }
+        });
+
+        const items = [...this.$root.querySelectorAll('.course-template-lesson-item, .course-template-outline-section')];
+        this.noResults = query !== '' && items.length > 0 && ! items.some(isShown);
+    },
+
+    toggleAll() {
+        const folds = [...this.$root.querySelectorAll(foldSelector)];
+        const expand = folds.some((fold) => ! Alpine.$data(fold).expanded);
+
+        folds.forEach((fold) => Alpine.$data(fold).setExpanded(expand, true));
     },
 });
 

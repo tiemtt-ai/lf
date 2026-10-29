@@ -45,6 +45,7 @@
             </h4>
         @else
             <div class="course-template-content-count">
+                <span class="course-template-content-heading">{{ __('lf.LF_course_template_content_lessons_title') }}</span>
                 <strong id="{{ $panelId }}-title">
                     {{ trans_choice('lf.LF_course_template_lesson_common_count', $lessons->count(), [
                         'count' => $lessons->count(),
@@ -54,6 +55,11 @@
                     <span class="lf-secondary-text">{{ trans_choice('lf.LF_course_template_activity_common_count', $totalActivities = $lessons->sum(fn (object $item): int => $activitiesByLesson->get($item->id, collect())->count()), ['count' => $totalActivities]) }}</span>
                 @endif
             </div>
+            @if ($lessons->isNotEmpty())
+                @include('course-template-sections.partials.content-search', [
+                    'placeholder' => __('lf.LF_course_template_content_search_lessons_placeholder'),
+                ])
+            @endif
         @endif
         @if (($section && $section->allows_lessons) || (! $section && $lessons->isNotEmpty()))
             <button type="button"
@@ -64,6 +70,7 @@
                         'admin-link-button admin-text-action' => $section,
                         'btn admin-primary-outline-action ui-button ui-button--outline' => ! $section,
                     ])>
+                <x-backend-icon name="plus" class="ui-icon" />
                 {{ __($section
                     ? 'lf.LF_course_template_lesson_common_attach_action'
                     : 'lf.LF_course_template_lesson_common_add_action') }}
@@ -83,8 +90,31 @@
                     [$lesson->id]
                 );
             @endphp
-            <article class="course-template-lesson-item">
-                <div class="course-template-lesson-summary">
+            @php
+                $activityPhases = [
+                    'before_session' => 'available_before_session',
+                    'during_session' => 'available_during_session',
+                    'after_session' => 'available_after_session',
+                    'anytime' => 'available_anytime',
+                ];
+                $activityPhaseCounts = [];
+                foreach ($activityPhases as $phase => $column) {
+                    $activityPhaseCounts[$phase] = $lessonActivities
+                        ->filter(static fn ($activity): bool => (bool) ($activity->{$column} ?? false))
+                        ->count();
+                }
+                $lessonPanelId = 'course-template-lesson-'.$lesson->id.'-activities';
+            @endphp
+            <article class="course-template-lesson-item"
+                     x-data="courseTemplateLessonCollapse(
+                         @js($template->customer_id),
+                         @js($template->id),
+                         @js($lesson->id),
+                         @js($loop->first)
+                     )"
+                     x-bind:class="{ 'is-expanded': expanded }">
+                <div class="course-template-lesson-summary"
+                     x-on:click="if (! $event.target.closest('button, a, form, input')) toggle()">
                     <span class="course-template-lesson-number" aria-hidden="true">{{ str_pad((string) $loop->iteration, 2, '0', STR_PAD_LEFT) }}</span>
                     <div class="course-template-lesson-copy">
                         <strong>{{ $lesson->title }}</strong>
@@ -93,6 +123,18 @@
                                 {{ $lesson->short_description ?: $lesson->description }}
                             </span>
                         @endif
+                        <span class="course-template-lesson-meta">
+                            <span>
+                                <x-backend-icon name="layers" class="ui-icon" />
+                                {{ trans_choice('lf.LF_course_template_activity_common_count', $lessonActivities->count(), ['count' => $lessonActivities->count()]) }}
+                            </span>
+                            @if ($lessonActivities->isNotEmpty())
+                                <span>
+                                    <x-backend-icon name="clock" class="ui-icon" />
+                                    {{ collect($activityPhaseCounts)->filter()->keys()->map(fn (string $phase): string => __('lf.LF_course_template_activity_learning_availability_'.$phase))->implode(' · ') }}
+                                </span>
+                            @endif
+                        </span>
                     </div>
                     <div class="admin-table-actions">
                         <button type="button" class="admin-link-button admin-text-action ui-row-action"
@@ -120,29 +162,28 @@
                             <span class="ui-sr-only">{{ __('lf.LF_common_button_delete') }}</span>
                         </button>
                     </div>
+                    <button type="button"
+                            class="admin-link-button admin-text-action ui-row-action course-template-lesson-toggle"
+                            aria-controls="{{ $lessonPanelId }}"
+                            aria-expanded="{{ $loop->first ? 'true' : 'false' }}"
+                            x-bind:aria-expanded="expanded.toString()"
+                            aria-label="{{ __('lf.LF_course_template_lesson_common_toggle', ['title' => $lesson->title]) }}"
+                            x-on:click="toggle()">
+                        <x-backend-icon name="chevron-down" class="ui-icon" />
+                    </button>
                 </div>
 
                 @php
-                    $activityPhases = [
-                        'before_session' => 'available_before_session',
-                        'during_session' => 'available_during_session',
-                        'after_session' => 'available_after_session',
-                        'anytime' => 'available_anytime',
-                    ];
-                    $activityPhaseCounts = [];
-                    foreach ($activityPhases as $phase => $column) {
-                        $activityPhaseCounts[$phase] = $lessonActivities
-                            ->filter(static fn ($activity): bool => (bool) ($activity->{$column} ?? false))
-                            ->count();
-                    }
                     $activityDefaultPhase = collect($activityPhaseCounts)->filter(static fn (int $count): bool => $count > 0)->keys()->first() ?? 'anytime';
                     $activityCreateUrl = route($activityRoutePrefix.'.create', $lessonParameters);
                     $activityCreateUrls = collect(array_keys($activityPhases))
                         ->mapWithKeys(static fn (string $phase): array => [$phase => $activityCreateUrl.'?phase='.$phase])
                         ->all();
                 @endphp
-                <section id="course-template-lesson-{{ $lesson->id }}-activities"
+                <section id="{{ $lessonPanelId }}"
                          class="course-template-activity-panel"
+                         x-show="expanded"
+                         @unless ($loop->first) x-cloak @endunless
                          x-data="{ phase: @js($activityDefaultPhase), counts: @js($activityPhaseCounts), createUrls: @js($activityCreateUrls) }">
                     <div class="course-template-activity-toolbar">
                         <div class="ui-tabs course-template-activity-tabs" role="tablist"
@@ -160,12 +201,6 @@
                                 </button>
                             @endforeach
                         </div>
-                        <button type="button" class="admin-link-button admin-text-action"
-                                data-ui-dialog-form-open aria-haspopup="dialog"
-                                data-url="{{ $activityCreateUrls[$activityDefaultPhase] }}"
-                                x-bind:data-url="createUrls[phase]">
-                            {{ __('lf.LF_course_template_activity_common_add_action') }}
-                        </button>
                     </div>
 
                     <div class="course-template-activity-list" id="course-template-lesson-{{ $lesson->id }}-activity-list"
@@ -197,12 +232,27 @@
                                  x-show="@js(array_values(array_keys(array_filter(array_map(static fn (string $column): bool => (bool) ($activity->{$column} ?? false), $activityPhases)))))
                                      .includes(phase)">
                                 <div class="course-template-activity-identity">
-                                    <span class="course-template-activity-icon" aria-hidden="true">
+                                    <span class="course-template-activity-icon course-template-activity-icon--{{ match ($activity->activity_type) {
+                                        'video', 'embedded_video' => 'video',
+                                        'audio' => 'audio',
+                                        'quiz', 'assignment' => 'quiz',
+                                        'live_class', 'liveclass' => 'live',
+                                        default => 'document',
+                                    } }}" aria-hidden="true">
                                         <x-backend-icon :name="$activityIcon" class="course-template-activity-type-icon" />
                                     </span>
                                     <div class="course-template-activity-copy">
                                         <span class="course-template-activity-title-text">
                                             {{ $activity->title }}
+                                        </span>
+                                        @php
+                                            $activitySeconds = $activity->estimated_duration_seconds ?? $activity->duration_seconds ?? null;
+                                        @endphp
+                                        <span class="course-template-activity-meta">
+                                            {{ \Illuminate\Support\Facades\Lang::has('lf.LF_course_template_activity_common_type_'.$activity->activity_type) ? __('lf.LF_course_template_activity_common_type_'.$activity->activity_type) : $activity->activity_type }}
+                                            @if ($activitySeconds)
+                                                · {{ __('lf.LF_course_template_activity_common_duration_minutes', ['minutes' => (int) ceil($activitySeconds / 60)]) }}
+                                            @endif
                                         </span>
                                         @if (($activity->structured_extraction_status ?? null) !== null)
                                             @php
@@ -235,7 +285,7 @@
                                                 ])>
                                                     {{ __('lf.LF_course_template_activity_structured_'.$structuredStatus) }}
                                                 </span>
-                                                <span class="lf-secondary-text">
+                                                <span @class(['lf-secondary-text', 'ui-sr-only' => $structuredStatus !== 'failed'])>
                                                     {{ __($structuredMessageKey) }}
                                                 </span>
                                             </div>
@@ -298,7 +348,7 @@
                                                 ])>
                                                     {{ __($speechLabelKey) }}
                                                 </span>
-                                                <span class="lf-secondary-text">{{ __($speechMessageKey, ['minutes' => config('media.processing.speech_to_text.'.($activity->activity_type === 'video' ? 'max_video_duration_seconds' : 'max_duration_seconds')) / 60, 'gib' => config('media.processing.speech_to_text.'.($activity->activity_type === 'video' ? 'max_video_source_bytes' : 'max_bytes')) / 1073741824]) }}</span>
+                                                <span @class(['lf-secondary-text', 'ui-sr-only' => ! in_array($speechStatus, ['failed', 'absent', 'disabled'], true)])>{{ __($speechMessageKey, ['minutes' => config('media.processing.speech_to_text.'.($activity->activity_type === 'video' ? 'max_video_duration_seconds' : 'max_duration_seconds')) / 60, 'gib' => config('media.processing.speech_to_text.'.($activity->activity_type === 'video' ? 'max_video_source_bytes' : 'max_bytes')) / 1073741824]) }}</span>
                                                 @if (in_array($speechStatus, ['absent', 'disabled'], true) && $activity->activity_type === 'audio')
                                                     <form method="POST"
                                                           action="{{ route($activityRoutePrefix.'.initialize-transcription', $activityParameters) }}"
@@ -397,6 +447,13 @@
                             </p>
                         @endif
                     </div>
+                    <button type="button" class="admin-link-button admin-text-action course-template-activity-add"
+                            data-ui-dialog-form-open aria-haspopup="dialog"
+                            data-url="{{ $activityCreateUrls[$activityDefaultPhase] }}"
+                            x-bind:data-url="createUrls[phase]">
+                        <x-backend-icon name="plus" class="ui-icon" />
+                        {{ __('lf.LF_course_template_activity_common_add_action') }}
+                    </button>
                 </section>
             </article>
         @empty
@@ -404,18 +461,33 @@
                 <p class="course-template-lesson-empty">{{ $emptyMessage }}</p>
             @else
                 <div class="course-template-content-empty">
-                    <span class="course-template-content-empty-icon" aria-hidden="true">＋</span>
+                    <span class="course-template-content-empty-icon" aria-hidden="true">
+                        <x-backend-icon name="plus" />
+                    </span>
                     <strong>{{ __('lf.LF_course_template_lesson_common_direct_empty_title') }}</strong>
                     <p>{{ $emptyMessage }}</p>
                     <button type="button" class="btn admin-primary-outline-action ui-button ui-button--outline"
                             data-ui-dialog-form-open aria-haspopup="dialog"
                             data-url="{{ route($lessonRoutePrefix.'.create', $lessonBaseParameters) }}">
+                        <x-backend-icon name="plus" class="ui-icon" />
                         {{ __('lf.LF_course_template_lesson_common_add_action') }}
                     </button>
                 </div>
             @endif
         @endforelse
     </div>
+
+    @if (! $section && $lessons->isNotEmpty())
+        <p class="course-template-content-no-results" x-show="noResults" x-cloak role="status">
+            {{ __('lf.LF_course_template_content_search_empty') }}
+        </p>
+        <button type="button" class="course-template-content-add-row"
+                data-ui-dialog-form-open aria-haspopup="dialog"
+                data-url="{{ route($lessonRoutePrefix.'.create', $lessonBaseParameters) }}">
+            <x-backend-icon name="plus" class="ui-icon" />
+            {{ __('lf.LF_course_template_content_add_lesson_row') }}
+        </button>
+    @endif
 
     <x-media-preview-modal id="{{ $panelId }}-activity-preview-title" show="activityPreviewOpen" close="closeActivityPreview()" title="activityPreview.title" compact="['audio', 'unavailable'].includes(activityPreview.type)">
 

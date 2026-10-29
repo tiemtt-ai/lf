@@ -60,10 +60,10 @@ class CourseTemplateActivityManagementTest extends TestCase
                 )
                 ->assertOk()
                 ->assertSeeText('Bài học (1)')
-                ->assertSeeText('+ Gắn bài học')
+                ->assertSeeText('Thêm bài học')
                 ->assertSeeText('Học bất kỳ lúc nào')
                 ->assertDontSeeText('Trước buổi học')
-                ->assertSeeText('+ Thêm hoạt động')
+                ->assertSeeText('Thêm hoạt động')
                 ->assertSeeText('Alphabet Text')
                 ->assertDontSeeText('Private Tenant Activity');
 
@@ -154,9 +154,9 @@ class CourseTemplateActivityManagementTest extends TestCase
             ->assertSeeText('Section default')
             ->assertSeeText('Lesson default')
             ->assertSeeText('Section Outline Activity')
-            ->assertSeeText('+ Thêm phần học')
-            ->assertSeeText('Gắn bài học')
-            ->assertSeeText('+ Thêm hoạt động')
+            ->assertSeeText('Thêm phần học')
+            ->assertSeeText('Thêm bài học')
+            ->assertSeeText('Thêm hoạt động')
             ->assertSeeText('Sửa')
             ->assertSeeText('Xóa')
             ->assertSeeText(__('lf.LF_course_template_mode_mixed_note'))
@@ -1035,7 +1035,7 @@ class CourseTemplateActivityManagementTest extends TestCase
                 ."{$templateId}/edit"
             )
             ->assertOk()
-            ->assertSeeText('+ Thêm hoạt động')
+            ->assertSeeText('Thêm hoạt động')
             ->assertSee('data-ui-row-delete', false)
             ->assertSee('data-confirm-title="Xoá hoạt động?"', false)
             ->assertSee('data-confirm-message="Hoạt động «UI Activity» sẽ bị xoá vĩnh viễn cùng tệp đính kèm và không thể hoàn tác."', false)
@@ -1107,7 +1107,7 @@ class CourseTemplateActivityManagementTest extends TestCase
             )
             ->assertOk()
             ->assertDontSeeText('Trước buổi học')
-            ->assertSeeText('+ Thêm hoạt động')
+            ->assertSeeText('Thêm hoạt động')
             ->assertSeeText('Chưa có hoạt động.')
             ->assertDontSeeText('Chưa có hoạt động học tập nào.');
 
@@ -1621,7 +1621,7 @@ class CourseTemplateActivityManagementTest extends TestCase
             .' " course-template-lesson-item ")][.//strong[normalize-space()="%s"]]'
             .'//section[contains(concat(" ", normalize-space(@class), " "),'
             .' " course-template-activity-panel ")]'
-            .'//button[@data-ui-dialog-form-open and starts-with(@data-url, "%s?phase=") and normalize-space()="+ Thêm hoạt động"]',
+            .'//button[@data-ui-dialog-form-open and starts-with(@data-url, "%s?phase=") and normalize-space()="Thêm hoạt động"]',
             $lessonTitle,
             $expectedUrl
         );

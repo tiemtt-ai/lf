@@ -62,7 +62,7 @@ class CourseTemplateSectionManagementTest extends TestCase
             $xpath = $this->xpath($response->getContent());
             $createAction = $xpath->query(
                 '//div[contains(concat(" ", normalize-space(@class), " "), " course-template-section-action-bar ")]'
-                .'//button[normalize-space()="+ Thêm phần học" and @data-ui-dialog-form-open]'
+                .'//button[normalize-space()="Thêm phần học" and @data-ui-dialog-form-open]'
             )->item(0);
 
             $this->assertNotNull($createAction);
@@ -212,7 +212,7 @@ class CourseTemplateSectionManagementTest extends TestCase
             ->assertSeeText('Section cấp 2')
             ->assertSeeText('Section cấp 3')
             ->assertSeeText('Nested Lesson')
-            ->assertSeeText('+ Thêm phần học con');
+            ->assertSeeText('Thêm phần học con');
     }
 
     public function test_each_section_renders_an_independent_accessible_collapse_branch(): void
@@ -292,7 +292,7 @@ class CourseTemplateSectionManagementTest extends TestCase
         $response
             ->assertSeeText('Nested Branch Lesson')
             ->assertSeeText('Unrelated Direct Lesson')
-            ->assertSeeText('+ Thêm phần học con')
+            ->assertSeeText('Thêm phần học con')
             ->assertSeeText('Sửa')
             ->assertSeeText('Xóa');
     }
@@ -457,7 +457,7 @@ class CourseTemplateSectionManagementTest extends TestCase
         $this->assertSame($parentId, $orderedIds[0]);
     }
 
-    public function test_admin_and_teacher_render_compact_section_tree_rows_without_metadata(): void
+    public function test_admin_and_teacher_render_compact_section_tree_rows_with_counts_but_without_description(): void
     {
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
@@ -521,15 +521,15 @@ class CourseTemplateSectionManagementTest extends TestCase
             foreach ([$parent, $child] as $sectionNode) {
                 $header = $xpath->query('./header', $sectionNode)->item(0);
                 $this->assertNotNull($header);
-                $this->assertSame(
-                    0,
-                    $xpath->query(
-                        './/*[contains(concat(" ", normalize-space(@class), " "), " course-template-outline-section-meta ")]',
-                        $header
-                    )->length
+                // The Content tab design (2026-10-29) shows counts in the row; the description stays hidden.
+                $meta = $xpath->query(
+                    './/*[contains(concat(" ", normalize-space(@class), " "), " course-template-outline-section-meta ")]',
+                    $header
                 );
+                $this->assertSame(1, $meta->length);
+                $this->assertStringNotContainsString('Section metadata must remain hidden.', $meta->item(0)->textContent);
                 $this->assertSame(
-                    ['+ Thêm phần học con', 'Sửa', 'Xóa'],
+                    ['Thêm phần học con', 'Sửa', 'Xóa'],
                     array_map(
                         static fn (\DOMNode $node): string => trim($node->textContent),
                         iterator_to_array($xpath->query(
@@ -640,7 +640,7 @@ class CourseTemplateSectionManagementTest extends TestCase
             'Chưa có bài học nào trong phần này.',
             $lessonPanel->textContent
         );
-        $this->assertStringContainsString('Gắn bài học', $lessonPanel->textContent);
+        $this->assertStringContainsString('Thêm bài học', $lessonPanel->textContent);
     }
 
     public function test_teacher_can_create_a_section_for_an_own_tenant_template(): void
@@ -927,7 +927,7 @@ class CourseTemplateSectionManagementTest extends TestCase
                 ."{$templateId}/edit"
             )
             ->assertOk()
-            ->assertSeeText('+ Thêm phần học')
+            ->assertSeeText('Thêm phần học')
             ->assertSeeText('1 phần học')
             ->assertSeeText('Sửa')
             ->assertSeeText('Xóa')

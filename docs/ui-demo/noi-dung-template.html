@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Thiết lập Template khóa học – Nội dung</title>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#f5f6fa; --surface:#fff; --surface-2:#f8f9fc; --surface-3:#f1f3f8; --border:#e6e8ef; --border-strong:#d7dae4;
+    --text:#1b1f2e; --text-2:#5b6275; --text-3:#8b91a3;
+    --primary:#4353d8; --primary-50:#eef0fd; --primary-100:#dfe3fb;
+    --green:#1f8a52; --green-50:#e8f6ee;
+    --orange:#c2620d; --orange-50:#fdf1e6;
+    --violet:#7a45d1; --violet-50:#f2ecfc;
+    --teal:#0f8a8a; --teal-50:#e5f5f5;
+    --red:#d43c3c; --red-50:#fdecec;
+    --radius:12px; --radius-sm:8px;
+    --shadow:0 1px 2px rgba(20,24,40,.04),0 2px 8px rgba(20,24,40,.04);
+    --shadow-pop:0 8px 24px rgba(20,24,40,.12),0 2px 6px rgba(20,24,40,.06);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Be Vietnam Pro",system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5}
+  button{font:inherit;cursor:pointer;border:none;background:none;color:inherit}
+  button:disabled{cursor:not-allowed}
+  svg{width:18px;height:18px;flex-shrink:0}
+
+  /* ===== Topbar ===== */
+  .topbar{height:60px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:16px;padding:0 24px;position:sticky;top:0;z-index:30}
+  .crumb{display:flex;align-items:center;gap:6px;color:var(--text-3);font-size:13px;flex:1;min-width:0;white-space:nowrap;overflow:hidden}
+  .crumb a{color:var(--text-2);text-decoration:none}
+  .crumb a:hover{color:var(--primary)}
+  .crumb .sep{color:var(--border-strong)}
+  .crumb .cur{color:var(--text);font-weight:500}
+  .top-actions{display:flex;align-items:center;gap:8px}
+  .icon-btn{width:36px;height:36px;border-radius:var(--radius-sm);display:grid;place-items:center;color:var(--text-2)}
+  .icon-btn:hover{background:var(--surface-2);color:var(--text)}
+  .lang{display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:var(--radius-sm);font-weight:500;font-size:13px}
+  .lang:hover{background:var(--surface-2)}
+  .flag{width:20px;height:14px;border-radius:2px;background:#da251d;display:grid;place-items:center;color:#ff0;font-size:9px}
+  .user{display:flex;align-items:center;gap:8px;padding:4px 8px 4px 4px;border-radius:999px;font-weight:500;font-size:13px}
+  .user:hover{background:var(--surface-2)}
+  .avatar{width:30px;height:30px;border-radius:50%;background:var(--primary-50);color:var(--primary);display:grid;place-items:center;font-weight:600;font-size:12px}
+
+  /* ===== Page header ===== */
+  .page{max-width:1240px;margin:0 auto;padding:24px 24px 64px}
+  .page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:16px}
+  .page-head h1{font-size:22px;font-weight:600;letter-spacing:-.01em}
+  .page-head .sub{color:var(--text-2);font-size:13px;margin-top:2px;display:flex;align-items:center;gap:8px}
+  .badge-draft{background:var(--orange-50);color:var(--orange);font-size:12px;font-weight:500;padding:2px 8px;border-radius:999px}
+  .btn{display:inline-flex;align-items:center;gap:6px;height:38px;padding:0 14px;border-radius:var(--radius-sm);font-weight:500;font-size:13.5px;transition:.15s;white-space:nowrap}
+  .btn-primary{background:var(--primary);color:#fff}
+  .btn-primary:hover{background:#3644c0}
+  .btn-ghost{border:1px solid var(--border-strong);background:var(--surface);color:var(--text)}
+  .btn-ghost:hover{border-color:var(--primary);color:var(--primary)}
+  .btn-text{color:var(--primary);padding:0 8px}
+  .btn-text:hover{background:var(--primary-50)}
+  .btn-sm{height:32px;padding:0 10px;font-size:13px}
+
+  /* ===== Tabs ===== */
+  .tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:24px;overflow-x:auto}
+  .tab{padding:10px 14px;color:var(--text-2);font-weight:500;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
+  .tab:hover{color:var(--text)}
+  .tab.active{color:var(--primary);border-color:var(--primary)}
+
+  /* ===== Layout ===== */
+  .layout{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:24px;align-items:start}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}
+
+  .toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+  .toolbar h2{font-size:16px;font-weight:600}
+  .toolbar .stats{color:var(--text-3);font-size:13px;margin-left:8px;font-weight:400}
+  .toolbar-r{display:flex;gap:8px;align-items:center}
+  .search{display:flex;align-items:center;gap:6px;height:32px;padding:0 10px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);background:var(--surface);color:var(--text-3);width:200px}
+  .search input{border:none;outline:none;font:inherit;font-size:13px;width:100%;background:none;color:var(--text)}
+  .search:focus-within{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-100)}
+
+  .act-btn{width:32px;height:32px;border-radius:var(--radius-sm);display:grid;place-items:center;color:var(--text-3);transition:.15s}
+  .act-btn:hover:not(:disabled){background:var(--surface-3);color:var(--primary)}
+  .act-btn.danger:hover:not(:disabled){background:var(--red-50);color:var(--red)}
+  .act-btn:disabled{opacity:.35}
+  .act-btn svg{width:16px;height:16px}
+  .drag{color:var(--border-strong);cursor:grab;opacity:0;transition:.15s;display:grid;place-items:center}
+  .drag svg{width:16px;height:16px}
+
+  /* ===== Lesson ===== */
+  .lessons{display:flex;flex-direction:column;gap:12px}
+  .lesson{overflow:hidden}
+  .lesson:hover > .lesson-head .drag,.activity:hover .drag,.sec-head:hover .drag{opacity:1}
+  .lesson-head{display:flex;align-items:flex-start;gap:12px;padding:16px 16px 16px 12px;cursor:pointer}
+  .lesson-head .drag{padding-top:7px}
+  .num{width:32px;height:32px;border-radius:8px;background:var(--primary-50);color:var(--primary);font-weight:600;font-size:13px;display:grid;place-items:center;flex-shrink:0}
+  .lesson-info{flex:1;min-width:0}
+  .lesson-title{font-weight:600;font-size:15px;line-height:1.4}
+  .lesson-desc{color:var(--text-2);font-size:13px;margin-top:2px;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+  .lesson.open .lesson-desc{-webkit-line-clamp:unset}
+  .lesson-meta{display:flex;gap:12px;margin-top:8px;color:var(--text-3);font-size:12px;flex-wrap:wrap}
+  .lesson-meta span{display:inline-flex;align-items:center;gap:4px}
+  .lesson-meta svg{width:14px;height:14px}
+  .lesson-actions{display:flex;align-items:center;gap:2px}
+  .chev{transition:transform .2s;color:var(--text-3)}
+  .lesson.open > .lesson-head .chev{transform:rotate(180deg)}
+  .lesson-body{display:none;border-top:1px solid var(--border);background:var(--surface-2);padding:12px 16px 16px 56px}
+  .lesson.open > .lesson-body{display:block}
+
+  /* nested lesson (inside a section) */
+  .lesson.nested{box-shadow:none}
+  .lesson.nested .lesson-head{padding:12px 12px 12px 8px}
+  .lesson.nested .lesson-title{font-size:14px}
+  .lesson.nested .num{width:28px;height:28px;font-size:12px}
+  .lesson.nested .lesson-body{padding:10px 12px 12px 48px}
+
+  .group{margin-top:12px}
+  .group:first-child{margin-top:0}
+  .group-label{display:flex;align-items:center;gap:6px;margin-bottom:8px;font-size:12px;font-weight:600;color:var(--text-2);text-transform:uppercase;letter-spacing:.04em}
+  .group-label svg{width:14px;height:14px}
+  .group-label .count{background:var(--primary-100);color:var(--primary);font-size:11px;padding:0 6px;border-radius:999px;line-height:18px;letter-spacing:0}
+  .group-label.live{color:var(--green)}
+  .group-label.live .count{background:var(--green-50);color:var(--green)}
+  .live-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 3px var(--green-50)}
+
+  /* ===== Activity ===== */
+  .activity-list{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+  .activity{display:flex;align-items:center;gap:12px;padding:10px 12px 10px 4px;border-top:1px solid var(--border);transition:background .15s}
+  .activity:first-child{border-top:none}
+  .activity:hover{background:#fbfbfe}
+  .type-ic{width:34px;height:34px;border-radius:8px;display:grid;place-items:center;flex-shrink:0}
+  .type-ic svg{width:17px;height:17px}
+  .t-video{background:var(--violet-50);color:var(--violet)}
+  .t-doc{background:var(--primary-50);color:var(--primary)}
+  .t-quiz{background:var(--orange-50);color:var(--orange)}
+  .t-audio{background:var(--teal-50);color:var(--teal)}
+  .act-info{flex:1;min-width:0}
+  .act-title{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .act-sub{display:flex;align-items:center;gap:8px;margin-top:2px;font-size:12px;color:var(--text-3);flex-wrap:wrap}
+  .dot{width:3px;height:3px;border-radius:50%;background:var(--border-strong)}
+  .status{display:inline-flex;align-items:center;gap:4px;font-weight:500;padding:1px 8px;border-radius:999px;font-size:11.5px;cursor:help}
+  .status.ok{background:var(--green-50);color:var(--green)}
+  .status.ok::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+  .status.run{background:var(--orange-50);color:var(--orange)}
+  .act-actions{display:flex;gap:2px;opacity:0;transition:.15s}
+  .activity:hover .act-actions,.activity:focus-within .act-actions{opacity:1}
+
+  .add-row{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;margin-top:8px;padding:9px;border:1px dashed var(--border-strong);border-radius:10px;color:var(--text-2);font-weight:500;font-size:13px;transition:.15s;background:transparent}
+  .add-row:hover{border-color:var(--primary);color:var(--primary);background:var(--primary-50)}
+  .add-row svg{width:16px;height:16px}
+
+  /* ===== Section tree ===== */
+  .tree{display:flex;flex-direction:column;gap:10px}
+  .sec{scroll-margin-top:90px}
+  .sec-head{display:flex;align-items:center;gap:8px;padding:10px 10px 10px 6px;background:var(--surface);border:1px solid var(--border);border-radius:10px;cursor:pointer;transition:.15s}
+  .sec-head:hover{border-color:var(--border-strong)}
+  .sec[data-depth="0"] > .sec-head{padding:14px 12px 14px 8px;border-radius:var(--radius);box-shadow:var(--shadow)}
+  .sec.flash > .sec-head{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-100)}
+  .sec-chev{width:24px;height:24px;display:grid;place-items:center;color:var(--text-3);transition:transform .2s;border-radius:6px}
+  .sec-chev svg{width:16px;height:16px}
+  .sec.collapsed > .sec-head .sec-chev{transform:rotate(-90deg)}
+  .onum{min-width:30px;height:24px;padding:0 6px;border-radius:6px;font-size:12px;font-weight:600;display:grid;place-items:center;font-variant-numeric:tabular-nums}
+  .sec[data-depth="0"] > .sec-head .onum{background:var(--primary);color:#fff;min-width:32px;height:28px;font-size:13px}
+  .sec[data-depth="1"] > .sec-head .onum{background:var(--primary-50);color:var(--primary)}
+  .sec[data-depth="2"] > .sec-head .onum,.sec[data-depth="3"] > .sec-head .onum{background:var(--surface-3);color:var(--text-2)}
+  .sec-info{flex:1;min-width:0;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+  .sec-name{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .sec[data-depth="0"] > .sec-head .sec-name{font-size:15px}
+  .sec[data-depth="2"] > .sec-head .sec-name,.sec[data-depth="3"] > .sec-head .sec-name{font-weight:500}
+  .sec-meta{color:var(--text-3);font-size:12px;white-space:nowrap}
+  .sec-actions{display:flex;align-items:center;gap:2px;position:relative}
+
+  .sec-body{margin:8px 0 0 19px;padding-left:20px;border-left:1.5px solid var(--border);display:flex;flex-direction:column;gap:8px}
+  .sec.collapsed > .sec-body{display:none}
+  .sec-lessons{display:flex;flex-direction:column;gap:8px}
+  .sec-lessons-head{display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em;padding:2px 2px 0}
+
+  .empty{display:flex;align-items:center;gap:14px;padding:14px 16px;border:1px dashed var(--border-strong);border-radius:10px;background:var(--surface)}
+  .empty-ic{width:36px;height:36px;border-radius:10px;background:var(--surface-3);color:var(--text-3);display:grid;place-items:center;flex-shrink:0}
+  .empty-txt{flex:1;min-width:0}
+  .empty-txt b{display:block;font-weight:500;font-size:13.5px}
+  .empty-txt small{color:var(--text-3);font-size:12px}
+  .empty-act{display:flex;gap:6px;flex-wrap:wrap}
+
+  /* dropdown */
+  .menu{position:absolute;right:0;top:calc(100% + 6px);background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow-pop);padding:6px;min-width:200px;z-index:15;display:none}
+  .menu.show{display:block}
+  .menu button{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border-radius:6px;font-size:13px;text-align:left}
+  .menu button:hover{background:var(--surface-2)}
+  .menu button svg{width:16px;height:16px;color:var(--text-3)}
+  .menu small{display:block;color:var(--text-3);font-size:11.5px}
+
+  /* ===== Side panel ===== */
+  .side{position:sticky;top:84px;display:flex;flex-direction:column;gap:16px;max-height:calc(100vh - 100px);overflow:auto}
+  .side .card{padding:16px}
+  .side h3{font-size:14px;font-weight:600;margin-bottom:4px}
+  .side p.hint{color:var(--text-2);font-size:12.5px;margin-bottom:12px}
+  .seg{display:flex;flex-direction:column;gap:8px}
+  .seg-opt{display:flex;gap:10px;align-items:flex-start;text-align:left;padding:10px 12px;border:1px solid var(--border);border-radius:10px;transition:.15s}
+  .seg-opt:hover{border-color:var(--border-strong)}
+  .seg-opt .radio{width:16px;height:16px;border-radius:50%;border:2px solid var(--border-strong);margin-top:2px;flex-shrink:0;position:relative}
+  .seg-opt.active{border-color:var(--primary);background:var(--primary-50)}
+  .seg-opt.active .radio{border-color:var(--primary)}
+  .seg-opt.active .radio::after{content:"";position:absolute;inset:2px;border-radius:50%;background:var(--primary)}
+  .seg-opt b{display:block;font-weight:500;font-size:13.5px}
+  .seg-opt small{color:var(--text-3);font-size:12px}
+
+  .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(70px,1fr));gap:8px}
+  .stat{background:var(--surface-2);border-radius:10px;padding:10px 12px}
+  .stat .v{font-size:20px;font-weight:600;line-height:1.2}
+  .stat .k{color:var(--text-3);font-size:12px}
+  .breakdown{margin-top:12px;display:flex;flex-direction:column;gap:8px}
+  .bd-row{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-2)}
+  .bd-row .sw{width:8px;height:8px;border-radius:2px}
+  .bd-row .n{margin-left:auto;font-weight:500;color:var(--text)}
+
+  .toc{display:flex;flex-direction:column;gap:1px;margin-top:8px}
+  .toc button{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;font-size:13px;color:var(--text-2);text-align:left;width:100%}
+  .toc button:hover{background:var(--surface-2);color:var(--text)}
+  .toc .tn{font-size:11.5px;color:var(--text-3);font-variant-numeric:tabular-nums;min-width:30px}
+  .toc .tt{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .toc .tc{font-size:11.5px;color:var(--text-3)}
+  .toc .d0{font-weight:600;color:var(--text)}
+  .toc .warn{color:var(--orange)}
+
+  .hidden{display:none!important}
+
+  /* ===== Responsive ===== */
+  @media (max-width:1024px){
+    .layout{grid-template-columns:1fr}
+    .side{position:static;order:-1;display:grid;grid-template-columns:1fr 1fr;max-height:none}
+    .side .toc-card{grid-column:1/-1}
+  }
+  @media (max-width:640px){
+    .page{padding:16px}
+    .topbar{padding:0 16px}
+    .crumb a,.crumb .sep,.lang span,.user span{display:none}
+    .page-head{flex-direction:column;align-items:flex-start}
+    .side{grid-template-columns:1fr}
+    .search{width:100%}
+    .toolbar-r{width:100%;flex-wrap:wrap}
+    .lesson-body,.lesson.nested .lesson-body{padding-left:12px}
+    .sec-body{margin-left:8px;padding-left:10px}
+    .act-actions{opacity:1}
+    .sec-meta{display:none}
+    .empty{flex-direction:column;align-items:flex-start}
+  }
+</style>
+</head>
+<body>
+
+<!-- ICON SPRITE -->
+<svg style="display:none" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="i-video" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="m16 10 5-3v10l-5-3"/></symbol>
+  <symbol id="i-doc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></symbol>
+  <symbol id="i-quiz" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01"/></symbol>
+  <symbol id="i-audio" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="14" width="4" height="6" rx="1.5"/><rect x="17" y="14" width="4" height="6" rx="1.5"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></symbol>
+  <symbol id="i-drag" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10 21h4"/></symbol>
+  <symbol id="i-side" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="m12 3 9 5-9 5-9-5z"/><path d="m3 13 9 5 9-5"/></symbol>
+  <symbol id="i-expand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m7 15 5 5 5-5M7 9l5-5 5 5"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5"/></symbol>
+</svg>
+
+<header class="topbar">
+  <button class="icon-btn" aria-label="Thu gọn menu"><svg><use href="#i-side"/></svg></button>
+  <nav class="crumb">
+    <a href="#">MK eLearning</a><span class="sep">/</span>
+    <a href="#">Bảng điều khiển</a><span class="sep">/</span>
+    <a href="#">Template khóa học</a><span class="sep">/</span>
+    <span class="cur">Thiết lập Template</span>
+  </nav>
+  <div class="top-actions">
+    <button class="icon-btn" aria-label="Thông báo"><svg><use href="#i-bell"/></svg></button>
+    <button class="lang"><span class="flag">★</span><span>VI</span></button>
+    <button class="user"><span class="avatar">V1</span><span>Visang 1</span></button>
+  </div>
+</header>
+
+<main class="page">
+  <div class="page-head">
+    <div>
+      <h1>Thiết lập Template khóa học</h1>
+      <div class="sub"><span class="badge-draft">Bản nháp</span> Lưu tự động lúc 21:30</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-ghost"><svg><use href="#i-eye"/></svg>Xem trước</button>
+      <button class="btn btn-primary">Lưu thay đổi</button>
+    </div>
+  </div>
+
+  <nav class="tabs">
+    <button class="tab">Thông tin</button>
+    <button class="tab active">Nội dung</button>
+    <button class="tab">Giáo viên</button>
+    <button class="tab">Đầu ra &amp; năng lực</button>
+    <button class="tab">Xuất bản</button>
+    <button class="tab">Lịch sử</button>
+  </nav>
+
+  <div class="layout">
+    <section>
+      <div class="toolbar">
+        <h2 id="mainTitle"></h2>
+        <div class="toolbar-r">
+          <label class="search"><svg><use href="#i-search"/></svg><input placeholder="Tìm phần, bài học, hoạt động…" id="q"/></label>
+          <button class="btn btn-ghost btn-sm" id="toggleAll" title="Mở/Thu gọn tất cả"><svg><use href="#i-expand"/></svg></button>
+          <button class="btn btn-primary btn-sm" id="mainAdd"></button>
+        </div>
+      </div>
+
+      <!-- Mode: independent lessons -->
+      <div id="viewLessons">
+        <div class="lessons" id="lessons"></div>
+        <button class="add-row" style="margin-top:12px;padding:14px;background:var(--surface)"><svg><use href="#i-plus"/></svg>Thêm bài học mới</button>
+      </div>
+
+      <!-- Mode: sections -->
+      <div id="viewSections" class="hidden">
+        <div class="tree" id="tree"></div>
+        <button class="add-row" style="margin-top:12px;padding:14px;background:var(--surface)"><svg><use href="#i-plus"/></svg>Thêm phần học cấp 1</button>
+      </div>
+    </section>
+
+    <aside class="side">
+      <div class="card">
+        <h3>Cấu trúc khóa học</h3>
+        <p class="hint">Chọn cách sắp xếp bài học trong template.</p>
+        <div class="seg" id="seg">
+          <button class="seg-opt" data-mode="lessons"><span class="radio"></span><span><b>Bài học độc lập</b><small>Bài học nằm trực tiếp trong khóa học</small></span></button>
+          <button class="seg-opt active" data-mode="sections"><span class="radio"></span><span><b>Chia theo phần</b><small>Nhóm bài học theo chương hoặc chủ đề</small></span></button>
+        </div>
+      </div>
+
+      <div class="card toc-card" id="tocCard">
+        <h3>Mục lục</h3>
+        <div class="toc" id="toc"></div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-bottom:12px">Tổng quan</h3>
+        <div class="stat-grid" id="stats"></div>
+        <div class="breakdown" id="breakdown"></div>
+      </div>
+    </aside>
+  </div>
+</main>
+
+<script>
+/* ================= DATA ================= */
+const ANY = "anytime", LIVE = "live";
+
+const independent = [
+  {title:"Khởi động và định hướng khóa học", desc:"Làm quen với giảng viên, tìm hiểu mục tiêu, nội dung và phương pháp học trong toàn bộ khóa học.", groups:[{kind:ANY, acts:[
+    {type:"video", title:"Khởi động và định hướng khóa học", sub:"Video · 12 phút"},
+    {type:"doc", title:"Tài liệu ngày 28/09", sub:"PDF · 2,4 MB", status:"ok", tip:"Đã nhận diện nội dung, thứ tự đọc và dữ liệu bảng."},
+    {type:"doc", title:"Tài liệu 2 ngày 28/09", sub:"PDF · 1,1 MB", status:"ok", tip:"Đã nhận diện nội dung, thứ tự đọc và dữ liệu bảng."}]}]},
+  {title:"Kiến thức nền tảng và ứng dụng thực tế", desc:"Hệ thống hóa các kiến thức cốt lõi và hướng dẫn cách áp dụng vào những tình huống thực tế.", groups:[{kind:ANY, acts:[
+    {type:"video", title:"Kiến thức nền tảng và ứng dụng thực tế", sub:"Video · 25 phút"}]}]},
+  {title:"Thực hành tương tác cùng giảng viên", desc:"Học viên tham gia bài tập trực tiếp, trao đổi và nhận góp ý từ giảng viên ngay trong buổi học.", groups:[{kind:LIVE, acts:[
+    {type:"video", title:"Thực hành tương tác cùng giảng viên", sub:"Video · 30 phút"}]}]},
+  {title:"Nghiên cứu tình huống", desc:"Phân tích các tình huống điển hình để rút ra bài học và phương pháp xử lý.", groups:[{kind:ANY, acts:[
+    {type:"video", title:"Phân tích tình huống mẫu", sub:"Video · 18 phút"},
+    {type:"doc", title:"Bộ tình huống thực hành", sub:"DOCX · 640 KB", status:"run"}]}]},
+  {title:"Tổng kết và đánh giá", desc:"Ôn tập toàn bộ nội dung và hoàn thành bài kiểm tra cuối khóa.", groups:[{kind:ANY, acts:[
+    {type:"video", title:"Tổng kết khóa học", sub:"Video · 10 phút"},
+    {type:"quiz", title:"Bài kiểm tra cuối khóa", sub:"20 câu hỏi · 30 phút"}]}]}
+];
+
+const sections = [
+  {name:"Chương 1", children:[
+    {name:"Mục 1", lessons:[
+      {title:"Bài 1: Giới thiệu", desc:"Khóa học giới thiệu về các mẫu câu", groups:[{kind:LIVE, acts:[
+        {type:"video", title:"Video bài giảng", sub:"Video · 15 phút"}]}]},
+      {title:"Bài 2: Bài học giao tiếp cơ bản", desc:"Các video bài giảng được quay dựng sẵn nên", groups:[{kind:ANY, acts:[
+        {type:"video", title:"Video khóa học", sub:"Video · 22 phút", status:"ok", label:"Đã xử lý video", tip:"Transcript, phụ đề và chữ trên màn hình đã hoàn tất, sẵn sàng cho AI đọc theo quyền truy cập."}]}]},
+      {title:"Bài 3: Thực hành", desc:"Khóa dành cho người mới bắt đầu học giúp thuộc", groups:[{kind:ANY, acts:[
+        {type:"doc", title:"Tài liệu tham khảo", sub:"PDF · 980 KB"}]}]},
+      {title:"Bài 4: Ôn tập", desc:"Củng cố các mẫu câu đã học", groups:[
+        {kind:LIVE, acts:[{type:"video", title:"Buổi ôn tập trực tiếp", sub:"Video · 40 phút"}]},
+        {kind:ANY, acts:[{type:"quiz", title:"Bài tập ôn luyện", sub:"10 câu hỏi"}]}]}
+    ]},
+    {name:"Mục 2", children:[
+      {name:"Nhóm 1", lessons:[
+        {title:"Phụ âm cuối Patchim", desc:"Bảng chữ cái tiếng Hàn", groups:[{kind:ANY, acts:[
+          {type:"audio", title:"Nghe phát âm", sub:"Audio · 4 phút"}]}]}]},
+      {name:"Nhóm 2"}
+    ]}
+  ]},
+  {name:"Chương 2"},
+  {name:"Chương 3"}
+];
+
+/* ================= HELPERS ================= */
+const icon = {video:"i-video", doc:"i-doc", quiz:"i-quiz", audio:"i-audio"};
+const typeName = {video:"Video", doc:"Tài liệu", quiz:"Bài kiểm tra", audio:"Audio"};
+const swatch = {video:"var(--violet)", doc:"var(--primary)", quiz:"var(--orange)", audio:"var(--teal)"};
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const pad = n => String(n).padStart(2,"0");
+const actCount = l => l.groups.reduce((s,g)=>s+g.acts.length,0);
+
+function statusHTML(a){
+  if(a.status==="ok") return `<span class="dot"></span><span class="status ok" title="${esc(a.tip||"")}">${a.label||"Đã phân tích"}</span>`;
+  if(a.status==="run") return `<span class="dot"></span><span class="status run">Đang xử lý…</span>`;
+  return "";
+}
+function groupHTML(g){
+  const lbl = g.kind===LIVE
+    ? `<div class="group-label live"><span class="live-dot"></span>Trong buổi học <span class="count">${g.acts.length}</span></div>`
+    : `<div class="group-label"><svg><use href="#i-clock"/></svg>Học bất kỳ lúc nào <span class="count">${g.acts.length}</span></div>`;
+  return `<div class="group">${lbl}<div class="activity-list">${g.acts.map(a=>`
+    <div class="activity">
+      <span class="drag"><svg><use href="#i-drag"/></svg></span>
+      <span class="type-ic t-${a.type}"><svg><use href="#${icon[a.type]}"/></svg></span>
+      <div class="act-info">
+        <div class="act-title">${esc(a.title)}</div>
+        <div class="act-sub">${esc(a.sub)}${statusHTML(a)}</div>
+      </div>
+      <div class="act-actions">
+        <button class="act-btn" title="Xem trước"><svg><use href="#i-eye"/></svg></button>
+        <button class="act-btn" title="Chỉnh sửa"><svg><use href="#i-edit"/></svg></button>
+        <button class="act-btn danger" title="Xóa"><svg><use href="#i-trash"/></svg></button>
+      </div>
+    </div>`).join("")}</div></div>`;
+}
+function lessonHTML(l, i, {nested=false, open=false}={}){
+  const n = actCount(l);
+  const modes = [...new Set(l.groups.map(g=>g.kind))].map(k=>k===LIVE?"Trong buổi học":"Học bất kỳ lúc nào").join(" · ");
+  return `
+  <article class="card lesson ${nested?"nested":""} ${open?"open":""}">
+    <div class="lesson-head">
+      <span class="drag" title="Kéo để sắp xếp"><svg><use href="#i-drag"/></svg></span>
+      <span class="num">${pad(i+1)}</span>
+      <div class="lesson-info">
+        <div class="lesson-title">${esc(l.title)}</div>
+        <div class="lesson-desc">${esc(l.desc)}</div>
+        <div class="lesson-meta">
+          <span><svg><use href="#i-layers"/></svg>${n} hoạt động</span>
+          <span><svg><use href="#i-clock"/></svg>${modes}</span>
+        </div>
+      </div>
+      <div class="lesson-actions">
+        <button class="act-btn" title="Sửa bài học" data-stop><svg><use href="#i-edit"/></svg></button>
+        <button class="act-btn danger" title="${nested?"Gỡ bài học khỏi phần":"Xóa bài học"}" data-stop><svg><use href="#i-trash"/></svg></button>
+        <span class="act-btn chev"><svg><use href="#i-chev"/></svg></span>
+      </div>
+    </div>
+    <div class="lesson-body">
+      ${l.groups.map(groupHTML).join("")}
+      <button class="add-row"><svg><use href="#i-plus"/></svg>Thêm hoạt động</button>
+    </div>
+  </article>`;
+}
+
+/* ================= SECTION TREE ================= */
+let secId = 0;
+function walk(list, fn, depth=0, prefix=""){
+  list.forEach((s,i)=>{
+    const num = prefix ? `${prefix}.${i+1}` : `${i+1}`;
+    fn(s, depth, num);
+    if(s.children) walk(s.children, fn, depth+1, num);
+  });
+}
+function countIn(s){
+  let lessons=(s.lessons||[]).length, acts=(s.lessons||[]).reduce((t,l)=>t+actCount(l),0);
+  (s.children||[]).forEach(c=>{const r=countIn(c); lessons+=r.lessons; acts+=r.acts;});
+  return {lessons, acts};
+}
+function secHTML(s, depth, num){
+  s._id = s._id || `sec-${++secId}`;
+  const kids = s.children||[], lessons = s.lessons||[];
+  const {lessons:lc} = countIn(s);
+  const isEmpty = !kids.length && !lessons.length;
+  const meta = [kids.length?`${kids.length} phần con`:"", `${lc} bài học`].filter(Boolean).join(" · ");
+  const canDelete = isEmpty;
+  return `
+  <div class="sec" id="${s._id}" data-depth="${depth}">
+    <div class="sec-head">
+      <span class="sec-chev"><svg><use href="#i-chev"/></svg></span>
+      <span class="drag" title="Kéo để sắp xếp"><svg><use href="#i-drag"/></svg></span>
+      <span class="onum">${num}</span>
+      <div class="sec-info"><span class="sec-name">${esc(s.name)}</span><span class="sec-meta">${meta}</span></div>
+      <div class="sec-actions" data-stop>
+        <button class="btn btn-text btn-sm" data-menu><svg style="width:16px;height:16px"><use href="#i-plus"/></svg>Thêm</button>
+        <div class="menu">
+          <button><svg><use href="#i-folder"/></svg><span>Phần học con<small>Tạo cấp con bên trong ${esc(s.name)}</small></span></button>
+          <button><svg><use href="#i-link"/></svg><span>Gắn bài học<small>Chọn bài học có sẵn hoặc tạo mới</small></span></button>
+        </div>
+        <button class="act-btn" title="Đổi tên"><svg><use href="#i-edit"/></svg></button>
+        <button class="act-btn danger" ${canDelete?"":"disabled"} title="${canDelete?"Xóa phần học":"Chỉ xóa được khi phần học không còn bài học hoặc phần con"}"><svg><use href="#i-trash"/></svg></button>
+      </div>
+    </div>
+    <div class="sec-body">
+      ${lessons.length ? `
+        <div class="sec-lessons">
+          <div class="sec-lessons-head"><span>Bài học (${lessons.length})</span>
+            <button class="btn btn-text btn-sm" style="text-transform:none;letter-spacing:0"><svg style="width:15px;height:15px"><use href="#i-link"/></svg>Gắn bài học</button></div>
+          ${lessons.map((l,i)=>lessonHTML(l,i,{nested:true, open:depth<2 && i===0})).join("")}
+        </div>` : ""}
+      ${kids.map((c,i)=>secHTML(c, depth+1, `${num}.${i+1}`)).join("")}
+      ${isEmpty ? `
+        <div class="empty">
+          <span class="empty-ic"><svg><use href="#i-book"/></svg></span>
+          <div class="empty-txt"><b>Phần học này đang trống</b><small>Gắn bài học trực tiếp hoặc chia nhỏ thành các phần con.</small></div>
+          <div class="empty-act">
+            <button class="btn btn-ghost btn-sm"><svg style="width:15px;height:15px"><use href="#i-link"/></svg>Gắn bài học</button>
+            <button class="btn btn-text btn-sm"><svg style="width:15px;height:15px"><use href="#i-folder"/></svg>Thêm phần con</button>
+          </div>
+        </div>` : ""}
+    </div>
+  </div>`;
+}
+
+/* ================= RENDER ================= */
+let mode = "sections";
+
+function renderStats(lessonsArr, extra){
+  const by = {};
+  lessonsArr.forEach(l=>l.groups.forEach(g=>g.acts.forEach(a=>by[a.type]=(by[a.type]||0)+1)));
+  const totalActs = Object.values(by).reduce((a,b)=>a+b,0);
+  document.getElementById("stats").innerHTML =
+    (extra?`<div class="stat"><div class="v">${extra}</div><div class="k">Phần học</div></div>`:"")+
+    `<div class="stat"><div class="v">${lessonsArr.length}</div><div class="k">Bài học</div></div>
+     <div class="stat"><div class="v">${totalActs}</div><div class="k">Hoạt động</div></div>`;
+  document.getElementById("breakdown").innerHTML = Object.keys(typeName).filter(k=>by[k]).map(k=>
+    `<div class="bd-row"><span class="sw" style="background:${swatch[k]}"></span>${typeName[k]}<span class="n">${by[k]}</span></div>`).join("");
+  return totalActs;
+}
+
+function render(){
+  const isSec = mode==="sections";
+  document.getElementById("viewLessons").classList.toggle("hidden", isSec);
+  document.getElementById("viewSections").classList.toggle("hidden", !isSec);
+  document.getElementById("tocCard").classList.toggle("hidden", !isSec);
+  document.querySelectorAll(".seg-opt").forEach(b=>b.classList.toggle("active", b.dataset.mode===mode));
+
+  if(!isSec){
+    document.getElementById("lessons").innerHTML = independent.map((l,i)=>lessonHTML(l,i,{open:i===0})).join("");
+    const acts = renderStats(independent);
+    document.getElementById("mainTitle").innerHTML = `Danh sách bài học<span class="stats">${independent.length} bài học · ${acts} hoạt động</span>`;
+    document.getElementById("mainAdd").innerHTML = `<svg><use href="#i-plus"/></svg>Thêm bài học`;
+    return;
+  }
+
+  document.getElementById("tree").innerHTML = sections.map((s,i)=>secHTML(s,0,`${i+1}`)).join("");
+  let secCount=0, allLessons=[], toc="";
+  walk(sections,(s,depth,num)=>{
+    secCount++; allLessons.push(...(s.lessons||[]));
+    const {lessons:lc} = countIn(s);
+    toc += `<button data-goto="${s._id}" style="padding-left:${8+depth*14}px">
+      <span class="tn">${num}</span><span class="tt ${depth===0?"d0":""}">${esc(s.name)}</span>
+      <span class="tc ${lc===0?"warn":""}">${lc===0?"Trống":lc}</span></button>`;
+  });
+  document.getElementById("toc").innerHTML = toc;
+  const acts = renderStats(allLessons, secCount);
+  document.getElementById("mainTitle").innerHTML = `Cấu trúc phần học<span class="stats">${secCount} phần · ${allLessons.length} bài học · ${acts} hoạt động</span>`;
+  document.getElementById("mainAdd").innerHTML = `<svg><use href="#i-plus"/></svg>Thêm phần học`;
+}
+render();
+
+/* ================= INTERACTIONS ================= */
+const closeMenus = ()=>document.querySelectorAll(".menu.show").forEach(m=>m.classList.remove("show"));
+
+document.addEventListener("click", e=>{
+  const menuBtn = e.target.closest("[data-menu]");
+  if(menuBtn){ const m=menuBtn.nextElementSibling, was=m.classList.contains("show"); closeMenus(); if(!was) m.classList.add("show"); return; }
+  if(!e.target.closest(".menu")) closeMenus();
+
+  const go = e.target.closest("[data-goto]");
+  if(go){
+    const el=document.getElementById(go.dataset.goto);
+    let p=el; while(p){ if(p.classList?.contains("sec")) p.classList.remove("collapsed"); p=p.parentElement; }
+    el.scrollIntoView({behavior:"smooth", block:"start"});
+    el.classList.add("flash"); setTimeout(()=>el.classList.remove("flash"),1200);
+    return;
+  }
+
+  if(e.target.closest("[data-stop]")) return;
+  const lh = e.target.closest(".lesson-head");
+  if(lh){ lh.parentElement.classList.toggle("open"); return; }
+  const sh = e.target.closest(".sec-head");
+  if(sh){ sh.parentElement.classList.toggle("collapsed"); }
+});
+
+document.getElementById("seg").addEventListener("click", e=>{
+  const b=e.target.closest(".seg-opt"); if(!b || b.dataset.mode===mode) return;
+  mode=b.dataset.mode; document.getElementById("q").value=""; render();
+});
+
+document.getElementById("toggleAll").onclick = ()=>{
+  if(mode==="sections"){
+    const ss=[...document.querySelectorAll(".sec")];
+    const anyCollapsed = ss.some(s=>s.classList.contains("collapsed"));
+    ss.forEach(s=>s.classList.toggle("collapsed", !anyCollapsed));
+  } else {
+    const ls=[...document.querySelectorAll("#lessons .lesson")];
+    const anyClosed = ls.some(l=>!l.classList.contains("open"));
+    ls.forEach(l=>l.classList.toggle("open", anyClosed));
+  }
+};
+
+document.getElementById("q").addEventListener("input", e=>{
+  const q=e.target.value.toLowerCase().trim();
+  if(mode==="lessons"){
+    document.querySelectorAll("#lessons .lesson").forEach(l=>{
+      const hit=!q||l.textContent.toLowerCase().includes(q);
+      l.style.display=hit?"":"none"; if(q&&hit) l.classList.add("open");
+    });
+    return;
+  }
+  document.querySelectorAll("#tree .lesson").forEach(l=>{
+    const hit=!q||l.textContent.toLowerCase().includes(q);
+    l.style.display=hit?"":"none"; if(q&&hit) l.classList.add("open");
+  });
+  [...document.querySelectorAll("#tree .sec")].reverse().forEach(s=>{
+    const nameHit = s.querySelector(":scope > .sec-head .sec-name").textContent.toLowerCase().includes(q);
+    const childVisible = [...s.querySelectorAll(":scope > .sec-body .lesson, :scope > .sec-body > .sec")].some(x=>x.style.display!=="none");
+    const show = !q || nameHit || childVisible;
+    s.style.display = show ? "" : "none";
+    if(q && show) s.classList.remove("collapsed");
+  });
+});
+</script>
+</body>
+</html>

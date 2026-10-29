@@ -1912,82 +1912,228 @@
     .lf-admin-ui .mk-tablebar--filters .mk-toolbar-action { margin-left: 0; }
 }
 
-/* Course template content tab (Owner demo lf-template-content.html): one white surface, segmented mode switch,
-   toolbar band, numbered lesson cards, activity bar and rows, icon-only actions. Scoped to .ui-structure so the
-   read-only version pages that share the legacy class names keep their look. */
-.lf-admin-ui.ui-structure { max-width: none; margin: 0; padding: 0; overflow: hidden; border: 1px solid var(--ui-color-e6e8ee); border-radius: 7px; background: var(--ui-white); box-shadow: none; }
-.lf-admin-ui.ui-structure .course-template-section-header { padding: 20px; }
-.lf-admin-ui.ui-structure .course-template-section-header h2 { margin: 0; color: var(--ui-text); font-size: 20px; font-weight: 500; }
-.lf-admin-ui.ui-structure .course-template-section-header p { margin: 5px 0 0; color: var(--ui-muted); font-size: 14px; }
-.lf-admin-ui.ui-structure .course-template-structure-note { margin: 0 20px 12px; }
-.lf-admin-ui.ui-structure .course-template-structure-tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; width: fit-content; max-width: calc(100% - 40px); margin: 0 20px; padding: 4px; border: 0; border-radius: 6px; background: var(--ui-color-f3f4f7); }
-.lf-admin-ui.ui-structure .course-template-structure-tabs button { min-width: 0; padding: 7px 12px; border-radius: 4px; background: transparent; color: var(--ui-muted); font: 14px/20px var(--ui-font-family); font-weight: 400; box-shadow: none; }
-.lf-admin-ui.ui-structure .course-template-structure-tabs button:hover { background: transparent; color: var(--ui-primary); }
-.lf-admin-ui.ui-structure .course-template-structure-tabs button.is-active { background: var(--ui-white); color: var(--ui-primary); box-shadow: 0 1px 3px var(--ui-color-17233b14); }
+/* Course template Content tab (Owner design docs/ui-demo/noi-dung-template.html, direct lessons and sections,
+   2026-10-29): a main column (toolbar with search and fold-all, lesson
+   cards or the numbered section tree) and a side column (structure switch, table of contents, overview). The
+   markup keeps the legacy class names shared with the read-only version pages, so the look stays scoped to
+   .ui-structure. The structure switch sits in the side column through grid placement, not through new markup. */
+.lf-admin-ui.ui-structure {
+    --ct-surface-2: #f8f9fc; --ct-border: #e6e8ef; --ct-border-strong: #d7dae4; --ct-text-3: #8b91a3;
+    --ct-primary-soft: #eef0fb; --ct-primary-tint: #dfe3fb; --ct-row-hover: #fbfbfe;
+    --ct-violet: #7a45d1; --ct-violet-soft: #f2ecfc; --ct-orange: #c2620d; --ct-orange-soft: #fdf1e6;
+    --ct-teal: #0f8a8a; --ct-teal-soft: #e5f5f5; --ct-green: #1f8a52; --ct-green-soft: #e8f6ee;
+    --ct-shadow: 0 1px 2px rgba(20, 24, 40, .04), 0 2px 8px rgba(20, 24, 40, .04);
+    display: grid; grid-template-columns: minmax(0, 1fr) 300px; grid-template-rows: repeat(6, auto) 1fr; column-gap: 24px; align-items: start;
+    max-width: none; margin: 0; padding: 0; overflow: visible; border: 0; border-radius: 0; background: transparent; box-shadow: none;
+}
+.lf-admin-ui.ui-structure > * { grid-column: 2; }
+.lf-admin-ui.ui-structure > .course-template-structure-panel { grid-column: 1; grid-row: 1 / -1; min-width: 0; padding: 0; }
+
+/* Side column: the structure card is the header, the optional mixed note, the switch and its help. */
+.lf-admin-ui.ui-structure .course-template-section-header { padding: 16px 16px 4px; border: 1px solid var(--ct-border); border-bottom: 0; border-radius: 12px 12px 0 0; background: var(--ui-white); }
+.lf-admin-ui.ui-structure .course-template-section-header h2 { margin: 0; color: var(--ui-text); font-size: 14px; font-weight: 600; }
+.lf-admin-ui.ui-structure .course-template-section-header p { margin: 4px 0 0; color: var(--ui-muted); font-size: 12.5px; }
+.lf-admin-ui.ui-structure .course-template-structure-note { margin: 0; padding: 8px 16px 0; border: 1px solid var(--ct-border); border-block: 0; border-radius: 0; background: var(--ui-white); color: var(--ct-orange); font-size: 12px; }
+.lf-admin-ui.ui-structure .course-template-structure-note p { margin: 0; }
+.lf-admin-ui.ui-structure .course-template-structure-tabs { display: flex; flex-direction: column; gap: 8px; width: auto; max-width: none; margin: 0; padding: 8px 16px 0; border: 1px solid var(--ct-border); border-block: 0; border-radius: 0; background: var(--ui-white); }
+.lf-admin-ui.ui-structure .course-template-structure-tabs button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px; border: 1px solid var(--ct-border); border-radius: 10px; background: var(--ui-white); color: var(--ui-text); font: 500 13.5px/1.4 var(--ui-font-family); text-align: left; box-shadow: none; cursor: pointer; transition: border-color .15s, background-color .15s; }
+.lf-admin-ui.ui-structure .course-template-structure-tabs button::before { content: ""; flex: none; box-sizing: border-box; width: 16px; height: 16px; border: 2px solid var(--ct-border-strong); border-radius: 50%; }
+.lf-admin-ui.ui-structure .course-template-structure-tabs button:hover { border-color: var(--ct-border-strong); background: var(--ui-white); color: var(--ui-text); }
+.lf-admin-ui.ui-structure .course-template-structure-tabs button.is-active { border-color: var(--ui-primary); background: var(--ct-primary-soft); color: var(--ui-text); box-shadow: none; }
+.lf-admin-ui.ui-structure .course-template-structure-tabs button.is-active::before { border-color: var(--ui-primary); background: radial-gradient(circle, var(--ui-primary) 0 3px, transparent 3.5px); }
 .lf-admin-ui.ui-structure .course-template-structure-tabs button:focus-visible { outline: 2px solid var(--ui-primary); outline-offset: 2px; }
-.lf-admin-ui.ui-structure .course-template-structure-tab-help { min-height: 0; margin: 10px 20px 18px; color: var(--ui-muted); font-size: 12px; font-weight: 400; }
-.lf-admin-ui.ui-structure .course-template-structure-panel { padding: 0; }
-.lf-admin-ui.ui-structure .course-template-content-toolbar { margin: 0; padding: 12px 20px; border: 0; border-top: 1px solid var(--ui-color-e6e8ee); border-radius: 0; background: var(--ui-color-fafbfe); }
-.lf-admin-ui.ui-structure .course-template-content-count { display: flex; align-items: baseline; flex-wrap: wrap; gap: 3px 8px; min-width: 0; }
-.lf-admin-ui.ui-structure .course-template-content-toolbar strong { color: var(--ui-text); font-size: 14px; font-weight: 500; }
-.lf-admin-ui.ui-structure .course-template-content-toolbar .lf-secondary-text { margin: 0; color: var(--ui-muted); font-size: 14px; }
-.lf-admin-ui.ui-structure .course-template-direct-lesson-panel { margin: 0; padding: 0; border: 0; border-radius: 0; background: transparent; }
-.lf-admin-ui.ui-structure .course-template-direct-lesson-panel .course-template-lesson-list { gap: 0; padding: 0 20px; }
-.lf-admin-ui.ui-structure .course-template-outline-sections { padding: 0 20px 20px; }
-.lf-admin-ui.ui-structure .course-template-lesson-item { padding: 22px 0; overflow: visible; border: 0; border-radius: 0; background: transparent; }
-.lf-admin-ui.ui-structure .course-template-lesson-item + .course-template-lesson-item { border-top: 1px solid var(--ui-border); }
+.lf-admin-ui.ui-structure .course-template-structure-tab-help { min-height: 0; margin: 0; padding: 8px 16px 16px; border: 1px solid var(--ct-border); border-top: 0; border-radius: 0 0 12px 12px; background: var(--ui-white); color: var(--ct-text-3); font-size: 12px; font-weight: 400; }
+
+.lf-admin-ui.ui-structure .course-template-content-side-card { margin-top: 16px; padding: 16px; border: 1px solid var(--ct-border); border-radius: 12px; background: var(--ui-white); box-shadow: var(--ct-shadow); }
+.lf-admin-ui.ui-structure > .course-template-content-toc { grid-row: -2; position: sticky; top: 84px; align-self: start; max-height: calc(100vh - 100px); overflow-y: auto; }
+.lf-admin-ui.ui-structure .course-template-content-side-card h3 { margin: 0 0 12px; color: var(--ui-text); font-size: 14px; font-weight: 600; }
+.lf-admin-ui.ui-structure .course-template-content-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(70px, 1fr)); gap: 8px; margin: 0; }
+.lf-admin-ui.ui-structure .course-template-content-stats > div { display: flex; flex-direction: column-reverse; padding: 10px 12px; border-radius: 10px; background: var(--ct-surface-2); }
+.lf-admin-ui.ui-structure .course-template-content-stats dd { margin: 0; color: var(--ui-text); font-size: 20px; font-weight: 600; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.lf-admin-ui.ui-structure .course-template-content-stats dt { color: var(--ct-text-3); font-size: 12px; font-weight: 400; }
+.lf-admin-ui.ui-structure .course-template-content-breakdown { display: grid; gap: 8px; margin: 12px 0 0; padding: 0; list-style: none; }
+.lf-admin-ui.ui-structure .course-template-content-breakdown li { display: flex; align-items: center; gap: 8px; color: var(--ui-muted); font-size: 13px; }
+.lf-admin-ui.ui-structure .course-template-content-breakdown strong { margin-left: auto; color: var(--ui-text); font-weight: 500; }
+.lf-admin-ui.ui-structure .course-template-content-swatch { flex: none; width: 8px; height: 8px; border-radius: 2px; background: var(--ui-primary); }
+.lf-admin-ui.ui-structure .course-template-content-swatch--video { background: var(--ct-violet); }
+.lf-admin-ui.ui-structure .course-template-content-swatch--audio { background: var(--ct-teal); }
+.lf-admin-ui.ui-structure .course-template-content-swatch--quiz { background: var(--ct-orange); }
+.lf-admin-ui.ui-structure .course-template-content-swatch--live { background: var(--ct-green); }
+.lf-admin-ui.ui-structure .course-template-content-toc h3 { margin-bottom: 4px; }
+.lf-admin-ui.ui-structure .course-template-content-toc ol { display: grid; gap: 1px; max-height: 360px; margin: 0; padding: 0; overflow-y: auto; list-style: none; }
+.lf-admin-ui.ui-structure .course-template-content-toc button { display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 8px 6px calc(8px + var(--toc-depth, 0) * 14px); border: 0; border-radius: 6px; background: transparent; color: var(--ui-muted); font-size: 13px; text-align: left; cursor: pointer; }
+.lf-admin-ui.ui-structure .course-template-content-toc button:hover { background: var(--ct-surface-2); color: var(--ui-text); }
+.lf-admin-ui.ui-structure .course-template-content-toc button:focus-visible { outline: 2px solid var(--ui-primary); outline-offset: -2px; }
+.lf-admin-ui.ui-structure .course-template-content-toc-number { min-width: 30px; color: var(--ct-text-3); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+.lf-admin-ui.ui-structure .course-template-content-toc-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lf-admin-ui.ui-structure .course-template-content-toc-title.is-root { color: var(--ui-text); font-weight: 600; }
+.lf-admin-ui.ui-structure .course-template-content-toc-count { color: var(--ct-text-3); font-size: 11.5px; }
+.lf-admin-ui.ui-structure .course-template-content-toc-count.is-empty { color: var(--ct-orange); }
+
+/* Main column toolbar. */
+.lf-admin-ui.ui-structure .course-template-content-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 12px; padding: 0; border: 0; border-radius: 0; background: transparent; }
+.lf-admin-ui.ui-structure .course-template-content-count { display: flex; flex: 1; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; min-width: 0; }
+.lf-admin-ui.ui-structure .course-template-content-heading { color: var(--ui-text); font-size: 16px; font-weight: 600; }
+.lf-admin-ui.ui-structure .course-template-content-toolbar .course-template-content-count strong,
+.lf-admin-ui.ui-structure .course-template-content-toolbar .course-template-content-count .lf-secondary-text { margin: 0; color: var(--ct-text-3); font-size: 13px; font-weight: 400; }
+.lf-admin-ui.ui-structure .course-template-content-count .lf-secondary-text::before { content: "· "; }
+.lf-admin-ui.ui-structure .course-template-content-tools { display: flex; align-items: center; gap: 8px; }
+.lf-admin-ui.ui-structure .course-template-content-search { display: flex; align-items: center; gap: 6px; width: 220px; height: 32px; padding: 0 10px; border: 1px solid var(--ct-border-strong); border-radius: 8px; background: var(--ui-white); color: var(--ct-text-3); }
+.lf-admin-ui.ui-structure .course-template-content-search:focus-within { border-color: var(--ui-primary); box-shadow: 0 0 0 3px var(--ct-primary-tint); }
+.lf-admin-ui.ui-structure .course-template-content-search .ui-icon { width: 16px; height: 16px; flex: none; }
+.lf-admin-ui.ui-structure .course-template-content-search input[type=search] { min-height: 0; border-radius: 0; flex: 1; min-width: 0; height: 100%; padding: 0; border: 0; outline: 0; background: transparent; box-shadow: none; color: var(--ui-text); font: inherit; font-size: 13px; }
+.lf-admin-ui.ui-structure .ui-row-action.course-template-content-fold-all { width: 32px; height: 32px; border: 1px solid var(--ct-border-strong); border-radius: 8px; background: var(--ui-white); color: var(--ui-text); }
+.lf-admin-ui.ui-structure .ui-row-action.course-template-content-fold-all:hover { border-color: var(--ui-primary); background: var(--ui-white); color: var(--ui-primary); }
+.lf-admin-ui.ui-structure .course-template-content-toolbar > .btn { height: 32px; min-height: 32px; padding: 0 12px; border: 1px solid var(--ui-primary); border-radius: 8px; background: var(--ui-primary); color: var(--ui-white); font-size: 13px; font-weight: 500; }
+.lf-admin-ui.ui-structure .course-template-content-toolbar > .btn:hover { border-color: var(--ui-primary-hover); background: var(--ui-primary-hover); color: var(--ui-white); }
+.lf-admin-ui.ui-structure .course-template-content-add-row,
+.lf-admin-ui.ui-structure .course-template-activity-add { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; margin-top: 8px; padding: 9px; border: 1px dashed var(--ct-border-strong); border-radius: 10px; background: transparent; color: var(--ui-muted); font-size: 13px; font-weight: 500; text-decoration: none; cursor: pointer; transition: border-color .15s, color .15s, background-color .15s; }
+.lf-admin-ui.ui-structure .course-template-content-add-row { margin-top: 12px; padding: 14px; border-radius: 12px; background: var(--ui-white); }
+.lf-admin-ui.ui-structure :is(.course-template-content-add-row, .course-template-activity-add, .course-template-content-toolbar > .btn, .course-template-lesson-toolbar .admin-text-action, .course-template-outline-section-header .admin-text-action, .course-template-content-empty .btn) .ui-icon { flex: none; width: 16px; height: 16px; }
+.lf-admin-ui.ui-structure .course-template-content-toolbar > .btn { display: inline-flex; align-items: center; gap: 6px; }
+.lf-admin-ui.ui-structure :is(.course-template-content-add-row, .course-template-activity-add):hover { border-color: var(--ui-primary); background: var(--ct-primary-soft); color: var(--ui-primary); }
+.lf-admin-ui.ui-structure .course-template-content-no-results { margin: 12px 0 0; padding: 16px; border: 1px dashed var(--ct-border-strong); border-radius: 12px; background: var(--ui-white); color: var(--ui-muted); font-size: 13px; text-align: center; }
+.lf-admin-ui.ui-structure .course-template-content-empty { min-height: 0; padding: 40px 20px; border: 1px dashed var(--ct-border-strong); border-radius: 12px; background: var(--ui-white); }
+
+/* Lesson cards. */
+.lf-admin-ui.ui-structure .course-template-direct-lesson-panel,
+.lf-admin-ui.ui-structure .course-template-lesson-panel { margin: 0; padding: 0; border: 0; border-radius: 0; background: transparent; }
+.lf-admin-ui.ui-structure .course-template-lesson-list,
+.lf-admin-ui.ui-structure .course-template-direct-lesson-panel .course-template-lesson-list { display: flex; flex-direction: column; gap: 12px; padding: 0; }
+.lf-admin-ui.ui-structure .course-template-lesson-item,
+.lf-admin-ui.ui-structure .course-template-lesson-item + .course-template-lesson-item { padding: 0; overflow: visible; border: 1px solid var(--ct-border); border-radius: 12px; background: var(--ui-white); box-shadow: var(--ct-shadow); }
 .lf-admin-ui.ui-structure .course-template-lesson-item:hover,
-.lf-admin-ui.ui-structure .course-template-lesson-item:focus-within { background: transparent; }
-.lf-admin-ui.ui-structure .course-template-lesson-summary { align-items: flex-start; justify-content: flex-start; gap: 12px; padding: 0 0 16px; }
-.lf-admin-ui.ui-structure .course-template-lesson-number { display: grid; place-items: center; flex: none; width: 30px; height: 30px; border-radius: 5px; background: var(--ui-color-f3f4fc); color: var(--ui-primary); font-size: 14px; }
+.lf-admin-ui.ui-structure .course-template-lesson-item:focus-within { background: var(--ui-white); }
+.lf-admin-ui.ui-structure .course-template-lesson-summary { display: flex; align-items: flex-start; justify-content: flex-start; gap: 12px; padding: 16px; cursor: pointer; }
+.lf-admin-ui.ui-structure .course-template-lesson-number { display: grid; place-items: center; flex: none; width: 32px; height: 32px; border-radius: 8px; background: var(--ct-primary-soft); color: var(--ui-primary); font-size: 13px; font-weight: 600; }
 .lf-admin-ui.ui-structure .course-template-lesson-copy { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-.lf-admin-ui.ui-structure .course-template-lesson-copy strong { display: block; color: var(--ui-text); font-size: 14px; font-weight: 500; }
-.lf-admin-ui.ui-structure .course-template-lesson-copy .lf-secondary-text { margin-top: 5px; color: var(--ui-muted); font-size: 12px; }
-.lf-admin-ui.ui-structure .course-template-lesson-summary > .admin-table-actions { display: flex; flex: none; flex-wrap: nowrap; align-items: center; gap: 4px; }
-.lf-admin-ui.ui-structure .ui-row-action { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; min-width: 30px; min-height: 30px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--ui-primary); text-decoration: none; cursor: pointer; }
-.lf-admin-ui.ui-structure .ui-row-action:hover { background: var(--ui-color-eef0fb); }
-.lf-admin-ui.ui-structure .ui-row-action--danger { color: var(--ui-invalid); }
-.lf-admin-ui.ui-structure .ui-row-action:disabled { color: var(--ui-color-a0a6b1); background: transparent; cursor: not-allowed; }
-.lf-admin-ui.ui-structure .ui-row-action--danger:hover { background: var(--ui-danger-soft); }
-.lf-admin-ui.ui-structure .course-template-activity-panel { margin: 0 0 0 42px; padding: 0; border-top: 0; }
-.lf-admin-ui.ui-structure .course-template-activity-toolbar { margin: 0; padding: 5px 10px; border-radius: 4px; background: var(--ui-color-fafbfe); color: var(--ui-muted); font-size: 14px; }
-.lf-admin-ui.ui-structure .course-template-activity-tabs { margin: 0; border-bottom: 0; gap: 2px; }
-.lf-admin-ui.ui-structure .course-template-activity-tabs .ui-tabs__tab { min-height: 36px; padding: 6px 12px; font-size: 14px; font-weight: 500; }
-.lf-admin-ui.ui-structure .course-template-activity-tabs .ui-tabs__count { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; margin-left: 6px; padding: 0 6px; border-radius: 999px; background: var(--ui-color-eef0f5); color: var(--ui-muted); font-size: 12px; font-weight: 600; line-height: 1; }
-.lf-admin-ui.ui-structure .course-template-activity-tabs .ui-tabs__tab[aria-selected=true] .ui-tabs__count { background: var(--ui-color-f0f2fc); color: var(--ui-primary); }
-.lf-admin-ui.ui-structure .course-template-activity-toolbar h5 { margin: 0; color: var(--ui-muted); font-size: 14px; font-weight: 400; }
-.lf-admin-ui.ui-structure .course-template-activity-toolbar .admin-text-action { color: var(--ui-primary); font-size: 14px; }
-.lf-admin-ui.ui-structure .course-template-activity-list { gap: 0; }
-.lf-admin-ui.ui-structure .course-template-activity-item { min-height: 0; padding: 13px 10px; gap: 12px; border-top: 1px solid var(--ui-color-eceef3); border-bottom: 0; }
-.lf-admin-ui.ui-structure .course-template-activity-item:first-child { border-top: 0; }
-.lf-admin-ui.ui-structure .course-template-activity-identity { flex: 1; align-items: center; gap: 12px; }
-.lf-admin-ui.ui-structure .course-template-activity-icon { width: 18px; height: 18px; flex-basis: 18px; color: var(--ui-muted); }
-.lf-admin-ui.ui-structure .course-template-activity-type-icon { width: 18px; height: 18px; flex-basis: 18px; }
-.lf-admin-ui.ui-structure .course-template-activity-copy { flex: 1; gap: 5px; }
-.lf-admin-ui.ui-structure .course-template-activity-item > .admin-table-actions { display: flex; align-items: center; gap: 4px; }
-.lf-admin-ui.ui-structure .course-template-activity-structured-status { gap: 6px; color: var(--ui-muted); font-size: 12px; }
+.lf-admin-ui.ui-structure .course-template-lesson-copy strong { display: block; color: var(--ui-text); font-size: 15px; font-weight: 600; line-height: 1.4; }
+.lf-admin-ui.ui-structure .course-template-lesson-copy .lf-secondary-text { margin-top: 2px; color: var(--ui-muted); font-size: 13px; -webkit-line-clamp: 1; line-clamp: 1; }
+.lf-admin-ui.ui-structure .course-template-lesson-item.is-expanded .course-template-lesson-copy .lf-secondary-text { -webkit-line-clamp: unset; line-clamp: unset; }
+.lf-admin-ui.ui-structure .course-template-lesson-meta { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 8px; color: var(--ct-text-3); font-size: 12px; }
+.lf-admin-ui.ui-structure .course-template-lesson-meta > span { display: inline-flex; align-items: center; gap: 4px; }
+.lf-admin-ui.ui-structure .course-template-lesson-meta .ui-icon { width: 14px; height: 14px; }
+.lf-admin-ui.ui-structure .course-template-lesson-summary > .admin-table-actions { display: flex; flex: none; flex-wrap: nowrap; align-items: center; gap: 2px; }
+.lf-admin-ui.ui-structure .ui-row-action { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; min-width: 30px; min-height: 30px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--ct-text-3); text-decoration: none; cursor: pointer; transition: background-color .15s, color .15s; }
+.lf-admin-ui.ui-structure .ui-row-action .ui-icon { width: 16px; height: 16px; }
+.lf-admin-ui.ui-structure .ui-row-action:hover { background: var(--ui-color-eef0fb); color: var(--ui-primary); }
+.lf-admin-ui.ui-structure .ui-row-action--danger:hover { background: var(--ui-danger-soft); color: var(--ui-invalid); }
+.lf-admin-ui.ui-structure .ui-row-action:disabled { color: var(--ct-text-3); background: transparent; opacity: .4; cursor: not-allowed; }
+.lf-admin-ui.ui-structure .course-template-lesson-toggle { flex: none; margin-left: -10px; }
+.lf-admin-ui.ui-structure :is(.course-template-lesson-toggle, .course-template-section-toggle) .ui-icon { transition: transform .2s; }
+.lf-admin-ui.ui-structure .course-template-lesson-item.is-expanded .course-template-lesson-toggle .ui-icon { transform: rotate(180deg); }
+
+/* Activities: phase labels, rows and the add row. */
+.lf-admin-ui.ui-structure .course-template-activity-panel { margin: 0; padding: 12px 16px 16px 60px; border-top: 1px solid var(--ct-border); border-radius: 0 0 12px 12px; background: var(--ct-surface-2); }
+.lf-admin-ui.ui-structure .course-template-activity-toolbar { display: flex; align-items: center; margin: 0 0 8px; padding: 0; border-radius: 0; background: transparent; }
+.lf-admin-ui.ui-structure .course-template-activity-tabs { flex-wrap: wrap; gap: 4px; margin: 0; border-bottom: 0; }
+.lf-admin-ui.ui-structure .course-template-activity-tabs .ui-tabs__tab { display: inline-flex; align-items: center; gap: 6px; min-height: 0; padding: 2px 8px; border-radius: 999px; color: var(--ui-muted); font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; cursor: pointer; }
+.lf-admin-ui.ui-structure .course-template-activity-tabs .ui-tabs__tab:only-child { padding-left: 0; cursor: default; }
+.lf-admin-ui.ui-structure .course-template-activity-tabs .ui-tabs__tab[aria-selected=true] { color: var(--ui-primary); }
+.lf-admin-ui.ui-structure .course-template-activity-tabs .ui-tabs__tab[aria-selected=true]:not(:only-child) { background: var(--ct-primary-soft); }
+.lf-admin-ui.ui-structure .course-template-activity-tabs .ui-tabs__tab::after { display: none; }
+.lf-admin-ui.ui-structure .course-template-activity-tabs .ui-tabs__count { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; margin: 0; padding: 0 6px; border-radius: 999px; background: var(--ct-primary-tint); color: var(--ui-primary); font-size: 11px; font-weight: 600; letter-spacing: 0; line-height: 1; }
+.lf-admin-ui.ui-structure .course-template-activity-list { display: flex; flex-direction: column; gap: 0; border: 1px solid var(--ct-border); border-radius: 10px; background: var(--ui-white); }
+.lf-admin-ui.ui-structure .course-template-activity-item { position: relative; isolation: isolate; display: flex; align-items: center; gap: 12px; min-height: 0; padding: 10px 12px; border-top: 0; border-bottom: 0; }
+/* Rows are filtered by phase (x-show writes display: none), so a row draws the hairline only when a visible row
+   comes before it; :first-child would leave a double line on top when the first row is hidden. */
+.lf-admin-ui.ui-structure .course-template-activity-item:not([style*="display: none"]) ~ .course-template-activity-item { border-top: 1px solid var(--ct-border); }
+/* The list does not clip (the action tooltips must overflow it), so the hover fill is a layer rounded to the
+   list's inner radius: the first and last rows keep the list's rounded corners, and the hairlines stay straight. */
+.lf-admin-ui.ui-structure .course-template-activity-item::before { content: ""; position: absolute; inset: 0; z-index: -1; border-radius: 9px; background: transparent; transition: background-color .15s; pointer-events: none; }
+.lf-admin-ui.ui-structure .course-template-activity-item:hover::before { background: var(--ct-row-hover); }
+/* Only the outer corners round: a row with a visible row before it is square on top, one with a visible row after it is square below. */
+.lf-admin-ui.ui-structure .course-template-activity-item:not([style*="display: none"]) ~ .course-template-activity-item::before { border-top-left-radius: 0; border-top-right-radius: 0; }
+.lf-admin-ui.ui-structure .course-template-activity-item:has(~ .course-template-activity-item:not([style*="display: none"]))::before { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.lf-admin-ui.ui-structure .course-template-activity-identity { display: flex; flex: 1; align-items: center; gap: 12px; min-width: 0; }
+.lf-admin-ui.ui-structure .course-template-activity-icon { display: grid; place-items: center; flex: 0 0 34px; width: 34px; height: 34px; border-radius: 8px; background: var(--ct-primary-soft); color: var(--ui-primary); }
+.lf-admin-ui.ui-structure .course-template-activity-icon--video { background: var(--ct-violet-soft); color: var(--ct-violet); }
+.lf-admin-ui.ui-structure .course-template-activity-icon--audio { background: var(--ct-teal-soft); color: var(--ct-teal); }
+.lf-admin-ui.ui-structure .course-template-activity-icon--quiz { background: var(--ct-orange-soft); color: var(--ct-orange); }
+.lf-admin-ui.ui-structure .course-template-activity-icon--live { background: var(--ct-green-soft); color: var(--ct-green); }
+.lf-admin-ui.ui-structure .course-template-activity-type-icon { width: 17px; height: 17px; flex-basis: 17px; }
+.lf-admin-ui.ui-structure .course-template-activity-copy { display: flex; flex: 1; flex-flow: row wrap; align-items: center; gap: 2px 8px; min-width: 0; }
+.lf-admin-ui.ui-structure .course-template-activity-title-text { flex-basis: 100%; min-width: 0; overflow: hidden; color: var(--ui-text); font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+.lf-admin-ui.ui-structure .course-template-activity-meta { color: var(--ct-text-3); font-size: 12px; }
+.lf-admin-ui.ui-structure .course-template-activity-structured-status { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; color: var(--ct-text-3); font-size: 12px; }
+.lf-admin-ui.ui-structure .course-template-activity-structured-status::before { content: ""; width: 3px; height: 3px; border-radius: 50%; background: var(--ct-border-strong); }
 .lf-admin-ui.ui-structure .course-template-activity-structured-status .lf-secondary-text { color: inherit; }
-.lf-admin-ui.ui-structure .course-template-activity-structured-status .badge { padding: 2px 7px; border: 1px solid var(--ui-color-e6e8ee); border-radius: 20px; background: var(--ui-color-f3f4f7); color: var(--ui-muted); font-size: 12px; font-weight: 400; }
-.lf-admin-ui.ui-structure .course-template-activity-structured-status .badge-success { border-color: var(--ui-success-border); background: var(--ui-success-soft); color: var(--ui-success); }
-.lf-admin-ui.ui-structure .course-template-activity-structured-status .badge-danger { border-color: var(--ui-invalid); background: var(--ui-danger-soft); color: var(--ui-color-bd3d46); }
-.lf-admin-ui.ui-structure .course-template-activity-structured-status .badge-info { border-color: var(--ui-color-aeb7e8); background: var(--ui-color-eef0fb); color: var(--ui-primary); }
-.lf-admin-ui.ui-structure .course-template-activity-empty,
-.lf-admin-ui.ui-structure .course-template-lesson-empty { padding: 12px 10px; border-top: 1px solid var(--ui-color-eceef3); color: var(--ui-muted); font-size: 12px; }
-.lf-admin-ui.ui-structure .course-template-content-empty { min-height: 0; padding: 40px 20px; border: 0; border-top: 1px solid var(--ui-color-e6e8ee); border-radius: 0; background: var(--ui-white); }
+.lf-admin-ui.ui-structure .course-template-activity-structured-status form { flex-basis: 100%; }
+.lf-admin-ui.ui-structure .course-template-activity-structured-status .badge { padding: 1px 8px; border: 0; border-radius: 999px; background: var(--ct-surface-2); color: var(--ui-muted); font-size: 11.5px; font-weight: 500; }
+.lf-admin-ui.ui-structure .course-template-activity-structured-status .badge-success { background: var(--ct-green-soft); color: var(--ct-green); }
+.lf-admin-ui.ui-structure .course-template-activity-structured-status .badge-danger { background: var(--ui-danger-soft); color: var(--ui-color-bd3d46); }
+.lf-admin-ui.ui-structure .course-template-activity-structured-status .badge-info { background: var(--ct-orange-soft); color: var(--ct-orange); }
+.lf-admin-ui.ui-structure .course-template-activity-item > .admin-table-actions { display: flex; flex: none; align-items: center; gap: 2px; }
+.lf-admin-ui.ui-structure .course-template-activity-empty { padding: 12px; border-top: 0; color: var(--ct-text-3); font-size: 12px; }
+
+/* Section tree: numbered headers, a guide line per branch, nested lesson cards. */
+.lf-admin-ui.ui-structure .course-template-outline-sections { display: flex; flex-direction: column; gap: 10px; padding: 0; }
+.lf-admin-ui.ui-structure .course-template-outline-section { scroll-margin-top: 90px; margin: 0; padding: 0; border: 0; background: transparent; }
+.lf-admin-ui.ui-structure .course-template-outline-section-header { display: flex; align-items: center; gap: 8px; margin: 0; padding: 10px 12px; border: 1px solid var(--ct-border); border-radius: 10px; background: var(--ui-white); cursor: pointer; transition: border-color .15s, box-shadow .15s; }
+.lf-admin-ui.ui-structure .course-template-outline-section-header:hover { border-color: var(--ct-border-strong); }
+.lf-admin-ui.ui-structure .course-template-outline-section[data-section-depth="0"] > .course-template-outline-section-header { padding: 14px 12px; border-radius: 12px; box-shadow: var(--ct-shadow); }
+.lf-admin-ui.ui-structure .course-template-outline-section.is-flash > .course-template-outline-section-header { border-color: var(--ui-primary); box-shadow: 0 0 0 3px var(--ct-primary-tint); }
+.lf-admin-ui.ui-structure .course-template-outline-section-header > .course-template-section-toggle { flex: none; margin-left: -6px; border: 0; }
+.lf-admin-ui.ui-structure .course-template-section-toggle[aria-expanded="true"] .ui-icon { transform: rotate(180deg); }
+.lf-admin-ui.ui-structure .course-template-outline-section-number { display: grid; place-items: center; flex: none; min-width: 30px; height: 24px; padding: 0 6px; border-radius: 6px; background: var(--ct-surface-2); color: var(--ui-muted); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.lf-admin-ui.ui-structure [data-section-depth="0"] > header .course-template-outline-section-number { min-width: 28px; height: 28px; background: var(--ui-primary); color: var(--ui-white); font-size: 13px; }
+.lf-admin-ui.ui-structure [data-section-depth="1"] > header .course-template-outline-section-number { background: var(--ct-primary-soft); color: var(--ui-primary); }
+.lf-admin-ui.ui-structure .course-template-outline-section-copy { display: flex; flex: 1; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; min-width: 0; }
+.lf-admin-ui.ui-structure .course-template-outline-section-title { flex: 0 1 auto; min-width: 0; margin: 0; overflow: hidden; color: var(--ui-text); font-size: 14px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.lf-admin-ui.ui-structure [data-section-depth="0"] > header .course-template-outline-section-title { font-size: 15px; }
+.lf-admin-ui.ui-structure .course-template-outline-section:not([data-section-depth="0"], [data-section-depth="1"]) > header .course-template-outline-section-title { font-weight: 500; }
+.lf-admin-ui.ui-structure .course-template-outline-section-meta { color: var(--ct-text-3); font-size: 12px; white-space: nowrap; }
+.lf-admin-ui.ui-structure .course-template-outline-section-header > .admin-table-actions { display: flex; flex: none; align-items: center; gap: 2px; }
+.lf-admin-ui.ui-structure :is(.course-template-outline-section-header, .course-template-lesson-toolbar) .admin-text-action:not(.ui-row-action) { display: inline-flex; align-items: center; gap: 4px; height: 30px; padding: 0 8px; border-radius: 8px; color: var(--ui-muted); font-size: 13px; font-weight: 500; text-decoration: none; white-space: nowrap; }
+.lf-admin-ui.ui-structure :is(.course-template-outline-section-header, .course-template-lesson-toolbar) .admin-text-action:not(.ui-row-action):hover { background: var(--ct-primary-soft); color: var(--ui-primary); }
+.lf-admin-ui.ui-structure .course-template-section-branch { display: flex; flex-direction: column; gap: 8px; margin: 8px 0 0 19px; padding: 0 0 0 20px; border-left: 1.5px solid var(--ct-border); }
+.lf-admin-ui.ui-structure .course-template-outline-children::before,
+.lf-admin-ui.ui-structure .course-template-outline-children > .course-template-outline-section::before { content: none; }
+.lf-admin-ui.ui-structure .course-template-outline-children { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; border: 0; }
+.lf-admin-ui.ui-structure .course-template-lesson-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 8px; padding: 2px 2px 0; border: 0; background: transparent; }
+.lf-admin-ui.ui-structure .course-template-lesson-toolbar h4 { margin: 0; color: var(--ct-text-3); font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+.lf-admin-ui.ui-structure .course-template-outline-section .course-template-lesson-list { gap: 8px; }
+.lf-admin-ui.ui-structure .course-template-outline-section .course-template-lesson-item { box-shadow: none; }
+.lf-admin-ui.ui-structure .course-template-outline-section .course-template-lesson-summary { padding: 12px 12px 12px 12px; }
+.lf-admin-ui.ui-structure .course-template-outline-section .course-template-lesson-number { width: 28px; height: 28px; border-radius: 6px; font-size: 12px; }
+.lf-admin-ui.ui-structure .course-template-outline-section .course-template-lesson-copy strong { font-size: 14px; }
+.lf-admin-ui.ui-structure .course-template-outline-section .course-template-activity-panel { padding: 10px 12px 12px 52px; }
+.lf-admin-ui.ui-structure .course-template-lesson-empty,
+.lf-admin-ui.ui-structure .course-template-section-empty { display: flex; align-items: center; gap: 14px; margin: 0; padding: 14px 16px; border: 1px dashed var(--ct-border-strong); border-radius: 10px; background: var(--ui-white); color: var(--ui-muted); font-size: 13px; }
+.lf-admin-ui.ui-structure .course-template-section-empty .course-template-content-empty-icon { display: grid; place-items: center; flex: none; width: 36px; height: 36px; margin: 0; border-radius: 10px; background: var(--ct-surface-2); color: var(--ct-text-3); }
+.lf-admin-ui.ui-structure .course-template-section-empty strong { display: block; color: var(--ui-text); font-size: 13.5px; font-weight: 500; }
+.lf-admin-ui.ui-structure .course-template-section-empty p { margin: 0; color: var(--ct-text-3); font-size: 12px; }
+
+@media (max-width: 1024px) {
+    .lf-admin-ui.ui-structure { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; }
+    .lf-admin-ui.ui-structure > *,
+    .lf-admin-ui.ui-structure > .course-template-structure-panel { grid-column: 1; grid-row: auto; }
+    .lf-admin-ui.ui-structure > .course-template-structure-panel { order: 1; margin-top: 16px; }
+    .lf-admin-ui.ui-structure > .course-template-content-side-card { order: 2; }
+    .lf-admin-ui.ui-structure > .course-template-content-toc { grid-row: auto; position: static; max-height: none; overflow: visible; }
+}
 @media (max-width: 640px) {
-    .lf-admin-ui.ui-structure .course-template-section-header,
-    .lf-admin-ui.ui-structure .course-template-content-toolbar { padding: 16px; }
-    .lf-admin-ui.ui-structure .course-template-structure-tabs { margin: 0 16px; max-width: calc(100% - 32px); }
-    .lf-admin-ui.ui-structure .course-template-structure-tab-help { margin: 10px 16px 18px; }
-    .lf-admin-ui.ui-structure .course-template-content-toolbar { flex-wrap: wrap; }
-    .lf-admin-ui.ui-structure .course-template-direct-lesson-panel .course-template-lesson-list { padding: 0 12px; }
-    .lf-admin-ui.ui-structure .course-template-lesson-item { padding: 18px 0; }
-    .lf-admin-ui.ui-structure .course-template-activity-panel { margin-left: 0; }
-    .lf-admin-ui.ui-structure .course-template-lesson-summary { flex-direction: row; align-items: flex-start; flex-wrap: wrap; padding: 0 0 12px; gap: 8px; }
+    .lf-admin-ui.ui-structure .course-template-content-tools { flex: 1 1 100%; }
+    .lf-admin-ui.ui-structure .course-template-content-search { flex: 1; width: auto; }
+    .lf-admin-ui.ui-structure .course-template-lesson-summary { flex-wrap: wrap; gap: 8px 12px; }
     .lf-admin-ui.ui-structure .course-template-lesson-copy { flex: 1 1 calc(100% - 50px); }
     .lf-admin-ui.ui-structure .course-template-lesson-summary > .admin-table-actions { margin-left: auto; }
-    .lf-admin-ui.ui-structure .course-template-activity-item { flex-direction: row; flex-wrap: wrap; padding: 12px 8px; gap: 8px; }
-    .lf-admin-ui.ui-structure .course-template-activity-item > .admin-table-actions { margin-left: 26px; }
+    .lf-admin-ui.ui-structure .course-template-activity-panel,
+    .lf-admin-ui.ui-structure .course-template-outline-section .course-template-activity-panel { padding-left: 12px; }
+    .lf-admin-ui.ui-structure .course-template-activity-item { flex-wrap: wrap; }
+    .lf-admin-ui.ui-structure .course-template-activity-item > .admin-table-actions { margin-left: 46px; opacity: 1; }
+    .lf-admin-ui.ui-structure .course-template-section-branch { margin-left: 8px; padding-left: 10px; }
+    .lf-admin-ui.ui-structure .course-template-outline-section-header { flex-wrap: wrap; }
+    /* Narrow: number, title and chevron share the first line; the actions wrap below, right-aligned. */
+    .lf-admin-ui.ui-structure .course-template-outline-section-copy { flex: 1 1 0; }
+    .lf-admin-ui.ui-structure :is(.course-template-outline-section-header, .course-template-lesson-summary) > :is(.course-template-section-toggle, .course-template-lesson-toggle) { order: 1; margin-left: 0; }
+    .lf-admin-ui.ui-structure :is(.course-template-outline-section-header, .course-template-lesson-summary) > .admin-table-actions { order: 2; flex: 1 1 100%; justify-content: flex-end; margin-left: 0; }
+    .lf-admin-ui.ui-structure .course-template-lesson-copy { flex: 1 1 0; }
+    .lf-admin-ui.ui-structure .course-template-lesson-summary { flex-direction: row; align-items: flex-start; }
+    .lf-admin-ui.ui-structure :is(.course-template-lesson-toolbar, .course-template-activity-toolbar) { flex-direction: row; align-items: center; }
+    .lf-admin-ui.ui-structure .course-template-outline-section-meta { display: none; }
+    .lf-admin-ui.ui-structure .course-template-lesson-empty,
+    .lf-admin-ui.ui-structure .course-template-section-empty { flex-direction: column; align-items: flex-start; }
 }
 .lf-admin-ui .ui-check-list { display: grid; gap: 4px; max-height: 180px; overflow-y: auto; padding: 6px 10px; border: 1px solid var(--ui-border); border-radius: var(--ui-control-radius); background: var(--ui-white); }
 /* Dialog form upload progress (shown only while a file is uploading). */

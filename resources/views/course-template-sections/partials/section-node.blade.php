@@ -4,7 +4,8 @@
     $childSections = $sectionsByParent->get((string) $currentSection->id, collect());
 @endphp
 
-<article class="course-template-outline-section"
+<article id="course-template-section-{{ $currentSection->id }}"
+         class="course-template-outline-section"
          data-section-id="{{ $currentSection->id }}"
          data-section-depth="{{ $depth }}"
          x-data="courseTemplateSectionCollapse(
@@ -12,35 +13,33 @@
              @js($template->id),
              @js($currentSection->id)
          )">
-    <header class="course-template-outline-section-header">
-            <button type="button"
-                    class="admin-link-button admin-text-action course-template-section-toggle"
-                    aria-controls="course-template-section-{{ $currentSection->id }}-branch"
-                    aria-expanded="true"
-                    aria-label="{{ __('lf.LF_course_template_section_common_collapse', [
-                        'title' => $currentSection->title,
-                    ]) }}"
-                    x-bind:aria-expanded="expanded.toString()"
-                    x-bind:aria-label="expanded
-                        ? @js(__('lf.LF_course_template_section_common_collapse', [
-                            'title' => $currentSection->title,
-                        ]))
-                        : @js(__('lf.LF_course_template_section_common_expand', [
-                            'title' => $currentSection->title,
-                        ]))"
-                    x-on:click="toggle()">
-                <span class="admin-chevron"
-                      x-bind:class="{ 'is-collapsed': ! expanded }"
-                      aria-hidden="true"></span>
-            </button>
-        <h3 class="course-template-outline-section-title">
-            {{ $currentSection->title }}
-        </h3>
+    <header class="course-template-outline-section-header"
+            x-on:click="if (! $event.target.closest('button, a, form, input')) toggle()">
+        <span class="course-template-outline-section-number" aria-hidden="true">{{ $sectionOutlineNumbers[$currentSection->id] ?? '' }}</span>
+        <div class="course-template-outline-section-copy">
+            <h3 class="course-template-outline-section-title">
+                {{ $currentSection->title }}
+            </h3>
+            <span class="course-template-outline-section-meta">
+                @php
+                    $branchLessonTotal = $sectionLessonTotals[$currentSection->id] ?? 0;
+                @endphp
+                {{ collect([
+                    $childSections->isNotEmpty()
+                        ? trans_choice('lf.LF_course_template_section_common_children_count', $childSections->count(), ['count' => $childSections->count()])
+                        : null,
+                    $currentSection->allows_lessons || $branchLessonTotal > 0
+                        ? trans_choice('lf.LF_course_template_section_common_lessons_count', $branchLessonTotal, ['count' => $branchLessonTotal])
+                        : null,
+                ])->filter()->implode(' · ') }}
+            </span>
+        </div>
         <div class="admin-table-actions">
 
             <button type="button" class="admin-link-button admin-text-action"
                     data-ui-dialog-form-open aria-haspopup="dialog"
                     data-url="{{ route($sectionRoutePrefix.'.create', $template->id) }}?parent_section_id={{ $currentSection->id }}">
+                <x-backend-icon name="plus" class="ui-icon" />
                 {{ __('lf.LF_course_template_section_common_add_child_action') }}
             </button>
             <button type="button" class="admin-link-button admin-text-action ui-row-action"
@@ -69,6 +68,24 @@
                 <span class="ui-sr-only">{{ __('lf.LF_common_button_delete') }}</span>
             </button>
         </div>
+        <button type="button"
+                class="admin-link-button admin-text-action ui-row-action course-template-section-toggle"
+                aria-controls="course-template-section-{{ $currentSection->id }}-branch"
+                aria-expanded="true"
+                aria-label="{{ __('lf.LF_course_template_section_common_collapse', [
+                    'title' => $currentSection->title,
+                ]) }}"
+                x-bind:aria-expanded="expanded.toString()"
+                x-bind:aria-label="expanded
+                    ? @js(__('lf.LF_course_template_section_common_collapse', [
+                        'title' => $currentSection->title,
+                    ]))
+                    : @js(__('lf.LF_course_template_section_common_expand', [
+                        'title' => $currentSection->title,
+                    ]))"
+                x-on:click="toggle()">
+            <x-backend-icon name="chevron-down" class="ui-icon" />
+        </button>
     </header>
 
     <div id="course-template-section-{{ $currentSection->id }}-branch"
@@ -84,6 +101,18 @@
                 'panelTitle' => __('lf.LF_course_template_lesson_common_list_title'),
                 'emptyMessage' => __('lf.LF_course_template_lesson_common_empty'),
             ])
+        @endif
+
+        @if (! $currentSection->allows_lessons && $childSections->isEmpty())
+            <div class="course-template-section-empty">
+                <span class="course-template-content-empty-icon" aria-hidden="true">
+                    <x-backend-icon name="book-open" />
+                </span>
+                <div>
+                    <strong>{{ __('lf.LF_course_template_section_common_branch_empty_title') }}</strong>
+                    <p>{{ __('lf.LF_course_template_section_common_branch_empty_help') }}</p>
+                </div>
+            </div>
         @endif
 
         @if ($childSections->isNotEmpty())

@@ -75,7 +75,7 @@ class CourseTemplateLessonManagementTest extends TestCase
                     ."{$templateId}/edit"
                 )
                 ->assertOk()
-                ->assertSeeText('Gắn bài học')
+                ->assertSeeText('Thêm bài học')
                 ->assertSeeText('Chưa có bài học')
                 ->assertSeeText('Korean Alphabet')
                 ->assertDontSeeText('Private Tenant Lesson');
@@ -217,7 +217,7 @@ class CourseTemplateLessonManagementTest extends TestCase
             $createAction = $xpath->query(
                 '//section[@id="course-template-direct-lessons"]'
                 .'//div[contains(concat(" ", normalize-space(@class), " "), " course-template-section-action-bar ")]'
-                .'//button[normalize-space()="+ Thêm bài học" and @data-ui-dialog-form-open]'
+                .'//button[normalize-space()="Thêm bài học" and @data-ui-dialog-form-open]'
             )->item(0);
 
             $this->assertNotNull($createAction);
@@ -225,7 +225,7 @@ class CourseTemplateLessonManagementTest extends TestCase
                 1,
                 $xpath->query(
                     '//section[@id="course-template-direct-lessons"]'
-                    .'//button[normalize-space()="+ Thêm bài học"]'
+                    .'//button[normalize-space()="Thêm bài học"]'
                 )->length
             );
             $this->assertStringContainsString(
@@ -362,7 +362,8 @@ class CourseTemplateLessonManagementTest extends TestCase
         $this->actingAs($admin)
             ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit")
             ->assertOk()
-            ->assertDontSeeText('Gắn bài học');
+            // The direct-lesson empty state also says "Thêm bài học", so check the section's create URL instead.
+            ->assertDontSee("/admin/course-templates/{$templateId}/sections/{$sectionId}/lessons/create", false);
 
         $this->actingAs($admin)
             ->post(
@@ -1421,7 +1422,7 @@ class CourseTemplateLessonManagementTest extends TestCase
                 ."{$templateId}/edit"
             )
             ->assertOk()
-            ->assertSeeText('Gắn bài học')
+            ->assertSeeText('Thêm bài học')
             ->assertSeeText('Sửa')
             ->assertSeeText('Xóa')
             ->assertSee('data-ui-row-delete', false)
