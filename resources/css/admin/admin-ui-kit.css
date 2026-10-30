@@ -2023,16 +2023,15 @@
 .lf-admin-ui.ui-structure :is(.course-template-lesson-toggle, .course-template-section-toggle) .ui-icon { transition: transform .2s; }
 .lf-admin-ui.ui-structure .course-template-lesson-item.is-expanded .course-template-lesson-toggle .ui-icon { transform: rotate(180deg); }
 
-/* Activities: phase labels, rows and the add row. */
+/* Activities: phase tabs, rows and the add row. */
 .lf-admin-ui.ui-structure .course-template-activity-panel { margin: 0; padding: 12px 16px 16px 60px; border-top: 1px solid var(--ct-border); border-radius: 0 0 12px 12px; background: var(--ct-surface-2); }
-.lf-admin-ui.ui-structure .course-template-activity-toolbar { display: flex; align-items: center; margin: 0 0 8px; padding: 0; border-radius: 0; background: transparent; }
-.lf-admin-ui.ui-structure .course-template-activity-tabs { flex-wrap: wrap; gap: 4px; margin: 0; border-bottom: 0; }
-.lf-admin-ui.ui-structure .course-template-activity-tabs .ui-tabs__tab { display: inline-flex; align-items: center; gap: 6px; min-height: 0; padding: 2px 8px; border-radius: 999px; color: var(--ui-muted); font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; cursor: pointer; }
-.lf-admin-ui.ui-structure .course-template-activity-tabs .ui-tabs__tab:only-child { padding-left: 0; cursor: default; }
+/* Session phase tabs (plus Anytime in a mixed lesson) above the rows; each carries its count and filters the rows. */
+.lf-admin-ui.ui-structure .course-template-activity-tabs { flex-wrap: wrap; align-items: center; gap: 4px 14px; margin: 0 0 10px; border-bottom: 0; color: var(--ct-text-3); font-size: 13px; }
+.lf-admin-ui.ui-structure .course-template-activity-tabs .ui-tabs__tab { display: inline-flex; align-items: center; gap: 4px; min-height: 0; padding: 0; border: 0; border-radius: 0; background: transparent; color: inherit; font: inherit; letter-spacing: 0; text-transform: none; cursor: pointer; transition: color .15s; }
+.lf-admin-ui.ui-structure .course-template-activity-tabs .ui-tabs__tab:hover { color: var(--ui-text); }
 .lf-admin-ui.ui-structure .course-template-activity-tabs .ui-tabs__tab[aria-selected=true] { color: var(--ui-primary); }
-.lf-admin-ui.ui-structure .course-template-activity-tabs .ui-tabs__tab[aria-selected=true]:not(:only-child) { background: var(--ct-primary-soft); }
 .lf-admin-ui.ui-structure .course-template-activity-tabs .ui-tabs__tab::after { display: none; }
-.lf-admin-ui.ui-structure .course-template-activity-tabs .ui-tabs__count { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; margin: 0; padding: 0 6px; border-radius: 999px; background: var(--ct-primary-tint); color: var(--ui-primary); font-size: 11px; font-weight: 600; letter-spacing: 0; line-height: 1; }
+.lf-admin-ui.ui-structure .course-template-activity-tabs .ui-tabs__count { display: inline-flex; align-items: center; justify-content: center; min-width: 16px; height: 16px; padding: 0 5px; border-radius: 999px; background: color-mix(in srgb, currentColor 14%, transparent); color: inherit; font-size: 11px; font-weight: 600; line-height: 1; }
 .lf-admin-ui.ui-structure .course-template-activity-list { display: flex; flex-direction: column; gap: 0; border: 1px solid var(--ct-border); border-radius: 10px; background: var(--ui-white); }
 .lf-admin-ui.ui-structure .course-template-activity-item { position: relative; isolation: isolate; display: flex; align-items: center; gap: 12px; min-height: 0; padding: 10px 12px; border-top: 0; border-bottom: 0; }
 /* Rows are filtered by phase (x-show writes display: none), so a row draws the hairline only when a visible row

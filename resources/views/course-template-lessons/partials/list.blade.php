@@ -104,6 +104,16 @@
                         ->count();
                 }
                 $lessonPanelId = 'course-template-lesson-'.$lesson->id.'-activities';
+                // An activity is either Anytime or open in one or more session phases. Phase tabs appear only
+                // when the lesson has session activities; a mixed lesson adds an Anytime tab after them.
+                $sessionActivityCount = $lessonActivities
+                    ->filter(static fn ($activity): bool => ! ($activity->available_anytime ?? false))
+                    ->count();
+                $activityTabs = $sessionActivityCount > 0
+                    ? array_keys(array_filter($activityPhaseCounts))
+                    : [];
+                $activityDefaultPhase = $activityTabs[0] ?? 'anytime';
+                $activityCreateUrl = route($activityRoutePrefix.'.create', $lessonParameters);
             @endphp
             <article class="course-template-lesson-item"
                      x-data="courseTemplateLessonCollapse(
@@ -128,10 +138,16 @@
                                 <x-backend-icon name="layers" class="ui-icon" />
                                 {{ trans_choice('lf.LF_course_template_activity_common_count', $lessonActivities->count(), ['count' => $lessonActivities->count()]) }}
                             </span>
-                            @if ($lessonActivities->isNotEmpty())
+                            @if ($sessionActivityCount > 0 && $activityPhaseCounts['anytime'] > 0)
                                 <span>
                                     <x-backend-icon name="clock" class="ui-icon" />
-                                    {{ collect($activityPhaseCounts)->filter()->keys()->map(fn (string $phase): string => __('lf.LF_course_template_activity_learning_availability_'.$phase))->implode(' · ') }}
+                                    {{ __('lf.LF_course_template_activity_learning_mode_session') }} ({{ $sessionActivityCount }})
+                                    · {{ __('lf.LF_course_template_activity_learning_mode_anytime') }} ({{ $activityPhaseCounts['anytime'] }})
+                                </span>
+                            @elseif ($lessonActivities->isNotEmpty())
+                                <span>
+                                    <x-backend-icon name="clock" class="ui-icon" />
+                                    {{ __($sessionActivityCount > 0 ? 'lf.LF_course_template_activity_learning_mode_session' : 'lf.LF_course_template_activity_learning_mode_anytime') }}
                                 </span>
                             @endif
                         </span>
@@ -173,23 +189,15 @@
                     </button>
                 </div>
 
-                @php
-                    $activityDefaultPhase = collect($activityPhaseCounts)->filter(static fn (int $count): bool => $count > 0)->keys()->first() ?? 'anytime';
-                    $activityCreateUrl = route($activityRoutePrefix.'.create', $lessonParameters);
-                    $activityCreateUrls = collect(array_keys($activityPhases))
-                        ->mapWithKeys(static fn (string $phase): array => [$phase => $activityCreateUrl.'?phase='.$phase])
-                        ->all();
-                @endphp
                 <section id="{{ $lessonPanelId }}"
                          class="course-template-activity-panel"
                          x-show="expanded"
                          @unless ($loop->first) x-cloak @endunless
-                         x-data="{ phase: @js($activityDefaultPhase), counts: @js($activityPhaseCounts), createUrls: @js($activityCreateUrls) }">
-                    <div class="course-template-activity-toolbar">
+                         x-data="{ phase: @js($activityDefaultPhase) }">
+                    @if ($activityTabs !== [])
                         <div class="ui-tabs course-template-activity-tabs" role="tablist"
                              aria-label="{{ __('lf.LF_course_template_activity_common_list_title') }}">
-                            @foreach ($activityPhases as $phase => $column)
-                                @continue($activityPhaseCounts[$phase] === 0)
+                            @foreach ($activityTabs as $phase)
                                 <button type="button" role="tab" class="ui-tabs__tab"
                                         id="course-template-lesson-{{ $lesson->id }}-tab-{{ $phase }}"
                                         aria-controls="course-template-lesson-{{ $lesson->id }}-activity-list"
@@ -201,10 +209,9 @@
                                 </button>
                             @endforeach
                         </div>
-                    </div>
-
+                    @endif
                     <div class="course-template-activity-list" id="course-template-lesson-{{ $lesson->id }}-activity-list"
-                         role="tabpanel" x-bind:aria-labelledby="'course-template-lesson-{{ $lesson->id }}-tab-' + phase">
+                         @if ($activityTabs !== []) role="tabpanel" x-bind:aria-labelledby="'course-template-lesson-{{ $lesson->id }}-tab-' + phase" @endif>
                         @forelse ($lessonActivities as $activity)
                             @php
                                 $activityParameters = array_merge(
@@ -229,8 +236,9 @@
                                 };
                             @endphp
                             <div class="course-template-activity-item"
-                                 x-show="@js(array_values(array_keys(array_filter(array_map(static fn (string $column): bool => (bool) ($activity->{$column} ?? false), $activityPhases)))))
-                                     .includes(phase)">
+                                 @if ($activityTabs !== [])
+                                     x-show="@js(array_keys(array_filter(array_map(static fn (string $column): bool => (bool) ($activity->{$column} ?? false), $activityPhases)))).includes(phase)"
+                                 @endif>
                                 <div class="course-template-activity-identity">
                                     <span class="course-template-activity-icon course-template-activity-icon--{{ match ($activity->activity_type) {
                                         'video', 'embedded_video' => 'video',
@@ -441,16 +449,11 @@
                                 {{ __('lf.LF_course_template_activity_common_empty') }}
                             </p>
                         @endforelse
-                        @if ($lessonActivities->isNotEmpty())
-                            <p class="course-template-activity-empty" x-show="counts[phase] === 0" x-cloak>
-                                {{ __('lf.LF_course_template_activity_common_empty') }}
-                            </p>
-                        @endif
                     </div>
                     <button type="button" class="admin-link-button admin-text-action course-template-activity-add"
                             data-ui-dialog-form-open aria-haspopup="dialog"
-                            data-url="{{ $activityCreateUrls[$activityDefaultPhase] }}"
-                            x-bind:data-url="createUrls[phase]">
+                            data-url="{{ $activityCreateUrl }}?phase={{ $activityDefaultPhase }}"
+                            x-bind:data-url="@js($activityCreateUrl.'?phase=') + phase">
                         <x-backend-icon name="plus" class="ui-icon" />
                         {{ __('lf.LF_course_template_activity_common_add_action') }}
                     </button>

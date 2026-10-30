@@ -74,7 +74,8 @@
          videoSttQualified: @js((bool) $videoSttQualification['qualified']),
          completionRule: @js($selectedCompletionRule),
          unlockRule: @js($selectedUnlockRule),
-         learningPhases: @js(array_values($selectedLearningPhases)),
+         learningMode: @js(in_array('anytime', $selectedLearningPhases, true) ? 'anytime' : 'session'),
+         sessionPhases: @js(array_values(array_diff($selectedLearningPhases, ['anytime']))),
          completionRules: @js($completionRules),
          completionRuleLabels: @js($completionRuleLabels),
          completionRuleLabelsByType: @js($completionRuleLabelsByType),
@@ -194,15 +195,6 @@
                  minutes ? `${minutes} phút` : '',
                  seconds || (! hours && ! minutes) ? `${seconds} giây` : '',
              ].filter(Boolean).join(' ');
-         },
-         toggleLearningPhase(phase) {
-             if (phase === 'anytime' && this.learningPhases.includes('anytime')) {
-                 this.learningPhases = ['anytime'];
-                 return;
-             }
-             if (phase !== 'anytime' && this.learningPhases.includes(phase)) {
-                 this.learningPhases = this.learningPhases.filter((item) => item !== 'anytime');
-             }
          },
          openPreview(detail) {
              if (! ['video', 'audio'].includes(detail.kind)) {
@@ -429,11 +421,21 @@
         <fieldset class="ui-field ui-field--full ui-fieldset-reset" data-ui-error-for="learning_phases">
             <input type="hidden" name="learning_phases_present" value="1">
             <legend class="ui-field__label">{!! $star !!}{{ __('lf.LF_course_template_activity_learning_availability') }}</legend>
-            <div class="ui-check-list ui-check-list--inline">
-                @foreach (['anytime', 'before_session', 'during_session', 'after_session'] as $phase)
+            {{-- Anytime and the session phases are exclusive: pick the mode first, then the phases of a session. --}}
+            <div class="ui-radio-group__options">
+                @foreach (['anytime', 'session'] as $mode)
+                    <label class="ui-check">
+                        <input type="radio" name="learning_mode" value="{{ $mode }}" id="activity-form-learning_mode-{{ $mode }}" x-model="learningMode">
+                        <span>{{ __('lf.LF_course_template_activity_learning_mode_'.$mode) }}</span>
+                    </label>
+                @endforeach
+            </div>
+            <input type="hidden" name="learning_phases[]" value="anytime" x-bind:disabled="learningMode !== 'anytime'">
+            <div class="ui-check-list ui-check-list--inline" x-show="learningMode === 'session'" x-cloak>
+                @foreach (['before_session', 'during_session', 'after_session'] as $phase)
                     <label class="ui-check">
                         <input type="checkbox" name="learning_phases[]" value="{{ $phase }}" id="activity-form-learning_phases-{{ $phase }}"
-                               x-model="learningPhases" x-on:change="toggleLearningPhase(@js($phase))">
+                               x-model="sessionPhases" x-bind:disabled="learningMode !== 'session'">
                         <span>{{ __('lf.LF_course_template_activity_learning_availability_'.$phase) }}</span>
                     </label>
                 @endforeach
