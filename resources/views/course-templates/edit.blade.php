@@ -184,6 +184,10 @@
                     </div>
 
                     @foreach ($groups as $groupKey => $items)
+                        @if ($groupKey === 'media')
+                            {{-- Filled resources come first; the edit form keeps its fixed slot order. The sort is stable, so each part keeps the form's order. --}}
+                            @php($items = collect($items)->sortBy(static fn (array $item): int => ($item[2] ?? null) === null || $item[2] === '' ? 1 : 0)->values()->all())
+                        @endif
                         <div class="ui-summary-group" data-summary-group="{{ $groupKey }}">
                             <dl @class(['ui-summary', 'ui-summary--media' => $groupKey === 'media'])>
                                 @foreach ($items as $item)

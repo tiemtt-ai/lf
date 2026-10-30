@@ -1828,7 +1828,10 @@
 .lf-admin-ui .ui-summary-group .ui-summary { padding: 0; gap: 26px 32px; }
 .lf-admin-ui .ui-summary--media { display: flex; flex-wrap: wrap; gap: 18px 22px; }
 /* Read-only media tiles on a summary reuse the edit form's 112px .ui-media-tile; an empty one shows a dash. */
-.lf-admin-ui .ui-summary--media .ui-media-tile { width: 112px; height: 112px; }
+/* A tile has a hard top edge, while a text value starts below its half-leading and the glyph ascent: 10px more puts
+   the tile where the text visibly starts (about 15px under the label's baseline, measured), so every label sits the
+   same distance above its value. */
+.lf-admin-ui .ui-summary--media .ui-media-tile { width: 112px; height: 112px; margin-top: 10px; }
 .lf-admin-ui .ui-media-tile__empty--readonly { color: var(--ui-muted); cursor: default; }
 .lf-admin-ui .ui-media-tile__empty--readonly:hover { border-color: var(--ui-color-d3d8e3); background: var(--ui-color-fafbfe); }
 .lf-admin-ui .ui-summary__version-main { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
