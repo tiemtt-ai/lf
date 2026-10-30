@@ -1244,7 +1244,7 @@ class CourseTemplateLessonManagementTest extends TestCase
 
         // The popup keeps what was typed (it is never reloaded); the fragment marks where the error goes.
         $xpath = $this->xpath($this->actingAs($admin)->withHeaders($this->ajaxHeaders())->get($collectionUrl.'/create')->assertOk()->getContent());
-        $this->assertSame(1, $xpath->query('//fieldset[@data-ui-error-for="prerequisite_lesson_ids"]//input[@name="prerequisite_lesson_ids[]" and @value="'.$futureId.'"]')->length);
+        $this->assertSame(1, $xpath->query('//*[@data-ui-error-for="prerequisite_lesson_ids"]//select[@name="prerequisite_lesson_ids[]"]/option[@value="'.$futureId.'"]')->length);
     }
 
     public function test_wildcard_prerequisite_error_is_rendered_adjacent_to_the_accessible_control(): void
@@ -1509,7 +1509,7 @@ class CourseTemplateLessonManagementTest extends TestCase
         ];
 
         $responses[0]
-            ->assertSee('class="ui-check-list"', false);
+            ->assertSee('name="prerequisite_lesson_ids[]" multiple', false);
 
         foreach ($responses as $response) {
             foreach ([

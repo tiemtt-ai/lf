@@ -23,9 +23,36 @@ export function releaseClaim(node, name) {
     if (node?.dataset) delete node.dataset[`uiKitReady${name}`];
 }
 
+/**
+ * Where an open list goes: below the control when it fits there, otherwise on the side with more room (a list at the
+ * bottom of a dialog body would be cut by the body's scroll box). Distances are px inside the clipping boundary.
+ */
+export function choosePlacement({ spaceBelow, spaceAbove, listHeight }) {
+    if (spaceBelow >= listHeight) return 'bottom';
+    return spaceAbove > spaceBelow ? 'top' : 'bottom';
+}
+
+// The box that clips the list: the nearest scrolling/clipping ancestor, within the viewport.
+function clippingBounds(node) {
+    let top = 0;
+    let bottom = window.innerHeight;
+    for (let parent = node.parentElement; parent; parent = parent.parentElement) {
+        const { overflowY } = getComputedStyle(parent);
+        if (['auto', 'scroll', 'hidden', 'clip'].includes(overflowY)) {
+            const rect = parent.getBoundingClientRect();
+            top = Math.max(top, rect.top);
+            bottom = Math.min(bottom, rect.bottom);
+            break;
+        }
+    }
+    return { top, bottom };
+}
+
 export function initUiKitSelect(select) {
     if (instances.has(select)) return instances.get(select);
-    if (select.multiple) return null;
+    // A multiple select is the UI Kit "combobox chọn nhiều": the choices are chips in the control, the list stays open
+    // while picking, × on a chip removes it and the clear button removes them all.
+    const multiple = select.multiple;
     const root = select.closest('.lf-admin-ui');
     if (!root) return null;
     if (!claimOnce(select, 'Select')) return null;
@@ -57,6 +84,7 @@ export function initUiKitSelect(select) {
     list.id = `${select.id}-ui-kit-options`;
     list.setAttribute('role', 'listbox');
     list.setAttribute('aria-label', label?.textContent?.trim() || select.name);
+    if (multiple) list.setAttribute('aria-multiselectable', 'true');
     list.hidden = true;
     input.setAttribute('aria-controls', list.id);
     control.append(input, clear, icon);
@@ -70,10 +98,37 @@ export function initUiKitSelect(select) {
     let matches = [];
 
     const selectedLabel = () => select.selectedOptions[0]?.textContent?.trim() || '';
+    function renderChips() {
+        control.querySelectorAll('.ux-chip').forEach(chip => chip.remove());
+        for (const option of select.selectedOptions) {
+            const chip = document.createElement('span');
+            chip.className = 'ux-chip';
+            const text = document.createElement('span');
+            text.className = 'ux-chip__text';
+            text.textContent = option.textContent.trim();
+            chip.title = text.textContent;
+            const remove = document.createElement('button');
+            remove.type = 'button';
+            remove.className = 'ux-clear cursor-interaction';
+            remove.textContent = '×';
+            remove.tabIndex = -1;
+            remove.setAttribute('aria-label', `${select.dataset.uiClearLabel || 'Clear'}: ${text.textContent}`);
+            remove.addEventListener('mousedown', event => event.preventDefault());
+            remove.addEventListener('click', event => {
+                event.stopPropagation();
+                choose(option);
+            });
+            chip.append(text, remove);
+            control.insertBefore(chip, input);
+        }
+    }
     function render() {
         const query = searching ? input.value.toLocaleLowerCase() : '';
         matches = [...select.options].filter(option => !option.disabled && option.textContent.toLocaleLowerCase().includes(query));
-        clear.hidden = select.required || select.value === '' || ![...select.options].some(option => option.value === '');
+        clear.hidden = multiple
+            ? select.selectedOptions.length === 0
+            : select.required || select.value === '' || ![...select.options].some(option => option.value === '');
+        if (multiple) renderChips();
         list.replaceChildren();
         for (const [index, option] of matches.entries()) {
             const button = document.createElement('button');
@@ -82,9 +137,10 @@ export function initUiKitSelect(select) {
             button.id = `${select.id}-ui-kit-option-${index}`;
             button.tabIndex = -1;
             button.setAttribute('role', 'option');
-            button.setAttribute('aria-selected', String(select.value === option.value));
+            const picked = multiple ? option.selected : select.value === option.value;
+            button.setAttribute('aria-selected', String(picked));
             button.textContent = option.textContent;
-            if (select.value === option.value) {
+            if (picked) {
                 const check = document.createElement('span');
                 check.textContent = '✓';
                 check.setAttribute('aria-hidden', 'true');
@@ -102,12 +158,28 @@ export function initUiKitSelect(select) {
             list.append(empty);
         }
     }
+    function place() {
+        const gap = 5;
+        const control = wrapper.getBoundingClientRect();
+        const bounds = clippingBounds(wrapper);
+        wrapper.dataset.placement = choosePlacement({
+            spaceBelow: bounds.bottom - control.bottom - gap,
+            spaceAbove: control.top - bounds.top - gap,
+            listHeight: list.offsetHeight,
+        });
+    }
     function close() {
         list.hidden = true;
+        delete wrapper.dataset.placement;
         searching = false;
         active = -1;
-        input.value = select.value === '' ? '' : selectedLabel();
-        input.placeholder = selectedLabel();
+        if (multiple) {
+            input.value = '';
+            input.placeholder = select.selectedOptions.length ? '' : (select.dataset.uiPlaceholder || '');
+        } else {
+            input.value = select.value === '' ? '' : selectedLabel();
+            input.placeholder = selectedLabel();
+        }
         input.removeAttribute('aria-activedescendant');
         input.setAttribute('aria-expanded', 'false');
     }
@@ -115,10 +187,22 @@ export function initUiKitSelect(select) {
         if (select.disabled) return;
         render();
         list.hidden = false;
+        place();
         input.setAttribute('aria-expanded', 'true');
     }
     function choose(option) {
         if (!option) return;
+        if (multiple) {
+            option.selected = !option.selected;
+            input.setCustomValidity('');
+            searching = false;
+            input.value = '';
+            select.dispatchEvent(new Event('input', { bubbles: true }));
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+            input.placeholder = select.selectedOptions.length ? '' : (select.dataset.uiPlaceholder || '');
+            input.focus();
+            return;
+        }
         select.value = option.value;
         input.setCustomValidity('');
         select.dispatchEvent(new Event('input', { bubbles: true }));
@@ -148,10 +232,30 @@ export function initUiKitSelect(select) {
         }
     }
     const onInput = () => { searching = true; active = -1; open(); };
-    const onOutside = event => { if (!wrapper.contains(event.target)) close(); };
+    // The path is taken when the click happened: a picked option or a removed chip is already re-rendered (detached)
+    // by the time the click reaches the document, so `contains(event.target)` would read it as a click outside.
+    const onOutside = event => {
+        const path = event.composedPath?.() ?? [];
+        if (!(path.includes(wrapper) || wrapper.contains(event.target))) close();
+    };
     const onBlur = event => { if (!wrapper.contains(event.relatedTarget)) close(); };
-    const onClear = () => choose([...select.options].find(option => option.value === ''));
-    const onChange = () => { close(); render(); };
+    const onClear = () => {
+        if (!multiple) {
+            choose([...select.options].find(option => option.value === ''));
+            return;
+        }
+        [...select.options].forEach(option => { option.selected = false; });
+        select.dispatchEvent(new Event('input', { bubbles: true }));
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+        close();
+        input.focus();
+    };
+    // Picking in a multiple select keeps the list open; any other change (or a single select) closes it.
+    const onChange = () => {
+        if (!(multiple && !list.hidden)) close();
+        render();
+        if (multiple && !list.hidden) place();
+    };
     const onInvalid = event => {
         event.preventDefault();
         input.setCustomValidity(select.validationMessage);

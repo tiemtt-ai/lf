@@ -341,21 +341,68 @@ class MediaFileController extends Controller
         $teacherId = $this->teacherId();
         $keyword = trim((string) ($validated['keyword'] ?? ''));
 
+        // Not used yet first (a teacher: not used by them), then the newest.
         $rows = $this->mediaQuery($customerId, $validated['type'], $keyword !== '' ? $keyword : null, null, null, [], $teacherId)
             ->where('media_files.status', 'ready')
+            ->when(
+                $teacherId === null,
+                fn ($query) => $query->orderByRaw('CASE WHEN COALESCE(usage_counts.usage_count, 0) = 0 THEN 0 ELSE 1 END'),
+                fn ($query) => $query->orderByRaw(
+                    "CASE WHEN EXISTS (SELECT 1 FROM media_file_usages mine WHERE mine.customer_id = media_files.customer_id AND mine.media_file_id = media_files.id AND mine.status = 'active' AND mine.created_by = ?) THEN 1 ELSE 0 END",
+                    [$teacherId]
+                )
+            )
             ->orderByDesc('media_files.created_at')->orderByDesc('media_files.id')
             ->limit(30)->get();
+        // Where each one is used: a teacher only hears about their own uses, as on the library page.
+        $usageGroups = $this->usageGroups($customerId, $rows->pluck('id'), $teacherId);
+        $shareStates = $this->shares->stateFor($customerId, $rows->pluck('id'));
+        $ownerTypeOptions = $this->ownerTypeOptions($customerId);
 
-        return response()->json(['items' => $rows->map(fn (object $row): array => [
-            'id' => (int) $row->id,
-            'name' => (string) $row->display_name,
-            'file' => (string) $row->original_name,
-            'size' => number_format(((int) $row->file_size_bytes) / 1024, 1).' KB',
-            'note' => (string) ($row->share_note ?? ''),
-            'source' => $teacherId !== null && (int) $row->uploaded_by !== $teacherId
-                ? __('lf.LF_media_source_shared_by', ['name' => $row->uploaded_by_name ?? '—'])
-                : ($teacherId !== null ? __('lf.LF_media_source_mine') : (string) ($row->uploaded_by_name ?? '—')),
-        ])->values()->all()]);
+        return response()->json(['items' => $rows->map(function (object $row) use ($teacherId, $usageGroups, $shareStates, $ownerTypeOptions): array {
+            $mine = $teacherId === null || (int) $row->uploaded_by === $teacherId;
+            $share = $shareStates[(int) $row->id];
+            $usages = $usageGroups->get((int) $row->id, collect())->map(fn (object $usage): string => match ($usage->owner_type) {
+                'course_version_activity' => __('lf.LF_media_usage_type_version_activity'),
+                'course_template_version' => __('lf.LF_media_usage_type_template_version'),
+                default => (string) ($ownerTypeOptions[$usage->owner_type] ?? str($usage->owner_type)->replace('_', ' ')->headline()),
+            }.': '.$usage->owner_name)->values();
+            // The same place twice (e.g. two published versions with the same activity name) is one line with "(×2)".
+            $places = $usages->countBy()->map(fn (int $times, string $place): string => $times > 1 ? $place.' (×'.$times.')' : $place)->values();
+
+            return [
+                'id' => (int) $row->id,
+                'name' => (string) $row->display_name,
+                'file' => (string) $row->original_name,
+                'size' => number_format(((int) $row->file_size_bytes) / 1024, 1).' KB',
+                'note' => (string) ($row->share_note ?? ''),
+                'source' => $teacherId !== null && ! $mine
+                    ? __('lf.LF_media_source_shared_by', ['name' => $row->uploaded_by_name ?? '—'])
+                    : ($teacherId !== null ? __('lf.LF_media_source_mine') : __('lf.LF_media_pick_uploaded_by', ['name' => $row->uploaded_by_name ?? '—'])),
+                // How it may be used: the owner and an admin see the sharing state; someone it was shared with sees how it reached them.
+                'share' => match (true) {
+                    ! $mine => $share['scope'] === MediaShareService::SCOPE_ALL_TEACHERS
+                        ? __('lf.LF_media_pick_shared_to_all')
+                        : __('lf.LF_media_pick_shared_to_you'),
+                    $share['scope'] === MediaShareService::SCOPE_ALL_TEACHERS => __('lf.LF_media_share_state_all'),
+                    $share['scope'] === MediaShareService::SCOPE_TEACHERS => __('lf.LF_media_share_state_teachers', ['count' => count($share['user_ids'])]),
+                    default => __('lf.LF_media_share_state_private'),
+                },
+                'owner' => (string) ($row->uploaded_by_name ?? '—'),
+                'mine' => $mine,
+                'shared' => ! $mine || $share['scope'] !== MediaShareService::SCOPE_PRIVATE,
+                'duration' => $row->duration_seconds ? sprintf('%02d:%02d', intdiv((int) $row->duration_seconds, 60), (int) $row->duration_seconds % 60) : '',
+                'date' => (string) ($row->created_at ?? ''),
+                'usage_count' => $usages->count(),
+                'usages_all' => $places->take(10)->all(),
+                'used' => $usages->isNotEmpty(),
+                'usage' => $usages->isEmpty()
+                    ? __($teacherId !== null ? 'lf.LF_media_pick_unused_by_you' : 'lf.LF_media_pick_unused')
+                    : __($teacherId !== null ? 'lf.LF_media_file_status_used_by_you' : 'lf.LF_media_pick_used_in', ['count' => $usages->count()]),
+                'usages' => $places->take(3)->all(),
+                'usages_more' => max(0, $places->count() - 3),
+            ];
+        })->values()->all()]);
     }
 
     public function destroy(Request $request, int $id): RedirectResponse|JsonResponse

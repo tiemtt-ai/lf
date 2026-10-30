@@ -368,7 +368,7 @@
                                                     @php
                                                         $sttDialogId = 'course-template-activity-'.$activity->id.'-stt-dialog';
                                                     @endphp
-                                                    <button type="button" class="admin-link-button course-template-activity-stt-open cursor-interaction"
+                                                    <button type="button" class="admin-link-button admin-text-action course-template-activity-stt-open cursor-interaction"
                                                             aria-haspopup="dialog" aria-controls="{{ $sttDialogId }}"
                                                             x-on:click="document.getElementById(@js($sttDialogId)).showModal()">
                                                         {{ __('lf.LF_course_template_activity_stt_initialize') }}

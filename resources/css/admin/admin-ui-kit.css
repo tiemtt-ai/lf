@@ -924,6 +924,15 @@
     --modal-columns: 2;
     --modal-width: 800px
 }
+/* A shared dialog host loads forms of different sizes: a form can ask for the 3-column layout itself (the lesson form). */
+.lf-admin-ui .ui-modal:has(.ui-modal__form[data-modal-columns="3"]) {
+    --modal-columns: 3;
+    --modal-width: 1120px
+}
+/* A field that opens a new row of the grid (the next group of a section), whatever was left on the row before. */
+.lf-admin-ui .ui-modal__grid > .ui-field--row-start {
+    grid-column-start: 1
+}
 .lf-admin-ui .ui-modal:modal {
     position: fixed;
     inset: 0;
@@ -1030,7 +1039,7 @@
     border-radius: var(--ui-control-radius)
 }
 @container(max-width:760px) {
-    .lf-admin-ui .ui-modal[data-columns="3"] .ui-modal__grid {
+    .lf-admin-ui :is(.ui-modal[data-columns="3"], .ui-modal:has(.ui-modal__form[data-modal-columns="3"])) .ui-modal__grid {
         grid-template-columns: repeat(2,minmax(0,1fr))
     }
 }
@@ -1143,6 +1152,12 @@
     padding: 5px 0;
     max-height: 220px;
     overflow-y: auto
+}
+/* Not enough room below inside the dialog body or the viewport: the list opens upwards (initUiKitSelect, place()). */
+.lf-admin-ui .ux-combo[data-placement=top] .ux-combo__list {
+    top: auto;
+    bottom: calc(100% + 5px);
+    box-shadow: 0 -6px 18px var(--ui-color-14223b16)
 }
 .lf-admin-ui .ux-option {
     width: 100%;
@@ -1341,6 +1356,12 @@
 }
 .lf-admin-ui .ux-chip .ux-clear {
     flex-shrink: 0
+}
+/* A long lesson name in a chip ends with … instead of pushing the other chips out. */
+.lf-admin-ui .ux-chip__text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis
 }
 .lf-admin-ui .ux-combo__icon {
     width: 16px;
@@ -2251,12 +2272,59 @@
 .lf-admin-ui .ui-library-pick { display: grid; gap: 8px; margin-top: 8px; }
 .lf-admin-ui .ui-library-pick__bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 .lf-admin-ui .ui-library-pick__chosen { display: inline-flex; align-items: center; gap: 6px; min-width: 0; overflow-wrap: anywhere; }
-.lf-admin-ui .ui-library-pick__panel { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--ui-border); border-radius: var(--ui-control-radius); background: var(--ui-white); }
-.lf-admin-ui .ui-library-pick__list { margin: 0; padding: 0; list-style: none; max-height: 240px; overflow-y: auto; }
-.lf-admin-ui .ui-library-pick__item { display: grid; width: 100%; gap: 2px; padding: 8px 10px; border: 0; border-radius: 4px; background: transparent; color: var(--ui-text); text-align: left; }
-.lf-admin-ui .ui-library-pick__item:is(:hover, :focus-visible) { background: var(--ui-color-eef0fb); }
-.lf-admin-ui .ui-library-pick__name { font-weight: 500; overflow-wrap: anywhere; }
+/* The library popup: a search box over a list; each row has the name with where it is used (unused rows are green and come
+   first), the file, where it comes from and how it is shared, then the places it is used in. */
+.lf-admin-ui .ui-library-pick__dialog { color: var(--ui-text); font-size: 14px; text-align: left; }
+.lf-admin-ui .ui-library-pick__toolbar { display: grid; gap: 12px; padding: 14px 24px 12px; border-bottom: 1px solid var(--ui-color-e6e8ee); }
+.lf-admin-ui .ui-library-pick__toolbar-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.lf-admin-ui .ui-library-pick__search { flex: 1 1 220px; width: auto; min-width: 0; align-items: center; gap: 6px; padding-left: 10px; color: var(--ui-muted); }
+.lf-admin-ui .ui-library-pick__search .ui-icon { flex: none; width: 16px; height: 16px; }
+.lf-admin-ui .ui-library-pick__sort { flex: none; width: auto; height: var(--ui-control-height); padding: 0 12px; border: 1px solid var(--ui-border); border-radius: var(--ui-control-radius); background: var(--ui-white); color: var(--ui-text); font: inherit; cursor: pointer; }
+.lf-admin-ui .ui-library-pick__sort:focus-visible { outline: none; border-color: var(--ui-primary); }
+.lf-admin-ui .ui-library-pick__segmented { display: inline-flex; padding: 3px; border-radius: var(--ui-control-radius); background: var(--ui-color-f2f3f6); }
+.lf-admin-ui .ui-library-pick__segmented button { height: 28px; padding: 0 12px; border: 0; border-radius: 6px; background: transparent; color: var(--ui-muted); font: inherit; font-size: 13px; cursor: pointer; }
+.lf-admin-ui .ui-library-pick__segmented button:hover { color: var(--ui-text); }
+.lf-admin-ui .ui-library-pick__segmented button[aria-pressed=true] { background: var(--ui-white); color: var(--ui-text); font-weight: 500; box-shadow: 0 1px 2px rgba(20, 24, 40, .08); }
+.lf-admin-ui .ui-library-pick__count { margin-left: auto; }
+.lf-admin-ui .ui-library-pick__body { padding: 8px 12px; }
+.lf-admin-ui .ui-library-pick__list { display: grid; gap: 2px; }
+.lf-admin-ui .ui-library-pick__list:empty { display: none; }
+.lf-admin-ui .ui-library-pick__item { position: relative; display: flex; align-items: flex-start; gap: 14px; padding: 12px; border: 1px solid transparent; border-radius: 10px; cursor: pointer; }
+.lf-admin-ui .ui-library-pick__item:hover { background: var(--ui-color-f7f8fd); }
+.lf-admin-ui .ui-library-pick__item:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--ui-color-eef0fb); }
+.lf-admin-ui .ui-library-pick__item[aria-checked=true] { border-color: var(--ui-primary); background: var(--ui-color-eef0fb); }
+.lf-admin-ui .ui-library-pick__radio { flex: none; width: 18px; height: 18px; margin-top: 21px; border: 1.5px solid var(--ui-border); border-radius: 50%; background: var(--ui-white); }
+.lf-admin-ui .ui-library-pick__item[aria-checked=true] .ui-library-pick__radio { border-color: var(--ui-primary); border-width: 5px; }
+.lf-admin-ui .ui-library-pick__thumb { position: relative; flex: none; display: grid; place-items: center; width: 96px; aspect-ratio: 16 / 9; border-radius: 8px; overflow: hidden; color: #fff; background: linear-gradient(135deg, #6c7bf0, #4353d8); }
+.lf-admin-ui .ui-library-pick__thumb--audio { background: linear-gradient(135deg, #3fb98a, #1f8a52); }
+.lf-admin-ui .ui-library-pick__thumb--document { background: linear-gradient(135deg, #f0a35b, #c2620d); }
+.lf-admin-ui .ui-library-pick__thumb .ui-icon { width: 24px; height: 24px; opacity: .92; }
+.lf-admin-ui .ui-library-pick__duration { position: absolute; right: 4px; bottom: 4px; padding: 0 4px; border-radius: 4px; background: rgba(0, 0, 0, .6); font-size: 10.5px; font-weight: 500; line-height: 16px; font-variant-numeric: tabular-nums; }
+.lf-admin-ui .ui-library-pick__main { display: grid; flex: 1; min-width: 0; gap: 2px; }
+.lf-admin-ui .ui-library-pick__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.lf-admin-ui .ui-library-pick__name { min-width: 0; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lf-admin-ui .ui-library-pick__usage-wrap { position: relative; flex: none; }
+.lf-admin-ui .ui-library-pick__usage { display: inline-flex; align-items: center; height: 24px; padding: 0 10px; border: 0; border-radius: 999px; background: var(--ui-color-f2f3f6); color: var(--ui-muted); font: inherit; font-size: 12px; white-space: nowrap; }
+.lf-admin-ui button.ui-library-pick__usage { cursor: pointer; }
+.lf-admin-ui button.ui-library-pick__usage:hover { background: var(--ui-color-e6e8ee); color: var(--ui-text); }
+.lf-admin-ui .ui-library-pick__usage.is-unused { background: transparent; color: var(--ui-muted); }
+.lf-admin-ui .ui-library-pick__popover { position: absolute; right: 0; top: calc(100% + 6px); z-index: 10; display: grid; gap: 8px; width: 300px; padding: 12px; border: 1px solid var(--ui-border); border-radius: 10px; background: var(--ui-white); box-shadow: 0 8px 24px rgba(20, 24, 40, .12), 0 2px 6px rgba(20, 24, 40, .06); cursor: default; }
+.lf-admin-ui .ui-library-pick__popover strong { color: var(--ui-muted); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.lf-admin-ui .ui-library-pick__popover ul { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; font-size: 13px; line-height: 1.4; overflow-wrap: anywhere; }
+.lf-admin-ui .ui-library-pick__popover small { padding-top: 8px; border-top: 1px solid var(--ui-color-e6e8ee); color: var(--ui-muted); font-size: 12px; }
+.lf-admin-ui .ui-library-pick__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+.lf-admin-ui .ui-library-pick__owner { display: inline-flex; align-items: center; gap: 5px; }
+.lf-admin-ui .ui-library-pick__avatar { display: grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; background: var(--ui-color-eef0fb); color: var(--ui-primary); font-size: 8.5px; font-weight: 600; }
 .lf-admin-ui .ui-library-pick__note { font-style: italic; overflow-wrap: anywhere; }
+.lf-admin-ui .ui-library-pick__empty { display: grid; gap: 2px; padding: 40px 24px; text-align: center; }
+.lf-admin-ui .ui-library-pick__selected { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lf-admin-ui .ui-library-pick__upload { margin-right: auto; }
+@media (max-width: 640px) {
+    .lf-admin-ui .ui-library-pick__toolbar { padding: 12px 16px; }
+    .lf-admin-ui .ui-library-pick__thumb { width: 72px; }
+    .lf-admin-ui .ui-library-pick__radio { margin-top: 13px; }
+    .lf-admin-ui .ui-library-pick__count, .lf-admin-ui .ui-library-pick__selected { display: none; }
+}
 /* A row action whose subject is shared carries a small dot, so sharing is visible without a text label on the row. */
 .lf-admin-ui .ux-row-edit[data-shared] { position: relative; }
 .lf-admin-ui .ux-row-edit[data-shared]::before { content: ''; position: absolute; top: 4px; right: 4px; width: 7px; height: 7px; border-radius: 50%; background: var(--ui-primary); box-shadow: 0 0 0 2px var(--ui-white); }

@@ -258,6 +258,13 @@
         </div>
 
         {{-- Video: an uploaded file and, when the platform allows it, speech-to-text. --}}
+        <div class="ui-field">
+            <label class="ui-field__label" for="activity-form-sort_order">{{ __('lf.LF_course_template_activity_common_sort_order') }}</label>
+            <input id="activity-form-sort_order" type="number" min="0" name="sort_order"
+                   value="{{ $formActivity?->sort_order ?? $suggestedSortOrder ?? null }}"
+                   placeholder="{{ __('lf.LF_course_template_activity_placeholder_sort_order') }}">
+        </div>
+
         <div class="ui-field ui-field--full" x-show="activityType === 'video'" x-cloak>
             <p class="ui-field__label" id="activity-video-label">{{ __('lf.LF_course_template_activity_common_type_video') }}</p>
             @php
@@ -389,7 +396,7 @@
                 Ngôn ngữ nội dung (chọn 1–3)
                 <span class="ui-badge" x-show="processingLocaleRequired" x-cloak>Bắt buộc cho tệp mới</span>
             </legend>
-            <div class="ui-check-list">
+            <div class="ui-check-list ui-check-list--inline">
                 @foreach ($localeOptions as $localeCode => $localeLabel)
                     <label class="ui-check">
                         <input type="checkbox" name="processing_locales[]" value="{{ $localeCode }}"
@@ -465,18 +472,19 @@
         </div>
 
         <div class="ui-field">
-            <label class="ui-field__label" for="activity-form-is_preview">{!! $star !!}{{ __('lf.LF_course_template_activity_common_preview') }}</label>
-            <select id="activity-form-is_preview" name="is_preview" required {!! $selectAttributes !!}>
-                <option value="0" @selected($selectedPreview === '0')>{{ __('lf.LF_course_template_activity_common_no') }}</option>
-                <option value="1" @selected($selectedPreview === '1')>{{ __('lf.LF_course_template_activity_common_yes') }}</option>
-            </select>
-        </div>
-
-        <div class="ui-field">
             <label class="ui-field__label" for="activity-form-is_required">{!! $star !!}{{ __('lf.LF_course_template_activity_common_required') }}</label>
             <select id="activity-form-is_required" name="is_required" required {!! $selectAttributes !!}>
                 <option value="1" @selected($selectedRequired === '1')>{{ __('lf.LF_course_template_activity_common_yes') }}</option>
                 <option value="0" @selected($selectedRequired === '0')>{{ __('lf.LF_course_template_activity_common_no') }}</option>
+            </select>
+        </div>
+
+        {{-- Rules in two rows of three: completion | threshold | required, then preview | unlock | unlocked after. --}}
+        <div class="ui-field ui-field--row-start">
+            <label class="ui-field__label" for="activity-form-is_preview">{!! $star !!}{{ __('lf.LF_course_template_activity_common_preview') }}</label>
+            <select id="activity-form-is_preview" name="is_preview" required {!! $selectAttributes !!}>
+                <option value="0" @selected($selectedPreview === '0')>{{ __('lf.LF_course_template_activity_common_no') }}</option>
+                <option value="1" @selected($selectedPreview === '1')>{{ __('lf.LF_course_template_activity_common_yes') }}</option>
             </select>
         </div>
 
@@ -500,12 +508,6 @@
             </select>
         </div>
 
-        <div class="ui-field">
-            <label class="ui-field__label" for="activity-form-sort_order">{{ __('lf.LF_course_template_activity_common_sort_order') }}</label>
-            <input id="activity-form-sort_order" type="number" min="0" name="sort_order"
-                   value="{{ $formActivity?->sort_order ?? $suggestedSortOrder ?? null }}"
-                   placeholder="{{ __('lf.LF_course_template_activity_placeholder_sort_order') }}">
-        </div>
     </div>
 
     <x-media-preview-modal ui-kit id="activity-form-preview-title" show="previewOpen" close="closePreview()" title="preview.name" compact="false">

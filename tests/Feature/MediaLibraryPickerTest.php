@@ -71,6 +71,45 @@ class MediaLibraryPickerTest extends TestCase
         $this->assertNotEmpty($own);
     }
 
+    public function test_the_picker_puts_unused_media_first_and_says_where_each_comes_from_and_is_used(): void
+    {
+        [$customerId, $admin, $teachers] = $this->world();
+        [$templateId, $lessonId] = $this->hierarchy($customerId, $teachers[0]->id);
+        $usedByMe = $this->upload($teachers[0], 'Used by me');
+        $sharedToAll = $this->upload($teachers[1], 'Shared to all');
+        $sharedToMe = $this->upload($teachers[1], 'Shared to me');
+        $notUsed = $this->upload($teachers[0], 'Not used');
+        app(MediaShareService::class)->apply($teachers[1], $customerId, $sharedToAll, 'all_teachers', []);
+        app(MediaShareService::class)->apply($teachers[1], $customerId, $sharedToMe, 'teachers', [$teachers[0]->id]);
+        $url = "https://tenant-a.localhost/teacher/course-templates/{$templateId}/lessons/{$lessonId}/activities";
+        $this->actingAs($teachers[0])->postJson($url, $this->activity(['existing_media_id' => $usedByMe]))->assertCreated();
+        // Teacher B uses what they shared with everyone: teacher A must not hear about it.
+        [$otherTemplateId, $otherLessonId] = $this->hierarchy($customerId, $teachers[1]->id);
+        $this->actingAs($teachers[1])->postJson(
+            "https://tenant-a.localhost/teacher/course-templates/{$otherTemplateId}/lessons/{$otherLessonId}/activities",
+            $this->activity(['existing_media_id' => $sharedToAll])
+        )->assertCreated();
+
+        $items = collect($this->actingAs($teachers[0])->getJson('https://tenant-a.localhost/teacher/media/picker?type=document')->assertOk()->json('items'))->keyBy('name');
+
+        $this->assertSame('Used by me', $items->keys()->last(), 'what this teacher already uses comes last');
+        $this->assertFalse($items['Shared to all']['used'], 'someone else\'s use is not this teacher\'s');
+        $this->assertSame([], $items['Shared to all']['usages']);
+        $this->assertSame(__('lf.LF_media_pick_unused_by_you'), $items['Not used']['usage']);
+        $this->assertTrue($items['Used by me']['used']);
+        $this->assertCount(1, $items['Used by me']['usages']);
+        $this->assertSame(__('lf.LF_media_source_mine'), $items['Not used']['source']);
+        $this->assertSame(__('lf.LF_media_share_state_private'), $items['Not used']['share']);
+        $this->assertSame(__('lf.LF_media_pick_shared_to_all'), $items['Shared to all']['share']);
+        $this->assertSame(__('lf.LF_media_pick_shared_to_you'), $items['Shared to me']['share']);
+        $this->assertStringContainsString($teachers[1]->name, $items['Shared to me']['source']);
+
+        $adminItems = collect($this->actingAs($admin)->getJson('https://tenant-a.localhost/admin/media/picker?type=document')->assertOk()->json('items'));
+        $this->assertSame(['Not used', 'Shared to me'], $adminItems->where('used', false)->pluck('name')->sort()->values()->all());
+        $this->assertSame($adminItems->where('used', false)->count(), $adminItems->takeWhile(fn (array $item): bool => ! $item['used'])->count(), 'unused first for an admin too');
+        $this->assertSame(__('lf.LF_media_share_state_all'), $adminItems->firstWhere('name', 'Shared to all')['share']);
+    }
+
     public function test_an_activity_can_use_a_library_media_and_letting_go_keeps_someone_elses_media(): void
     {
         [$customerId, $admin, $teachers] = $this->world();

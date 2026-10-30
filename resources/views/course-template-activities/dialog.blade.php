@@ -2,7 +2,7 @@
     $isEdit = isset($activity) && $activity !== null;
     $activityRouteParameters = $section ? [$template->id, $section->id, $lesson->id] : [$template->id, $lesson->id];
 @endphp
-<form class="ui-modal__form" method="POST" enctype="multipart/form-data" novalidate
+<form class="ui-modal__form" method="POST" enctype="multipart/form-data" novalidate data-modal-columns="3"
       action="{{ $isEdit
           ? route($routePrefix.'.update', array_merge($activityRouteParameters, [$activity->id]))
           : route($routePrefix.'.store', $activityRouteParameters) }}">
