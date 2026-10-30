@@ -1820,6 +1820,7 @@ return [
     'LF_course_template_activity_stt_initialize_choose' => 'Chọn ngôn ngữ',
     'LF_course_template_activity_stt_initialized' => 'Đã tạo tác vụ phiên âm. Hệ thống sẽ xử lý trong nền.',
     'LF_course_template_activity_stt_initialize_ineligible' => 'Media không còn đủ điều kiện khởi tạo phiên âm. Hãy làm mới trang để xem trạng thái mới nhất.',
+    'LF_course_template_activity_stt_initialize_failed' => 'Chưa khởi tạo được phiên âm. Hãy thử lại hoặc làm mới trang để xem trạng thái mới nhất.',
     'LF_course_template_activity_stt_pending' => 'Phiên âm: Chờ xử lý',
     'LF_course_template_activity_stt_processing' => 'Phiên âm: Đang xử lý',
     'LF_course_template_activity_stt_ready' => 'Phiên âm: Thành công',

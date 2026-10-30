@@ -2664,6 +2664,42 @@ class MediaProcessingSubstrateTest extends TestCase
         $this->assertSame('ko', DB::table('media_files')->where('id', $media->id)->value('processing_locale'));
     }
 
+    public function test_initializing_transcription_for_audio_uploaded_without_it_shows_the_job_status(): void
+    {
+        Queue::fake();
+        [$templateId, $lessonId] = $this->courseFixture();
+        $media = $this->uploadDocument();
+        DB::table('media_files')->where('id', $media->id)
+            ->update(['file_type' => 'audio', 'status' => 'ready', 'processing_locale' => null]);
+        DB::table('media_processing_jobs')->where('media_file_id', $media->id)->delete();
+        $activityId = DB::table('core_course_template_activities')->insertGetId([
+            'customer_id' => $this->customerId, 'template_id' => $templateId,
+            'template_lesson_id' => $lessonId, 'title' => 'Audio opted out',
+            'activity_type' => 'audio', 'sort_order' => 1,
+            'created_by' => $this->admin->id, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        // What an upload with the transcription box unchecked stores.
+        DB::table('media_file_usages')->insert([
+            'customer_id' => $this->customerId, 'media_file_id' => $media->id,
+            'owner_type' => 'course_activity', 'owner_id' => $activityId,
+            'usage_type' => 'audio', 'status' => 'active', 'created_by' => $this->admin->id,
+            'metadata' => json_encode(['speech_to_text_requested' => false, 'speech_to_text' => true]),
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $page = "https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=structure";
+        $this->actingAs($this->admin)->get($page)->assertOk()
+            ->assertSee('data-activity-status="'.$activityId.':speech" data-status="disabled"', false);
+
+        $this->post(
+            "https://tenant-a.localhost/admin/course-templates/{$templateId}/lessons/{$lessonId}/activities/{$activityId}/initialize-transcription",
+            ['processing_locales' => ['vi']]
+        )->assertSessionHas('success');
+
+        $this->get($page)->assertOk()
+            ->assertSee('data-activity-status="'.$activityId.':speech" data-status="pending"', false)
+            ->assertDontSeeText(__('lf.LF_course_template_activity_stt_disabled'));
+    }
+
     public function test_audio_detach_cancels_pending_stt_and_reattach_creates_a_new_generation(): void
     {
         Queue::fake();

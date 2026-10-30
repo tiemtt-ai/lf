@@ -7244,3 +7244,10 @@
     }
     .lf-admin-page .admin-managed-list .admin-managed-status { text-align: center; }
 }
+
+/* Spinner of a course template activity status in progress (admin-ui-kit.css, .course-template-activity-structured-status). */
+@keyframes course-template-status-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}

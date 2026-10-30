@@ -133,6 +133,9 @@ class MediaProcessingOrchestrator
             $usageMetadata = json_decode((string) ($usage->metadata ?? ''), true);
             $usageMetadata = is_array($usageMetadata) ? $usageMetadata : [];
             $usageMetadata['speech_to_text'] = true;
+            // An upload without transcription stored the opt-out; starting one by hand is the opt-in, otherwise the
+            // activity keeps reading "not requested" while its job runs.
+            $usageMetadata['speech_to_text_requested'] = true;
             $usageMetadata['processing_locale'] = $canonicalLocale;
             $usageMetadata['processing_locales'] = $locales;
             DB::table('media_file_usages')->where('customer_id', $customerId)->where('id', $usage->id)->update([

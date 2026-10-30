@@ -1820,6 +1820,7 @@ return [
     'LF_course_template_activity_stt_initialize_choose' => 'Choose a language',
     'LF_course_template_activity_stt_initialized' => 'The transcription job was created and will run in the background.',
     'LF_course_template_activity_stt_initialize_ineligible' => 'This media is no longer eligible for initial transcription. Refresh the page for its latest status.',
+    'LF_course_template_activity_stt_initialize_failed' => 'The transcription could not be started. Try again, or refresh the page to see the latest status.',
     'LF_course_template_activity_stt_pending' => 'Transcription: Queued',
     'LF_course_template_activity_stt_processing' => 'Transcription: Processing',
     'LF_course_template_activity_stt_ready' => 'Transcription: Successful',

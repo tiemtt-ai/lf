@@ -1975,11 +1975,12 @@
 
 /* Main column toolbar. */
 .lf-admin-ui.ui-structure .course-template-content-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 12px; padding: 0; border: 0; border-radius: 0; background: transparent; }
-.lf-admin-ui.ui-structure .course-template-content-count { display: flex; flex: 1; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; min-width: 0; }
-.lf-admin-ui.ui-structure .course-template-content-heading { color: var(--ui-text); font-size: 16px; font-weight: 600; }
+.lf-admin-ui.ui-structure .course-template-content-count { display: flex; flex: 1; flex-wrap: wrap; align-items: baseline; gap: 2px 6px; min-width: 0; }
+/* The title takes its own line and the counts sit under it, so the line never breaks in the middle of the counts. */
+.lf-admin-ui.ui-structure .course-template-content-heading { flex-basis: 100%; color: var(--ui-text); font-size: 16px; font-weight: 600; line-height: 1.3; }
 .lf-admin-ui.ui-structure .course-template-content-toolbar .course-template-content-count strong,
 .lf-admin-ui.ui-structure .course-template-content-toolbar .course-template-content-count .lf-secondary-text { margin: 0; color: var(--ct-text-3); font-size: 13px; font-weight: 400; }
-.lf-admin-ui.ui-structure .course-template-content-count .lf-secondary-text::before { content: "· "; }
+.lf-admin-ui.ui-structure .course-template-content-count .lf-secondary-text::before { content: "·"; margin-right: 6px; } /* the same 6px on both sides of the dot */
 .lf-admin-ui.ui-structure .course-template-content-tools { display: flex; align-items: center; gap: 8px; }
 .lf-admin-ui.ui-structure .course-template-content-search { display: flex; align-items: center; gap: 6px; width: 220px; height: 32px; padding: 0 10px; border: 1px solid var(--ct-border-strong); border-radius: 8px; background: var(--ui-white); color: var(--ct-text-3); }
 .lf-admin-ui.ui-structure .course-template-content-search:focus-within { border-color: var(--ui-primary); box-shadow: 0 0 0 3px var(--ct-primary-tint); }
@@ -2008,7 +2009,9 @@
 .lf-admin-ui.ui-structure .course-template-lesson-item:hover,
 .lf-admin-ui.ui-structure .course-template-lesson-item:focus-within { background: var(--ui-white); }
 .lf-admin-ui.ui-structure .course-template-lesson-summary { display: flex; align-items: flex-start; justify-content: flex-start; gap: 12px; padding: 16px; cursor: pointer; }
-.lf-admin-ui.ui-structure .course-template-lesson-number { display: grid; place-items: center; flex: none; width: 32px; height: 32px; border-radius: 8px; background: var(--ct-primary-soft); color: var(--ui-primary); font-size: 13px; font-weight: 600; }
+/* The number is a quiet locator, not a call to action: neutral by default, tinted only while the lesson is open. */
+.lf-admin-ui.ui-structure .course-template-lesson-number { display: grid; place-items: center; flex: none; width: 40px; height: 40px; border-radius: 10px; background: color-mix(in srgb, var(--ct-text-3) 10%, var(--ui-white)); color: var(--ct-text-3); font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; transition: background-color .15s, color .15s; }
+.lf-admin-ui.ui-structure .course-template-lesson-item.is-expanded .course-template-lesson-number { background: var(--ct-primary-soft); color: var(--ui-primary); }
 .lf-admin-ui.ui-structure .course-template-lesson-copy { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .lf-admin-ui.ui-structure .course-template-lesson-copy strong { display: block; color: var(--ui-text); font-size: 15px; font-weight: 600; line-height: 1.4; }
 .lf-admin-ui.ui-structure .course-template-lesson-copy .lf-secondary-text { margin-top: 2px; color: var(--ui-muted); font-size: 13px; -webkit-line-clamp: 1; line-clamp: 1; }
@@ -2060,7 +2063,17 @@
 .lf-admin-ui.ui-structure .course-template-activity-structured-status { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; color: var(--ct-text-3); font-size: 12px; }
 .lf-admin-ui.ui-structure .course-template-activity-structured-status::before { content: ""; width: 3px; height: 3px; border-radius: 50%; background: var(--ct-border-strong); }
 .lf-admin-ui.ui-structure .course-template-activity-structured-status .lf-secondary-text { color: inherit; }
-.lf-admin-ui.ui-structure .course-template-activity-structured-status form { flex-basis: 100%; }
+/* Starting a transcription is a small dialog: the row only keeps the badge and this link. The dialog sits inside the
+   12px muted status line, so it resets the type it would otherwise inherit. */
+.lf-admin-ui.ui-structure .course-template-activity-stt-open { padding: 0; border: 0; background: transparent; color: var(--ui-primary); font-size: 12px; font-weight: 500; cursor: pointer; }
+.lf-admin-ui.ui-structure .course-template-activity-stt-open:hover { text-decoration: underline; }
+.lf-admin-ui.ui-structure .course-template-activity-stt-dialog { color: var(--ui-text); font-size: 14px; text-align: left; }
+.lf-admin-ui.ui-structure .course-template-activity-stt-dialog-text { margin: 0 0 12px; color: var(--ui-muted); line-height: 1.5; }
+/* Work in progress: the badge turns with a small spinner until the status poll (course-template-activity-status.js) swaps it.
+   The keyframes live in admin-pages.css: every rule of this file is scoped to .lf-admin-ui. */
+.lf-admin-ui.ui-structure .course-template-activity-structured-status:is([data-status=initializing], [data-status=pending], [data-status=processing]) .badge { display: inline-flex; align-items: center; gap: 5px; }
+.lf-admin-ui.ui-structure .course-template-activity-structured-status:is([data-status=initializing], [data-status=pending], [data-status=processing]) .badge::before { content: ""; width: 9px; height: 9px; border: 1.5px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: course-template-status-spin .8s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .lf-admin-ui.ui-structure .course-template-activity-structured-status .badge::before { animation-duration: 2.4s; } }
 .lf-admin-ui.ui-structure .course-template-activity-structured-status .badge { padding: 1px 8px; border: 0; border-radius: 999px; background: var(--ct-surface-2); color: var(--ui-muted); font-size: 11.5px; font-weight: 500; }
 .lf-admin-ui.ui-structure .course-template-activity-structured-status .badge-success { background: var(--ct-green-soft); color: var(--ct-green); }
 .lf-admin-ui.ui-structure .course-template-activity-structured-status .badge-danger { background: var(--ui-danger-soft); color: var(--ui-color-bd3d46); }
@@ -2097,7 +2110,7 @@
 .lf-admin-ui.ui-structure .course-template-outline-section .course-template-lesson-list { gap: 8px; }
 .lf-admin-ui.ui-structure .course-template-outline-section .course-template-lesson-item { box-shadow: none; }
 .lf-admin-ui.ui-structure .course-template-outline-section .course-template-lesson-summary { padding: 12px 12px 12px 12px; }
-.lf-admin-ui.ui-structure .course-template-outline-section .course-template-lesson-number { width: 28px; height: 28px; border-radius: 6px; font-size: 12px; }
+.lf-admin-ui.ui-structure .course-template-outline-section .course-template-lesson-number { width: 34px; height: 34px; border-radius: 8px; font-size: 13px; }
 .lf-admin-ui.ui-structure .course-template-outline-section .course-template-lesson-copy strong { font-size: 14px; }
 .lf-admin-ui.ui-structure .course-template-outline-section .course-template-activity-panel { padding: 10px 12px 12px 52px; }
 .lf-admin-ui.ui-structure .course-template-lesson-empty,

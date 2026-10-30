@@ -282,7 +282,9 @@
                                                     default => 'lf.LF_course_template_activity_structured_pending_help',
                                                 };
                                             @endphp
-                                            <div class="course-template-activity-structured-status"
+                                            {{-- Ready is the normal state, so it is read out but not shown; only work in progress and problems are badged. --}}
+                                            <div @class(['course-template-activity-structured-status', 'ui-sr-only' => $structuredStatus === 'ready'])
+                                                 data-activity-status="{{ $activity->id }}:structured" data-status="{{ $structuredStatus }}"
                                                  role="status">
                                                 <span @class([
                                                     'badge',
@@ -345,7 +347,11 @@
                                                     default => 'lf.LF_course_template_activity_stt_pending_help',
                                                 };
                                             @endphp
-                                            <div class="course-template-activity-structured-status" role="status">
+                                            @php
+                                                $speechMessage = __($speechMessageKey, ['minutes' => config('media.processing.speech_to_text.'.($activity->activity_type === 'video' ? 'max_video_duration_seconds' : 'max_duration_seconds')) / 60, 'gib' => config('media.processing.speech_to_text.'.($activity->activity_type === 'video' ? 'max_video_source_bytes' : 'max_bytes')) / 1073741824]);
+                                            @endphp
+                                            <div @class(['course-template-activity-structured-status', 'ui-sr-only' => $speechStatus === 'ready'])
+                                                 data-activity-status="{{ $activity->id }}:speech" data-status="{{ $speechStatus }}" role="status">
                                                 <span @class([
                                                     'badge',
                                                     'badge-success' => $speechStatus === 'ready',
@@ -353,30 +359,62 @@
                                                     'badge-info' => in_array($speechStatus, ['pending', 'processing'], true),
                                                     'badge-secondary' => in_array($speechStatus, ['absent', 'disabled', 'unqualified'], true),
                                                     'badge-disabled' => $speechStatus === 'disabled',
-                                                ])>
+                                                ]) title="{{ $speechMessage }}">
                                                     {{ __($speechLabelKey) }}
                                                 </span>
-                                                <span @class(['lf-secondary-text', 'ui-sr-only' => ! in_array($speechStatus, ['failed', 'absent', 'disabled'], true)])>{{ __($speechMessageKey, ['minutes' => config('media.processing.speech_to_text.'.($activity->activity_type === 'video' ? 'max_video_duration_seconds' : 'max_duration_seconds')) / 60, 'gib' => config('media.processing.speech_to_text.'.($activity->activity_type === 'video' ? 'max_video_source_bytes' : 'max_bytes')) / 1073741824]) }}</span>
+                                                {{-- Only a failure is explained in the row; the other explanations are the badge's hover text and the start dialog. --}}
+                                                <span @class(['lf-secondary-text', 'ui-sr-only' => $speechStatus !== 'failed'])>{{ $speechMessage }}</span>
                                                 @if (in_array($speechStatus, ['absent', 'disabled'], true) && $activity->activity_type === 'audio')
-                                                    <form method="POST"
-                                                          action="{{ route($activityRoutePrefix.'.initialize-transcription', $activityParameters) }}"
-                                                          class="course-template-activity-stt-initialize-form">
-                                                        @csrf
-                                                        <fieldset class="admin-checkbox-list">
-                                                        <legend class="sr-only" id="stt-locale-{{ $activity->id }}">
-                                                            {{ __('lf.LF_course_template_activity_stt_initialize_locale') }}
-                                                        </legend>
-                                                        @foreach (['vi', 'ko', 'en'] as $localeCode)
-                                                            <label class="admin-checkbox-option">
-                                                                <input type="checkbox" name="processing_locales[]" value="{{ $localeCode }}">
-                                                                <span>{{ __('lf.LF_common_language_'.$localeCode) }} ({{ $localeCode }})</span>
-                                                            </label>
-                                                        @endforeach
-                                                        </fieldset>
-                                                        <button type="submit" class="admin-text-action">
-                                                            {{ __('lf.LF_course_template_activity_stt_initialize') }}
-                                                        </button>
-                                                    </form>
+                                                    @php
+                                                        $sttDialogId = 'course-template-activity-'.$activity->id.'-stt-dialog';
+                                                    @endphp
+                                                    <button type="button" class="admin-link-button course-template-activity-stt-open cursor-interaction"
+                                                            aria-haspopup="dialog" aria-controls="{{ $sttDialogId }}"
+                                                            x-on:click="document.getElementById(@js($sttDialogId)).showModal()">
+                                                        {{ __('lf.LF_course_template_activity_stt_initialize') }}
+                                                    </button>
+                                                    <dialog id="{{ $sttDialogId }}" class="ui-modal course-template-activity-stt-dialog" data-columns="1"
+                                                            aria-labelledby="{{ $sttDialogId }}-title" x-data="{ checked: 0 }">
+                                                        {{-- Sent with fetch so the page stays where it is (resources/js/course-template-activity-status.js). --}}
+                                                        <form method="POST" class="ui-modal__form"
+                                                              action="{{ route($activityRoutePrefix.'.initialize-transcription', $activityParameters) }}"
+                                                              data-activity-status-start="{{ $activity->id }}:speech"
+                                                              data-error="{{ __('lf.LF_course_template_activity_stt_initialize_failed') }}">
+                                                            @csrf
+                                                            <header class="ui-modal__header">
+                                                                <div>
+                                                                    <h3 id="{{ $sttDialogId }}-title">{{ __('lf.LF_course_template_activity_stt_initialize') }}</h3>
+                                                                </div>
+                                                                <button class="ui-modal__close cursor-interaction" type="button" x-on:click="$root.close()"
+                                                                        aria-label="{{ __('lf.LF_common_button_close') }}">×</button>
+                                                            </header>
+                                                            <div class="ui-modal__body">
+                                                                <p class="ui-field ui-field--full course-template-activity-stt-dialog-text">{{ $speechMessage }}</p>
+                                                                <fieldset class="ui-field ui-field--full ui-fieldset-reset">
+                                                                    <legend class="ui-field__label">{{ __('lf.LF_course_template_activity_stt_initialize_locale') }}</legend>
+                                                                    <div class="ui-check-list ui-check-list--inline">
+                                                                        @foreach (['vi', 'ko', 'en'] as $localeCode)
+                                                                            <label class="ui-check">
+                                                                                <input type="checkbox" name="processing_locales[]" value="{{ $localeCode }}"
+                                                                                       x-on:change="checked += $event.target.checked ? 1 : -1">
+                                                                                <span>{{ __('lf.LF_common_language_'.$localeCode) }} ({{ $localeCode }})</span>
+                                                                            </label>
+                                                                        @endforeach
+                                                                    </div>
+                                                                </fieldset>
+                                                            </div>
+                                                            <footer class="ui-modal__footer">
+                                                                <span class="ui-caption ui-field__error" role="alert" data-activity-status-error></span>
+                                                                <button type="button" class="ui-button cursor-interaction" x-on:click="$root.close()">
+                                                                    {{ __('lf.LF_common_button_cancel') }}
+                                                                </button>
+                                                                <button type="submit" class="ui-button ui-button--primary cursor-interaction" x-bind:disabled="checked === 0">
+                                                                    <x-backend-icon name="check" class="ui-icon" />
+                                                                    {{ __('lf.LF_common_button_confirm') }}
+                                                                </button>
+                                                            </footer>
+                                                        </form>
+                                                    </dialog>
                                                 @endif
                                             </div>
                                         @endif
