@@ -3,19 +3,19 @@
     <div class="ui-modal__grid">
         <div class="ui-field ui-field--full">
             <label class="ui-field__label" for="password-form-current"><span class="ui-field__required" aria-hidden="true">*</span>{{ __('lf.LF_common_label_current_password') }}</label>
-            <input id="password-form-current" type="password" name="current_password" autocomplete="current-password" required
-                   placeholder="{{ __('lf.LF_profile_placeholder_current_password') }}">
+            <x-ui-password-input id="password-form-current" name="current_password" autocomplete="current-password" required
+                   placeholder="{{ __('lf.LF_profile_placeholder_current_password') }}" />
         </div>
         <div class="ui-field ui-field--full">
             <label class="ui-field__label" for="password-form-new"><span class="ui-field__required" aria-hidden="true">*</span>{{ __('lf.LF_common_label_new_password') }}</label>
-            <input id="password-form-new" type="password" name="password" autocomplete="new-password" required aria-describedby="password-form-new-help"
-                   placeholder="{{ __('lf.LF_profile_placeholder_new_password') }}">
+            <x-ui-password-input id="password-form-new" name="password" autocomplete="new-password" required aria-describedby="password-form-new-help"
+                   placeholder="{{ __('lf.LF_profile_placeholder_new_password') }}" />
             <span class="ui-caption" id="password-form-new-help">{{ __('lf.LF_profile_help_new_password') }}</span>
         </div>
         <div class="ui-field ui-field--full">
             <label class="ui-field__label" for="password-form-confirm"><span class="ui-field__required" aria-hidden="true">*</span>{{ __('lf.LF_common_label_confirm_new_password') }}</label>
-            <input id="password-form-confirm" type="password" name="password_confirmation" autocomplete="new-password" required
-                   placeholder="{{ __('lf.LF_profile_placeholder_confirm_new_password') }}">
+            <x-ui-password-input id="password-form-confirm" name="password_confirmation" autocomplete="new-password" required
+                   placeholder="{{ __('lf.LF_profile_placeholder_confirm_new_password') }}" />
         </div>
     </div>
 </x-ui-form-dialog>

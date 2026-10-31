@@ -34,8 +34,10 @@ class RoleProfileTest extends TestCase
             ->assertOk()
             ->assertSeeText(__('lf.LF_profile_group_admin_personal'))
             ->assertSeeText(__('lf.LF_common_button_common_change_password'))
-            ->assertSee('class="ui-dash-card"', false)
-            ->assertSee('data-url="https://tenant-a.localhost/teacher/profile?return=page"', false)
+            ->assertSee('class="ui-account-card ui-account-card--main"', false)
+            // Personal information is edited in place on the page; the email stays editable for a teacher.
+            ->assertSee('action="https://tenant-a.localhost/teacher/profile"', false)
+            ->assertSee('name="email"', false)
             ->assertSee('data-url="https://tenant-a.localhost/teacher/profile/password"', false)
             ->assertSee('data-ui-dialog-form-scope', false)
             ->assertSee('<body class="lf-admin-page">', false)

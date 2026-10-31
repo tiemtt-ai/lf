@@ -2493,3 +2493,63 @@
     .lf-admin-ui .ui-dropzone__actions { width: 100%; }
     .lf-admin-ui .ui-dropzone__actions .ui-button { flex: 1; }
 }
+
+/* Account page (admin "My account", teacher profile): profile summary, personal information edited in place, security and preferences. */
+.lf-admin-ui.ui-account { display: grid; gap: 24px; max-width: 1120px; margin: 0 auto; }
+.lf-admin-ui .ui-account-hero { display: flex; flex-wrap: wrap; align-items: center; gap: 24px; padding: 24px; border: 1px solid var(--ui-border); border-radius: 7px; background: var(--ui-white); }
+.lf-admin-ui .ui-account-hero__avatar { display: grid; flex: none; place-items: center; width: 88px; height: 88px; border-radius: 50%; background: var(--ui-primary); color: var(--ui-white); font-size: 28px; font-weight: 500; }
+.lf-admin-ui .ui-account-hero__identity { display: grid; flex: 999 1 280px; gap: 6px; min-width: 0; }
+.lf-admin-ui .ui-account-hero__identity h2 { margin: 0; font-size: 18px; font-weight: 500; line-height: 1.3; overflow-wrap: anywhere; }
+.lf-admin-ui .ui-account-hero__meta { display: flex; flex-wrap: wrap; gap: 8px 16px; color: var(--ui-muted); }
+.lf-admin-ui .ui-account-hero__meta > span { display: inline-flex; align-items: center; gap: 6px; overflow-wrap: anywhere; }
+.lf-admin-ui .ui-account-hero__meta .ui-icon { width: 16px; height: 16px; }
+.lf-admin-ui .ui-account-hero__completion { display: grid; flex: 1 1 260px; gap: 8px; max-width: 320px; }
+.lf-admin-ui .ui-account-hero__completion-head { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; }
+.lf-admin-ui .ui-account-hero__completion-head span { color: var(--ui-muted); }
+.lf-admin-ui .ui-account-hero__completion-head strong { color: var(--ui-primary); font-weight: 500; }
+.lf-admin-ui .ui-account-hero__completion .ui-caption { margin: 0; }
+.lf-admin-ui .ui-account-hero__completion .ui-caption strong { color: var(--ui-text); font-weight: 500; }
+.lf-admin-ui .ui-account-progress { height: 8px; overflow: hidden; border-radius: 999px; background: var(--ui-color-eef0fb); }
+.lf-admin-ui .ui-account-progress > span { display: block; height: 100%; border-radius: inherit; background: var(--ui-primary); }
+.lf-admin-ui .ui-account-columns { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 24px; }
+.lf-admin-ui .ui-account-card { min-width: 0; border: 1px solid var(--ui-border); border-radius: 7px; background: var(--ui-white); }
+.lf-admin-ui .ui-account-card--main { flex: 999 1 560px; }
+.lf-admin-ui .ui-account-side { display: grid; flex: 1 1 320px; gap: 24px; min-width: 0; }
+.lf-admin-ui .ui-account-card__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--ui-color-eceef3); }
+.lf-admin-ui .ui-account-card__head h2 { margin: 0; font-size: 15px; font-weight: 500; }
+.lf-admin-ui .ui-account-card__head .ui-caption { margin: 2px 0 0; }
+.lf-admin-ui .ui-account-card__body { padding: 20px; }
+.lf-admin-ui .ui-account-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 24px; margin: 0; padding: 4px 20px 20px; }
+.lf-admin-ui .ui-account-fields > div { display: grid; gap: 6px; min-width: 0; padding: 16px 0; border-bottom: 1px solid var(--ui-color-eceef3); }
+.lf-admin-ui .ui-account-fields dt { color: var(--ui-muted); font-size: 12px; }
+.lf-admin-ui .ui-account-fields dd { margin: 0; overflow-wrap: anywhere; }
+.lf-admin-ui .ui-account-fields__empty { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.lf-admin-ui .ui-account-fields__empty > span { color: var(--ui-muted); }
+.lf-admin-ui .ui-account-add { padding: 4px 10px; border: 0; border-radius: 999px; background: var(--ui-color-eef0fb); color: var(--ui-primary); font: inherit; font-size: 12px; font-weight: 500; cursor: pointer; }
+.lf-admin-ui .ui-account-form { display: grid; gap: 20px; padding: 20px; }
+.lf-admin-ui .ui-account-form__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 22px; }
+.lf-admin-ui .ui-account-form__static { display: flex; align-items: center; min-height: var(--ui-control-height); color: var(--ui-muted); }
+.lf-admin-ui .ui-account-form__actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px; padding-top: 20px; border-top: 1px solid var(--ui-color-eceef3); }
+.lf-admin-ui .ui-account-form__actions .ui-field__error { margin-right: auto; }
+.lf-admin-ui .ui-account-rows { display: grid; padding: 4px 20px 16px; }
+.lf-admin-ui .ui-account-row { display: flex; align-items: center; gap: 14px; padding: 14px 0; }
+.lf-admin-ui .ui-account-row + .ui-account-row { border-top: 1px solid var(--ui-color-eceef3); }
+.lf-admin-ui .ui-account-row__icon { display: grid; flex: none; place-items: center; width: 40px; height: 40px; border-radius: 7px; background: var(--ui-color-eef0fb); color: var(--ui-primary); }
+.lf-admin-ui .ui-account-row__icon--success { background: var(--ui-success-soft); color: var(--ui-success); }
+.lf-admin-ui .ui-account-row__icon .ui-icon { width: 18px; height: 18px; }
+.lf-admin-ui .ui-account-row__text { display: grid; flex: 1; min-width: 0; }
+.lf-admin-ui .ui-account-row__text b { font-weight: 500; }
+.lf-admin-ui .ui-account-row__text small { color: var(--ui-muted); font-size: 12px; overflow-wrap: anywhere; }
+.lf-admin-ui .ui-account-row > .ui-button { flex: none; }
+@media (max-width: 640px) {
+    .lf-admin-ui .ui-account-hero { padding: 20px; }
+    .lf-admin-ui .ui-account-fields, .lf-admin-ui .ui-account-form__grid { grid-template-columns: 1fr; }
+    .lf-admin-ui .ui-account-row { flex-wrap: wrap; }
+}
+
+/* Password field with a show/hide eye button inside the input. */
+.lf-admin-ui .ui-password { position: relative; display: flex; }
+.lf-admin-ui .ui-password input { flex: 1; min-width: 0; padding-right: 40px; }
+.lf-admin-ui .ui-password__toggle { position: absolute; top: 50%; right: 4px; display: grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 0; border-radius: var(--ui-control-radius); background: transparent; color: var(--ui-muted); transform: translateY(-50%); }
+.lf-admin-ui .ui-password__toggle:hover { color: var(--ui-text); background: var(--ui-color-f2f3f6); }
+.lf-admin-ui .ui-password__toggle .ui-icon { width: 18px; height: 18px; }

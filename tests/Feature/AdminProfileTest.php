@@ -52,9 +52,11 @@ class AdminProfileTest extends TestCase
             ->assertDontSeeText(__('lf.LF_navigation_group_admin_account_organization'))
             ->assertDontSee('admin-sidebar-link-child is-active', false);
 
-        $response->assertSee('class="ui-dash-card"', false)
+        $response->assertSee('class="ui-account-card ui-account-card--main"', false)
             ->assertSee('data-ui-dialog-form-scope', false)
-            ->assertSee('data-url="https://tenant-a.localhost/admin/my-account?return=page"', false)
+            // Personal information is edited in place on the page and comes back to it after saving.
+            ->assertSee('action="https://tenant-a.localhost/admin/my-account"', false)
+            ->assertSee('name="return" value="page"', false)
             ->assertSee('data-url="https://tenant-a.localhost/admin/my-account/password"', false)
             ->assertSeeText(__('lf.LF_profile_group_admin_personal'))
             ->assertSeeText(__('lf.LF_profile_group_admin_security'))
