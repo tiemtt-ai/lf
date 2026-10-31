@@ -2862,3 +2862,45 @@
 .lf-admin-ui .ui-learning-group .ui-learning-group__path { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; color: var(--ui-muted); font-weight: 400; }
 .lf-admin-ui .ui-learning-group .ui-learning-group__leaf { color: var(--ui-text); font-weight: 500; }
 .lf-admin-ui .ui-learning-group__sep { color: var(--ui-muted); }
+
+/* Course Template publish tab: summary card with the publish action, then one card per readiness group. */
+.lf-admin-ui.ui-publish { display: grid; gap: 16px; }
+.lf-admin-ui.ui-publish > .mk-section { margin-top: 0; }
+.lf-admin-ui .ui-publish .ui-summary-head .ui-caption { margin: 4px 0 0; }
+.lf-admin-ui .ui-publish__summary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.lf-admin-ui .ui-publish__summary a { color: var(--ui-primary); font-size: 13px; }
+.lf-admin-ui .ui-publish__change { display: flex; align-items: center; gap: 8px; margin: 0 20px 18px; padding: 10px 12px; border-radius: var(--ui-control-radius); background: var(--ui-warning-soft); color: var(--ui-warning); font-size: 13px; }
+.lf-admin-ui .ui-publish__change.is-unchanged { background: var(--ui-success-soft); color: var(--ui-success); }
+.lf-admin-ui .ui-publish__change .ui-icon { width: 16px; height: 16px; flex: none; }
+.lf-admin-ui .ui-publish__hint { margin: 0; padding: 12px 20px; border-top: 1px solid var(--ui-color-eceef3); color: var(--ui-muted); font-size: 13px; }
+.lf-admin-ui .ui-publish-check { border-left-width: 3px; }
+.lf-admin-ui .ui-publish-check--danger { border-left-color: var(--ui-button-danger); }
+.lf-admin-ui .ui-publish-check--warning { border-left-color: var(--ui-warning); }
+.lf-admin-ui .ui-publish-check--success { border-left-color: var(--ui-success); }
+.lf-admin-ui .ui-publish-check__head { padding: 16px 20px; }
+.lf-admin-ui .ui-publish-check__head h3 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 16px; font-weight: 600; }
+.lf-admin-ui .ui-publish-check--danger .ui-publish-check__head h3 { color: var(--ui-button-danger); }
+.lf-admin-ui .ui-publish-check--warning .ui-publish-check__head h3 { color: var(--ui-warning); }
+.lf-admin-ui .ui-publish-check--success .ui-publish-check__head h3 { color: var(--ui-success); }
+.lf-admin-ui .ui-publish-check__head .ui-caption { margin: 4px 0 0; }
+.lf-admin-ui .ui-publish-issues { margin: 0; padding: 0; list-style: none; }
+.lf-admin-ui .ui-publish-issues li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: start; gap: 12px; padding: 14px 20px; border-top: 1px solid var(--ui-color-eceef3); }
+.lf-admin-ui .ui-publish-issues__no { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--ui-color-eef0f5); color: var(--ui-muted); font-size: 12px; font-weight: 600; }
+.lf-admin-ui .ui-publish-check--danger .ui-publish-issues__no { background: var(--ui-danger-soft); color: var(--ui-button-danger); }
+.lf-admin-ui .ui-publish-check--warning .ui-publish-issues__no { background: var(--ui-warning-soft); color: var(--ui-warning); }
+.lf-admin-ui .ui-publish-issues__body { display: grid; gap: 2px; min-width: 0; font-size: 13px; color: var(--ui-muted); overflow-wrap: anywhere; }
+.lf-admin-ui .ui-publish-issues__body strong { color: var(--ui-text); font-size: 14px; font-weight: 500; }
+.lf-admin-ui .ui-publish-issues .ui-button { white-space: nowrap; }
+@media (max-width: 767.98px) {
+    .lf-admin-ui .ui-publish__summary { grid-template-columns: minmax(0, 1fr); }
+    .lf-admin-ui .ui-publish-issues li { grid-template-columns: auto minmax(0, 1fr); }
+    .lf-admin-ui .ui-publish-issues .ui-button { grid-column: 2; justify-self: start; }
+}
+.lf-admin-ui .ui-publish__summary { padding-bottom: 16px; }
+.lf-admin-ui .ui-publish__summary > .ui-summary__item + .ui-summary__item { padding-left: 28px; border-left: 1px solid var(--ui-color-eceef3); }
+.lf-admin-ui .ui-publish__summary dd { font-weight: 500; }
+.lf-admin-ui .ui-publish__summary .ui-summary__version-meta { margin-top: 2px; }
+@media (max-width: 767.98px) {
+    .lf-admin-ui .ui-publish__summary > .ui-summary__item + .ui-summary__item { padding-left: 0; border-left: 0; }
+}
+.lf-admin-ui.ui-publish .ui-publish__change { margin: 0 20px 18px; }

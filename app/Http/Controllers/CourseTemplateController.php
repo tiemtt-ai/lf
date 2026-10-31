@@ -288,10 +288,12 @@ class CourseTemplateController extends Controller
 
         $customerId = $this->customerId();
         $this->findTemplate($customerId, $id);
+        $data = $request->validate(['working_revision' => ['nullable', 'integer', 'min:0']]);
         $version = $this->publishingService->publish(
             $customerId,
             $id,
-            (int) $request->user()->id
+            (int) $request->user()->id,
+            isset($data['working_revision']) ? (int) $data['working_revision'] : null
         );
 
         return redirect()

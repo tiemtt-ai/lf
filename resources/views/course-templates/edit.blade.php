@@ -64,7 +64,7 @@
                 {{ session('course_template_created_guidance') }}
             </p>
         </div>
-    @elseif (session('success') && ! in_array($activeTab, ['information', 'structure', 'teachers'], true))
+    @elseif (session('success') && ! in_array($activeTab, ['information', 'structure', 'teachers', 'publish'], true))
         {{-- These tabs show the message as a toast. --}}
         <div class="admin-alert admin-alert-success admin-form-card">
             {{ session('success') }}
@@ -314,162 +314,137 @@
         <section id="course-template-tab-publish"
                  class="course-template-tab-panel"
                  @if ($activeTab !== 'publish') hidden @endif>
-            <div class="admin-card admin-form-card course-template-publish-card">
-                <h2 id="course-template-publish-title"
-                    class="admin-form-section-title">
-                    {{ __('lf.LF_course_template_publish_title') }}
-                </h2>
+            {{-- Inline @php only: this view already uses @php(...), which cannot be mixed with @php blocks. Unchanged = the working revision produced the current Version. --}}
+            @php($canPublish = request()->user()?->role === 'customer_admin')
+            @php($publishBlockers = $publishReadiness->blockers())
+            @php($publishWarnings = $publishReadiness->warnings())
+            @php($nextVersionNumber = (int) ($latestVersion?->version_number ?? 0) + 1)
+            @php($publishUnchanged = $currentVersion && (int) $currentVersion->source_working_revision === (int) $template->working_revision)
+            <div class="lf-admin-ui lf-admin-ui--list ui-publish">
+                <x-ui-list-toasts />
 
-                <dl class="course-template-publish-summary"
-                    aria-labelledby="course-template-publish-title">
-                    <div>
-                        <dt>{{ __('lf.LF_course_template_publish_current_working') }}</dt>
-                        <dd>
-                            {{ __('lf.LF_course_template_publish_current_draft_value', [
-                                'status' => __('lf.LF_course_template_common_'.$template->status),
-                                'revision' => $template->working_revision,
-                            ]) }}
-                        </dd>
-                    </div>
-                    <div>
-                        <dt>{{ __('lf.LF_course_template_publish_current_version') }}</dt>
-                        <dd @class(['is-empty' => ! $currentVersion])>
-                            @if ($currentVersion)
-                                {{ __('lf.LF_course_template_version_number', [
-                                    'version' => $currentVersion->version_number,
-                                ]) }}
-                                <span class="badge badge-success">
-                                    {{ __('lf.LF_course_template_version_current') }}
-                                </span>
+                <section class="mk-section" aria-labelledby="course-template-publish-title">
+                    <div class="ui-summary-head">
+                        <div>
+                            <h2 id="course-template-publish-title">{{ __('lf.LF_course_template_publish_title') }}</h2>
+                            <p class="ui-caption">{{ __('lf.LF_course_template_publish_next_version', ['version' => $nextVersionNumber]) }}</p>
+                        </div>
+                        <div class="ui-publish__action">
+                            @if ($canPublish)
+                                <form method="POST" action="{{ route($routePrefix.'.publish', $template->id) }}"
+                                      data-lf-confirm="{{ __('lf.LF_course_template_publish_confirm', ['version' => $nextVersionNumber, 'revision' => $template->working_revision]) }}"
+                                      data-lf-confirm-label="{{ __('lf.LF_course_template_publish_action') }}">
+                                    @csrf
+                                    <input type="hidden" name="working_revision" value="{{ $template->working_revision }}">
+                                    <button type="submit"
+                                            class="ui-button ui-button--primary cursor-interaction" data-publish-button
+                                            @disabled(! $publishReadiness->isReady())
+                                            @if (! $publishReadiness->isReady()) aria-disabled="true" aria-describedby="course-template-publish-disabled-help" @endif>
+                                        <x-backend-icon name="upload" class="ui-icon" />{{ __('lf.LF_course_template_publish_action') }}
+                                    </button>
+                                </form>
                             @else
-                                {{ __('lf.LF_course_template_publish_not_available') }}
+                                <button type="button" class="ui-button ui-button--primary" data-publish-button disabled aria-disabled="true"
+                                        aria-describedby="course-template-publish-role-help">
+                                    <x-backend-icon name="lock" class="ui-icon" />{{ __('lf.LF_course_template_publish_action') }}
+                                </button>
                             @endif
-                        </dd>
+                        </div>
                     </div>
-                    <div>
-                        <dt>{{ __('lf.LF_course_template_publish_last_time') }}</dt>
-                        <dd @class(['is-empty' => ! $latestVersion?->published_at])>
-                            {{ $latestVersion?->published_at
-                                ? \Illuminate\Support\Carbon::parse(
-                                    $latestVersion->published_at
-                                )->format('d/m/Y H:i')
-                                : __('lf.LF_course_template_publish_not_available') }}
-                        </dd>
-                    </div>
-                </dl>
 
-                @if ($publishReadiness->blockers()->isNotEmpty())
-                    <section class="admin-alert admin-alert-danger course-template-readiness course-template-readiness-blockers"
-                             role="alert"
-                             aria-labelledby="course-template-readiness-blockers-title">
-                        <header class="course-template-readiness-header">
-                            <h3 id="course-template-readiness-blockers-title" class="admin-alert-title">
-                                {{ trans_choice(
-                                    'lf.LF_course_template_readiness_blocked_count',
-                                    $publishReadiness->blockers()->count(),
-                                    ['count' => $publishReadiness->blockers()->count()]
-                                ) }}
-                            </h3>
-                            <p class="admin-alert-guidance">{{ __('lf.LF_course_template_readiness_blocked_help') }}</p>
-                        </header>
-                        <ol class="course-template-readiness-list">
-                            @foreach ($publishReadiness->blockers() as $issue)
-                                <li data-readiness-code="{{ $issue->code }}">
-                                    <div class="course-template-readiness-message">
-                                        <strong class="course-template-readiness-issue-title">{{ __($readinessIssueTitleKey($issue)) }}</strong>
-                                        <span>{{ $issue->message() }}</span>
-                                    </div>
-                                    <a class="admin-text-action" href="{{ $issue->targetUrl(
-                                        $routePrefix,
-                                        (int) $template->id
-                                    ) }}">
-                                        {{ __($readinessIssueActionKey($issue)) }}
-                                    </a>
-                                </li>
-                            @endforeach
-                        </ol>
-                    </section>
-                @endif
-
-                @if ($publishReadiness->warnings()->isNotEmpty())
-                    <section class="admin-alert admin-alert-warning course-template-readiness course-template-readiness-warnings"
-                             role="status"
-                             aria-live="polite"
-                             aria-labelledby="course-template-readiness-warnings-title">
-                        <header class="course-template-readiness-header">
-                            <h3 id="course-template-readiness-warnings-title" class="admin-alert-title">
-                                {{ trans_choice(
-                                    'lf.LF_course_template_readiness_warning_count',
-                                    $publishReadiness->warnings()->count(),
-                                    ['count' => $publishReadiness->warnings()->count()]
-                                ) }}
-                            </h3>
-                            <p class="admin-alert-guidance">{{ __('lf.LF_course_template_readiness_warning_help') }}</p>
-                        </header>
-                        <ul class="course-template-readiness-list course-template-readiness-warning-list">
-                            @foreach ($publishReadiness->warnings() as $issue)
-                                <li data-readiness-warning-code="{{ $issue->code }}">
-                                    <div class="course-template-readiness-message">
-                                        <strong class="course-template-readiness-issue-title">{{ __($readinessIssueTitleKey($issue)) }}</strong>
-                                        <span>{{ $issue->message() }}</span>
-                                    </div>
-                                    <a class="admin-text-action" href="{{ $issue->targetUrl(
-                                        $routePrefix,
-                                        (int) $template->id
-                                    ) }}">
-                                        {{ __($readinessIssueActionKey($issue)) }}
-                                    </a>
-                                </li>
-                            @endforeach
-                        </ul>
-                    </section>
-                @endif
-
-                @if ($publishReadiness->blockers()->isEmpty() && $publishReadiness->warnings()->isEmpty())
-                    <section class="admin-alert admin-alert-success course-template-readiness course-template-readiness-ready"
-                             role="status"
-                             aria-labelledby="course-template-readiness-ready-title">
-                        <header class="course-template-readiness-header">
-                            <h3 id="course-template-readiness-ready-title" class="admin-alert-title">{{ __('lf.LF_course_template_readiness_ready') }}</h3>
-                            <p class="admin-alert-guidance">{{ __('lf.LF_course_template_readiness_ready_help') }}</p>
-                        </header>
-                    </section>
-                @endif
-
-                <div class="admin-form-actions course-template-publish-actions">
-                    @if (request()->user()?->role === 'customer_admin')
-                        <form method="POST"
-                              action="{{ route(
-                                  $routePrefix.'.publish',
-                                  $template->id
-                              ) }}"
-                              @if (! $publishReadiness->isReady()) aria-describedby="course-template-publish-disabled-help" @endif>
-                            @csrf
-                            <button type="submit"
-                                    class="btn btn-primary course-template-publish-button"
-                                    @disabled(! $publishReadiness->isReady())
-                                    @if (! $publishReadiness->isReady()) aria-disabled="true" aria-describedby="course-template-publish-disabled-help" @endif>
-                                {{ __('lf.LF_course_template_publish_action') }}
-                            </button>
-                            @if (! $publishReadiness->isReady())
-                                <p id="course-template-publish-disabled-help" class="course-template-publish-disabled-help">
-                                    {{ trans_choice(
-                                        'lf.LF_course_template_publish_disabled_help',
-                                        $publishReadiness->blockers()->count(),
-                                        ['count' => $publishReadiness->blockers()->count()]
-                                    ) }}
-                                </p>
-                            @endif
-                        </form>
-                    @else
-                        <button type="button"
-                                class="btn btn-primary course-template-publish-button"
-                                disabled
-                                aria-disabled="true">
-                            {{ __('lf.LF_course_template_publish_action') }}
-                        </button>
+                    <dl class="ui-summary ui-publish__summary" data-publish-summary>
+                        <div class="ui-summary__item">
+                            <dt>{{ __('lf.LF_course_template_publish_current_working') }}</dt>
+                            <dd class="ui-summary__version-main">
+                                <span class="ui-status ui-status--{{ $template->status }}">{{ __('lf.LF_course_template_common_'.$template->status) }}</span>
+                                <span>{{ __('lf.LF_course_template_publish_revision', ['revision' => $template->working_revision]) }}</span>
+                            </dd>
+                        </div>
+                        <div class="ui-summary__item">
+                            <dt>{{ __('lf.LF_course_template_publish_current_version') }}</dt>
+                            <dd>
+                                @if ($currentVersion)
+                                    <span class="ui-summary__version-main">
+                                        <span>{{ __('lf.LF_course_template_version_number', ['version' => $currentVersion->version_number]) }}</span>
+                                        <span class="ui-status ui-status--active">{{ __('lf.LF_course_template_version_current') }}</span>
+                                    </span>
+                                    @if ($canPublish)
+                                        <span class="ui-summary__version-meta">
+                                            <a class="ui-link" href="{{ route('admin.course-templates.versions.show', ['templateId' => $template->id, 'versionId' => $currentVersion->id]) }}">{{ __('lf.LF_course_template_history_view') }}</a>
+                                        </span>
+                                    @endif
+                                @else
+                                    <span class="ui-summary__empty">{{ __('lf.LF_course_template_publish_not_available') }}</span>
+                                @endif
+                            </dd>
+                        </div>
+                        <div class="ui-summary__item">
+                            <dt>{{ __('lf.LF_course_template_publish_last_time') }}</dt>
+                            <dd>
+                                @if ($latestVersion?->published_at)
+                                    {{ \Illuminate\Support\Carbon::parse($latestVersion->published_at)->format('d/m/Y H:i') }}
+                                @else
+                                    <span class="ui-summary__empty">{{ __('lf.LF_course_template_publish_not_available') }}</span>
+                                @endif
+                            </dd>
+                        </div>
+                    </dl>
+                    @if ($currentVersion)
+                        <p @class(['ui-publish__change', 'is-unchanged' => $publishUnchanged]) data-publish-change="{{ $publishUnchanged ? 'none' : 'pending' }}">
+                            <x-backend-icon :name="$publishUnchanged ? 'check' : 'clock'" class="ui-icon" />
+                            {{ $publishUnchanged
+                                ? __('lf.LF_course_template_publish_no_changes', ['version' => $currentVersion->version_number])
+                                : __('lf.LF_course_template_publish_changes_pending', ['version' => $currentVersion->version_number]) }}
+                        </p>
                     @endif
-                </div>
+                    @if ($canPublish && ! $publishReadiness->isReady())
+                        <p id="course-template-publish-disabled-help" class="ui-publish__hint">
+                            {{ trans_choice('lf.LF_course_template_publish_disabled_help', $publishBlockers->count(), ['count' => $publishBlockers->count()]) }}
+                        </p>
+                    @elseif (! $canPublish)
+                        <p id="course-template-publish-role-help" class="ui-publish__hint">{{ __('lf.LF_course_template_publish_admin_only') }}</p>
+                    @endif
+                </section>
+
+                @foreach ([
+                    'blockers' => [$publishBlockers, 'danger', 'alert', 'LF_course_template_readiness_blocked_count', 'LF_course_template_readiness_blocked_help', 'data-readiness-code'],
+                    'warnings' => [$publishWarnings, 'warning', 'status', 'LF_course_template_readiness_warning_count', 'LF_course_template_readiness_warning_help', 'data-readiness-warning-code'],
+                ] as $kind => [$issues, $tone, $role, $countKey, $helpKey, $codeAttribute])
+                    @if ($issues->isNotEmpty())
+                        <section class="mk-section ui-publish-check ui-publish-check--{{ $tone }}" data-publish-check="{{ $kind }}"
+                                 role="{{ $role }}" @if ($role === 'status') aria-live="polite" @endif
+                                 aria-labelledby="course-template-readiness-{{ $kind }}-title">
+                            <header class="ui-publish-check__head">
+                                <h3 id="course-template-readiness-{{ $kind }}-title">{{ trans_choice('lf.'.$countKey, $issues->count(), ['count' => $issues->count()]) }}</h3>
+                                <p class="ui-caption">{{ __('lf.'.$helpKey) }}</p>
+                            </header>
+                            <ol class="ui-publish-issues">
+                                @foreach ($issues as $issue)
+                                    <li {{ $codeAttribute }}="{{ $issue->code }}">
+                                        <span class="ui-publish-issues__no" aria-hidden="true">{{ $loop->iteration }}</span>
+                                        <div class="ui-publish-issues__body">
+                                            <strong>{{ __($readinessIssueTitleKey($issue)) }}</strong>
+                                            <span>{{ $issue->message() }}</span>
+                                        </div>
+                                        <a class="ui-button ui-button--sm ui-button--outline cursor-interaction" href="{{ $issue->targetUrl($routePrefix, (int) $template->id) }}">
+                                            {{ __($readinessIssueActionKey($issue)) }}
+                                        </a>
+                                    </li>
+                                @endforeach
+                            </ol>
+                        </section>
+                    @endif
+                @endforeach
+
+                @if ($publishBlockers->isEmpty() && $publishWarnings->isEmpty())
+                    <section class="mk-section ui-publish-check ui-publish-check--success" data-publish-check="ready"
+                             role="status" aria-labelledby="course-template-readiness-ready-title">
+                        <header class="ui-publish-check__head">
+                            <h3 id="course-template-readiness-ready-title"><x-backend-icon name="check" class="ui-icon" />{{ __('lf.LF_course_template_readiness_ready') }}</h3>
+                            <p class="ui-caption">{{ __('lf.LF_course_template_readiness_ready_help') }}</p>
+                        </header>
+                    </section>
+                @endif
             </div>
         </section>
 

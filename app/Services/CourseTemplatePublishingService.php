@@ -21,15 +21,21 @@ class CourseTemplatePublishingService
     public function publish(
         int $customerId,
         int $templateId,
-        int $publishedBy
+        int $publishedBy,
+        ?int $expectedRevision = null
     ): object {
         return DB::transaction(function () use (
             $customerId,
             $templateId,
-            $publishedBy
+            $publishedBy,
+            $expectedRevision
         ): object {
             $graph = $this->readinessService->load($customerId, $templateId, true);
             $template = $graph->template;
+            // The admin confirmed one working revision; a newer edit must be reviewed before it is published.
+            if ($expectedRevision !== null && (int) $template->working_revision !== $expectedRevision) {
+                throw ValidationException::withMessages(['publish' => __('lf.LF_course_template_publish_stale')]);
+            }
             $sections = $graph->sections;
             $lessons = $graph->lessons;
             $activities = $graph->activities;

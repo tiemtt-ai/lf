@@ -301,6 +301,12 @@ locked working Template inside its transaction and does not change the working
 Template status. Template lifecycle changes never update, invalidate or
 silently migrate an existing Version, Product Item, Enrollment or Progress.
 
+The Admin publish action asks for confirmation and sends the `working_revision`
+shown on the page. If the locked Template has another revision, publish is
+rejected without creating a Version, so edits made after the page was opened
+are reviewed before they become immutable. A direct request without
+`working_revision` keeps the readiness-only behaviour.
+
 ## Course Template Publish — Information Readiness
 
 This section is the canonical policy for validating working Course Template

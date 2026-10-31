@@ -224,11 +224,11 @@ class CourseTemplateManagementTest extends TestCase
                 ."{$templateId}/edit?tab=publish"
             )
             ->assertSeeText('Bản chỉnh sửa hiện tại')
-            ->assertSeeText('Bản nháp · Bản chỉnh sửa 1')
+            ->assertSeeText('Bản chỉnh sửa 1')
             ->assertSeeText('Phiên bản đã xuất bản hiện tại')
             ->assertSeeText('Lần xuất bản gần nhất')
             ->assertSeeText('Xuất bản')
-            ->assertDontSee('course-template-publish-button" disabled', false);
+            ->assertSee('data-publish-button', false);
 
         $this->actingAs($admin)
             ->get(

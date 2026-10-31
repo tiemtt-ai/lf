@@ -2263,8 +2263,8 @@ class MediaProcessingSubstrateTest extends TestCase
             ->assertOk()
             ->assertSee('name="speech_to_text"', false)
             ->assertSee('checked', false)
-            ->assertSeeText('Tự động phiên âm nội dung audio')
-            ->assertSeeText('Không tick: hệ thống chỉ lưu và quét an toàn file');
+            ->assertSeeText('Phiên âm tự động')
+            ->assertSeeText('Không bật: hệ thống chỉ lưu và quét an toàn file');
     }
 
     public function test_video_form_shows_opt_in_and_named_qualification_status(): void
@@ -2283,8 +2283,8 @@ class MediaProcessingSubstrateTest extends TestCase
             ->assertSee('x-show="languageProfileEnabled()"', false)
             ->assertSee(':disabled="!languageProfileEnabled()"', false)
             ->assertSee('disabled', false)
-            ->assertSeeText(__('lf.LF_course_template_activity_video_stt_option'))
-            ->assertSeeText('Chỉ dùng khi bật phiên âm.')
+            ->assertSeeText(__('lf.LF_activity_ai_title_video'))
+            ->assertSeeText(__('lf.LF_activity_ai_languages_hint'))
             ->assertSeeText(__('lf.LF_media_processing_audio_limits', ['minutes' => 120, 'gib' => 1]))
             ->assertSeeText(__('lf.LF_media_processing_document_limits', ['pages' => 100, 'ocr_pages' => 100, 'regions' => 100, 'total' => 5000]))
             ->assertSeeText(__('lf.LF_media_processing_processing_requirements'))

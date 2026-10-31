@@ -113,7 +113,7 @@ class CourseTemplatePublishingTest extends TestCase
             if ($status === 'active') {
                 $readiness
                     ->assertDontSee('data-readiness-code="template_status"', false)
-                    ->assertDontSee('course-template-publish-button" disabled', false);
+                    ->assertDontSee('aria-describedby="course-template-publish-disabled-help"', false);
                 $this->actingAs($admin)
                     ->from($editUrl)
                     ->post($publishUrl)
@@ -1057,7 +1057,7 @@ class CourseTemplatePublishingTest extends TestCase
             ->assertSeeText('Phân công giáo viên')
             ->assertSee('?tab=teachers#course-template-teachers', false)
             ->assertSee('data-readiness-warning-code="template_teacher_missing"', false)
-            ->assertDontSee('course-template-publish-button" disabled', false);
+            ->assertDontSee('aria-describedby="course-template-publish-disabled-help"', false);
 
         DB::table('core_course_templates')->where('id', $templateId)->update(['publisher_name' => null, 'working_revision' => 4]);
         DB::table('media_file_usages')->where('owner_type', 'course_activity')->where('owner_id', $activityId)->delete();
@@ -1076,15 +1076,16 @@ class CourseTemplatePublishingTest extends TestCase
             ->assertSee('?tab=structure', false)
             ->assertSee("course-template-lesson-{$lessonId}-activities", false);
         $content = $response->getContent();
-        $this->assertStringContainsString('class="course-template-publish-summary"', $content);
-        $this->assertStringContainsString('class="course-template-readiness-message"', $content);
-        $this->assertStringContainsString('class="admin-form-actions course-template-publish-actions"', $content);
+        $this->assertStringContainsString('data-publish-summary', $content);
+        $this->assertStringContainsString('class="ui-publish-issues__body"', $content);
+        $this->assertStringContainsString('name="working_revision" value="4"', $content);
+        $this->assertStringContainsString('data-lf-confirm="Xuất bản Phiên bản 1 từ Bản chỉnh sửa 4?', $content);
         $document = new \DOMDocument;
         @$document->loadHTML($content);
         $xpath = new \DOMXPath($document);
-        $this->assertSame(1, $xpath->query('//section[contains(@class, "course-template-readiness-blockers")][@role="alert"][@aria-labelledby="course-template-readiness-blockers-title"]')->length);
-        $this->assertSame(1, $xpath->query('//button[contains(@class, "course-template-publish-button") and @disabled]')->length);
-        $this->assertSame(1, $xpath->query('//button[contains(@class, "course-template-publish-button")][@aria-describedby="course-template-publish-disabled-help"]')->length);
+        $this->assertSame(1, $xpath->query('//section[@data-publish-check="blockers"][@role="alert"][@aria-labelledby="course-template-readiness-blockers-title"]')->length);
+        $this->assertSame(1, $xpath->query('//button[@data-publish-button and @disabled]')->length);
+        $this->assertSame(1, $xpath->query('//button[@data-publish-button][@aria-describedby="course-template-publish-disabled-help"]')->length);
         $this->assertSame(1, substr_count($response->getContent(), 'data-readiness-code="activity_media"'));
         $informationTarget = $xpath->query('//li[@data-readiness-code="template_publisher"]//a')->item(0);
         $contentTarget = $xpath->query('//li[@data-readiness-code="activity_media"]//a')->item(0);
@@ -1099,20 +1100,10 @@ class CourseTemplatePublishingTest extends TestCase
         );
         $this->assertStringNotContainsString('?tab=content', $contentTarget->getAttribute('href'));
 
-        $css = file_get_contents(resource_path('css/admin/admin-pages.css'));
-        $this->assertStringContainsString('repeat(auto-fit, minmax(min(100%, 240px), 1fr))', $css);
-        $this->assertStringContainsString('.course-template-readiness .course-template-readiness-list {', $css);
-        $this->assertMatchesRegularExpression(
-            '/\.course-template-readiness \.course-template-readiness-list\s*\{[^}]*padding:\s*0;/s',
-            $css
-        );
-        $this->assertStringContainsString('.course-template-readiness-list li {', $css);
-        $this->assertStringContainsString('grid-template-columns: minmax(0, 1fr) auto;', $css);
-        $this->assertStringContainsString('border-top: 1px solid color-mix(in srgb, currentColor 18%, transparent);', $css);
-        preg_match('/\.course-template-readiness-list li \{([^}]*)\}/s', $css, $readinessItemRule);
-        $this->assertStringNotContainsString('background:', $readinessItemRule[1] ?? '');
-        $this->assertStringContainsString('@media (max-width: 575.98px)', $css);
-        $this->assertStringContainsString('overflow-wrap: anywhere;', $css);
+        $css = file_get_contents(resource_path('css/admin/admin-ui-kit.css'));
+        $this->assertStringContainsString('.lf-admin-ui .ui-publish-issues li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto;', $css);
+        $this->assertStringContainsString('.lf-admin-ui .ui-publish-issues__body { display: grid; gap: 2px; min-width: 0; font-size: 13px; color: var(--ui-muted); overflow-wrap: anywhere; }', $css);
+        $this->assertStringNotContainsString('course-template-readiness', file_get_contents(resource_path('css/admin/admin-pages.css')));
     }
 
     public function test_direct_publish_post_cannot_bypass_readiness_and_correction_is_recalculated(): void
@@ -1135,11 +1126,19 @@ class CourseTemplatePublishingTest extends TestCase
         DB::table('core_course_templates')->where('id', $templateId)->update(['working_revision' => 4]);
         $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=publish")
             ->assertOk()
-            ->assertSeeText('Hoạt động · Bản chỉnh sửa 4')
+            ->assertSeeText('Bản chỉnh sửa 4')
             ->assertSeeText('Sẵn sàng xuất bản');
-        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-templates/{$templateId}/publish")
+        // A page opened on an older revision must not publish edits the admin has not reviewed.
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-templates/{$templateId}/publish", ['working_revision' => 3])
+            ->assertSessionHasErrors(['publish' => 'Template đã thay đổi sau khi bạn mở trang. Hãy tải lại trang và kiểm tra trước khi xuất bản.']);
+        $this->assertDatabaseMissing('core_course_template_versions', ['template_id' => $templateId]);
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-templates/{$templateId}/publish", ['working_revision' => 4])
             ->assertRedirect("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=publish");
-        $this->assertDatabaseHas('core_course_template_versions', ['template_id' => $templateId, 'status' => 'published']);
+        $this->assertDatabaseHas('core_course_template_versions', ['template_id' => $templateId, 'status' => 'published', 'source_working_revision' => 4]);
+        $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=publish")
+            ->assertSee('data-publish-change="none"', false)
+            ->assertSeeText('Không có thay đổi kể từ Phiên bản 1.')
+            ->assertSeeText('Lần xuất bản tiếp theo sẽ tạo Phiên bản 2 từ bản chỉnh sửa hiện tại.');
     }
 
     public function test_readiness_reports_empty_content_and_template_media_video_state_without_foreign_details(): void
@@ -3059,12 +3058,12 @@ class CourseTemplatePublishingTest extends TestCase
             ->assertSee('?tab=information#estimated_lesson_count', false)
             ->assertSee('data-readiness-warning-code="template_estimated_lesson_count_mismatch"', false)
             ->assertDontSee('data-readiness-code="template_estimated_lesson_count_mismatch"', false)
-            ->assertDontSee('course-template-publish-button" disabled', false);
+            ->assertDontSee('aria-describedby="course-template-publish-disabled-help"', false);
         $warningDocument = new \DOMDocument;
         @$warningDocument->loadHTML($warningResponse->getContent());
         $warningXpath = new \DOMXPath($warningDocument);
-        $this->assertSame(1, $warningXpath->query('//section[contains(@class, "course-template-readiness-warnings")][@role="status"][@aria-live="polite"]')->length);
-        $this->assertSame(0, $warningXpath->query('//section[contains(@class, "course-template-readiness-blockers")]//*[@data-readiness-warning-code]')->length);
+        $this->assertSame(1, $warningXpath->query('//section[@data-publish-check="warnings"][@role="status"][@aria-live="polite"]')->length);
+        $this->assertSame(0, $warningXpath->query('//section[@data-publish-check="blockers"]//*[@data-readiness-warning-code]')->length);
         $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-templates/{$templateId}/publish")
             ->assertSessionDoesntHaveErrors();
         $this->assertSame(3, DB::table('core_course_template_versions')->where('template_id', $templateId)->value('estimated_lesson_count_snapshot'));
@@ -3077,9 +3076,9 @@ class CourseTemplatePublishingTest extends TestCase
         $mixedDocument = new \DOMDocument;
         @$mixedDocument->loadHTML($mixedResponse->getContent());
         $mixedXpath = new \DOMXPath($mixedDocument);
-        $this->assertSame(1, $mixedXpath->query('//section[contains(@class, "course-template-readiness-blockers")]')->length);
-        $this->assertSame(1, $mixedXpath->query('//section[contains(@class, "course-template-readiness-warnings")]')->length);
-        $this->assertSame(0, $mixedXpath->query('//section[contains(@class, "course-template-readiness-blockers")]//*[@data-readiness-warning-code]')->length);
+        $this->assertSame(1, $mixedXpath->query('//section[@data-publish-check="blockers"]')->length);
+        $this->assertSame(1, $mixedXpath->query('//section[@data-publish-check="warnings"]')->length);
+        $this->assertSame(0, $mixedXpath->query('//section[@data-publish-check="blockers"]//*[@data-readiness-warning-code]')->length);
     }
 
     public function test_publish_revalidates_canonical_trusted_embed_state(): void
