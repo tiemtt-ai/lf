@@ -393,6 +393,7 @@ class MediaFileController extends Controller
                 'shared' => ! $mine || $share['scope'] !== MediaShareService::SCOPE_PRIVATE,
                 'duration' => $row->duration_seconds ? sprintf('%02d:%02d', intdiv((int) $row->duration_seconds, 60), (int) $row->duration_seconds % 60) : '',
                 'date' => (string) ($row->created_at ?? ''),
+                'duration_seconds' => $row->duration_seconds ? (int) $row->duration_seconds : null,
                 'usage_count' => $usages->count(),
                 'usages_all' => $places->take(10)->all(),
                 'used' => $usages->isNotEmpty(),

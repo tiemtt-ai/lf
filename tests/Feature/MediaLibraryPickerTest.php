@@ -148,7 +148,8 @@ class MediaLibraryPickerTest extends TestCase
         $this->assertStringEndsWith('}', trim($state));
         $this->assertSame(substr_count($state, '{'), substr_count($state, '}'));
         // Choosing a library Media hides the processing choices that only make sense for a new upload.
-        $this->assertSame(3, substr_count($html, 'x-on:library-media.window') + 2, 'one listener for the three pickers');
+        // The form keeps one listener; each of the three file slots listens for its own type.
+        $this->assertSame(4, substr_count($html, 'x-on:library-media.window'));
         $this->assertGreaterThanOrEqual(5, substr_count($html, '! libraryMedia'));
     }
 

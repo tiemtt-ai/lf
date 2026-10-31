@@ -1067,8 +1067,6 @@ class CourseTemplateActivityManagementTest extends TestCase
 
         foreach ([
             'title',
-            'activity_type',
-            'is_required',
             'completion_rule',
             'is_preview',
             'unlock_rule',
@@ -1168,7 +1166,7 @@ class CourseTemplateActivityManagementTest extends TestCase
         $this->assertActivityTypeSelector($createResponse->getContent());
         $this->assertSame(
             3,
-            $this->xpath($createResponse->getContent())->query('//*[@data-ui-media-slot]')->length
+            $this->xpath($createResponse->getContent())->query('//*[@data-ui-file-slot]')->length
         );
 
         $editResponse = $this->actingAs($admin)
@@ -1182,7 +1180,7 @@ class CourseTemplateActivityManagementTest extends TestCase
         );
         $this->assertSame(
             3,
-            $this->xpath($editResponse->getContent())->query('//*[@data-ui-media-slot]')->length
+            $this->xpath($editResponse->getContent())->query('//*[@data-ui-file-slot]')->length
         );
 
         app()->setLocale('en');
@@ -1571,20 +1569,11 @@ class CourseTemplateActivityManagementTest extends TestCase
         libxml_clear_errors();
         libxml_use_internal_errors($previous);
         $xpath = new \DOMXPath($document);
-        $selectors = $xpath->query(
-            '//select[@id="activity-form-activity_type" and @name="activity_type"'
-            .' and @required]'
-        );
-
-        $this->assertSame(1, $selectors->length);
-        $this->assertSame(
-            1,
-            $this->requiredIndicatorCount($html, 'activity_type')
-        );
+        $radios = $xpath->query('//input[@type="radio" and @name="activity_type"]');
 
         $optionValues = [];
-        foreach ($xpath->query('.//option[@value!=""]', $selectors->item(0)) as $option) {
-            $optionValues[] = $option->getAttribute('value');
+        foreach ($radios as $radio) {
+            $optionValues[] = $radio->getAttribute('value');
         }
 
         $this->assertSame([
@@ -1595,14 +1584,15 @@ class CourseTemplateActivityManagementTest extends TestCase
             'quiz',
             'live_class',
         ], $optionValues);
+        $this->assertSame(
+            1,
+            $xpath->query('//input[@type="radio" and @name="activity_type" and @required]')->length
+        );
 
-        if ($selectedType !== null) {
-            $selectedOptions = $xpath->query(
-                sprintf('.//option[@value="%s" and @selected]', $selectedType),
-                $selectors->item(0)
-            );
-            $this->assertSame(1, $selectedOptions->length);
-        }
+        $checkedType = $selectedType ?? 'video';
+        $checked = $xpath->query('//input[@type="radio" and @name="activity_type" and @checked]');
+        $this->assertSame(1, $checked->length);
+        $this->assertSame($checkedType, $checked->item(0)->getAttribute('value'));
     }
 
     private function assertLessonHasActivityCreateAction(

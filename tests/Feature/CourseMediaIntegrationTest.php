@@ -2099,7 +2099,7 @@ class CourseMediaIntegrationTest extends TestCase
             // Only the slot of the saved type shows the file and can mark it for removal.
             $this->assertSame(1, $this->htmlElementCount(
                 $response->getContent(),
-                '//*[@data-ui-media-slot and @data-saved="true" and @data-saved-preview-url="'.$previewUrl.'"]'
+                '//*[@data-ui-file-slot and @data-saved="true" and @data-saved-preview-url="'.$previewUrl.'"]'
                 .'[.//input[@name="'.$field.'"] and .//input[@name="remove_activity_media"]]'
             ));
             $this->assertSame(1, $this->htmlElementCount(
@@ -2108,7 +2108,7 @@ class CourseMediaIntegrationTest extends TestCase
             ));
             $this->assertSame(2, $this->htmlElementCount(
                 $response->getContent(),
-                '//*[@data-ui-media-slot and @data-saved="false"]'
+                '//*[@data-ui-file-slot and @data-saved="false"]'
             ));
 
             if ($type === 'document') {
@@ -2186,7 +2186,7 @@ class CourseMediaIntegrationTest extends TestCase
                 ->assertDontSee("/activities/{$activityId}/media/document/{$mediaId}", false);
             $this->assertSame(0, $this->htmlElementCount(
                 $response->getContent(),
-                '//*[@data-ui-media-slot and @data-saved="true"]'
+                '//*[@data-ui-file-slot and @data-saved="true"]'
             ));
         }
     }

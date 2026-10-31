@@ -7,6 +7,19 @@
     --ui-control-radius: 5px;
     --ui-background: #f7f8fb;
     --ui-white: #ffffff;
+    --ui-violet: #7a45d1;
+    --ui-violet-soft: #f2ecfc;
+    --ui-teal: #0f8a8a;
+    --ui-teal-soft: #e5f5f5;
+    --ui-orange: #c2620d;
+    --ui-orange-soft: #fdf1e6;
+    --ui-notice-soft: #fff8e1;
+    --ui-notice-border: #f3dc94;
+    --ui-thumb-video-from: #6c7bf0;
+    --ui-thumb-video-to: #4353d8;
+    --ui-thumb-audio-from: #3fb98a;
+    --ui-thumb-audio-to: #1f8a52;
+    --ui-thumb-document-from: #f0a35b;
     --ui-color-e6e8ee: #e6e8ee;
     --ui-text: #232834;
     --ui-color-d34651: #d34651;
@@ -928,6 +941,10 @@
 .lf-admin-ui .ui-modal:has(.ui-modal__form[data-modal-columns="3"]) {
     --modal-columns: 3;
     --modal-width: 1120px
+}
+.lf-admin-ui .ui-modal:has(.ui-modal__form[data-modal-columns="2"]) {
+    --modal-columns: 2;
+    --modal-width: 800px
 }
 /* A field that opens a new row of the grid (the next group of a section), whatever was left on the row before. */
 .lf-admin-ui .ui-modal__grid > .ui-field--row-start {
@@ -2295,9 +2312,9 @@
 .lf-admin-ui .ui-library-pick__item[aria-checked=true] { border-color: var(--ui-primary); background: var(--ui-color-eef0fb); }
 .lf-admin-ui .ui-library-pick__radio { flex: none; width: 18px; height: 18px; margin-top: 21px; border: 1.5px solid var(--ui-border); border-radius: 50%; background: var(--ui-white); }
 .lf-admin-ui .ui-library-pick__item[aria-checked=true] .ui-library-pick__radio { border-color: var(--ui-primary); border-width: 5px; }
-.lf-admin-ui .ui-library-pick__thumb { position: relative; flex: none; display: grid; place-items: center; width: 96px; aspect-ratio: 16 / 9; border-radius: 8px; overflow: hidden; color: #fff; background: linear-gradient(135deg, #6c7bf0, #4353d8); }
-.lf-admin-ui .ui-library-pick__thumb--audio { background: linear-gradient(135deg, #3fb98a, #1f8a52); }
-.lf-admin-ui .ui-library-pick__thumb--document { background: linear-gradient(135deg, #f0a35b, #c2620d); }
+.lf-admin-ui .ui-library-pick__thumb { position: relative; flex: none; display: grid; place-items: center; width: 96px; aspect-ratio: 16 / 9; border-radius: 8px; overflow: hidden; color: var(--ui-white); background: linear-gradient(135deg, var(--ui-thumb-video-from), var(--ui-thumb-video-to)); }
+.lf-admin-ui .ui-library-pick__thumb--audio { background: linear-gradient(135deg, var(--ui-thumb-audio-from), var(--ui-thumb-audio-to)); }
+.lf-admin-ui .ui-library-pick__thumb--document { background: linear-gradient(135deg, var(--ui-thumb-document-from), var(--ui-orange)); }
 .lf-admin-ui .ui-library-pick__thumb .ui-icon { width: 24px; height: 24px; opacity: .92; }
 .lf-admin-ui .ui-library-pick__duration { position: absolute; right: 4px; bottom: 4px; padding: 0 4px; border-radius: 4px; background: rgba(0, 0, 0, .6); font-size: 10.5px; font-weight: 500; line-height: 16px; font-variant-numeric: tabular-nums; }
 .lf-admin-ui .ui-library-pick__main { display: grid; flex: 1; min-width: 0; gap: 2px; }
@@ -2318,7 +2335,6 @@
 .lf-admin-ui .ui-library-pick__note { font-style: italic; overflow-wrap: anywhere; }
 .lf-admin-ui .ui-library-pick__empty { display: grid; gap: 2px; padding: 40px 24px; text-align: center; }
 .lf-admin-ui .ui-library-pick__selected { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lf-admin-ui .ui-library-pick__upload { margin-right: auto; }
 @media (max-width: 640px) {
     .lf-admin-ui .ui-library-pick__toolbar { padding: 12px 16px; }
     .lf-admin-ui .ui-library-pick__thumb { width: 72px; }
@@ -2371,3 +2387,109 @@
 .lf-admin-ui .ui-dash-summary code { font: 13px/1.4 monospace; color: var(--ui-muted); }
 .lf-admin-ui .mk-text-cell--nowrap { white-space: nowrap; } /* email and phone: never broken mid-value; the table scrolls inside its card instead */
 .lf-admin-ui .ux-date input[readonly]:not(:disabled) { background: var(--ui-white)!important; color: var(--ui-text)!important; cursor: pointer; } /* a read-only text field that opens the calendar still reads as editable (beats the grey read-only rule, which is !important) */
+
+/* Activity form: type cards, sections, switches, chips and option cards. */
+.lf-admin-ui .ui-activity-section { display: grid; gap: 16px; padding: 18px 0; border-top: 1px solid var(--ui-color-eceef3); }
+.lf-admin-ui .ui-activity-section:first-of-type { padding-top: 0; border-top: 0; }
+.lf-admin-ui .ui-activity-section > .ui-modal__section-title { margin: 0; padding: 0; border: 0; }
+.lf-admin-ui .ui-activity-sub { display: grid; gap: 8px; }
+.lf-admin-ui .ui-modal__grid--pair { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.lf-admin-ui .ui-field__optional { color: var(--ui-muted); font-weight: 400; }
+.lf-admin-ui .ui-field__success { color: var(--ui-success); font-size: 12px; }
+.lf-admin-ui .ui-context-chip { display: inline-block; margin-left: 6px; padding: 0 8px; border-radius: 999px; background: var(--ui-color-eef0fb); color: var(--ui-primary); font-size: 12px; font-weight: 500; line-height: 20px; }
+.lf-admin-ui .ui-type-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.lf-admin-ui .ui-type-card { position: relative; display: flex; align-items: center; gap: 10px; padding: 10px; border: 1px solid var(--ui-color-e6e8ee); border-radius: 10px; background: var(--ui-white); cursor: pointer; text-align: left; }
+.lf-admin-ui .ui-type-card:hover { border-color: var(--ui-border); background: var(--ui-color-f7f8fd); }
+.lf-admin-ui .ui-type-card:has(input:checked) { border-color: var(--ui-primary); background: var(--ui-color-eef0fb); box-shadow: inset 0 0 0 1px var(--ui-primary); }
+.lf-admin-ui .ui-type-card:has(input:focus-visible), .lf-admin-ui .ui-chip:has(input:focus-visible), .lf-admin-ui .ui-option-card:has(input:focus-visible) { box-shadow: 0 0 0 3px var(--ui-color-eef0fb); }
+.lf-admin-ui .ui-type-card input, .lf-admin-ui .ui-option-card input, .lf-admin-ui .ui-chip input { position: absolute; opacity: 0; width: 0; height: 0; margin: 0; }
+.lf-admin-ui .ui-type-card__icon { display: grid; flex: none; place-items: center; width: 32px; height: 32px; border-radius: 8px; background: var(--ui-color-f2f3f6); color: var(--ui-muted); }
+.lf-admin-ui .ui-type-card__icon .ui-icon { width: 17px; height: 17px; }
+.lf-admin-ui .ui-type-card__icon--violet { background: var(--ui-violet-soft); color: var(--ui-violet); }
+.lf-admin-ui .ui-type-card__icon--blue { background: var(--ui-color-eef0fb); color: var(--ui-primary); }
+.lf-admin-ui .ui-type-card__icon--teal { background: var(--ui-teal-soft); color: var(--ui-teal); }
+.lf-admin-ui .ui-type-card__icon--orange { background: var(--ui-orange-soft); color: var(--ui-orange); }
+.lf-admin-ui .ui-type-card__icon--green { background: var(--ui-success-soft); color: var(--ui-success); }
+.lf-admin-ui .ui-type-card__text { display: grid; min-width: 0; line-height: 1.3; }
+.lf-admin-ui .ui-type-card__text b { font-size: 13px; font-weight: 500; }
+.lf-admin-ui .ui-type-card__text small { color: var(--ui-muted); font-size: 11.5px; }
+.lf-admin-ui .ui-switch-row { display: flex; align-items: flex-start; gap: 12px; cursor: pointer; }
+.lf-admin-ui .ui-switch-row__text { display: grid; flex: 1; min-width: 0; }
+.lf-admin-ui .ui-switch-row__text b { font-size: 13.5px; font-weight: 500; }
+.lf-admin-ui .ui-switch-row__text small { color: var(--ui-muted); font-size: 12px; }
+.lf-admin-ui .ui-switch { position: relative; flex: none; width: 36px; height: 20px; margin-top: 1px; }
+.lf-admin-ui .ui-switch input[type=checkbox] { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.lf-admin-ui .ui-switch > span { position: absolute; inset: 0; border-radius: 999px; background: var(--ui-border); transition: background .15s; }
+.lf-admin-ui .ui-switch > span::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--ui-white); box-shadow: 0 1px 2px rgba(0, 0, 0, .2); transition: transform .15s; }
+.lf-admin-ui .ui-switch input:checked + span { background: var(--ui-primary); }
+.lf-admin-ui .ui-switch input:checked + span::after { transform: translateX(16px); }
+.lf-admin-ui .ui-switch input:disabled + span { opacity: .5; }
+.lf-admin-ui .ui-switch input:focus-visible + span { box-shadow: 0 0 0 3px var(--ui-color-eef0fb); }
+.lf-admin-ui .ui-chip-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.lf-admin-ui .ui-chip { position: relative; display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border: 1px solid var(--ui-border); border-radius: 999px; background: var(--ui-white); color: var(--ui-muted); font-size: 13px; cursor: pointer; }
+.lf-admin-ui .ui-chip:hover { border-color: var(--ui-muted); color: var(--ui-text); }
+.lf-admin-ui .ui-chip .ui-chip__check { display: none; width: 14px; height: 14px; }
+.lf-admin-ui .ui-chip:has(input:checked) { border-color: var(--ui-primary); background: var(--ui-color-eef0fb); color: var(--ui-primary); font-weight: 500; }
+.lf-admin-ui .ui-chip:has(input:checked) .ui-chip__check { display: block; }
+.lf-admin-ui .ui-chip:has(input:disabled) { opacity: .5; cursor: not-allowed; }
+.lf-admin-ui .ui-option-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.lf-admin-ui .ui-option-card { position: relative; display: flex; align-items: flex-start; gap: 10px; padding: 12px; border: 1px solid var(--ui-color-e6e8ee); border-radius: 10px; background: var(--ui-white); cursor: pointer; }
+.lf-admin-ui .ui-option-card:hover { border-color: var(--ui-border); }
+.lf-admin-ui .ui-option-card:has(input:checked) { border-color: var(--ui-primary); background: var(--ui-color-eef0fb); }
+.lf-admin-ui .ui-option-card.is-disabled { opacity: .5; cursor: not-allowed; }
+.lf-admin-ui .ui-option-card__dot { flex: none; width: 16px; height: 16px; margin-top: 2px; border: 1.5px solid var(--ui-border); border-radius: 50%; }
+.lf-admin-ui .ui-option-card:has(input:checked) .ui-option-card__dot { border: 5px solid var(--ui-primary); }
+.lf-admin-ui .ui-option-card > span:last-child { display: grid; line-height: 1.35; }
+.lf-admin-ui .ui-option-card b { font-size: 13.5px; font-weight: 500; }
+.lf-admin-ui .ui-option-card small { color: var(--ui-muted); font-size: 12px; }
+.lf-admin-ui .ui-activity-more { padding: 14px 0 4px; border-top: 1px solid var(--ui-color-eceef3); }
+.lf-admin-ui .ui-activity-more > summary { margin-bottom: 14px; color: var(--ui-primary); font-size: 13px; font-weight: 500; cursor: pointer; }
+@media (max-width: 640px) {
+    .lf-admin-ui .ui-type-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .lf-admin-ui .ui-option-cards, .lf-admin-ui .ui-modal__grid--pair { grid-template-columns: 1fr; }
+}
+
+/* Activity form: file drop zone and file card, inline banners, reuse status, and the library view that slides over the form. */
+.lf-admin-ui .ui-file-slot { display: grid; gap: 6px; }
+.lf-admin-ui .ui-dropzone { display: flex; align-items: center; gap: 14px; padding: 16px; border: 1.5px dashed var(--ui-border); border-radius: 10px; background: var(--ui-color-f7f8fd); transition: border-color .15s, background .15s; }
+.lf-admin-ui .ui-dropzone.is-dragging { border-color: var(--ui-primary); background: var(--ui-color-eef0fb); }
+.lf-admin-ui .ui-dropzone__icon { display: grid; flex: none; place-items: center; width: 40px; height: 40px; border: 1px solid var(--ui-color-e6e8ee); border-radius: 10px; background: var(--ui-white); color: var(--ui-muted); }
+.lf-admin-ui .ui-dropzone__text { display: grid; flex: 1; min-width: 0; }
+.lf-admin-ui .ui-dropzone__text b { font-size: 13.5px; font-weight: 500; }
+.lf-admin-ui .ui-dropzone__text small { color: var(--ui-muted); font-size: 12px; }
+.lf-admin-ui .ui-dropzone__actions { display: flex; flex: none; gap: 8px; }
+.lf-admin-ui .ui-file-card { overflow: hidden; border: 1px solid var(--ui-color-e6e8ee); border-radius: 10px; background: var(--ui-white); }
+.lf-admin-ui .ui-file-card__main { display: flex; align-items: center; gap: 12px; padding: 10px 10px 10px 12px; }
+.lf-admin-ui .ui-file-card__icon { display: grid; flex: none; place-items: center; width: 40px; height: 40px; border-radius: 8px; }
+.lf-admin-ui .ui-file-card__text { display: grid; flex: 1; min-width: 0; }
+.lf-admin-ui .ui-file-card__text b { overflow: hidden; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+.lf-admin-ui .ui-file-card__text small { overflow: hidden; color: var(--ui-muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.lf-admin-ui .ui-file-card__foot { padding: 8px 12px; border-top: 1px solid var(--ui-color-e6e8ee); background: var(--ui-color-f7f8fd); color: var(--ui-muted); font-size: 12px; }
+.lf-admin-ui .ui-banner { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding: 10px 12px; border: 1px solid var(--ui-notice-border); border-radius: 10px; background: var(--ui-notice-soft); font-size: 13px; }
+.lf-admin-ui .ui-banner--info { border-color: var(--ui-color-eef0fb); background: var(--ui-color-f7f8fd); }
+.lf-admin-ui .ui-banner__icon { flex: none; width: 16px; height: 16px; color: var(--ui-orange); }
+.lf-admin-ui .ui-banner--info .ui-banner__icon { color: var(--ui-primary); }
+.lf-admin-ui .ui-banner__text { flex: 1; min-width: 200px; }
+.lf-admin-ui .ui-banner__actions { display: flex; gap: 6px; }
+.lf-admin-ui .ui-banner__actions .ui-button { height: 30px; padding: 0 10px; font-size: 13px; }
+.lf-admin-ui .ui-ai-status { display: flex; align-items: flex-start; gap: 10px; padding: 12px; border: 1px solid var(--ui-color-e6e8ee); border-radius: 10px; background: var(--ui-color-f7f8fd); }
+.lf-admin-ui .ui-ai-status__icon { display: grid; flex: none; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--ui-success-soft); color: var(--ui-success); }
+.lf-admin-ui .ui-ai-status__icon .ui-icon { width: 15px; height: 15px; }
+.lf-admin-ui .ui-ai-status > span:last-child { display: grid; }
+.lf-admin-ui .ui-ai-status b { font-size: 13.5px; font-weight: 500; }
+.lf-admin-ui .ui-ai-status small { color: var(--ui-muted); font-size: 12px; }
+.lf-admin-ui .ui-tag-auto { display: inline-flex; align-items: center; gap: 3px; padding: 0 6px; border-radius: 999px; background: var(--ui-success-soft); color: var(--ui-success); font-size: 11px; font-weight: 500; line-height: 18px; }
+.lf-admin-ui .ui-tag-auto .ui-icon { width: 11px; height: 11px; }
+.lf-admin-ui .ui-modal:has(.ui-library-view) { position: relative; }
+.lf-admin-ui .ui-library-view { position: absolute; inset: 0; z-index: 20; display: flex; flex-direction: column; background: var(--ui-white); }
+.lf-admin-ui .ui-library-view[x-cloak] { display: none; }
+.lf-admin-ui .ui-library-view__header { gap: 10px; justify-content: flex-start; }
+.lf-admin-ui .ui-library-view__header > div { flex: 1; min-width: 0; }
+.lf-admin-ui .ui-library-view__header .ui-modal__close .ui-icon { width: 18px; height: 18px; }
+.lf-admin-ui .ui-library-view .ui-library-pick__body { flex: 1; min-height: 0; overflow-y: auto; }
+.lf-admin-ui .ui-library-view__footer { margin-top: auto; }
+@media (max-width: 640px) {
+    .lf-admin-ui .ui-dropzone { flex-direction: column; align-items: flex-start; }
+    .lf-admin-ui .ui-dropzone__actions { width: 100%; }
+    .lf-admin-ui .ui-dropzone__actions .ui-button { flex: 1; }
+}

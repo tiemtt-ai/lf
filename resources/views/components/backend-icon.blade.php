@@ -57,6 +57,7 @@
         'sparkles' => '<path d="m12 3 1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5Z"></path><path d="m19 14 .75 2.25L22 17l-2.25.75L19 20l-.75-2.25L16 17l2.25-.75Z"></path><path d="m5 14 .75 2.25L8 17l-2.25.75L5 20l-.75-2.25L2 17l2.25-.75Z"></path>',
         'cog' => '<circle cx="12" cy="12" r="3"></circle><path d="M12 2v3"></path><path d="M12 19v3"></path><path d="m4.93 4.93 2.12 2.12"></path><path d="m16.95 16.95 2.12 2.12"></path><path d="M2 12h3"></path><path d="M19 12h3"></path><path d="m4.93 19.07 2.12-2.12"></path><path d="m16.95 7.05 2.12-2.12"></path>',
         'circle' => '<circle cx="12" cy="12" r="8"></circle>',
+        'arrow-left' => '<path d="M19 12H5"></path><path d="m11 6-6 6 6 6"></path>',
         'upload' => '<path d="M12 15V4"></path><path d="m7 9 5-5 5 5"></path><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"></path>',
         'search' => '<circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path>',
         'chevrons-up-down' => '<path d="m7 15 5 5 5-5"></path><path d="m7 9 5-5 5 5"></path>',
