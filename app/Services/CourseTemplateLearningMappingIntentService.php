@@ -65,6 +65,10 @@ final class CourseTemplateLearningMappingIntentService
             if (! $changed) {
                 return;
             }
+            // A selected framework may only be switched on a draft, like detaching it.
+            if ($template->selected_learning_framework_version_id !== null && $template->status !== 'draft') {
+                throw ValidationException::withMessages(['framework_version_id' => __('lf.LF_course_template_learning_error_change_not_draft')]);
+            }
             if ($expectedRevision === null && DB::table('core_course_template_learning_mapping_intents')->where('customer_id', $customerId)->where('template_id', $templateId)->exists()) {
                 throw ValidationException::withMessages(['framework_version_id' => __('lf.LF_course_template_learning_error_change_locked')]);
             }
@@ -192,6 +196,9 @@ final class CourseTemplateLearningMappingIntentService
             $template = $this->template($customerId, $templateId, true);
             DB::table('core_course_template_learning_mapping_intents')
                 ->where('customer_id', $customerId)->where('template_id', $templateId)->lockForUpdate()->get();
+            if ($template->status !== 'draft') {
+                throw ValidationException::withMessages(['framework_version_id' => __('lf.LF_course_template_learning_error_change_not_draft')]);
+            }
             $plan = $this->upgradePlan($actorId, $customerId, $templateId, $targetVersionId);
             if ($plan === null || (int) $template->working_revision !== $expectedRevision) {
                 throw ValidationException::withMessages(['framework_version_id' => __('lf.LF_course_template_learning_error_upgrade_stale')]);

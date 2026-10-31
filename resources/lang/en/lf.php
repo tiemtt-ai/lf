@@ -2877,6 +2877,7 @@ return [
     'LF_course_template_learning_flash_added' => '{1} Linked 1 competency.|[2,*] Linked :count competencies.',
     'LF_course_template_learning_flash_removed' => 'Competency removed.',
     'LF_course_template_learning_error_select_first' => 'Choose a framework before linking competencies.',
+    'LF_course_template_learning_error_change_not_draft' => 'The framework can only be changed while the Template is a draft.',
     'LF_course_template_learning_error_change_locked' => 'Remove every linked competency before changing the framework.',
     'LF_course_template_learning_error_node_inactive' => 'The selected competency is not part of this course framework.',
     'LF_course_template_learning_error_duplicate' => 'This competency is already linked to that lesson or activity.',

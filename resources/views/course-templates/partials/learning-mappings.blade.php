@@ -45,25 +45,44 @@
 
         return ['number' => $lessonCount, 'lesson' => $lesson, 'activities' => $activities, 'skills' => $skills];
     };
-    $walkSections = function (int $parentId, array $path) use (&$walkSections, &$groups, $sectionsByParent, $lessonsBySection, $makeLesson): void {
+    $walkSections = function (int $parentId, array $path, array $ancestors = []) use (&$walkSections, &$groups, $sectionsByParent, $lessonsBySection, $makeLesson): void {
         foreach ($sectionsByParent->get($parentId, []) as $section) {
             $sectionPath = [...$path, $section->title];
             $groups[] = [
                 'id' => 'section-'.$section->id,
+                'ancestors' => $ancestors,
                 'path' => $sectionPath,
                 'lessons' => collect($lessonsBySection[$section->id] ?? [])->sortBy('sort_order')->map($makeLesson)->values()->all(),
             ];
-            $walkSections((int) $section->id, $sectionPath);
+            $walkSections((int) $section->id, $sectionPath, [...$ancestors, 'section-'.$section->id]);
         }
     };
     if (collect($directLessons)->isNotEmpty()) {
         $groups[] = [
             'id' => 'direct',
+            'ancestors' => [],
             'path' => collect($sections)->isNotEmpty() ? [__('lf.LF_course_template_learning_direct_lessons')] : [],
             'lessons' => collect($directLessons)->sortBy('sort_order')->map($makeLesson)->values()->all(),
         ];
     }
     $walkSections(0, []);
+    // What a group header counts: its own lessons and those of every sub-section under it.
+    $groups = collect($groups)->map(function (array $group) use ($groups) {
+        $subtree = collect($groups)->filter(fn ($other) => $other['id'] === $group['id'] || in_array($group['id'], $other['ancestors'], true));
+        $rows = $subtree->flatMap(fn ($other) => $other['lessons']);
+        $group['subtree_lessons'] = $rows->count();
+        $group['subtree_mapped'] = $rows->filter(fn ($row) => $row['skills']->isNotEmpty())->count();
+        $group['has_children'] = $subtree->count() > 1;
+
+        return $group;
+    })
+        // Levels that hold no lesson of their own are folded into the path of the level below
+        // (Chương 1 › Mục 2 › Nhóm 1), so each header row stands for lessons that follow it.
+        ->filter(fn (array $group) => $group['lessons'] !== [] || ! $group['has_children'])
+        ->map(fn (array $group) => [...$group, 'ancestors' => [],
+            'own_lessons' => count($group['lessons']),
+            'own_mapped' => collect($group['lessons'])->filter(fn ($row) => $row['skills']->isNotEmpty())->count()])
+        ->values()->all();
     // Links whose Lesson or Activity left the Course tree stay visible so they can still be removed.
     $orphanSkills = $intents->reject(fn ($intent) => in_array((int) $intent->id, $shownIntentIds, true))->values();
     $usedNodeCount = $intents->pluck('learning_node_id')->unique()->filter(fn ($id) => $nodes->contains('id', $id))->count();
@@ -107,7 +126,7 @@
                             title="{{ __('lf.LF_course_template_learning_framework_view_tooltip') }}">
                         <x-backend-icon name="eye" class="ui-icon" />{{ __('lf.LF_course_template_learning_framework_view') }}
                     </button>
-                    @if ($versions->isNotEmpty())
+                    @if ($versions->isNotEmpty() && $template->status === 'draft')
                         <button type="button" class="ui-button cursor-interaction" x-on:click="$refs.frameworkChange.showModal()">
                             <x-backend-icon name="sliders" class="ui-icon" />{{ __('lf.LF_course_template_learning_ui_change') }}
                         </button>
@@ -190,7 +209,7 @@
                         </div>
                     </dialog>
 
-                    @if ($versions->isNotEmpty())
+                    @if ($versions->isNotEmpty() && $template->status === 'draft')
                         {{-- Change framework or version: confirmed here, with what it removes, instead of on every select change. --}}
                         <dialog x-ref="frameworkChange" class="ui-modal" data-columns="1" aria-labelledby="course-framework-change-title"
                                 x-on:click="if ($event.target === $el) $el.close()">
@@ -254,15 +273,23 @@
                  x-data="{
                      filter: 'all', q: '', collapsed: [],
                      lessons: @js($lessonIndex),
-                     groupIds: @js(collect($groups)->pluck('id')->values()),
+                     groupIds: @js(collect($groups)->filter(fn ($group) => $group['path'] !== [])->pluck('id')->values()),
+                     ancestors: @js(collect($groups)->mapWithKeys(fn ($group) => [$group['id'] => $group['ancestors']])),
+                     // A group or lesson is out of view when its own group or any parent group is collapsed.
+                     folded(groupId) { return [groupId, ...(this.ancestors[groupId] ?? [])].some(id => this.collapsed.includes(id)); },
+                     underFolded(groupId) { return (this.ancestors[groupId] ?? []).some(id => this.collapsed.includes(id)); },
                      matches(lesson) {
                          if (this.filter !== 'all' && (this.filter === 'mapped') !== lesson.mapped) return false;
                          return ! this.q || lesson.text.includes(this.q.trim().toLowerCase());
                      },
-                     shown(index) { return this.matches(this.lessons[index]) && ! this.collapsed.includes(this.lessons[index].group); },
-                     groupVisible(id) { return (this.filter === 'all' && ! this.q) || this.lessons.some(lesson => lesson.group === id && this.matches(lesson)); },
+                     shown(index) { return this.matches(this.lessons[index]) && ! this.folded(this.lessons[index].group); },
+                     inSubtree(lesson, id) { return lesson.group === id || (this.ancestors[lesson.group] ?? []).includes(id); },
+                     groupVisible(id) {
+                         if (this.underFolded(id)) return false;
+                         return (this.filter === 'all' && ! this.q) || this.lessons.some(lesson => this.inSubtree(lesson, id) && this.matches(lesson));
+                     },
                      toggle(id) { this.collapsed = this.collapsed.includes(id) ? this.collapsed.filter(item => item !== id) : [...this.collapsed, id]; },
-                     get allCollapsed() { return this.groupIds.length > 0 && this.collapsed.length === this.groupIds.length; },
+                     get allCollapsed() { return this.groupIds.length > 0 && this.groupIds.every(id => this.collapsed.includes(id)); },
                      toggleAll() { this.collapsed = this.allCollapsed ? [] : [...this.groupIds]; },
                      count(kind) { return this.lessons.filter(lesson => kind === 'all' || (kind === 'mapped') === lesson.mapped).length; },
                      get shownCount() { return this.lessons.filter(lesson => this.matches(lesson)).length; },
@@ -318,35 +345,19 @@
                             @foreach ($groups as $group)
                                 <tbody>
                                     @if ($group['path'] !== [])
-                                        @php
-                                            $groupMapped = collect($group['lessons'])->filter(fn ($row) => $row['skills']->isNotEmpty())->count();
-                                        @endphp
-                                        <tr class="ui-learning-group" x-show="groupVisible(@js($group['id']))">
+                                        <tr class="ui-learning-group" data-depth="0" x-bind:hidden="! groupVisible(@js($group['id']))">
                                             <td colspan="4">
                                                 <button type="button" class="ui-learning-group__toggle cursor-interaction" x-on:click="toggle(@js($group['id']))"
                                                         x-bind:aria-expanded="(! collapsed.includes(@js($group['id']))).toString()">
                                                     <x-backend-icon name="chevron-down" class="ui-icon" />
-                                                    <span class="ui-learning-group__path">
-                                                        @foreach ($group['path'] as $part)
-                                                            @if (! $loop->last)
-                                                                <span class="ui-learning-group__parent">{{ $part }}</span><span class="ui-learning-group__sep" aria-hidden="true">›</span>
-                                                            @else
-                                                                <span>{{ $part }}</span>
-                                                            @endif
-                                                        @endforeach
-                                                    </span>
+                                                    <span class="ui-learning-group__path" title="{{ implode(' › ', $group['path']) }}">@foreach ($group['path'] as $part)@if (! $loop->first)<span class="ui-learning-group__sep" aria-hidden="true">›</span>@endif<span @class(['ui-learning-group__leaf' => $loop->last])>{{ $part }}</span>@endforeach</span>
                                                     <span class="ui-learning-group__meta">
-                                                        {{ count($group['lessons']) > 0
-                                                            ? __('lf.LF_course_template_learning_ui_group_meta', ['lessons' => count($group['lessons']), 'mapped' => $groupMapped])
+                                                        {{ $group['own_lessons'] > 0
+                                                            ? __('lf.LF_course_template_learning_ui_group_meta', ['lessons' => $group['own_lessons'], 'mapped' => $group['own_mapped']])
                                                             : __('lf.LF_course_template_learning_ui_group_no_lessons') }}
                                                     </span>
                                                 </button>
                                             </td>
-                                        </tr>
-                                    @endif
-                                    @if ($group['lessons'] === [] && $group['path'] !== [])
-                                        <tr class="ui-learning-empty-row" x-show="filter === 'all' && ! q && ! collapsed.includes(@js($group['id']))">
-                                            <td colspan="4">{{ __('lf.LF_course_template_learning_ui_group_empty') }}</td>
                                         </tr>
                                     @endif
                                     @foreach ($group['lessons'] as $row)
@@ -356,7 +367,7 @@
                                             $pickerId = 'course-learning-picker-'.$lesson->id;
                                             $rowIndex = $lessonPosition++;
                                         @endphp
-                                        <tr id="{{ $pickerId }}-row" class="ui-learning-lesson" data-course-learning-lesson="{{ $lesson->id }}" x-show="shown({{ $rowIndex }})">
+                                        <tr id="{{ $pickerId }}-row" class="ui-learning-lesson" data-course-learning-lesson="{{ $lesson->id }}" x-bind:hidden="! shown({{ $rowIndex }})">
                                             <td class="ui-learning-table__no">{{ $row['number'] }}</td>
                                             <td class="ui-learning-table__lesson">
                                                 <span class="ui-learning-lesson__title">{{ $lesson->title }}</span>
@@ -379,7 +390,7 @@
                                                 @endif
                                             </td>
                                             <td class="ui-learning-table__action" x-data="{ open() { $refs.mappingDialog.showModal(); } }">
-                                                <button type="button" class="ui-button ui-button--outline ui-button--sm cursor-interaction" x-on:click="open()"
+                                                <button type="button" class="ui-learning-attach cursor-interaction" x-on:click="open()"
                                                         aria-label="{{ __('lf.LF_course_template_learning_picker_label', ['lesson' => $lesson->title]) }}">
                                                     <x-backend-icon name="plus" class="ui-icon" />{{ __('lf.LF_course_template_learning_add') }}
                                                 </button>

@@ -331,6 +331,10 @@ Exact published Framework Version selected by the Template. Together with
 `selected_learning_framework_id` and `customer_id`, it references
 `core_learning_framework_versions(id, customer_id, framework_id)`.
 
+Once a Framework Version is selected, changing it (another Framework or another
+Version) or detaching it is allowed only while `status = draft`; both reset the
+draft Mapping Intents. The first selection is not restricted by status.
+
 ---
 
 ## Audit

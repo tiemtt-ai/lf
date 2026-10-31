@@ -2749,7 +2749,7 @@
 .lf-admin-ui .ui-learning-table .ui-learning-table__no { width: 48px; color: var(--ui-muted); text-align: center; }
 .lf-admin-ui .ui-learning-table thead .ui-learning-table__no { color: var(--ui-white); }
 .lf-admin-ui .ui-learning-table__lesson { width: 34%; }
-.lf-admin-ui .ui-learning-table .ui-learning-table__action { width: 160px; text-align: right; }
+.lf-admin-ui .ui-learning-table .ui-learning-table__action { width: 160px; text-align: center; }
 .lf-admin-ui .ui-learning-lesson:hover { background: var(--ui-color-f7f8fd); }
 .lf-admin-ui .ui-learning-lesson__title { display: block; overflow-wrap: anywhere; }
 .lf-admin-ui .ui-learning-block { display: block; margin-top: 2px; }
@@ -2826,3 +2826,39 @@
 .lf-admin-ui.ui-learning .ui-modal { font-weight: 400; text-align: left; } /* the attach popup lives in the right-aligned action cell */
 .lf-admin-ui .ui-learning-change__body { min-height: 260px; } /* room for the version list to open below the field */
 .lf-admin-ui .ui-learning-preview-table td:first-child { width: 1%; white-space: nowrap; }
+
+/* Learning map groups form a tree: each level is indented, and rows hidden with [hidden] toggle at once. */
+.lf-admin-ui .ui-learning-table tr[hidden] { display: none; }
+.lf-admin-ui .ui-learning-group[data-depth="1"] .ui-learning-group__toggle { padding-left: 34px; }
+.lf-admin-ui .ui-learning-group[data-depth="2"] .ui-learning-group__toggle { padding-left: 54px; }
+.lf-admin-ui .ui-learning-group[data-depth="3"] .ui-learning-group__toggle { padding-left: 74px; }
+.lf-admin-ui .ui-learning-group[data-depth="4"] .ui-learning-group__toggle { padding-left: 94px; }
+.lf-admin-ui .ui-learning-group:not([data-depth="0"]) td { background: var(--ui-white); }
+.lf-admin-ui .ui-learning-group:not([data-depth="0"]) .ui-learning-group__toggle { font-weight: 400; }
+.lf-admin-ui .ui-learning-empty-row[data-depth="2"] td { padding-left: 72px; }
+.lf-admin-ui .ui-learning-empty-row[data-depth="3"] td { padding-left: 92px; }
+.lf-admin-ui .ui-learning-empty-row[data-depth="4"] td, .lf-admin-ui .ui-learning-empty-row[data-depth="5"] td { padding-left: 112px; }
+
+/* Calmer learning map: no vertical rules, lighter nested group rows, lesson titles indented under their group,
+   a quiet "not attached" mark and a text-style attach action that only shows a frame on hover. */
+.lf-admin-ui .ui-learning-table td { border-right: 0; border-left: 0; }
+.lf-admin-ui .ui-learning-table td { padding-top: 8px; padding-bottom: 8px; }
+.lf-admin-ui .ui-learning-group td { border-bottom-color: var(--ui-color-eceef3); }
+.lf-admin-ui .ui-learning-group__toggle { min-height: 34px; padding-top: 6px; padding-bottom: 6px; }
+.lf-admin-ui .ui-learning-group:not([data-depth="0"]) .ui-learning-group__toggle { color: var(--ui-muted); font-size: 13px; }
+.lf-admin-ui .ui-learning-group:not([data-depth="0"]) .ui-learning-group__meta { visibility: hidden; }
+.lf-admin-ui .ui-learning-group:hover .ui-learning-group__meta { visibility: visible; }
+.lf-admin-ui .ui-learning-lesson[data-depth="1"] .ui-learning-table__lesson { padding-left: 34px; }
+.lf-admin-ui .ui-learning-lesson[data-depth="2"] .ui-learning-table__lesson { padding-left: 54px; }
+.lf-admin-ui .ui-learning-lesson[data-depth="3"] .ui-learning-table__lesson { padding-left: 74px; }
+.lf-admin-ui .ui-learning-lesson[data-depth="4"] .ui-learning-table__lesson { padding-left: 94px; }
+.lf-admin-ui .ui-learning-unmapped { color: var(--ui-muted); font-size: 12px; }
+.lf-admin-ui .ui-learning-unmapped::before { width: 6px; height: 6px; }
+.lf-admin-ui .ui-learning-attach { display: inline-flex; align-items: center; gap: 4px; height: 30px; padding: 0 10px; border: 1px solid transparent; border-radius: var(--ui-control-radius); background: transparent; color: var(--ui-primary); font: inherit; font-size: 13px; white-space: nowrap; }
+.lf-admin-ui .ui-learning-attach .ui-icon { width: 14px; height: 14px; }
+.lf-admin-ui .ui-learning-attach:hover, .lf-admin-ui .ui-learning-attach:focus-visible { border-color: var(--ui-primary); background: var(--ui-color-f7f8fd); }
+
+/* Group header = full path on one line: parent levels muted, the level holding the lessons in full weight. */
+.lf-admin-ui .ui-learning-group .ui-learning-group__path { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; color: var(--ui-muted); font-weight: 400; }
+.lf-admin-ui .ui-learning-group .ui-learning-group__leaf { color: var(--ui-text); font-weight: 500; }
+.lf-admin-ui .ui-learning-group__sep { color: var(--ui-muted); }

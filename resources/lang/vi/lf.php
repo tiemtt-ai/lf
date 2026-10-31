@@ -2877,6 +2877,7 @@ return [
     'LF_course_template_learning_flash_added' => '{1} Đã gắn 1 năng lực.|[2,*] Đã gắn :count năng lực.',
     'LF_course_template_learning_flash_removed' => 'Đã gỡ năng lực.',
     'LF_course_template_learning_error_select_first' => 'Hãy chọn bộ chuẩn trước khi gắn năng lực.',
+    'LF_course_template_learning_error_change_not_draft' => 'Chỉ đổi được bộ chuẩn khi Template đang ở trạng thái nháp.',
     'LF_course_template_learning_error_change_locked' => 'Muốn đổi bộ chuẩn, hãy gỡ hết năng lực đã gắn trước.',
     'LF_course_template_learning_error_node_inactive' => 'Năng lực đã chọn không thuộc bộ chuẩn của khoá học.',
     'LF_course_template_learning_error_duplicate' => 'Năng lực này đã được gắn cho bài học hoặc hoạt động đó.',

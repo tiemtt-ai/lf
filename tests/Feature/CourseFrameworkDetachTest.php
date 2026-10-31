@@ -143,6 +143,7 @@ class CourseFrameworkDetachTest extends TestCase
         $template->status = 'active';
         $html = view('course-templates.partials.learning-mappings', $data)->render();
         $this->assertStringNotContainsString('value="DELETE"', $html);
+        $this->assertStringNotContainsString('id="learning-framework-version"', $html);
     }
 
     private function upgradeFixture(): void
@@ -281,5 +282,18 @@ class CourseFrameworkDetachTest extends TestCase
         $this->assertDatabaseHas('core_course_template_learning_mapping_intents', ['customer_id' => 2]);
         $service->select(1, 1, 1, 6, 11, 8);
         $this->assertDatabaseHas('core_course_templates', ['id' => 1, 'working_revision' => 8]);
+    }
+
+    public function test_framework_change_is_rejected_when_template_is_not_draft(): void
+    {
+        $this->upgradeFixture();
+        DB::table('core_course_templates')->where('id', 1)->update(['status' => 'active']);
+        try {
+            app(CourseTemplateLearningMappingIntentService::class)->select(1, 1, 1, 5, 11, 7);
+            $this->fail('A non-draft Template must not switch framework.');
+        } catch (ValidationException) {
+            $this->assertDatabaseHas('core_course_templates', ['id' => 1, 'selected_learning_framework_version_id' => 10, 'working_revision' => 7]);
+            $this->assertSame(2, DB::table('core_course_template_learning_mapping_intents')->where('customer_id', 1)->count());
+        }
     }
 }
