@@ -608,30 +608,32 @@
                             <span class="ui-option-card__dot" aria-hidden="true"></span>
                             <span><b>{{ __('lf.LF_course_template_activity_learning_mode_'.$mode) }}</b><small>{{ __('lf.LF_course_template_activity_learning_mode_'.$mode.'_help') }}</small></span>
                         </label>
-                        @if ($mode === 'session')
-                            {{-- The phases of a session sit inside the session card. --}}
-                            <div class="ui-option-box__sub" x-show="learningMode === 'session'" x-cloak>
-                                <span class="ui-activity-panel__head">
-                                    <span class="ui-field__label">{!! $star !!}{{ __('lf.LF_course_template_activity_phase_choose') }}</span>
-                                    <span class="ui-field__hint">{{ __('lf.LF_course_template_activity_phase_choose_hint') }}</span>
-                                </span>
-                                <div class="ui-chip-list">
-                                    @foreach (['before_session', 'during_session', 'after_session'] as $phase)
-                                        <label class="ui-chip">
-                                            <input type="checkbox" name="learning_phases[]" value="{{ $phase }}" id="activity-form-learning_phases-{{ $phase }}"
-                                                   x-model="sessionPhases" x-bind:disabled="learningMode !== 'session'"
-                                                   aria-label="{{ __('lf.LF_course_template_activity_learning_availability_'.$phase) }}">
-                                            <x-backend-icon name="check" class="ui-icon ui-chip__check" />
-                                            <span>{{ __('lf.LF_course_template_activity_phase_short_'.$phase) }}</span>
-                                        </label>
-                                    @endforeach
-                                </div>
-                                <span class="ui-field__hint" x-show="liveLocked" x-cloak>{{ __('lf.LF_course_template_activity_live_phase_locked') }}</span>
-                                <span class="ui-field__hint ui-field__hint--notice" role="status" x-show="liveLocked && liveAdjusted" x-cloak>{{ __('lf.LF_activity_live_phase_adjusted') }}</span>
-                            </div>
-                        @endif
                     </div>
                 @endforeach
+            </div>
+            {{-- The phases of a session take a full-width row under both cards, pointing at the session card,
+                 so choosing a mode never makes one card taller than the other. --}}
+            <div class="ui-option-cards__detail" x-show="learningMode === 'session'" x-cloak
+                 data-ui-required-group="learning_phases" data-ui-required-message="{{ __('lf.LF_course_template_activity_learning_phases_required') }}"
+                 x-on:change="if ($event.target.name === 'learning_phases[]') $el.querySelectorAll('[data-ui-dialog-form-error]').forEach(node => node.remove())">
+                <span class="ui-activity-panel__head">
+                    <span class="ui-field__label">{!! $star !!}{{ __('lf.LF_course_template_activity_phase_choose') }}</span>
+                    <span class="ui-field__hint">{{ __('lf.LF_course_template_activity_phase_choose_hint') }}</span>
+                </span>
+                <div class="ui-chip-list">
+                    @foreach (['before_session', 'during_session', 'after_session'] as $phase)
+                        <label class="ui-chip">
+                            <input type="checkbox" name="learning_phases[]" value="{{ $phase }}" id="activity-form-learning_phases-{{ $phase }}"
+                                   x-model="sessionPhases" x-bind:disabled="learningMode !== 'session'">
+                            <x-backend-icon name="check" class="ui-icon ui-chip__check" />
+                            <span>{{ __('lf.LF_course_template_activity_learning_availability_'.$phase) }}</span>
+                        </label>
+                    @endforeach
+                </div>
+                {{-- A phase error from the server shows here, once, while this box is open; choosing a phase clears it. --}}
+                <div class="ui-option-cards__error" data-ui-error-slot></div>
+                <span class="ui-field__hint" x-show="liveLocked" x-cloak>{{ __('lf.LF_course_template_activity_live_phase_locked') }}</span>
+                <span class="ui-field__hint ui-field__hint--notice" role="status" x-show="liveLocked && liveAdjusted" x-cloak>{{ __('lf.LF_activity_live_phase_adjusted') }}</span>
             </div>
             <input type="hidden" name="learning_phases[]" value="anytime" x-bind:disabled="learningMode !== 'anytime'">
         </fieldset>

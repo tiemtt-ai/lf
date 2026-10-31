@@ -719,7 +719,11 @@ class CourseTemplateActivityController extends Controller
         $validator = Validator::make(
             $this->validationInput($request),
             $this->validationRules($customerId, $templateId, $activityId, $lessonId),
-            [],
+            [
+                // "By session" with no phase checked sends no phase at all.
+                'learning_phases.required' => __('lf.LF_course_template_activity_learning_phases_required'),
+                'learning_phases.min' => __('lf.LF_course_template_activity_learning_phases_required'),
+            ],
             [
                 'activity_type' => __(
                     'lf.LF_course_template_activity_common_type'

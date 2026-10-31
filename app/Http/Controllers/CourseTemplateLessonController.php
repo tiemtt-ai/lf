@@ -249,6 +249,8 @@ class CourseTemplateLessonController extends Controller
         if ($request->expectsJson()) {
             // The structure tab is rendered by the page: the dialog reloads it, where the flashed message shows as a toast.
             $request->session()->flash('success', __('lf.LF_course_template_lesson_common_created'));
+            // The new lesson may land beyond the first page of the list: the pager opens the page that holds it.
+            $request->session()->flash('course_template_lesson_focus', $lessonId);
 
             return response()->json([
                 'message' => __('lf.LF_course_template_lesson_common_created'),
@@ -258,7 +260,8 @@ class CourseTemplateLessonController extends Controller
 
         return redirect()
             ->to($structureUrl)
-            ->with('success', __('lf.LF_course_template_lesson_common_created'));
+            ->with('success', __('lf.LF_course_template_lesson_common_created'))
+            ->with('course_template_lesson_focus', $lessonId);
     }
 
     private function editView(

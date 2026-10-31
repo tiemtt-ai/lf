@@ -19,9 +19,9 @@
     });
     $shownIntentIds = [];
 
-    // Lessons in course order, grouped by their section path: lessons outside a section first, then every section depth-first.
-    $sectionsByParent = collect($sections)->groupBy(fn ($section) => (int) ($section->parent_section_id ?? 0));
-    $groups = [];
+    // Lessons in course order, laid out like the Content tab: direct lessons, then the Section outline
+    // (numbers 1, 1.2, 1.2.1) with per-branch lesson and unmapped totals for the table of contents.
+    $sectionsByParent = collect($sections)->groupBy(fn ($section) => (string) ($section->parent_section_id ?? 'root'));
     $lessonCount = 0;
     $mappedLessonCount = 0;
     $nodeLessonCounts = [];
@@ -43,46 +43,38 @@
         $lessonCount++;
         $mappedLessonCount += $skills->isNotEmpty() ? 1 : 0;
 
-        return ['number' => $lessonCount, 'lesson' => $lesson, 'activities' => $activities, 'skills' => $skills];
+        return ['lesson' => $lesson, 'activities' => $activities, 'skills' => $skills];
     };
-    $walkSections = function (int $parentId, array $path, array $ancestors = []) use (&$walkSections, &$groups, $sectionsByParent, $lessonsBySection, $makeLesson): void {
-        foreach ($sectionsByParent->get($parentId, []) as $section) {
-            $sectionPath = [...$path, $section->title];
-            $groups[] = [
-                'id' => 'section-'.$section->id,
-                'ancestors' => $ancestors,
-                'path' => $sectionPath,
-                'lessons' => collect($lessonsBySection[$section->id] ?? [])->sortBy('sort_order')->map($makeLesson)->values()->all(),
-            ];
-            $walkSections((int) $section->id, $sectionPath, [...$ancestors, 'section-'.$section->id]);
+    $directRows = collect($directLessons)->sortBy('sort_order')->map(fn ($lesson) => [...$makeLesson($lesson), 'sections' => []])->values();
+    $sectionRows = [];
+    $sectionOutline = [];
+    $sectionTotals = [];
+    $walkSections = function (string $parentKey, int $depth, string $prefix, array $ancestors) use (&$walkSections, &$sectionRows, &$sectionOutline, &$sectionTotals, $sectionsByParent, $lessonsBySection, $makeLesson): array {
+        $total = ['lessons' => 0, 'unmapped' => 0];
+        foreach ($sectionsByParent->get($parentKey, collect())->values() as $index => $node) {
+            $number = $prefix === '' ? (string) ($index + 1) : $prefix.'.'.($index + 1);
+            $chain = [...$ancestors, (int) $node->id];
+            $position = count($sectionOutline);
+            $sectionOutline[] = ['section' => $node, 'depth' => $depth, 'number' => $number];
+            $rows = collect($lessonsBySection[$node->id] ?? [])->sortBy('sort_order')->map(fn ($lesson) => [...$makeLesson($lesson), 'sections' => $chain])->values();
+            $sectionRows[$node->id] = $rows;
+            $branch = $walkSections((string) $node->id, $depth + 1, $number, $chain);
+            $branch['lessons'] += $rows->count();
+            $branch['unmapped'] += $rows->filter(fn ($row) => $row['skills']->isEmpty())->count();
+            $sectionOutline[$position] += $branch;
+            $sectionTotals[$node->id] = $branch;
+            $total['lessons'] += $branch['lessons'];
+            $total['unmapped'] += $branch['unmapped'];
         }
-    };
-    if (collect($directLessons)->isNotEmpty()) {
-        $groups[] = [
-            'id' => 'direct',
-            'ancestors' => [],
-            'path' => collect($sections)->isNotEmpty() ? [__('lf.LF_course_template_learning_direct_lessons')] : [],
-            'lessons' => collect($directLessons)->sortBy('sort_order')->map($makeLesson)->values()->all(),
-        ];
-    }
-    $walkSections(0, []);
-    // What a group header counts: its own lessons and those of every sub-section under it.
-    $groups = collect($groups)->map(function (array $group) use ($groups) {
-        $subtree = collect($groups)->filter(fn ($other) => $other['id'] === $group['id'] || in_array($group['id'], $other['ancestors'], true));
-        $rows = $subtree->flatMap(fn ($other) => $other['lessons']);
-        $group['subtree_lessons'] = $rows->count();
-        $group['subtree_mapped'] = $rows->filter(fn ($row) => $row['skills']->isNotEmpty())->count();
-        $group['has_children'] = $subtree->count() > 1;
 
-        return $group;
-    })
-        // Levels that hold no lesson of their own are folded into the path of the level below
-        // (Chương 1 › Mục 2 › Nhóm 1), so each header row stands for lessons that follow it.
-        ->filter(fn (array $group) => $group['lessons'] !== [] || ! $group['has_children'])
-        ->map(fn (array $group) => [...$group, 'ancestors' => [],
-            'own_lessons' => count($group['lessons']),
-            'own_mapped' => collect($group['lessons'])->filter(fn ($row) => $row['skills']->isNotEmpty())->count()])
-        ->values()->all();
+        return $total;
+    };
+    $walkSections('root', 0, '', []);
+    $sectionOutlineNumbers = collect($sectionOutline)->mapWithKeys(fn (array $row) => [$row['section']->id => $row['number']])->all();
+    $hasDirectLessons = $directRows->isNotEmpty();
+    $hasSections = collect($sections)->isNotEmpty();
+    $structureMode = $hasSections && ! $hasDirectLessons ? 'sections' : 'direct';
+    $modeLessonCounts = ['direct' => $directRows->count(), 'sections' => collect($sectionRows)->flatten(1)->count()];
     // Links whose Lesson or Activity left the Course tree stay visible so they can still be removed.
     $orphanSkills = $intents->reject(fn ($intent) => in_array((int) $intent->id, $shownIntentIds, true))->values();
     $usedNodeCount = $intents->pluck('learning_node_id')->unique()->filter(fn ($id) => $nodes->contains('id', $id))->count();
@@ -97,12 +89,12 @@
     ]);
     $percent = fn (int $part, int $whole): int => $whole > 0 ? (int) round($part / $whole * 100) : 0;
     $lower = fn (?string $text): string => mb_strtolower((string) $text);
-    // What the map's tabs, search and group toggles work on: client-side only, over the rows rendered below.
-    $lessonIndex = collect($groups)->flatMap(fn ($group) => collect($group['lessons'])->map(fn ($row) => [
-        'group' => $group['id'],
+    // What the filter and search work on (client-side only): one entry per lesson card, with the Sections it sits in.
+    $lessonIndex = $directRows->merge(collect($sectionRows)->flatten(1))->mapWithKeys(fn ($row) => [$row['lesson']->id => [
         'mapped' => $row['skills']->isNotEmpty(),
+        'sections' => $row['sections'],
         'text' => $lower($row['lesson']->title.' '.$row['skills']->map(fn ($skill) => $skill->name_snapshot.' '.$skill->code_snapshot)->implode(' ')),
-    ]))->values();
+    ]]);
 @endphp
 
 <div id="course-learning" class="lf-admin-ui ui-learning">
@@ -269,145 +261,170 @@
     @endif
 
     @if ($selection)
-        <section class="mk-section ui-learning-map" aria-labelledby="course-learning-map-title"
+        {{--
+            Learning map laid out like the Content tab (ui-structure): lesson cards in the Section outline on the left;
+            structure switch, attach progress with the filter, and the table of contents on the right. Activities,
+            phases and edit actions of the Content tab are left out: competencies attach to lessons here.
+        --}}
+        <section class="admin-card admin-form-card course-template-section-card lf-admin-ui lf-admin-ui--list ui-structure ui-learning-map"
+                 aria-labelledby="course-learning-map-title"
                  x-data="{
-                     filter: 'all', q: '', collapsed: [],
+                     ...courseTemplateStructure(@js($structureMode), @js('lf-course-template-'.$template->id.'-learning-structure-tab')),
+                     filter: 'all', q: '',
                      lessons: @js($lessonIndex),
-                     groupIds: @js(collect($groups)->filter(fn ($group) => $group['path'] !== [])->pluck('id')->values()),
-                     ancestors: @js(collect($groups)->mapWithKeys(fn ($group) => [$group['id'] => $group['ancestors']])),
-                     // A group or lesson is out of view when its own group or any parent group is collapsed.
-                     folded(groupId) { return [groupId, ...(this.ancestors[groupId] ?? [])].some(id => this.collapsed.includes(id)); },
-                     underFolded(groupId) { return (this.ancestors[groupId] ?? []).some(id => this.collapsed.includes(id)); },
+                     get filtering() { return this.filter !== 'all' || this.q.trim() !== ''; },
                      matches(lesson) {
                          if (this.filter !== 'all' && (this.filter === 'mapped') !== lesson.mapped) return false;
-                         return ! this.q || lesson.text.includes(this.q.trim().toLowerCase());
+                         return ! this.q.trim() || lesson.text.includes(this.q.trim().toLowerCase());
                      },
-                     shown(index) { return this.matches(this.lessons[index]) && ! this.folded(this.lessons[index].group); },
-                     inSubtree(lesson, id) { return lesson.group === id || (this.ancestors[lesson.group] ?? []).includes(id); },
-                     groupVisible(id) {
-                         if (this.underFolded(id)) return false;
-                         return (this.filter === 'all' && ! this.q) || this.lessons.some(lesson => this.inSubtree(lesson, id) && this.matches(lesson));
+                     lessonShown(id) { return this.matches(this.lessons[id]); },
+                     sectionShown(id) {
+                         return ! this.filtering || Object.values(this.lessons).some(lesson => lesson.sections.includes(id) && this.matches(lesson));
                      },
-                     toggle(id) { this.collapsed = this.collapsed.includes(id) ? this.collapsed.filter(item => item !== id) : [...this.collapsed, id]; },
-                     get allCollapsed() { return this.groupIds.length > 0 && this.groupIds.every(id => this.collapsed.includes(id)); },
-                     toggleAll() { this.collapsed = this.allCollapsed ? [] : [...this.groupIds]; },
-                     count(kind) { return this.lessons.filter(lesson => kind === 'all' || (kind === 'mapped') === lesson.mapped).length; },
-                     get shownCount() { return this.lessons.filter(lesson => this.matches(lesson)).length; },
+                     count(kind) { return Object.values(this.lessons).filter(lesson => kind === 'all' || (kind === 'mapped') === lesson.mapped).length; },
+                     shownIn(mode) { return Object.values(this.lessons).filter(lesson => (mode === 'sections') === (lesson.sections.length > 0) && this.matches(lesson)).length; },
+                     // The Content tab on the same page owns course-template-section-{id}, so the map reveals its own nodes.
+                     revealSection(sectionId) {
+                         const target = document.getElementById(`course-learning-section-${sectionId}`);
+                         if (! target) return;
+                         for (let node = target; node; node = node.parentElement?.closest('.course-template-outline-section')) {
+                             Alpine.$data(node).setExpanded(true);
+                         }
+                         this.$nextTick(() => {
+                             target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                             target.classList.add('is-flash');
+                             window.setTimeout(() => target.classList.remove('is-flash'), 1200);
+                         });
+                     },
+                     toggleAll() {
+                         const folds = [...this.$root.querySelectorAll('.course-template-outline-section')];
+                         const expand = folds.some(fold => ! Alpine.$data(fold).expanded);
+                         folds.forEach(fold => Alpine.$data(fold).setExpanded(expand, true));
+                     },
                  }">
-            <div class="ui-summary-head">
-                <div>
-                    <h3 id="course-learning-map-title">{{ __('lf.LF_course_template_learning_map_title') }}</h3>
-                    <p class="ui-caption">{{ __('lf.LF_course_template_learning_ui_map_help') }}</p>
-                </div>
-            </div>
+            <header class="course-template-section-header">
+                <h2 id="course-learning-map-title" class="admin-form-section-title">{{ __('lf.LF_course_template_learning_map_title') }}</h2>
+                <p>{{ __('lf.LF_course_template_learning_ui_map_help') }}</p>
+            </header>
 
-            @if ($lessonCount === 0)
-                <p class="ui-learning-no-result">{{ __('lf.LF_course_template_learning_no_lessons') }}</p>
-            @else
-                <div class="ui-tabs ui-learning-tabs" role="tablist" aria-label="{{ __('lf.LF_course_template_learning_ui_filter_label') }}">
-                    @foreach (['all', 'unmapped', 'mapped'] as $filter)
-                        <button type="button" role="tab" class="ui-tabs__tab cursor-interaction" x-on:click="filter = '{{ $filter }}'"
-                                x-bind:aria-selected="(filter === '{{ $filter }}').toString()" aria-controls="course-learning-map-panel">
-                            {{ __('lf.LF_course_template_learning_ui_filter_'.$filter) }}
-                            <span class="ui-learning-count" x-text="count('{{ $filter }}')"></span>
+            @if ($hasDirectLessons && $hasSections)
+                <div class="course-template-structure-tabs" role="tablist" aria-label="{{ __('lf.LF_course_template_structure_tabs_label') }}">
+                    @foreach (['direct', 'sections'] as $mode)
+                        <button id="course-learning-{{ $mode }}-tab" type="button" role="tab"
+                                aria-controls="course-learning-{{ $mode }}-panel"
+                                x-bind:aria-selected="activeStructureTab === '{{ $mode }}'"
+                                x-bind:class="{ 'is-active': activeStructureTab === '{{ $mode }}' }"
+                                x-on:click="selectStructureTab('{{ $mode }}')">
+                            {{ __('lf.LF_course_template_structure_tab_'.$mode) }}
                         </button>
                     @endforeach
                 </div>
-                <div id="course-learning-map-panel" role="tabpanel">
-                    <div class="mk-tablebar ui-learning-toolbar">
-                        <label class="ui-search ui-learning-search">
-                            <x-backend-icon name="search" class="ui-icon" />
-                            <input type="search" x-model="q" placeholder="{{ __('lf.LF_course_template_learning_ui_search') }}" aria-label="{{ __('lf.LF_course_template_learning_ui_search') }}">
-                        </label>
-                        @if (collect($groups)->contains(fn ($group) => $group['path'] !== []))
-                            <button type="button" class="ui-button cursor-interaction" x-on:click="toggleAll()" x-bind:aria-pressed="allCollapsed.toString()">
-                                <x-backend-icon name="chevrons-up-down" class="ui-icon" />
-                                <span x-text="allCollapsed ? @js(__('lf.LF_course_template_learning_ui_expand_all')) : @js(__('lf.LF_course_template_learning_ui_collapse_all'))"></span>
-                            </button>
+            @endif
+            <p class="course-template-structure-tab-help">
+                <span x-show="activeStructureTab === 'direct'">{{ __('lf.LF_course_template_structure_tab_direct_help') }}</span>
+                <span x-show="activeStructureTab === 'sections'" x-cloak>{{ __('lf.LF_course_template_structure_tab_sections_help') }}</span>
+            </p>
+
+            @foreach (['direct', 'sections'] as $mode)
+                <div id="course-learning-{{ $mode }}-panel" class="course-template-structure-panel" role="tabpanel"
+                     @if ($hasDirectLessons && $hasSections) aria-labelledby="course-learning-{{ $mode }}-tab" @else aria-labelledby="course-learning-map-title" @endif
+                     x-show="activeStructureTab === '{{ $mode }}'" @if ($mode !== $structureMode) x-cloak @endif>
+                    <div class="course-template-section-action-bar course-template-content-toolbar">
+                        <div class="course-template-content-count">
+                            <span class="course-template-content-heading">{{ __($mode === 'direct' ? 'lf.LF_course_template_content_lessons_title' : 'lf.LF_course_template_content_sections_title') }}</span>
+                            @if ($mode === 'sections')
+                                <strong>{{ trans_choice('lf.LF_course_template_section_common_count', collect($sections)->count(), ['count' => collect($sections)->count()]) }}</strong>
+                            @endif
+                            <span @class(['lf-secondary-text' => $mode === 'sections'])>
+                                {{ trans_choice('lf.LF_course_template_lesson_common_count', $modeLessonCounts[$mode], ['count' => $modeLessonCounts[$mode]]) }}
+                            </span>
+                        </div>
+                        @if (($mode === 'direct' && $hasDirectLessons) || ($mode === 'sections' && $hasSections))
+                            <div class="course-template-content-tools">
+                                <label class="course-template-content-search">
+                                    <x-backend-icon name="search" class="ui-icon" />
+                                    <span class="ui-sr-only">{{ __('lf.LF_course_template_learning_ui_search') }}</span>
+                                    <input type="search" x-model="q" placeholder="{{ __('lf.LF_course_template_learning_ui_search') }}">
+                                </label>
+                                @if ($mode === 'sections')
+                                    <button type="button" class="admin-link-button admin-text-action ui-row-action course-template-content-fold-all"
+                                            x-on:click="toggleAll()"
+                                            aria-label="{{ __('lf.LF_course_template_content_toggle_all') }}"
+                                            data-tooltip="{{ __('lf.LF_course_template_content_toggle_all') }}">
+                                        <x-backend-icon name="chevrons-up-down" class="ui-icon" />
+                                    </button>
+                                @endif
+                            </div>
                         @endif
-                        <span class="ui-caption ui-learning-toolbar__count" aria-live="polite"
-                              x-text="@js(__('lf.LF_course_template_learning_ui_result_count', ['shown' => '__S__', 'total' => '__T__'])).replace('__S__', shownCount).replace('__T__', lessons.length)"></span>
                     </div>
 
-                    <div class="mk-table-scroll">
-                        <table class="ui-learning-table" aria-labelledby="course-learning-map-title">
-                            <thead>
-                                <tr>
-                                    <th scope="col" class="ui-learning-table__no">{{ __('lf.LF_course_template_learning_col_no') }}</th>
-                                    <th scope="col" class="ui-learning-table__lesson">{{ __('lf.LF_course_template_learning_col_lesson') }}</th>
-                                    <th scope="col">{{ __('lf.LF_course_template_learning_col_skills') }}</th>
-                                    <th scope="col" class="ui-learning-table__action">{{ __('lf.table_actions') }}</th>
-                                </tr>
-                            </thead>
-                            @php
-                                $lessonPosition = 0;
-                            @endphp
-                            @foreach ($groups as $group)
-                                <tbody>
-                                    @if ($group['path'] !== [])
-                                        <tr class="ui-learning-group" data-depth="0" x-bind:hidden="! groupVisible(@js($group['id']))">
-                                            <td colspan="4">
-                                                <button type="button" class="ui-learning-group__toggle cursor-interaction" x-on:click="toggle(@js($group['id']))"
-                                                        x-bind:aria-expanded="(! collapsed.includes(@js($group['id']))).toString()">
-                                                    <x-backend-icon name="chevron-down" class="ui-icon" />
-                                                    <span class="ui-learning-group__path" title="{{ implode(' › ', $group['path']) }}">@foreach ($group['path'] as $part)@if (! $loop->first)<span class="ui-learning-group__sep" aria-hidden="true">›</span>@endif<span @class(['ui-learning-group__leaf' => $loop->last])>{{ $part }}</span>@endforeach</span>
-                                                    <span class="ui-learning-group__meta">
-                                                        {{ $group['own_lessons'] > 0
-                                                            ? __('lf.LF_course_template_learning_ui_group_meta', ['lessons' => $group['own_lessons'], 'mapped' => $group['own_mapped']])
-                                                            : __('lf.LF_course_template_learning_ui_group_no_lessons') }}
-                                                    </span>
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    @endif
-                                    @foreach ($group['lessons'] as $row)
-                                        @php
-                                            $lesson = $row['lesson'];
-                                            $lessonNodeIds = $row['skills']->where('source_type', 'course_template_lesson')->where('mapping_role', 'teaches')->pluck('learning_node_id')->map(fn ($id) => (int) $id);
-                                            $pickerId = 'course-learning-picker-'.$lesson->id;
-                                            $rowIndex = $lessonPosition++;
-                                        @endphp
-                                        <tr id="{{ $pickerId }}-row" class="ui-learning-lesson" data-course-learning-lesson="{{ $lesson->id }}" x-bind:hidden="! shown({{ $rowIndex }})">
-                                            <td class="ui-learning-table__no">{{ $row['number'] }}</td>
-                                            <td class="ui-learning-table__lesson">
-                                                <span class="ui-learning-lesson__title">{{ $lesson->title }}</span>
-                                                <span class="ui-caption ui-learning-block">{{ trans_choice('lf.LF_course_template_learning_lesson_activities', $row['activities']->count(), ['count' => $row['activities']->count()]) }}</span>
-                                            </td>
-                                            <td class="ui-learning-table__skills">
-                                                @if ($row['skills']->isEmpty())
-                                                    <span class="ui-learning-unmapped">{{ __('lf.LF_course_template_learning_not_mapped') }}</span>
-                                                @else
-                                                    <ul class="ui-learning-chips">
-                                                        @foreach ($row['skills'] as $skill)
-                                                            @include('course-templates.partials.learning-skill-chip', ['mappingPicker' => $pickerId])
-                                                        @endforeach
-                                                    </ul>
-                                                @endif
-                                                @if (session('mapping_picker') === $pickerId && session('mapping_feedback'))
-                                                    <p class="ui-learning-feedback" role="status" x-data="{ visible: true }" x-init="setTimeout(() => visible = false, 3000)" x-show="visible" x-transition.opacity>
-                                                        <x-backend-icon name="check" class="ui-icon" /><span>{{ session('mapping_feedback') }}</span>
-                                                    </p>
-                                                @endif
-                                            </td>
-                                            <td class="ui-learning-table__action" x-data="{ open() { $refs.mappingDialog.showModal(); } }">
-                                                <button type="button" class="ui-learning-attach cursor-interaction" x-on:click="open()"
-                                                        aria-label="{{ __('lf.LF_course_template_learning_picker_label', ['lesson' => $lesson->title]) }}">
-                                                    <x-backend-icon name="plus" class="ui-icon" />{{ __('lf.LF_course_template_learning_add') }}
-                                                </button>
-                                                @include('course-templates.partials.learning-node-picker')
-                                            </td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                            @endforeach
-                            <tbody>
-                                <tr x-show="shownCount === 0" x-cloak>
-                                    <td colspan="4" class="ui-learning-no-result">{{ __('lf.LF_course_template_learning_ui_no_result') }}</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
+                    @if ($mode === 'direct')
+                        {{-- 15 lessons per page; the filter and search still cover every lesson. --}}
+                        <div x-data="lfLessonPager(15, @js('lf-course-template-'.$template->id.'-learning-direct-page'), { summary: @js(__('lf.LF_course_template_lesson_pager_summary')) })">
+                            <div class="course-template-lesson-list" x-ref="list">
+                                @forelse ($directRows as $row)
+                                    @include('course-templates.partials.learning-lesson-card', ['position' => $loop->iteration])
+                                @empty
+                                    <p class="ui-learning-no-result">{{ __('lf.LF_course_template_learning_no_lessons') }}</p>
+                                @endforelse
+                            </div>
+                            <x-ui-lesson-pager-foot />
+                        </div>
+                    @else
+                        <div class="course-template-outline-sections">
+                            @forelse ($sectionsByParent->get('root', collect()) as $section)
+                                @include('course-templates.partials.learning-section-node', ['depth' => 0])
+                            @empty
+                                <p class="ui-learning-no-result">{{ __('lf.LF_course_template_learning_no_lessons') }}</p>
+                            @endforelse
+                        </div>
+                    @endif
+                    <p class="course-template-content-no-results" x-show="filtering && shownIn('{{ $mode }}') === 0" x-cloak role="status">
+                        {{ __('lf.LF_course_template_learning_ui_no_result') }}
+                    </p>
                 </div>
+            @endforeach
+
+            {{-- Attach progress doubles as the filter: All / Not attached / Attached with their counts. --}}
+            <section class="course-template-content-side-card ui-learning-progress-card" aria-labelledby="course-learning-progress-title">
+                <h3 id="course-learning-progress-title">{{ __('lf.LF_course_template_learning_ui_progress_title') }}</h3>
+                <div class="ui-learning-progress" aria-hidden="true"><span style="width: {{ $percent($mappedLessonCount, $lessonCount) }}%"></span></div>
+                <p class="ui-caption">{{ __('lf.LF_course_template_learning_ui_progress_help', ['mapped' => $mappedLessonCount, 'total' => $lessonCount]) }}</p>
+                <div class="ui-learning-filter" role="radiogroup" aria-label="{{ __('lf.LF_course_template_learning_ui_filter_label') }}">
+                    @foreach (['all', 'unmapped', 'mapped'] as $filter)
+                        <button type="button" role="radio" class="cursor-interaction" data-learning-filter="{{ $filter }}"
+                                x-on:click="filter = '{{ $filter }}'"
+                                x-bind:aria-checked="(filter === '{{ $filter }}').toString()"
+                                x-bind:class="{ 'is-active': filter === '{{ $filter }}' }">
+                            <span class="ui-learning-filter__dot ui-learning-filter__dot--{{ $filter }}" aria-hidden="true"></span>
+                            {{ __('lf.LF_course_template_learning_ui_filter_'.$filter) }}
+                            <strong x-text="count('{{ $filter }}')">{{ $filter === 'all' ? $lessonCount : ($filter === 'mapped' ? $mappedLessonCount : $lessonCount - $mappedLessonCount) }}</strong>
+                        </button>
+                    @endforeach
+                </div>
+            </section>
+
+            @if ($hasSections)
+                <nav class="course-template-content-side-card course-template-content-toc" aria-labelledby="course-learning-toc-title"
+                     x-show="activeStructureTab === 'sections'" @if ($structureMode !== 'sections') x-cloak @endif>
+                    <h3 id="course-learning-toc-title">{{ __('lf.LF_course_template_content_toc_title') }}</h3>
+                    <ol>
+                        @foreach ($sectionOutline as $tocRow)
+                            <li>
+                                <button type="button" style="--toc-depth: {{ $tocRow['depth'] }}" x-on:click="revealSection(@js($tocRow['section']->id))">
+                                    <span class="course-template-content-toc-number">{{ $tocRow['number'] }}</span>
+                                    <span @class(['course-template-content-toc-title', 'is-root' => $tocRow['depth'] === 0])>{{ $tocRow['section']->title }}</span>
+                                    @if ($tocRow['lessons'] === 0)
+                                        <span class="course-template-content-toc-count is-empty">{{ __('lf.LF_course_template_content_toc_empty') }}</span>
+                                    @else
+                                        <span @class(['course-template-content-toc-count', 'ui-learning-toc-unmapped' => $tocRow['unmapped'] > 0])
+                                              title="{{ __('lf.LF_course_template_learning_ui_toc_count_title', ['mapped' => $tocRow['lessons'] - $tocRow['unmapped'], 'total' => $tocRow['lessons']]) }}">{{ $tocRow['lessons'] - $tocRow['unmapped'] }}/{{ $tocRow['lessons'] }}</span>
+                                    @endif
+                                </button>
+                            </li>
+                        @endforeach
+                    </ol>
+                </nav>
             @endif
         </section>
     @endif

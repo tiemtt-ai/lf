@@ -195,6 +195,11 @@ export function initUiKitDialogForm(scope, deps = {}) {
             const template = control.tagName === 'SELECT' ? message('required-select') : message('required-input');
             errors[control.name] = [template.replace(':field', name)];
         }
+        // A shown group of checkboxes that needs one choice (e.g. the session phases) names its field and message.
+        for (const group of form.querySelectorAll('[data-ui-required-group]')) {
+            if (!group.getClientRects?.().length || group.querySelector('input:checked')) continue;
+            errors[group.getAttribute('data-ui-required-group')] = [group.getAttribute('data-ui-required-message')];
+        }
         return errors;
     };
     const showErrors = errors => {
@@ -214,7 +219,9 @@ export function initUiKitDialogForm(scope, deps = {}) {
             error.setAttribute('role', 'alert');
             error.setAttribute('data-ui-dialog-form-error', '');
             error.textContent = String(messages?.[0] ?? '');
-            field.append(error);
+            // A field may name where its error belongs while that part is shown (e.g. the session phases box).
+            const slot = [...(field.querySelectorAll?.('[data-ui-error-slot]') ?? [])].find(node => node.parentElement?.getClientRects?.().length > 0);
+            (slot ?? field).append(error);
             const visible = (control.id && form.querySelector(`#${win.CSS?.escape ? win.CSS.escape(control.id) : control.id}-ui-kit`)) || control;
             for (const node of new Set([control, visible])) {
                 node.setAttribute('aria-invalid', 'true');

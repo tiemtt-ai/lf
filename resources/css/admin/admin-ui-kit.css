@@ -2626,7 +2626,6 @@
 .lf-admin-ui .ui-option-box.is-disabled { opacity: .5; }
 .lf-admin-ui .ui-option-box > .ui-option-card { padding: 16px; border: 0; background: transparent; }
 .lf-admin-ui .ui-option-box > .ui-option-card:has(input:checked) { background: transparent; }
-.lf-admin-ui .ui-option-box__sub { display: grid; gap: 12px; padding: 14px 16px 16px 46px; border-top: 1px solid var(--ui-color-e6e8ee); }
 .lf-admin-ui .ui-ai-card__body { padding-left: 68px; }
 @container (max-width: 720px) {
     .lf-admin-ui .ui-type-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -2734,34 +2733,10 @@
 .lf-admin-ui .ui-learning-orphans h3 .ui-icon { width: 16px; height: 16px; color: var(--ui-notice-text); }
 .lf-admin-ui .ui-learning-orphans .ui-caption { margin: 4px 0 12px; }
 .lf-admin-ui .ui-learning-map .ui-summary-head .ui-caption { margin: 2px 0 0; }
-.lf-admin-ui .ui-learning-tabs { margin: 0; padding: 0 20px; }
-.lf-admin-ui .ui-learning-tabs .ui-tabs__tab { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
-.lf-admin-ui .ui-learning-count { min-width: 20px; padding: 0 6px; border-radius: 9px; background: var(--ui-color-f2f3f6); color: var(--ui-muted); font-size: 12px; line-height: 18px; text-align: center; }
-.lf-admin-ui .ui-tabs__tab[aria-selected=true] .ui-learning-count { background: var(--ui-color-eef0fb); color: var(--ui-primary); }
-.lf-admin-ui .ui-learning-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 20px; }
-.lf-admin-ui .ui-learning-toolbar__count { margin-left: auto; }
 .lf-admin-ui .ui-learning-search { width: 280px; max-width: 100%; align-items: center; gap: 6px; padding-left: 10px; color: var(--ui-muted); }
 .lf-admin-ui .ui-learning-search .ui-icon { flex: none; width: 16px; height: 16px; }
 .lf-admin-ui .ui-learning-search--block { width: 100%; margin-bottom: 14px; }
-.lf-admin-ui .ui-learning-table { width: 100%; min-width: 680px; border-collapse: collapse; font-size: 14px; }
-.lf-admin-ui .ui-learning-table thead th { height: 40px; padding: 10px 14px; background: var(--ui-primary); color: var(--ui-white); font-weight: 500; text-align: left; white-space: nowrap; }
-.lf-admin-ui .ui-learning-table td { padding: 10px 14px; border-bottom: 1px solid var(--ui-color-eceef3); text-align: left; vertical-align: top; }
-.lf-admin-ui .ui-learning-table .ui-learning-table__no { width: 48px; color: var(--ui-muted); text-align: center; }
-.lf-admin-ui .ui-learning-table thead .ui-learning-table__no { color: var(--ui-white); }
-.lf-admin-ui .ui-learning-table__lesson { width: 34%; }
-.lf-admin-ui .ui-learning-table .ui-learning-table__action { width: 160px; text-align: center; }
-.lf-admin-ui .ui-learning-lesson:hover { background: var(--ui-color-f7f8fd); }
-.lf-admin-ui .ui-learning-lesson__title { display: block; overflow-wrap: anywhere; }
 .lf-admin-ui .ui-learning-block { display: block; margin-top: 2px; }
-.lf-admin-ui .ui-learning-group td { padding: 0; border-bottom: 1px solid var(--ui-color-e6e8ee); background: var(--ui-color-f7f8fd); }
-.lf-admin-ui .ui-learning-group__toggle { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 38px; padding: 9px 14px; border: 0; background: transparent; color: var(--ui-text); font: inherit; font-weight: 500; text-align: left; }
-.lf-admin-ui .ui-learning-group__toggle .ui-icon { width: 16px; height: 16px; color: var(--ui-muted); transition: transform .14s ease; }
-.lf-admin-ui .ui-learning-group__toggle[aria-expanded=false] .ui-icon { transform: rotate(-90deg); }
-.lf-admin-ui .ui-learning-group__path { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
-.lf-admin-ui .ui-learning-group__parent { color: var(--ui-muted); font-weight: 400; }
-.lf-admin-ui .ui-learning-group__sep { color: var(--ui-border); }
-.lf-admin-ui .ui-learning-group__meta { margin-left: auto; color: var(--ui-muted); font-size: 12px; font-weight: 400; white-space: nowrap; }
-.lf-admin-ui .ui-learning-empty-row td { padding-left: 52px; color: var(--ui-muted); font-size: 13px; }
 .lf-admin-ui .ui-learning-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
 .lf-admin-ui .ui-learning-chip { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 3px 4px 3px 8px; border: 1px solid var(--ui-color-eef0fb); border-radius: 5px; background: var(--ui-color-f7f8fd); font-size: 13px; line-height: 18px; }
 .lf-admin-ui .ui-learning-code { flex: none; padding: 0 4px; border-radius: 3px; background: var(--ui-white); color: var(--ui-primary); font: 11px/16px monospace; }
@@ -2811,14 +2786,6 @@
     .lf-admin-ui .ui-learning-nodes, .lf-admin-ui .ui-learning-scale { grid-template-columns: 1fr 1fr; }
     .lf-admin-ui .ui-learning-empty__form { flex-direction: column; align-items: stretch; }
     .lf-admin-ui .ui-learning-search { width: 100%; }
-    .lf-admin-ui .ui-learning-toolbar__count { margin-left: 0; }
-    .lf-admin-ui .ui-learning-table { min-width: 0; }
-    .lf-admin-ui .ui-learning-table thead { display: none; }
-    .lf-admin-ui :is(.ui-learning-table, .ui-learning-table tbody, .ui-learning-table tr, .ui-learning-table td) { display: block; width: auto; }
-    .lf-admin-ui .ui-learning-table tr.ui-learning-lesson { display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 8px 4px; padding: 10px 12px; border-bottom: 1px solid var(--ui-color-eceef3); }
-    .lf-admin-ui .ui-learning-table tr.ui-learning-lesson td { padding: 0; border: 0; text-align: left; }
-    .lf-admin-ui .ui-learning-table .ui-learning-table__skills, .lf-admin-ui .ui-learning-table .ui-learning-table__action { grid-column: 2; width: auto; }
-    .lf-admin-ui .ui-learning-group__meta { display: none; }
 }
 @media (max-width: 460px) {
     .lf-admin-ui .ui-learning-nodes, .lf-admin-ui .ui-learning-scale { grid-template-columns: 1fr; }
@@ -2826,42 +2793,11 @@
 .lf-admin-ui.ui-learning .ui-modal { font-weight: 400; text-align: left; } /* the attach popup lives in the right-aligned action cell */
 .lf-admin-ui .ui-learning-change__body { min-height: 260px; } /* room for the version list to open below the field */
 .lf-admin-ui .ui-learning-preview-table td:first-child { width: 1%; white-space: nowrap; }
-
-/* Learning map groups form a tree: each level is indented, and rows hidden with [hidden] toggle at once. */
-.lf-admin-ui .ui-learning-table tr[hidden] { display: none; }
-.lf-admin-ui .ui-learning-group[data-depth="1"] .ui-learning-group__toggle { padding-left: 34px; }
-.lf-admin-ui .ui-learning-group[data-depth="2"] .ui-learning-group__toggle { padding-left: 54px; }
-.lf-admin-ui .ui-learning-group[data-depth="3"] .ui-learning-group__toggle { padding-left: 74px; }
-.lf-admin-ui .ui-learning-group[data-depth="4"] .ui-learning-group__toggle { padding-left: 94px; }
-.lf-admin-ui .ui-learning-group:not([data-depth="0"]) td { background: var(--ui-white); }
-.lf-admin-ui .ui-learning-group:not([data-depth="0"]) .ui-learning-group__toggle { font-weight: 400; }
-.lf-admin-ui .ui-learning-empty-row[data-depth="2"] td { padding-left: 72px; }
-.lf-admin-ui .ui-learning-empty-row[data-depth="3"] td { padding-left: 92px; }
-.lf-admin-ui .ui-learning-empty-row[data-depth="4"] td, .lf-admin-ui .ui-learning-empty-row[data-depth="5"] td { padding-left: 112px; }
-
-/* Calmer learning map: no vertical rules, lighter nested group rows, lesson titles indented under their group,
-   a quiet "not attached" mark and a text-style attach action that only shows a frame on hover. */
-.lf-admin-ui .ui-learning-table td { border-right: 0; border-left: 0; }
-.lf-admin-ui .ui-learning-table td { padding-top: 8px; padding-bottom: 8px; }
-.lf-admin-ui .ui-learning-group td { border-bottom-color: var(--ui-color-eceef3); }
-.lf-admin-ui .ui-learning-group__toggle { min-height: 34px; padding-top: 6px; padding-bottom: 6px; }
-.lf-admin-ui .ui-learning-group:not([data-depth="0"]) .ui-learning-group__toggle { color: var(--ui-muted); font-size: 13px; }
-.lf-admin-ui .ui-learning-group:not([data-depth="0"]) .ui-learning-group__meta { visibility: hidden; }
-.lf-admin-ui .ui-learning-group:hover .ui-learning-group__meta { visibility: visible; }
-.lf-admin-ui .ui-learning-lesson[data-depth="1"] .ui-learning-table__lesson { padding-left: 34px; }
-.lf-admin-ui .ui-learning-lesson[data-depth="2"] .ui-learning-table__lesson { padding-left: 54px; }
-.lf-admin-ui .ui-learning-lesson[data-depth="3"] .ui-learning-table__lesson { padding-left: 74px; }
-.lf-admin-ui .ui-learning-lesson[data-depth="4"] .ui-learning-table__lesson { padding-left: 94px; }
 .lf-admin-ui .ui-learning-unmapped { color: var(--ui-muted); font-size: 12px; }
 .lf-admin-ui .ui-learning-unmapped::before { width: 6px; height: 6px; }
 .lf-admin-ui .ui-learning-attach { display: inline-flex; align-items: center; gap: 4px; height: 30px; padding: 0 10px; border: 1px solid transparent; border-radius: var(--ui-control-radius); background: transparent; color: var(--ui-primary); font: inherit; font-size: 13px; white-space: nowrap; }
 .lf-admin-ui .ui-learning-attach .ui-icon { width: 14px; height: 14px; }
 .lf-admin-ui .ui-learning-attach:hover, .lf-admin-ui .ui-learning-attach:focus-visible { border-color: var(--ui-primary); background: var(--ui-color-f7f8fd); }
-
-/* Group header = full path on one line: parent levels muted, the level holding the lessons in full weight. */
-.lf-admin-ui .ui-learning-group .ui-learning-group__path { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; color: var(--ui-muted); font-weight: 400; }
-.lf-admin-ui .ui-learning-group .ui-learning-group__leaf { color: var(--ui-text); font-weight: 500; }
-.lf-admin-ui .ui-learning-group__sep { color: var(--ui-muted); }
 
 /* Course Template publish tab: summary card with the publish action, then one card per readiness group. */
 .lf-admin-ui.ui-publish { display: grid; gap: 16px; }
@@ -2938,3 +2874,37 @@
     .lf-admin-ui .ui-version__facts > .ui-summary__item + .ui-summary__item { padding-left: 0; border-left: 0; }
 }
 .lf-admin-ui .ui-modal[data-preview] audio { display: block; width: 100%; }
+
+/* Learning map in the Content-tab layout: lesson cards carry the attached competencies under their summary,
+   the side card shows attach progress and filters the list, the table of contents shows mapped/total per Section. */
+.lf-admin-ui.ui-learning-map { margin: 0; }
+.lf-admin-ui.ui-learning-map [hidden] { display: none !important; }
+.lf-admin-ui .ui-learning-lesson-card .course-template-lesson-summary { cursor: default; }
+.lf-admin-ui .ui-learning-lesson-card .course-template-lesson-meta .ui-learning-unmapped { display: inline-flex; align-items: center; gap: 6px; }
+.lf-admin-ui .ui-learning-lesson-card__skills { display: grid; gap: 8px; padding: 0 16px 14px 62px; }
+.lf-admin-ui .ui-learning-progress-card .ui-caption { margin: 8px 0 12px; }
+.lf-admin-ui .ui-learning-filter { display: grid; gap: 6px; }
+.lf-admin-ui .ui-learning-filter button { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; border: 1px solid var(--ct-border); border-radius: 10px; background: var(--ui-white); color: var(--ui-text); font: 400 13px/1.4 var(--ui-font-family); text-align: left; }
+.lf-admin-ui .ui-learning-filter button:hover { border-color: var(--ct-border-strong); }
+.lf-admin-ui .ui-learning-filter button.is-active { border-color: var(--ui-primary); background: var(--ct-primary-soft); }
+.lf-admin-ui .ui-learning-filter button:focus-visible { outline: 2px solid var(--ui-primary); outline-offset: 2px; }
+.lf-admin-ui .ui-learning-filter strong { margin-left: auto; font-weight: 500; font-variant-numeric: tabular-nums; }
+.lf-admin-ui .ui-learning-filter__dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--ui-primary); }
+.lf-admin-ui .ui-learning-filter__dot--unmapped { background: var(--ui-featured); }
+.lf-admin-ui .ui-learning-filter__dot--mapped { background: var(--ui-success); }
+.lf-admin-ui.ui-structure .course-template-content-toc-count.ui-learning-toc-unmapped { color: var(--ui-warning); }
+
+/* Learning availability: both mode cards keep one height; the session phases open as a full-width row under them,
+   with a notch pointing at the session card (the right column; the left on one-column layouts). */
+.lf-admin-ui .ui-option-cards { align-items: stretch; }
+.lf-admin-ui .ui-option-cards__detail { position: relative; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 20px; margin-top: 12px; padding: 14px 16px; border: 1px solid var(--ui-primary); border-radius: 10px; background: var(--ui-color-f7f8fd); }
+.lf-admin-ui .ui-option-cards__detail::before { content: ""; position: absolute; top: -7px; left: calc(75% + 3px); width: 12px; height: 12px; border-top: 1px solid var(--ui-primary); border-left: 1px solid var(--ui-primary); background: var(--ui-color-f7f8fd); transform: rotate(45deg); }
+.lf-admin-ui .ui-option-cards__detail > :is(.ui-field__hint, .ui-option-cards__error) { flex-basis: 100%; }
+.lf-admin-ui .ui-option-cards__error:empty { display: none; }
+@media (max-width: 767.98px) {
+    .lf-admin-ui .ui-option-cards__detail::before { left: 24px; }
+}
+
+/* Pages of a long direct-lesson list (lfLessonPager): a matching lesson outside the current page is hidden. */
+.lf-admin-ui .course-template-lesson-item.is-page-hidden { display: none !important; }
+.lf-admin-ui .ui-lesson-pager { margin-top: 12px; padding: 0; border: 0; background: transparent; }

@@ -384,6 +384,93 @@ window.courseTemplateStructure = (initialTab, storageKey) => ({
     },
 });
 
+// Client-side pages of a long direct-lesson list (Content tab, learning map, Version detail). Search and filters
+// keep working on every lesson: they hide cards with `hidden` or style.display, and this pager pages only the
+// cards still matching (class is-page-hidden). The page survives a reload or an async refresh in sessionStorage;
+// a card marked data-pager-focus (a lesson just created) or targeted by the URL hash opens its own page.
+window.lfLessonPager = (perPage, storageKey, labels) => ({
+    page: 1,
+    total: 0,
+    perPage,
+
+    init() {
+        try {
+            this.page = Number(window.sessionStorage.getItem(storageKey)) || 1;
+        } catch (error) {
+            this.page = 1;
+        }
+
+        this.$nextTick(() => {
+            const items = this.items();
+            const focus = items.find((item) => item.hasAttribute('data-pager-focus'))
+                || (window.location.hash ? items.find((item) => item.querySelector(window.location.hash) || `#${item.id}` === window.location.hash) : null);
+            this.refresh(focus);
+            this.$refs.list.querySelectorAll(':scope > *').forEach((item) => new MutationObserver(() => this.queueReset())
+                .observe(item, { attributes: true, attributeFilter: ['hidden', 'style'] }));
+        });
+    },
+
+    items() {
+        return [...this.$refs.list.children].filter((item) => item.matches('.course-template-lesson-item'));
+    },
+
+    matching() {
+        return this.items().filter((item) => ! item.hidden && item.style.display !== 'none');
+    },
+
+    get pages() {
+        return Math.max(1, Math.ceil(this.total / this.perPage));
+    },
+
+    // A search or filter change starts again from page 1; several cards change at once, so wait for the last one.
+    queueReset() {
+        if (this.resetQueued) {
+            return;
+        }
+
+        this.resetQueued = true;
+        window.setTimeout(() => {
+            this.resetQueued = false;
+            this.page = 1;
+            this.refresh();
+        }, 0);
+    },
+
+    refresh(focus = null) {
+        const matching = this.matching();
+        this.total = matching.length;
+
+        if (focus && matching.includes(focus)) {
+            this.page = Math.floor(matching.indexOf(focus) / this.perPage) + 1;
+        }
+
+        this.page = Math.min(Math.max(1, this.page), this.pages);
+        this.items().forEach((item) => item.classList.remove('is-page-hidden'));
+        matching.forEach((item, index) => item.classList.toggle('is-page-hidden', Math.floor(index / this.perPage) + 1 !== this.page));
+
+        try {
+            window.sessionStorage.setItem(storageKey, String(this.page));
+        } catch (error) {
+            // Paging still works for this page view.
+        }
+    },
+
+    go(page) {
+        this.page = page;
+        this.refresh();
+        this.$root.scrollIntoView({ block: 'start' });
+    },
+
+    summary() {
+        const from = this.total === 0 ? 0 : (this.page - 1) * this.perPage + 1;
+
+        return labels.summary
+            .replace(':from', from)
+            .replace(':to', Math.min(this.page * this.perPage, this.total))
+            .replace(':total', this.total);
+    },
+});
+
 // Search and fold-all of one structure panel (direct lessons or sections).
 window.courseTemplateContentTools = (foldSelector) => ({
     query: '',

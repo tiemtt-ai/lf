@@ -315,12 +315,16 @@
                             ])
                         @endif
                     </div>
-                    <div class="course-template-lesson-list">
-                        @forelse ($directLessons as $lesson)
-                            @include('course-template-versions.partials.lesson')
-                        @empty
-                            <p class="course-template-outline-empty">{{ __('lf.LF_version_detail_no_direct_lessons') }}</p>
-                        @endforelse
+                    {{-- 15 lessons per page, as in the Content tab; search and fold-all still cover every lesson. --}}
+                    <div x-data="lfLessonPager(15, @js('lf-course-template-version-'.$version->id.'-direct-page'), { summary: @js(__('lf.LF_course_template_lesson_pager_summary')) })">
+                        <div class="course-template-lesson-list" x-ref="list">
+                            @forelse ($directLessons as $lesson)
+                                @include('course-template-versions.partials.lesson')
+                            @empty
+                                <p class="course-template-outline-empty">{{ __('lf.LF_version_detail_no_direct_lessons') }}</p>
+                            @endforelse
+                        </div>
+                        <x-ui-lesson-pager-foot />
                     </div>
                     <p class="course-template-content-no-results" x-show="noResults" x-cloak role="status">
                         {{ __('lf.LF_course_template_content_search_empty') }}

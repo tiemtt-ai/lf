@@ -78,7 +78,9 @@
         @endif
     </div>
 
-    <div class="course-template-lesson-list">
+    {{-- Direct lessons are paged on the client, 15 per page; search and fold-all still cover every lesson. --}}
+    <div @unless ($section) x-data="lfLessonPager(15, @js('lf-course-template-'.$template->id.'-direct-page'), { summary: @js(__('lf.LF_course_template_lesson_pager_summary')) })" @endunless>
+    <div class="course-template-lesson-list" @unless ($section) x-ref="list" @endunless>
         @forelse ($lessons as $lesson)
             @php
                 $lessonActivities = $activitiesByLesson->get(
@@ -116,6 +118,7 @@
                 $activityCreateUrl = route($activityRoutePrefix.'.create', $lessonParameters);
             @endphp
             <article class="course-template-lesson-item"
+                     @if ((int) session('course_template_lesson_focus') === (int) $lesson->id) data-pager-focus @endif
                      x-data="courseTemplateLessonCollapse(
                          @js($template->customer_id),
                          @js($template->id),
@@ -516,6 +519,10 @@
                 </div>
             @endif
         @endforelse
+    </div>
+    @unless ($section)
+        <x-ui-lesson-pager-foot />
+    @endunless
     </div>
 
     @if (! $section && $lessons->isNotEmpty())
