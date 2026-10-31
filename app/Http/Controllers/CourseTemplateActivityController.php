@@ -728,7 +728,8 @@ class CourseTemplateActivityController extends Controller
         );
 
         $validator->after(function ($validator) use ($request): void {
-            $phases = $request->input('learning_phases', ['anytime']);
+            // The normalized input: a live class without a declaration already defaults to during the session.
+            $phases = $validator->getData()['learning_phases'] ?? [];
 
             if (is_array($phases)
                 && in_array('anytime', $phases, true)
@@ -736,6 +737,16 @@ class CourseTemplateActivityController extends Controller
                 $validator->errors()->add(
                     'learning_phases',
                     __('lf.LF_course_template_activity_learning_availability_anytime_exclusive')
+                );
+            }
+
+            // A live class is scheduled with the session, so it cannot be "anytime"; any session phase is allowed.
+            if ($request->input('activity_type') === 'live_class'
+                && is_array($phases)
+                && in_array('anytime', $phases, true)) {
+                $validator->errors()->add(
+                    'learning_phases',
+                    __('lf.LF_course_template_activity_learning_availability_live_class_not_anytime')
                 );
             }
         });
@@ -805,8 +816,11 @@ class CourseTemplateActivityController extends Controller
             $request->request->all(),
             array_flip($fields)
         );
+        // Without a declaration an Activity defaults to anytime; a live class, which cannot be anytime, to during the session.
         $input['learning_phases'] = $input['learning_phases']
-            ?? ($request->boolean('learning_phases_present') ? [] : ['anytime']);
+            ?? ($request->boolean('learning_phases_present')
+                ? []
+                : [($input['activity_type'] ?? null) === 'live_class' ? 'during_session' : 'anytime']);
         unset($input['learning_phases_present']);
 
         $typeField = [

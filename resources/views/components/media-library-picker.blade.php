@@ -23,6 +23,7 @@
                  else if (this.sort === 'new') rows.sort((a, b) => String(b.date).localeCompare(String(a.date)));
                  return rows;
              },
+             scopeCount(scope) { return this.items.filter(item => scope === 'all' || (scope === 'mine' ? item.mine : item.shared && ! item.mine)).length; },
              get pendingItem() { return this.items.find(item => item.id === this.pending) ?? null; },
              initials(name) { return String(name).split(' ').filter(Boolean).map(word => word[0]).join('').slice(0, 2).toUpperCase(); },
              show(detail) {
@@ -95,30 +96,44 @@
                 <input type="search" x-ref="search" x-model="keyword" x-on:input="search()" x-on:keydown.enter.prevent
                        placeholder="{{ __('lf.LF_media_pick_search') }}" aria-label="{{ __('lf.LF_media_pick_search') }}" autocomplete="off">
             </label>
-            <select class="ui-library-pick__sort" x-model="sort" aria-label="{{ __('lf.LF_media_pick_sort_label') }}">
-                @foreach (['suggested', 'new', 'name', 'used'] as $sortKey)
-                    <option value="{{ $sortKey }}">{{ __('lf.LF_media_pick_sort_'.$sortKey) }}</option>
-                @endforeach
-            </select>
-        </div>
-        <div class="ui-library-pick__toolbar-row">
-            <div class="ui-library-pick__segmented" role="group" aria-label="{{ __('lf.LF_media_pick_scope_label') }}">
-                @foreach (['all', 'mine', 'shared'] as $scopeKey)
-                    <button type="button" x-on:click="scope = '{{ $scopeKey }}'" x-bind:aria-pressed="(scope === '{{ $scopeKey }}').toString()">{{ __('lf.LF_media_pick_scope_'.$scopeKey) }}</button>
-                @endforeach
+            <div class="ui-field ui-library-pick__sort">
+                <label class="ui-sr-only" for="ui-library-sort">{{ __('lf.LF_media_pick_sort_label') }}</label>
+                <select id="ui-library-sort" data-ui-kit-select x-on:change="sort = $event.target.value"
+                        data-ui-empty-label="{{ __('lf.LF_course_template_index_no_options') }}" data-ui-clear-label="{{ __('lf.LF_media_pick_sort_suggested') }}">
+                    @foreach (['suggested', 'new', 'name', 'used'] as $sortKey)
+                        <option value="{{ $sortKey }}" @selected($sortKey === 'suggested')>{{ __('lf.LF_media_pick_sort_'.$sortKey) }}</option>
+                    @endforeach
+                </select>
             </div>
-            <span class="ui-caption ui-library-pick__count" role="status" x-show="! loading"
-                  x-text="@js(__('lf.LF_media_pick_count', ['count' => '__N__'])).replace('__N__', rows.length)"></span>
+        </div>
+        <div class="ui-tabs ui-library-pick__tabs" role="tablist" aria-label="{{ __('lf.LF_media_pick_scope_label') }}">
+            @foreach (['all', 'mine', 'shared'] as $scopeKey)
+                <button type="button" role="tab" class="ui-tabs__tab cursor-interaction" x-on:click="scope = '{{ $scopeKey }}'"
+                        x-bind:aria-selected="(scope === '{{ $scopeKey }}').toString()">
+                    {{ __('lf.LF_media_pick_scope_'.$scopeKey) }}
+                    <span class="ui-library-pick__tab-count" x-show="! loading" x-text="scopeCount('{{ $scopeKey }}')"></span>
+                </button>
+            @endforeach
         </div>
     </div>
 
     <div class="ui-library-pick__body" x-on:click.outside="usageOpen = null">
-        <p class="ui-caption" role="status" x-show="loading">{{ __('lf.LF_media_pick_loading') }}</p>
+        <div class="ui-library-pick__list" x-show="loading" aria-hidden="true">
+            @for ($skeleton = 0; $skeleton < 3; $skeleton++)
+                <div class="ui-library-pick__item ui-library-pick__item--skeleton">
+                    <span class="ui-library-pick__radio"></span>
+                    <span class="ui-library-pick__thumb"></span>
+                    <span class="ui-library-pick__main"><span class="ui-skeleton-line"></span><span class="ui-skeleton-line ui-skeleton-line--short"></span></span>
+                </div>
+            @endfor
+        </div>
+        <p class="ui-sr-only" role="status" x-show="loading">{{ __('lf.LF_media_pick_loading') }}</p>
         <div class="ui-library-pick__empty" role="status" x-show="! loading && rows.length === 0">
+            <span class="ui-library-pick__empty-icon" aria-hidden="true"><x-backend-icon name="search" class="ui-icon" /></span>
             <strong>{{ __('lf.LF_media_pick_empty_title') }}</strong>
             <span class="ui-caption">{{ __('lf.LF_media_pick_empty_hint') }}</span>
         </div>
-        <div class="ui-library-pick__list" role="radiogroup" aria-labelledby="ui-library-view-title">
+        <div class="ui-library-pick__list" role="radiogroup" aria-labelledby="ui-library-view-title" x-show="! loading">
             <template x-for="item in rows" x-bind:key="item.id">
                 <div class="ui-library-pick__item" role="radio" tabindex="0"
                      x-bind:aria-checked="(pending === item.id).toString()"
@@ -126,32 +141,41 @@
                      x-on:keydown.space.prevent="select(item)" x-on:keydown.enter.prevent="select(item)"
                      x-on:keydown.arrow-down.prevent="step($event, 1)" x-on:keydown.arrow-up.prevent="step($event, -1)">
                     <span class="ui-library-pick__radio" aria-hidden="true"></span>
-                    <span class="ui-library-pick__thumb" x-bind:class="'ui-library-pick__thumb--' + type" aria-hidden="true">
-                        <span x-show="type === 'video'"><x-backend-icon name="file-video" class="ui-icon" /></span>
+                    <span class="ui-library-pick__thumb" aria-hidden="true">
+                        <span x-show="type === 'video'"><x-backend-icon name="video" class="ui-icon" /></span>
                         <span x-show="type === 'audio'"><x-backend-icon name="audio" class="ui-icon" /></span>
                         <span x-show="type === 'document'"><x-backend-icon name="file-text" class="ui-icon" /></span>
                         <span class="ui-library-pick__duration" x-show="item.duration" x-text="item.duration"></span>
                     </span>
                     <span class="ui-library-pick__main">
-                        <span class="ui-library-pick__head">
-                            <span class="ui-library-pick__name" x-text="item.name"></span>
-                            <span class="ui-library-pick__usage-wrap">
-                                <button type="button" class="ui-library-pick__usage" x-show="item.used" x-bind:aria-expanded="(usageOpen === item.id).toString()"
-                                        x-on:click.stop="usageOpen = usageOpen === item.id ? null : item.id" x-text="item.usage"></button>
-                                <span class="ui-library-pick__usage is-unused" x-show="! item.used" x-text="item.usage"></span>
-                                <span class="ui-library-pick__popover" x-show="usageOpen === item.id" x-on:click.stop>
-                                    <strong>{{ __('lf.LF_media_pick_used_title') }}</strong>
-                                    <ul><template x-for="place in item.usages_all" x-bind:key="place"><li x-text="place"></li></template></ul>
-                                    <small>{{ __('lf.LF_media_pick_used_note') }}</small>
-                                </span>
+                        <span class="ui-library-pick__name" x-text="item.name" x-bind:title="item.name"></span>
+                        <span class="ui-library-pick__meta">
+                            <span x-text="item.file"></span>
+                            <span class="ui-library-pick__dot" aria-hidden="true"></span>
+                            <span x-text="item.size"></span>
+                        </span>
+                        <span class="ui-library-pick__meta">
+                            <span class="ui-library-pick__owner"><span class="ui-library-pick__avatar" x-text="initials(item.owner)"></span><span x-text="item.owner"></span></span>
+                            <span class="ui-library-pick__dot" aria-hidden="true"></span>
+                            <span class="ui-library-pick__share">
+                                <span x-show="item.shared"><x-backend-icon name="users" class="ui-icon" /></span>
+                                <span x-show="! item.shared"><x-backend-icon name="lock" class="ui-icon" /></span>
+                                <span x-text="item.share"></span>
                             </span>
                         </span>
-                        <span class="ui-caption" x-text="item.file + ' · ' + item.size"></span>
-                        <span class="ui-caption ui-library-pick__meta">
-                            <span class="ui-library-pick__owner"><span class="ui-library-pick__avatar" x-text="initials(item.owner)"></span><span x-text="item.owner"></span></span>
-                            <span x-text="item.share"></span>
+                        <span class="ui-library-pick__note" x-show="item.note" x-text="item.note" x-bind:title="item.note"></span>
+                    </span>
+                    <span class="ui-library-pick__usage-wrap">
+                        <button type="button" class="ui-library-pick__usage" x-show="item.used" x-bind:aria-expanded="(usageOpen === item.id).toString()"
+                                x-on:click.stop="usageOpen = usageOpen === item.id ? null : item.id">
+                            <x-backend-icon name="link" class="ui-icon" /><span x-text="item.usage"></span>
+                        </button>
+                        <span class="ui-library-pick__usage is-unused" x-show="! item.used" x-text="item.usage"></span>
+                        <span class="ui-library-pick__popover" x-show="usageOpen === item.id" x-on:click.stop>
+                            <strong>{{ __('lf.LF_media_pick_used_title') }}</strong>
+                            <ul><template x-for="place in item.usages_all" x-bind:key="place"><li x-text="place"></li></template></ul>
+                            <small>{{ __('lf.LF_media_pick_used_note') }}</small>
                         </span>
-                        <span class="ui-caption ui-library-pick__note" x-show="item.note" x-text="item.note"></span>
                     </span>
                 </div>
             </template>

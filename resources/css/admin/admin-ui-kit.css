@@ -2583,3 +2583,97 @@
     .lf-admin-ui .ui-ai-card__body { padding-left: 18px; }
     .lf-admin-ui .ui-chip-list--grid3 { grid-template-columns: 1fr; }
 }
+
+/* The activity form uses the 3-column popup: field rows fill three columns, the type cards one row of six. */
+.lf-admin-ui .ui-modal:has(.ui-modal__form[data-modal-columns="3"]) .ui-modal__grid--pair { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.lf-admin-ui .ui-modal:has(.ui-modal__form[data-modal-columns="3"]) .ui-type-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+@container (max-width: 760px) {
+    .lf-admin-ui .ui-modal:has(.ui-modal__form[data-modal-columns="3"]) .ui-type-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .lf-admin-ui .ui-modal:has(.ui-modal__form[data-modal-columns="3"]) .ui-modal__grid--pair { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* The real checkbox/radio of a chip or card is visually hidden and out of the flow, so the label stays centred. */
+.lf-admin-ui :is(.ui-chip, .ui-type-card, .ui-option-card) > input:is([type=checkbox], [type=radio]) {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+.lf-admin-ui .ui-activity-last { padding-top: 16px; border-top: 1px solid var(--ui-color-eceef3); }
+
+/* Activity form (3rd design, 2-column popup): neutral type icons that turn primary when chosen, larger type cards,
+   and the session phases inside the "By session" card. */
+.lf-admin-ui .ui-type-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.lf-admin-ui .ui-type-card { gap: 12px; min-height: 72px; padding: 14px 16px; border-color: var(--ui-color-e6e8ee); border-radius: 10px; }
+.lf-admin-ui .ui-type-card:has(input:checked) { box-shadow: none; border-color: var(--ui-primary); outline: .5px solid var(--ui-primary); background: var(--ui-color-f7f8fd); }
+.lf-admin-ui .ui-type-card__icon { width: 40px; height: 40px; border-radius: 10px; background: var(--ui-color-f2f3f6); color: var(--ui-muted); }
+.lf-admin-ui .ui-type-card:has(input:checked) .ui-type-card__icon { background: var(--ui-color-eef0fb); color: var(--ui-primary); }
+.lf-admin-ui .ui-type-card__icon .ui-icon { width: 20px; height: 20px; }
+.lf-admin-ui .ui-type-card__text b { font-size: 14px; }
+.lf-admin-ui .ui-type-card__text small { font-size: 12px; }
+.lf-admin-ui .ui-option-cards { align-items: start; gap: 12px; }
+.lf-admin-ui .ui-option-box { overflow: visible; border: 1px solid var(--ui-color-e6e8ee); border-radius: 10px; background: var(--ui-white); }
+.lf-admin-ui .ui-option-box:hover { border-color: var(--ui-border); }
+.lf-admin-ui .ui-option-box.is-selected { border-color: var(--ui-primary); outline: .5px solid var(--ui-primary); background: var(--ui-color-f7f8fd); }
+.lf-admin-ui .ui-option-box.is-disabled { opacity: .5; }
+.lf-admin-ui .ui-option-box > .ui-option-card { padding: 16px; border: 0; background: transparent; }
+.lf-admin-ui .ui-option-box > .ui-option-card:has(input:checked) { background: transparent; }
+.lf-admin-ui .ui-option-box__sub { display: grid; gap: 12px; padding: 14px 16px 16px 46px; border-top: 1px solid var(--ui-color-e6e8ee); }
+.lf-admin-ui .ui-ai-card__body { padding-left: 68px; }
+@container (max-width: 720px) {
+    .lf-admin-ui .ui-type-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .lf-admin-ui .ui-option-cards { grid-template-columns: 1fr; }
+}
+
+/* A field label with a help tip, and a hint kept on one line. */
+.lf-admin-ui .ui-field__label--tip { display: inline-flex; align-items: center; gap: 6px; }
+.lf-admin-ui .ui-field__hint--line { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Library view (media picker), aligned with the UI Kit: kit select and flat tabs in the toolbar, list rows with 14px names,
+   12px muted meta, a soft thumbnail, and kit-sized radio, badge and popover. */
+.lf-admin-ui .ui-library-view .ui-library-pick__toolbar { gap: 4px; padding: 14px 22px 0; }
+.lf-admin-ui .ui-library-view .ui-library-pick__toolbar-row { flex-wrap: nowrap; }
+.lf-admin-ui .ui-library-view .ui-library-pick__sort { flex: 0 0 180px; padding: 0; border: 0; height: auto; }
+.lf-admin-ui .ui-library-pick__tabs { margin-top: 8px; border-bottom: 0; }
+.lf-admin-ui .ui-library-pick__tabs .ui-tabs__tab { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; cursor: pointer; }
+.lf-admin-ui .ui-library-pick__tab-count { min-width: 18px; padding: 0 6px; border-radius: 999px; background: var(--ui-color-f2f3f6); color: var(--ui-muted); font-size: 11px; line-height: 18px; text-align: center; }
+.lf-admin-ui .ui-tabs__tab[aria-selected=true] .ui-library-pick__tab-count { background: var(--ui-color-eef0fb); color: var(--ui-primary); }
+.lf-admin-ui .ui-library-view .ui-library-pick__body { padding: 8px 14px; border-top: 1px solid var(--ui-color-eceef3); }
+.lf-admin-ui .ui-library-view .ui-library-pick__item { align-items: center; gap: 12px; padding: 10px 12px; border-radius: 7px; }
+.lf-admin-ui .ui-library-view .ui-library-pick__item + .ui-library-pick__item { margin-top: 2px; }
+.lf-admin-ui .ui-library-view .ui-library-pick__radio { width: 16px; height: 16px; margin: 0; }
+.lf-admin-ui .ui-library-view .ui-library-pick__thumb { width: 80px; border-radius: 6px; background: var(--ui-color-eef0fb); color: var(--ui-primary); }
+.lf-admin-ui .ui-library-view .ui-library-pick__thumb .ui-icon { width: 18px; height: 18px; margin-bottom: 10px; opacity: 1; }
+.lf-admin-ui .ui-library-view .ui-library-pick__duration { color: var(--ui-white); font-size: 10px; }
+.lf-admin-ui .ui-library-view .ui-library-pick__main { gap: 3px; }
+.lf-admin-ui .ui-library-view .ui-library-pick__name { font-size: 14px; font-weight: 500; }
+.lf-admin-ui .ui-library-pick__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; color: var(--ui-muted); font-size: 12px; }
+.lf-admin-ui .ui-library-pick__dot { width: 3px; height: 3px; border-radius: 50%; background: var(--ui-border); }
+.lf-admin-ui .ui-library-pick__share { display: inline-flex; align-items: center; gap: 4px; }
+.lf-admin-ui .ui-library-pick__share .ui-icon { width: 12px; height: 12px; }
+.lf-admin-ui .ui-library-view .ui-library-pick__note { overflow: hidden; color: var(--ui-muted); font-size: 12px; font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
+.lf-admin-ui .ui-library-view .ui-library-pick__usage-wrap { align-self: flex-start; }
+.lf-admin-ui .ui-library-view .ui-library-pick__usage { gap: 4px; height: 22px; padding: 0 8px; font-size: 12px; }
+.lf-admin-ui .ui-library-view .ui-library-pick__usage .ui-icon { width: 12px; height: 12px; }
+.lf-admin-ui .ui-library-pick__empty-icon { display: grid; place-items: center; width: 40px; height: 40px; margin: 0 auto 8px; border-radius: 10px; background: var(--ui-color-f2f3f6); color: var(--ui-muted); }
+.lf-admin-ui .ui-library-pick__item--skeleton { pointer-events: none; }
+.lf-admin-ui .ui-library-pick__item--skeleton .ui-library-pick__thumb { background: var(--ui-color-f2f3f6); }
+.lf-admin-ui .ui-skeleton-line { display: block; width: 60%; height: 10px; border-radius: 4px; background: var(--ui-color-f2f3f6); }
+.lf-admin-ui .ui-skeleton-line--short { width: 35%; }
+@media (max-width: 640px) {
+    .lf-admin-ui .ui-library-view .ui-library-pick__toolbar-row { flex-wrap: wrap; }
+    .lf-admin-ui .ui-library-view .ui-library-pick__sort { flex-basis: 100%; }
+    .lf-admin-ui .ui-library-view .ui-library-pick__thumb { width: 56px; }
+}
+
+/* Help tips inside UI Kit forms: a small "i" (the kit button sizing must not apply) and a bubble that opens towards the
+   inside of the popup instead of being cut off by its edge. */
+.lf-admin-ui .lf-info-tip__button { width: 16px; height: 16px; min-width: 0; min-height: 0; padding: 0; border-color: var(--ui-border); color: var(--ui-muted); background: var(--ui-white); font-size: 10px; }
+.lf-admin-ui .lf-info-tip__bubble { max-width: min(280px, 70vw); font-size: 12px; font-weight: 400; }
+.lf-admin-ui .ui-field__label--tip .lf-info-tip--end .lf-info-tip__bubble { right: -8px; }
+.lf-admin-ui .ui-activity-section legend.ui-field__label { margin-bottom: 8px; padding: 0; }
+.lf-admin-ui .ui-field__hint--notice { padding: 8px 10px; border: 1px solid var(--ui-notice-border); border-radius: var(--ui-control-radius); background: var(--ui-notice-soft); color: var(--ui-notice-text); }

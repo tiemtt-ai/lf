@@ -759,6 +759,43 @@ class CourseTemplateActivityManagementTest extends TestCase
             ->assertSessionHasErrors('learning_phases');
     }
 
+    public function test_a_live_class_takes_any_session_phase_but_never_anytime(): void
+    {
+        [$customerId, $templateId, $sectionId, $lessonId] = $this->createHierarchy();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $url = $this->activityCollectionUrl('admin', $templateId, $sectionId, $lessonId);
+        $live = fn (array $overrides) => $this->validActivityData([
+            'activity_type' => 'live_class',
+            'completion_rule' => 'join',
+            'live_class_url' => 'https://meet.google.com/abc-defg-hij',
+        ] + $overrides);
+
+        // Any session phase is kept as chosen (e.g. after the session, to watch the replay).
+        $this->actingAs($admin)
+            ->post($url, $live(['title' => 'Live after', 'learning_phases_present' => 1, 'learning_phases' => ['during_session', 'after_session']]))
+            ->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('core_course_template_activities', [
+            'customer_id' => $customerId, 'title' => 'Live after',
+            'available_anytime' => 0, 'available_before_session' => 0, 'available_during_session' => 1, 'available_after_session' => 1,
+        ]);
+
+        // Anytime is refused, alone or with a session phase.
+        foreach ([['anytime'], ['anytime', 'during_session']] as $index => $phases) {
+            $this->actingAs($admin)
+                ->post($url, $live(['title' => 'Live anytime '.$index, 'learning_phases_present' => 1, 'learning_phases' => $phases]))
+                ->assertSessionHasErrors('learning_phases');
+            $this->assertDatabaseMissing('core_course_template_activities', ['title' => 'Live anytime '.$index]);
+        }
+
+        // Without a declaration a live class defaults to during the session (other types keep defaulting to anytime).
+        $request = $live(['title' => 'Live default']);
+        unset($request['learning_phases'], $request['learning_phases_present']);
+        $this->actingAs($admin)->post($url, $request)->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('core_course_template_activities', [
+            'title' => 'Live default', 'available_anytime' => 0, 'available_during_session' => 1,
+        ]);
+    }
+
     public function test_learning_availability_checkboxes_render_on_activity_form_and_detail(): void
     {
         [$customerId, $templateId, $sectionId, $lessonId] = $this->createHierarchy();

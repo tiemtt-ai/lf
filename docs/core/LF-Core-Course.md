@@ -377,6 +377,9 @@ to the real Cohort Session that schedules its Lesson:
 * one or more of `before_session`, `during_session`, `after_session`.
 
 `anytime` is mutually exclusive with the three Session-relative choices.
+A Live Class Activity follows the Session schedule and cannot be `anytime`; it
+takes one or more Session-relative choices, and defaults to `during_session`
+when none is declared.
 Existing Activities default to `anytime`. Activity `sort_order` controls only
 display order and does not define availability.
 

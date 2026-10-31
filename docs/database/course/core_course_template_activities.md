@@ -102,6 +102,8 @@ core_course_template_activities
 * Mỗi Activity chọn `anytime`, hoặc một hay nhiều thời điểm
   `before_session`, `during_session`, `after_session`.
 * `anytime` không được kết hợp với các thời điểm theo buổi học.
+* Activity `live_class` không được chọn `anytime`; chọn một hay nhiều thời điểm
+  theo buổi học, mặc định `during_session` khi không khai báo.
 * Activity hiện có mặc định `anytime`.
 * Không tham chiếu Live Class Activity; Cohort Session thực tế gắn Lesson là
   mốc thời gian ở runtime.

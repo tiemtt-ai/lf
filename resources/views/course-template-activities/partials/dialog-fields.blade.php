@@ -113,7 +113,7 @@
                  title.value = '';
                  this.nameAuto = false;
              }
-             if (info && info.seconds) { this.estimatedDurationMinutes = Math.ceil(info.seconds / 60); this.durationAuto = true; }
+             if (info && info.seconds) { this.estimatedDurationMinutes = Math.ceil(info.seconds / 60); this.durationAuto = true; this.mediaDurationSeconds = info.seconds; this.mediaDurationState = 'ready'; }
              else if (! info && this.durationAuto) { this.estimatedDurationMinutes = null; this.durationAuto = false; }
          },
          fileTitle(file) { return file.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim(); },
@@ -167,6 +167,7 @@
          noPhaseName: @js(__('lf.LF_course_template_activity_phase_none')),
          recognizedLabel: @js(__('lf.LF_course_template_activity_url_recognized', ['provider' => '__P__'])),
          externalUrl: @js((string) ($formActivity?->external_video_url ?? $formActivity?->live_class_url ?? '')),
+         // A live class follows the session schedule: it cannot be anytime, but any session phase is allowed.
          get liveLocked() { return this.activityType === 'live_class'; },
          get urlProvider() {
              let host = '';
@@ -176,14 +177,23 @@
              return match ? known[match] : '';
          },
          phaseLabel() {
-             if (this.liveLocked) return this.phaseNames.during_session;
              if (this.learningMode === 'anytime') return this.anytimeName;
              const names = Object.keys(this.phaseNames).filter(key => this.sessionPhases.includes(key)).map(key => this.phaseNames[key]);
              return names.length ? names.join(' · ') : this.noPhaseName;
          },
          previewOpen: false,
          preview: { name: '', url: '', mimeType: '', mediaType: '' },
-         init() { this.$nextTick(() => this.syncCompletionOptions(false)); },
+         liveAdjusted: false,
+         init() {
+             // A live class cannot be anytime. One saved earlier as anytime opens switched to during the session,
+             // with a note asking to check the phases and save.
+             if (this.liveLocked && this.learningMode !== 'session') {
+                 this.learningMode = 'session';
+                 this.sessionPhases = ['during_session'];
+                 this.liveAdjusted = @js($formActivity !== null);
+             }
+             this.$nextTick(() => this.syncCompletionOptions(false));
+         },
          completionRuleLabel(rule) {
              return this.completionRuleLabelsByType[this.activityType]?.[rule] ?? this.completionRuleLabels[rule];
          },
@@ -217,7 +227,8 @@
              this.videoSpeechToTextEnabled = false;
              this.estimatedDurationMinutes = unchanged ? this.storedEstimateMinutes : null;
              this.externalUrl = '';
-             if (this.liveLocked) { this.learningMode = 'session'; this.sessionPhases = ['during_session']; }
+             if (this.liveLocked && this.learningMode !== 'session') { this.learningMode = 'session'; }
+             if (this.liveLocked && this.sessionPhases.length === 0) { this.sessionPhases = ['during_session']; }
              this.syncCompletionOptions(true);
          },
          documentFileChanged(event) {
@@ -343,9 +354,8 @@
     <span hidden x-effect="$dispatch('activity-phase-label', phaseLabel())"></span>
 
     <section class="ui-activity-section">
-        <h4 class="ui-modal__section-title">{{ __('lf.LF_course_template_activity_section_type') }}</h4>
         <fieldset class="ui-field ui-fieldset-reset" data-ui-error-for="activity_type">
-            <legend class="ui-sr-only">{!! $star !!}{{ __('lf.LF_course_template_activity_common_type') }}</legend>
+            <legend class="ui-field__label">{!! $star !!}{{ __('lf.LF_course_template_activity_common_type') }}</legend>
             <div class="ui-type-grid" role="radiogroup">
                 @foreach ($activityTypes as $activityTypeOption)
                     @php
@@ -355,7 +365,7 @@
                         <input type="radio" name="activity_type" value="{{ $activityTypeOption }}" id="activity-form-activity_type-{{ $activityTypeOption }}"
                                @if ($loop->first) required @endif @checked($selectedActivityType === $activityTypeOption)
                                x-on:change="activityType = $event.target.value; activityTypeChanged()">
-                        <span class="ui-type-card__icon ui-type-card__icon--{{ $typeColor }}"><x-backend-icon :name="$typeIcon" class="ui-icon" /></span>
+                        <span class="ui-type-card__icon"><x-backend-icon :name="$typeIcon" class="ui-icon" /></span>
                         <span class="ui-type-card__text">
                             <b>{{ __('lf.LF_course_template_activity_common_type_'.$activityTypeOption) }}</b>
                             <small>{{ __('lf.LF_course_template_activity_type_hint_'.$activityTypeOption) }}</small>
@@ -584,45 +594,50 @@
     </section>
 
     <section class="ui-activity-section">
-        <h4 class="ui-modal__section-title">{{ __('lf.LF_course_template_activity_learning_availability') }}</h4>
         <fieldset class="ui-field ui-fieldset-reset" data-ui-error-for="learning_phases">
             <input type="hidden" name="learning_phases_present" value="1">
-            <legend class="ui-sr-only">{!! $star !!}{{ __('lf.LF_course_template_activity_learning_availability') }}</legend>
+            <legend class="ui-field__label">{!! $star !!}{{ __('lf.LF_course_template_activity_learning_availability') }}</legend>
             {{-- Anytime and the session phases are exclusive: pick the mode first, then the phases of a session. --}}
             <div class="ui-option-cards" role="radiogroup">
                 @foreach (['anytime', 'session'] as $mode)
-                    <label class="ui-option-card" x-bind:class="{ 'is-disabled': liveLocked && '{{ $mode }}' === 'anytime' }">
-                        <input type="radio" name="learning_mode" value="{{ $mode }}" id="activity-form-learning_mode-{{ $mode }}" x-model="learningMode"
-                               x-bind:disabled="liveLocked && '{{ $mode }}' === 'anytime'">
-                        <span class="ui-option-card__dot" aria-hidden="true"></span>
-                        <span><b>{{ __('lf.LF_course_template_activity_learning_mode_'.$mode) }}</b><small>{{ __('lf.LF_course_template_activity_learning_mode_'.$mode.'_help') }}</small></span>
-                    </label>
+                    <div class="ui-option-box"
+                         x-bind:class="{ 'is-selected': learningMode === '{{ $mode }}', 'is-disabled': liveLocked && '{{ $mode }}' === 'anytime' }">
+                        <label class="ui-option-card">
+                            <input type="radio" name="learning_mode" value="{{ $mode }}" id="activity-form-learning_mode-{{ $mode }}" x-model="learningMode"
+                                   x-bind:disabled="liveLocked && '{{ $mode }}' === 'anytime'">
+                            <span class="ui-option-card__dot" aria-hidden="true"></span>
+                            <span><b>{{ __('lf.LF_course_template_activity_learning_mode_'.$mode) }}</b><small>{{ __('lf.LF_course_template_activity_learning_mode_'.$mode.'_help') }}</small></span>
+                        </label>
+                        @if ($mode === 'session')
+                            {{-- The phases of a session sit inside the session card. --}}
+                            <div class="ui-option-box__sub" x-show="learningMode === 'session'" x-cloak>
+                                <span class="ui-activity-panel__head">
+                                    <span class="ui-field__label">{!! $star !!}{{ __('lf.LF_course_template_activity_phase_choose') }}</span>
+                                    <span class="ui-field__hint">{{ __('lf.LF_course_template_activity_phase_choose_hint') }}</span>
+                                </span>
+                                <div class="ui-chip-list">
+                                    @foreach (['before_session', 'during_session', 'after_session'] as $phase)
+                                        <label class="ui-chip">
+                                            <input type="checkbox" name="learning_phases[]" value="{{ $phase }}" id="activity-form-learning_phases-{{ $phase }}"
+                                                   x-model="sessionPhases" x-bind:disabled="learningMode !== 'session'"
+                                                   aria-label="{{ __('lf.LF_course_template_activity_learning_availability_'.$phase) }}">
+                                            <x-backend-icon name="check" class="ui-icon ui-chip__check" />
+                                            <span>{{ __('lf.LF_course_template_activity_phase_short_'.$phase) }}</span>
+                                        </label>
+                                    @endforeach
+                                </div>
+                                <span class="ui-field__hint" x-show="liveLocked" x-cloak>{{ __('lf.LF_course_template_activity_live_phase_locked') }}</span>
+                                <span class="ui-field__hint ui-field__hint--notice" role="status" x-show="liveLocked && liveAdjusted" x-cloak>{{ __('lf.LF_activity_live_phase_adjusted') }}</span>
+                            </div>
+                        @endif
+                    </div>
                 @endforeach
             </div>
             <input type="hidden" name="learning_phases[]" value="anytime" x-bind:disabled="learningMode !== 'anytime'">
-            <input type="hidden" name="learning_phases[]" value="during_session" x-bind:disabled="! liveLocked">
-            <div class="ui-activity-panel" x-show="learningMode === 'session'" x-cloak>
-                <span class="ui-activity-panel__head">
-                    <span class="ui-field__label">{!! $star !!}{{ __('lf.LF_course_template_activity_phase_choose') }}</span>
-                    <span class="ui-field__hint">{{ __('lf.LF_course_template_activity_phase_choose_hint') }}</span>
-                </span>
-                <div class="ui-chip-list ui-chip-list--grid3">
-                    @foreach (['before_session', 'during_session', 'after_session'] as $phase)
-                        <label class="ui-chip">
-                            <input type="checkbox" name="learning_phases[]" value="{{ $phase }}" id="activity-form-learning_phases-{{ $phase }}"
-                                   x-model="sessionPhases" x-bind:disabled="learningMode !== 'session' || liveLocked">
-                            <x-backend-icon name="check" class="ui-icon ui-chip__check" />
-                            <span>{{ __('lf.LF_course_template_activity_learning_availability_'.$phase) }}</span>
-                        </label>
-                    @endforeach
-                </div>
-                <span class="ui-field__hint" x-show="liveLocked" x-cloak>{{ __('lf.LF_course_template_activity_live_phase_locked') }}</span>
-            </div>
         </fieldset>
     </section>
 
     <section class="ui-activity-section">
-        <h4 class="ui-modal__section-title">{{ __('lf.LF_course_template_activity_section_completion') }}</h4>
         <div class="ui-modal__grid ui-modal__grid--pair">
             <div class="ui-field">
                 <label class="ui-field__label" for="activity-form-completion_rule">{!! $star !!}{{ __('lf.LF_course_template_activity_common_completion_rule') }}</label>
@@ -637,20 +652,23 @@
             </div>
 
             <div class="ui-field">
-                <label class="ui-field__label" for="activity-form-estimated_duration_minutes">{{ __('lf.LF_course_template_activity_common_estimated_duration_minutes') }}</label>
+                <label class="ui-field__label ui-field__label--tip" for="activity-form-estimated_duration_minutes">
+                    {{ __('lf.LF_course_template_activity_common_estimated_duration_minutes') }}
+                    <x-info-tip align="end" :text="__('lf.LF_course_template_activity_common_estimated_duration_help').' '.__('lf.LF_course_template_activity_media_estimated_duration_help')" />
+                </label>
                 <input id="activity-form-estimated_duration_minutes" type="number" min="1" step="1" name="estimated_duration_minutes"
                        x-model.number="estimatedDurationMinutes" x-on:input="durationAuto = false"
                        placeholder="{{ __('lf.LF_course_template_activity_placeholder_estimated_duration') }}">
-                <span class="ui-field__hint" x-show="durationAuto" x-cloak><span class="ui-tag-auto"><x-backend-icon name="check" class="ui-icon" />{{ __('lf.LF_activity_duration_auto') }}</span></span>
-                <span class="ui-field__hint" x-show="! ['video', 'audio'].includes(activityType)">{{ __('lf.LF_course_template_activity_common_estimated_duration_help') }}</span>
-                <span class="ui-field__hint" aria-live="polite" x-show="['video', 'audio'].includes(activityType) && mediaDurationState === 'ready'" x-cloak>
-                    {{ __('lf.LF_course_template_activity_media_actual_duration') }}
-                    <strong x-text="formattedMediaDuration()"></strong>.
-                    {{ __('lf.LF_course_template_activity_media_estimated_duration_help') }}
+                {{-- One line under the field: where the value came from, or what will fill it. --}}
+                <span class="ui-field__hint ui-field__hint--line" aria-live="polite" x-show="durationAuto" x-cloak>
+                    <span class="ui-tag-auto"><x-backend-icon name="check" class="ui-icon" />{{ __('lf.LF_activity_duration_from_file') }}<span x-show="mediaDurationSeconds" x-text="' · ' + formattedMediaDuration()"></span></span>
                 </span>
-                <span class="ui-field__hint" x-show="['video', 'audio'].includes(activityType) && mediaDurationState === 'probing'" x-cloak>{{ __('lf.LF_course_template_activity_media_duration_probing') }}</span>
-                <span class="ui-field__hint" x-show="['video', 'audio'].includes(activityType) && mediaDurationState === 'empty'" x-cloak>{{ __('lf.LF_activity_duration_autofill_hint') }}</span>
-                <span class="ui-field__hint" x-show="['video', 'audio'].includes(activityType) && mediaDurationState === 'unavailable'" x-cloak>{{ __('lf.LF_course_template_activity_media_duration_unknown') }}</span>
+                <span class="ui-field__hint ui-field__hint--line" x-show="! durationAuto && ['video', 'audio'].includes(activityType) && mediaDurationState === 'ready'" x-cloak>
+                    {{ __('lf.LF_course_template_activity_media_actual_duration') }} <strong x-text="formattedMediaDuration()"></strong>
+                </span>
+                <span class="ui-field__hint ui-field__hint--line" x-show="['video', 'audio'].includes(activityType) && mediaDurationState === 'probing'" x-cloak>{{ __('lf.LF_course_template_activity_media_duration_probing') }}</span>
+                <span class="ui-field__hint ui-field__hint--line" x-show="! durationAuto && ['video', 'audio'].includes(activityType) && mediaDurationState === 'empty'" x-cloak>{{ __('lf.LF_activity_duration_autofill_hint') }}</span>
+                <span class="ui-field__hint ui-field__hint--line" x-show="['video', 'audio'].includes(activityType) && mediaDurationState === 'unavailable'" x-cloak>{{ __('lf.LF_course_template_activity_media_duration_unknown') }}</span>
             </div>
 
             <div class="ui-field" x-show="['watch_percent', 'pass'].includes(completionRule)" x-cloak>
@@ -685,12 +703,6 @@
                 </select>
             </div>
 
-            <div class="ui-field">
-                <label class="ui-field__label" for="activity-form-sort_order">{{ __('lf.LF_course_template_activity_common_sort_order') }}</label>
-                <input id="activity-form-sort_order" type="number" min="0" name="sort_order"
-                       value="{{ $formActivity?->sort_order ?? $suggestedSortOrder ?? null }}"
-                       placeholder="{{ __('lf.LF_course_template_activity_placeholder_sort_order') }}">
-            </div>
 
             <div class="ui-field">
                 <label class="ui-field__label" for="activity-form-unlock_rule">{!! $star !!}{{ __('lf.LF_course_template_activity_common_unlock_rule') }}</label>
@@ -713,6 +725,16 @@
             </div>
         </div>
     </details>
+
+    {{-- The display order is always the last field of the form. --}}
+    <div class="ui-modal__grid ui-modal__grid--pair ui-activity-last">
+        <div class="ui-field">
+            <label class="ui-field__label" for="activity-form-sort_order">{{ __('lf.LF_course_template_activity_common_sort_order') }}</label>
+            <input id="activity-form-sort_order" type="number" min="0" name="sort_order"
+                   value="{{ $formActivity?->sort_order ?? $suggestedSortOrder ?? null }}"
+                   placeholder="{{ __('lf.LF_course_template_activity_placeholder_sort_order') }}">
+        </div>
+    </div>
 
     <x-media-preview-modal ui-kit id="activity-form-preview-title" show="previewOpen" close="closePreview()" title="preview.name" compact="false">
         <template x-if="previewOpen && preview.mediaType === 'video'">
