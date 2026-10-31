@@ -31,7 +31,7 @@ class CourseTemplateTeacherController extends Controller
     {
         $customerId = $this->customerId();
 
-        return view('course-template-teachers.create', [
+        return view($request->ajax() ? 'course-template-teachers.dialog' : 'course-template-teachers.create', [
             'template' => $this->findTemplate($customerId, $templateId),
             'teachers' => $this->availableTeachers($customerId, $templateId),
             'assignmentRoles' => self::ASSIGNMENT_ROLES,
@@ -59,11 +59,34 @@ class CourseTemplateTeacherController extends Controller
                 ->where('id', $templateId)
                 ->lockForUpdate()
                 ->first();
+            $now = now();
+            // A teacher removed earlier keeps their row (one per Template and teacher): assigning them again
+            // reactivates it with the new role, keeping its place in the list.
+            $removed = DB::table('core_course_template_teachers')
+                ->where('customer_id', $customerId)
+                ->where('template_id', $templateId)
+                ->where('teacher_id', $validated['teacher_id'])
+                ->where('status', 'inactive')
+                ->lockForUpdate()
+                ->first();
+            if ($removed) {
+                DB::table('core_course_template_teachers')
+                    ->where('customer_id', $customerId)
+                    ->where('id', $removed->id)
+                    ->update([
+                        'role' => $validated['role'],
+                        'status' => 'active',
+                        'assigned_by' => $request->user()?->id,
+                        'assigned_at' => $now,
+                        'updated_at' => $now,
+                    ]);
+
+                return;
+            }
             $maximumOrder = DB::table('core_course_template_teachers')
                 ->where('customer_id', $customerId)
                 ->where('template_id', $templateId)
                 ->max('sort_order');
-            $now = now();
 
             DB::table('core_course_template_teachers')->insert([
                 'customer_id' => $customerId,
@@ -79,16 +102,7 @@ class CourseTemplateTeacherController extends Controller
             ]);
         });
 
-        return redirect()
-            ->to(
-                route(
-                    $this->templateRoutePrefix($request).'.edit',
-                    $templateId
-                ).'?tab=teachers#course-template-teachers'
-            )
-            ->with('success', __(
-                'lf.LF_course_template_teacher_common_created'
-            ));
+        return $this->backToTeachers($request, $templateId, 'lf.LF_course_template_teacher_common_created');
     }
 
     public function edit(
@@ -98,9 +112,9 @@ class CourseTemplateTeacherController extends Controller
     ): View {
         $customerId = $this->customerId();
 
-        return view('course-template-teachers.edit', [
+        return view($request->ajax() ? 'course-template-teachers.dialog' : 'course-template-teachers.edit', [
             'template' => $this->findTemplate($customerId, $templateId),
-            'assignment' => $this->findAssignment(
+            'assignment' => $this->findActiveAssignment(
                 $customerId,
                 $templateId,
                 $assignmentId
@@ -123,7 +137,7 @@ class CourseTemplateTeacherController extends Controller
     ) {
         $customerId = $this->customerId();
         $this->findTemplate($customerId, $templateId);
-        $this->findAssignment($customerId, $templateId, $assignmentId);
+        $this->findActiveAssignment($customerId, $templateId, $assignmentId);
         $validated = $this->validatedData(
             $request,
             $customerId,
@@ -139,6 +153,10 @@ class CourseTemplateTeacherController extends Controller
                 'role' => $validated['role'],
                 'updated_at' => now(),
             ]);
+
+        if ($request->expectsJson()) {
+            return $this->backToTeachers($request, $templateId, 'lf.LF_course_template_teacher_common_updated');
+        }
 
         return redirect()
             ->route(
@@ -157,7 +175,7 @@ class CourseTemplateTeacherController extends Controller
     ) {
         $customerId = $this->customerId();
         $this->findTemplate($customerId, $templateId);
-        $this->findAssignment($customerId, $templateId, $assignmentId);
+        $this->findActiveAssignment($customerId, $templateId, $assignmentId);
 
         DB::table('core_course_template_teachers')
             ->where('customer_id', $customerId)
@@ -168,16 +186,7 @@ class CourseTemplateTeacherController extends Controller
                 'updated_at' => now(),
             ]);
 
-        return redirect()
-            ->to(
-                route(
-                    $this->templateRoutePrefix($request).'.edit',
-                    $templateId
-                ).'?tab=teachers#course-template-teachers'
-            )
-            ->with('success', __(
-                'lf.LF_course_template_teacher_common_removed'
-            ));
+        return $this->backToTeachers($request, $templateId, 'lf.LF_course_template_teacher_common_removed');
     }
 
     private function validatedData(
@@ -212,6 +221,7 @@ class CourseTemplateTeacherController extends Controller
                         ->where('customer_id', $customerId)
                         ->where('role', 'teacher')
                 ),
+                // Only an active assignment blocks; a removed teacher can be assigned again.
                 Rule::unique(
                     'core_course_template_teachers',
                     'teacher_id'
@@ -219,6 +229,7 @@ class CourseTemplateTeacherController extends Controller
                     fn ($query) => $query
                         ->where('customer_id', $customerId)
                         ->where('template_id', $templateId)
+                        ->where('status', 'active')
                 ),
             ];
         }
@@ -246,6 +257,7 @@ class CourseTemplateTeacherController extends Controller
         $assignedTeacherIds = DB::table('core_course_template_teachers')
             ->where('customer_id', $customerId)
             ->where('template_id', $templateId)
+            ->where('status', 'active')
             ->pluck('teacher_id');
 
         return DB::table('users')
@@ -320,6 +332,31 @@ class CourseTemplateTeacherController extends Controller
         abort_if(! $assignment, 404);
 
         return $assignment;
+    }
+
+    /** Only an active assignment can be edited or removed; a removed one is assigned again from Add. */
+    private function findActiveAssignment(int $customerId, int $templateId, int $assignmentId): object
+    {
+        $assignment = $this->findAssignment($customerId, $templateId, $assignmentId);
+
+        abort_if($assignment->status !== 'active', 404);
+
+        return $assignment;
+    }
+
+    /** Back to the Teachers tab: JSON for the popup and the row actions (the page reloads there), a redirect otherwise. */
+    private function backToTeachers(Request $request, int $templateId, string $messageKey)
+    {
+        $url = route($this->templateRoutePrefix($request).'.edit', $templateId).'?tab=teachers#course-template-teachers';
+        $message = __($messageKey);
+
+        if ($request->expectsJson()) {
+            $request->session()->flash('success', $message);
+
+            return response()->json(['message' => $message, 'redirect' => $url]);
+        }
+
+        return redirect()->to($url)->with('success', $message);
     }
 
     private function customerId(): int

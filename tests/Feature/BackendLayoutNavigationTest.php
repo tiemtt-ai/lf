@@ -612,7 +612,6 @@ class BackendLayoutNavigationTest extends TestCase
             'resources/views/course-cohorts/partials/tabs/sessions.blade.php',
             'resources/views/course-enrollments/index.blade.php',
             'resources/views/course-products/edit.blade.php',
-            'resources/views/course-template-teachers/partials/list.blade.php',
             'resources/views/course-templates/edit.blade.php',
             'resources/views/media-categories/index.blade.php',
         ];

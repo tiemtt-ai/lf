@@ -1,137 +1,119 @@
 @php
     // Only admins assign teachers; a teacher reads who is assigned.
     $canAssign = str_starts_with($teacherRoutePrefix, 'admin');
+    $activeAssignments = $teacherAssignments->where('status', 'active');
+    $removedAssignments = $teacherAssignments->where('status', '!=', 'active');
+    $columnCount = $canAssign ? 5 : 4;
 @endphp
-<section id="course-template-teachers"
-         class="admin-card admin-form-card course-template-section-card"
-         aria-labelledby="course-template-teachers-title">
-    <header class="course-template-section-header course-template-teachers-header">
-        <div class="course-template-teachers-header-copy">
-            <h2 id="course-template-teachers-title" class="admin-form-section-title">
-                {{ __('lf.LF_course_template_teacher_common_list_title') }}
-            </h2>
-            <p>{{ __('lf.LF_course_template_teacher_common_list_help') }}</p>
-        </div>
-        @if ($canAssign)
-        <a href="{{ route($teacherRoutePrefix.'.create', $template->id) }}"
-           class="btn admin-primary-outline-action course-template-teacher-add-action">
-            {{ __('lf.LF_course_template_teacher_common_add_action') }}
-        </a>
-        @endif
-    </header>
+<div class="lf-admin-ui lf-admin-ui--list ui-template-teachers" data-ui-dialog-form-scope data-ui-row-actions
+     data-csrf="{{ csrf_token() }}"
+     data-msg-delete-error="{{ __('lf.LF_common_dialog_save_error') }}"
+     data-msg-session-expired="{{ __('lf.LF_common_dialog_session_expired') }}">
+    <x-ui-list-toasts />
 
-    @if ($teacherAssignments->isEmpty())
-        <div class="course-template-teacher-empty">
-            <strong>
-                {{ trans_choice(
-                    'lf.LF_course_template_teacher_common_count',
-                    0,
-                    ['count' => 0]
-                ) }}
-            </strong>
-            <p>{{ __('lf.LF_course_template_teacher_common_empty') }}</p>
+    <section id="course-template-teachers" class="mk-section" aria-labelledby="course-template-teachers-title">
+        <div class="ui-summary-head">
+            <div>
+                <h2 id="course-template-teachers-title">{{ __('lf.LF_course_template_teacher_common_list_title') }}</h2>
+                <p class="ui-caption">{{ __('lf.LF_course_template_teacher_common_list_help') }}</p>
+            </div>
+            @if ($canAssign)
+                <button type="button" class="ui-button ui-button--outline cursor-interaction"
+                        data-ui-dialog-form-open aria-haspopup="dialog"
+                        data-url="{{ route($teacherRoutePrefix.'.create', $template->id) }}">
+                    {{ __('lf.LF_course_template_teacher_common_add_action') }}
+                </button>
+            @endif
         </div>
-    @else
-        <div class="course-template-teacher-count">
-            {{ trans_choice(
-                'lf.LF_course_template_teacher_common_count',
-                $teacherAssignments->count(),
-                ['count' => $teacherAssignments->count()]
-            ) }}
-        </div>
-        <div class="admin-table-wrap">
-            <table class="table admin-table-has-actions">
+
+        <div class="mk-table-scroll" role="region" aria-labelledby="course-template-teachers-title" tabindex="0">
+            <table aria-labelledby="course-template-teachers-title">
+                <colgroup>
+                    <col>
+                    <col class="mk-col-secondary">
+                    <col class="mk-col-secondary">
+                    <col class="mk-col-status">
+                    @if ($canAssign)<col class="mk-col-action">@endif
+                </colgroup>
                 <thead>
                 <tr>
-                    <th>{{ __('lf.LF_course_template_teacher_common_name') }}</th>
-                    <th>{{ __('lf.LF_course_template_teacher_common_email') }}</th>
-                    <th>{{ __('lf.LF_course_template_teacher_common_role') }}</th>
-                    <th>{{ __('lf.LF_course_template_teacher_common_status') }}</th>
-                    @if ($canAssign)<th>{{ __('lf.table_actions') }}</th>@endif
+                    <th scope="col" class="mk-text-cell">{{ __('lf.LF_course_template_teacher_common_name') }}</th>
+                    <th scope="col" class="mk-text-cell">{{ __('lf.LF_course_template_teacher_common_email') }}</th>
+                    <th scope="col" class="mk-text-cell">{{ __('lf.LF_course_template_teacher_common_role') }}</th>
+                    <th scope="col" class="ux-action-cell">{{ __('lf.LF_course_template_teacher_common_status') }}</th>
+                    @if ($canAssign)<th scope="col" class="ux-action-cell">{{ __('lf.table_actions') }}</th>@endif
                 </tr>
                 </thead>
                 <tbody>
-                @foreach ($teacherAssignments as $assignment)
-                    <tr>
-                        <td>{{ $assignment->teacher_name }}</td>
-                        <td>{{ $assignment->teacher_email }}</td>
-                        <td>
+                {{-- Active assignments first; a removed one stays listed (its history) and is assigned again from Add. --}}
+                @forelse ($activeAssignments->concat($removedAssignments) as $assignment)
+                    @php($isActive = $assignment->status === 'active')
+                    <tr @class(['ui-row--muted' => ! $isActive])>
+                        <td class="mk-text-cell" data-label="{{ __('lf.LF_course_template_teacher_common_name') }}">
+                            <span class="mk-name-text">{{ $assignment->teacher_name }}</span>
+                        </td>
+                        <td class="mk-text-cell mk-text-cell--nowrap" data-label="{{ __('lf.LF_course_template_teacher_common_email') }}">{{ $assignment->teacher_email }}</td>
+                        <td class="mk-text-cell" data-label="{{ __('lf.LF_course_template_teacher_common_role') }}">
                             {{ __('lf.LF_course_template_teacher_common_role_'.$assignment->role) }}
                         </td>
-                        <td>
-                            <span @class([
-                                'badge',
-                                'badge-success' => $assignment->status === 'active',
-                                'badge-danger' => $assignment->status === 'inactive',
-                            ])>
-                                {{ __('lf.LF_course_template_teacher_common_status_'.$assignment->status) }}
-                            </span>
+                        <td class="ux-action-cell" data-label="{{ __('lf.LF_course_template_teacher_common_status') }}">
+                            <span class="ui-status ui-status--{{ $isActive ? 'active' : 'archived' }}">{{ __('lf.LF_course_template_teacher_common_status_'.$assignment->status) }}</span>
                         </td>
                         @if ($canAssign)
-                        <td>
-                            <x-admin-action-menu :label="__('lf.table_actions').': '.$assignment->teacher_name">
-                                <a class="admin-table-action-link admin-text-action" href="{{ route(
-                                    $teacherRoutePrefix.'.edit',
-                                    [$template->id, $assignment->id]
-                                ) }}">
-                                    <x-admin-action-icon name="edit" />
-                                    {{ __('lf.LF_course_template_teacher_common_edit') }}
-                                </a>
-                                @if ($assignment->status === 'active')
-                                    <button type="button"
-                                            class="admin-link-button admin-text-action"
-                                            x-data
-                                            x-on:click="$dispatch(
-                                                'open-modal',
-                                                'remove-course-template-teacher-{{ $assignment->id }}'
-                                            )">
-                                        <x-admin-action-icon name="remove" />
-                                        {{ __('lf.LF_course_template_teacher_common_remove') }}
+                            <td class="ux-action-cell" data-label="{{ __('lf.table_actions') }}">
+                                @if ($isActive)
+                                    <button type="button" class="ux-row-edit cursor-interaction" data-ui-dialog-form-open aria-haspopup="dialog"
+                                            data-url="{{ route($teacherRoutePrefix.'.edit', [$template->id, $assignment->id]) }}"
+                                            aria-label="{{ __('lf.LF_course_template_teacher_common_edit') }}: {{ $assignment->teacher_name }}"
+                                            data-tooltip="{{ __('lf.LF_course_template_teacher_common_edit') }}">
+                                        <x-backend-icon name="pencil" class="ui-icon" />
                                     </button>
+                                    <button type="button" class="ux-row-edit ui-row-action--danger cursor-interaction" data-ui-row-delete
+                                            data-url="{{ route($teacherRoutePrefix.'.destroy', [$template->id, $assignment->id]) }}"
+                                            data-confirm-title="{{ __('lf.LF_course_template_teacher_common_remove') }}"
+                                            data-confirm-message="{{ __('lf.LF_course_template_teacher_remove_confirm_named', ['name' => $assignment->teacher_name]) }}"
+                                            data-confirm-label="{{ __('lf.LF_course_template_teacher_common_remove_yes') }}"
+                                            aria-label="{{ __('lf.LF_course_template_teacher_common_remove') }}: {{ $assignment->teacher_name }}"
+                                            data-tooltip="{{ __('lf.LF_course_template_teacher_common_remove') }}">
+                                        <x-backend-icon name="trash-2" class="ui-icon" />
+                                    </button>
+                                @else
+                                    <span class="ui-caption" data-tooltip="{{ __('lf.LF_course_template_teacher_reassign_hint') }}">—</span>
                                 @endif
-                            </x-admin-action-menu>
-
-                            @if ($assignment->status === 'active')
-                                <x-modal name="remove-course-template-teacher-{{ $assignment->id }}"
-                                         focusable>
-                                    <div class="lf-modal-card">
-                                        <h2>
-                                            {{ __('lf.LF_course_template_teacher_common_remove_confirm') }}
-                                        </h2>
-                                        <div class="lf-modal-actions">
-                                            <button type="button"
-                                                    class="btn"
-                                                    x-on:click="$dispatch(
-                                                        'close-modal',
-                                                        'remove-course-template-teacher-{{ $assignment->id }}'
-                                                    )">
-                                                {{ __('lf.LF_course_template_teacher_common_remove_no') }}
-                                            </button>
-                                            <form method="POST"
-                                                  action="{{ route(
-                                                      $teacherRoutePrefix.'.destroy',
-                                                      [
-                                                          $template->id,
-                                                          $assignment->id,
-                                                      ]
-                                                  ) }}">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit"
-                                                        class="btn btn-primary">
-                                                    {{ __('lf.LF_course_template_teacher_common_remove_yes') }}
-                                                </button>
-                                            </form>
-                                        </div>
-                                    </div>
-                                </x-modal>
-                            @endif
-                        </td>
+                            </td>
                         @endif
                     </tr>
-                @endforeach
+                @empty
+                    <tr class="mk-empty-row">
+                        <td class="mk-empty" colspan="{{ $columnCount }}">
+                            <div role="status">
+                                <strong>{{ trans_choice('lf.LF_course_template_teacher_common_count', 0, ['count' => 0]) }}</strong>
+                                <p class="ui-caption">{{ __('lf.LF_course_template_teacher_common_empty') }}</p>
+                                @if ($canAssign)
+                                    <button type="button" class="ui-button ui-button--outline cursor-interaction"
+                                            data-ui-dialog-form-open aria-haspopup="dialog"
+                                            data-url="{{ route($teacherRoutePrefix.'.create', $template->id) }}">
+                                        {{ __('lf.LF_course_template_teacher_common_add_action') }}
+                                    </button>
+                                @endif
+                            </div>
+                        </td>
+                    </tr>
+                @endforelse
                 </tbody>
             </table>
         </div>
+
+        @if ($teacherAssignments->isNotEmpty())
+            <div class="mk-table-foot">
+                <span class="mk-footnote" role="status">
+                    {{ trans_choice('lf.LF_course_template_teacher_common_count', $activeAssignments->count(), ['count' => $activeAssignments->count()]) }}
+                </span>
+            </div>
+        @endif
+    </section>
+
+    @if ($canAssign)
+        <x-ui-form-dialog-host title-id="teacher-dialog-title" :columns="1" />
     @endif
-</section>
+</div>

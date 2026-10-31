@@ -82,11 +82,12 @@ class CourseTemplateTeacherManagementTest extends TestCase
             // Only admins can assign: a teacher reads the list without any control to change it.
             if ($canAssign) {
                 $response->assertSeeText('+ Phân công giáo viên')
-                    ->assertSeeText('Bạn có chắc chắn muốn xóa giáo viên khỏi Template này không?')
+                    ->assertSee('data-ui-row-delete', false)
+                    ->assertSee(e(__('lf.LF_course_template_teacher_remove_confirm_named', ['name' => 'Assigned Teacher'])), false)
                     ->assertSee($this->assignmentCollectionUrl($area, $templateId)."/{$assignmentId}/edit", false);
             } else {
                 $response->assertDontSeeText('+ Phân công giáo viên')
-                    ->assertDontSeeText('Bạn có chắc chắn muốn xóa giáo viên khỏi Template này không?')
+                    ->assertDontSee('data-ui-row-delete', false)
                     ->assertDontSee($this->assignmentCollectionUrl($area, $templateId)."/{$assignmentId}/edit", false);
             }
 
@@ -426,20 +427,44 @@ class CourseTemplateTeacherManagementTest extends TestCase
             ->assertSeeText('+ Phân công giáo viên')
             ->getContent();
 
-        $this->assertStringContainsString('class="course-template-section-header course-template-teachers-header"', $content);
-        $this->assertStringContainsString('class="course-template-teacher-empty"', $content);
-        $this->assertStringContainsString('course-template-teacher-add-action', $content);
-        $teacherSection = Str::between(
-            $content,
-            '<section id="course-template-teachers"',
-            '</section>'
-        );
-        $this->assertStringNotContainsString('class="course-template-section-action-bar"', $teacherSection);
+        // The tab is a UI Kit list: an empty-state row in the table, and Add opens the assignment popup.
+        $teacherSection = Str::between($content, '<section id="course-template-teachers"', '</section>');
+        $this->assertStringContainsString('class="mk-empty"', $teacherSection);
+        $this->assertStringContainsString('data-ui-dialog-form-open', $teacherSection);
+        $this->assertStringContainsString("https://tenant-a.localhost/admin/course-templates/{$templateId}/teachers/create", $teacherSection);
+        $this->assertStringNotContainsString('course-template-teacher-empty', $content);
+    }
 
-        $css = file_get_contents(resource_path('css/admin/admin-pages.css'));
-        $this->assertStringContainsString('.course-template-teachers-header {', $css);
-        $this->assertStringContainsString('.course-template-teacher-empty {', $css);
-        $this->assertStringContainsString('.course-template-teacher-add-action {', $css);
+    public function test_popup_assignment_answers_json_and_a_removed_teacher_can_be_assigned_again(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $teacher = $this->createUser($customerId, 'teacher', 'Returning Teacher');
+        $templateId = $this->createTemplate($customerId, 'Popup Template');
+        $url = $this->assignmentCollectionUrl('admin', $templateId);
+        $ajax = ['X-Requested-With' => 'XMLHttpRequest'];
+
+        $this->actingAs($admin)->get("{$url}/create", $ajax)->assertOk()
+            ->assertSee('ui-modal__form', false)->assertSee('Returning Teacher')->assertDontSee('<html', false);
+
+        $this->postJson($url, ['teacher_id' => $teacher->id, 'role' => 'primary'])->assertOk()->assertJsonStructure(['message', 'redirect']);
+        $assignmentId = (int) DB::table('core_course_template_teachers')->where('template_id', $templateId)->value('id');
+
+        $this->get("{$url}/{$assignmentId}/edit", $ajax)->assertOk()->assertSee('ui-modal__form', false);
+        $this->putJson("{$url}/{$assignmentId}", ['role' => 'reviewer'])->assertOk();
+        $this->deleteJson("{$url}/{$assignmentId}")->assertOk();
+        $this->assertDatabaseHas('core_course_template_teachers', ['id' => $assignmentId, 'status' => 'inactive', 'role' => 'reviewer']);
+
+        // A removed assignment is no longer editable or removable, but the teacher is offered again and reactivated.
+        $this->get("{$url}/{$assignmentId}/edit", $ajax)->assertNotFound();
+        $this->deleteJson("{$url}/{$assignmentId}")->assertNotFound();
+        $this->get("{$url}/create", $ajax)->assertOk()->assertSee('Returning Teacher');
+        $this->postJson($url, ['teacher_id' => $teacher->id, 'role' => 'assistant'])->assertOk();
+        $this->assertDatabaseHas('core_course_template_teachers', ['id' => $assignmentId, 'status' => 'active', 'role' => 'assistant']);
+        $this->assertSame(1, DB::table('core_course_template_teachers')->where('template_id', $templateId)->count());
+
+        // An active assignment still cannot be added twice.
+        $this->postJson($url, ['teacher_id' => $teacher->id, 'role' => 'primary'])->assertStatus(422)->assertJsonValidationErrors(['teacher_id']);
     }
 
     public function test_guest_and_student_cannot_access_teacher_assignments(): void

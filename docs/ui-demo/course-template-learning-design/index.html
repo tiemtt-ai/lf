@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Template khóa học · Đầu ra &amp; năng lực</title>
+<link rel="stylesheet" href="../admin-layout-developer/assets/admin-layout.css">
+<link rel="stylesheet" href="../ui-kit-developer/assets/ui-kit.css">
+<link rel="stylesheet" href="assets/learning.css">
+<script defer src="../ui-kit-developer/assets/lucide.min.js"></script>
+<script defer src="assets/learning.js"></script>
+</head>
+<body>
+<div id="admin-app">
+<div class="admin-shell" id="admin-shell">
+<aside class="admin-sidebar" id="admin-sidebar" aria-label="Điều hướng quản trị">
+<div class="admin-sidebar__brand"><img class="admin-brand-image" src="../admin-layout-developer/assets/brand-logo.png" alt="Master Korean" width="180" height="67"><span class="admin-brand-initial" role="img" aria-label="Master Korean">V</span><button id="admin-close" type="button" class="admin-icon-button admin-close" aria-label="Đóng menu" hidden><i data-lucide="x" class="admin-icon" aria-hidden="true"></i></button></div>
+<nav class="admin-nav" aria-label="Menu chính">
+<a href="#" class="admin-nav__item" aria-label="Bảng điều khiển" data-tooltip="Bảng điều khiển"><i data-lucide="house" class="admin-icon" aria-hidden="true"></i><span class="admin-nav__label">Bảng điều khiển</span></a>
+<a href="#" class="admin-nav__item" aria-label="Danh mục sản phẩm" data-tooltip="Danh mục sản phẩm"><i data-lucide="folder" class="admin-icon" aria-hidden="true"></i><span class="admin-nav__label">Danh mục sản phẩm</span></a>
+<a href="#" class="admin-nav__item" aria-current="page" aria-label="Template khóa học" data-tooltip="Template khóa học"><i data-lucide="book-open" class="admin-icon" aria-hidden="true"></i><span class="admin-nav__label">Template khóa học</span></a>
+<a href="#" class="admin-nav__item" aria-label="Sản phẩm khóa học" data-tooltip="Sản phẩm khóa học"><i data-lucide="box" class="admin-icon" aria-hidden="true"></i><span class="admin-nav__label">Sản phẩm khóa học</span></a>
+<a href="#" class="admin-nav__item" aria-label="Thư viện Media" data-tooltip="Thư viện Media"><i data-lucide="image" class="admin-icon" aria-hidden="true"></i><span class="admin-nav__label">Thư viện Media</span></a>
+<a href="#" class="admin-nav__item" aria-label="Đầu ra và năng lực" data-tooltip="Đầu ra &amp; năng lực"><i data-lucide="book-marked" class="admin-icon" aria-hidden="true"></i><span class="admin-nav__label">Đầu ra &amp; năng lực</span></a>
+</nav>
+<div class="admin-sidebar__footer"><div class="admin-user"><span class="admin-avatar">AD</span><span class="admin-user__text">Quản trị viên<small>Không gian quản trị</small></span></div></div>
+</aside>
+
+<div class="admin-main" id="admin-main">
+<header class="admin-header"><button id="admin-menu-toggle" type="button" class="admin-icon-button" aria-label="Thu gọn menu" aria-expanded="true" aria-controls="admin-sidebar"><i data-lucide="panel-left" class="admin-icon" aria-hidden="true"></i></button><span class="admin-breadcrumb"><span class="admin-system-name">Template khóa học</span> <span aria-hidden="true"> / </span><strong>Thiết lập Template khóa học</strong></span></header>
+
+<main class="admin-content">
+<div id="ui-catalog-soft" class="ctl">
+
+<div class="ctl-demo" role="group" aria-label="Trạng thái minh họa">
+  <i data-lucide="flask-conical" class="ui-icon" aria-hidden="true"></i><span>Bản thiết kế · xem trạng thái:</span>
+  <button type="button" class="ui-button" data-demo-state="selected" aria-pressed="true">Đã chọn bộ chuẩn</button>
+  <button type="button" class="ui-button" data-demo-state="none" aria-pressed="false">Chưa chọn bộ chuẩn</button>
+  <button type="button" class="ui-button" data-demo-state="orphans" aria-pressed="false">Có liên kết tới nội dung đã xoá</button>
+</div>
+
+<div class="ctl-head">
+  <div>
+    <h2>Thiết lập Template khóa học</h2>
+    <div class="ctl-head__meta"><span class="ui-caption">Tiếng Hàn sơ cấp 1</span><span class="ctl-badge ctl-badge--muted">Bản nháp</span></div>
+  </div>
+</div>
+
+<nav class="mk-tabs ctl-tabs" aria-label="Các phần của template">
+  <a class="mk-tab" href="#">Thông tin</a>
+  <a class="mk-tab" href="#">Nội dung</a>
+  <a class="mk-tab" href="#">Giáo viên</a>
+  <a class="mk-tab" href="#" aria-current="page">Đầu ra &amp; năng lực</a>
+  <a class="mk-tab" href="#">Xuất bản</a>
+  <a class="mk-tab" href="#">Lịch sử</a>
+</nav>
+
+<!-- 1. Framework summary (selected state) -->
+<section class="ui-section" id="ctl-framework" aria-labelledby="ctl-framework-title" data-state-show="selected orphans">
+  <div class="ctl-framework">
+    <div class="ctl-framework__id">
+      <span class="ctl-framework__icon"><i data-lucide="target" class="ui-icon" aria-hidden="true"></i></span>
+      <div>
+        <h3 id="ctl-framework-title" class="ctl-framework__label">Bộ chuẩn của khóa học</h3>
+        <p class="ctl-framework__name" id="ctl-framework-name">Chuẩn đầu ra &amp; năng lực tiếng Hàn</p>
+        <div class="ctl-framework__tags"><span class="ctl-badge" id="ctl-framework-version">Lộ trình tiếng Hàn v1</span><span class="ctl-badge ctl-badge--success"><i data-lucide="check" class="ui-icon" aria-hidden="true" style="width:12px;height:12px"></i>Đang dùng</span><span class="ctl-badge ctl-badge--muted" id="ctl-framework-node-count">8 năng lực</span></div>
+      </div>
+    </div>
+    <div class="ctl-framework__actions">
+      <button type="button" class="ui-button ui-button--outline" data-open="ctl-preview-dialog"><i data-lucide="eye" class="ui-icon" aria-hidden="true"></i>Xem bộ chuẩn</button>
+      <button type="button" class="ui-button" data-open="ctl-change-dialog"><i data-lucide="repeat" class="ui-icon" aria-hidden="true"></i>Đổi bộ chuẩn</button>
+      <button type="button" class="ui-button ui-button--danger-outline" data-open="ctl-detach-dialog"><i data-lucide="unlink" class="ui-icon" aria-hidden="true"></i>Gỡ bộ chuẩn</button>
+    </div>
+    <div class="ctl-stats">
+      <div class="ctl-stat"><div class="ctl-stat__label">Bài học đã gắn năng lực</div><div class="ctl-stat__value" id="ctl-stat-lessons">1 <small>/ 6</small></div><div class="ctl-progress" aria-hidden="true"><span id="ctl-bar-lessons" style="width:17%"></span></div></div>
+      <div class="ctl-stat"><div class="ctl-stat__label">Năng lực của bộ chuẩn đã dùng</div><div class="ctl-stat__value" id="ctl-stat-nodes">3 <small>/ 8</small></div><div class="ctl-progress" aria-hidden="true"><span id="ctl-bar-nodes" style="width:38%"></span></div></div>
+      <div class="ctl-stat"><div class="ctl-stat__label">Liên kết năng lực trong bản nháp</div><div class="ctl-stat__value" id="ctl-stat-links">3</div><div class="ui-caption" style="margin-top:6px">Lưu cùng phiên bản khi xuất bản</div></div>
+    </div>
+    <p class="ctl-framework__help">Gắn năng lực cho từng bài học. Khi xuất bản khóa học, các liên kết được lưu cùng phiên bản khóa học; các phiên bản đã xuất bản không thay đổi.</p>
+  </div>
+</section>
+
+<!-- 1b. Empty state -->
+<section class="ui-section" aria-labelledby="ctl-empty-title" data-state-show="none" hidden>
+  <div class="ctl-empty">
+    <span class="ctl-framework__icon"><i data-lucide="target" class="ui-icon" aria-hidden="true"></i></span>
+    <h3 id="ctl-empty-title">Chưa chọn bộ chuẩn đầu ra</h3>
+    <p class="ui-caption">Chọn một bộ chuẩn đã xuất bản để bắt đầu gắn năng lực cho từng bài học.</p>
+    <form class="ctl-empty__form" id="ctl-initial-form">
+      <div class="ui-field">
+        <label class="ui-field__label" for="ctl-initial-select"><span class="ui-field__required">*</span>Bộ chuẩn và phiên bản</label>
+        <select id="ctl-initial-select" required>
+          <option value="">Chọn bộ chuẩn và phiên bản</option>
+          <optgroup label="Chuẩn đầu ra &amp; năng lực tiếng Hàn"><option value="5:10">v3</option><option value="5:8">v2</option><option value="5:7">Lộ trình tiếng Hàn v1</option></optgroup>
+          <optgroup label="Demo: Năng lực số cơ bản"><option value="4:6">Phiên bản mẫu 1</option></optgroup>
+        </select>
+      </div>
+      <button type="submit" class="ui-button ui-button--primary"><i data-lucide="check" class="ui-icon" aria-hidden="true"></i>Áp dụng</button>
+    </form>
+    <a class="ctl-link ui-caption" href="#">Quản lý bộ chuẩn đầu ra &amp; năng lực</a>
+  </div>
+</section>
+
+<div class="ctl-note" data-state-show="selected orphans"><i data-lucide="sparkles" class="ui-icon" aria-hidden="true"></i><span>Gợi ý năng lực bằng AI đang tạm ẩn vì chưa kết nối AI thực tế. Bạn vẫn có thể gắn năng lực thủ công.</span></div>
+
+<!-- 2. Orphan links -->
+<section class="ui-section ctl-orphans" aria-labelledby="ctl-orphans-title" data-state-show="orphans" hidden>
+  <div class="ctl-orphans__head">
+    <div><h3 id="ctl-orphans-title"><i data-lucide="triangle-alert" class="ui-icon" aria-hidden="true" style="color:var(--ctl-warn);vertical-align:-3px"></i> Liên kết tới nội dung đã xoá <span class="ctl-badge ctl-badge--warn" id="ctl-orphan-count">1</span></h3>
+    <p class="ui-caption" style="margin-top:4px">Bài học hoặc hoạt động của các liên kết này không còn trong khóa học. Hãy gỡ chúng trước khi xuất bản.</p></div>
+  </div>
+  <ul class="ctl-chips" id="ctl-orphan-list"></ul>
+</section>
+
+<!-- 3. Lesson × competency map -->
+<section class="mk-section ctl-map" aria-labelledby="ctl-map-title" data-state-show="selected orphans">
+  <div class="mk-section-head"><div><h3 id="ctl-map-title">Năng lực theo bài học</h3><p>Bấm “Gắn năng lực” ở từng bài học; có thể chọn nhiều năng lực một lần.</p></div></div>
+  <div class="mk-tabs" role="tablist" aria-label="Lọc bài học">
+    <button type="button" role="tab" class="mk-tab" aria-selected="true" aria-controls="ctl-map-panel" data-filter="all">Tất cả<span class="ctl-count" data-count="all">6</span></button>
+    <button type="button" role="tab" class="mk-tab" aria-selected="false" aria-controls="ctl-map-panel" data-filter="unmapped">Chưa gắn<span class="ctl-count" data-count="unmapped">5</span></button>
+    <button type="button" role="tab" class="mk-tab" aria-selected="false" aria-controls="ctl-map-panel" data-filter="mapped">Đã gắn<span class="ctl-count" data-count="mapped">1</span></button>
+  </div>
+  <div id="ctl-map-panel" role="tabpanel">
+    <div class="mk-tablebar">
+      <div class="ui-search"><input id="ctl-lesson-search" type="search" placeholder="Tìm bài học hoặc năng lực" aria-label="Tìm bài học hoặc năng lực"><button class="ui-button" type="button" aria-label="Tìm kiếm" tabindex="-1"><i data-lucide="search" class="ui-icon" aria-hidden="true"></i></button></div>
+      <button type="button" class="ui-button" id="ctl-toggle-groups" aria-pressed="false"><i data-lucide="chevrons-down-up" class="ui-icon" aria-hidden="true"></i><span>Thu gọn tất cả</span></button>
+      <span class="mk-count" id="ctl-result-count" aria-live="polite"></span>
+    </div>
+    <div class="mk-table-scroll">
+      <table class="ctl-table" aria-labelledby="ctl-map-title">
+        <thead><tr><th scope="col" class="ctl-col-no">#</th><th scope="col" class="ctl-col-lesson">Bài học</th><th scope="col">Năng lực</th><th scope="col" class="ctl-col-action">Thao tác</th></tr></thead>
+        <tbody id="ctl-rows"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- Dialog: attach competencies -->
+<dialog id="ctl-picker-dialog" class="ui-modal" data-columns="2" aria-labelledby="ctl-picker-title">
+  <form class="ui-modal__form" id="ctl-picker-form">
+    <header class="ui-modal__header"><div><h3 id="ctl-picker-title">Gắn năng lực</h3><span class="ui-caption" id="ctl-picker-lesson">Bài học</span></div><button type="button" class="ui-modal__close" data-close aria-label="Đóng popup">×</button></header>
+    <div class="ui-modal__body">
+      <div class="ui-search ctl-modal-search"><input id="ctl-picker-search" type="search" placeholder="Tìm theo tên hoặc mã năng lực" aria-label="Tìm theo tên hoặc mã năng lực"><button class="ui-button" type="button" aria-label="Tìm kiếm" tabindex="-1"><i data-lucide="search" class="ui-icon" aria-hidden="true"></i></button></div>
+      <fieldset><legend class="ui-field__label" style="margin-bottom:8px">Năng lực của bộ chuẩn <span class="ui-caption" id="ctl-picker-available"></span></legend>
+        <div class="ctl-nodes" id="ctl-picker-nodes"></div>
+      </fieldset>
+      <p class="ctl-no-result" id="ctl-picker-empty" hidden>Không tìm thấy năng lực phù hợp</p>
+    </div>
+    <footer class="ui-modal__footer"><span class="ui-caption" id="ctl-picker-count" aria-live="polite">Đã chọn 0 năng lực</span><button type="button" class="ui-button" data-close>Hủy</button><button type="submit" class="ui-button ui-button--primary" id="ctl-picker-submit" disabled><i data-lucide="link" class="ui-icon" aria-hidden="true"></i>Gắn năng lực</button></footer>
+  </form>
+</dialog>
+
+<!-- Dialog: change framework -->
+<dialog id="ctl-change-dialog" class="ui-modal" data-columns="1" aria-labelledby="ctl-change-title">
+  <form class="ui-modal__form" id="ctl-change-form">
+    <header class="ui-modal__header"><div><h3 id="ctl-change-title">Đổi bộ chuẩn hoặc phiên bản</h3><span class="ui-caption">Đang dùng: <span id="ctl-change-current">Lộ trình tiếng Hàn v1</span></span></div><button type="button" class="ui-modal__close" data-close aria-label="Đóng popup">×</button></header>
+    <div class="ui-modal__body">
+      <div class="ui-field">
+        <label class="ui-field__label" for="ctl-change-select"><span class="ui-field__required">*</span>Bộ chuẩn và phiên bản muốn dùng</label>
+        <select id="ctl-change-select" required>
+          <optgroup label="Chuẩn đầu ra &amp; năng lực tiếng Hàn"><option value="5:10">v3</option><option value="5:8">v2</option><option value="5:7" selected>Lộ trình tiếng Hàn v1 · Đang dùng</option></optgroup>
+          <optgroup label="Demo: Năng lực số cơ bản"><option value="4:6">Phiên bản mẫu 1</option></optgroup>
+        </select>
+      </div>
+      <div class="ctl-note ctl-note--warn" id="ctl-change-warning" hidden><i data-lucide="triangle-alert" class="ui-icon" aria-hidden="true"></i><span>Áp dụng sẽ gỡ <strong id="ctl-change-links">3</strong> liên kết năng lực trong bản nháp; cần gắn lại thủ công. Các phiên bản khóa học đã xuất bản giữ nguyên.</span></div>
+    </div>
+    <footer class="ui-modal__footer"><button type="button" class="ui-button" data-close>Hủy</button><button type="submit" class="ui-button ui-button--primary" id="ctl-change-submit" disabled>Áp dụng</button></footer>
+  </form>
+</dialog>
+
+<!-- Dialog: detach framework -->
+<dialog id="ctl-detach-dialog" class="ui-modal" data-columns="1" aria-labelledby="ctl-detach-title">
+  <form class="ui-modal__form" id="ctl-detach-form">
+    <header class="ui-modal__header"><div><h3 id="ctl-detach-title">Gỡ bộ chuẩn khỏi bản nháp?</h3></div><button type="button" class="ui-modal__close" data-close aria-label="Đóng popup">×</button></header>
+    <div class="ui-modal__body">
+      <div class="ctl-note ctl-note--danger" style="margin-top:0"><i data-lucide="unlink" class="ui-icon" aria-hidden="true"></i><span>Toàn bộ <strong id="ctl-detach-links">3</strong> liên kết năng lực trong bản nháp sẽ bị gỡ để bạn chọn bộ chuẩn khác. Các phiên bản khóa học đã xuất bản giữ nguyên.</span></div>
+    </div>
+    <footer class="ui-modal__footer"><button type="button" class="ui-button" data-close>Hủy</button><button type="submit" class="ui-button ui-button--danger"><i data-lucide="unlink" class="ui-icon" aria-hidden="true"></i>Gỡ bộ chuẩn</button></footer>
+  </form>
+</dialog>
+
+<!-- Dialog: remove one link -->
+<dialog id="ctl-remove-dialog" class="ui-modal" data-columns="1" aria-labelledby="ctl-remove-title">
+  <form class="ui-modal__form" id="ctl-remove-form">
+    <header class="ui-modal__header"><div><h3 id="ctl-remove-title">Gỡ năng lực?</h3></div><button type="button" class="ui-modal__close" data-close aria-label="Đóng popup">×</button></header>
+    <div class="ui-modal__body"><p class="ctl-modal-lead">Gỡ “<strong id="ctl-remove-name"></strong>” khỏi <span id="ctl-remove-lesson"></span> trong bản nháp? Các phiên bản khóa học đã xuất bản giữ nguyên.</p></div>
+    <footer class="ui-modal__footer"><button type="button" class="ui-button" data-close>Hủy</button><button type="submit" class="ui-button ui-button--danger">Gỡ năng lực</button></footer>
+  </form>
+</dialog>
+
+<!-- Dialog: preview framework -->
+<dialog id="ctl-preview-dialog" class="ui-modal" data-columns="2" aria-labelledby="ctl-preview-title">
+  <div class="ui-modal__form">
+    <header class="ui-modal__header"><div><h3 id="ctl-preview-title">Chuẩn đầu ra &amp; năng lực tiếng Hàn</h3><span class="ui-caption">Lộ trình tiếng Hàn v1 · Đang dùng · chỉ xem</span></div><button type="button" class="ui-modal__close" data-close aria-label="Đóng popup">×</button></header>
+    <div class="ui-modal__body">
+      <h4 class="ctl-modal-subtitle">Thang đánh giá</h4>
+      <ol class="ctl-scale">
+        <li style="--lvl:#c8cde0"><strong>Chưa bắt đầu</strong><span>0%</span></li>
+        <li style="--lvl:#e2a33b"><strong>Đang phát triển</strong><span>≥ 50%</span></li>
+        <li style="--lvl:#6f80d6"><strong>Thành thạo</strong><span>≥ 75%</span></li>
+        <li style="--lvl:#1f8a5b"><strong>Làm chủ</strong><span>≥ 90%</span></li>
+      </ol>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px"><h4 class="ctl-modal-subtitle" style="margin:0">Năng lực (8)</h4><div class="ui-search" style="width:260px;max-width:100%"><input id="ctl-preview-search" type="search" placeholder="Tìm năng lực" aria-label="Tìm năng lực"><button class="ui-button" type="button" aria-label="Tìm kiếm" tabindex="-1"><i data-lucide="search" class="ui-icon" aria-hidden="true"></i></button></div></div>
+      <div class="mk-table-scroll"><table class="ctl-preview-table"><thead><tr><th scope="col">Mã</th><th scope="col">Năng lực</th><th scope="col" style="width:110px">Bài đã gắn</th></tr></thead><tbody id="ctl-preview-rows"></tbody></table></div>
+    </div>
+    <footer class="ui-modal__footer"><button type="button" class="ui-button" data-close>Đóng</button></footer>
+  </div>
+</dialog>
+
+<div class="ctl-toast" id="ctl-toast" role="status" aria-live="polite" hidden><i data-lucide="circle-check" class="ui-icon" aria-hidden="true"></i><span id="ctl-toast-text"></span></div>
+
+</div>
+</main>
+<footer class="admin-page-footer">Copyright © VISANG Education Group Vietnam Company</footer>
+</div>
+</div>
+<dialog id="admin-drawer" class="admin-drawer" aria-label="Menu quản trị"></dialog>
+</div>
+</body>
+</html>

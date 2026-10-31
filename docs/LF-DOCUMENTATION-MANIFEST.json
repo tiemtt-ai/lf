@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
-  "generated_or_updated_at": "2026-10-28",
+  "generated_or_updated_at": "2026-10-31",
   "root": "docs",
   "default_locale": "vi",
   "fallback_locale": "en",
   "source_of_truth": "docs/LF-INDEX.md",
-  "document_count": 311,
+  "document_count": 312,
   "documents": [
     {
       "path": "LF-Core-Overview.md",
@@ -12721,6 +12721,41 @@
       },
       "identifiers": [],
       "related_documents": [],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "ui-demo/course-template-learning-design/README.md",
+      "title": "Course Template — Đầu ra & năng lực (thiết kế tĩnh)",
+      "area": "ui-demo",
+      "document_type": "directory_guide",
+      "document_status": "Review",
+      "implementation_status": "Not Applicable",
+      "metadata_complete": true,
+      "authority": "engineering",
+      "canonical_for": [],
+      "topics": [
+        "static-design",
+        "course-template",
+        "learning-mapping"
+      ],
+      "keywords": {
+        "vi": [
+          "thiết kế tĩnh",
+          "đầu ra và năng lực",
+          "gắn năng lực cho bài học"
+        ],
+        "en": [
+          "static design",
+          "learning outcomes",
+          "lesson competency mapping"
+        ]
+      },
+      "identifiers": [],
+      "related_documents": [
+        "tech/LF-Tech-CSS.md",
+        "ui-demo/ui-kit-developer/README.md"
+      ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"
     },

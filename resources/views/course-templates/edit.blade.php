@@ -64,7 +64,7 @@
                 {{ session('course_template_created_guidance') }}
             </p>
         </div>
-    @elseif (session('success') && ! in_array($activeTab, ['information', 'structure'], true))
+    @elseif (session('success') && ! in_array($activeTab, ['information', 'structure', 'teachers'], true))
         {{-- These tabs show the message as a toast. --}}
         <div class="admin-alert admin-alert-success admin-form-card">
             {{ session('success') }}

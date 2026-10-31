@@ -649,6 +649,8 @@ document.addEventListener('submit', async (event) => {
         const rowId = form.querySelector('input[name="mapping_picker"]').value + '-row';
         form.closest('dialog')?.close();
         current.replaceWith(replacement);
+        // The swapped-in markup is new: its UI Kit selects need their adapter again (claimOnce skips the others).
+        import('./admin-ui-kit-controls.js').then(({ initUiKitSelect }) => replacement.querySelectorAll('select[data-ui-kit-select]').forEach(initUiKitSelect)).catch(() => {});
         replacement.querySelector(`#${rowId} button[type=\"button\"]`)?.focus({ preventScroll: true });
     } catch {
         error.textContent = savedMessage ? `${savedMessage} ${form.dataset.refreshError}` : form.dataset.errorMessage;

@@ -1,5 +1,5 @@
 {{-- One UI Kit form dialog fragment: title, body slot, footer with Cancel + Confirm. --}}
-@props(['action', 'title', 'titleId' => 'ui-form-dialog-title', 'method' => 'PATCH'])
+@props(['action', 'title', 'titleId' => 'ui-form-dialog-title', 'method' => 'PATCH', 'submitLabel' => null])
 
 <form class="ui-modal__form" method="POST" novalidate action="{{ $action }}">
     @csrf
@@ -17,7 +17,7 @@
         <button type="button" class="ui-button cursor-interaction" data-ui-dialog-form-cancel>{{ __('lf.LF_common_button_cancel') }}</button>
         <button type="submit" class="ui-button ui-button--primary cursor-interaction" data-ui-dialog-form-submit>
             <x-backend-icon name="check" class="ui-icon" />
-            {{ __('lf.LF_common_button_confirm') }}
+            {{ $submitLabel ?? __('lf.LF_common_button_confirm') }}
         </button>
     </footer>
 </form>
