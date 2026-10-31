@@ -219,6 +219,12 @@ Evidence.
 
 Allowed `delivery_mode`: `online`, `offline`, `hybrid`.
 
+`meeting_url_snapshot` is the authoritative join URL for both Session types and
+may stay `NULL` until it is known. For a curriculum Session it defaults to the
+Version Activity `live_class_url_snapshot` when no URL is submitted, and the
+administrator may override it per Session (amendment 2026-10-31, see
+LF-Core-LiveClass § Session Meeting URL).
+
 The `status` list originally published in this section is superseded by
 § Session Status And Time Convention Amendment — 2026-08-10 above, which retires
 both `draft` and `ended`. Use that section as the canonical status set.

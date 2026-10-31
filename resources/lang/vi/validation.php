@@ -158,6 +158,7 @@ return [
     'custom' => [],
 
     'attributes' => [
+        'live_class_url' => 'Liên kết tham gia mặc định',
         'title' => 'Tên buổi học',
         'session_type' => 'Loại buổi học',
         'version_lesson_id' => 'Bài học',

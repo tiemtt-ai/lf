@@ -345,6 +345,7 @@ class CourseCohortOperationController extends Controller
             'occurrences.*.teacher_ids.*' => ['integer', Rule::exists('users', 'id')
                 ->where(fn ($query) => $query->where('customer_id', $customerId)->where('role', 'teacher')->where('status', 'active'))],
             'occurrences.*.delivery_mode' => ['required_if:occurrences.*.selected,1', 'nullable', Rule::in(['online', 'offline', 'hybrid'])],
+            'occurrences.*.meeting_url' => ['nullable', 'url', 'max:2000'],
             'room_name' => ['nullable', 'string', 'max:255'],
             'address' => ['nullable', 'string', 'max:2000'],
         ])->validate();
@@ -377,6 +378,7 @@ class CourseCohortOperationController extends Controller
                 'scheduled_start_at' => $origin['scheduled_start_at'],
                 'scheduled_end_at' => $origin['scheduled_end_at'],
                 'teacher_ids' => $item['teacher_ids'] ?? [],
+                'meeting_url' => $item['meeting_url'] ?? null,
                 'room_name' => $validated['room_name'] ?? null,
                 'address' => $validated['address'] ?? null,
             ]);
@@ -764,8 +766,12 @@ class CourseCohortOperationController extends Controller
 
         $validated['version_lesson_id'] = $lessonId;
         $validated['version_activity_id'] = $activityId;
-        $validated['meeting_url'] = $activity->live_class_url_snapshot;
-        $validated['online_provider'] = $this->meetingProviderFromUrl($activity->live_class_url_snapshot);
+        // The Session owns its join URL; the Activity URL is only a default.
+        $meetingUrl = filled($validated['meeting_url'] ?? null)
+            ? trim($validated['meeting_url'])
+            : $activity->live_class_url_snapshot;
+        $validated['meeting_url'] = $meetingUrl;
+        $validated['online_provider'] = $this->meetingProviderFromUrl($meetingUrl);
 
         return $validated;
     }

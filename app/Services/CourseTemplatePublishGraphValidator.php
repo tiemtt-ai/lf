@@ -280,7 +280,7 @@ class CourseTemplatePublishGraphValidator
             }
             if (($type === 'embedded_video' && ! $this->validEmbeddedActivityUrl($activity->external_video_url))
                 || ($type !== 'embedded_video' && $activity->external_video_url !== null)
-                || ($type === 'live_class' && ! $this->validHttpsUrl($activity->live_class_url))
+                || ($type === 'live_class' && $activity->live_class_url !== null && ! $this->validHttpsUrl($activity->live_class_url))
                 || ($type !== 'live_class' && $activity->live_class_url !== null)
                 || ($type === 'quiz' && ! $this->positiveInteger($activity->assessment_quiz_id))
                 || ($type !== 'quiz' && $activity->assessment_quiz_id !== null)) {

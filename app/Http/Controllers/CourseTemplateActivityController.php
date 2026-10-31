@@ -914,7 +914,7 @@ class CourseTemplateActivityController extends Controller
                     }
                 },
             ],
-            'live_class_url' => ['nullable', 'url', 'max:1000', 'starts_with:https://', 'required_if:activity_type,live_class', 'prohibited_unless:activity_type,live_class'],
+            'live_class_url' => ['nullable', 'url', 'max:1000', 'starts_with:https://', 'prohibited_unless:activity_type,live_class'],
             'assessment_quiz_id' => [
                 'nullable', 'integer', 'min:1',
                 'required_if:activity_type,quiz',

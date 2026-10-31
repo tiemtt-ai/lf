@@ -562,6 +562,18 @@ Activity must belong to the selected Lesson with `activity_type = live_class`.
 A Lesson does not imply exactly one Session. Only Live Class Activities may be
 scheduled, and one Activity may have multiple Sessions.
 
+#### Session Meeting URL — amendment 2026-10-31
+
+The join URL belongs to the Session (`meeting_url_snapshot`), not to the
+Course definition, because each Cohort uses its own room and the URL is often
+unknown when the Template is authored. For a curriculum Session the Version
+Activity `live_class_url_snapshot`, when present, is only prefilled as a
+default; the administrator may enter, replace or leave the URL empty for
+later, on single create, batch create and edit. A submitted empty URL falls
+back to that default. `online_provider` is derived from the final URL for
+curriculum Sessions. A Session without a URL shows "not available" to
+learners and teachers until one is added.
+
 ### Operational Session
 
 `session_type = operational` is outside published Course content. It is used

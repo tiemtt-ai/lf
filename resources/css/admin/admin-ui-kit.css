@@ -2826,7 +2826,11 @@
 .lf-admin-ui .ui-publish-check--warning .ui-publish-issues__no { background: var(--ui-warning-soft); color: var(--ui-warning); }
 .lf-admin-ui .ui-publish-issues__body { display: grid; gap: 2px; min-width: 0; font-size: 13px; color: var(--ui-muted); overflow-wrap: anywhere; }
 .lf-admin-ui .ui-publish-issues__body strong { color: var(--ui-text); font-size: 14px; font-weight: 500; }
-.lf-admin-ui .ui-publish-issues .ui-button { white-space: nowrap; }
+.lf-admin-ui .ui-publish-issues .ui-button { min-width: 168px; white-space: nowrap; }
+.lf-admin-ui .ui-publish__view { display: inline-flex; align-items: center; gap: 4px; margin-left: 4px; font-weight: 400; }
+.lf-admin-ui .ui-publish__view .ui-icon { width: 14px; height: 14px; }
+/* Publish blockers link to a lesson's activity panel; keep the lesson title and the sticky header above it in view. */
+.lf-admin-ui.ui-structure .course-template-lesson-item [id$="-activities"] { scroll-margin-top: 170px; }
 @media (max-width: 767.98px) {
     .lf-admin-ui .ui-publish__summary { grid-template-columns: minmax(0, 1fr); }
     .lf-admin-ui .ui-publish-issues li { grid-template-columns: auto minmax(0, 1fr); }

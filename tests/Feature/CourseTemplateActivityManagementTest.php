@@ -794,6 +794,17 @@ class CourseTemplateActivityManagementTest extends TestCase
         $this->assertDatabaseHas('core_course_template_activities', [
             'title' => 'Live default', 'available_anytime' => 0, 'available_during_session' => 1,
         ]);
+
+        // The link is only a default: each Cohort Session may add its own later.
+        $this->actingAs($admin)
+            ->post($url, ['live_class_url' => null] + $live(['title' => 'Live without link']))
+            ->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('core_course_template_activities', [
+            'title' => 'Live without link', 'activity_type' => 'live_class', 'live_class_url' => null,
+        ]);
+        $this->actingAs($admin)
+            ->post($url, ['live_class_url' => 'http://meet.example.test/x'] + $live(['title' => 'Live insecure link']))
+            ->assertSessionHasErrors('live_class_url');
     }
 
     public function test_learning_availability_checkboxes_render_on_activity_form_and_detail(): void

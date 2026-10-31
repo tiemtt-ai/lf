@@ -197,7 +197,11 @@ Dùng khi activity_type = embedded_video. Chỉ canonical HTTPS YouTube/Vimeo UR
 
 VARCHAR(1000) NULL
 
-Dùng khi activity_type = live_class. Chỉ URL HTTPS.
+Dùng khi activity_type = live_class. Chỉ URL HTTPS. Không bắt buộc (amendment
+2026-10-31): đây chỉ là **link mặc định** gợi ý cho Session. Link tham gia thực
+tế thuộc về từng Cohort Session (`meeting_url_snapshot`) vì mỗi lớp có phòng
+riêng và URL thường chưa có khi soạn Template. Thiếu URL không chặn lưu Activity
+và không chặn publish.
 
 ### assessment_quiz_id
 

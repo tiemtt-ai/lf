@@ -34,6 +34,8 @@
             'teacherOpen' => false,
             'mode' => (string) ($old['delivery_mode'] ?? ''),
             'meetingCopied' => false,
+            'meetingUrl' => (string) ($old['meeting_url'] ?? ''),
+            'meetingDefault' => '',
         ]);
     })->values();
     $batchTimezones = $plannedOccurrences->pluck('timezone')->filter()->unique()->values();
@@ -56,7 +58,7 @@
          startsAt: @js(old('scheduled_start_at', '')), endsAt: @js(old('scheduled_end_at', '')),
          scheduleMin: @js($sessionWindow ? $sessionWindow['min']->format('Y-m-d\TH:i') : ''),
          scheduleMax: @js($sessionWindow ? $sessionWindow['max']->format('Y-m-d\TH:i') : ''),
-         provider: @js(old('online_provider', '')), meetingUrl: @js(old('meeting_url', '')),
+         provider: @js(old('online_provider', '')), meetingUrl: @js(old('meeting_url', '')), meetingDefault: '',
          roomName: @js(old('room_name', '')), address: @js(old('address', '')),
          statusLabels: @js(collect(['scheduled', 'live', 'completed', 'cancelled', 'no_show'])->mapWithKeys(fn ($status) => [$status => __('lf.LF_course_cohort_session_status_'.$status)])),
          typeLabels: @js(collect(['curriculum', 'operational'])->mapWithKeys(fn ($type) => [$type => __('lf.LF_course_cohort_session_type_'.$type)])),
@@ -112,7 +114,12 @@
          },
          batchActivities(row) { return this.activities.filter(item => String(item.version_lesson_id) === String(row.lessonId)) },
          selectedBatchActivity(row) { return this.activities.find(item => String(item.id) === String(row.activityId)) || null },
-         batchMeetingUrl(row) { return this.selectedBatchActivity(row)?.live_class_url_snapshot || '' },
+         batchMeetingUrl(row) { return row.meetingUrl || '' },
+         batchActivityChanged(row) {
+             const next = this.selectedBatchActivity(row)?.live_class_url_snapshot || ''
+             if (!row.meetingUrl || row.meetingUrl === row.meetingDefault) row.meetingUrl = next
+             row.meetingDefault = next; row.meetingCopied = false
+         },
          batchMeetingProvider(row) { return this.meetingProvider(this.batchMeetingUrl(row)) },
          copyBatchMeetingLink(row) {
              const url = this.batchMeetingUrl(row)
@@ -122,7 +129,7 @@
                  setTimeout(() => row.meetingCopied = false, 1600)
              })
          },
-         batchLessonChanged(row) { row.activityId = ''; const lesson = this.lessons.find(item => String(item.id) === String(row.lessonId)); row.title = lesson?.title_snapshot || '' },
+         batchLessonChanged(row) { row.activityId = ''; this.batchActivityChanged(row); const lesson = this.lessons.find(item => String(item.id) === String(row.lessonId)); row.title = lesson?.title_snapshot || '' },
          batchSelectableTeachers(row) {
              return this.teachers.filter(teacher => (!teacher.assigned_from || row.date >= teacher.assigned_from) && (!teacher.assigned_to || row.date <= teacher.assigned_to))
          },
@@ -144,6 +151,7 @@
              }
              row.title = ''; row.lessonId = ''; row.activityId = ''; row.teacherIds = []
              row.teacherOpen = false; row.mode = ''; row.hasError = false; row.meetingCopied = false
+             row.meetingUrl = ''; row.meetingDefault = ''
          },
          activateBatchRow(row, index, focusFirst = false) {
              if (row.consumed) return
@@ -229,7 +237,7 @@
              return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}`
          },
          copyCurriculumMeetingLink() {
-             const url = this.curriculumMeetingUrl()
+             const url = this.meetingUrl
              if (!url) return
              navigator.clipboard.writeText(url).then(() => {
                  this.meetingLinkCopied = true
@@ -239,7 +247,7 @@
          resetForm() {
              this.editingId = null; this.editingSession = null; this.sessionType = 'curriculum'; this.lessonId = ''; this.activityId = ''
              this.title = ''; this.titleDirty = false; this.mode = 'online'; this.teacherIds = []; this.teacherOpen = false
-             this.startsAt = ''; this.endsAt = ''; this.provider = ''; this.meetingUrl = ''
+             this.startsAt = ''; this.endsAt = ''; this.provider = ''; this.meetingUrl = ''; this.meetingDefault = ''
              this.roomName = ''; this.address = ''; this.submitting = false; this.meetingLinkCopied = false
          },
          openCreate() {
@@ -255,19 +263,25 @@
              this.startsAt = item.scheduled_start_at.slice(0, 16).replace(' ', 'T')
              this.endsAt = item.scheduled_end_at.slice(0, 16).replace(' ', 'T')
              this.provider = item.online_provider || ''; this.meetingUrl = item.meeting_url_snapshot || ''
+             this.meetingDefault = this.curriculumMeetingUrl()
              this.roomName = item.room_name_snapshot || ''; this.address = item.address_snapshot || ''
              this.$nextTick(() => { this.$refs.sessionForm.scrollIntoView({ behavior: 'smooth', block: 'start' }); this.$refs.sessionTitle.focus() })
          },
          switchType(type) {
              this.sessionType = type
-             if (type === 'operational') { this.lessonId = ''; this.activityId = ''; if (!this.titleDirty) this.title = '' }
+             if (type === 'operational') { this.lessonId = ''; this.activityId = ''; this.activityChanged(); if (!this.titleDirty) this.title = '' }
          },
          lessonChanged() {
              this.activityId = ''
+             this.activityChanged()
              const lesson = this.lessons.find(item => String(item.id) === String(this.lessonId))
              if (!this.titleDirty) this.title = lesson?.title_snapshot || ''
          },
          activityChanged() {
+             // The Activity link is only a default: keep a link the admin typed.
+             const next = this.curriculumMeetingUrl()
+             if (!this.meetingUrl || this.meetingUrl === this.meetingDefault) this.meetingUrl = next
+             this.meetingDefault = next
              this.meetingLinkCopied = false
          },
          cancelForm() { this.formOpen = false; this.resetForm() },
@@ -384,6 +398,7 @@
                                 <input type="hidden" name="occurrences[{{ $index }}][version_lesson_id]" x-model="batchRows[{{ $index }}].lessonId" x-bind:disabled="!batchRows[{{ $index }}].selected">
                                 <input type="hidden" name="occurrences[{{ $index }}][version_activity_id]" x-model="batchRows[{{ $index }}].activityId" x-bind:disabled="!batchRows[{{ $index }}].selected">
                                 <input type="hidden" name="occurrences[{{ $index }}][delivery_mode]" x-model="batchRows[{{ $index }}].mode" x-bind:disabled="!batchRows[{{ $index }}].selected">
+                                <input type="hidden" name="occurrences[{{ $index }}][meeting_url]" x-model="batchRows[{{ $index }}].meetingUrl" x-bind:disabled="!batchRows[{{ $index }}].selected || !['online', 'hybrid'].includes(batchRows[{{ $index }}].mode)">
 
                                 <div class="course-cohort-session-batch-item__summary">
                                     <label class="course-cohort-session-batch-item__selection" for="batch_occurrence_{{ $index }}">
@@ -444,7 +459,7 @@
                                     </div>
                                     <div class="lf-form-group">
                                         <label class="lf-form-label" for="batch_activity_{{ $index }}">{{ __('lf.LF_course_cohort_session_activity') }} <span aria-hidden="true">*</span></label>
-                                        <select id="batch_activity_{{ $index }}" class="lf-form-control" x-model="batchRows[{{ $index }}].activityId" x-bind:tabindex="batchRows[{{ $index }}].selected ? 0 : -1" @error("occurrences.$index.version_activity_id") aria-invalid="true" aria-describedby="batch_activity_error_{{ $index }}" @enderror>
+                                        <select id="batch_activity_{{ $index }}" class="lf-form-control" x-model="batchRows[{{ $index }}].activityId" x-on:change="batchActivityChanged(batchRows[{{ $index }}])" x-bind:tabindex="batchRows[{{ $index }}].selected ? 0 : -1" @error("occurrences.$index.version_activity_id") aria-invalid="true" aria-describedby="batch_activity_error_{{ $index }}" @enderror>
                                             <option value="">{{ __('lf.LF_course_cohort_session_select_activity') }}</option>
                                             @foreach($versionActivities as $activity)
                                                 <option value="{{ $activity->id }}"
@@ -518,9 +533,11 @@
                                         <label class="lf-form-label" for="batch_meeting_url_{{ $index }}">{{ __('lf.LF_course_cohort_session_meeting_url') }}</label>
                                         <div class="course-cohort-session-batch-meeting-link">
                                             <div class="course-cohort-session-copy-control">
-                                                <input id="batch_meeting_url_{{ $index }}" type="url" class="lf-form-control" readonly
-                                                       x-bind:value="batchMeetingUrl(batchRows[{{ $index }}])"
-                                                       placeholder="{{ __('lf.LF_course_cohort_session_meeting_not_available') }}">
+                                                <input id="batch_meeting_url_{{ $index }}" type="url" class="lf-form-control"
+                                                       x-model.trim="batchRows[{{ $index }}].meetingUrl"
+                                                       x-bind:tabindex="batchRows[{{ $index }}].selected ? 0 : -1"
+                                                       @error("occurrences.$index.meeting_url") aria-invalid="true" @enderror
+                                                       placeholder="{{ __('lf.LF_course_cohort_session_meeting_url_placeholder') }}">
                                                 <button type="button" class="admin-copy-action course-cohort-session-copy-control__button"
                                                         x-show="batchMeetingUrl(batchRows[{{ $index }}])"
                                                         x-on:click="copyBatchMeetingLink(batchRows[{{ $index }}])"
@@ -540,6 +557,7 @@
                                             </a>
                                         </div>
                                     </div>
+                                    @error("occurrences.$index.meeting_url")<p class="lf-form-error" role="alert">{{ $message }}</p>@enderror
                                     <p class="course-cohort-session-batch-meeting-help"
                                        x-show="batchRows[{{ $index }}].mode === 'online' || batchRows[{{ $index }}].mode === 'hybrid'"
                                        x-cloak>{{ __('lf.LF_course_cohort_session_curriculum_meeting_help') }}</p>
@@ -700,15 +718,16 @@
                         <div class="lf-form-group" x-show="(mode === 'online' || mode === 'hybrid') && sessionType === 'curriculum'" x-cloak>
                             <x-form-label for="curriculum_online_provider" :value="__('lf.LF_course_cohort_session_provider')" />
                             <input id="curriculum_online_provider" class="lf-form-control" readonly
-                                   x-bind:value="meetingProvider(curriculumMeetingUrl()) || @js(__('lf.LF_course_cohort_session_meeting_not_available'))">
+                                   x-bind:value="meetingProvider(meetingUrl) || @js(__('lf.LF_course_cohort_session_meeting_not_available'))">
                         </div>
                         <div class="lf-form-group" x-show="(mode === 'online' || mode === 'hybrid') && sessionType === 'curriculum'" x-cloak>
                             <x-form-label for="curriculum_meeting_url" :value="__('lf.LF_course_cohort_session_meeting_url')" />
                             <div class="course-cohort-session-copy-control">
-                                <input id="curriculum_meeting_url" type="url" class="lf-form-control" readonly
-                                       x-bind:value="curriculumMeetingUrl()" placeholder="{{ __('lf.LF_course_cohort_session_meeting_not_available') }}">
+                                <input id="curriculum_meeting_url" type="url" name="meeting_url" class="lf-form-control"
+                                       x-model.trim="meetingUrl" x-bind:disabled="sessionType !== 'curriculum' || !(mode === 'online' || mode === 'hybrid')"
+                                       placeholder="{{ __('lf.LF_course_cohort_session_meeting_url_placeholder') }}">
                                 <button type="button" class="admin-copy-action course-cohort-session-copy-control__button"
-                                        x-show="curriculumMeetingUrl()" x-on:click="copyCurriculumMeetingLink()"
+                                        x-show="meetingUrl" x-on:click="copyCurriculumMeetingLink()"
                                         x-bind:class="{ 'is-copied': meetingLinkCopied }"
                                         x-bind:title="meetingLinkCopied ? @js(__('lf.LF_course_cohort_edit_copied')) : @js(__('lf.LF_course_cohort_session_copy_meeting_url'))"
                                         x-bind:aria-label="meetingLinkCopied ? @js(__('lf.LF_course_cohort_edit_copied')) : @js(__('lf.LF_course_cohort_session_copy_meeting_url'))">
@@ -716,6 +735,7 @@
                                     <span x-show="meetingLinkCopied" x-cloak><x-backend-icon name="check" /></span>
                                 </button>
                             </div>
+                            @error('meeting_url')<p class="lf-form-error" role="alert" x-show="sessionType === 'curriculum'">{{ $message }}</p>@enderror
                             <p class="lf-form-help">{{ __('lf.LF_course_cohort_session_curriculum_meeting_help') }}</p>
                         </div>
                         <div class="lf-form-group" x-show="(mode === 'online' || mode === 'hybrid') && sessionType === 'operational'" x-cloak>
@@ -726,6 +746,7 @@
                         <div class="lf-form-group" x-show="(mode === 'online' || mode === 'hybrid') && sessionType === 'operational'" x-cloak>
                             <x-form-label for="meeting_url" :value="__('lf.LF_course_cohort_session_meeting_url')" />
                             <input id="meeting_url" type="url" name="meeting_url" class="lf-form-control" x-model="meetingUrl"
+                                   x-bind:disabled="sessionType !== 'operational' || !(mode === 'online' || mode === 'hybrid')"
                                    placeholder="{{ __('lf.LF_course_cohort_session_meeting_url_placeholder') }}">
                             <p class="lf-form-help">{{ __('lf.LF_course_cohort_session_operational_meeting_help') }}</p>
                         </div>

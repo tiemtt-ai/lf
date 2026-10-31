@@ -365,7 +365,11 @@ reject corrupt or cross-tenant Section, Lesson and Activity rows instead of
 silently omitting them from the Version graph.
 
 Embedded-video Activities accept only canonical HTTPS YouTube or Vimeo URLs
-normalized by `TrustedVideoUrlService`. Live Class Activities use the `manual`
+normalized by `TrustedVideoUrlService`. A Live Class Activity URL is optional
+(amendment 2026-10-31): when present it must be HTTPS and is only a default
+suggested to the Cohort Session; a missing URL blocks neither saving nor
+publish. The actual join URL belongs to each Cohort Session. Live Class
+Activities use the `manual`
 completion rule; percentage and pass thresholds are integers from `1` through
 `100`. Activity unlock rules are limited to `none`,
 and `previous_activity_completed`, matching the immutable Version Activity

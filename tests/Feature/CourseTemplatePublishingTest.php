@@ -1343,6 +1343,13 @@ class CourseTemplatePublishingTest extends TestCase
         ]);
         $this->assertNotContains('activity', $service->evaluate($customerId, $service->load($customerId, $templateId))->blockers()->pluck('code')->all());
 
+        // A missing live link does not block publish; an insecure one does.
+        DB::table('core_course_template_activities')->where('id', $activityId)->update(['live_class_url' => null]);
+        $this->assertNotContains('activity_source', $service->evaluate($customerId, $service->load($customerId, $templateId))->blockers()->pluck('code')->all());
+        DB::table('core_course_template_activities')->where('id', $activityId)->update(['live_class_url' => 'http://meet.example.test/class']);
+        $this->assertContains('activity_source', $service->evaluate($customerId, $service->load($customerId, $templateId))->blockers()->pluck('code')->all());
+        DB::table('core_course_template_activities')->where('id', $activityId)->update(['live_class_url' => 'https://meet.example.test/class']);
+
         DB::table('core_course_template_activities')->where('id', $activityId)->update([
             'activity_type' => 'embedded_video',
             'external_video_url' => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',

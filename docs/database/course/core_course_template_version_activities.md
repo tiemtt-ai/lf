@@ -70,7 +70,7 @@ Media / Assessment / LiveClass → version_activities (approved immutable refere
 | `activity_type` | VARCHAR(50) | required | `video`, `embedded_video`, `audio`, `document`, `quiz`, or `live_class`. |
 | `media_file_id` | BIGINT UNSIGNED | nullable | Immutable uploaded video/audio/document Media reference; existing historical rows remain `NULL`. |
 | `external_video_url_snapshot` | VARCHAR(1000) | nullable | Frozen HTTPS external video URL. |
-| `live_class_url_snapshot` | VARCHAR(1000) | nullable | Frozen HTTPS live-class URL. |
+| `live_class_url_snapshot` | VARCHAR(1000) | nullable | Frozen optional default HTTPS live-class URL. `NULL` is valid; the Session owns the actual join URL. |
 | `assessment_quiz_id_snapshot` | BIGINT UNSIGNED | nullable | Reserved for the future immutable Assessment binding; current publish readiness blocks Quiz Activities. |
 | `duration_seconds` | INT UNSIGNED | required, default 0 | Published Activity duration. |
 | `estimated_duration_seconds_snapshot` | INT UNSIGNED | nullable | Frozen estimated learner completion time; `NULL` means unknown. |

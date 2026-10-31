@@ -367,12 +367,12 @@
                                     <span class="ui-summary__version-main">
                                         <span>{{ __('lf.LF_course_template_version_number', ['version' => $currentVersion->version_number]) }}</span>
                                         <span class="ui-status ui-status--active">{{ __('lf.LF_course_template_version_current') }}</span>
+                                        @if ($canPublish)
+                                            <a class="ui-link ui-publish__view" href="{{ route('admin.course-templates.versions.show', ['templateId' => $template->id, 'versionId' => $currentVersion->id]) }}">
+                                                <x-backend-icon name="eye" class="ui-icon" />{{ __('lf.LF_course_template_history_view') }}
+                                            </a>
+                                        @endif
                                     </span>
-                                    @if ($canPublish)
-                                        <span class="ui-summary__version-meta">
-                                            <a class="ui-link" href="{{ route('admin.course-templates.versions.show', ['templateId' => $template->id, 'versionId' => $currentVersion->id]) }}">{{ __('lf.LF_course_template_history_view') }}</a>
-                                        </span>
-                                    @endif
                                 @else
                                     <span class="ui-summary__empty">{{ __('lf.LF_course_template_publish_not_available') }}</span>
                                 @endif
@@ -398,7 +398,8 @@
                         </p>
                     @endif
                     @if ($canPublish && ! $publishReadiness->isReady())
-                        <p id="course-template-publish-disabled-help" class="ui-publish__hint">
+                        {{-- The blocker card below says the same thing visibly; this copy only describes the disabled button. --}}
+                        <p id="course-template-publish-disabled-help" class="ui-sr-only">
                             {{ trans_choice('lf.LF_course_template_publish_disabled_help', $publishBlockers->count(), ['count' => $publishBlockers->count()]) }}
                         </p>
                     @elseif (! $canPublish)
@@ -426,8 +427,8 @@
                                             <strong>{{ __($readinessIssueTitleKey($issue)) }}</strong>
                                             <span>{{ $issue->message() }}</span>
                                         </div>
-                                        <a class="ui-button ui-button--sm ui-button--outline cursor-interaction" href="{{ $issue->targetUrl($routePrefix, (int) $template->id) }}">
-                                            {{ __($readinessIssueActionKey($issue)) }}
+                                        <a class="ui-button ui-button--outline cursor-interaction" href="{{ $issue->targetUrl($routePrefix, (int) $template->id) }}">
+                                            <x-backend-icon :name="$issue->code === 'template_teacher_missing' ? 'users' : 'square-pen'" class="ui-icon" />{{ __($readinessIssueActionKey($issue)) }}
                                         </a>
                                     </li>
                                 @endforeach

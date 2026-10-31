@@ -424,7 +424,7 @@
         </div>
 
         <div class="ui-field" x-show="activityType === 'live_class'" x-cloak>
-            <label class="ui-field__label" for="activity-form-live_class_url">Live class URL</label>
+            <label class="ui-field__label" for="activity-form-live_class_url">{{ __('lf.LF_course_template_activity_live_class_url_label') }}</label>
             <input id="activity-form-live_class_url" type="url" name="live_class_url" value="{{ $formActivity?->live_class_url }}"
                    placeholder="{{ __('lf.LF_course_template_activity_placeholder_live_class_url') }}" :disabled="activityType !== 'live_class'"
                    x-on:input="externalUrl = $event.target.value">

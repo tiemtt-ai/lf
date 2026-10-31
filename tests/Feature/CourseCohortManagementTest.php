@@ -1440,10 +1440,11 @@ class CourseCohortManagementTest extends TestCase
 
         $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions", $payload)
             ->assertSessionHasNoErrors();
+        // The Session owns its join URL; the provider follows that URL, not client input.
         $this->assertDatabaseHas('core_liveclass_sessions', [
             'title' => 'Locked Lesson – Conversation Practice',
-            'online_provider' => 'Google Meet',
-            'meeting_url_snapshot' => 'https://meet.google.com/source-room',
+            'online_provider' => 'example.com',
+            'meeting_url_snapshot' => 'https://example.com/live',
         ]);
         $firstSessionId = (int) DB::table('core_liveclass_sessions')
             ->where('title', 'Locked Lesson – Conversation Practice')->value('id');
@@ -1462,9 +1463,16 @@ class CourseCohortManagementTest extends TestCase
         $this->assertDatabaseMissing('core_liveclass_sessions', ['title' => 'Overlapping off-schedule session']);
         $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions", array_merge($payload, [
             'title' => 'Second realization',
+            'meeting_url' => null,
             'scheduled_start_at' => now()->addDays(3)->format('Y-m-d H:i:s'),
             'scheduled_end_at' => now()->addDays(3)->addHour()->format('Y-m-d H:i:s'),
         ]))->assertSessionHasNoErrors();
+        // Without a Session URL the Activity link is used as the default.
+        $this->assertDatabaseHas('core_liveclass_sessions', [
+            'title' => 'Second realization',
+            'online_provider' => 'Google Meet',
+            'meeting_url_snapshot' => 'https://meet.google.com/source-room',
+        ]);
         $this->assertSame(2, DB::table('core_liveclass_sessions')->where('version_activity_id', $activityId)->count());
         $secondSessionId = (int) DB::table('core_liveclass_sessions')->where('title', 'Second realization')->value('id');
         $rescheduleResponse = $this->actingAs($admin)
