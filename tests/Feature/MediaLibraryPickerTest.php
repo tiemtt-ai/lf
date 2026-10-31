@@ -150,7 +150,8 @@ class MediaLibraryPickerTest extends TestCase
         // Choosing a library Media hides the processing choices that only make sense for a new upload.
         // The form keeps one listener; each of the three file slots listens for its own type.
         $this->assertSame(4, substr_count($html, 'x-on:library-media.window'));
-        $this->assertGreaterThanOrEqual(5, substr_count($html, '! libraryMedia'));
+        // One processing card holds every such choice (switches, languages, details) and is hidden for a library Media.
+        $this->assertStringContainsString("x-show=\"['video', 'audio', 'document'].includes(activityType) && ! libraryMedia\"", $html);
     }
 
     public function test_a_teacher_cannot_use_media_that_is_not_theirs_or_shared_or_of_the_wrong_type(): void

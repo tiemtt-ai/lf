@@ -375,8 +375,6 @@
     </section>
 
     <section class="ui-activity-section">
-        <h4 class="ui-modal__section-title">{{ __('lf.LF_course_template_activity_section_content') }}</h4>
-
         <div class="ui-field">
             <label class="ui-field__label" for="activity-form-title">{!! $star !!}{{ __('lf.LF_course_template_activity_common_name') }}</label>
             <input id="activity-form-title" type="text" name="title" value="{{ $formActivity?->title }}" maxlength="255" required
@@ -399,35 +397,10 @@
                 :current="$slotMedia('video')"
                 :unavailable="($currentMedia['type'] ?? null) === 'video' && ($currentMedia['state'] ?? '') === 'unavailable'" />
             <span class="ui-field__error" role="alert" x-show="mediaDurationState === 'invalid_type' && mediaTypeError === 'video'" x-cloak>{{ __('lf.LF_course_template_activity_media_invalid_video') }}</span>
-            <label class="ui-switch-row" x-show="! libraryMedia">
-                <span class="ui-switch-row__text">
-                    <b>{{ __('lf.LF_course_template_activity_video_stt_option') }}</b>
-                    <small @class(['ui-field__error' => ! $videoSttQualification['qualified']])>{{ __($videoSttQualification['message_key']) }}</small>
-                </span>
-                <span class="ui-switch">
-                    <input type="hidden" name="video_speech_to_text" value="0" :disabled="activityType !== 'video'">
-                    <input id="activity-form-video_speech_to_text" type="checkbox" name="video_speech_to_text" value="1"
-                           x-model="videoSpeechToTextEnabled" x-on:change="videoSpeechToTextChanged()"
-                           :disabled="activityType !== 'video' || !videoSttQualified"
-                           @disabled(! $videoSttQualification['qualified'])
-                           @checked($selectedVideoSpeechToText && $videoSttQualification['qualified'])>
-                    <span></span>
-                </span>
-            </label>
             <div class="ui-ai-status" x-show="libraryMedia" x-cloak>
                 <span class="ui-ai-status__icon" aria-hidden="true"><x-backend-icon name="check" class="ui-icon" /></span>
                 <span><b>{{ __('lf.LF_activity_file_reuse_title') }}</b><small>{{ __('lf.LF_media_pick_hint') }}</small></span>
             </div>
-            <details class="ui-details" x-show="! libraryMedia">
-                <summary>{{ __('lf.LF_media_processing_details') }}</summary>
-                <p>{{ __('lf.LF_course_template_activity_video_stt_help') }}</p>
-                <p>{{ __('lf.LF_media_processing_video_short_warning') }}</p>
-                <p>{{ __('lf.LF_media_processing_processing_requirements') }}</p>
-                <p>{{ __('lf.LF_media_processing_video_limits', [
-                    'minutes' => config('media.processing.speech_to_text.max_video_duration_seconds') / 60,
-                    'gib' => config('media.processing.speech_to_text.max_video_source_bytes') / 1073741824,
-                ]) }}</p>
-            </details>
         </div>
 
         {{-- Video from a link, or the room of a live class. --}}
@@ -464,30 +437,10 @@
                 :current="$slotMedia('audio')"
                 :unavailable="($currentMedia['type'] ?? null) === 'audio' && ($currentMedia['state'] ?? '') === 'unavailable'" />
             <span class="ui-field__error" role="alert" x-show="mediaDurationState === 'invalid_type' && mediaTypeError === 'audio'" x-cloak>{{ __('lf.LF_course_template_activity_media_invalid_audio') }}</span>
-            <label class="ui-switch-row" x-show="! libraryMedia">
-                <span class="ui-switch-row__text">
-                    <b>Tự động phiên âm nội dung audio</b>
-                    <small>{{ __('lf.LF_course_template_activity_stt_switch_help') }}</small>
-                </span>
-                <span class="ui-switch">
-                    <input type="hidden" name="speech_to_text" value="0" :disabled="activityType !== 'audio'">
-                    <input id="activity-form-speech_to_text" type="checkbox" name="speech_to_text" value="1"
-                           x-model="speechToTextEnabled" x-on:change="speechToTextChanged()"
-                           :disabled="activityType !== 'audio'" @checked($storedSpeechToText)>
-                    <span></span>
-                </span>
-            </label>
             <div class="ui-ai-status" x-show="libraryMedia" x-cloak>
                 <span class="ui-ai-status__icon" aria-hidden="true"><x-backend-icon name="check" class="ui-icon" /></span>
                 <span><b>{{ __('lf.LF_activity_file_reuse_title') }}</b><small>{{ __('lf.LF_media_pick_hint') }}</small></span>
             </div>
-            <details class="ui-details" x-show="! libraryMedia">
-                <summary>{{ __('lf.LF_media_processing_details') }}</summary>
-                <p>{{ __('lf.LF_media_processing_audio_limits', ['minutes' => config('media.processing.speech_to_text.max_duration_seconds') / 60, 'gib' => config('media.processing.speech_to_text.max_bytes') / 1073741824]) }}</p>
-                <p>{{ __('lf.LF_media_processing_processing_requirements') }}</p>
-                <p>Có bật: hệ thống chạy phiên âm nền và lưu transcript theo từng khoảng thời gian để chuẩn bị cho tìm kiếm và tính năng AI ở phase sau. Nếu phiên âm thất bại, file audio vẫn nghe được bình thường.</p>
-                <p>Không bật: hệ thống chỉ lưu và quét an toàn file; không tạo transcript, vì vậy audio chưa thể dùng làm nguồn nội dung cho AI. Có thể khởi tạo phiên âm sau mà không cần tải file lại.</p>
-            </details>
         </div>
 
         {{-- Document: a file and, for a PDF, structure extraction. --}}
@@ -504,27 +457,10 @@
             <x-activity-file-slot type="document" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,application/pdf" :formats="['PDF', 'DOC', 'DOCX', 'XLS', 'XLSX', 'PPT', 'PPTX', 'TXT']"
                 :current="$slotMedia('document')"
                 :unavailable="($currentMedia['type'] ?? null) === 'document' && ($currentMedia['state'] ?? '') === 'unavailable'" />
-            <label class="ui-switch-row" x-show="documentIsPdf && ! libraryMedia" x-cloak>
-                <span class="ui-switch-row__text">
-                    <b>Phân tích tài liệu cho AI</b>
-                    <small>Trích xuất cấu trúc tài liệu (bảng, tiêu đề, thứ tự đọc).</small>
-                </span>
-                <span class="ui-switch">
-                    <input id="activity-form-structured_extraction" type="checkbox" name="structured_extraction" value="1" :disabled="! documentIsPdf">
-                    <span></span>
-                </span>
-            </label>
             <div class="ui-ai-status" x-show="libraryMedia" x-cloak>
                 <span class="ui-ai-status__icon" aria-hidden="true"><x-backend-icon name="check" class="ui-icon" /></span>
                 <span><b>{{ __('lf.LF_activity_file_reuse_title') }}</b><small>{{ __('lf.LF_media_pick_hint') }}</small></span>
             </div>
-            <details class="ui-details" x-show="! libraryMedia">
-                <summary>{{ __('lf.LF_media_processing_details') }}</summary>
-                <p>Tệp phải đồng thời không vượt quá giới hạn dung lượng và, nếu là PDF, không vượt quá 100 trang. Giới hạn 100 trang áp dụng cả khi không bật phân tích cấu trúc tài liệu.</p>
-                <p>Không bật trích xuất cấu trúc: hệ thống vẫn trích xuất toàn bộ text như bình thường. Bật: chạy thêm một bước phân tích cấu trúc để nhận diện bảng, vai trò từng khối và thứ tự đọc — phục vụ AI đọc tài liệu. Bước này nặng hơn và chạy nền; nếu nó thất bại thì tài liệu vẫn dùng được bình thường. Tùy chọn này chỉ xuất hiện với tệp PDF; với Word, Excel hoặc PowerPoint hãy xuất ra PDF rồi tải bản PDF lên. Ảnh và biểu đồ chỉ được đánh dấu vị trí, chưa được diễn giải nội dung.</p>
-                <p>{{ __('lf.LF_media_processing_document_limits', ['pages' => config('media.processing.structured_extraction.max_pages'), 'ocr_pages' => config('media.processing.local_document.max_pages'), 'regions' => config('media.processing.structured_extraction.max_regions_per_page'), 'total' => config('media.processing.structured_extraction.max_regions_per_document')]) }}</p>
-                <p>{{ __('lf.LF_media_processing_processing_requirements') }}</p>
-            </details>
         </div>
 
         <div class="ui-field" x-show="activityType === 'quiz'" x-cloak>
@@ -533,31 +469,116 @@
                    placeholder="{{ __('lf.LF_course_template_activity_placeholder_assessment') }}" :disabled="activityType !== 'quiz'">
         </div>
 
-        {{-- Content languages (documents, and audio/video with transcription). --}}
-        <fieldset class="ui-field ui-fieldset-reset ui-activity-sub" x-show="languageProfileEnabled()" x-cloak data-ui-error-for="processing_locales">
-            <legend class="ui-field__label">
-                Ngôn ngữ nội dung <span class="ui-field__optional">· chọn 1–3</span>
-                <span class="ui-badge" x-show="processingLocaleRequired" x-cloak>Bắt buộc cho tệp mới</span>
-            </legend>
-            <div class="ui-chip-list">
-                @foreach ($localeOptions as $localeCode => $localeLabel)
-                    <label class="ui-chip">
-                        <input type="checkbox" name="processing_locales[]" value="{{ $localeCode }}"
-                               id="activity-form-processing_locales-{{ $localeCode }}"
-                               :disabled="!languageProfileEnabled()"
-                               @checked(in_array($localeCode, $storedProcessingLocales, true))>
-                        <x-backend-icon name="check" class="ui-icon ui-chip__check" />
-                        <span>{{ $localeLabel }}</span>
-                    </label>
-                @endforeach
+
+        {{-- Processing of a new upload (speech-to-text, document analysis) and the languages it reads: one card for the file type. --}}
+        <section class="ui-ai-card" x-show="['video', 'audio', 'document'].includes(activityType) && ! libraryMedia" x-cloak
+                 x-data="{ localeCount: @js(count($storedProcessingLocales)) }"
+                 x-on:change="if ($event.target.name === 'processing_locales[]') localeCount = $root.querySelectorAll('input[name=&quot;processing_locales[]&quot;]:checked').length">
+            <div class="ui-ai-card__head">
+                <span class="ui-ai-card__icon" aria-hidden="true"><x-backend-icon name="sparkles" class="ui-icon" /></span>
+                <div class="ui-ai-card__text">
+                    <div class="ui-ai-card__title">
+                        <b id="activity-ai-title-video" x-show="activityType === 'video'">{{ __('lf.LF_activity_ai_title_video') }}</b>
+                        <b id="activity-ai-title-audio" x-show="activityType === 'audio'">{{ __('lf.LF_activity_ai_title_audio') }}</b>
+                        <b id="activity-ai-title-document" x-show="activityType === 'document'">{{ __('lf.LF_activity_ai_title_document') }}</b>
+                        @if (($videoSttQualification['code'] ?? null) === 'local_test')
+                            <span class="ui-ai-card__badge" x-show="activityType === 'video'" title="{{ __($videoSttQualification['message_key']) }}" data-tooltip="{{ __($videoSttQualification['message_key']) }}">{{ __('lf.LF_activity_ai_badge_local') }}</span>
+                        @endif
+                    </div>
+                    <span class="ui-field__hint" x-show="activityType === 'video'">{{ __('lf.LF_activity_ai_help_video') }}</span>
+                    <span class="ui-field__hint" x-show="activityType === 'audio'">{{ __('lf.LF_activity_ai_help_audio') }}</span>
+                    <span class="ui-field__hint" x-show="activityType === 'document'">{{ __('lf.LF_activity_ai_help_document') }}</span>
+                    @unless ($videoSttQualification['qualified'])
+                        <span class="ui-field__error" x-show="activityType === 'video'">{{ __($videoSttQualification['message_key']) }}</span>
+                    @endunless
+                </div>
+                <span class="ui-switch" x-show="activityType === 'video'">
+                    <input type="hidden" name="video_speech_to_text" value="0" :disabled="activityType !== 'video'">
+                    <input id="activity-form-video_speech_to_text" type="checkbox" name="video_speech_to_text" value="1" role="switch" aria-labelledby="activity-ai-title-video"
+                           x-model="videoSpeechToTextEnabled" x-on:change="videoSpeechToTextChanged()"
+                           :disabled="activityType !== 'video' || !videoSttQualified"
+                           @disabled(! $videoSttQualification['qualified'])
+                           @checked($selectedVideoSpeechToText && $videoSttQualification['qualified'])>
+                    <span></span>
+                </span>
+                <span class="ui-switch" x-show="activityType === 'audio'">
+                    <input type="hidden" name="speech_to_text" value="0" :disabled="activityType !== 'audio'">
+                    <input id="activity-form-speech_to_text" type="checkbox" name="speech_to_text" value="1" role="switch" aria-labelledby="activity-ai-title-audio"
+                           x-model="speechToTextEnabled" x-on:change="speechToTextChanged()"
+                           :disabled="activityType !== 'audio'" @checked($storedSpeechToText)>
+                    <span></span>
+                </span>
             </div>
-            <span class="ui-field__hint" x-show="activityType === 'document'">Dùng cho OCR và phân tích cấu trúc; thứ tự chọn không ảnh hưởng revision.</span>
-            <span class="ui-field__hint" x-show="['audio', 'video'].includes(activityType)">Chỉ dùng khi bật phiên âm. Một timeline giữ nguyên phần chuyển đổi giữa các ngôn ngữ; hệ thống không dịch nội dung.</span>
-        </fieldset>
+
+            <div class="ui-ai-card__body" x-show="languageProfileEnabled() || activityType === 'document'">
+                <fieldset class="ui-field ui-fieldset-reset" x-show="languageProfileEnabled()" data-ui-error-for="processing_locales">
+                    <div class="ui-ai-card__row">
+                        <div class="ui-ai-card__legend">
+                            <span class="ui-field__label"><span class="ui-field__required" aria-hidden="true" x-show="processingLocaleRequired">*</span><span x-show="activityType === 'video'">{{ __('lf.LF_activity_ai_languages_video') }}</span><span x-show="activityType === 'audio'">{{ __('lf.LF_activity_ai_languages_audio') }}</span><span x-show="activityType === 'document'">{{ __('lf.LF_activity_ai_languages_document') }}</span></span>
+                            <span class="ui-field__hint">{{ __('lf.LF_activity_ai_languages_hint') }}</span>
+                        </div>
+                        <span class="ui-ai-card__counter" aria-live="polite" x-text="localeCount + '/3'"></span>
+                    </div>
+                    <div class="ui-chip-list">
+                        @foreach ($localeOptions as $localeCode => $localeLabel)
+                            <label class="ui-chip">
+                                <input type="checkbox" name="processing_locales[]" value="{{ $localeCode }}"
+                                       id="activity-form-processing_locales-{{ $localeCode }}"
+                                       :disabled="!languageProfileEnabled()"
+                                       @checked(in_array($localeCode, $storedProcessingLocales, true))>
+                                <x-backend-icon name="check" class="ui-icon ui-chip__check" />
+                                <span>{{ preg_replace('/\s*\([a-z]{2}\)$/', '', $localeLabel) }}</span>
+                            </label>
+                        @endforeach
+                    </div>
+                </fieldset>
+
+                <p class="ui-ai-card__note" x-show="activityType === 'document'">
+                    <x-backend-icon name="circle" class="ui-icon" />
+                    <span>{{ __('lf.LF_activity_ai_note_document') }}</span>
+                </p>
+
+                <label class="ui-switch-row" x-show="activityType === 'document' && documentIsPdf" x-cloak>
+                    <span class="ui-switch-row__text">
+                        <b>Phân tích tài liệu cho AI</b>
+                        <small>Trích xuất cấu trúc tài liệu (bảng, tiêu đề, thứ tự đọc).</small>
+                    </span>
+                    <span class="ui-switch">
+                        <input id="activity-form-structured_extraction" type="checkbox" name="structured_extraction" value="1" :disabled="! documentIsPdf">
+                        <span></span>
+                    </span>
+                </label>
+
+                <details class="ui-details">
+                    <summary>{{ __('lf.LF_media_processing_details') }}</summary>
+                    <div x-show="activityType === 'video'">
+                <p>{{ __('lf.LF_course_template_activity_video_stt_help') }}</p>
+                <p>{{ __('lf.LF_media_processing_video_short_warning') }}</p>
+                <p>{{ __('lf.LF_media_processing_processing_requirements') }}</p>
+                <p>{{ __('lf.LF_media_processing_video_limits', [
+                    'minutes' => config('media.processing.speech_to_text.max_video_duration_seconds') / 60,
+                    'gib' => config('media.processing.speech_to_text.max_video_source_bytes') / 1073741824,
+                ]) }}</p>
+                    </div>
+                    <div x-show="activityType === 'audio'">
+                <p>{{ __('lf.LF_media_processing_audio_limits', ['minutes' => config('media.processing.speech_to_text.max_duration_seconds') / 60, 'gib' => config('media.processing.speech_to_text.max_bytes') / 1073741824]) }}</p>
+                <p>{{ __('lf.LF_media_processing_processing_requirements') }}</p>
+                <p>Có bật: hệ thống chạy phiên âm nền và lưu transcript theo từng khoảng thời gian để chuẩn bị cho tìm kiếm và tính năng AI ở phase sau. Nếu phiên âm thất bại, file audio vẫn nghe được bình thường.</p>
+                <p>Không bật: hệ thống chỉ lưu và quét an toàn file; không tạo transcript, vì vậy audio chưa thể dùng làm nguồn nội dung cho AI. Có thể khởi tạo phiên âm sau mà không cần tải file lại.</p>
+                    </div>
+                    <div x-show="activityType === 'document'">
+                <p>Tệp phải đồng thời không vượt quá giới hạn dung lượng và, nếu là PDF, không vượt quá 100 trang. Giới hạn 100 trang áp dụng cả khi không bật phân tích cấu trúc tài liệu.</p>
+                <p>Không bật trích xuất cấu trúc: hệ thống vẫn trích xuất toàn bộ text như bình thường. Bật: chạy thêm một bước phân tích cấu trúc để nhận diện bảng, vai trò từng khối và thứ tự đọc — phục vụ AI đọc tài liệu. Bước này nặng hơn và chạy nền; nếu nó thất bại thì tài liệu vẫn dùng được bình thường. Tùy chọn này chỉ xuất hiện với tệp PDF; với Word, Excel hoặc PowerPoint hãy xuất ra PDF rồi tải bản PDF lên. Ảnh và biểu đồ chỉ được đánh dấu vị trí, chưa được diễn giải nội dung.</p>
+                <p>{{ __('lf.LF_media_processing_document_limits', ['pages' => config('media.processing.structured_extraction.max_pages'), 'ocr_pages' => config('media.processing.local_document.max_pages'), 'regions' => config('media.processing.structured_extraction.max_regions_per_page'), 'total' => config('media.processing.structured_extraction.max_regions_per_document')]) }}</p>
+                <p>{{ __('lf.LF_media_processing_processing_requirements') }}</p>
+                    </div>
+                </details>
+            </div>
+        </section>
 
         <div class="ui-field">
-            <label class="ui-field__label" for="activity-form-description">{{ __('lf.LF_course_template_activity_common_description') }} <span class="ui-field__optional">· {{ __('lf.LF_course_template_activity_optional') }}</span></label>
-            <textarea id="activity-form-description" name="description" rows="2"
+            <label class="ui-field__label" for="activity-form-description">{{ __('lf.LF_course_template_activity_common_description') }}</label>
+            <textarea id="activity-form-description" name="description" rows="4"
                       placeholder="{{ __('lf.LF_course_template_activity_placeholder_description') }}">{{ $formActivity?->description }}</textarea>
         </div>
     </section>
@@ -580,9 +601,12 @@
             </div>
             <input type="hidden" name="learning_phases[]" value="anytime" x-bind:disabled="learningMode !== 'anytime'">
             <input type="hidden" name="learning_phases[]" value="during_session" x-bind:disabled="! liveLocked">
-            <div class="ui-activity-sub" x-show="learningMode === 'session'" x-cloak>
-                <span class="ui-field__label">{{ __('lf.LF_course_template_activity_phase_choose') }} <span class="ui-field__optional">· {{ __('lf.LF_course_template_activity_phase_choose_hint') }}</span></span>
-                <div class="ui-chip-list">
+            <div class="ui-activity-panel" x-show="learningMode === 'session'" x-cloak>
+                <span class="ui-activity-panel__head">
+                    <span class="ui-field__label">{!! $star !!}{{ __('lf.LF_course_template_activity_phase_choose') }}</span>
+                    <span class="ui-field__hint">{{ __('lf.LF_course_template_activity_phase_choose_hint') }}</span>
+                </span>
+                <div class="ui-chip-list ui-chip-list--grid3">
                     @foreach (['before_session', 'during_session', 'after_session'] as $phase)
                         <label class="ui-chip">
                             <input type="checkbox" name="learning_phases[]" value="{{ $phase }}" id="activity-form-learning_phases-{{ $phase }}"
@@ -592,7 +616,6 @@
                         </label>
                     @endforeach
                 </div>
-                <span class="ui-field__hint" x-show="! liveLocked">{{ __('lf.LF_course_template_activity_learning_availability_help') }}</span>
                 <span class="ui-field__hint" x-show="liveLocked" x-cloak>{{ __('lf.LF_course_template_activity_live_phase_locked') }}</span>
             </div>
         </fieldset>
@@ -626,7 +649,8 @@
                     {{ __('lf.LF_course_template_activity_media_estimated_duration_help') }}
                 </span>
                 <span class="ui-field__hint" x-show="['video', 'audio'].includes(activityType) && mediaDurationState === 'probing'" x-cloak>{{ __('lf.LF_course_template_activity_media_duration_probing') }}</span>
-                <span class="ui-field__hint" x-show="['video', 'audio'].includes(activityType) && ['empty', 'unavailable'].includes(mediaDurationState)" x-cloak>{{ __('lf.LF_course_template_activity_media_duration_unknown') }}</span>
+                <span class="ui-field__hint" x-show="['video', 'audio'].includes(activityType) && mediaDurationState === 'empty'" x-cloak>{{ __('lf.LF_activity_duration_autofill_hint') }}</span>
+                <span class="ui-field__hint" x-show="['video', 'audio'].includes(activityType) && mediaDurationState === 'unavailable'" x-cloak>{{ __('lf.LF_course_template_activity_media_duration_unknown') }}</span>
             </div>
 
             <div class="ui-field" x-show="['watch_percent', 'pass'].includes(completionRule)" x-cloak>
@@ -637,7 +661,7 @@
             </div>
         </div>
 
-        <label class="ui-switch-row">
+        <label class="ui-switch-row ui-switch-row--boxed">
             <span class="ui-switch-row__text">
                 <b>{{ __('lf.LF_course_template_activity_common_required') }}</b>
                 <small>{{ __('lf.LF_course_template_activity_required_help') }}</small>
