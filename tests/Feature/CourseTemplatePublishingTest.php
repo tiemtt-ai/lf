@@ -712,15 +712,15 @@ class CourseTemplatePublishingTest extends TestCase
         @$document->loadHTML($historyResponse->getContent());
         $xpath = new \DOMXPath($document);
         $this->assertSame(1, $xpath->query(
-            '//table[contains(@class, "course-template-history-table")]'
-            .'//tbody/tr/td[4]//span[contains(@class, "course-template-version-status-badge")][normalize-space()="Đã xuất bản"]'
+            '//table[@data-history-table]'
+            .'//tbody/tr/td[5]//span[@data-version-status="published"][normalize-space()="Đã xuất bản"]'
         )->length);
         $this->assertSame(1, $xpath->query(
-            '//table[contains(@class, "course-template-history-table")]'
-            .'//tbody/tr/td[4]//span[contains(@class, "course-template-version-current-badge")][normalize-space()="Đang sử dụng"]'
+            '//table[@data-history-table]'
+            .'//tbody/tr/td[5]//span[@data-version-status="current"][normalize-space()="Đang sử dụng"]'
         )->length);
         $this->assertSame(0, $xpath->query(
-            '//div[contains(concat(" ", normalize-space(@class), " "), " course-template-history-pagination ")]'
+            '//nav[contains(@class, "mk-pages")]//a[@rel="next"]'
         )->length);
 
         app()->setLocale('en');
@@ -733,16 +733,16 @@ class CourseTemplatePublishingTest extends TestCase
         @$englishDocument->loadHTML($englishHistory->getContent());
         $englishXpath = new \DOMXPath($englishDocument);
         $this->assertSame(1, $englishXpath->query(
-            '//table[contains(@class, "course-template-history-table")]'
-            .'//tbody/tr/td[4]//span[contains(@class, "course-template-version-status-badge")][normalize-space()="Published"]'
+            '//table[@data-history-table]'
+            .'//tbody/tr/td[5]//span[@data-version-status="published"][normalize-space()="Published"]'
         )->length);
         $this->assertSame(1, $englishXpath->query(
-            '//table[contains(@class, "course-template-history-table")]'
-            .'//tbody/tr/td[4]//span[contains(@class, "course-template-version-current-badge")][normalize-space()="In use"]'
+            '//table[@data-history-table]'
+            .'//tbody/tr/td[5]//span[@data-version-status="current"][normalize-space()="In use"]'
         )->length);
     }
 
-    public function test_history_is_paginated_by_ten_without_redundant_sequence_column(): void
+    public function test_history_is_paginated_by_ten_with_sequence_column(): void
     {
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin', 'History Admin');
@@ -762,28 +762,22 @@ class CourseTemplatePublishingTest extends TestCase
         $firstXpath = new \DOMXPath($firstDocument);
 
         $this->assertSame(10, $firstXpath->query(
-            '//table[contains(@class, "course-template-history-table")]//tbody/tr'
+            '//table[@data-history-table]//tbody/tr'
         )->length);
         $firstPage->assertSeeText('11 phiên bản đã phát hành');
-        $firstPage->assertSeeText('Hiển thị 1–10 / 11 bản ghi');
+        $firstPage->assertSeeText('Hiển thị 1–10 / 11 dòng');
         $firstPage->assertSeeText('Phiên bản 11');
         $this->assertSame(0, $firstXpath->query(
-            '//table[contains(@class, "course-template-history-table")]'
-            .'//tbody/tr/td[1]//strong[normalize-space()="Phiên bản 1"]'
+            '//table[@data-history-table]'
+            .'//tbody/tr/td[2]//strong[normalize-space()="Phiên bản 1"]'
         )->length);
-        $this->assertSame(5, $firstXpath->query(
-            '//table[contains(@class, "course-template-history-table")]//thead/tr/th'
+        $this->assertSame(6, $firstXpath->query(
+            '//table[@data-history-table]//thead/tr/th'
         )->length);
         $this->assertSame(10, $firstXpath->query(
-            '//table[contains(@class, "course-template-history-table")]'
-            .'//form/button[contains(concat(" ", normalize-space(@class), " "), " admin-table-action-link ")]'
-            .'/*[local-name()="svg" and contains(concat(" ", normalize-space(@class), " "), " admin-action-menu__item-icon ")]'
+            '//table[@data-history-table]'
+            .'//form/button[@data-history-duplicate]'
         )->length);
-        $historyCss = file_get_contents(resource_path('css/admin/admin-pages.css'));
-        $this->assertMatchesRegularExpression(
-            '/\.course-template-history-table tbody td\s*\{[^}]*font-size:\s*14px;[^}]*line-height:\s*1\.5;/s',
-            $historyCss
-        );
         $firstPage->assertSee('history_page=2', false)->assertSee('tab=history', false);
 
         $secondPage = $this->actingAs($admin)->get(
@@ -794,12 +788,12 @@ class CourseTemplatePublishingTest extends TestCase
         $secondXpath = new \DOMXPath($secondDocument);
 
         $this->assertSame(1, $secondXpath->query(
-            '//table[contains(@class, "course-template-history-table")]//tbody/tr'
+            '//table[@data-history-table]//tbody/tr'
         )->length);
         $secondPage->assertSeeText('11 phiên bản đã phát hành');
-        $secondPage->assertSeeText('Hiển thị 11–11 / 11 bản ghi');
+        $secondPage->assertSeeText('Hiển thị 11–11 / 11 dòng');
         $this->assertSame('Phiên bản 1', trim($secondXpath->query(
-            '//table[contains(@class, "course-template-history-table")]//tbody/tr[1]/td[1]//strong'
+            '//table[@data-history-table]//tbody/tr[1]/td[2]//strong'
         )->item(0)->textContent));
         $secondPage->assertSeeText('Phiên bản 1');
     }
@@ -1839,8 +1833,8 @@ class CourseTemplatePublishingTest extends TestCase
             ->assertSee('class="course-template-version-detail"', false)
             ->assertSee('class="course-version-copy-label"', false)
             ->assertSee('class="course-version-copy-content"', false)
-            ->assertSee('class="media-library-modal-panel"', false)
-            ->assertDontSee('course-version-preview-modal-panel', false)
+            ->assertSee('<dialog class="ui-modal" data-columns="2" data-preview', false)
+            ->assertDontSee('media-library-modal-panel', false)
             ->assertSee('role="tablist"', false)
             ->assertSee('id="course-version-direct-tab"', false)
             ->assertSee('id="course-version-sections-tab"', false)
@@ -1894,7 +1888,7 @@ class CourseTemplatePublishingTest extends TestCase
             ));
         }
         $this->assertSame(0, $xpath->query('.//form', $contentCard)->length);
-        $this->assertSame(0, $xpath->query('.//input|.//select|.//textarea', $contentCard)->length);
+        $this->assertSame(0, $xpath->query('.//input[not(@type="search")]|.//select|.//textarea', $contentCard)->length);
         $this->assertSame(0, $xpath->query('.//*[contains(@class, "course-version-role-badge")]', $contentCard)->length);
         $this->assertSame(0, $xpath->query('.//*[contains(@class, "course-version-lesson-meta")]', $contentCard)->length);
         $this->assertSame(0, $xpath->query('.//*[contains(@class, "course-version-activity-meta")]', $contentCard)->length);
@@ -2186,9 +2180,9 @@ class CourseTemplatePublishingTest extends TestCase
                 "https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=history"
             )
             ->assertOk()
-            ->assertSeeText('Duplicate to Draft')
+            ->assertSee('data-tooltip="Duplicate to Draft"', false)
             ->assertSee(
-                'This will replace the current draft content with this published version. Published versions will not be changed. Continue?',
+                'Replace the draft content with Version 1? The Template returns to Draft and must be published again. Published versions do not change.',
                 false
             );
 
@@ -2347,6 +2341,16 @@ class CourseTemplatePublishingTest extends TestCase
                 'source_template_version_id'
             ]
         );
+
+        // An archived Template is read-only: no duplicate action, and a direct request is rejected unchanged.
+        DB::table('core_course_templates')->where('id', $templateId)->update(['status' => 'archived']);
+        $revision = DB::table('core_course_templates')->where('id', $templateId)->value('working_revision');
+        $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=history")
+            ->assertOk()
+            ->assertDontSee('data-history-duplicate', false)
+            ->assertSee('data-history-view', false);
+        $this->actingAs($admin)->post($duplicateUrl)->assertSessionHasErrors('duplicate');
+        $this->assertDatabaseHas('core_course_templates', ['id' => $templateId, 'status' => 'archived', 'working_revision' => $revision]);
     }
 
     public function test_all_previous_can_publish_duplicate_and_republish_without_restoring_expanded_working_edges(): void

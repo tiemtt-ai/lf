@@ -1476,7 +1476,7 @@ class CourseMediaIntegrationTest extends TestCase
             ->assertSee('data-version-media-slot="video"', false)
             ->assertSee('data-version-media-slot="document"', false)
             ->assertSee('openVersionPreview', false)
-            ->assertSee('x-ref="versionPreviewVideo"', false)
+            ->assertSee('data-preview aria-labelledby="version-media-preview-title"', false)
             ->assertSee('authoring-media-current-row', false)
             ->assertSee('authoring-media-overlay-action', false)
             ->assertSee('target="_blank"', false)

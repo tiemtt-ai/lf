@@ -537,6 +537,11 @@ Duplicate:
 * does not create a Template, Product or second draft;
 * does not change Product, Enrollment, Progress or Completion.
 
+An `archived` Template is read-only, so duplicate is rejected for it and the
+History tab and Version Detail do not offer the action. The confirmation names
+the Version and warns when the working draft has unpublished changes, which the
+duplicate discards.
+
 The action belongs to Course Edit → History and Version Detail. Canonical
 behavior is defined by
 [ADR-0013 — Course Template Version Duplicate to Draft](../adr/ADR-0013-Course-Template-Version-Duplicate-to-Draft.md).

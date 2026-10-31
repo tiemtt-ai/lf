@@ -40,6 +40,10 @@ class CourseTemplateVersionDuplicatingService
                 ->first();
 
             abort_if(! $template, 404);
+            // Archived Templates are read-only; copying a Version back would silently reopen them as draft.
+            if ($template->status === 'archived') {
+                throw ValidationException::withMessages(['duplicate' => __('lf.LF_course_template_duplicate_archived_hint')]);
+            }
 
             $version = DB::table('core_course_template_versions')
                 ->where('customer_id', $customerId)

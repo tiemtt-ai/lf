@@ -2904,3 +2904,37 @@
     .lf-admin-ui .ui-publish__summary > .ui-summary__item + .ui-summary__item { padding-left: 0; border-left: 0; }
 }
 .lf-admin-ui.ui-publish .ui-publish__change { margin: 0 20px 18px; }
+
+/* Course Template history tab: UI Kit table of published Versions, the current one highlighted. */
+.lf-admin-ui .ui-history .ui-summary-head .ui-caption { margin: 4px 0 0; }
+.lf-admin-ui .ui-history__note { margin: 0; padding: 10px 20px; border-bottom: 1px solid var(--ui-color-eceef3); background: var(--ui-warning-soft); color: var(--ui-warning); font-size: 13px; }
+.lf-admin-ui .ui-history-table tr.is-current td { background: var(--ui-color-f7f8fd); }
+.lf-admin-ui .ui-history__actions { display: inline-flex; align-items: center; gap: 4px; }
+.lf-admin-ui .ui-history__actions form { display: inline-flex; margin: 0; }
+.lf-admin-ui .ui-history__code { display: block; white-space: nowrap; }
+
+/* Published Version detail: identity card, saved information and media; the content outline below keeps the authoring styles. */
+.lf-admin-ui.ui-version { display: grid; gap: 16px; margin-bottom: 16px; }
+.lf-admin-ui.ui-version > .mk-section { margin-top: 0; }
+.lf-admin-ui .ui-version__head { align-items: flex-start; }
+.lf-admin-ui .ui-version__identity { display: grid; gap: 6px; min-width: 0; }
+.lf-admin-ui .ui-version__eyebrow { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; color: var(--ui-muted); font-size: 12.5px; font-weight: 500; letter-spacing: .02em; text-transform: uppercase; }
+.lf-admin-ui .ui-version__identity h2 { margin: 0; font-size: 20px; line-height: 28px; font-weight: 600; overflow-wrap: anywhere; }
+.lf-admin-ui .ui-version__chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.lf-admin-ui .ui-version__facts { grid-template-columns: repeat(4, minmax(0, 1fr)); padding-bottom: 16px; }
+.lf-admin-ui .ui-version__facts > .ui-summary__item + .ui-summary__item { padding-left: 28px; border-left: 1px solid var(--ui-color-eceef3); }
+.lf-admin-ui.ui-version .ui-version__note { display: flex; align-items: center; gap: 8px; margin: 0; padding: 12px 20px; border-top: 1px solid var(--ui-color-eceef3); background: var(--ui-background); color: var(--ui-muted); font-size: 13px; }
+.lf-admin-ui .ui-version__note .ui-icon { width: 16px; height: 16px; flex: none; }
+.lf-admin-ui .ui-version__info { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.lf-admin-ui .ui-version .course-version-copy-content { font-weight: 400; white-space: pre-line; }
+.lf-admin-ui .ui-version__media { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px 22px; }
+.lf-admin-ui .ui-version__media-slot { min-width: 0; }
+.lf-admin-ui .ui-version__media-slot > .ui-field__label { margin: 0 0 8px; }
+.lf-admin-ui .ui-version__media-empty { display: grid; place-items: center; width: 112px; height: 112px; margin: 0; border: 1px dashed var(--ui-border); border-radius: var(--ui-control-radius); background: var(--ui-background); color: var(--ui-muted); font-size: 12.5px; text-align: center; }
+.lf-admin-ui .ui-version__media-empty.is-unavailable { border-color: var(--ui-warning); color: var(--ui-warning); }
+@media (max-width: 767.98px) {
+    .lf-admin-ui .ui-version__head { flex-direction: column; }
+    .lf-admin-ui .ui-version__facts, .lf-admin-ui .ui-version__info, .lf-admin-ui .ui-version__media { grid-template-columns: minmax(0, 1fr); }
+    .lf-admin-ui .ui-version__facts > .ui-summary__item + .ui-summary__item { padding-left: 0; border-left: 0; }
+}
+.lf-admin-ui .ui-modal[data-preview] audio { display: block; width: 100%; }

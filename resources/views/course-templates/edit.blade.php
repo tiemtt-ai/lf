@@ -451,122 +451,116 @@
         <section id="course-template-tab-history"
                  class="course-template-tab-panel"
                  @if ($activeTab !== 'history') hidden @endif>
-            <div class="admin-card admin-form-card course-template-history-card">
-                <h2 class="admin-form-section-title">
-                    {{ __('lf.LF_course_template_history_title') }}
-                </h2>
-
-                @if ($versions->isEmpty())
-                    <div class="course-template-history-empty">
-                        <p>{{ __('lf.LF_course_template_history_empty') }}</p>
+            {{-- Inline @php only (see the publish tab). An archived Template is read-only, so it cannot take a Version back into its draft. --}}
+            @php($canManageVersions = request()->user()?->role === 'customer_admin')
+            @php($canDuplicateVersion = $canManageVersions && $template->status !== \App\Support\CourseTemplateStatus::ARCHIVED)
+            @php($draftHasUnpublishedChanges = ! $currentVersion || (int) $currentVersion->source_working_revision !== (int) $template->working_revision)
+            <div class="lf-admin-ui lf-admin-ui--list ui-history">
+                <section class="mk-section" aria-labelledby="course-template-history-title">
+                    <div class="ui-summary-head">
+                        <div>
+                            <h2 id="course-template-history-title">{{ __('lf.LF_course_template_history_title') }}</h2>
+                            <p class="ui-caption">{{ __('lf.LF_course_template_history_help') }}</p>
+                        </div>
+                        @if ($versions->total() > 0)
+                            <span class="ui-caption" data-history-count>{{ trans_choice('lf.LF_course_template_history_count', $versions->total(), ['count' => $versions->total()]) }}</span>
+                        @endif
                     </div>
-                @else
-                    <p class="course-template-history-count">
-                        {{ trans_choice(
-                            'lf.LF_course_template_history_count',
-                            $versions->total(),
-                            ['count' => $versions->total()]
-                        ) }}
-                    </p>
-                    <div class="admin-table-wrap">
-                    <table class="table course-template-history-table admin-table-has-actions">
+                    @if ($canManageVersions && ! $canDuplicateVersion && $versions->total() > 0)
+                        <p class="ui-history__note">{{ __('lf.LF_course_template_duplicate_archived_hint') }}</p>
+                    @endif
+                    <div class="mk-table-scroll" role="region" aria-labelledby="course-template-history-title" tabindex="0">
+                        <table class="ui-history-table" aria-labelledby="course-template-history-title" data-history-table>
+                            <colgroup>
+                                <col class="mk-col-sequence">
+                                <col>
+                                <col class="mk-col-secondary">
+                                <col class="mk-col-secondary">
+                                <col class="mk-col-status">
+                                <col class="mk-col-action">
+                            </colgroup>
                             <thead>
                             <tr>
-                                <th>{{ __('lf.LF_course_template_history_version') }}</th>
-                                <th>{{ __('lf.LF_course_template_history_published_at') }}</th>
-                                <th>{{ __('lf.LF_course_template_history_published_by') }}</th>
-                                <th>{{ __('lf.LF_course_template_history_status') }}</th>
-                                <th class="course-template-history-actions-column">{{ __('lf.table_actions') }}</th>
+                                <th scope="col" class="mk-sequence">{{ __('lf.table_no') }}</th>
+                                <th scope="col" class="mk-text-cell">{{ __('lf.LF_course_template_history_version') }}</th>
+                                <th scope="col" class="mk-text-cell">{{ __('lf.LF_course_template_history_published_at') }}</th>
+                                <th scope="col" class="mk-text-cell">{{ __('lf.LF_course_template_history_published_by') }}</th>
+                                <th scope="col" class="ux-action-cell">{{ __('lf.LF_course_template_history_status') }}</th>
+                                <th scope="col" class="ux-action-cell">{{ __('lf.table_actions') }}</th>
                             </tr>
                             </thead>
                             <tbody>
-                            @foreach ($versions as $version)
-                                <tr>
-                                    <td data-label="{{ __('lf.LF_course_template_history_version') }}">
-                                        <strong class="course-template-history-primary">{{ __('lf.LF_course_template_version_number', [
-                                            'version' => $version->version_number,
-                                        ]) }}</strong>
-                                        <span class="course-template-history-meta">{{ $version->version_code }}</span>
+                            @forelse ($versions as $version)
+                                @php($versionLabel = __('lf.LF_course_template_version_number', ['version' => $version->version_number]))
+                                <tr @class(['is-current' => $version->is_current])>
+                                    <td class="mk-sequence" data-label="{{ __('lf.table_no') }}">{{ $versions->firstItem() + $loop->index }}</td>
+                                    <td class="mk-text-cell" data-label="{{ __('lf.LF_course_template_history_version') }}">
+                                        <strong class="mk-name-text">{{ $versionLabel }}</strong>
+                                        <span class="ui-caption ui-history__code">{{ $version->version_code }}</span>
                                     </td>
-                                    <td data-label="{{ __('lf.LF_course_template_history_published_at') }}" class="course-template-history-date">
-                                        {{ \Illuminate\Support\Carbon::parse(
-                                            $version->published_at
-                                        )->format('d/m/Y H:i') }}
+                                    <td class="mk-text-cell mk-text-cell--nowrap" data-label="{{ __('lf.LF_course_template_history_published_at') }}">
+                                        {{ $version->published_at ? \Illuminate\Support\Carbon::parse($version->published_at)->format('d/m/Y H:i') : '—' }}
                                     </td>
-                                    <td data-label="{{ __('lf.LF_course_template_history_published_by') }}">
-                                        {{ $version->published_by_name
-                                            ?? __('lf.LF_course_template_history_unknown_publisher') }}
+                                    <td class="mk-text-cell" data-label="{{ __('lf.LF_course_template_history_published_by') }}">
+                                        {{ $version->published_by_name ?? __('lf.LF_course_template_history_unknown_publisher') }}
                                     </td>
-                                    <td data-label="{{ __('lf.LF_course_template_history_status') }}">
-                                        <div class="course-template-history-statuses">
+                                    <td class="ux-action-cell" data-label="{{ __('lf.LF_course_template_history_status') }}">
                                         @if ($version->is_current)
-                                            <span class="badge badge-success course-template-version-current-badge">
-                                                {{ __('lf.LF_course_template_version_in_use') }}
-                                            </span>
+                                            <span class="ui-status ui-status--active" data-version-status="current">{{ __('lf.LF_course_template_version_in_use') }}</span>
                                         @else
-                                            <span class="badge admin-status-badge--neutral course-template-version-status-badge">
-                                                {{ __('lf.LF_course_template_version_status_'.$version->status) }}
-                                            </span>
+                                            <span @class(['ui-status', 'ui-status--draft' => $version->status === 'published', 'ui-status--inactive' => $version->status === 'deprecated', 'ui-status--archived' => $version->status === 'archived'])
+                                                  data-version-status="{{ $version->status }}">{{ __('lf.LF_course_template_version_status_'.$version->status) }}</span>
                                         @endif
-                                        </div>
                                     </td>
-                                    <td data-label="{{ __('lf.table_actions') }}" class="course-template-history-actions-column">
-                                        @if (request()->user()?->role === 'customer_admin')
-                                            <x-admin-action-menu :label="__('lf.table_actions').': '.$version->version_code">
-                                                <a class="admin-table-action-link admin-text-action"
-                                                   href="{{ route(
-                                                       'admin.course-templates.versions.show',
-                                                       [
-                                                           'templateId' => $template->id,
-                                                           'versionId' => $version->id,
-                                                       ]
-                                                   ) }}">
-                                                    <x-admin-action-icon name="view" />
-                                                    {{ __('lf.LF_course_template_history_view') }}
+                                    <td class="ux-action-cell" data-label="{{ __('lf.table_actions') }}">
+                                        @if ($canManageVersions)
+                                            <span class="ui-history__actions">
+                                                <a class="ux-row-edit cursor-interaction" data-history-view
+                                                   href="{{ route('admin.course-templates.versions.show', ['templateId' => $template->id, 'versionId' => $version->id]) }}"
+                                                   aria-label="{{ __('lf.LF_course_template_history_view') }}: {{ $versionLabel }}"
+                                                   data-tooltip="{{ __('lf.LF_course_template_history_view') }}">
+                                                    <x-backend-icon name="eye" class="ui-icon" />
                                                 </a>
-
-                                                @if (in_array(
-                                                    $version->status,
-                                                    ['published', 'deprecated', 'archived'],
-                                                    true
-                                                ))
+                                                @if ($canDuplicateVersion && in_array($version->status, ['published', 'deprecated', 'archived'], true))
                                                     <form method="POST"
-                                                          action="{{ route(
-                                                              'admin.course-templates.versions.duplicate-to-draft',
-                                                              [
-                                                                  'templateId' => $template->id,
-                                                                  'versionId' => $version->id,
-                                                              ]
-                                                          ) }}"
-                                                          data-lf-confirm="{{ __('lf.LF_course_template_duplicate_confirmation') }}"
+                                                          action="{{ route('admin.course-templates.versions.duplicate-to-draft', ['templateId' => $template->id, 'versionId' => $version->id]) }}"
+                                                          data-lf-confirm="{{ __('lf.LF_course_template_duplicate_confirm_named', ['version' => $version->version_number]) }}{{ $draftHasUnpublishedChanges ? ' '.__('lf.LF_course_template_duplicate_confirm_unpublished') : '' }}"
                                                           data-lf-confirm-label="{{ __('lf.LF_course_template_duplicate_action') }}">
                                                         @csrf
-                                                        <button type="submit"
-                                                                class="admin-link-button admin-text-action admin-table-action-link">
-                                                            <x-admin-action-icon name="duplicate" />
-                                                            {{ __('lf.LF_course_template_duplicate_action') }}
+                                                        <button type="submit" class="ux-row-edit cursor-interaction" data-history-duplicate
+                                                                aria-label="{{ __('lf.LF_course_template_duplicate_action') }}: {{ $versionLabel }}"
+                                                                data-tooltip="{{ __('lf.LF_course_template_duplicate_action') }}">
+                                                            <x-backend-icon name="copy" class="ui-icon" />
                                                         </button>
                                                     </form>
                                                 @endif
-                                            </x-admin-action-menu>
-                                        @else
-                                            <span class="admin-link-button admin-text-action is-disabled"
-                                                  aria-disabled="true">
-                                                {{ __('lf.LF_course_template_history_view') }}
                                             </span>
+                                        @else
+                                            <span class="ui-caption">—</span>
                                         @endif
                                     </td>
                                 </tr>
-                            @endforeach
+                            @empty
+                                <tr class="mk-empty-row">
+                                    <td class="mk-empty" colspan="6">
+                                        <div role="status">
+                                            <strong>{{ __('lf.LF_course_template_history_empty') }}</strong>
+                                            <p class="ui-caption">{{ __('lf.LF_course_template_history_empty_help') }}</p>
+                                            <a class="ui-button ui-button--outline cursor-interaction" href="{{ route($routePrefix.'.edit', ['id' => $template->id, 'tab' => 'publish']) }}">{{ __('lf.LF_course_template_tab_publish') }}</a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @endforelse
                             </tbody>
                         </table>
                     </div>
-                    @if ($versions->hasPages())
-                        <div class="admin-pagination course-template-history-pagination">
-                            {{ $versions->links() }}
-                        </div>
+                    @if ($versions->total() > 0)
+                        <x-ui-list-foot :paginator="$versions"
+                            :label="__('lf.LF_course_template_history_title')"
+                            :page-size-label="__('lf.LF_course_template_index_page_size')"
+                            :page-size-option="__('lf.LF_course_template_index_page_size_option', ['count' => $versions->perPage()])" />
                     @endif
-                @endif
+                </section>
             </div>
         </section>
     </div>
