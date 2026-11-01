@@ -21,6 +21,13 @@
         'code' => 'evidence_missing',
         'message_key' => 'lf.LF_course_template_activity_video_stt_qualification_evidence_missing',
     ];
+    // ADR-0022: the Template course type bounds the learning availability (and whether a live class exists).
+    $courseType = $template->course_type ?? \App\Support\CourseType::BLENDED;
+    $selfPaced = $courseType === \App\Support\CourseType::SELF_PACED;
+    $scheduled = $courseType === \App\Support\CourseType::SCHEDULED;
+    if (! \App\Support\CourseType::allowsLiveClass($courseType)) {
+        $activityTypes = array_values(array_diff($activityTypes, ['live_class']));
+    }
     $selectedLearningPhases = $formActivity
         ? array_keys(array_filter([
             'anytime' => (bool) ($formActivity->available_anytime ?? true),
@@ -28,7 +35,10 @@
             'during_session' => (bool) ($formActivity->available_during_session ?? false),
             'after_session' => (bool) ($formActivity->available_after_session ?? false),
         ]))
-        : [($presetPhase ?? null) ?: 'anytime'];
+        : [($presetPhase ?? null) ?: ($scheduled ? 'during_session' : 'anytime')];
+    if ($selfPaced) {
+        $selectedLearningPhases = ['anytime'];
+    }
     $storedEstimateMinutes = $formActivity?->estimated_duration_seconds !== null
         ? (int) ceil($formActivity->estimated_duration_seconds / 60)
         : null;
@@ -593,12 +603,18 @@
         </div>
     </section>
 
+    @if ($selfPaced)
+        {{-- A self-paced course is learned at any time: the choice is fixed, so the field is not shown. --}}
+        <input type="hidden" name="learning_phases_present" value="1">
+        <input type="hidden" name="learning_phases[]" value="anytime">
+    @else
     <section class="ui-activity-section">
         <fieldset class="ui-field ui-fieldset-reset" data-ui-error-for="learning_phases">
             <input type="hidden" name="learning_phases_present" value="1">
             <legend class="ui-field__label">{!! $star !!}{{ __('lf.LF_course_template_activity_learning_availability') }}</legend>
             {{-- Anytime and the session phases are exclusive: pick the mode first, then the phases of a session. --}}
-            <div class="ui-option-cards" role="radiogroup">
+            {{-- A scheduled course has no "anytime": only the phases of a session are offered. --}}
+            <div class="ui-option-cards" role="radiogroup" @if ($scheduled) hidden @endif>
                 @foreach (['anytime', 'session'] as $mode)
                     <div class="ui-option-box"
                          x-bind:class="{ 'is-selected': learningMode === '{{ $mode }}', 'is-disabled': liveLocked && '{{ $mode }}' === 'anytime' }">
@@ -613,7 +629,7 @@
             </div>
             {{-- The phases of a session take a full-width row under both cards, pointing at the session card,
                  so choosing a mode never makes one card taller than the other. --}}
-            <div class="ui-option-cards__detail" x-show="learningMode === 'session'" x-cloak
+            <div @class(['ui-option-cards__detail', 'ui-option-cards__detail--solo' => $scheduled]) x-show="learningMode === 'session'" x-cloak
                  data-ui-required-group="learning_phases" data-ui-required-message="{{ __('lf.LF_course_template_activity_learning_phases_required') }}"
                  x-on:change="if ($event.target.name === 'learning_phases[]') $el.querySelectorAll('[data-ui-dialog-form-error]').forEach(node => node.remove())">
                 <span class="ui-activity-panel__head">
@@ -638,6 +654,7 @@
             <input type="hidden" name="learning_phases[]" value="anytime" x-bind:disabled="learningMode !== 'anytime'">
         </fieldset>
     </section>
+    @endif
 
     <section class="ui-activity-section">
         <div class="ui-modal__grid ui-modal__grid--pair">

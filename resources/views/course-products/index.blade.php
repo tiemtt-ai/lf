@@ -16,7 +16,7 @@
      data-msg-delete-error="{{ __('lf.LF_course_product_delete_error') }}"
      data-msg-session-expired="{{ __('lf.LF_course_product_session_expired') }}">
     @php
-        $hasActiveFilters = $keyword !== '' || $status !== null || $visibility !== null;
+        $hasActiveFilters = $keyword !== '' || $status !== null || $visibility !== null || $courseType !== null;
     @endphp
 
     <x-ui-list-toasts />
@@ -51,6 +51,18 @@
                             <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
                         </button>
                     </div>
+                </div>
+
+                <div class="ui-field mk-search">
+                    <label class="ui-field__label ui-sr-only" for="course_type">{{ __('lf.LF_course_type_label') }}</label>
+                    <select id="course_type" name="course_type" data-ui-kit-select
+                            data-ui-empty-label="{{ __('lf.LF_course_template_index_no_options') }}"
+                            data-ui-clear-label="{{ __('lf.LF_course_product_common_clear_filters') }}">
+                        <option value="">{{ __('lf.LF_course_type_all') }}</option>
+                        @foreach (\App\Support\CourseType::VALUES as $typeOption)
+                            <option value="{{ $typeOption }}" @selected($courseType === $typeOption)>{{ __(\App\Support\CourseType::labelKey($typeOption)) }}</option>
+                        @endforeach
+                    </select>
                 </div>
 
                 <div class="ui-field mk-search">
@@ -127,7 +139,7 @@
                     </th>
                     <th scope="col" class="mk-sequence">{{ __('lf.table_no') }}</th>
                     <th scope="col" class="mk-text-cell">{{ __('lf.LF_course_product_common_title_field') }}</th>
-                    <th scope="col" class="mk-text-cell">{{ __('lf.LF_course_product_common_product_type') }}</th>
+                    <th scope="col" class="mk-text-cell">{{ __('lf.LF_course_type_label') }}</th>
                     <th scope="col" class="mk-text-cell">{{ __('lf.LF_course_product_common_price') }}</th>
                     <th scope="col" class="mk-text-cell">{{ __('lf.LF_course_product_common_visibility') }}</th>
                     <th scope="col" class="ux-action-cell">{{ __('lf.LF_course_product_common_status') }}</th>
@@ -154,11 +166,13 @@
                             <span class="mk-name-text">{{ $product->title }}</span>
                             <br><span class="ui-caption">{{ $product->product_code }}</span>
                         </td>
-                        <td @class(['mk-text-cell', 'mk-na' => ! $product->offering_type])
-                            data-label="{{ __('lf.LF_course_product_common_product_type') }}">
-                            {{ $product->offering_type
-                                ? __('lf.LF_product_v2_offering_'.$product->offering_type)
-                                : '—' }}
+                        <td @class(['mk-text-cell', 'mk-na' => ! $product->course_type])
+                            data-label="{{ __('lf.LF_course_type_label') }}">
+                            @if ($product->course_type)
+                                <span class="ui-course-type ui-course-type--{{ $product->course_type }}" data-course-type="{{ $product->course_type }}">{{ __(\App\Support\CourseType::labelKey($product->course_type)) }}</span>
+                            @else
+                                —
+                            @endif
                         </td>
                         <td class="mk-text-cell" data-label="{{ __('lf.LF_course_product_common_price') }}">
                             {{ number_format((float) $product->price, 0) }} {{ $product->currency }}

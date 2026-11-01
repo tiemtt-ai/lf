@@ -253,7 +253,7 @@ class CourseCategoryManagementTest extends TestCase
         $this->createCategory($customerId, 'Child', 'child', parentId: $withChild);
         $this->createProduct($customerId, $withProduct, 'product-a');
         $this->createProduct($customerId, $withProduct, 'product-b');
-        DB::table('core_course_templates')->insert([
+        DB::table('core_course_templates')->insert(['course_type' => 'blended', 
             'customer_id' => $customerId, 'category_id' => $withTemplate, 'title' => 'T',
             'estimated_minutes_per_lesson' => 0, 'lesson_count' => 0, 'working_revision' => 1,
             'status' => 'draft', 'created_at' => now(), 'updated_at' => now(),

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\CourseType;
 use Illuminate\Support\Facades\DB;
 
 class CourseCohortVersionResolver
@@ -31,6 +32,8 @@ class CourseCohortVersionResolver
             ->where('products.customer_id', $customerId)
             ->where('products.status', 'active')
             ->whereNotNull('items.version_id')
+            // ADR-0022: a class runs only scheduled or blended courses.
+            ->whereIn('versions.course_type_snapshot', CourseType::COHORT_VALUES)
             ->where(function ($query): void {
                 $query->whereNull('items.template_id')
                     ->orWhereColumn('items.template_id', 'versions.template_id');
@@ -39,7 +42,7 @@ class CourseCohortVersionResolver
                 'products.id', 'products.title', 'products.product_code',
                 'versions.id as version_id', 'versions.version_code',
                 'versions.version_number', 'versions.title_snapshot',
-                'versions.status as version_status'
+                'versions.status as version_status', 'versions.course_type_snapshot as course_type'
             )
             ->selectSub($lessonCounts, 'lesson_count')
             ->selectSub($activityCounts, 'activity_count')
@@ -84,11 +87,20 @@ class CourseCohortVersionResolver
                 'versions.version_code',
                 'versions.version_number',
                 'versions.title_snapshot',
-                'versions.status as version_status'
+                'versions.status as version_status',
+                'versions.course_type_snapshot as course_type'
             )
             ->limit(2)
             ->get();
 
         return $items->count() === 1 ? $items->first() : null;
+    }
+
+    /** Whether a Cohort bound to this Version may operate: only a scheduled or blended course runs in a class. */
+    public function runsInClass(int $customerId, ?int $versionId): bool
+    {
+        return $versionId !== null && in_array(DB::table('core_course_template_versions')
+            ->where('customer_id', $customerId)->where('id', $versionId)
+            ->value('course_type_snapshot'), CourseType::COHORT_VALUES, true);
     }
 }

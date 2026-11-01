@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Support\CourseTemplateStatus;
+use App\Support\CourseType;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -54,6 +55,7 @@ class CourseTemplatePublishGraphValidator
         $this->validateSections($customerId, (int) $template->id, $sections, $sectionMap, $issues);
         $this->validateLessons($customerId, (int) $template->id, $lessons, $lessonMap, $sectionMap, $activities, $issues);
         $this->validateActivities($customerId, (int) $template->id, $activities, $activityMap, $lessonMap, $issues);
+        $this->validateCourseType($template, $activities, $lessonMap, $issues);
         $this->validateTemplateMedia($customerId, (int) $template->id, $template, $issues);
         $this->validateVideoState($template, $issues);
 
@@ -337,6 +339,29 @@ class CourseTemplatePublishGraphValidator
         }
     }
 
+    /** ADR-0022: every Activity must fit the Template course type that is about to be frozen. */
+    private function validateCourseType(object $template, Collection $activities, Collection $lessons, Collection $issues): void
+    {
+        $courseType = $template->course_type ?? null;
+        if (! in_array($courseType, CourseType::VALUES, true)) {
+            $this->add($issues, 'template_course_type', 'information', [], 'course_type');
+
+            return;
+        }
+        foreach ($activities as $activity) {
+            if (CourseType::availabilityFits($courseType, $activity)) {
+                continue;
+            }
+            $lesson = $lessons->get($activity->template_lesson_id);
+            $this->add($issues, 'activity_course_type', 'content', [
+                'lesson' => $lesson?->title ?? __('lf.LF_course_template_publish_integrity_unknown_lesson'),
+                'activity' => $activity->title,
+                'type' => $activity->activity_type,
+                'course_type' => __(CourseType::labelKey($courseType)),
+            ], $lesson ? $this->lessonFragment($lesson) : null);
+        }
+    }
+
     private function validateTemplateMedia(int $customerId, int $templateId, object $template, Collection $issues): void
     {
         foreach ([['intro_image_media_file_id', 'intro_image', 'image'], ['intro_video_media_file_id', 'intro_video', 'video'], ['intro_document_media_file_id', 'intro_document', 'document']] as [$field, $usageType, $fileType]) {
@@ -536,6 +561,7 @@ class CourseTemplatePublishGraphValidator
             $code === 'activity_quiz_unavailable' && isset($context['activity']) => 'lf.LF_course_template_publish_integrity_activity_quiz_unavailable',
             $code === 'activity_completion' && isset($context['activity']) => 'lf.LF_course_template_publish_integrity_activity_completion_context',
             $code === 'activity_unlock' && isset($context['activity']) => 'lf.LF_course_template_publish_integrity_activity_unlock_context',
+            $code === 'activity_course_type' => 'lf.LF_course_template_publish_integrity_activity_course_type_context',
             default => null,
         };
         $issues->push(new CourseTemplatePublishIssue(

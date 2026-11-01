@@ -10,9 +10,14 @@ Decision: Accepted
 
 Date: 2026-07-15
 
-Last Updated: 2026-08-09
+Last Updated: 2026-11-01
 
 Document Path: adr/ADR-0014-Product-Offering-And-Draft-Binding.md
+
+> **Partially superseded (2026-11-01):** phần "offering dimension"
+> (`offering_type` và Enrollment duration policy theo offering) đã được thay
+> thế bởi [ADR-0022](ADR-0022-Course-Type-On-Template.md) (Approved). Phần Draft
+> content binding vẫn có hiệu lực.
 
 ---
 

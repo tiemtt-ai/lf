@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Support\ActivityAccessDecision;
+use App\Support\CourseType;
 use App\Support\TenantContext;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -39,6 +40,10 @@ class VersionActivityAccessService
         if (! $activity) {
             return $this->deny('invalid_activity_context');
         }
+        $classDecision = $this->classAccess($customerId, $enrollment, $activity);
+        if ($classDecision !== null) {
+            return $classDecision;
+        }
 
         return match ($activity->unlock_rule_snapshot) {
             'none' => new ActivityAccessDecision(true, 'unlocked'),
@@ -50,6 +55,43 @@ class VersionActivityAccessService
             ),
             default => $this->invalidRule((string) $activity->unlock_rule_snapshot),
         };
+    }
+
+    /**
+     * ADR-0022: a scheduled or blended course is learned in a class. Without an active class membership
+     * nothing opens; a blended "anytime" Activity opens from the class start date to the end of its end date.
+     * Session-relative windows have no runtime yet (open question), so Session-bound Activities need only membership.
+     */
+    private function classAccess(int $customerId, object $enrollment, object $activity): ?ActivityAccessDecision
+    {
+        $courseType = $this->enrollmentPolicy->versionCourseType($customerId, (int) $enrollment->version_id);
+        if (! in_array($courseType, CourseType::COHORT_VALUES, true)) {
+            return null;
+        }
+
+        $cohort = DB::table('core_course_cohort_students as memberships')
+            ->join('core_course_cohorts as cohorts', function ($join) use ($customerId): void {
+                $join->on('cohorts.id', '=', 'memberships.cohort_id')->where('cohorts.customer_id', $customerId);
+            })
+            ->where('memberships.customer_id', $customerId)
+            ->where('memberships.enrollment_id', $enrollment->id)
+            ->where('memberships.status', 'active')
+            ->whereIn('cohorts.status', ['active', 'completed'])
+            ->orderByDesc('memberships.id')
+            ->first(['cohorts.start_date', 'cohorts.end_date']);
+        if (! $cohort) {
+            return $this->deny('no_active_cohort');
+        }
+
+        if ($courseType === CourseType::BLENDED && (bool) $activity->available_anytime && $activity->activity_type !== 'live_class') {
+            $today = Carbon::now(config('app.timezone'))->toDateString();
+            if (! $cohort->start_date || ! $cohort->end_date
+                || $today < substr((string) $cohort->start_date, 0, 10) || $today > substr((string) $cohort->end_date, 0, 10)) {
+                return $this->deny('outside_cohort_period');
+            }
+        }
+
+        return null;
     }
 
     private function prerequisite(int $customerId, int $studentId, object $enrollment, object $activity): ActivityAccessDecision

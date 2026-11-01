@@ -255,7 +255,7 @@ class BulkEnrollmentMysqlConcurrencyTest extends TestCase
         $adminA = $this->createUser($customer, 'customer_admin', $key.'-a');
         $adminB = $this->createUser($customer, 'customer_admin', $key.'-b');
         $student = $this->createUser($customer, 'student', $key.'-student');
-        $template = DB::table('core_course_templates')->insertGetId([
+        $template = DB::table('core_course_templates')->insertGetId(['course_type' => 'self_paced', 
             'customer_id' => $customer, 'category_id' => null, 'title' => $key,
             'short_description' => null, 'description' => null, 'publisher_name' => null,
             'intro_video_source' => null, 'intro_image_media_file_id' => null,
@@ -291,7 +291,7 @@ class BulkEnrollmentMysqlConcurrencyTest extends TestCase
     {
         $now = now();
 
-        return DB::table('core_course_template_versions')->insertGetId([
+        return DB::table('core_course_template_versions')->insertGetId(['course_type_snapshot' => 'self_paced', 
             'customer_id' => $customer, 'template_id' => $template, 'version_number' => $number,
             'version_code' => 'V-'.$template.'-'.$number, 'is_current' => true,
             'title_snapshot' => 'Version '.$number, 'estimated_minutes_per_lesson_snapshot' => 0,
@@ -334,7 +334,7 @@ class BulkEnrollmentMysqlConcurrencyTest extends TestCase
     {
         return [
             'customer_id' => $customer, 'product_code' => strtoupper($key),
-            'product_type' => 'single_course', 'offering_type' => 'self_paced_course',
+            'product_type' => 'single_course',
             'title' => $key, 'slug' => $key, 'thumbnail_type' => 'image',
             'price' => 0, 'currency' => 'VND', 'enrollment_type' => 'paid',
             'enrollment_count' => 0, 'access_duration_days' => 30,

@@ -5,7 +5,7 @@
 
 @section('content')
     @php
-        $usesDurationPolicy = $enrollment->offering_type === 'self_paced_course';
+        $usesDurationPolicy = \App\Support\CourseType::usesAccessDuration($enrollment->course_type);
         $canEditEnrollmentDate = ! $usesDurationPolicy || $enrollment->access_duration_days !== null;
     @endphp
     @if ($errors->any())

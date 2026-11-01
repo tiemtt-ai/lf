@@ -6,7 +6,7 @@ Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-08-10
+Last Updated: 2026-11-01
 
 Document Path: core/LF-Core-LiveClass.md
 
@@ -547,6 +547,14 @@ Room 1 → 0..N Sessions
 ```
 
 ## Session Types And Authority
+
+### Course Type And Delivery Mode — Amendment 2026-11-01 (Approved)
+
+Approved theo [ADR-0022](../adr/ADR-0022-Course-Type-On-Template.md). Chỉ
+Cohort của Product loại Theo lịch (`scheduled`) hoặc Kết hợp (`blended`) có
+Session. Online / offline / hybrid là `delivery_mode` của từng Session, không
+phải loại khóa học; lớp "hybrid" là lớp có cả buổi online và buổi offline.
+Nguyên tắc này chưa thay đổi code.
 
 ### Curriculum Session
 

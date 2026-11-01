@@ -268,18 +268,18 @@ class LiveClassSchemaConstraintMysqlTest extends TestCase
         $productId = DB::table('core_course_products')->insertGetId([
             'customer_id' => $customerId, 'title' => 'Constraint Product',
             'slug' => 'constraint-product', 'product_code' => 'CONSTRAINT-P1',
-            'product_type' => 'single_course', 'offering_type' => 'live_class',
+            'product_type' => 'single_course',
             'thumbnail_type' => 'image', 'price' => 0, 'currency' => 'VND',
             'enrollment_type' => 'paid', 'access_duration_days' => 30,
             'status' => 'active', 'visibility' => 'public',
             'created_at' => $now, 'updated_at' => $now,
         ]);
-        $templateId = DB::table('core_course_templates')->insertGetId([
+        $templateId = DB::table('core_course_templates')->insertGetId(['course_type' => 'scheduled', 
             'customer_id' => $customerId, 'title' => 'Constraint Template',
             'working_revision' => 1, 'status' => 'active', 'created_by' => $adminId,
             'created_at' => $now, 'updated_at' => $now,
         ]);
-        $versionId = DB::table('core_course_template_versions')->insertGetId([
+        $versionId = DB::table('core_course_template_versions')->insertGetId(['course_type_snapshot' => 'scheduled', 
             'customer_id' => $customerId, 'template_id' => $templateId,
             'version_number' => 1, 'version_code' => 'CONSTRAINT-V1',
             'title_snapshot' => 'Constraint Version', 'source_working_revision' => 1,

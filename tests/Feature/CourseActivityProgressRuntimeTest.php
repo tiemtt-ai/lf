@@ -35,6 +35,50 @@ class CourseActivityProgressRuntimeTest extends TestCase
         $this->assertFalse(Schema::hasColumn('core_course_activity_progress', 'template_version_id'));
     }
 
+    public function test_class_courses_open_activities_only_through_an_active_cohort_membership(): void
+    {
+        // ADR-0022: scheduled and blended courses learn in a class; a blended "anytime" Activity follows the class period.
+        $context = $this->runtimeContext();
+        TenantContext::set((object) ['id' => $context['customer_id']]);
+        $service = app(VersionActivityAccessService::class);
+        $decide = fn () => $service->decide($context['student']->id, $context['enrollment_id'], $context['version_activity_id']);
+        $version = DB::table('core_course_template_versions')->where('id', $context['version_id']);
+
+        $this->assertTrue($decide()->allowed, 'self-paced needs no class');
+
+        $version->update(['course_type_snapshot' => 'blended']);
+        $this->assertSame('no_active_cohort', $decide()->reason);
+
+        $today = now(config('app.timezone'));
+        $cohortId = DB::table('core_course_cohorts')->insertGetId([
+            'customer_id' => $context['customer_id'], 'product_id' => $context['product_id'], 'version_id' => $context['version_id'],
+            'name' => 'Class A', 'status' => 'active',
+            'start_date' => $today->copy()->subDay()->toDateString(), 'end_date' => $today->copy()->addDay()->toDateString(),
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $membershipId = DB::table('core_course_cohort_students')->insertGetId([
+            'customer_id' => $context['customer_id'], 'cohort_id' => $cohortId, 'enrollment_id' => $context['enrollment_id'],
+            'product_id' => $context['product_id'], 'student_id' => $context['student']->id, 'status' => 'active',
+            'joined_at' => now(), 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $this->assertTrue($decide()->allowed, 'anytime opens inside the class period');
+
+        DB::table('core_course_cohorts')->where('id', $cohortId)->update([
+            'start_date' => $today->copy()->subDays(10)->toDateString(), 'end_date' => $today->copy()->subDay()->toDateString(),
+        ]);
+        $this->assertSame('outside_cohort_period', $decide()->reason);
+
+        // A Session-bound Activity has no time window yet; class membership is enough.
+        DB::table('core_course_template_version_activities')->where('id', $context['version_activity_id'])
+            ->update(['available_anytime' => false, 'available_during_session' => true]);
+        $this->assertTrue($decide()->allowed);
+        $version->update(['course_type_snapshot' => 'scheduled']);
+        $this->assertTrue($decide()->allowed);
+
+        DB::table('core_course_cohort_students')->where('id', $membershipId)->update(['status' => 'removed', 'left_at' => now()]);
+        $this->assertSame('no_active_cohort', $decide()->reason);
+    }
+
     public function test_version_activity_access_enforces_prerequisite_in_exact_enrollment_context(): void
     {
         $context = $this->runtimeContext();
@@ -621,7 +665,7 @@ class CourseActivityProgressRuntimeTest extends TestCase
     {
         $now = now();
 
-        return DB::table('core_course_templates')->insertGetId([
+        return DB::table('core_course_templates')->insertGetId(['course_type' => 'blended', 
             'customer_id' => $customerId,
             'category_id' => null,
             'title' => $title,
@@ -652,7 +696,7 @@ class CourseActivityProgressRuntimeTest extends TestCase
         $now = now();
         $templateId = $this->createTemplate($customerId, $userId, $title);
 
-        return DB::table('core_course_template_versions')->insertGetId([
+        return DB::table('core_course_template_versions')->insertGetId(['course_type_snapshot' => 'self_paced', 
             'customer_id' => $customerId,
             'template_id' => $templateId,
             'version_number' => 1,

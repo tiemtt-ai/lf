@@ -336,6 +336,12 @@ Enrollment `self_paced_course` mới bắt buộc có giá trị lớn hơn `0`.
 Enrollment `live_online_course` mới bắt buộc lưu `NULL`; đây là trạng thái
 Foundation hợp lệ, không chỉ là tương thích legacy.
 
+Amendment 2026-11-01 (Approved, [ADR-0022](../../adr/ADR-0022-Course-Type-On-Template.md)): điều kiện đọc từ loại khóa học của Version
+gắn trên Enrollment: `self_paced` bắt buộc lớn hơn `0`; `scheduled` và
+`blended` lưu `NULL`. Với `blended`, Activity `anytime` mở trong thời gian hoạt
+động của Cohort (`start_date` → hết `end_date`); khoảng này được tính ở runtime
+và không ghi vào các trường thời hạn của Enrollment.
+
 Giá trị không thay đổi khi Product thay đổi. Khi một workflow được phép đổi
 `enrolled_at`, hệ thống dùng snapshot này để tính lại `access_ends_at`.
 

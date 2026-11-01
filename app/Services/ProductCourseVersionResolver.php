@@ -33,7 +33,7 @@ class ProductCourseVersionResolver
             $versionsQuery->lockForUpdate();
         }
         $versions = $versionsQuery->get([
-            'id', 'customer_id', 'template_id', 'version_number', 'version_code', 'status',
+            'id', 'customer_id', 'template_id', 'version_number', 'version_code', 'status', 'course_type_snapshot',
         ])->keyBy('id');
 
         return $productIds->mapWithKeys(function (int $productId) use ($items, $versions): array {
@@ -59,6 +59,7 @@ class ProductCourseVersionResolver
                 'version_id' => (int) $version->id,
                 'version_number' => (int) $version->version_number,
                 'version_code' => $version->version_code,
+                'course_type' => $version->course_type_snapshot,
             ], 'error' => null]];
         })->all();
     }

@@ -1173,7 +1173,7 @@ PY;
             'meta_keywords' => null, 'status' => 'active', 'created_by' => $this->admin->id,
             'created_at' => $now, 'updated_at' => $now,
         ]);
-        $templateId = DB::table('core_course_templates')->insertGetId([
+        $templateId = DB::table('core_course_templates')->insertGetId(['course_type' => 'blended', 
             'customer_id' => $this->customerId, 'category_id' => $categoryId, 'title' => 'Template',
             'short_description' => 'Short', 'description' => 'Detail', 'publisher_name' => 'LearnForge',
             'intro_video_source' => null, 'intro_image_media_file_id' => null, 'intro_video_media_file_id' => null,

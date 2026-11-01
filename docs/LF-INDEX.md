@@ -6,7 +6,7 @@ Document Status: Approved
 
 Implementation Status: Not Applicable
 
-Last Updated: 2026-10-28
+Last Updated: 2026-11-01
 
 Document Path: LF-INDEX.md
 
@@ -371,6 +371,7 @@ docs/adr/
 | [ADR-0019](adr/ADR-0019-Media-Structured-Extraction-Boundary.md) | Approved: mở locator sang region/table/sheet, structured extraction là content type mới; Media quan sát cấu trúc, AI diễn giải |
 | [ADR-0020](adr/ADR-0020-AI-Vision-Interpretation-Boundary.md) | Approved: diễn giải là output AI không phải row media_*; mỗi call một ai_model_runs; quota chặn trước; retention thừa kế ADR-0018 |
 | [ADR-0021](adr/ADR-0021-Media-Sharing-Within-Tenant.md) | Approved: chia sẻ Media trong tenant, admin thấy hết, giáo viên theo chia sẻ (người cụ thể hoặc nhóm vai trò), chặn thu hồi khi đang dùng, media cũ riêng tư |
+| [ADR-0022](adr/ADR-0022-Course-Type-On-Template.md) | Approved: loại khóa học Tự học / Theo lịch / Kết hợp thuộc Course Template và Version; Product bỏ `offering_type`; Cohort chỉ dùng khóa học theo lớp |
 
 ---
 

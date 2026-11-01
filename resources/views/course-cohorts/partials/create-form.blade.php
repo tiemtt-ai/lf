@@ -32,7 +32,7 @@
                     <option value="">{{ __('lf.LF_course_cohort_create_select_product') }}</option>
                     @foreach ($products as $product)
                         <option value="{{ $product->id }}" @selected($selectedProductId === (string) $product->id)>
-                            {{ $product->title }} · {{ $product->product_code }}
+                            {{ $product->title }} · {{ $product->product_code }} · {{ __(\App\Support\CourseType::labelKey((string) $product->course_type)) }}
                         </option>
                     @endforeach
                 </select>

@@ -192,6 +192,10 @@ class CourseProductManagementTest extends TestCase
     {
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
+        $this->actingAs($admin);
+        [, , $bindingVersionId] = $this->defaultEligibleBinding();
+        // Learning days are kept only for a self-paced course (ADR-0022: the type comes from the bound Version).
+        DB::table('core_course_template_versions')->where('id', $bindingVersionId)->update(['course_type_snapshot' => 'self_paced']);
 
         $this->actingAs($admin)
             ->post('https://tenant-a.localhost/admin/course-products', $this->validProductData([
@@ -602,19 +606,19 @@ class CourseProductManagementTest extends TestCase
         $admin = $this->createUser($customerId, 'customer_admin');
         [$categoryId, $templateId] = $this->createProductV2CategoryAndTemplate($customerId, $admin->id);
 
-        $this->actingAs($admin)->post(
-            'https://tenant-a.localhost/admin/course-products',
-            $this->validProductV2Data($categoryId, $templateId, [
-                'price' => '1000000000000',
-                'currency' => 'EUR',
-                'offering_type' => 'self_paced_course',
-                'access_duration_days' => 36501,
-                'review_duration_days' => 36501,
-                'promotion_enabled' => 1,
-                'discount_type' => 'fixed_amount',
-                'discount_value' => '1000000000000',
-            ])
-        )->assertSessionHasErrors(['price', 'currency', 'access_duration_days', 'review_duration_days', 'discount_value']);
+        $this->actingAs($admin);
+        $data = $this->validProductV2Data($categoryId, $templateId, [
+            'price' => '1000000000000',
+            'currency' => 'EUR',
+            'access_duration_days' => 36501,
+            'review_duration_days' => 36501,
+            'promotion_enabled' => 1,
+            'discount_type' => 'fixed_amount',
+            'discount_value' => '1000000000000',
+        ]);
+        DB::table('core_course_template_versions')->where('template_id', $templateId)->update(['course_type_snapshot' => 'self_paced']);
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-products', $data)
+            ->assertSessionHasErrors(['price', 'currency', 'access_duration_days', 'review_duration_days', 'discount_value']);
     }
 
     public function test_product_v2_custom_media_lifecycle_and_authorized_preview(): void
@@ -1046,6 +1050,41 @@ class CourseProductManagementTest extends TestCase
             'status' => 'active',
         ]);
         $this->assertDatabaseCount('core_course_product_items', 1);
+    }
+
+    public function test_a_used_product_moves_only_to_a_version_of_the_same_course_type(): void
+    {
+        // ADR-0022: the Product type is its Version type; learners or a class freeze it.
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $productId = $this->createProduct($customerId, 'TOPIK', 'topik');
+        $templateId = $this->createTemplate($customerId, $admin->id, 'TOPIK Template');
+        $blendedId = $this->createVersion($customerId, $admin->id, title: 'TOPIK Template', templateId: $templateId);
+        $selfPacedId = $this->createVersion($customerId, $admin->id, title: 'TOPIK Template', templateId: $templateId, versionNumber: 2);
+        DB::table('core_course_template_versions')->where('id', $selfPacedId)->update(['course_type_snapshot' => 'self_paced']);
+        $this->createDraftProductTemplateItem($customerId, $productId, $blendedId);
+        $attach = fn (int $versionId) => $this->actingAs($admin)->post(
+            "https://tenant-a.localhost/admin/course-products/{$productId}/items",
+            $this->validProductItemData(['version_id' => $versionId, 'status' => 'active'])
+        );
+        $attach($blendedId)->assertSessionHasNoErrors();
+
+        $cohortId = DB::table('core_course_cohorts')->insertGetId([
+            'customer_id' => $customerId, 'product_id' => $productId, 'version_id' => $blendedId, 'name' => 'Class',
+            'status' => 'draft', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $attach($selfPacedId)->assertSessionHasErrors('version_id');
+        $this->assertSame($blendedId, (int) DB::table('core_course_product_items')->where('product_id', $productId)->value('version_id'));
+
+        // Without usage the binding may change type, but a self-paced course needs learning days first.
+        DB::table('core_course_cohorts')->where('id', $cohortId)->delete();
+        $attach($selfPacedId)->assertSessionHasErrors(['version_id' => __('lf.LF_course_type_product_access_days_required')]);
+        DB::table('core_course_products')->where('id', $productId)->update(['access_duration_days' => 30, 'review_duration_days' => 7]);
+        $attach($selfPacedId)->assertSessionHasNoErrors();
+
+        // Moving back to a class course clears the learning days, which no longer apply.
+        $attach($blendedId)->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('core_course_products', ['id' => $productId, 'access_duration_days' => null, 'review_duration_days' => null]);
     }
 
     public function test_same_template_active_version_rule_is_tenant_isolated(): void
@@ -1960,7 +1999,7 @@ class CourseProductManagementTest extends TestCase
     ): int {
         $now = now();
 
-        return DB::table('core_course_templates')->insertGetId([
+        return DB::table('core_course_templates')->insertGetId(['course_type' => 'blended', 
             'customer_id' => $customerId,
             'category_id' => null,
             'title' => $title,
@@ -1998,7 +2037,8 @@ class CourseProductManagementTest extends TestCase
         $now = now();
         $templateId ??= $this->createTemplate($customerId, $userId, $title);
 
-        return DB::table('core_course_template_versions')->insertGetId([
+        // ADR-0022: the Product course type is read from this Version; only a self-paced one has learning days.
+        return DB::table('core_course_template_versions')->insertGetId(['course_type_snapshot' => 'blended', 
             'customer_id' => $customerId,
             'template_id' => $templateId,
             'version_number' => $versionNumber,
@@ -2204,7 +2244,6 @@ class CourseProductManagementTest extends TestCase
             'template_id' => $templateId,
             'template_version_id' => $versionId,
             'title' => 'Product media test',
-            'offering_type' => 'learning_material',
             'uses_custom_description' => 0,
             'uses_custom_intro_media' => 0,
             'price' => 0,
@@ -2301,11 +2340,12 @@ class CourseProductManagementTest extends TestCase
         $templateId = $this->createTemplate($customerId, $admin->id);
         DB::table('core_course_templates')->where('id', $templateId)->update(['category_id' => $categoryId]);
         $versionId = $this->createVersion($customerId, $admin->id, 'Published', 'published', $templateId);
+        DB::table('core_course_template_versions')->where('id', $versionId)->update(['course_type_snapshot' => 'self_paced']);
 
         $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-products', [
             'category_id' => $categoryId, 'template_id' => $templateId,
             'template_version_id' => $versionId, 'title' => 'Self Study',
-            'slug' => 'forged', 'product_type' => 'bundle', 'offering_type' => 'self_paced_course',
+            'slug' => 'forged', 'product_type' => 'bundle',
             'uses_custom_description' => 0, 'uses_custom_intro_media' => 0,
             'access_duration_days' => 90, 'review_duration_days' => 10, 'price' => '100000.00',
             'currency' => 'VND', 'promotion_enabled' => 0, 'is_featured' => 0,
@@ -2314,7 +2354,8 @@ class CourseProductManagementTest extends TestCase
 
         $product = DB::table('core_course_products')->where('title', 'Self Study')->first();
         $this->assertSame('single_course', $product->product_type);
-        $this->assertSame('self_paced_course', $product->offering_type);
+        $this->assertFalse(property_exists($product, 'offering_type'));
+        $this->assertSame(90, (int) $product->access_duration_days);
         $this->assertSame('self-study', $product->slug);
         $this->assertDatabaseHas('core_course_product_items', [
             'product_id' => $product->id, 'template_id' => $templateId, 'version_id' => $versionId,
@@ -2322,7 +2363,7 @@ class CourseProductManagementTest extends TestCase
 
         $this->actingAs($admin)->get('https://tenant-a.localhost/admin/course-products')
             ->assertOk()
-            ->assertSeeText('Khóa học tự học')
+            ->assertSeeText('Tự học')
             ->assertSeeText('Bản nháp');
     }
 
@@ -2360,7 +2401,7 @@ class CourseProductManagementTest extends TestCase
             $this->assertStringContainsString('id="product-course-content"', $content);
             $this->assertStringContainsString('id="product-identity"', $content);
             $this->assertMatchesRegularExpression(
-                '/<section(?=[^>]*aria-labelledby="product-config")(?=[^>]*x-show="offering === \'self_paced_course\'")(?=[^>]*x-cloak)[^>]*>/',
+                '/<section(?=[^>]*aria-labelledby="product-config")(?=[^>]*x-show="courseType\(\) === \'self_paced\'")(?=[^>]*x-cloak)[^>]*>/',
                 $content
             );
             $this->assertStringNotContainsString('LF_product_v2_configuration_deferred', $content);
@@ -2399,14 +2440,14 @@ class CourseProductManagementTest extends TestCase
             ->assertOk()
             ->assertSeeText('Thông tin sản phẩm')
             ->assertSeeTextInOrder([
-                'Tên sản phẩm',
+                'Tên thương mại',
                 'Danh mục sản phẩm',
                 'Template khóa học',
                 'Phiên bản sử dụng',
                 'VERSION-'.$templateId.'-12',
                 'Đã xuất bản',
                 'Phiên bản 12 · 1 bài học · 1 hoạt động',
-                'Loại sản phẩm',
+                'Loại khóa học',
                 'Mã sản phẩm',
                 'Slug',
             ])
@@ -2439,7 +2480,7 @@ class CourseProductManagementTest extends TestCase
             strpos($content, 'id="course-product-template-field"'),
             strpos($content, 'id="course-product-version-field"'),
             strpos($content, 'id="title"'),
-            strpos($content, 'id="offering_type"'),
+            strpos($content, 'data-product-course-type'),
             strpos($content, 'id="slug"'),
         ];
         $this->assertNotContains(false, $positions);
@@ -2492,10 +2533,8 @@ class CourseProductManagementTest extends TestCase
 
         $identityMarkup = Str::between($content, 'id="product-identity"', '</section>');
         $this->assertMatchesRegularExpression('/<div[^>]+admin-form-field--full[^>]*>.*id="slug"/s', $identityMarkup);
-        $this->assertMatchesRegularExpression(
-            '/<select(?=[^>]*\bid="offering_type")(?=[^>]*\bclass="lf-form-control")[^>]*>/',
-            $identityMarkup
-        );
+        $this->assertStringNotContainsString('name="offering_type"', $identityMarkup);
+        $this->assertStringContainsString('data-product-course-type', $identityMarkup);
         $this->assertStringNotContainsString('course-product-offering-type', $identityMarkup);
         $this->assertStringNotContainsString("'has-value': offering", $identityMarkup);
 
@@ -2852,9 +2891,11 @@ class CourseProductManagementTest extends TestCase
         $itemId = $this->createProductItem($customerId, $productId, $versionId);
 
         $editResponse = $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-products/{$productId}/form", ['X-Requested-With' => 'XMLHttpRequest'])->assertOk();
-        $this->assertMatchesRegularExpression('/<select(?=[^>]*\bid="product-form-template_id")(?=[^>]*\bname="template_id")(?![^>]*\bdisabled\b)[^>]*>/', $editResponse->getContent());
-        $this->assertMatchesRegularExpression('/<option\s+value="'.preg_quote((string) $firstTemplateId, '/').'"[^>]*selected[^>]*>/', $editResponse->getContent());
-        $this->assertMatchesRegularExpression('/<option\s+value="'.preg_quote((string) $secondTemplateId, '/').'"[^>]*>Blocked Replacement<\/option>/', $editResponse->getContent());
+        // ADR-0022: the Template is chosen in the picker; the form keeps it in a hidden field.
+        $this->assertMatchesRegularExpression('/<input type="hidden" name="template_id" x-model="template">/', $editResponse->getContent());
+        $this->assertMatchesRegularExpression('/<button id="product-form-template_id"[^>]*data-template-picker-open/', $editResponse->getContent());
+        $this->assertStringContainsString("template: '".$firstTemplateId."'", html_entity_decode($editResponse->getContent()));
+        $this->assertStringContainsString('Blocked Replacement', $editResponse->getContent());
         $this->assertStringNotContainsString('gỡ liên kết phiên bản', mb_strtolower($editResponse->getContent()));
 
         $this->actingAs($admin)->from("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
@@ -3082,9 +3123,9 @@ class CourseProductManagementTest extends TestCase
             'status' => 'active', 'created_by' => $admin->id, 'created_at' => now(), 'updated_at' => now(),
         ]);
         $templateId = $this->createTemplate($customerId, $admin->id);
-        DB::table('core_course_templates')->where('id', $templateId)->update(['category_id' => $categoryId]);
+        DB::table('core_course_templates')->where('id', $templateId)->update(['category_id' => $categoryId, 'course_type' => 'self_paced']);
         $data = ['category_id' => $categoryId, 'template_id' => $templateId, 'title' => 'Active Study',
-            'offering_type' => 'self_paced_course', 'uses_custom_description' => 0, 'uses_custom_intro_media' => 0,
+            'uses_custom_description' => 0, 'uses_custom_intro_media' => 0,
             'access_duration_days' => null, 'review_duration_days' => 0, 'price' => 0, 'currency' => 'VND',
             'promotion_enabled' => 0, 'is_featured' => 0, 'status' => 'active'];
 
@@ -3161,7 +3202,7 @@ class CourseProductManagementTest extends TestCase
 
         $this->actingAs($admin)->put("https://tenant-a.localhost/admin/course-products/{$productId}", [
             'category_id' => $categoryId, 'template_id' => $templateId, 'title' => 'Active Immutable Updated',
-            'offering_type' => 'learning_material', 'uses_custom_description' => 0,
+            'uses_custom_description' => 0,
             'uses_custom_intro_media' => 0, 'price' => 0, 'currency' => 'VND',
             'promotion_enabled' => 0, 'is_featured' => 0, 'status' => 'active',
         ])->assertSessionHasNoErrors();

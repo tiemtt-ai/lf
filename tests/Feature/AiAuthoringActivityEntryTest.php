@@ -43,7 +43,7 @@ class AiAuthoringActivityEntryTest extends TestCase
             'name' => 'tenant-a', 'slug' => 'tenant-a', 'subdomain' => 'tenant-a',
             'status' => 'active', 'created_at' => now(), 'updated_at' => now(),
         ]);
-        $this->templateId = DB::table('core_course_templates')->insertGetId([
+        $this->templateId = DB::table('core_course_templates')->insertGetId(['course_type' => 'blended', 
             'customer_id' => $this->customerId, 'category_id' => null, 'title' => 'Khoá học mẫu',
             'estimated_minutes_per_lesson' => 0, 'lesson_count' => 0, 'working_revision' => 1,
             'status' => 'draft', 'created_by' => null, 'created_at' => now(), 'updated_at' => now(),
@@ -152,7 +152,7 @@ class AiAuthoringActivityEntryTest extends TestCase
     {
         $quiz = $this->activity($this->lessonId, 'quiz');
         $this->activity($this->lessonId, 'document');
-        $otherTemplate = DB::table('core_course_templates')->insertGetId([
+        $otherTemplate = DB::table('core_course_templates')->insertGetId(['course_type' => 'blended', 
             'customer_id' => $this->customerId, 'category_id' => null, 'title' => 'Khác',
             'estimated_minutes_per_lesson' => 0, 'lesson_count' => 0, 'working_revision' => 1,
             'status' => 'draft', 'created_by' => null, 'created_at' => now(), 'updated_at' => now(),

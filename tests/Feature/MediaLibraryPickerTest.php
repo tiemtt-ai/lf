@@ -196,7 +196,7 @@ class MediaLibraryPickerTest extends TestCase
      */
     private function hierarchy(int $customerId, int $teacherId): array
     {
-        $templateId = DB::table('core_course_templates')->insertGetId([
+        $templateId = DB::table('core_course_templates')->insertGetId(['course_type' => 'blended', 
             'customer_id' => $customerId, 'category_id' => null, 'title' => 'Template', 'short_description' => null, 'description' => null,
             'publisher_name' => null, 'intro_video_source' => null, 'intro_image_media_file_id' => null, 'intro_video_media_file_id' => null,
             'difficulty_level' => null, 'estimated_minutes_per_lesson' => 0, 'estimated_lesson_count' => null, 'lesson_count' => 0,

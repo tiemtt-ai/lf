@@ -807,6 +807,42 @@ class CourseTemplateActivityManagementTest extends TestCase
             ->assertSessionHasErrors('live_class_url');
     }
 
+    public function test_learning_availability_is_bounded_by_the_template_course_type(): void
+    {
+        // ADR-0022: self-paced is only anytime, scheduled only session phases, blended both; enforced on the server.
+        [$customerId, $templateId, $sectionId, $lessonId] = $this->createHierarchy();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $url = $this->activityCollectionUrl('admin', $templateId, $sectionId, $lessonId);
+        $template = DB::table('core_course_templates')->where('id', $templateId);
+        $phases = fn (array $phases) => ['learning_phases_present' => 1, 'learning_phases' => $phases];
+
+        $template->update(['course_type' => 'self_paced']);
+        $this->actingAs($admin)->post($url, $this->validActivityData(['title' => 'Self any'] + $phases(['anytime'])))->assertSessionHasNoErrors();
+        $this->actingAs($admin)->post($url, $this->validActivityData(['title' => 'Self session'] + $phases(['during_session'])))
+            ->assertSessionHasErrors(['learning_phases' => __('lf.LF_course_type_phases_not_allowed_self_paced')]);
+        $this->actingAs($admin)->post($url, ['live_class_url' => null] + $this->validActivityData([
+            'title' => 'Self live', 'activity_type' => 'live_class', 'completion_rule' => 'join',
+        ] + $phases(['during_session'])))->assertSessionHasErrors(['activity_type' => __('lf.LF_course_type_live_class_not_allowed')]);
+        // Without a declaration a self-paced Activity is anytime.
+        $this->actingAs($admin)->post($url, $this->validActivityData(['title' => 'Self default']))->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('core_course_template_activities', ['title' => 'Self default', 'available_anytime' => 1, 'available_during_session' => 0]);
+
+        $template->update(['course_type' => 'scheduled']);
+        $this->actingAs($admin)->post($url, $this->validActivityData(['title' => 'Sched any'] + $phases(['anytime'])))
+            ->assertSessionHasErrors(['learning_phases' => __('lf.LF_course_type_phases_not_allowed_scheduled')]);
+        $this->actingAs($admin)->post($url, $this->validActivityData(['title' => 'Sched before'] + $phases(['before_session', 'after_session'])))->assertSessionHasNoErrors();
+        $this->actingAs($admin)->post($url, $this->validActivityData(['title' => 'Sched default']))->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('core_course_template_activities', ['title' => 'Sched default', 'available_anytime' => 0, 'available_during_session' => 1]);
+
+        $template->update(['course_type' => 'blended']);
+        $this->actingAs($admin)->post($url, $this->validActivityData(['title' => 'Blend any'] + $phases(['anytime'])))->assertSessionHasNoErrors();
+        $this->actingAs($admin)->post($url, $this->validActivityData(['title' => 'Blend session'] + $phases(['during_session'])))->assertSessionHasNoErrors();
+
+        foreach (['Self session', 'Self live', 'Sched any'] as $rejected) {
+            $this->assertDatabaseMissing('core_course_template_activities', ['title' => $rejected]);
+        }
+    }
+
     public function test_learning_availability_checkboxes_render_on_activity_form_and_detail(): void
     {
         [$customerId, $templateId, $sectionId, $lessonId] = $this->createHierarchy();
@@ -1440,7 +1476,7 @@ class CourseTemplateActivityManagementTest extends TestCase
         string $title,
         string $slug
     ): int {
-        return DB::table('core_course_templates')->insertGetId([
+        return DB::table('core_course_templates')->insertGetId(['course_type' => 'blended', 
             'customer_id' => $customerId,
             'category_id' => null,
             'title' => $title,

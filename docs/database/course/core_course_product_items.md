@@ -6,7 +6,7 @@ Document Status: Approved
 
 Implementation Status: Unknown
 
-Last Updated: 2026-08-09
+Last Updated: 2026-11-01
 
 Document Path: database/course/core_course_product_items.md
 
@@ -70,6 +70,10 @@ core_course_product_items
 * Product Item liên kết Course Product với published Course Version.
 * Product Item chỉ tạo quyền truy cập tới published Course Version thông qua Product/Enrollment.
 * Enrollment derive `version_id` từ active Product Item `version_id` tại thời điểm tạo Enrollment.
+* Amendment 2026-11-01 (Approved, [ADR-0022](../../adr/ADR-0022-Course-Type-On-Template.md)): Product Item là đường đọc loại khóa học
+  của Product (`version_id` → `course_type_snapshot`). Khi Product đã có
+  Enrollment hoặc Cohort, đổi `version_id` chỉ được sang Version có cùng
+  `course_type_snapshot`.
 * Không được tham chiếu working Template draft làm learning content.
 * Product Item không lưu giá bán.
 * Giá bán thuộc Product.

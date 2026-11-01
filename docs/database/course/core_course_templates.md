@@ -6,7 +6,7 @@ Document Status: Approved
 
 Implementation Status: Unknown
 
-Last Updated: 2026-08-23
+Last Updated: 2026-11-01
 
 Document Path: database/course/core_course_templates.md
 
@@ -103,6 +103,10 @@ core_course_template_versions
 * Duplicate không thay đổi `last_version_published_at`, published Version,
   Product, Enrollment, Progress hoặc Completion.
 * Template không chứa học viên.
+* Template giữ tên nội bộ (`title`); tên hiển thị cho học viên thuộc Product
+  (Amendment 2026-11-01, Approved, ADR-0022).
+* Template sở hữu loại khóa học `course_type` (Amendment 2026-11-01, Approved,
+  ADR-0022); Product không còn khai báo loại riêng.
 * Không tồn tại các bảng Course Runtime legacy.
 * Template là aggregate authoring nội bộ, được định danh bằng `id`; Template
   không có slug và route authoring phải resolve bằng ID.
@@ -241,6 +245,30 @@ Giá trị:
 
 Optional; không có default selection. Đây là learning-content metadata của
 Template, không phải Product level.
+
+### course_type
+
+VARCHAR(50) NOT NULL — Amendment 2026-11-01 (Approved,
+[ADR-0022](../../adr/ADR-0022-Course-Type-On-Template.md)); chưa có trong schema.
+
+Giá trị:
+
+* self_paced — Tự học
+* scheduled — Theo lịch
+* blended — Kết hợp
+
+Bắt buộc chọn khi tạo, không có default trên UI. Quyết định thời điểm học hợp
+lệ của mọi working Activity và được snapshot vào
+`core_course_template_versions.course_type_snapshot` khi publish.
+
+Đổi giá trị bị khóa khi có Product Item (mọi trạng thái Product) tham chiếu một
+Version đã xuất bản của Template. Khi chưa khóa, đổi loại phải hợp lệ với mọi
+working Activity; nếu không, từ chối và liệt kê Activity cần sửa. Không đổi khi
+`archived`. Đổi loại tăng `working_revision`.
+
+Migration backfill suy ra từ working Activity: tất cả `anytime` (hoặc chưa có
+Activity) → `self_paced`; không có `anytime` → `scheduled`; lẫn lộn →
+`blended`. Activity `live_class` luôn tính là theo buổi học.
 
 ### estimated_minutes_per_lesson
 
@@ -382,6 +410,11 @@ If `source_category_id` no longer identifies a same-tenant Category,
 `NULL`. Required constraint failures roll back the operation without replacing
 the current draft.
 
+Amendment 2026-11-01 (Approved, ADR-0022): `course_type_snapshot` is copied back
+to `course_type` only when changing the Template type is currently allowed. If
+the type is locked by a Product Item and the Version type differs, duplicate is
+rejected without replacing the draft.
+
 No `duplicated_from_version_id`, `duplicated_by` or `duplicated_at` columns are
 introduced. Duplicate provenance belongs to the append-only tenant audit trail.
 
@@ -394,6 +427,8 @@ introduced. Duplicate provenance belongs to the append-only tenant audit trail.
 (customer_id, category_id)
 
 (customer_id, status)
+
+(customer_id, course_type) — Amendment 2026-11-01 (Approved, ADR-0022); popup chọn Template lọc theo loại
 
 (customer_id, created_by)
 

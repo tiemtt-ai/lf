@@ -999,6 +999,34 @@ class CourseCohortManagementTest extends TestCase
         $this->assertDatabaseMissing('core_course_cohorts', ['code' => 'FORGED']);
     }
 
+    public function test_a_class_only_runs_scheduled_or_blended_courses(): void
+    {
+        // ADR-0022: a self-paced course needs no class; a legacy class bound to one cannot take new members.
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $productId = $this->createProduct($customerId, 'Self Study Product', 'self-study-product');
+        $versionId = $this->createVersion($customerId, $admin->id);
+        DB::table('core_course_template_versions')->where('id', $versionId)->update(['course_type_snapshot' => 'self_paced']);
+        $payload = ['product_id' => $productId, 'name' => 'Self Class', 'start_date' => '2026-08-01', 'end_date' => '2026-08-31'];
+
+        $this->actingAs($admin)->get('https://tenant-a.localhost/admin/course-cohorts/create')
+            ->assertOk()->assertDontSee('Self Study Product');
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-cohorts', $payload)
+            ->assertSessionHasErrors(['product_id' => __('lf.LF_course_type_cohort_product_not_allowed')]);
+        $this->assertDatabaseCount('core_course_cohorts', 0);
+
+        DB::table('core_course_template_versions')->where('id', $versionId)->update(['course_type_snapshot' => 'blended']);
+        $this->actingAs($admin)->get('https://tenant-a.localhost/admin/course-cohorts/create')
+            ->assertOk()->assertSee('Self Study Product · '.DB::table('core_course_products')->where('id', $productId)->value('product_code').' · Kết hợp', false);
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-cohorts', $payload)->assertRedirect();
+        $cohortId = (int) DB::table('core_course_cohorts')->where('name', 'Self Class')->value('id');
+
+        // The same class bound to a self-paced Version (legacy data) cannot be activated.
+        DB::table('core_course_template_versions')->where('id', $versionId)->update(['course_type_snapshot' => 'self_paced']);
+        $issues = app(\App\Services\CourseCohortLifecycleService::class)->activationIssues($customerId, $cohortId);
+        $this->assertContains(__('lf.LF_course_type_cohort_legacy_self_paced'), $issues);
+    }
+
     public function test_cohort_operational_tabs_manage_session_evidence(): void
     {
         // Điểm danh và Bản ghi hiện bị khóa bằng cờ cấu hình vì chưa hoàn
@@ -3176,7 +3204,7 @@ class CourseCohortManagementTest extends TestCase
     ): int {
         $now = now();
 
-        return DB::table('core_course_templates')->insertGetId([
+        return DB::table('core_course_templates')->insertGetId(['course_type' => 'blended', 
             'customer_id' => $customerId,
             'category_id' => null,
             'title' => $title,
@@ -3213,7 +3241,7 @@ class CourseCohortManagementTest extends TestCase
         $now = now();
         $templateId ??= $this->createTemplate($customerId, $userId, $title);
 
-        $versionId = DB::table('core_course_template_versions')->insertGetId([
+        $versionId = DB::table('core_course_template_versions')->insertGetId(['course_type_snapshot' => 'blended', 
             'customer_id' => $customerId,
             'template_id' => $templateId,
             'version_number' => $versionNumber,

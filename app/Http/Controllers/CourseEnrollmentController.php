@@ -11,6 +11,7 @@ use App\Services\BulkEnrollmentService;
 use App\Services\BulkEnrollmentSubmissionToken;
 use App\Services\CourseEnrollmentLifecycleService;
 use App\Services\EnrollmentCreationAction;
+use App\Support\CourseType;
 use App\Support\TenantContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -626,7 +627,7 @@ class CourseEnrollmentController extends Controller
                 'students.email as student_email',
                 'products.title as product_title',
                 'products.product_code',
-                'products.offering_type',
+                'versions.course_type_snapshot as course_type',
                 'products.registration_starts_at',
                 'products.registration_ends_at',
                 'versions.title_snapshot as version_title',
@@ -676,7 +677,7 @@ class CourseEnrollmentController extends Controller
                 'products.id',
                 'products.title',
                 'products.product_code',
-                'products.offering_type',
+                'versions.course_type_snapshot as course_type',
                 'products.access_duration_days',
                 'products.review_duration_days',
                 'products.registration_starts_at',
@@ -710,7 +711,7 @@ class CourseEnrollmentController extends Controller
             'id' => $product->id,
             'title' => $product->title,
             'code' => $product->product_code,
-            'offering_type' => $product->offering_type,
+            'course_type' => $product->course_type,
             'access_duration_days' => $product->access_duration_days,
             'review_duration_days' => $product->review_duration_days,
             'registration_window' => [
@@ -718,7 +719,7 @@ class CourseEnrollmentController extends Controller
                 'ends_at' => $registrationEnd?->toIso8601String(),
                 'status' => $registrationStatus,
             ],
-            'supports_review' => $product->offering_type === 'self_paced_course'
+            'supports_review' => CourseType::usesAccessDuration($product->course_type)
                 && (int) $product->review_duration_days > 0,
             'outside_registration_window' => $outsideRegistration,
             'version' => [

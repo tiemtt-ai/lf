@@ -6,7 +6,7 @@ Document Status: Approved
 
 Implementation Status: Unknown
 
-Last Updated: 2026-08-09
+Last Updated: 2026-11-01
 
 Document Path: database/course/core_course_products.md
 
@@ -100,6 +100,15 @@ core_certificate_template_products
 * Product không dùng `certificate_template_id` làm nguồn cấu hình chứng chỉ.
 * Product có thể có sale price theo thời gian.
 * Product có thể giới hạn thời gian học và thời gian ôn tập.
+* Amendment 2026-11-01 (Approved, [ADR-0022](../../adr/ADR-0022-Course-Type-On-Template.md)):
+  * Product luôn đóng gói một Course Template; bỏ hẳn loại `assessment` và
+    `learning_material`.
+  * `title` là **tên thương mại** hiển thị cho học viên; Template giữ tên nội bộ.
+  * Product không khai báo loại khóa học. Loại của Product là
+    `course_type_snapshot` của Version mà Product Item gắn (Tự học / Theo lịch /
+    Kết hợp), hiển thị chỉ đọc; danh sách và bộ lọc đọc qua Product Item →
+    Version, không lưu bản sao.
+  * Product đã có Enrollment hoặc Cohort chỉ được chuyển sang Version cùng loại.
 * Product có thể hiển thị số lượng học viên thực tế hoặc số lượng marketing.
 * Product có thể liên kết sản phẩm tặng kèm hoặc sản phẩm liên quan thông qua core_course_product_relations.
 * Product lifecycle dùng `active` để biểu thị Product đang được hiển thị,
@@ -272,6 +281,11 @@ core_course_categories.id (RESTRICT)
 ```
 
 ### offering_type
+
+> **Deprecated — Amendment 2026-11-01 (Approved, [ADR-0022](../../adr/ADR-0022-Course-Type-On-Template.md)).** Cột này bị bỏ khỏi form, nghiệp vụ và schema (cùng index
+> `idx_ccp_v2_offering`). Loại khóa học đọc từ
+> `core_course_template_versions.course_type_snapshot`. `assessment` và
+> `learning_material` bị bỏ hẳn.
 
 VARCHAR(50) NULL (transitionally)
 
@@ -489,6 +503,10 @@ Ví dụ:
 
 Field này chỉ active khi `offering_type = self_paced_course`; khi đó giá trị
 bắt buộc là số nguyên lớn hơn hoặc bằng `1` trước khi tạo Enrollment.
+
+Amendment 2026-11-01 (Approved, ADR-0022): điều kiện đổi thành loại khóa học của
+Version được gắn = `self_paced`. Với `scheduled` / `blended`, field (và
+`review_duration_days`) lưu `NULL` và bị ẩn trên form.
 
 Với `live_online_course`, field bắt buộc lưu `NULL`. `NULL` trong trường hợp
 này không được thay bằng duration suy ra từ Lesson, Live Class Activity,
@@ -926,7 +944,7 @@ Website không hiển thị số lượng học viên.
 
 (customer_id, category_id, sort_order)  -- idx_ccp_v2_cat_sort
 
-(customer_id, offering_type)  -- idx_ccp_v2_offering
+(customer_id, offering_type)  -- idx_ccp_v2_offering; bị bỏ cùng cột theo ADR-0022
 ```
 
 ---

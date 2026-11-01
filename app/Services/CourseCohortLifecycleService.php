@@ -102,6 +102,10 @@ class CourseCohortLifecycleService
             $errors[] = __('lf.LF_course_cohort_activation_dates_invalid');
         }
 
+        if ($cohort->version_id && ! $this->versionResolver->runsInClass($customerId, (int) $cohort->version_id)) {
+            $errors[] = __('lf.LF_course_type_cohort_legacy_self_paced');
+        }
+
         if ($cohort->product_id && $cohort->version_id) {
             $resolved = $this->versionResolver->resolve($customerId, (int) $cohort->product_id, true);
             if (! $resolved || (int) $resolved->version_id !== (int) $cohort->version_id) {

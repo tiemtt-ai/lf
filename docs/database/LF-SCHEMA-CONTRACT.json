@@ -12088,15 +12088,6 @@
           "generated": null
         },
         {
-          "name": "offering_type",
-          "type": "varchar",
-          "nullable": true,
-          "default": "NULL",
-          "unsigned": false,
-          "auto_increment": false,
-          "generated": null
-        },
-        {
           "name": "uses_custom_description",
           "type": "tinyint",
           "nullable": false,
@@ -12360,14 +12351,6 @@
             "customer_id",
             "category_id",
             "sort_order"
-          ],
-          "unique": false,
-          "type": "btree"
-        },
-        {
-          "columns": [
-            "customer_id",
-            "offering_type"
           ],
           "unique": false,
           "type": "btree"
@@ -16061,6 +16044,15 @@
           "generated": null
         },
         {
+          "name": "course_type_snapshot",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
           "name": "title_snapshot",
           "type": "varchar",
           "nullable": false,
@@ -16419,6 +16411,9 @@
       "checks": [
         {
           "expression": "json_valid(`metadata`)"
+        },
+        {
+          "expression": "`course_type_snapshot` in ('self_paced','scheduled','blended')"
         }
       ],
       "triggers": [],
@@ -16453,6 +16448,15 @@
           "nullable": true,
           "default": "NULL",
           "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "course_type",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
           "auto_increment": false,
           "generated": null
         },
@@ -16776,6 +16780,14 @@
           ],
           "unique": true,
           "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "course_type"
+          ],
+          "unique": false,
+          "type": "btree"
         }
       ],
       "foreign_keys": [
@@ -16831,6 +16843,9 @@
       "checks": [
         {
           "expression": "`selected_learning_framework_id` is null = (`selected_learning_framework_version_id` is null)"
+        },
+        {
+          "expression": "`course_type` in ('self_paced','scheduled','blended')"
         }
       ],
       "triggers": [],

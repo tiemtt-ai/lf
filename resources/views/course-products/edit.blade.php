@@ -131,11 +131,11 @@
                     $window = static fn ($from, $to): ?string => $from || $to ? trim(($from ?? $dash).' → '.($to ?? $dash)) : null;
                     $summaryGroups = [
                         'basic' => [__('lf.LF_product_v2_group_basic'), [
-                            ['title', __('lf.LF_course_product_common_title_field'), $product->title],
+                            ['title', __('lf.LF_product_commercial_name'), $product->title],
                             ['category', __('lf.LF_product_v2_category'), $summaryCategory],
                             ['template', __('lf.LF_product_v2_template'), $summaryTemplate?->name],
                             ['version', __('lf.LF_product_v2_version_in_use'), null],
-                            ['offering_type', __('lf.LF_product_v2_offering_type'), $product->offering_type ? __('lf.LF_product_v2_offering_'.$product->offering_type) : null],
+                            ['course_type', __('lf.LF_course_type_label'), ($boundCourseType ?? null) ? __(\App\Support\CourseType::labelKey($boundCourseType)) : null],
                             ['product_code', __('lf.LF_course_product_common_product_code'), $product->product_code],
                             ['slug', __('lf.LF_course_product_common_slug'), $product->slug],
                         ]],

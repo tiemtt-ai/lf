@@ -949,7 +949,7 @@ class CourseTemplateLearningMappingHttpMariaDbTest extends TestCase
                 'created_by' => $f['admin_id'], 'created_at' => $now, 'updated_at' => $now,
             ]);
 
-        return DB::table('core_course_templates')->insertGetId([
+        return DB::table('core_course_templates')->insertGetId(['course_type' => 'blended', 
             'customer_id' => $f['customer_id'], 'category_id' => $categoryId, 'title' => $title,
             'short_description' => 'Published snapshot course', 'description' => 'Detailed snapshot description.',
             'publisher_name' => 'LearnForge', 'intro_video_source' => null, 'intro_image_media_file_id' => null,

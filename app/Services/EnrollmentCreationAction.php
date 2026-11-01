@@ -73,7 +73,7 @@ class EnrollmentCreationAction
         }
         $students = $studentsQuery->get(['id', 'name', 'email', 'role', 'status'])->keyBy('id');
         $products = $productsQuery->get([
-            'id', 'title', 'product_code', 'status', 'offering_type',
+            'id', 'title', 'product_code', 'status',
             'access_duration_days', 'review_duration_days',
             'registration_starts_at', 'registration_ends_at',
         ])->keyBy('id');
@@ -170,7 +170,7 @@ class EnrollmentCreationAction
 
                 return [
                     'id' => (int) $product->id, 'title' => $product->title, 'product_code' => $product->product_code,
-                    'offering_type' => $product->offering_type, 'review_duration_days' => $product->review_duration_days,
+                    'course_type' => $binding?->course_type, 'review_duration_days' => $product->review_duration_days,
                     'time_windows' => $timePolicies->get((int) $product->id)['windows'] ?? null,
                     'version_id' => $binding?->version_id, 'version_number' => $binding?->version_number,
                     'version_code' => $binding?->version_code,

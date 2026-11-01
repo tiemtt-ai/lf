@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\AuthorizesCourseCohortAdmin;
 use App\Services\CourseCohortMutationPolicy;
+use App\Services\CourseCohortVersionResolver;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -237,6 +238,9 @@ class CourseCohortStudentController extends Controller
                 throw_if(! $cohort, ValidationException::withMessages([
                     'enrollment_ids' => __('lf.LF_course_cohort_student_validation_cohort'),
                 ]));
+                // ADR-0022: a legacy class bound to a self-paced course takes no new member until it is fixed.
+                throw_if(! app(CourseCohortVersionResolver::class)->runsInClass($customerId, $cohort->version_id ? (int) $cohort->version_id : null),
+                    ValidationException::withMessages(['enrollment_ids' => __('lf.LF_course_type_cohort_legacy_self_paced')]));
 
                 $enrollmentIds = array_values(array_unique(array_map('intval', $validated['enrollment_ids'])));
                 sort($enrollmentIds);

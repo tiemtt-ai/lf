@@ -6,7 +6,8 @@
         ? $persistedTemplate
         : (string) old('template_id', $persistedTemplate);
     $canChangeTemplate = ! $formProduct || ($canChangeTemplate ?? $templateChange['allowed'] ?? true);
-    $selectedOffering = old('offering_type', $formProduct?->offering_type ?? '');
+    $pickerTemplates ??= [];
+    $boundCourseType ??= null;
     $selectedStatus = old('status', $formProduct?->status ?? 'draft');
     if ($selectedStatus === 'active' && ! ($hasActiveCourseVersion ?? false)) {
         $selectedStatus = 'draft';
@@ -33,7 +34,40 @@
     },
     closePreview() { this.previewOpen = false; this.preview = { name: '', url: '', mimeType: '', mediaType: '' } },
     resetSelect(ref) { const el = this.$refs[ref]; if (! el) return; el.value = ''; el.dispatchEvent(new Event('change', { bubbles: true })) },
-    category: @js($selectedCategory), template: @js($selectedTemplate), offering: @js($selectedOffering),
+    category: @js($selectedCategory), template: @js($selectedTemplate),
+    pickerTemplates: @js($pickerTemplates), pickerTab: 'all', pickerQuery: '', boundType: @js($boundCourseType),
+    courseTypeLabels: @js(collect(\App\Support\CourseType::VALUES)->mapWithKeys(fn ($type) => [$type => __(\App\Support\CourseType::labelKey($type))])),
+    pickedTemplate() { return this.pickerTemplates.find(item => String(item.id) === String(this.template)) ?? null },
+    // ADR-0022: the Product course type is the type of the Version it binds (a Draft without one shows the Template type).
+    courseType() {
+        const version = this.selectedVersion()
+        if (version?.course_type) return version.course_type
+        if (this.template === this.persistedTemplate && this.boundType) return this.boundType
+        return this.pickedTemplate()?.course_type ?? ''
+    },
+    pickerRows() {
+        const query = this.pickerQuery.trim().toLocaleLowerCase()
+        return this.pickerTemplates.filter(item => (this.pickerTab === 'all' || item.course_type === this.pickerTab)
+            && (! query || [item.title, item.version_code, item.category_name].some(text => String(text ?? '').toLocaleLowerCase().includes(query))))
+    },
+    pickerCount(tab) { return this.pickerTemplates.filter(item => tab === 'all' || item.course_type === tab).length },
+    openPicker() { this.pickerQuery = ''; this.$refs.templatePicker.showModal(); this.$nextTick(() => this.$refs.pickerSearch?.focus()) },
+    chooseTemplate(row) {
+        if (! row.eligible) return
+        const categorySelect = this.$refs.categorySelect
+        if (categorySelect && row.category_id !== null && String(categorySelect.value) !== String(row.category_id)) {
+            categorySelect.value = String(row.category_id)
+            categorySelect.dispatchEvent(new Event('change', { bubbles: true }))
+        }
+        this.template = String(row.id)
+        const latest = this.templates.find(item => String(item.id) === this.template)?.published_versions?.[0]
+        this.templateVersion = latest ? String(latest.id) : ''
+        this.$nextTick(() => {
+            const versionSelect = this.$refs.versionSelect
+            if (versionSelect) { versionSelect.value = this.templateVersion; versionSelect.dispatchEvent(new Event('change', { bubbles: true })) }
+        })
+        this.$refs.templatePicker.close()
+    },
     customDescription: @js($customDescription), customMedia: @js($customMedia), promotion: @js($promotion),
     discountType: @js(old('discount_type', $formProduct?->discount_type)),
     currency: @js(old('currency', $formProduct?->currency ?? 'VND')),
@@ -172,7 +206,7 @@
                 @if($canChangeTemplate)
                     <select id="product-form-category_id" name="category_id" data-ui-kit-select required x-ref="categorySelect"
                             data-ui-empty-label="{{ __('lf.LF_course_template_index_no_options') }}" data-ui-clear-label="{{ __('lf.LF_course_product_common_clear_filters') }}"
-                            x-on:change="category = $event.target.value; if (! templates.some(t => String(t.id) === template && String(t.category_id) === category)) { template = ''; templateVersion = ''; resetSelect('templateSelect'); resetSelect('versionSelect') }">
+                            x-on:change="category = $event.target.value; if (! templates.some(t => String(t.id) === template && String(t.category_id) === category)) { template = ''; templateVersion = ''; resetSelect('versionSelect') }">
                         <option value="">{{ __('lf.LF_product_v2_select_category') }}</option>
                         @foreach($categories as $categoryOption)
                             <option value="{{ $categoryOption->id }}" @selected((string) $categoryOption->id === $selectedCategory)>{{ $categoryOption->name }}</option>
@@ -184,21 +218,17 @@
                 @endif
             </div>
 
-            <div class="ui-field">
+            <div class="ui-field" data-ui-error-for="template_id">
                 <label class="ui-field__label" for="product-form-template_id">{!! $star !!}{{ __('lf.LF_product_v2_template') }}</label>
                 @if($canChangeTemplate)
-                    <select id="product-form-template_id" name="template_id" data-ui-kit-select required x-ref="templateSelect"
-                            data-ui-empty-label="{{ __('lf.LF_course_template_index_no_options') }}" data-ui-clear-label="{{ __('lf.LF_course_product_common_clear_filters') }}"
-                            x-on:change="template = $event.target.value; templateVersion = ''; resetSelect('versionSelect')">
-                        <option value="">{{ __('lf.LF_product_v2_select_template') }}</option>
-                        @foreach($templates as $templateOption)
-                            <option value="{{ $templateOption->id }}"
-                                    :disabled="String({{ (int) $templateOption->category_id }}) !== String(category)"
-                                    @disabled((string) $templateOption->category_id !== $selectedCategory)
-                                    @selected((string) $templateOption->id === $selectedTemplate)>{{ $templateOption->name }}@if($templateOption->is_historical_binding) — {{ $templateOption->status_label }}@endif</option>
-                        @endforeach
-                    </select>
-                    <span class="ui-field__hint" x-show="category && !templates.some(item => String(item.category_id) === String(category))" x-cloak>{{ __('lf.LF_product_v2_no_templates_for_category') }}</span>
+                    {{-- ADR-0022: the Template is chosen in a picker filtered by course type; the field only shows the choice. --}}
+                    <input type="hidden" name="template_id" x-model="template">
+                    <button id="product-form-template_id" type="button" class="ui-template-picker-trigger cursor-interaction"
+                            x-on:click="openPicker()" aria-haspopup="dialog" data-template-picker-open>
+                        <span class="ui-template-picker-trigger__text" x-text="pickedTemplate()?.title ?? templates.find(item => String(item.id) === String(template))?.name ?? @js(__('lf.LF_product_v2_select_template'))"
+                              x-bind:class="{ 'is-placeholder': ! template }">{{ __('lf.LF_product_v2_select_template') }}</span>
+                        <x-backend-icon name="search" class="ui-icon" />
+                    </button>
                     @if($initialTemplateState?->is_historical_binding)
                         <span class="ui-field__hint">{{ __('lf.LF_product_v2_historical_template_status', ['status' => $initialTemplateState->status_label]) }}</span>
                     @endif
@@ -213,6 +243,70 @@
                     }) }}</span>
                 @endif
             </div>
+
+            <div class="ui-field">
+                <span class="ui-field__label">{{ __('lf.LF_course_type_label') }}</span>
+                <span class="ui-course-type-readonly" data-product-course-type>
+                    <template x-if="courseType()">
+                        <span class="ui-course-type" x-bind:class="'ui-course-type--' + courseType()" x-bind:data-course-type="courseType()" x-text="courseTypeLabels[courseType()]"></span>
+                    </template>
+                    <span class="ui-caption" x-show="! courseType()">{{ __('lf.LF_course_type_from_template') }}</span>
+                </span>
+                <span class="ui-field__hint">{{ __('lf.LF_course_type_product_help') }}</span>
+            </div>
+
+            @if($canChangeTemplate)
+                <dialog x-ref="templatePicker" class="ui-modal ui-template-picker" data-columns="2" aria-labelledby="product-template-picker-title"
+                        x-on:click="if ($event.target === $el) $el.close()">
+                    <header class="ui-modal__header">
+                        <div>
+                            <h3 id="product-template-picker-title">{{ __('lf.LF_product_template_picker_title') }}</h3>
+                            <span class="ui-caption">{{ __('lf.LF_product_template_picker_help') }}</span>
+                        </div>
+                        <button type="button" class="ui-modal__close cursor-interaction" x-on:click="$refs.templatePicker.close()" aria-label="{{ __('lf.LF_common_button_close') }}">×</button>
+                    </header>
+                    <div class="ui-modal__body">
+                        <div class="ui-tabs ui-template-picker__tabs" role="tablist">
+                            @foreach (['all', ...\App\Support\CourseType::VALUES] as $pickerTab)
+                                <button type="button" role="tab" class="ui-tabs__tab cursor-interaction" data-template-picker-tab="{{ $pickerTab }}"
+                                        x-bind:aria-selected="(pickerTab === '{{ $pickerTab }}').toString()" x-on:click="pickerTab = '{{ $pickerTab }}'">
+                                    {{ $pickerTab === 'all' ? __('lf.LF_course_type_all_short') : __(\App\Support\CourseType::labelKey($pickerTab)) }}
+                                    <span class="ui-template-picker__count" x-text="pickerCount('{{ $pickerTab }}')"></span>
+                                </button>
+                            @endforeach
+                        </div>
+                        <div class="ui-search ui-template-picker__search">
+                            <input type="search" x-ref="pickerSearch" x-model="pickerQuery" aria-label="{{ __('lf.LF_product_template_picker_search') }}"
+                                   placeholder="{{ __('lf.LF_product_template_picker_search') }}">
+                        </div>
+                        <ul class="ui-template-picker__list" role="listbox" aria-labelledby="product-template-picker-title">
+                            <template x-for="row in pickerRows()" :key="row.id">
+                                <li role="option" class="ui-template-picker__row" data-template-picker-row
+                                    x-bind:data-template-id="row.id" x-bind:aria-selected="(String(row.id) === String(template)).toString()"
+                                    x-bind:aria-disabled="(! row.eligible).toString()"
+                                    x-bind:class="{ 'is-disabled': ! row.eligible, 'is-selected': String(row.id) === String(template) }"
+                                    x-bind:tabindex="row.eligible ? 0 : -1"
+                                    x-on:click="chooseTemplate(row)" x-on:keydown.enter.prevent="chooseTemplate(row)">
+                                    <span class="ui-template-picker__main">
+                                        <b x-text="row.title"></b>
+                                        <span class="ui-caption">
+                                            <span x-text="row.version_code ?? '—'"></span>
+                                            <span x-show="row.category_name"> · <span x-text="row.category_name"></span></span>
+                                        </span>
+                                        <span class="ui-template-picker__reason" x-show="row.reason" x-text="row.reason"></span>
+                                    </span>
+                                    <span class="ui-course-type" x-bind:class="'ui-course-type--' + row.course_type" x-text="row.course_type_label"></span>
+                                    <span class="ui-template-picker__meta">
+                                        <span x-text="row.version_label ?? @js(__('lf.LF_product_template_picker_no_version'))"></span>
+                                        <span class="ui-caption" x-text="@js(__('lf.LF_product_template_picker_products')).replace(':count', row.product_count)"></span>
+                                    </span>
+                                </li>
+                            </template>
+                            <li class="ui-template-picker__empty" x-show="pickerRows().length === 0">{{ __('lf.LF_product_template_picker_empty') }}</li>
+                        </ul>
+                    </div>
+                </dialog>
+            @endif
 
             @if(! $formProduct || $canChangeTemplate)
                 <div class="ui-field" @if($formProduct) x-show="template && template !== persistedTemplate" x-cloak @endif>
@@ -255,22 +349,12 @@
 
             <div class="ui-modal__row-break" aria-hidden="true"></div>
             <div class="ui-field">
-                <label class="ui-field__label" for="product-form-title">{!! $star !!}{{ __('lf.LF_course_product_common_title_field') }}</label>
+                <label class="ui-field__label" for="product-form-title">{!! $star !!}{{ __('lf.LF_product_commercial_name') }}</label>
                 <input id="product-form-title" type="text" name="title" value="{{ $formProduct?->title }}" required maxlength="255"
                        placeholder="{{ __('lf.LF_product_v2_placeholder_name') }}">
+                <span class="ui-field__hint">{{ __('lf.LF_product_commercial_name_help') }}</span>
             </div>
 
-            <div class="ui-field">
-                <label class="ui-field__label" for="product-form-offering_type">{!! $star !!}{{ __('lf.LF_product_v2_offering_type') }}</label>
-                <select id="product-form-offering_type" name="offering_type" data-ui-kit-select required
-                        data-ui-empty-label="{{ __('lf.LF_course_template_index_no_options') }}" data-ui-clear-label="{{ __('lf.LF_course_product_common_clear_filters') }}"
-                        x-on:change="offering = $event.target.value">
-                    <option value="">{{ __('lf.LF_product_v2_select_offering') }}</option>
-                    @foreach(\App\Support\CourseProductV2::OFFERING_TYPES as $type)
-                        <option value="{{ $type }}" @selected($selectedOffering === $type)>{{ __('lf.LF_product_v2_offering_'.$type) }}</option>
-                    @endforeach
-                </select>
-            </div>
 
             @if($formProduct)
                 <div class="ui-field">
@@ -279,13 +363,13 @@
                 </div>
             @endif
 
-            <div class="ui-field" x-show="offering === 'self_paced_course'" x-cloak>
-                <label class="ui-field__label" for="product-form-access_duration_days"><span x-show="offering === 'self_paced_course'" x-cloak>{!! $star !!}</span>{{ __('lf.LF_product_v2_access_days') }}</label>
+            <div class="ui-field" x-show="courseType() === 'self_paced'" x-cloak>
+                <label class="ui-field__label" for="product-form-access_duration_days"><span x-show="courseType() === 'self_paced'" x-cloak>{!! $star !!}</span>{{ __('lf.LF_product_v2_access_days') }}</label>
                 <input id="product-form-access_duration_days" type="number" min="1" max="36500" step="1" inputmode="numeric" name="access_duration_days"
-                       x-bind:required="offering === 'self_paced_course'"
+                       x-bind:required="courseType() === 'self_paced'"
                        value="{{ $formProduct?->access_duration_days }}" placeholder="{{ __('lf.LF_product_v2_placeholder_access_days') }}">
             </div>
-            <div class="ui-field" x-show="offering === 'self_paced_course'" x-cloak>
+            <div class="ui-field" x-show="courseType() === 'self_paced'" x-cloak>
                 <label class="ui-field__label" for="product-form-review_duration_days">{{ __('lf.LF_product_v2_review_days') }}</label>
                 <input id="product-form-review_duration_days" type="number" min="0" max="36500" step="1" inputmode="numeric" name="review_duration_days"
                        value="{{ $formProduct?->review_duration_days }}" placeholder="{{ __('lf.LF_product_v2_placeholder_review_days') }}">

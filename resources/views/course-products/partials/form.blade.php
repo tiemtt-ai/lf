@@ -6,7 +6,7 @@
         ? $persistedTemplate
         : (string) old('template_id', $persistedTemplate);
     $canChangeTemplate = ! $formProduct || ($canChangeTemplate ?? $templateChange['allowed'] ?? true);
-    $selectedOffering = old('offering_type', $formProduct?->offering_type ?? '');
+    $boundCourseType ??= null;
     $selectedStatus = old('status', $formProduct?->status ?? 'draft');
     if ($selectedStatus === 'active' && ! ($hasActiveCourseVersion ?? false)) {
         $selectedStatus = 'draft';
@@ -22,7 +22,15 @@
 @endphp
 
 <div x-data="{
-    category: @js($selectedCategory), template: @js($selectedTemplate), offering: @js($selectedOffering),
+    category: @js($selectedCategory), template: @js($selectedTemplate), boundType: @js($boundCourseType),
+    courseTypeLabels: @js(collect(\App\Support\CourseType::VALUES)->mapWithKeys(fn ($type) => [$type => __(\App\Support\CourseType::labelKey($type))])),
+    // ADR-0022: the Product course type is the type of the Version it binds.
+    courseType() {
+        const version = this.selectedVersion()
+        if (version?.course_type) return version.course_type
+        if (this.template === this.persistedTemplate && this.boundType) return this.boundType
+        return this.templates.find(item => String(item.id) === String(this.template))?.course_type ?? ''
+    },
     customDescription: @js($customDescription), customMedia: @js($customMedia), promotion: @js($promotion),
     discountType: @js(old('discount_type', $formProduct?->discount_type)),
     currency: @js(old('currency', $formProduct?->currency ?? 'VND')),
@@ -376,22 +384,10 @@
         <div class="admin-form-subsection" aria-labelledby="product-identity">
             <h3 id="product-identity" class="admin-form-subsection-title">{{ __('lf.LF_product_v2_group_identity') }}</h3>
             <div class="admin-form-field-grid">
-                <div class="lf-form-group"><x-form-label for="title" :value="__('lf.LF_course_product_common_title_field')" :required="true" /><input id="title" name="title" class="lf-form-control" maxlength="255" required value="{{ old('title', $formProduct?->title) }}" placeholder="{{ __('lf.LF_product_v2_placeholder_name') }}" @input="generatedSlug = slugify($event.target.value)"></div>
+                <div class="lf-form-group"><x-form-label for="title" :value="__('lf.LF_product_commercial_name')" :required="true" /><input id="title" name="title" class="lf-form-control" maxlength="255" required value="{{ old('title', $formProduct?->title) }}" placeholder="{{ __('lf.LF_product_v2_placeholder_name') }}" @input="generatedSlug = slugify($event.target.value)"></div>
                 <div class="lf-form-group">
-                    <x-form-label for="offering_type" :value="__('lf.LF_product_v2_offering_type')" :required="true" />
-                    <select id="offering_type"
-                            name="offering_type"
-                            class="lf-form-control"
-                            x-model="offering"
-                            :class="{ 'lf-select-placeholder': offering === '' }"
-                            required>
-                        <option value="">{{ __('lf.LF_product_v2_select_offering') }}</option>
-                        @foreach(\App\Support\CourseProductV2::OFFERING_TYPES as $type)
-                            <option value="{{ $type }}" @selected($selectedOffering === $type)>
-                                {{ __('lf.LF_product_v2_offering_'.$type) }}
-                            </option>
-                        @endforeach
-                    </select>
+                    <span class="lf-form-label">{{ __('lf.LF_course_type_label') }}</span>
+                    <p class="lf-form-control-static" data-product-course-type x-text="courseTypeLabels[courseType()] ?? @js(__('lf.LF_course_type_from_template'))"></p>
                 </div>
                 <div @class(['lf-form-group', 'admin-form-field--full' => ! $formProduct])>
                     <div class="admin-form-label-row">
@@ -465,7 +461,7 @@
 
     <section class="admin-form-standard-section"
              aria-labelledby="product-config"
-             x-show="offering === 'self_paced_course'"
+             x-show="courseType() === 'self_paced'"
              x-cloak>
         <h2 id="product-config" class="admin-form-section-title">{{ __('lf.LF_product_v2_group_configuration') }}</h2>
         <div class="admin-form-field-grid">

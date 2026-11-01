@@ -125,6 +125,7 @@
                     'general' => [
                         ['title', __('lf.LF_course_template_common_name'), $template->title],
                         ['category_id', __('lf.LF_course_template_common_category'), $categoryName],
+                        ['course_type', __('lf.LF_course_type_label'), null],
                         ['publisher_name', __('lf.LF_course_template_common_publisher_name'), $template->publisher_name],
                         ['difficulty_level', __('lf.LF_course_template_common_difficulty_level'), $template->difficulty_level ? __('lf.LF_course_template_common_'.$template->difficulty_level) : null],
                         ['estimated_minutes_per_lesson', __('lf.LF_course_template_estimated_minutes_per_lesson'), $template->estimated_minutes_per_lesson],
@@ -199,6 +200,8 @@
                                         <dd>
                                             @if ($field === 'status')
                                                 <span class="ui-status ui-status--{{ $template->status }}">{{ __('lf.LF_course_template_common_'.$template->status) }}</span>
+                                            @elseif ($field === 'course_type')
+                                                <span class="ui-course-type ui-course-type--{{ $template->course_type }}" data-course-type="{{ $template->course_type }}">{{ __(\App\Support\CourseType::labelKey($template->course_type)) }}</span>
                                             @elseif ($groupKey === 'media')
                                                 {{-- Same 112px tile as the media slots of the edit form (x-ui-media-slot), read-only: View on hover, no Upload or Remove. --}}
                                                 @php($thumb = $item[5] ?? null)

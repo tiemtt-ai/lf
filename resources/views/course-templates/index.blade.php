@@ -16,7 +16,7 @@
      data-msg-delete-error="{{ __('lf.LF_course_template_delete_error') }}"
      data-msg-session-expired="{{ __('lf.LF_course_template_session_expired') }}">
     @php
-        $hasActiveFilters = $keyword !== '' || $status;
+        $hasActiveFilters = $keyword !== '' || $status || $courseType;
     @endphp
 
     <x-ui-list-toasts />
@@ -45,6 +45,18 @@
                         <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
                     </button>
                 </div>
+            </div>
+
+            <div class="ui-field mk-search">
+                <label class="ui-field__label ui-sr-only" for="course_type">{{ __('lf.LF_course_type_label') }}</label>
+                <select id="course_type" name="course_type" data-ui-kit-select
+                        data-ui-empty-label="{{ __('lf.LF_course_template_index_no_options') }}"
+                        data-ui-clear-label="{{ __('lf.LF_course_template_common_clear_filters') }}">
+                    <option value="">{{ __('lf.LF_course_type_all') }}</option>
+                    @foreach (\App\Support\CourseType::VALUES as $typeOption)
+                        <option value="{{ $typeOption }}" @selected($courseType === $typeOption)>{{ __(\App\Support\CourseType::labelKey($typeOption)) }}</option>
+                    @endforeach
+                </select>
             </div>
 
             <div class="ui-field mk-search">
@@ -104,6 +116,7 @@
                     <th scope="col" class="mk-sequence">{{ __('lf.table_no') }}</th>
                     <th scope="col" class="mk-text-cell">{{ __('lf.LF_course_template_common_name') }}</th>
                     <th scope="col" class="mk-text-cell">{{ __('lf.LF_course_template_common_category') }}</th>
+                    <th scope="col" class="mk-text-cell">{{ __('lf.LF_course_type_label') }}</th>
                     <th scope="col" class="ux-action-cell">{{ __('lf.LF_course_template_common_status') }}</th>
                     <th scope="col" class="ux-action-cell">{{ __('lf.table_actions') }}</th>
                 </tr>
@@ -131,6 +144,9 @@
                             data-label="{{ __('lf.LF_course_template_common_category') }}">
                             {{ $template->category_name ?? '—' }}
                         </td>
+                        <td class="mk-text-cell" data-label="{{ __('lf.LF_course_type_label') }}">
+                            <span class="ui-course-type ui-course-type--{{ $template->course_type }}" data-course-type="{{ $template->course_type }}">{{ __(\App\Support\CourseType::labelKey($template->course_type)) }}</span>
+                        </td>
                         <td class="ux-action-cell" data-label="{{ __('lf.LF_course_template_common_status') }}">
                             <span class="ui-status ui-status--{{ $template->status }}">{{ __('lf.LF_course_template_common_'.$template->status) }}</span>
                         </td>
@@ -150,7 +166,7 @@
                     </tr>
                 @empty
                     <tr class="mk-empty-row">
-                        <td class="mk-empty" colspan="6">
+                        <td class="mk-empty" colspan="7">
                             <div role="status">
                                 <strong>{{ $hasActiveFilters ? __('lf.LF_course_template_filter_empty') : __('lf.LF_course_template_common_empty') }}</strong>
                                 <p class="ui-caption">{{ $hasActiveFilters ? __('lf.LF_course_template_filter_empty_help') : __('lf.LF_course_template_empty_help') }}</p>

@@ -176,7 +176,7 @@ class AiAuthoringDemoSeed extends Command
             'status' => 'active', 'created_by' => $admin->id, 'created_at' => $now, 'updated_at' => $now,
         ]);
         $templateId = DB::table('core_course_templates')->insertGetId([
-            'customer_id' => $customerId, 'category_id' => $categoryId, 'title' => 'Toán lớp 4 (dữ liệu mẫu)',
+            'customer_id' => $customerId, 'category_id' => $categoryId, 'course_type' => 'self_paced', 'title' => 'Toán lớp 4 (dữ liệu mẫu)',
             'short_description' => 'Khoá học mẫu để xem giao diện duyệt đề xuất AI.', 'description' => 'Dữ liệu tổng hợp, không phải nội dung thật.',
             'publisher_name' => 'LearnForge', 'intro_video_source' => null, 'intro_image_media_file_id' => null,
             'intro_video_media_file_id' => null, 'difficulty_level' => 'beginner', 'estimated_minutes_per_lesson' => 30,

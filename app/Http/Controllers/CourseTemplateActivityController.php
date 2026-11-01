@@ -9,6 +9,7 @@ use App\Services\MediaService;
 use App\Services\MediaShareService;
 use App\Services\TrustedVideoUrlService;
 use App\Services\VideoSttQualification;
+use App\Support\CourseType;
 use App\Support\TenantContext;
 use App\Support\UploadLimit;
 use Illuminate\Http\Request;
@@ -716,8 +717,11 @@ class CourseTemplateActivityController extends Controller
         ?int $activityId = null,
         ?int $lessonId = null
     ): array {
+        // ADR-0022: the Template course type bounds which learning availability an Activity may declare.
+        $courseType = (string) DB::table('core_course_templates')
+            ->where('customer_id', $customerId)->where('id', $templateId)->value('course_type');
         $validator = Validator::make(
-            $this->validationInput($request),
+            $this->validationInput($request, $courseType),
             $this->validationRules($customerId, $templateId, $activityId, $lessonId),
             [
                 // "By session" with no phase checked sends no phase at all.
@@ -731,9 +735,18 @@ class CourseTemplateActivityController extends Controller
             ]
         );
 
-        $validator->after(function ($validator) use ($request): void {
+        $validator->after(function ($validator) use ($request, $courseType): void {
             // The normalized input: a live class without a declaration already defaults to during the session.
             $phases = $validator->getData()['learning_phases'] ?? [];
+
+            if ($request->input('activity_type') === 'live_class' && ! CourseType::allowsLiveClass($courseType)) {
+                $validator->errors()->add('activity_type', __('lf.LF_course_type_live_class_not_allowed'));
+            }
+            if (is_array($phases) && array_diff($phases, CourseType::allowedPhases($courseType)) !== []) {
+                $validator->errors()->add('learning_phases', __('lf.LF_course_type_phases_not_allowed_'.$courseType));
+
+                return;
+            }
 
             if (is_array($phases)
                 && in_array('anytime', $phases, true)
@@ -789,7 +802,7 @@ class CourseTemplateActivityController extends Controller
         return $validator->validate();
     }
 
-    private function validationInput(Request $request): array
+    private function validationInput(Request $request, string $courseType): array
     {
         $fields = [
             'title',
@@ -821,10 +834,14 @@ class CourseTemplateActivityController extends Controller
             array_flip($fields)
         );
         // Without a declaration an Activity defaults to anytime; a live class, which cannot be anytime, to during the session.
-        $input['learning_phases'] = $input['learning_phases']
-            ?? ($request->boolean('learning_phases_present')
-                ? []
-                : [($input['activity_type'] ?? null) === 'live_class' ? 'during_session' : 'anytime']);
+        // A scheduled course has no anytime, so it defaults to during the session; a self-paced one is always anytime.
+        $input['learning_phases'] = match (true) {
+            $courseType === CourseType::SELF_PACED => $input['learning_phases'] ?? ['anytime'],
+            default => $input['learning_phases']
+                ?? ($request->boolean('learning_phases_present')
+                    ? []
+                    : [($input['activity_type'] ?? null) === 'live_class' || $courseType === CourseType::SCHEDULED ? 'during_session' : 'anytime']),
+        };
         unset($input['learning_phases_present']);
 
         $typeField = [

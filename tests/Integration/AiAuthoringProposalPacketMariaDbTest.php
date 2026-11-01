@@ -286,7 +286,7 @@ class AiAuthoringProposalPacketMariaDbTest extends TestCase
         $review = $this->review($f, $p, $rev);
         $wrong = $this->review($f, $p2, $rev2);
         $l = $this->learning($f);
-        $template = DB::table('core_course_templates')->insertGetId(['customer_id' => $f['customer'], 'title' => 'Manual unchanged', 'status' => 'active', 'created_by' => $f['actor'], 'selected_learning_framework_id' => $l['framework'], 'selected_learning_framework_version_id' => $l['version'], 'created_at' => now(), 'updated_at' => now()]);
+        $template = DB::table('core_course_templates')->insertGetId(['course_type' => 'blended', 'customer_id' => $f['customer'], 'title' => 'Manual unchanged', 'status' => 'active', 'created_by' => $f['actor'], 'selected_learning_framework_id' => $l['framework'], 'selected_learning_framework_version_id' => $l['version'], 'created_at' => now(), 'updated_at' => now()]);
         $base = ['customer_id' => $f['customer'], 'template_id' => $template, 'source_type' => 'course_template_activity', 'source_id' => 200, 'framework_id' => $l['framework'], 'framework_version_id' => $l['version'], 'learning_node_id' => $l['node'], 'mapping_role' => 'teaches', 'created_by' => $f['actor'], 'updated_by' => $f['actor'], 'created_at' => now(), 'updated_at' => now()];
         $table = DB::table('core_course_template_learning_mapping_intents');
         $id = $table->insertGetId($base);

@@ -6,7 +6,7 @@ Document Status: Approved
 
 Implementation Status: Unknown
 
-Last Updated: 2026-08-09
+Last Updated: 2026-11-01
 
 Document Path: database/course/core_course_template_version_activities.md
 
@@ -89,6 +89,12 @@ Media / Assessment / LiveClass → version_activities (approved immutable refere
 | `metadata` | JSON | nullable | Non-canonical immutable integration context only; not a substitute for defined fields. |
 | `created_at` | TIMESTAMP | nullable | Snapshot creation time. |
 | `updated_at` | TIMESTAMP | nullable | Creation/finalization audit timestamp only. |
+
+Amendment 2026-11-01 (Approved, [ADR-0022](../../adr/ADR-0022-Course-Type-On-Template.md)):
+the four `available_*` snapshots must agree with the parent Version
+`course_type_snapshot`: `self_paced` → only `available_anytime = 1` and no
+`live_class` Activity; `scheduled` → `available_anytime = 0`; `blended` →
+current rules. Publish fails closed on any inconsistency.
 
 # Suggested Indexes
 

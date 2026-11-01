@@ -496,6 +496,7 @@ class CourseTemplateManagementTest extends TestCase
                     'category_id' => $categoryId,
                     'title' => ucfirst($status).' Template',
                     'publisher_name' => 'LearnForge',
+                    'course_type' => 'blended',
                     'status' => $status,
                 ]
             )->assertRedirect()->assertSessionDoesntHaveErrors();
@@ -513,6 +514,7 @@ class CourseTemplateManagementTest extends TestCase
                 'category_id' => $categoryId,
                 'title' => 'Direct Archived Template',
                 'publisher_name' => 'LearnForge',
+                'course_type' => 'blended',
                 'status' => 'archived',
             ]
         )->assertSessionHasErrors('status');
@@ -543,6 +545,7 @@ class CourseTemplateManagementTest extends TestCase
                 'category_id' => $categoryId,
                 'title' => 'Forged Status Template',
                 'publisher_name' => 'LearnForge',
+                'course_type' => 'blended',
                 'status' => 'published',
             ]
         )->assertSessionHasErrors('status');
@@ -562,6 +565,7 @@ class CourseTemplateManagementTest extends TestCase
                 'category_id' => $categoryId,
                 'title' => 'Minimal Template',
                 'publisher_name' => 'LearnForge',
+                'course_type' => 'blended',
                 'status' => 'draft',
             ]);
 
@@ -586,6 +590,7 @@ class CourseTemplateManagementTest extends TestCase
             'customer_id' => $customerId,
             'title' => 'Minimal Template',
             'publisher_name' => 'LearnForge',
+            'course_type' => 'blended',
             'category_id' => $categoryId,
             'intro_video_source' => null,
             'intro_image_media_file_id' => null,
@@ -618,6 +623,7 @@ class CourseTemplateManagementTest extends TestCase
                 'category_id' => $categoryId,
                 'title' => 'English Template',
                 'publisher_name' => 'LearnForge',
+                'course_type' => 'blended',
                 'status' => 'draft',
             ])
             ->assertSessionHas(
@@ -628,6 +634,85 @@ class CourseTemplateManagementTest extends TestCase
                 'course_template_created_guidance',
                 'You can continue updating its information, building the course content, assigning teachers, and publishing a version when ready.'
             );
+    }
+
+    public function test_template_list_shows_and_filters_the_course_type(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $categoryId = $this->createCategory($customerId, 'Korean', 'korean');
+        foreach (['self_paced' => 'Self Study Course', 'scheduled' => 'Evening Class Course'] as $type => $title) {
+            $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-templates', $this->validTemplateData([
+                'category_id' => $categoryId, 'title' => $title, 'course_type' => $type, 'intro_image_file' => null,
+            ]))->assertSessionHasNoErrors();
+        }
+
+        $this->actingAs($admin)->get('https://tenant-a.localhost/admin/course-templates')->assertOk()
+            ->assertSee('data-course-type="self_paced"', false)->assertSee('data-course-type="scheduled"', false);
+        $this->actingAs($admin)->get('https://tenant-a.localhost/admin/course-templates?course_type=scheduled')->assertOk()
+            ->assertSee('Evening Class Course')->assertDontSee('Self Study Course');
+        // An unknown value is ignored rather than filtering everything out.
+        $this->actingAs($admin)->get('https://tenant-a.localhost/admin/course-templates?course_type=live_online_course')->assertOk()
+            ->assertSee('Evening Class Course')->assertSee('Self Study Course');
+    }
+
+    public function test_course_type_is_required_on_create_and_locked_once_a_product_binds_a_version(): void
+    {
+        // ADR-0022: the type is chosen at creation, may change only while every Activity fits it and no Product binds a Version.
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $categoryId = $this->createCategory($customerId, 'Korean', 'korean');
+        $create = $this->validTemplateData(['category_id' => $categoryId, 'title' => 'Typed Template', 'intro_image_file' => null]);
+        unset($create['course_type']);
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-templates', $create)->assertSessionHasErrors('course_type');
+
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-templates', $create + ['course_type' => 'blended'])->assertSessionHasNoErrors();
+        $templateId = (int) DB::table('core_course_templates')->where('title', 'Typed Template')->value('id');
+        $lessonId = DB::table('core_course_template_lessons')->insertGetId([
+            'customer_id' => $customerId, 'template_id' => $templateId, 'template_section_id' => null, 'title' => 'Lesson A',
+            'sort_order' => 0, 'is_preview' => false, 'lesson_type' => 'standard', 'duration_seconds' => 0, 'activity_count' => 1,
+            'unlock_rule' => 'none', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('core_course_template_activities')->insert([
+            'customer_id' => $customerId, 'template_id' => $templateId, 'template_lesson_id' => $lessonId, 'title' => 'Free reading',
+            'sort_order' => 0, 'activity_type' => 'document', 'duration_seconds' => 0, 'available_anytime' => true,
+            'is_required' => true, 'completion_rule' => 'view', 'is_preview' => false, 'unlock_rule' => 'none',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $update = fn (string $type) => $this->actingAs($admin)->put(
+            "https://tenant-a.localhost/admin/course-templates/{$templateId}",
+            ['course_type' => $type] + $create
+        );
+
+        // An anytime Activity cannot stay in a scheduled course: the change is refused and names the Activity.
+        $update('scheduled')->assertSessionHasErrors('course_type');
+        $this->assertStringContainsString('Free reading', session('errors')->first('course_type'));
+        $this->assertSame('blended', DB::table('core_course_templates')->where('id', $templateId)->value('course_type'));
+
+        $update('self_paced')->assertSessionHasNoErrors();
+        $this->assertSame('self_paced', DB::table('core_course_templates')->where('id', $templateId)->value('course_type'));
+
+        // Once a Product Item binds a published Version, the type is locked.
+        $versionId = DB::table('core_course_template_versions')->insertGetId([
+            'course_type_snapshot' => 'self_paced', 'customer_id' => $customerId, 'template_id' => $templateId, 'version_number' => 1,
+            'version_code' => 'TYPED-V1', 'is_current' => true, 'title_snapshot' => 'Typed Template', 'publisher_name_snapshot' => 'LearnForge',
+            'source_category_id' => $categoryId, 'category_name_snapshot' => 'Korean', 'lesson_count_snapshot' => 1,
+            'source_working_revision' => 1, 'status' => 'published', 'published_at' => now(), 'published_by' => $admin->id,
+            'source_template_updated_at' => now(), 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $productId = DB::table('core_course_products')->insertGetId([
+            'customer_id' => $customerId, 'product_code' => 'TYPED', 'product_type' => 'single_course', 'title' => 'Typed', 'slug' => 'typed',
+            'thumbnail_type' => 'image', 'price' => 0, 'currency' => 'VND', 'enrollment_type' => 'paid', 'is_featured' => false,
+            'sort_order' => 0, 'visibility' => 'public', 'status' => 'draft', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('core_course_product_items')->insert([
+            'customer_id' => $customerId, 'product_id' => $productId, 'template_id' => $templateId, 'version_id' => $versionId,
+            'sort_order' => 0, 'is_required' => true, 'status' => 'active', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $update('blended')->assertSessionHasErrors(['course_type' => __('lf.LF_course_type_change_locked')]);
+        $this->assertSame('self_paced', DB::table('core_course_templates')->where('id', $templateId)->value('course_type'));
+        // Saving other fields without the type keeps the locked value.
+        $this->actingAs($admin)->put("https://tenant-a.localhost/admin/course-templates/{$templateId}", $create)->assertSessionHasNoErrors();
     }
 
     public function test_admin_can_create_an_independent_draft_template(): void
@@ -1383,7 +1468,8 @@ class CourseTemplateManagementTest extends TestCase
             1,
             $this->templateHtmlCount($html, '//button[@data-ui-dialog-form-open and @data-ui-dialog-form-hash-open and @data-url="https://tenant-a.localhost/admin/course-templates/'.$templateId.'/form?context=workspace"]')
         );
-        $this->assertSame(12, $this->templateHtmlCount($html, '//div[@data-summary-field]'));
+        $this->assertSame(13, $this->templateHtmlCount($html, '//div[@data-summary-field]'));
+        $this->assertSame(1, $this->templateHtmlCount($html, '//div[@data-summary-field="course_type"]//span[@data-course-type="blended"]'));
         foreach ([
             'title' => 'Summary template',
             'category_id' => 'Korean',
@@ -1608,7 +1694,7 @@ class CourseTemplateManagementTest extends TestCase
                 'general-'.$customerId
             );
 
-        return DB::table('core_course_templates')->insertGetId([
+        return DB::table('core_course_templates')->insertGetId(['course_type' => 'blended', 
             'customer_id' => $customerId,
             'category_id' => $categoryId,
             'title' => $title,
@@ -1644,6 +1730,7 @@ class CourseTemplateManagementTest extends TestCase
             'short_description' => null,
             'description' => null,
             'publisher_name' => 'LearnForge',
+            'course_type' => 'blended',
             'intro_video_source' => null,
             'intro_image_file' => UploadedFile::fake()->image(
                 'template-cover.png',

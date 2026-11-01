@@ -114,14 +114,25 @@ class CourseTemplatePublishingTest extends TestCase
                 $readiness
                     ->assertDontSee('data-readiness-code="template_status"', false)
                     ->assertDontSee('aria-describedby="course-template-publish-disabled-help"', false);
+
+                // ADR-0022: an Activity that does not fit the course type blocks publish.
+                DB::table('core_course_templates')->where('id', $templateId)->update(['course_type' => 'scheduled']);
+                $this->actingAs($admin)->get($editUrl)->assertOk()
+                    ->assertSee('data-readiness-code="activity_course_type"', false);
+                $this->actingAs($admin)->from($editUrl)->post($publishUrl)->assertSessionHasErrors();
+                $this->assertDatabaseMissing('core_course_template_versions', ['template_id' => $templateId]);
+                DB::table('core_course_templates')->where('id', $templateId)->update(['course_type' => 'self_paced']);
+
                 $this->actingAs($admin)
                     ->from($editUrl)
                     ->post($publishUrl)
                     ->assertRedirect($editUrl)
                     ->assertSessionDoesntHaveErrors();
+                // The type is frozen into the Version.
                 $this->assertDatabaseHas('core_course_template_versions', [
                     'template_id' => $templateId,
                     'status' => 'published',
+                    'course_type_snapshot' => 'self_paced',
                 ]);
             } else {
                 $statusLabel = __('lf.LF_course_template_common_'.$status);
@@ -3309,7 +3320,7 @@ class CourseTemplatePublishingTest extends TestCase
                 'General '.$customerId
             );
 
-        return DB::table('core_course_templates')->insertGetId([
+        return DB::table('core_course_templates')->insertGetId(['course_type' => 'blended', 
             'customer_id' => $customerId,
             'category_id' => $categoryId,
             'title' => $title,

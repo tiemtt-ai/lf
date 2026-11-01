@@ -210,6 +210,22 @@ the Product registration window and visually separate it from the Cohort
 operating period. The projection does not transfer ownership to Cohort and is
 never submitted by the Cohort form.
 
+### Course Type Eligibility Amendment — 2026-11-01 (Approved)
+
+Approved theo [ADR-0022](../../adr/ADR-0022-Course-Type-On-Template.md).
+
+* Cohort chỉ được gắn Product có loại khóa học `scheduled` (Theo lịch) hoặc
+  `blended` (Kết hợp); loại đọc từ `course_type_snapshot` của Version mà
+  Product resolve được. Product `self_paced` (Tự học) không cần lớp và không
+  được chọn. Backend kiểm tra khi tạo Cohort; form chỉ liệt kê Product hợp lệ.
+* Với `blended`, Cohort `start_date` → hết `end_date` là khoảng mở Activity
+  `anytime` cho học viên thành viên. Đây là giới hạn runtime, không phải thời
+  hạn Enrollment và không phải cửa sổ đăng ký.
+* Cohort legacy đang gắn Product `self_paced` vẫn đọc được nhưng không được
+  kích hoạt, thêm học viên hoặc thêm buổi học cho tới khi được xử lý.
+* Online / offline / hybrid là `delivery_mode` của Session. Lớp "hybrid" là
+  lớp có cả buổi online và buổi offline, không phải một loại khóa học.
+
 ---
 
 ## Relationships

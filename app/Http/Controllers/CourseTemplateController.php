@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\AiAuthoringEntryService;
+use App\Services\CourseTemplateCourseTypeService;
 use App\Services\CourseTemplateLearningMappingIntentService;
 use App\Services\CourseTemplatePublishingService;
 use App\Services\CourseTemplatePublishReadinessService;
@@ -14,6 +15,7 @@ use App\Services\MediaThumbnailPresenter;
 use App\Services\TrustedVideoUrlService;
 use App\Support\AuditLog;
 use App\Support\CourseTemplateStatus;
+use App\Support\CourseType;
 use App\Support\ListReturnUrl;
 use App\Support\TenantContext;
 use App\Support\UploadLimit;
@@ -53,6 +55,7 @@ class CourseTemplateController extends Controller
         if (! in_array($status, CourseTemplateStatus::VALUES, true)) {
             $status = null;
         }
+        $courseType = in_array($request->query('course_type'), CourseType::VALUES, true) ? $request->query('course_type') : null;
 
         $templates = DB::table('core_course_templates as templates')
             ->leftJoin('core_course_categories as categories', function ($join) use ($customerId): void {
@@ -68,6 +71,7 @@ class CourseTemplateController extends Controller
             ->when($status, function ($query) use ($status): void {
                 $query->where('templates.status', $status);
             })
+            ->when($courseType, fn ($query) => $query->where('templates.course_type', $courseType))
             ->when(
                 $request->user()?->role === 'teacher',
                 function ($query) use ($customerId, $request): void {
@@ -102,6 +106,7 @@ class CourseTemplateController extends Controller
             'templates' => $templates,
             'keyword' => $keyword,
             'status' => $status,
+            'courseType' => $courseType,
             'routePrefix' => $this->routePrefix($request),
         ]);
     }
@@ -425,8 +430,14 @@ class CourseTemplateController extends Controller
             ]);
         }
         $validated = $this->validatedData($request, $customerId, $id, $template);
+        $validated['course_type'] ??= $template->course_type;
 
         DB::transaction(function () use ($customerId, $id, $request, $validated, $template): void {
+            if ($validated['course_type'] !== $template->course_type) {
+                // Serialize with Activity writes and Product binding, then check against the locked graph.
+                DB::table('core_course_templates')->where('customer_id', $customerId)->where('id', $id)->lockForUpdate()->first();
+                app(CourseTemplateCourseTypeService::class)->assertCanChange($customerId, $id, $validated['course_type']);
+            }
             $categoryChanged = (int) $validated['category_id'] !== (int) $template->category_id;
             if ($categoryChanged) {
                 $validated['sort_order'] = $this->nextSortOrder(
@@ -597,6 +608,7 @@ class CourseTemplateController extends Controller
             'intro_video_embed_url',
             'intro_document_media_file_id',
             'remove_intro_image', 'remove_intro_video', 'remove_intro_document',
+            'course_type',
             'difficulty_level',
             'estimated_minutes_per_lesson',
             'estimated_lesson_count',
@@ -710,6 +722,8 @@ class CourseTemplateController extends Controller
                     ->where(fn ($query) => $query->where('customer_id', $customerId)),
             ],
             'title' => ['required', 'string', 'max:255'],
+            // Chosen when the Template is created; an edit may omit it to keep the stored type (ADR-0022).
+            'course_type' => [$templateId === null ? 'required' : 'nullable', Rule::in(CourseType::VALUES)],
             'short_description' => ['nullable', 'string', 'max:500'],
             'description' => ['nullable', 'string'],
             'publisher_name' => ['required', 'string', 'max:255'],
@@ -794,6 +808,7 @@ class CourseTemplateController extends Controller
             'intro_video_embed_url' => ($validated['remove_intro_video'] ?? false) ? null : ($validated['intro_video_embed_url'] ?? null),
             'intro_video_provider' => ($validated['remove_intro_video'] ?? false) ? null : ($validated['intro_video_provider'] ?? null),
             'intro_document_media_file_id' => ($validated['remove_intro_document'] ?? false) ? null : ($validated['intro_document_media_file_id'] ?? null),
+            'course_type' => $validated['course_type'],
             'difficulty_level' => $validated['difficulty_level'] ?? null,
             'estimated_minutes_per_lesson' => $validated['estimated_minutes_per_lesson'] ?? null,
             'estimated_lesson_count' => $validated['estimated_lesson_count'] ?? null,

@@ -6,7 +6,7 @@ Document Status: Frozen
 
 Implementation Status: Unknown
 
-Last Updated: 2026-08-09
+Last Updated: 2026-11-01
 
 Parent: [core_course_products](core_course_products.md) v1.3
 
@@ -87,6 +87,20 @@ type` for `offering_type` and `Kiểu đóng gói` / `Package type` for
 integer >= 0. For all other offerings both must be null. Changing type clears
 irrelevant duration values transactionally. Storage does not enforce runtime
 expiry; that behavior is deferred.
+
+## Amendment 2026-11-01 — Course type moves to Template (Approved)
+
+Approved theo [ADR-0022](../../adr/ADR-0022-Course-Type-On-Template.md) (2026-11-01):
+
+* `offering_type` bị bỏ khỏi form, nghiệp vụ và schema; `assessment` và
+  `learning_material` bị bỏ hẳn. Nhãn UI `Loại sản phẩm` không còn.
+* Loại khóa học của Product = `course_type_snapshot` của Version mà Product Item
+  gắn (`self_paced`, `scheduled`, `blended`), hiển thị chỉ đọc; không lưu bản sao.
+* Quy tắc số ngày ở trên áp dụng với `self_paced` thay cho `self_paced_course`;
+  `scheduled` / `blended` lưu `NULL` cả hai.
+* Template được chọn bằng popup lọc theo loại (xem LF-Core-Course § Course Type).
+* Product đã có Enrollment hoặc Cohort chỉ được chuyển sang Version cùng loại.
+* Activation kiểm tra loại qua Version thay cho kiểm tra `offering_type`.
 
 # Content binding and activation
 

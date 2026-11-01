@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\AuthorizesCourseCohortAdmin;
 use App\Services\CourseCohortMutationPolicy;
 use App\Services\CourseCohortSessionWindow;
+use App\Services\CourseCohortVersionResolver;
 use App\Services\LiveClassSessionLifecycleService;
 use App\Services\LiveClassSessionOriginService;
 use App\Services\LiveClassSessionPolicy;
@@ -220,6 +221,7 @@ class CourseCohortOperationController extends Controller
     {
         $customerId = $this->authorizeAdmin($request);
         $cohortRow = $this->setupCohort($customerId, $cohort);
+        $this->assertRunsInClass($customerId, $cohortRow);
         abort_if(! $cohortRow->version_id, 422);
 
         if ($request->has('teacher_ids')) {
@@ -308,6 +310,7 @@ class CourseCohortOperationController extends Controller
     {
         $customerId = $this->authorizeAdmin($request);
         $cohortRow = $this->setupCohort($customerId, $cohort);
+        $this->assertRunsInClass($customerId, $cohortRow);
         abort_if(! $cohortRow->version_id, 422);
 
         // Configuration belonging to an unselected preview row is client-only
@@ -999,6 +1002,13 @@ class CourseCohortOperationController extends Controller
             __('lf.LF_course_cohort_setup_status_invalid'));
 
         return $cohort;
+    }
+
+    /** ADR-0022: a legacy class bound to a self-paced course gets no new session until it is fixed. */
+    private function assertRunsInClass(int $customerId, object $cohort): void
+    {
+        abort_unless(app(CourseCohortVersionResolver::class)->runsInClass($customerId, $cohort->version_id ? (int) $cohort->version_id : null), 422,
+            __('lf.LF_course_type_cohort_legacy_self_paced'));
     }
 
     private function activeCohort(int $customerId, int $id): object

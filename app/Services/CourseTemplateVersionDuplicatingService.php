@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\CourseType;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -56,6 +57,13 @@ class CourseTemplateVersionDuplicatingService
             abort_if(! $version, 404);
 
             $this->assertVideoState($version);
+            // ADR-0022: the draft takes the Version course type only while the type may change.
+            if ($version->course_type_snapshot !== $template->course_type
+                && app(CourseTemplateCourseTypeService::class)->isLocked($customerId, $templateId)) {
+                throw ValidationException::withMessages(['duplicate' => __('lf.LF_course_type_duplicate_locked', [
+                    'type' => __(CourseType::labelKey((string) $version->course_type_snapshot)),
+                ])]);
+            }
 
             $sections = $this->versionSections($customerId, $versionId);
             $lessons = $this->versionLessons($customerId, $versionId);
@@ -110,6 +118,7 @@ class CourseTemplateVersionDuplicatingService
                     'intro_video_embed_url' => $version->intro_video_embed_url_snapshot,
                     'intro_video_provider' => $version->intro_video_provider_snapshot,
                     'intro_document_media_file_id' => $this->referenceId($customerId, $version->intro_document_media_file_id_snapshot, ['media_files']),
+                    'course_type' => $version->course_type_snapshot,
                     'difficulty_level' => $version
                         ->difficulty_level_snapshot,
                     'estimated_minutes_per_lesson' => $version->estimated_minutes_per_lesson_snapshot,

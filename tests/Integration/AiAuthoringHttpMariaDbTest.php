@@ -710,7 +710,7 @@ class AiAuthoringHttpMariaDbTest extends TestCase
         $this->postJson($path.'/intent-applications', $this->command($this->actionsOf($uuid)[2]))->assertOk();
         $mapping = $this->getJson($path)->assertOk()->json('data.payload.mapping');
         DB::table('core_learning_node_definitions')->where('id', $mapping['definition_id'])->update(['status' => 'archived']);
-        DB::table('core_course_templates')->insert([
+        DB::table('core_course_templates')->insert(['course_type' => 'blended', 
             'customer_id' => $this->f['customer_id'], 'category_id' => null, 'title' => 'Another Template', 'estimated_minutes_per_lesson' => 0,
             'lesson_count' => 0, 'working_revision' => 1, 'status' => 'draft', 'created_by' => null, 'created_at' => now(), 'updated_at' => now(),
             'selected_learning_framework_id' => $this->f['framework_id'], 'selected_learning_framework_version_id' => $this->f['version_id'],

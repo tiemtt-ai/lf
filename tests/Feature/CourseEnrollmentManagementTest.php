@@ -1281,7 +1281,6 @@ class CourseEnrollmentManagementTest extends TestCase
         $otherStudent = $this->createUser($otherCustomerId, 'student');
         $productId = $this->createProduct($customerId, 'Eligible TOPIK', 'eligible-topik');
         DB::table('core_course_products')->where('id', $productId)->update([
-            'offering_type' => 'self_paced_course',
             'review_duration_days' => 7,
         ]);
         $versionId = $this->createVersion($customerId, $admin->id, title: 'Eligible Version');
@@ -1599,7 +1598,6 @@ class CourseEnrollmentManagementTest extends TestCase
         $selfPacedVersionId = $this->createVersion($customerId, $admin->id);
         $this->createProductItem($customerId, $selfPacedId, $selfPacedVersionId);
         DB::table('core_course_products')->where('id', $selfPacedId)->update([
-            'offering_type' => 'self_paced_course',
             'access_duration_days' => null,
         ]);
 
@@ -1613,11 +1611,11 @@ class CourseEnrollmentManagementTest extends TestCase
         $liveVersionId = $this->createVersion($customerId, $admin->id);
         $this->createProductItem($customerId, $liveId, $liveVersionId);
         DB::table('core_course_template_versions')->where('id', $liveVersionId)->update([
+            'course_type_snapshot' => 'scheduled',
             'lesson_count_snapshot' => 99,
             'estimated_lesson_count_snapshot' => 120,
         ]);
         DB::table('core_course_products')->where('id', $liveId)->update([
-            'offering_type' => 'live_online_course',
             'access_duration_days' => null,
             'review_duration_days' => null,
             'registration_starts_at' => '2026-08-01 00:00:00',
@@ -1703,8 +1701,8 @@ class CourseEnrollmentManagementTest extends TestCase
         $liveId = $this->createProduct($customerId, 'Shared Live Policy', 'shared-live-policy');
         $versionId = $this->createVersion($customerId, $admin->id);
         $this->createProductItem($customerId, $liveId, $versionId);
+        DB::table('core_course_template_versions')->where('id', $versionId)->update(['course_type_snapshot' => 'scheduled']);
         DB::table('core_course_products')->where('id', $liveId)->update([
-            'offering_type' => 'live_online_course',
             'access_duration_days' => null,
             'review_duration_days' => null,
         ]);
@@ -2044,11 +2042,14 @@ class CourseEnrollmentManagementTest extends TestCase
         $student = $this->createUser($customerId, 'student');
         $reviewProduct = $this->createProduct($customerId, 'Review Product', 'review-product');
         $plainProduct = $this->createProduct($customerId, 'Plain Product', 'plain-product');
-        DB::table('core_course_products')->where('id', $reviewProduct)->update(['offering_type' => 'self_paced_course', 'review_duration_days' => 14]);
-        DB::table('core_course_products')->where('id', $plainProduct)->update(['offering_type' => 'instructor_led_course', 'review_duration_days' => null]);
+        DB::table('core_course_products')->where('id', $reviewProduct)->update(['review_duration_days' => 14]);
+        DB::table('core_course_products')->where('id', $plainProduct)->update(['review_duration_days' => null]);
         foreach ([$reviewProduct, $plainProduct] as $productId) {
             $this->createProductItem($customerId, $productId, $this->createVersion($customerId, $admin->id));
         }
+        // A non-self-paced Product has no review period (ADR-0022: the type is read from its Version).
+        DB::table('core_course_template_versions')->whereIn('id', DB::table('core_course_product_items')
+            ->where('product_id', $plainProduct)->pluck('version_id'))->update(['course_type_snapshot' => 'scheduled']);
         $configuration = $this->bulkConfiguration([
             'enrolled_at' => '2026-08-01 09:00:00',
             'notes' => ' Shared note ',
@@ -2149,7 +2150,6 @@ class CourseEnrollmentManagementTest extends TestCase
             'customer_id' => $customerId,
             'product_code' => strtoupper($slug),
             'product_type' => 'single_course',
-            'offering_type' => 'self_paced_course',
             'title' => $title,
             'slug' => $slug,
             'short_description' => null,
@@ -2201,7 +2201,7 @@ class CourseEnrollmentManagementTest extends TestCase
     ): int {
         $now = now();
 
-        return DB::table('core_course_templates')->insertGetId([
+        return DB::table('core_course_templates')->insertGetId(['course_type' => 'blended', 
             'customer_id' => $customerId,
             'category_id' => null,
             'title' => $title,
@@ -2239,7 +2239,8 @@ class CourseEnrollmentManagementTest extends TestCase
         $now = now();
         $templateId ??= $this->createTemplate($customerId, $userId, $title);
 
-        return DB::table('core_course_template_versions')->insertGetId([
+        // ADR-0022: the bound Version carries the course type; these fixtures default to self-paced.
+        return DB::table('core_course_template_versions')->insertGetId(['course_type_snapshot' => 'self_paced', 
             'customer_id' => $customerId,
             'template_id' => $templateId,
             'version_number' => $versionNumber,

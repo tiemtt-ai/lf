@@ -10,6 +10,7 @@ use App\Services\CourseCohortVersionResolver;
 use App\Services\LiveClassCohortScheduleReadModel;
 use App\Services\LiveClassCohortSessionReadModel;
 use App\Services\LiveClassSessionPolicy;
+use App\Support\CourseType;
 use App\Support\SequentialCodeGenerator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -128,6 +129,7 @@ class CourseCohortController extends Controller
             DB::table('saas_customers')->where('id', $customerId)->lockForUpdate()->first();
             $version = $this->versionResolver->resolve($customerId, (int) $validated['product_id'], true);
             abort_if(! $version, 422, __('lf.LF_course_cohort_validation_active_item'));
+            abort_unless(in_array($version->course_type, CourseType::COHORT_VALUES, true), 422, __('lf.LF_course_type_cohort_product_not_allowed'));
             $now = now();
 
             return DB::table('core_course_cohorts')->insertGetId(
@@ -576,8 +578,11 @@ class CourseCohortController extends Controller
             }
 
             $productId = (int) $request->input('product_id');
-            if ($productId > 0 && ! $this->versionResolver->resolve($customerId, $productId)) {
+            $resolved = $productId > 0 ? $this->versionResolver->resolve($customerId, $productId) : null;
+            if ($productId > 0 && ! $resolved) {
                 $validator->errors()->add('product_id', __('lf.LF_course_cohort_validation_active_item'));
+            } elseif ($resolved && ! in_array($resolved->course_type, CourseType::COHORT_VALUES, true)) {
+                $validator->errors()->add('product_id', __('lf.LF_course_type_cohort_product_not_allowed'));
             }
         });
 

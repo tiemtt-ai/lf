@@ -70,6 +70,7 @@ class CourseTemplatePublishingService
                 'is_current' => false,
                 'source_category_id' => $template->category_id,
                 'category_name_snapshot' => $categoryName,
+                'course_type_snapshot' => $template->course_type,
                 'title_snapshot' => $template->title,
                 'short_description_snapshot' => $template->short_description,
                 'description_snapshot' => $template->description,

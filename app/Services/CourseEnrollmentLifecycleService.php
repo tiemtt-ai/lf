@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\CourseType;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -9,8 +10,6 @@ use Illuminate\Validation\ValidationException;
 
 class CourseEnrollmentLifecycleService
 {
-    private const SELF_PACED_OFFERING = 'self_paced_course';
-
     private const BULK_ACTIONS = [
         'suspend' => ['target' => 'suspended', 'sources' => ['active']],
         'reactivate' => ['target' => 'active', 'sources' => ['suspended']],
@@ -31,7 +30,6 @@ class CourseEnrollmentLifecycleService
             ->where('id', $productId)
             ->when($lock, fn ($query) => $query->lockForUpdate())
             ->first([
-                'offering_type',
                 'registration_starts_at', 'registration_ends_at',
                 'access_duration_days', 'review_duration_days',
             ]);
@@ -41,9 +39,9 @@ class CourseEnrollmentLifecycleService
 
         $this->assertRegistrationWindow($product, $enrolledAt);
 
-        return $this->projectFromOffering(
+        return $this->projectFromCourseType(
             $enrolledAt,
-            $product->offering_type,
+            $this->productCourseType($customerId, $productId),
             $product->access_duration_days,
             $product->review_duration_days,
         );
@@ -56,7 +54,7 @@ class CourseEnrollmentLifecycleService
             ->where('id', $enrollment->product_id)
             ->where('status', 'active')
             ->lockForUpdate()
-            ->first(['offering_type', 'registration_starts_at', 'registration_ends_at']);
+            ->first(['registration_starts_at', 'registration_ends_at']);
         if (! $product) {
             throw ValidationException::withMessages(['enrolled_at' => __('lf.LF_course_enrollment_validation_product')]);
         }
@@ -90,30 +88,51 @@ class CourseEnrollmentLifecycleService
 
         $this->assertRegistrationWindow($product, $enrolledAt, 'enrolled_at');
 
-        if ($product->offering_type === self::SELF_PACED_OFFERING
+        // ADR-0022: the frozen Enrollment Version decides the course type.
+        $courseType = $this->versionCourseType((int) $enrollment->customer_id, (int) $enrollment->version_id);
+        if ($courseType === CourseType::SELF_PACED
             && $enrollment->access_duration_days === null) {
             throw ValidationException::withMessages([
                 'enrolled_at' => __('lf.LF_course_enrollment_legacy_duration_missing'),
             ]);
         }
 
-        return $this->projectFromOffering(
+        return $this->projectFromCourseType(
             $enrolledAt,
-            $product->offering_type,
+            $courseType,
             $enrollment->access_duration_days,
             $enrollment->review_duration_days,
             'enrolled_at',
         );
     }
 
-    private function projectFromOffering(
+    /** The course type of the Version the Product binds through its active Item (ADR-0022); null without one. */
+    public function productCourseType(int $customerId, int $productId): ?string
+    {
+        return DB::table('core_course_product_items as items')
+            ->join('core_course_template_versions as versions', function ($join) use ($customerId): void {
+                $join->on('versions.id', '=', 'items.version_id')->where('versions.customer_id', $customerId);
+            })
+            ->where('items.customer_id', $customerId)
+            ->where('items.product_id', $productId)
+            ->where('items.status', 'active')
+            ->value('versions.course_type_snapshot');
+    }
+
+    public function versionCourseType(int $customerId, int $versionId): ?string
+    {
+        return DB::table('core_course_template_versions')
+            ->where('customer_id', $customerId)->where('id', $versionId)->value('course_type_snapshot');
+    }
+
+    private function projectFromCourseType(
         CarbonInterface $enrolledAt,
-        mixed $offeringType,
+        ?string $courseType,
         mixed $accessDuration,
         mixed $reviewDuration,
         string $field = 'product_id',
     ): array {
-        if ($offeringType !== self::SELF_PACED_OFFERING) {
+        if (! CourseType::usesAccessDuration($courseType)) {
             return [
                 'access_starts_at' => null,
                 'access_ends_at' => null,

@@ -4,6 +4,9 @@
     $selectedCategoryId = $formTemplate?->category_id;
     $selectedVideoSource = $formTemplate?->intro_video_source;
     $selectedDifficulty = $formTemplate?->difficulty_level;
+    $selectedCourseType = $formTemplate?->course_type;
+    // ADR-0022: a Product bound to one of its published Versions locks the type.
+    $courseTypeLocked = $formTemplate && app(\App\Services\CourseTemplateCourseTypeService::class)->isLocked((int) $formTemplate->customer_id, (int) $formTemplate->id);
     $selectedStatus = $formTemplate?->status ?? \App\Support\CourseTemplateStatus::DEFAULT;
     $isRequired = static fn (string $field): bool => in_array($field, $requiredFields, true);
     $star = '<span class="ui-field__required" aria-hidden="true">*</span>';
@@ -32,10 +35,42 @@
      x-on:ui-media-preview="openPreview($event.detail)">
     <fieldset class="ui-fieldset-reset" @disabled($archivedTemplate)>
         <div class="ui-modal__grid">
-            <div class="ui-field ui-field--full">
+            {{-- Name and course type share one row: the two identity choices of a Template. --}}
+            <div class="ui-field">
                 <label class="ui-field__label" for="template-form-title">{!! $star !!}{{ __('lf.LF_course_template_common_name') }}</label>
                 <input id="template-form-title" type="text" name="title" value="{{ $formTemplate?->title }}"
                        required maxlength="255" placeholder="{{ __('lf.LF_course_template_placeholder_name') }}">
+            </div>
+
+            <div class="ui-field">
+                @if ($courseTypeLocked || $archivedTemplate)
+                    <span class="ui-field__label">{{ __('lf.LF_course_type_label') }}</span>
+                    <span class="ui-course-type-locked">
+                        <span class="ui-course-type ui-course-type--{{ $selectedCourseType }}" data-course-type="{{ $selectedCourseType }}">{{ __(\App\Support\CourseType::labelKey($selectedCourseType)) }}</span>
+                        @if ($courseTypeLocked)
+                            {{-- Short on screen; the full reason stays available as the tooltip and to assistive technology. --}}
+                            <span class="ui-course-type-locked__note" title="{{ __('lf.LF_course_type_change_locked') }}">
+                                <x-backend-icon name="lock" class="ui-icon" />{{ __('lf.LF_course_type_locked_short') }}
+                                <span class="ui-sr-only">{{ __('lf.LF_course_type_change_locked') }}</span>
+                            </span>
+                        @endif
+                    </span>
+                @else
+                    <span class="ui-field__label-row">
+                        <label class="ui-field__label" for="template-form-course_type">{!! $star !!}{{ __('lf.LF_course_type_label') }}</label>
+                        {{-- The meaning of each type stays one hover or focus away, so the half-width field keeps one line. --}}
+                        <button type="button" class="ui-field-tip cursor-interaction" aria-label="{{ __('lf.LF_course_type_help_label') }}"
+                                aria-describedby="template-form-course_type-help" data-tooltip="{{ __('lf.LF_course_type_help') }}">i</button>
+                    </span>
+                    <select id="template-form-course_type" name="course_type" data-ui-kit-select required
+                            data-ui-empty-label="{{ __('lf.LF_course_template_index_no_options') }}" data-ui-clear-label="{{ __('lf.LF_course_template_common_clear_filters') }}">
+                        <option value="" @selected($selectedCourseType === null)>{{ __('lf.LF_course_type_select') }}</option>
+                        @foreach (\App\Support\CourseType::VALUES as $courseType)
+                            <option value="{{ $courseType }}" @selected($selectedCourseType === $courseType)>{{ __(\App\Support\CourseType::labelKey($courseType)) }}</option>
+                        @endforeach
+                    </select>
+                    <span id="template-form-course_type-help" class="ui-sr-only">{{ __('lf.LF_course_type_help') }}</span>
+                @endif
             </div>
 
             <div class="ui-field">
@@ -99,7 +134,18 @@
                 {{-- One intro video: an uploaded file OR an embedded link. The source follows whichever the user last set. --}}
                 <input type="hidden" name="intro_video_source" :value="embedUrl ? 'embed' : (videoFileChosen ? 'upload' : (savedVideoSource === 'upload' ? 'upload' : ''))">
                 <div class="ui-field-row">
-                    <div class="ui-field">
+                    {{-- Filled slots come first, as on the Information tab; each keeps its fixed order within its group. --}}
+                    @php
+                        $mediaSlots = [];
+                        $mediaFilled = [
+                            'image' => (bool) $introImageMedia,
+                            'video' => (bool) $introVideoMedia,
+                            'embed' => $selectedVideoSource === 'embed' && filled($formTemplate?->intro_video_embed_url),
+                            'document' => (bool) $introDocumentMedia,
+                        ];
+                    @endphp
+                    @php ob_start(); @endphp
+                    <div class="ui-field" data-media-slot-field="image">
                         <p class="ui-field__label" id="template-intro-image-label">{{ __('lf.LF_course_template_intro_image') }}</p>
                         <input type="hidden" name="intro_image_media_file_id" value="{{ $formTemplate?->intro_image_media_file_id }}">
                         <x-ui-media-slot id="intro_image_file" name="intro_image_file" accept="image/*" kind="image"
@@ -114,8 +160,9 @@
                             <x-upload-hint ui-kit :formats="['JPG', 'PNG', 'GIF', 'WEBP', 'SVG']" />
                         </x-ui-media-slot>
                     </div>
-
-                    <div class="ui-field">
+                    @php $mediaSlots['image'] = ob_get_clean(); @endphp
+                    @php ob_start(); @endphp
+                    <div class="ui-field" data-media-slot-field="video">
                         <p class="ui-field__label" id="template-intro-video-label">{{ __('lf.LF_course_template_intro_video') }}</p>
                         <input type="hidden" name="intro_video_media_file_id" value="{{ $formTemplate?->intro_video_media_file_id }}">
                         <x-ui-media-slot id="intro_video_file" name="intro_video_file"
@@ -131,8 +178,9 @@
                             <x-upload-hint ui-kit :formats="['MP4', 'WEBM', 'MOV', 'AVI']" :max-size="\App\Support\UploadLimit::effectiveVideoKilobytes()" />
                         </x-ui-media-slot>
                     </div>
-
-                    <div class="ui-field">
+                    @php $mediaSlots['video'] = ob_get_clean(); @endphp
+                    @php ob_start(); @endphp
+                    <div class="ui-field" data-media-slot-field="embed">
                         <p class="ui-field__label" id="template-intro-embed-label">{{ __('lf.LF_course_template_video_embed') }}</p>
                         <x-ui-embed-slot id="template-form-intro_video_embed_url" name="intro_video_embed_url"
                             labelledby="template-intro-embed-label"
@@ -143,8 +191,9 @@
                             {{ __('lf.LF_course_template_embed_hint') }}
                         </x-ui-embed-slot>
                     </div>
-
-                    <div class="ui-field">
+                    @php $mediaSlots['embed'] = ob_get_clean(); @endphp
+                    @php ob_start(); @endphp
+                    <div class="ui-field" data-media-slot-field="document">
                         <p class="ui-field__label" id="template-intro-document-label">{{ __('lf.LF_course_template_intro_document') }}</p>
                         <input type="hidden" name="intro_document_media_file_id" value="{{ $formTemplate?->intro_document_media_file_id }}">
                         <x-ui-media-slot id="intro_document_file" name="intro_document_file"
@@ -160,6 +209,10 @@
                             <x-upload-hint ui-kit :formats="['PDF', 'DOC', 'DOCX', 'PPT', 'PPTX', 'XLS', 'XLSX']" />
                         </x-ui-media-slot>
                     </div>
+                    @php $mediaSlots['document'] = ob_get_clean(); @endphp
+                    @foreach (collect($mediaSlots)->sortBy(fn ($html, $slot) => $mediaFilled[$slot] ? 0 : 1) as $slotHtml)
+                        {!! $slotHtml !!}
+                    @endforeach
                 </div>
             </div>
 

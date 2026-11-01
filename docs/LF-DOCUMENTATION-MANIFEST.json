@@ -5,7 +5,7 @@
   "default_locale": "vi",
   "fallback_locale": "en",
   "source_of_truth": "docs/LF-INDEX.md",
-  "document_count": 312,
+  "document_count": 313,
   "documents": [
     {
       "path": "LF-Core-Overview.md",
@@ -1198,6 +1198,54 @@
         "adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md",
         "database/media/media_file_shares.md",
         "quality/LF-Media-Sharing-Proposal.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "adr/ADR-0022-Course-Type-On-Template.md",
+      "title": "ADR-0022 — Course Type On Course Template",
+      "area": "adr",
+      "document_type": "adr",
+      "document_status": "Approved",
+      "implementation_status": "Partial",
+      "metadata_complete": true,
+      "authority": "architecture_decision",
+      "canonical_for": [],
+      "topics": [
+        "course",
+        "course-template",
+        "product",
+        "cohort",
+        "enrollment"
+      ],
+      "keywords": {
+        "vi": [
+          "loại khóa học",
+          "tự học",
+          "theo lịch",
+          "kết hợp",
+          "thời điểm học"
+        ],
+        "en": [
+          "course type",
+          "self-paced",
+          "scheduled",
+          "blended",
+          "learning availability"
+        ]
+      },
+      "identifiers": [
+        "course_type",
+        "course_type_snapshot",
+        "offering_type"
+      ],
+      "related_documents": [
+        "adr/ADR-0014-Product-Offering-And-Draft-Binding.md",
+        "core/LF-Core-Course.md",
+        "database/course/core_course_templates.md",
+        "database/course/core_course_products.md",
+        "database/course/core_course_cohorts.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"

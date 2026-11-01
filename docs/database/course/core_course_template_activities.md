@@ -6,7 +6,7 @@ Document Status: Approved
 
 Implementation Status: Unknown
 
-Last Updated: 2026-08-09
+Last Updated: 2026-11-01
 
 Document Path: database/course/core_course_template_activities.md
 
@@ -105,6 +105,16 @@ core_course_template_activities
 * Activity `live_class` không được chọn `anytime`; chọn một hay nhiều thời điểm
   theo buổi học, mặc định `during_session` khi không khai báo.
 * Activity hiện có mặc định `anytime`.
+* Amendment 2026-11-01 (Approved,
+  [ADR-0022](../../adr/ADR-0022-Course-Type-On-Template.md)): lựa chọn hợp lệ bị
+  giới hạn theo `core_course_templates.course_type`:
+  * `self_paced`: chỉ `anytime`; server tự gán, request gửi thời điểm theo buổi
+    bị từ chối; không cho `activity_type = live_class`.
+  * `scheduled`: chỉ `before_session` / `during_session` / `after_session`
+    (≥ 1); `anytime` bị từ chối; mặc định `during_session` khi không khai báo.
+  * `blended`: cả 4 lựa chọn theo các quy tắc ở trên.
+  Backend kiểm tra khi tạo/sửa Activity, khi đổi loại Template và trong
+  Publish readiness.
 * Không tham chiếu Live Class Activity; Cohort Session thực tế gắn Lesson là
   mốc thời gian ở runtime.
 * Các lựa chọn này độc lập với sort order, completion, unlock và Progress.

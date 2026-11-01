@@ -1121,7 +1121,7 @@ class CourseCohortStudentManagementTest extends TestCase
     {
         $now = now();
 
-        return DB::table('core_course_templates')->insertGetId([
+        return DB::table('core_course_templates')->insertGetId(['course_type' => 'blended', 
             'customer_id' => $customerId,
             'category_id' => null,
             'title' => $title,
@@ -1152,7 +1152,7 @@ class CourseCohortStudentManagementTest extends TestCase
         $now = now();
         $templateId = $this->createTemplate($customerId, $userId, $title);
 
-        $versionId = DB::table('core_course_template_versions')->insertGetId([
+        $versionId = DB::table('core_course_template_versions')->insertGetId(['course_type_snapshot' => 'blended', 
             'customer_id' => $customerId,
             'template_id' => $templateId,
             'version_number' => 1,

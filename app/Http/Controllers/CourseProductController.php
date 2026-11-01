@@ -10,6 +10,7 @@ use App\Services\MediaThumbnailPresenter;
 use App\Services\TrustedVideoUrlService;
 use App\Support\AuditLog;
 use App\Support\CourseProductV2;
+use App\Support\CourseType;
 use App\Support\CourseProductVersionSummaryPresenter;
 use App\Support\SequentialCodeGenerator;
 use App\Support\TenantContext;
@@ -48,6 +49,7 @@ class CourseProductController extends Controller
         $keyword = trim((string) $request->query('keyword', ''));
         $status = $request->query('status');
         $visibility = $request->query('visibility');
+        $courseType = in_array($request->query('course_type'), CourseType::VALUES, true) ? $request->query('course_type') : null;
 
         if (! in_array($status, [...self::STATUSES, 'all'], true)) {
             $status = null;
@@ -57,28 +59,39 @@ class CourseProductController extends Controller
             $visibility = null;
         }
 
-        $products = DB::table('core_course_products')
-            ->where('customer_id', $customerId)
+        // ADR-0022: the course type is read through the active Product Item and its Version, never stored on Product.
+        $boundTypes = DB::table('core_course_product_items as items')
+            ->join('core_course_template_versions as versions', function ($join) use ($customerId): void {
+                $join->on('versions.id', '=', 'items.version_id')->where('versions.customer_id', $customerId);
+            })
+            ->where('items.customer_id', $customerId)
+            ->where('items.status', 'active')
+            ->select(['items.product_id', 'versions.course_type_snapshot as course_type']);
+        $products = DB::table('core_course_products as products')
+            ->leftJoinSub($boundTypes, 'bound', 'bound.product_id', '=', 'products.id')
+            ->where('products.customer_id', $customerId)
             ->when($keyword !== '', function ($query) use ($keyword): void {
                 $query->where(function ($query) use ($keyword): void {
-                    $query->where('title', 'like', '%'.$keyword.'%')
-                        ->orWhere('slug', 'like', '%'.$keyword.'%')
-                        ->orWhere('product_code', 'like', '%'.$keyword.'%');
+                    $query->where('products.title', 'like', '%'.$keyword.'%')
+                        ->orWhere('products.slug', 'like', '%'.$keyword.'%')
+                        ->orWhere('products.product_code', 'like', '%'.$keyword.'%');
                 });
             })
             ->when($status, function ($query) use ($status): void {
                 if ($status !== 'all') {
-                    $query->where('status', $status);
+                    $query->where('products.status', $status);
                 }
             })
             ->when($status === null, function ($query): void {
-                $query->where('status', '!=', 'archived');
+                $query->where('products.status', '!=', 'archived');
             })
             ->when($visibility, function ($query) use ($visibility): void {
-                $query->where('visibility', $visibility);
+                $query->where('products.visibility', $visibility);
             })
-            ->orderByDesc('created_at')
-            ->orderByDesc('id')
+            ->when($courseType, fn ($query) => $query->where('bound.course_type', $courseType))
+            ->select(['products.*', 'bound.course_type'])
+            ->orderByDesc('products.created_at')
+            ->orderByDesc('products.id')
             ->paginate(10)
             ->withQueryString();
 
@@ -93,6 +106,7 @@ class CourseProductController extends Controller
             'keyword' => $keyword,
             'status' => $status,
             'visibility' => $visibility,
+            'courseType' => $courseType,
             'routePrefix' => $this->routePrefix($request),
         ]);
     }
@@ -109,6 +123,7 @@ class CourseProductController extends Controller
             'coverImageMedia' => null,
             'categories' => $this->categories($customerId),
             'templates' => $versionState['templates'],
+            'pickerTemplates' => $this->versionSummaryPresenter->pickerTemplates($customerId),
             'introMedia' => [],
             'introImageThumbnail' => null,
             'introVideoThumbnail' => null,
@@ -219,7 +234,9 @@ class CourseProductController extends Controller
             ),
             'categories' => $this->categories($customerId),
             'templates' => $versionState['templates'],
+            'pickerTemplates' => $this->versionSummaryPresenter->pickerTemplates($customerId),
             'selectedTemplateId' => $versionState['selected_template_id'],
+            'boundCourseType' => $this->boundCourseType($customerId, $id),
             'introMedia' => [
                 'intro_image' => $introImageMedia,
                 'intro_video' => $introVideoMedia,
@@ -498,11 +515,30 @@ class CourseProductController extends Controller
                 ->where('versions.status', 'published')
                 ->where('templates.status', 'active')
                 ->where('templates.category_id', $product->category_id)
-                ->lockForUpdate()->first(['versions.id']);
+                ->lockForUpdate()->first(['versions.id', 'versions.course_type_snapshot']);
             if (! $version) {
                 throw ValidationException::withMessages([
                     'version_id' => __('lf.LF_course_product_item_validation_published_version'),
                 ]);
+            }
+            // ADR-0022: a Product already used by learners or a class keeps its course type.
+            $currentType = $item->version_id ? DB::table('core_course_template_versions')
+                ->where('customer_id', $customerId)->where('id', $item->version_id)->value('course_type_snapshot') : null;
+            if ($currentType !== null && $currentType !== $version->course_type_snapshot
+                && $this->templateChangePolicy->hasUsage($customerId, $productId)) {
+                throw ValidationException::withMessages(['version_id' => __('lf.LF_course_type_product_version_mismatch', [
+                    'current' => __(CourseType::labelKey($currentType)),
+                    'target' => __(CourseType::labelKey((string) $version->course_type_snapshot)),
+                ])]);
+            }
+            $durations = DB::table('core_course_products')->where('customer_id', $customerId)->where('id', $productId)
+                ->first(['access_duration_days']);
+            if (CourseType::usesAccessDuration($version->course_type_snapshot) && ! $durations?->access_duration_days) {
+                throw ValidationException::withMessages(['version_id' => __('lf.LF_course_type_product_access_days_required')]);
+            }
+            if (! CourseType::usesAccessDuration($version->course_type_snapshot)) {
+                DB::table('core_course_products')->where('customer_id', $customerId)->where('id', $productId)
+                    ->update(['access_duration_days' => null, 'review_duration_days' => null]);
             }
             DB::table('core_course_product_items')->where('customer_id', $customerId)
                 ->where('product_id', $productId)->where('id', $item->id)->update([
@@ -661,6 +697,12 @@ class CourseProductController extends Controller
         ?object $product = null
     ): array {
         $input = $this->validationInput($request);
+        // ADR-0022: the course type comes from the bound Version; only a self-paced course has learning days.
+        $courseType = $this->requestedCourseType($customerId, $input, $productId);
+        if ($courseType !== null && ! CourseType::usesAccessDuration($courseType)) {
+            $input['access_duration_days'] = null;
+            $input['review_duration_days'] = null;
+        }
         $input['slug'] = $this->systemSlug(
             (string) $request->input('title', ''),
             $product,
@@ -669,7 +711,7 @@ class CourseProductController extends Controller
 
         $validator = Validator::make(
             $input,
-            $this->validationRules($customerId, $productId),
+            $this->validationRules($customerId, $productId, $courseType),
             $this->validationMessages()
         );
         $validator->after(function ($validator) use ($input, $customerId, $productId, $request, $product): void {
@@ -697,7 +739,7 @@ class CourseProductController extends Controller
                     ]));
                 }
             }
-            if (! array_key_exists('offering_type', $input)) {
+            if (! array_key_exists('template_id', $input)) {
                 return;
             }
             $categoryId = (int) ($input['category_id'] ?? 0);
@@ -780,15 +822,14 @@ class CourseProductController extends Controller
         return $validator->validate();
     }
 
-    private function validationRules(int $customerId, ?int $productId = null): array
+    private function validationRules(int $customerId, ?int $productId = null, ?string $courseType = null): array
     {
-        $legacy = request()->has('product_type') && ! request()->has('offering_type');
+        $legacy = request()->has('product_type') && ! request()->has('template_id');
 
         return [
             'category_id' => [$legacy ? 'nullable' : 'required', 'integer', Rule::exists('core_course_categories', 'id')->where(fn ($q) => $q->where('customer_id', $customerId))],
             'template_id' => [$legacy ? 'nullable' : 'required', 'integer'],
             'template_version_id' => ['nullable', 'integer', 'min:1'],
-            'offering_type' => [$legacy ? 'nullable' : 'required', Rule::in(CourseProductV2::OFFERING_TYPES)],
             'title' => ['required', 'string', 'max:255'],
             'slug' => [
                 'required',
@@ -823,7 +864,7 @@ class CourseProductController extends Controller
                 Rule::in(['free', 'paid', 'invitation']),
             ],
             'max_students' => ['nullable', 'integer', 'min:0'],
-            'access_duration_days' => ['nullable', Rule::requiredIf(fn () => request('offering_type') === 'self_paced_course'), 'integer', 'min:1', 'max:36500'],
+            'access_duration_days' => ['nullable', Rule::requiredIf(CourseType::usesAccessDuration($courseType)), 'integer', 'min:1', 'max:36500'],
             'review_duration_days' => ['nullable', 'integer', 'min:0', 'max:36500'],
             'is_refundable' => [$legacy ? 'required' : 'nullable', 'boolean'],
             'refund_days' => ['nullable', 'integer', 'min:0'],
@@ -875,7 +916,7 @@ class CourseProductController extends Controller
     private function validationInput(Request $request): array
     {
         $fields = [
-            'category_id', 'template_id', 'template_version_id', 'offering_type',
+            'category_id', 'template_id', 'template_version_id',
             'uses_custom_description', 'uses_custom_intro_media',
             'title',
             'slug',
@@ -931,22 +972,54 @@ class CourseProductController extends Controller
             }
         }
 
-        if (! ($request->has('product_type') && ! $request->has('offering_type'))) {
+        if (! ($request->has('product_type') && ! $request->has('template_id'))) {
             $input['uses_custom_description'] = $request->boolean('uses_custom_description');
             $input['uses_custom_intro_media'] = $request->boolean('uses_custom_intro_media');
             $input['promotion_enabled'] = $request->boolean('promotion_enabled');
         }
 
-        if (array_key_exists('offering_type', $input) && $input['offering_type'] !== 'self_paced_course') {
-            $input['access_duration_days'] = null;
-            $input['review_duration_days'] = null;
-        }
         if (array_key_exists('promotion_enabled', $input) && ! $input['promotion_enabled']) {
             $input['discount_type'] = $input['discount_value'] = null;
             $input['sale_starts_at'] = $input['sale_ends_at'] = null;
         }
 
         return $input;
+    }
+
+    /**
+     * The course type the request binds: the requested published Version, else the bound Version,
+     * else the working Template of a Draft without a Version. Null when nothing is selected.
+     */
+    private function requestedCourseType(int $customerId, array $input, ?int $productId): ?string
+    {
+        if (! empty($input['template_version_id'])) {
+            $type = DB::table('core_course_template_versions')->where('customer_id', $customerId)
+                ->where('id', (int) $input['template_version_id'])->value('course_type_snapshot');
+            if ($type !== null) {
+                return $type;
+            }
+        }
+        if ($productId) {
+            $type = $this->boundCourseType($customerId, $productId);
+            if ($type !== null) {
+                return $type;
+            }
+        }
+
+        return empty($input['template_id']) ? null : DB::table('core_course_templates')
+            ->where('customer_id', $customerId)->where('id', (int) $input['template_id'])->value('course_type');
+    }
+
+    private function boundCourseType(int $customerId, int $productId): ?string
+    {
+        return DB::table('core_course_product_items as items')
+            ->join('core_course_template_versions as versions', function ($join) use ($customerId): void {
+                $join->on('versions.id', '=', 'items.version_id')->where('versions.customer_id', $customerId);
+            })
+            ->where('items.customer_id', $customerId)
+            ->where('items.product_id', $productId)
+            ->where('items.status', 'active')
+            ->value('versions.course_type_snapshot');
     }
 
     private function validatedItemData(
@@ -1077,7 +1150,6 @@ class CourseProductController extends Controller
         return array_merge([
             'product_type' => CourseProductV2::PACKAGE_SINGLE,
             'category_id' => $validated['category_id'] ?? null,
-            'offering_type' => $validated['offering_type'] ?? null,
             'title' => $validated['title'],
             'slug' => $validated['slug'],
             'short_description' => $validated['short_description'] ?? null,

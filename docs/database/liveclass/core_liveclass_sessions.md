@@ -219,6 +219,11 @@ Evidence.
 
 Allowed `delivery_mode`: `online`, `offline`, `hybrid`.
 
+Amendment 2026-11-01 (Approved, [ADR-0022](../../adr/ADR-0022-Course-Type-On-Template.md)): `delivery_mode` là thuộc tính của buổi học,
+không phải loại khóa học. Khóa học Theo lịch / Kết hợp có thể có buổi online,
+offline hoặc cả hai; lớp "hybrid" là lớp có cả buổi online và offline. Thuộc
+tính offline (phòng, địa điểm, điểm danh, sĩ số) là câu hỏi mở, chưa thiết kế.
+
 `meeting_url_snapshot` is the authoritative join URL for both Session types and
 may stay `NULL` until it is known. For a curriculum Session it defaults to the
 Version Activity `live_class_url_snapshot` when no URL is submitted, and the

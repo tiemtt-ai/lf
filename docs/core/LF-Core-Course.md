@@ -6,7 +6,7 @@ Document Status: Approved
 
 Implementation Status: Unknown
 
-Last Updated: 2026-08-22
+Last Updated: 2026-11-01
 
 Document Path: core/LF-Core-Course.md
 
@@ -393,6 +393,10 @@ when none is declared.
 Existing Activities default to `anytime`. Activity `sort_order` controls only
 display order and does not define availability.
 
+> Amendment 2026-11-01 (Approved, [ADR-0022](../adr/ADR-0022-Course-Type-On-Template.md)):
+> các lựa chọn hợp lệ còn bị giới hạn theo loại khóa học của Template; xem
+> [Course Type](#course-type--amendment-2026-11-01-approved).
+
 This declaration belongs to the Course definition and is frozen into the
 Version Activity at publish. It does not reference or require a Live Class
 Activity in the Template. Only a curriculum Cohort Session bound to the
@@ -450,6 +454,124 @@ apply to the requested target binding.
 Product Item and Enrollment continue to reference the immutable Version.
 Template lifecycle therefore must not unlink Product Items, replace Versions,
 silent-migrate Enrollments, or reset Progress.
+
+## Course Type — Amendment 2026-11-01 (Approved)
+
+> Trạng thái: **Approved** 2026-11-01 theo
+> [ADR-0022](../adr/ADR-0022-Course-Type-On-Template.md). Mục này thay thế mọi
+> quy tắc dựa trên `core_course_products.offering_type` trong tài liệu này.
+
+### Ba loại khóa học
+
+| Mã | Tên hiển thị | Ý nghĩa |
+| --- | --- | --- |
+| `self_paced` | Tự học | Học bất kỳ lúc nào trong thời hạn học; không cần lớp. |
+| `scheduled` | Theo lịch | Học theo lịch buổi học của lớp. Thay cho "Khóa học trực tuyến" cũ vì buổi học có thể online hoặc offline. |
+| `blended` | Kết hợp | Có cả hoạt động học tự do và hoạt động theo buổi học; học theo lớp. |
+
+Loại khóa học thuộc **Course Template** (`course_type`) và được đóng băng vào
+Version khi publish (`course_type_snapshot`). Mọi nơi dùng nội dung đã xuất
+bản (Product, Cohort, Enrollment, runtime quyền học) đọc loại của **Version
+được gắn**, không đọc giá trị đang sửa trên Template.
+
+### Chọn và đổi loại
+
+* Bắt buộc chọn khi tạo Template; UI không chọn sẵn giá trị.
+* Đổi loại bị khóa khi có bất kỳ Product Item nào (mọi trạng thái Product) gắn
+  một Version đã xuất bản của Template (`version_id` khác `NULL`). UI hiển thị
+  loại ở dạng chỉ đọc kèm lý do khóa.
+* Khi chưa khóa, server kiểm tra mọi working Activity theo giới hạn của loại
+  mới. Nếu có Activity không hợp lệ, từ chối và liệt kê từng Activity (Bài học,
+  tên Activity, thời điểm đang chọn). Không tự chuyển đổi thời điểm.
+* Template `archived` chỉ đọc. Đổi loại tăng `working_revision`.
+* Nhân bản Version về draft (ADR-0013): nếu loại của Version khác loại working
+  Template, Template nhận loại của Version khi việc đổi loại đang được phép;
+  nếu đang bị khóa thì từ chối nhân bản và nêu lý do.
+
+### Giới hạn thời điểm học của Activity theo loại
+
+| Loại | Lựa chọn hợp lệ | Hành vi |
+| --- | --- | --- |
+| Tự học | chỉ `anytime` | Ẩn trường thời điểm trên UI; server luôn gán `anytime`; request gửi thời điểm theo buổi bị từ chối. Không cho tạo Activity `live_class`. |
+| Theo lịch | `before_session`, `during_session`, `after_session` (≥ 1) | `anytime` bị từ chối; không khai báo thì mặc định `during_session`. |
+| Kết hợp | cả 4 lựa chọn | Theo quy tắc hiện hành ở [Activity Learning Availability](#activity-learning-availability). |
+
+Backend kiểm tra khi tạo/sửa Activity, khi đổi loại Template, khi nhân bản
+Version về draft và trong Publish readiness (Activity không khớp loại là lỗi
+chặn xuất bản).
+
+### Vai trò Template và Product
+
+* Template giữ **tên nội bộ** và nội dung học.
+* Product giữ **tên thương mại** (`title`, hiển thị cho học viên), giá, thời gian
+  đăng ký và số ngày học / ôn tập.
+* Product không có trường loại riêng. Loại của Product là loại của Version mà
+  Product Item gắn, hiển thị chỉ đọc. Product chưa gắn Version (Draft) hiển thị
+  loại đang có của Template đã chọn, ghi rõ "theo Template, chưa xuất bản".
+* `access_duration_days` / `review_duration_days` chỉ hiện và chỉ áp dụng cho
+  Tự học; Theo lịch / Kết hợp lưu `NULL` cả hai.
+* Product đã có Enrollment hoặc Cohort chỉ được chuyển sang Version **cùng loại**.
+  Product chưa có Enrollment và Cohort được gắn lại tự do; số ngày không còn áp
+  dụng bị xóa trong cùng transaction.
+
+### Chọn Template trên form Product
+
+Form Product mở popup chọn Template gồm:
+
+* Tab lọc theo loại: Tất cả · Tự học · Theo lịch · Kết hợp; ô tìm theo tên hoặc
+  mã.
+* Mỗi dòng: tên, mã, nhãn loại (mỗi loại một màu), phiên bản đã xuất bản mới
+  nhất, số Product đang dùng Template.
+* Chỉ chọn được Template thỏa
+  [Product Eligibility](#course-template-lifecycle-and-product-eligibility).
+  Template không đủ điều kiện (ví dụ chưa có Version đã xuất bản) hiển thị mờ
+  kèm lý do.
+* Chọn xong, form hiện loại (chỉ đọc) và ẩn/hiện các trường cấu hình theo loại.
+
+Danh sách Product hiển thị nhãn loại và có bộ lọc theo loại (đọc qua Product
+Item → Version).
+
+### Lớp học
+
+Cohort chỉ được gắn Product có loại Theo lịch hoặc Kết hợp. Backend kiểm tra
+khi tạo Cohort; danh sách chọn Product trên form Cohort chỉ liệt kê các Product
+này.
+
+### Quyền học theo loại
+
+* **Tự học:** giữ nguyên chính sách thời hạn theo số ngày từ `enrolled_at`
+  ([Registration And Time Projection Policy](#registration-and-time-projection-policy)).
+* **Theo lịch:** Enrollment không có thời hạn theo ngày (các trường thời hạn
+  `NULL`, như chính sách `live_online_course` hiện hành); quyền học theo lớp,
+  buổi học và Live Class.
+* **Kết hợp:** Enrollment không có thời hạn theo ngày. Activity theo buổi học
+  mở theo buổi của lớp. Activity `anytime` mở từ `start_date` đến hết
+  `end_date` của Cohort mà Enrollment là thành viên (ngày địa phương theo
+  timezone tenant). Đây là ngoại lệ có chủ đích với quy tắc "không suy ra thời
+  hạn từ ngày của Cohort": thời gian lớp giới hạn quyền mở Activity tại runtime
+  nhưng không được ghi vào Enrollment.
+* Theo lịch và Kết hợp: Enrollment chưa thuộc Cohort nào không có buổi học nên
+  chưa mở được Activity theo buổi; với Kết hợp, Activity `anytime` cũng chưa mở
+  vì không có thời gian lớp.
+
+Mọi chỗ đang đọc `offering_type` của Product để tính quyền học phải chuyển sang
+đọc `course_type_snapshot` của Version gắn trên Enrollment.
+
+### Hình thức online / offline
+
+Online / offline / hybrid là `delivery_mode` của **buổi học** (Session), không
+phải loại khóa học. Lớp "hybrid" là lớp Theo lịch (hoặc Kết hợp) có cả buổi
+online và buổi offline. Nguyên tắc này chỉ được ghi nhận; chưa thay đổi code.
+
+### Câu hỏi mở / chưa làm
+
+* Số ngày ôn tập sau khi lớp kết thúc cho Theo lịch / Kết hợp (chưa chốt).
+* Thuộc tính online/offline của buổi học: phòng, địa điểm, điểm danh, sĩ số
+  (chưa thiết kế).
+* Tái sử dụng nội dung giữa các Template khác loại (hiện tại: nhân bản Template).
+* Cửa sổ thời gian chính xác của Trước / Trong / Sau buổi học: hiện chưa có
+  runtime tính theo buổi (xem Activity Learning Availability).
+* Bundle (`product_type = bundle`, chưa có UI) chứa Version khác loại.
 
 ---
 
@@ -588,6 +710,10 @@ Product không expose working Template content.
 
 Product không sao chép Version content.
 
+> Amendment 2026-11-01 (Approved, ADR-0022): Product bỏ `offering_type`; loại
+> khóa học đọc từ Version được gắn. Xem
+> [Course Type](#course-type--amendment-2026-11-01-approved).
+
 ## Product Registration And Promotion Windows
 
 Thời gian đăng ký và thời gian khuyến mại đều là cấu hình không bắt buộc.
@@ -631,6 +757,9 @@ Create a new Course Product
 ```
 
 Không được silent-update content của Enrollment hiện có.
+
+> Amendment 2026-11-01 (Approved, ADR-0022): khi Product đã có Enrollment hoặc
+> Cohort, Version mới phải cùng loại khóa học với Version đang gắn.
 
 Product versioning so với tạo Product mới cần owner xác nhận theo từng business model.
 
@@ -1003,6 +1132,11 @@ correction area; the client must not silently remove it. Continue/save remains
 blocked until the operator changes `enrolled_at` or removes that Product. The
 backend remains authoritative and repeats the same validation during preflight
 and commit/save to cover stale clients and concurrent Product changes.
+
+> Amendment 2026-11-01 (Approved, ADR-0022): "Product's
+> `offering_type`" trong mục này đọc là loại khóa học của Version được gắn;
+> `self_paced_course` tương ứng `self_paced`; `live_online_course` tương ứng
+> `scheduled` và `blended`.
 
 Duration projection branches by the Product's authoritative `offering_type`.
 For `self_paced_course`, `access_duration_days` must be a positive integer.

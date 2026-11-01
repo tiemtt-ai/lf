@@ -8,11 +8,6 @@ final class CourseProductV2
 
     public const PACKAGE_TYPES = [self::PACKAGE_SINGLE, 'bundle'];
 
-    public const OFFERING_TYPES = [
-        'self_paced_course', 'live_online_course', 'blended_course',
-        'assessment', 'learning_material',
-    ];
-
     public const STATUSES = ['draft', 'active', 'inactive', 'archived'];
 
     public const DISCOUNT_TYPES = ['percentage', 'fixed_amount'];
