@@ -117,21 +117,19 @@ class BackendLayoutNavigationTest extends TestCase
         $this->assertDoesNotMatchRegularExpression('/admin-nav__child" href="[^"]+\/teacher\/course-products/', $teacherHtml);
     }
 
-    public function test_learning_framework_create_uses_the_standard_admin_form_contract(): void
+    public function test_learning_framework_create_is_a_ui_kit_dialog(): void
     {
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
+        $url = 'https://tenant-a.localhost/admin/learning-frameworks/create';
 
-        $this->actingAs($admin)
-            ->get('https://tenant-a.localhost/admin/learning-frameworks/create')
+        $this->actingAs($admin)->get($url)->assertNotFound();
+        $this->actingAs($admin)->get($url, ['X-Requested-With' => 'XMLHttpRequest'])
             ->assertOk()
             ->assertSeeText(__('lf.LF_learning_create_framework'))
-            ->assertSee('class="admin-card admin-form-card admin-form-surface', false)
-            ->assertSee('class="admin-form-standard"', false)
-            ->assertSee('class="admin-form-field-grid"', false)
-            ->assertSee('class="lf-form-control"', false)
-            ->assertSee('class="admin-form-footer"', false)
-            ->assertSee('href="https://tenant-a.localhost/admin/learning-frameworks"', false);
+            ->assertSee('class="ui-modal__form"', false)
+            ->assertSee('data-ui-dialog-form-submit', false)
+            ->assertDontSee('<html', false);
     }
 
     public function test_list_pages_put_their_buttons_in_the_list_toolbar_by_priority_not_in_the_page_heading(): void

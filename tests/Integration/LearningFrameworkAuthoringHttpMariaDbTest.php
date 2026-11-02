@@ -97,6 +97,21 @@ class LearningFrameworkAuthoringHttpMariaDbTest extends TestCase
         ]);
     }
 
+    public function test_the_popup_create_answers_json_and_continues_on_the_new_framework(): void
+    {
+        $response = $this->admin()->postJson($this->host.'/admin/learning-frameworks', $this->frameworkPayload('fw-popup'))
+            ->assertCreated();
+
+        $id = DB::table('core_learning_frameworks')->where('code', 'fw-popup')->value('id');
+        $this->assertStringEndsWith('/admin/learning-frameworks/'.$id, $response->json('redirect'));
+
+        // The scale rule lives in the service: its refusal must reach the popup as a field error, not a redirect.
+        $payload = $this->frameworkPayload('fw-popup-bad');
+        $payload['mastery_scale']['levels'][1]['threshold'] = '0';
+        $this->admin()->postJson($this->host.'/admin/learning-frameworks', $payload)
+            ->assertUnprocessable()->assertJsonValidationErrors('mastery_scale');
+    }
+
     public function test_only_a_framework_without_versions_or_definitions_can_be_deleted(): void
     {
         $empty = $this->createFramework('fw-delete-empty');
@@ -425,8 +440,8 @@ class LearningFrameworkAuthoringHttpMariaDbTest extends TestCase
         $scale = json_decode((string) DB::table('core_learning_frameworks')->where('code', $codes[0])->value('default_mastery_scale'), true);
         $this->assertSame(['not_started', 'developing', 'proficient', 'mastered'], array_column($scale['levels'], 'key'));
 
-        $html = $this->admin()->get($this->host.'/admin/learning-frameworks/create')->assertOk()->getContent();
-        $this->assertStringContainsString('<details class="admin-form-standard-section lf-framework-create__advanced"', $html, 'Code and scale sit in the closed Advanced drawer.');
+        $html = $this->admin()->get($this->host.'/admin/learning-frameworks/create', ['X-Requested-With' => 'XMLHttpRequest'])->assertOk()->getContent();
+        $this->assertStringContainsString('<details class="ui-field--full ui-framework-codes"', $html, 'Code and scale sit in the closed Advanced drawer.');
         $this->assertStringContainsString('value="proficient"', $html);
     }
 

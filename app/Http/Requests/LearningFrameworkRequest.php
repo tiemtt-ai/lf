@@ -49,6 +49,17 @@ class LearningFrameworkRequest extends FormRequest
     }
 
     /**
+     * @return array<string, string>
+     */
+    public function attributes(): array
+    {
+        return [
+            'mastery_scale.levels.*.key' => __('lf.LF_learning_simple_scale_level_code'),
+            'mastery_scale.levels.*.threshold' => __('lf.LF_learning_threshold_percent'),
+        ];
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function command(): array

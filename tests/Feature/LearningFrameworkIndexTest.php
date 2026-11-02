@@ -133,19 +133,36 @@ class LearningFrameworkIndexTest extends TestCase
         $this->actingAs($this->admin)->get($this->url('TOPIK'))->assertForbidden();
     }
 
-    public function test_create_form_has_cancel_before_submit_and_cancel_returns_to_list(): void
+    public function test_create_opens_a_popup_from_the_list_with_the_full_scale(): void
     {
-        $response = $this->actingAs($this->admin)
-            ->get('https://framework-search.localhost/admin/learning-frameworks/create')
-            ->assertOk()->assertSeeInOrder([
-                'lf-framework-create__actions', __('lf.LF_common_button_cancel'), __('lf.LF_learning_create_framework'),
-            ]);
-        $this->assertStringContainsString('type="submit"', $response->getContent());
-        $response->assertSee('id="framework-create-scale"', false)
+        $this->actingAs($this->admin)->get(self::LIST_URL)->assertOk()
+            ->assertSee('data-url="'.self::LIST_URL.'/create"', false)
+            ->assertSee('data-ui-dialog-form ', false);
+
+        $this->actingAs($this->admin)->get(self::LIST_URL.'/create', ['X-Requested-With' => 'XMLHttpRequest'])->assertOk()
+            ->assertSeeInOrder([__('lf.LF_common_button_cancel'), __('lf.LF_common_button_confirm')])
             ->assertSee('name="mastery_scale[levels][0][threshold]"', false)
-            ->assertSee('name="mastery_scale[levels][3][key]"', false);
-        $this->get('https://framework-search.localhost/admin/learning-frameworks')->assertOk();
+            ->assertSee('name="mastery_scale[levels][3][key]"', false)
+            ->assertSee('value="0.75"', false);
         $this->assertDatabaseCount('core_learning_frameworks', 3);
+    }
+
+    public function test_a_popup_create_error_comes_back_as_json_on_its_field(): void
+    {
+        $this->actingAs($this->admin)->postJson(self::LIST_URL, [
+            'name' => '', 'mastery_scale_key' => 'lf-default', 'mastery_scale_version' => '1',
+            'mastery_scale' => ['levels' => [
+                ['key' => 'a', 'threshold' => '0'],
+                ['key' => 'b', 'threshold' => ''],
+            ]],
+        ])->assertUnprocessable()->assertJsonValidationErrors(['name', 'mastery_scale.levels.1.threshold']);
+        $this->assertDatabaseCount('core_learning_frameworks', 3);
+    }
+
+    public function test_a_teacher_cannot_open_the_create_popup(): void
+    {
+        $this->admin->forceFill(['role' => 'teacher'])->save();
+        $this->actingAs($this->admin)->get(self::LIST_URL.'/create', ['X-Requested-With' => 'XMLHttpRequest'])->assertForbidden();
     }
 
     public function test_list_has_a_title_and_description(): void

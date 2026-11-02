@@ -12,8 +12,8 @@ use App\Support\TenantContext;
 use DomainException;
 use Illuminate\Database\QueryException;
 use Illuminate\Database\RecordsNotFoundException;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Log;
@@ -88,18 +88,24 @@ final class LearningFrameworkController extends Controller
             : redirect()->route('admin.learning-frameworks.index')->with('success', $message);
     }
 
-    public function create(): View
+    public function create(Request $request): View
     {
-        return view('learning-frameworks.create');
+        abort_unless($request->ajax(), 404);
+
+        return view('learning-frameworks.dialog');
     }
 
-    public function store(LearningFrameworkRequest $request): RedirectResponse
+    public function store(LearningFrameworkRequest $request): JsonResponse|RedirectResponse
     {
-        return $this->mutate(function () use ($request): RedirectResponse {
+        return $this->mutate(function () use ($request): JsonResponse|RedirectResponse {
             $framework = $this->authoring->createFramework((int) $request->user()->id, $request->command());
-
-            return redirect()->route('admin.learning-frameworks.show', $framework->id)
+            $redirect = redirect()->route('admin.learning-frameworks.show', $framework->id)
                 ->with('success', __('lf.LF_learning_framework_created'));
+
+            // The popup continues on the new Framework's page, where the flashed message shows.
+            return $request->expectsJson()
+                ? response()->json(['message' => __('lf.LF_learning_framework_created'), 'redirect' => $redirect->getTargetUrl()], 201)
+                : $redirect;
         });
     }
 
@@ -231,7 +237,15 @@ final class LearningFrameworkController extends Controller
         });
     }
 
-    private function mutate(callable $callback): RedirectResponse
+    /** @param array<string, string> $errors */
+    private function rejected(array $errors): JsonResponse|RedirectResponse
+    {
+        return request()->expectsJson()
+            ? response()->json(['errors' => array_map(fn (string $message): array => [$message], $errors)], 422)
+            : back()->withInput()->withErrors($errors);
+    }
+
+    private function mutate(callable $callback): JsonResponse|RedirectResponse
     {
         try {
             return $callback();
@@ -244,7 +258,7 @@ final class LearningFrameworkController extends Controller
                 'LF_FRAMEWORK_AUTHORING_NODE_ALREADY_IN_DRAFT' => ['learning', 'lf.LF_learning_simple_error_already_in_draft'],
             ][$exception->getMessage()] ?? null;
 
-            return back()->withInput()->withErrors($readable
+            return $this->rejected($readable
                 ? [$readable[0] => __($readable[1])]
                 : ['learning' => __('lf.LF_learning_authoring_error', ['code' => $exception->getMessage()])]);
         } catch (QueryException $exception) {
@@ -260,9 +274,7 @@ final class LearningFrameworkController extends Controller
                 'actor_id' => request()->user()?->id,
             ]);
 
-            return back()->withInput()->withErrors([
-                'learning' => __('lf.LF_learning_authoring_conflict'),
-            ]);
+            return $this->rejected(['learning' => __('lf.LF_learning_authoring_conflict')]);
         }
     }
 

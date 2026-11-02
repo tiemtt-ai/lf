@@ -7,11 +7,11 @@
 
 @section('vite')
     @parent
-    @vite(['resources/css/admin/admin-ui-kit.css', 'resources/js/admin-ui-kit-controls.js', 'resources/js/admin-ui-kit-row-actions.js'])
+    @vite(['resources/css/admin/admin-ui-kit.css', 'resources/js/admin-ui-kit-controls.js', 'resources/js/admin-ui-kit-dialog-form.js', 'resources/js/admin-ui-kit-row-actions.js'])
 @endsection
 
 @section('content')
-<div class="lf-admin-ui lf-admin-ui--list" data-ui-row-actions
+<div id="framework-list" class="lf-admin-ui lf-admin-ui--list" data-ui-dialog-form-scope data-ui-row-actions
      data-csrf="{{ csrf_token() }}"
      data-msg-delete-error="{{ __('lf.LF_learning_delete_error') }}"
      data-msg-session-expired="{{ __('lf.LF_learning_session_expired') }}">
@@ -56,10 +56,11 @@
                 :confirm-label="__('lf.LF_learning_bulk_delete')">
                 <x-slot:create>
                     @if ($totalCount > 0)
-                        <a class="ui-button ui-button--outline cursor-interaction" href="{{ route('admin.learning-frameworks.create') }}">
+                        <button type="button" class="ui-button ui-button--outline cursor-interaction"
+                                data-ui-dialog-form-open data-ui-dialog-form-for="framework-list" data-url="{{ route('admin.learning-frameworks.create') }}" aria-haspopup="dialog">
                             <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
                             {{ __('lf.LF_learning_create_framework') }}
-                        </a>
+                        </button>
                     @endif
                 </x-slot:create>
             </x-ui-list-toolbar>
@@ -140,7 +141,8 @@
                                 <strong>{{ $keyword !== '' ? __('lf.LF_learning_index_no_results') : __('lf.LF_learning_empty') }}</strong>
                                 <p class="ui-caption">{{ $keyword !== '' ? __('lf.LF_learning_index_no_results_help') : __('lf.LF_learning_empty_help') }}</p>
                                 @if ($totalCount === 0)
-                                    <a class="ui-button ui-button--outline cursor-interaction" href="{{ route('admin.learning-frameworks.create') }}">{{ __('lf.LF_learning_create_framework') }}</a>
+                                    <button type="button" class="ui-button ui-button--outline cursor-interaction"
+                                            data-ui-dialog-form-open data-url="{{ route('admin.learning-frameworks.create') }}" aria-haspopup="dialog">{{ __('lf.LF_learning_create_framework') }}</button>
                                 @endif
                             </div>
                         </td>
@@ -155,5 +157,15 @@
             :page-size-label="__('lf.LF_learning_index_page_size')"
             :page-size-option="__('lf.LF_learning_index_page_size_option', ['count' => $frameworks->perPage()])" />
     </section>
+
+    <dialog class="ui-modal" data-columns="2" aria-labelledby="framework-dialog-title" data-ui-dialog-form data-field-id-prefix="framework-form-"
+            data-msg-load-error="{{ __('lf.LF_learning_dialog_load_error') }}"
+            data-msg-discard-title="{{ __('lf.LF_learning_dialog_discard_title') }}"
+            data-msg-discard-text="{{ __('lf.LF_learning_dialog_discard_text') }}"
+            data-msg-discard="{{ __('lf.LF_learning_dialog_discard') }}"
+            data-msg-save-error="{{ __('lf.LF_learning_dialog_save_error') }}"
+            data-msg-session-expired="{{ __('lf.LF_learning_session_expired') }}"
+            data-msg-required-input="{{ __('lf.LF_learning_dialog_required_input') }}"
+            data-msg-required-select="{{ __('lf.LF_learning_dialog_required_input') }}"></dialog>
 </div>
 @endsection
