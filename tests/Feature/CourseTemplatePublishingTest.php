@@ -883,6 +883,14 @@ class CourseTemplatePublishingTest extends TestCase
 
         $this->actingAs($admin)->get($url)->assertOk()->assertSee('media/files/', false)->assertDontSee('tests/activity-', false);
 
+        // ADR-0022: the page shows the type frozen into this Version, whatever the working Template has now.
+        $frozenType = $version->course_type_snapshot;
+        $otherType = $frozenType === 'blended' ? 'scheduled' : 'blended';
+        DB::table('core_course_templates')->where('id', $templateId)->update(['course_type' => $otherType]);
+        $this->actingAs($admin)->get($url)->assertOk()
+            ->assertSee('data-course-type="'.$frozenType.'"', false)
+            ->assertDontSee('data-course-type="'.$otherType.'"', false);
+
         foreach ([
             'wrong_purpose' => fn () => DB::table('media_file_usages')->where('id', $usage->id)->update(['usage_type' => 'audio']),
             'inactive_usage' => fn () => DB::table('media_file_usages')->where('id', $usage->id)->update(['usage_type' => 'document', 'status' => 'detached']),
