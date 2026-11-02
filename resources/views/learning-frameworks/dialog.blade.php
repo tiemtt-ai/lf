@@ -37,7 +37,7 @@
                 </span>
                 <div class="ui-framework-scale" role="group" aria-label="{{ __('lf.LF_learning_simple_scale_title') }}" data-ui-error-for="mastery_scale">
                     <div class="ui-framework-scale__row ui-framework-scale__row--head" aria-hidden="true">
-                        <span>{{ __('lf.LF_learning_simple_scale_level') }}</span>
+                        <span>{{ __('lf.LF_learning_simple_scale_col_level') }}</span>
                         <span>{{ __('lf.LF_learning_simple_scale_level_code') }}</span>
                         <span>{{ __('lf.LF_learning_threshold_percent') }}</span>
                     </div>

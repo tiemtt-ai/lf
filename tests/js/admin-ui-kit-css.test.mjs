@@ -66,5 +66,16 @@ test('Tabs share one type size across forms', () => {
     assert.match(declared(css, '.lf-admin-ui.ui-structure .course-template-structure-tabs button', 'font')[0], /^400 14px\//);
     assert.deepEqual(declared(css, '.lf-admin-ui.ui-structure .course-template-activity-tabs', 'font-size'), ['14px']);
     assert.deepEqual(declared(read('admin-components.css'), '.course-cohort-detail-tabs .btn', 'font-size'), []);
-    assert.deepEqual(declared(read('admin-pages.css'), '.lf-framework__tabs .course-template-tab', 'font-size'), ['14px']);
+});
+
+test('List titles and detail titles share one size', () => {
+    const declared = (selector, prop) => {
+        const values = [];
+        ast.walkRules(rule => {
+            if (rule.selectors.includes(selector)) rule.walkDecls(prop, decl => values.push(decl.value));
+        });
+        return values;
+    };
+    assert.match(declared('.lf-admin-ui .ui-page-head__title', 'font')[0], /^600 20px\//);
+    assert.deepEqual(declared('.lf-admin-ui .ui-version__identity h2', 'font-size'), ['20px']);
 });

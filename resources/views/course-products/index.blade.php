@@ -195,7 +195,7 @@
                                     data-url="{{ route($routePrefix.'.form', $product->id) }}" aria-haspopup="dialog"
                                     aria-label="{{ __('lf.LF_course_template_action_edit_info') }}: {{ $product->title }}"
                                     data-tooltip="{{ __('lf.LF_course_template_action_edit_info') }}">
-                                <x-backend-icon name="pencil" class="ui-icon" />
+                                <x-backend-icon name="square-pen" class="ui-icon" />
                             </button>
                         </td>
                     </tr>

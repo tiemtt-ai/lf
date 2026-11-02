@@ -120,16 +120,59 @@ final class LearningFrameworkController extends Controller
         return view('learning-frameworks.show', [...$detail, 'tab' => $tab, 'viewedVersion' => $viewed]);
     }
 
-    public function update(LearningFrameworkRequest $request, int $framework): RedirectResponse
+    public function form(Request $request, int $framework): View
     {
-        return $this->mutate(function () use ($request, $framework): RedirectResponse {
+        return $this->dialog($request, $framework, 'framework');
+    }
+
+    public function scaleForm(Request $request, int $framework): View
+    {
+        return $this->dialog($request, $framework, 'scale');
+    }
+
+    public function competencyForm(Request $request, int $framework): View
+    {
+        return $this->dialog($request, $framework, 'competency');
+    }
+
+    public function definitionForm(Request $request, int $framework, int $definition): View
+    {
+        return $this->dialog($request, $framework, 'definition', $definition);
+    }
+
+    /** A popup fragment for an active Framework of the tenant; the read service scopes the lookup. */
+    private function dialog(Request $request, int $framework, string $name, ?int $definitionId = null): View
+    {
+        abort_unless($request->ajax(), 404);
+        $detail = $this->reader->detail((int) $request->user()->id, $framework);
+        abort_unless($detail['framework']->status === 'active', 404);
+        $definition = $definitionId === null ? null : $detail['definitions']->firstWhere('id', $definitionId);
+        abort_if($definitionId !== null && $definition === null, 404);
+
+        return view('learning-frameworks.dialogs.'.$name, [...$detail, 'definition' => $definition]);
+    }
+
+    /** A popup save reloads the page it came from, which shows the flashed message. */
+    private function saved(string $message): JsonResponse|RedirectResponse
+    {
+        if (! request()->expectsJson()) {
+            return back()->with('success', $message);
+        }
+        session()->flash('success', $message);
+
+        return response()->json(['message' => $message, 'redirect' => url()->previous()]);
+    }
+
+    public function update(LearningFrameworkRequest $request, int $framework): JsonResponse|RedirectResponse
+    {
+        return $this->mutate(function () use ($request, $framework): JsonResponse|RedirectResponse {
             $this->authoring->updateFramework((int) $request->user()->id, $framework, $request->command());
 
-            return back()->with('success', __('lf.LF_learning_framework_updated'));
+            return $this->saved(__('lf.LF_learning_framework_updated'));
         });
     }
 
-    public function storeVersion(LearningFrameworkVersionRequest $request, int $framework): RedirectResponse
+    public function storeVersion(LearningFrameworkVersionRequest $request, int $framework): JsonResponse|RedirectResponse
     {
         return $this->mutate(function () use ($request, $framework): RedirectResponse {
             $command = $request->command();
@@ -140,7 +183,7 @@ final class LearningFrameworkController extends Controller
         });
     }
 
-    public function updateVersion(LearningFrameworkVersionRequest $request, int $framework, int $version): RedirectResponse
+    public function updateVersion(LearningFrameworkVersionRequest $request, int $framework, int $version): JsonResponse|RedirectResponse
     {
         return $this->mutate(function () use ($request, $framework, $version): RedirectResponse {
             $command = $request->command();
@@ -151,7 +194,7 @@ final class LearningFrameworkController extends Controller
         });
     }
 
-    public function publishVersion(int $framework, int $version): RedirectResponse
+    public function publishVersion(int $framework, int $version): JsonResponse|RedirectResponse
     {
         return $this->mutate(function () use ($framework, $version): RedirectResponse {
             $this->assertVersionInFramework($version, $framework);
@@ -162,7 +205,7 @@ final class LearningFrameworkController extends Controller
     }
 
     /** Throws the working draft away; the published Versions are untouched. */
-    public function destroyVersion(int $framework, int $version): RedirectResponse
+    public function destroyVersion(int $framework, int $version): JsonResponse|RedirectResponse
     {
         return $this->mutate(function () use ($framework, $version): RedirectResponse {
             $this->assertVersionInFramework($version, $framework);
@@ -172,7 +215,7 @@ final class LearningFrameworkController extends Controller
         });
     }
 
-    public function storeDefinition(LearningNodeDefinitionRequest $request, int $framework): RedirectResponse
+    public function storeDefinition(LearningNodeDefinitionRequest $request, int $framework): JsonResponse|RedirectResponse
     {
         return $this->mutate(function () use ($request, $framework): RedirectResponse {
             $command = $request->command();
@@ -183,19 +226,19 @@ final class LearningFrameworkController extends Controller
         });
     }
 
-    public function updateDefinition(LearningNodeDefinitionRequest $request, int $framework, int $definition): RedirectResponse
+    public function updateDefinition(LearningNodeDefinitionRequest $request, int $framework, int $definition): JsonResponse|RedirectResponse
     {
-        return $this->mutate(function () use ($request, $framework, $definition): RedirectResponse {
+        return $this->mutate(function () use ($request, $framework, $definition): JsonResponse|RedirectResponse {
             $command = $request->command();
             abort_unless((int) $command['framework_id'] === $framework, 422);
             $this->authoring->updateDefinition((int) $request->user()->id, $definition, $command);
 
-            return back()->with('success', __('lf.LF_learning_definition_updated'));
+            return $this->saved(__('lf.LF_learning_definition_updated'));
         });
     }
 
     /** Simplified page: a new or existing competency goes into the working draft, created on demand. */
-    public function storeCompetency(Request $request, int $framework): RedirectResponse
+    public function storeCompetency(Request $request, int $framework): JsonResponse|RedirectResponse
     {
         abort_unless($request->user()?->role === 'customer_admin', 403);
         $data = $request->validate([
@@ -206,14 +249,14 @@ final class LearningFrameworkController extends Controller
             'description' => ['nullable', 'string', 'max:5000'],
         ]);
 
-        return $this->mutate(function () use ($request, $framework, $data): RedirectResponse {
+        return $this->mutate(function () use ($request, $framework, $data): JsonResponse|RedirectResponse {
             $this->authoring->addCompetency((int) $request->user()->id, $framework, $data);
 
-            return back()->with('success', __('lf.LF_learning_competency_added'));
+            return $this->saved(__('lf.LF_learning_competency_added'));
         });
     }
 
-    public function storeNode(LearningNodeRequest $request, int $framework, int $version): RedirectResponse
+    public function storeNode(LearningNodeRequest $request, int $framework, int $version): JsonResponse|RedirectResponse
     {
         return $this->mutate(function () use ($request, $framework, $version): RedirectResponse {
             $command = $request->command();
@@ -225,7 +268,7 @@ final class LearningFrameworkController extends Controller
         });
     }
 
-    public function updateNode(LearningNodeRequest $request, int $framework, int $version, int $node): RedirectResponse
+    public function updateNode(LearningNodeRequest $request, int $framework, int $version, int $node): JsonResponse|RedirectResponse
     {
         return $this->mutate(function () use ($request, $framework, $version, $node): RedirectResponse {
             $command = $request->command();

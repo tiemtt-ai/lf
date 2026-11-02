@@ -47,7 +47,7 @@
                     data-url="{{ route($sectionRoutePrefix.'.edit', [$template->id, $currentSection->id]) }}"
                     aria-label="{{ __('lf.LF_common_button_edit') }}: {{ $currentSection->title }}"
                     data-tooltip="{{ __('lf.LF_common_button_edit') }}">
-                <x-backend-icon name="pencil" class="ui-icon" />
+                <x-backend-icon name="square-pen" class="ui-icon" />
                 <span class="ui-sr-only">{{ __('lf.LF_common_button_edit') }}</span>
             </button>
             @php

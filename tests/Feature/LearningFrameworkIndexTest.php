@@ -159,10 +159,21 @@ class LearningFrameworkIndexTest extends TestCase
         $this->assertDatabaseCount('core_learning_frameworks', 3);
     }
 
-    public function test_a_teacher_cannot_open_the_create_popup(): void
+    public function test_a_teacher_cannot_open_the_framework_popups(): void
     {
         $this->admin->forceFill(['role' => 'teacher'])->save();
-        $this->actingAs($this->admin)->get(self::LIST_URL.'/create', ['X-Requested-With' => 'XMLHttpRequest'])->assertForbidden();
+        $id = (int) DB::table('core_learning_frameworks')->where('code', 'KOR-01')->value('id');
+
+        foreach (['/create', "/{$id}/form", "/{$id}/scale/form", "/{$id}/competencies/create", "/{$id}/definitions/1/form"] as $path) {
+            $this->actingAs($this->admin)->get(self::LIST_URL.$path, ['X-Requested-With' => 'XMLHttpRequest'])->assertForbidden();
+        }
+    }
+
+    public function test_a_popup_cannot_load_a_framework_of_another_tenant(): void
+    {
+        $foreign = (int) DB::table('core_learning_frameworks')->where('code', 'KOR-PRIVATE')->value('id');
+
+        $this->actingAs($this->admin)->get(self::LIST_URL."/{$foreign}/form", ['X-Requested-With' => 'XMLHttpRequest'])->assertNotFound();
     }
 
     public function test_list_has_a_title_and_description(): void

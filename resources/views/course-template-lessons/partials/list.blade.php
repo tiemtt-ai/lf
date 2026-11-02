@@ -161,7 +161,7 @@
                                 data-url="{{ route($lessonRoutePrefix.'.edit', $lessonParameters) }}"
                                 aria-label="{{ __('lf.LF_course_template_lesson_common_edit') }}: {{ $lesson->title }}"
                                 data-tooltip="{{ __('lf.LF_course_template_lesson_common_edit') }}">
-                            <x-backend-icon name="pencil" class="ui-icon" />
+                            <x-backend-icon name="square-pen" class="ui-icon" />
                             <span class="ui-sr-only">{{ __('lf.LF_course_template_lesson_common_edit') }}</span>
                         </button>
                         @php
@@ -463,7 +463,7 @@
                                             data-url="{{ route($activityRoutePrefix.'.edit', $activityParameters) }}"
                                             aria-label="{{ __('lf.LF_course_template_activity_common_edit') }}: {{ $activity->title }}"
                                             data-tooltip="{{ __('lf.LF_course_template_activity_common_edit') }}">
-                                        <x-backend-icon name="pencil" class="ui-icon" />
+                                        <x-backend-icon name="square-pen" class="ui-icon" />
                                         <span class="ui-sr-only">{{ __('lf.LF_course_template_activity_common_edit') }}</span>
                                     </button>
                                     @php

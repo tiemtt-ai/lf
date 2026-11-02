@@ -97,6 +97,26 @@ class LearningFrameworkAuthoringHttpMariaDbTest extends TestCase
         ]);
     }
 
+    public function test_popup_saves_answer_json_and_popup_forms_need_an_active_framework_of_the_tenant(): void
+    {
+        $framework = $this->createFramework('fw-popup-save');
+        $url = $this->host."/admin/learning-frameworks/{$framework->id}";
+
+        $this->admin()->from($url)->putJson($url, $this->frameworkPayload('fw-popup-save'))
+            ->assertOk()->assertJsonPath('redirect', $url);
+
+        $this->admin()->from($url)->postJson($url.'/competencies', ['node_type' => 'competency', 'canonical_name' => 'Popup competency'])
+            ->assertOk()->assertJsonPath('redirect', $url);
+        $this->admin()->postJson($url.'/competencies', ['node_type' => 'competency'])
+            ->assertUnprocessable()->assertJsonValidationErrors('canonical_name');
+
+        foreach (['/form', '/scale/form', '/competencies/create'] as $path) {
+            $this->admin()->get($url.$path)->assertNotFound();
+            $this->admin()->get($url.$path, ['X-Requested-With' => 'XMLHttpRequest'])->assertOk();
+        }
+        $this->admin()->get($url.'/definitions/999999/form', ['X-Requested-With' => 'XMLHttpRequest'])->assertNotFound();
+    }
+
     public function test_the_popup_create_answers_json_and_continues_on_the_new_framework(): void
     {
         $response = $this->admin()->postJson($this->host.'/admin/learning-frameworks', $this->frameworkPayload('fw-popup'))
@@ -408,14 +428,12 @@ class LearningFrameworkAuthoringHttpMariaDbTest extends TestCase
             ])
             ->assertSessionHasErrors('canonical_name');
 
-        $html = $this->admin()
-            ->get($this->host."/admin/learning-frameworks/{$framework->id}")
-            ->assertOk()->getContent();
-
-        // The Framework edit form never reads old input: its code stays the Framework's own.
-        $this->assertStringContainsString('<input type="hidden" name="code" value="bleed-guard">', $html);
-        $this->assertSame(1, substr_count($html, 'value="DEFINITION-CODE-XYZ"'), 'Only the add-competency form is repopulated.');
-        $this->assertStringContainsString('id="competency-code" name="code" class="lf-form-control" maxlength="120" autocomplete="off" value="DEFINITION-CODE-XYZ"', $html);
+        // Popup forms are loaded fresh: neither one picks up the refused input.
+        $edit = $this->admin()->get($this->host."/admin/learning-frameworks/{$framework->id}/form", ['X-Requested-With' => 'XMLHttpRequest'])->assertOk()->getContent();
+        $this->assertStringContainsString('<input type="hidden" name="code" value="bleed-guard">', $edit);
+        $this->assertStringNotContainsString('DEFINITION-CODE-XYZ', $edit);
+        $add = $this->admin()->get($this->host."/admin/learning-frameworks/{$framework->id}/competencies/create", ['X-Requested-With' => 'XMLHttpRequest'])->assertOk()->getContent();
+        $this->assertStringNotContainsString('DEFINITION-CODE-XYZ', $add);
     }
 
     // ----------------------------------------------- Simplified page (2026-10-11)
@@ -578,7 +596,7 @@ class LearningFrameworkAuthoringHttpMariaDbTest extends TestCase
         $v1 = DB::table('core_learning_framework_versions')->where('framework_id', $framework->id)->firstOrFail();
         $this->admin()->post($this->host."/admin/learning-frameworks/{$framework->id}/versions/{$v1->id}/publish")->assertSessionHasNoErrors();
 
-        $html = $this->admin()->get($this->host."/admin/learning-frameworks/{$framework->id}?tab=scale")->assertOk()->getContent();
+        $html = $this->admin()->get($this->host."/admin/learning-frameworks/{$framework->id}/scale/form", ['X-Requested-With' => 'XMLHttpRequest'])->assertOk()->getContent();
         $this->assertStringContainsString('data-lf-framework-scale-form', $html);
         $this->assertStringContainsString('name="mastery_scale_version" value="2"', $html, 'Saving the scale form moves to the next scale version.');
 
@@ -690,7 +708,7 @@ class LearningFrameworkAuthoringHttpMariaDbTest extends TestCase
         $draft = DB::table('core_learning_framework_versions')->where('framework_id', $framework->id)->firstOrFail();
         $this->admin()->post($this->host."/admin/learning-frameworks/{$framework->id}/versions/{$draft->id}/publish")->assertSessionHasNoErrors();
 
-        $html = $this->admin()->get($this->host."/admin/learning-frameworks/{$framework->id}")->assertOk()->getContent();
+        $html = $this->admin()->get($this->host."/admin/learning-frameworks/{$framework->id}/definitions/{$definition->id}/form", ['X-Requested-With' => 'XMLHttpRequest'])->assertOk()->getContent();
         $this->assertStringContainsString('<input type="hidden" name="canonical_name" value="Definition LOCK-1">', $html);
         $this->assertStringNotContainsString('id="competency-'.$definition->id.'-name"', $html);
         $this->assertStringContainsString('id="competency-'.$definition->id.'-description"', $html);

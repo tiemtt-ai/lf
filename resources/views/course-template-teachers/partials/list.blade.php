@@ -66,7 +66,7 @@
                                             data-url="{{ route($teacherRoutePrefix.'.edit', [$template->id, $assignment->id]) }}"
                                             aria-label="{{ __('lf.LF_course_template_teacher_common_edit') }}: {{ $assignment->teacher_name }}"
                                             data-tooltip="{{ __('lf.LF_course_template_teacher_common_edit') }}">
-                                        <x-backend-icon name="pencil" class="ui-icon" />
+                                        <x-backend-icon name="square-pen" class="ui-icon" />
                                     </button>
                                     <button type="button" class="ux-row-edit ui-row-action--danger cursor-interaction" data-ui-row-delete
                                             data-url="{{ route($teacherRoutePrefix.'.destroy', [$template->id, $assignment->id]) }}"

@@ -164,7 +164,7 @@
                         </div>
                         @if ($cohort->is_mutable)
                             <a href="{{ route($routePrefix.'.edit', $cohort->id) }}" class="btn btn-secondary cohort-overview-edit-action">
-                                <x-backend-icon name="edit" />
+                                <x-backend-icon name="square-pen" />
                                 {{ __('lf.LF_course_cohort_action_edit_overview') }}
                             </a>
                         @endif

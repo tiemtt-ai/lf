@@ -117,6 +117,16 @@ class BackendLayoutNavigationTest extends TestCase
         $this->assertDoesNotMatchRegularExpression('/admin-nav__child" href="[^"]+\/teacher\/course-products/', $teacherHtml);
     }
 
+    public function test_every_edit_action_uses_the_square_pen_icon(): void
+    {
+        $files = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator(resource_path('views'), \FilesystemIterator::SKIP_DOTS));
+
+        foreach ($files as $file) {
+            $source = file_get_contents($file->getPathname());
+            $this->assertDoesNotMatchRegularExpression('/<x-backend-icon name="(pencil|edit)"/', $source, $file->getPathname());
+        }
+    }
+
     public function test_learning_framework_create_is_a_ui_kit_dialog(): void
     {
         $customerId = $this->createTenant();
@@ -299,8 +309,7 @@ class BackendLayoutNavigationTest extends TestCase
         $this->assertStringContainsString('background-color: #f8fafc;', $componentCss);
         $this->assertStringContainsString('color: #4b5366;', $componentCss);
         $this->assertStringContainsString('cursor: default;', $componentCss);
-        $this->assertStringContainsString('.admin-form-card {', $pageCss);
-        $this->assertStringContainsString('max-width: 720px;', $pageCss);
+        $this->assertStringContainsString(".admin-form-card {\n    max-width: 100%;", $pageCss);
         $this->assertStringContainsString('.admin-form-card:has(> form > .admin-form-section)', $pageCss);
         $this->assertStringContainsString('.admin-form-card:has(> form > .backend-form-columns)', $pageCss);
         $this->assertStringContainsString(
