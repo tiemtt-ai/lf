@@ -3,7 +3,21 @@
 @section('title', __('lf.LF_bulk_enrollment_title'))
 @section('page_title', __('lf.LF_bulk_enrollment_title'))
 
+@section('page_title_hidden', '1')
+
+@section('page_back')
+    <x-page-back-link :href="route($routePrefix.'.index')" :label="__('lf.LF_course_enrollment_common_back_to_enrollments')" />
+@endsection
+
+@section('vite')
+    @parent
+    @vite(['resources/css/admin/admin-ui-kit.css', 'resources/js/admin-ui-kit-controls.js'])
+@endsection
+
 @section('content')
+<div class="lf-admin-ui lf-admin-ui--list ui-enroll">
+    <x-ui-list-head :title="__('lf.LF_bulk_enrollment_title')" :text="__('lf.LF_bulk_enrollment_page_description')" />
+
     @if (isset($completedResult))
         @php
             $completedContext = $completedResult['context'] ?? [];
@@ -85,7 +99,7 @@
                     </section>
                 @endif
             </div>
-            <footer class="admin-form-footer" data-actions-align="end"><div class="admin-form-footer-primary"><a class="btn btn-secondary" href="{{ route($routePrefix.'.create') }}">{{ __('lf.LF_bulk_enrollment_create_another') }}</a><a class="btn btn-primary" href="{{ route($routePrefix.'.index') }}">{{ __('lf.LF_course_enrollment_common_back_to_enrollments') }}</a></div></footer>
+            <footer class="admin-form-footer" data-actions-align="end"><div class="admin-form-footer-primary"><a class="ui-button cursor-interaction" href="{{ route($routePrefix.'.create') }}">{{ __('lf.LF_bulk_enrollment_create_another') }}</a><a class="ui-button ui-button--primary cursor-interaction" href="{{ route($routePrefix.'.index') }}">{{ __('lf.LF_course_enrollment_common_back_to_enrollments') }}</a></div></footer>
         </div>
     @else
     @if ($errors->any())
@@ -190,7 +204,7 @@
                             <h3 id="bulk-students-title">{{ __('lf.LF_bulk_enrollment_students_panel') }}</h3>
                             <span x-text="selectedStudentsLabel" aria-live="polite"></span>
                         </div>
-                        <label class="lf-form-label" for="bulk-student-search">{{ __('lf.LF_common_button_search') }}</label>
+                        <label class="ui-sr-only" for="bulk-student-search">{{ __('lf.LF_common_button_search') }}</label>
                         <div class="bulk-enrollment-search">
                             <svg class="bulk-enrollment-search__icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg>
                             <input id="bulk-student-search" type="search" class="lf-form-control"
@@ -225,7 +239,7 @@
                             <span x-text="selectedProductsLabel" aria-live="polite"></span>
                         </div>
                         <p class="sr-only" aria-live="polite" x-text="productEligibilityAnnouncement"></p>
-                        <label class="lf-form-label" for="bulk-product-search">{{ __('lf.LF_common_button_search') }}</label>
+                        <label class="ui-sr-only" for="bulk-product-search">{{ __('lf.LF_common_button_search') }}</label>
                         <div class="bulk-enrollment-search">
                             <svg class="bulk-enrollment-search__icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg>
                             <input id="bulk-product-search" type="search" class="lf-form-control"
@@ -356,7 +370,7 @@
 
                 <section class="admin-form-standard-section bulk-enrollment-confirmation" aria-label="{{ __('lf.LF_bulk_enrollment_information_section') }}">
                     <div class="bulk-enrollment-pair-summary bulk-enrollment-confirmation__summary"><strong x-text="pairCountLabel"></strong><button type="button" class="admin-text-action" x-on:click="backToSelection">{{ __('lf.LF_bulk_enrollment_change') }}</button></div>
-                    <button x-show="reenrollmentPairs.length > 1" type="button" class="btn btn-secondary" x-on:click="confirmAllReenrollments">{{ __('lf.LF_bulk_enrollment_confirm_all_reenrollments') }}</button>
+                    <button x-show="reenrollmentPairs.length > 1" type="button" class="ui-button cursor-interaction" x-on:click="confirmAllReenrollments">{{ __('lf.LF_bulk_enrollment_confirm_all_reenrollments') }}</button>
                     <div class="admin-table-wrap bulk-enrollment-review-table"><table class="table">
                         <thead><tr><th class="bulk-enrollment-review-table__number">{{ __('lf.table_no') }}</th><th>{{ __('lf.LF_course_enrollment_common_student') }}</th><th>{{ __('lf.LF_course_enrollment_common_product') }}</th><th class="bulk-enrollment-review-table__result">{{ __('lf.LF_bulk_enrollment_expected_result') }}</th></tr></thead>
                         <tbody><template x-for="(pair, pairIndex) in paginatedPairs" :key="`${pair.student_id}:${pair.product_id}`"><tr>
@@ -412,10 +426,10 @@
 
             <footer class="admin-form-footer" data-actions-align="end">
                 <div class="admin-form-footer-primary">
-                    <a href="{{ route($routePrefix.'.index') }}" class="btn btn-secondary">{{ __('lf.LF_common_button_cancel') }}</a>
-                    <button x-show="step === 2" type="button" class="btn btn-secondary" x-on:click="backToSelection" x-cloak>{{ __('lf.LF_bulk_enrollment_back') }}</button>
-                    <button x-show="step === 1" type="button" class="btn btn-primary" x-on:click="continueToSetup" :disabled="loading || !productEligibilityReady || hasInvalidSelectedProducts || pairCount < 1 || pairCount > 100">{{ __('lf.LF_bulk_enrollment_continue') }}</button>
-                    <button x-show="step === 2" type="submit" class="btn btn-primary" :disabled="loading || submitting" x-cloak><span x-show="!submitting">{{ __('lf.LF_bulk_enrollment_submit') }}</span><span x-show="submitting">{{ __('lf.LF_course_enrollment_update_saving') }}</span></button>
+                    <a href="{{ route($routePrefix.'.index') }}" class="ui-button cursor-interaction">{{ __('lf.LF_common_button_cancel') }}</a>
+                    <button x-show="step === 2" type="button" class="ui-button cursor-interaction" x-on:click="backToSelection" x-cloak>{{ __('lf.LF_bulk_enrollment_back') }}</button>
+                    <button x-show="step === 1" type="button" class="ui-button ui-button--primary cursor-interaction" x-on:click="continueToSetup" :disabled="loading || !productEligibilityReady || hasInvalidSelectedProducts || pairCount < 1 || pairCount > 100">{{ __('lf.LF_bulk_enrollment_continue') }}</button>
+                    <button x-show="step === 2" type="submit" class="ui-button ui-button--primary cursor-interaction" :disabled="loading || submitting" x-cloak><span x-show="!submitting">{{ __('lf.LF_bulk_enrollment_submit') }}</span><span x-show="submitting">{{ __('lf.LF_course_enrollment_update_saving') }}</span></button>
                 </div>
             </footer>
             </form>
@@ -431,7 +445,7 @@
                     <p id="bulk-product-guidance-content">{{ __('lf.LF_bulk_enrollment_select_student_first') }}</p>
                 </div>
                 <footer class="bulk-enrollment-guidance-modal__footer">
-                    <button x-ref="productPromptClose" type="button" class="btn btn-primary" x-on:click="closeProductSelectionPrompt">{{ __('lf.LF_bulk_enrollment_acknowledge') }}</button>
+                    <button x-ref="productPromptClose" type="button" class="ui-button ui-button--primary cursor-interaction" x-on:click="closeProductSelectionPrompt">{{ __('lf.LF_bulk_enrollment_acknowledge') }}</button>
                 </footer>
             </section>
         </div>
@@ -446,7 +460,7 @@
                     <p id="bulk-enrollment-date-guidance-content">{{ __('lf.LF_course_enrollment_enrolled_at_required') }}</p>
                 </div>
                 <footer class="bulk-enrollment-guidance-modal__footer">
-                    <button x-ref="enrollmentDatePromptClose" type="button" class="btn btn-primary" x-on:click="closeEnrollmentDatePrompt">{{ __('lf.LF_bulk_enrollment_acknowledge') }}</button>
+                    <button x-ref="enrollmentDatePromptClose" type="button" class="ui-button ui-button--primary cursor-interaction" x-on:click="closeEnrollmentDatePrompt">{{ __('lf.LF_bulk_enrollment_acknowledge') }}</button>
                 </footer>
             </section>
         </div>
@@ -514,4 +528,5 @@
         }
     </script>
     @endif
+</div>
 @endsection

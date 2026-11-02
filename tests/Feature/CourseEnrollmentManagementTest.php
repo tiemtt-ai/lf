@@ -185,14 +185,12 @@ class CourseEnrollmentManagementTest extends TestCase
         $this->actingAs($admin)
             ->get("https://tenant-a.localhost/admin/course-enrollments/{$enrollmentId}")
             ->assertOk()
-            ->assertSee('class="cohort-detail-toolbar course-enrollment-detail-toolbar"', false)
-            ->assertSee('course-enrollment-detail', false)
-            ->assertSee('course-enrollment-detail-metadata-grid', false)
-            ->assertSee('course-enrollment-detail-item', false)
+            ->assertSee('class="ui-enroll-head"', false)
+            ->assertSeeInOrder(['id="enrollment-show-access"', __('lf.LF_course_enrollment_locked_version_label'), 'id="enrollment-show-information"', __('lf.LF_course_enrollment_common_source')], false)
+            ->assertSee('class="ui-summary ui-enroll-summary"', false)
             ->assertSee('id="enrollment-show-access"', false)
             ->assertSee('id="enrollment-show-information"', false)
-            ->assertSee('course-enrollment-detail-information-panel', false)
-            ->assertSee('course-enrollment-detail-window-grid', false)
+            ->assertSee('class="ui-modal__form"', false)
             ->assertSeeInOrder([
                 __('lf.LF_course_enrollment_common_enrolled_at'),
                 __('lf.LF_course_enrollment_common_source'),
@@ -218,8 +216,8 @@ class CourseEnrollmentManagementTest extends TestCase
         $response = $this->actingAs($admin)
             ->get("https://tenant-a.localhost/admin/course-enrollments/{$enrollmentId}/edit")
             ->assertOk()
-            ->assertSee('class="admin-form-standard"', false)
-            ->assertSee('class="admin-form-footer"', false)
+            ->assertSee('class="ui-enroll-form"', false)
+            ->assertSee('class="ui-enroll-form__actions"', false)
             ->assertSee('id="review_starts_at"', false)
             ->assertSee('id="review_ends_at"', false)
             ->assertDontSee('name="review_starts_at"', false)
@@ -231,9 +229,9 @@ class CourseEnrollmentManagementTest extends TestCase
         $positions = array_map(fn (string $id) => strpos($html, 'id="'.$id.'"'), [
             'enrollment-edit-access',
             'enrollment-edit-information',
-            'enrollment-edit-access-window',
-            'enrollment-edit-review-window',
-            'enrollment-edit-additional',
+            'access_starts_at',
+            'review_ends_at',
+            'notes',
         ]);
         $this->assertNotContains(false, $positions);
         $sorted = $positions;
@@ -936,14 +934,10 @@ class CourseEnrollmentManagementTest extends TestCase
         $this->actingAs($admin)
             ->get('https://tenant-a.localhost/admin/course-enrollments')
             ->assertOk()
-            ->assertSee('course-cohort-index-toolbar', false)
-            ->assertSee('course-enrollment-index-toolbar', false)
-            ->assertSee('course-enrollment-index-count', false)
-            ->assertSee('course-enrollment-filter-grid', false)
-            ->assertSee('course-cohort-index-table-wrap', false)
-            ->assertSee('course-enrollment-index-table', false)
-            ->assertSee('course-cohort-index-status', false)
-            ->assertSee('course-cohort-index-actions', false)
+            ->assertSee('class="ui-page-head"', false)
+            ->assertSee('data-ui-live-filter', false)
+            ->assertSee('class="mk-table-scroll"', false)
+            ->assertSee('class="mk-table-foot"', false)
             ->assertSeeText(__('lf.LF_course_enrollment_common_empty'))
             ->assertSeeText(__('lf.LF_course_enrollment_empty_help'))
             ->assertSeeText(__('lf.LF_course_enrollment_common_create'));
@@ -997,14 +991,12 @@ class CourseEnrollmentManagementTest extends TestCase
         $firstResponse = $this->actingAs($admin)
             ->get('https://tenant-a.localhost/admin/course-enrollments?keyword=Priority&per_page=100')
             ->assertOk()
-            ->assertSeeText(__('lf.LF_course_enrollment_information'))
-            ->assertSeeText(__('lf.LF_course_enrollment_information_source').':')
-            ->assertSeeText(__('lf.LF_course_enrollment_information_date').':')
-            ->assertSeeText(__('lf.LF_course_enrollment_locked_version_label').':')
+            ->assertSeeText(__('lf.LF_course_enrollment_information_source'))
+            ->assertSeeText(__('lf.LF_course_enrollment_information_date'))
             ->assertSeeText(__('lf.LF_course_product_item_common_version_number', ['number' => 1]))
             ->assertSeeText($versionCode)
             ->assertDontSeeText('TOPIK Version')
-            ->assertSee('course-enrollment-status-badge--suspended', false);
+            ->assertSee('ui-status--inactive', false);
         $firstPage = $firstResponse->viewData('enrollments');
 
         $this->assertSame(10, $firstPage->perPage());
@@ -1072,7 +1064,7 @@ class CourseEnrollmentManagementTest extends TestCase
         $this->assertStringContainsString('x-ref="lifecycleForm"', $html);
         $this->assertStringContainsString('event.preventDefault(); if (this.submitting) return; const form = event.currentTarget; this.submitting = true;', $html);
         $this->assertStringContainsString(':disabled="submitting || !canReactivate"', $html);
-        $this->assertStringContainsString("lifecycleAction === 'cancel' ? 'btn btn-danger' : 'btn btn-primary'", $html);
+        $this->assertStringContainsString("lifecycleAction === 'cancel' ? 'ui-button ui-button--danger-outline cursor-interaction' : 'ui-button ui-button--primary cursor-interaction'", $html);
         $lifecycleForm = substr($html, strpos($html, 'action="'.route('admin.course-enrollments.bulk-lifecycle').'"'));
         $lifecycleForm = substr($lifecycleForm, 0, strpos($lifecycleForm, '</form>'));
         $this->assertStringNotContainsString('name="status"', $lifecycleForm);
@@ -1760,8 +1752,7 @@ class CourseEnrollmentManagementTest extends TestCase
             ->get('https://tenant-a.localhost/admin/course-enrollments/'.$enrollment->id.'/edit')
             ->assertOk()
             ->assertSee('course-enrollment-time-impact', false)
-            ->assertSee('class="lf-form-control course-enrollment-edit-date-input"', false)
-            ->assertSee("'has-value': enrolledAt", false)
+            ->assertSee('id="enrolled_at" name="enrolled_at" type="datetime-local" x-model="enrolledAt"', false)
             ->assertDontSee('enrollment-edit-access-window', false)
             ->assertDontSee('enrollment-edit-review-window', false)
             ->assertSeeText(__('lf.LF_course_enrollment_time_impact_title'))

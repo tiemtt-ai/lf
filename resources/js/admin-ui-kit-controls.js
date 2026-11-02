@@ -722,6 +722,8 @@ export function initUiKitLiveFilter(form, deps = {}) {
             }
             current.forEach((node, index) => node.replaceWith(win.document.importNode(next[index], true)));
             win.history.replaceState(win.history.state, '', url);
+            // A page holding per-row state (e.g. a selection) refreshes it from the new rows.
+            root.dispatchEvent?.(new Event('ui-live-filter-updated'));
         } catch (error) {
             if (mine !== seq) return;
             navigate(url);

@@ -3,6 +3,13 @@
 @section('title', __('lf.LF_course_enrollment_common_title'))
 @section('page_title', __('lf.LF_course_enrollment_common_title'))
 
+@section('page_title_hidden', '1')
+
+@section('vite')
+    @parent
+    @vite(['resources/css/admin/admin-ui-kit.css', 'resources/js/admin-ui-kit-controls.js'])
+@endsection
+
 @section('content')
     @php
         $editablePageIds = $enrollments->getCollection()
@@ -25,23 +32,18 @@
         $advancedFiltersOpen = request()->query('advanced_filters') === '1';
         $hasActiveFilters = $keyword !== '' || $status || $source || $productId || $studentId || $enrolledBy || $enrolledFrom || $enrolledTo;
     @endphp
-    @if (session('success'))
-        <div class="admin-alert admin-alert-success" role="status">
-            {{ session('success') }}
-        </div>
-    @endif
-
-    @if ($errors->any())
-        <div class="admin-alert admin-alert-danger">
-            <ul>
-                @foreach ($errors->all() as $error)
-                    <li>{{ $error }}</li>
-                @endforeach
-            </ul>
-        </div>
-    @endif
-
-    <div x-data="enrollmentIndexBulk(
+    @php
+        $enrollmentStatusTone = fn (string $value): string => match ($value) {
+            'active' => 'active',
+            'pending' => 'draft',
+            'suspended' => 'inactive',
+            'expired', 'cancelled' => 'danger',
+            default => 'archived',
+        };
+    @endphp
+    <div id="enrollment-list" class="lf-admin-ui lf-admin-ui--list"
+         x-on:ui-live-filter-updated="syncPage()"
+         x-data="enrollmentIndexBulk(
         @js($editablePageIds),
         @js($pageEnrollmentStates),
         @js($initialSelectedIds),
@@ -53,205 +55,200 @@
             'cancel' => ['title' => __('lf.LF_course_enrollment_bulk_cancel_title'), 'body' => __('lf.LF_course_enrollment_bulk_cancel_body'), 'confirm' => __('lf.LF_course_enrollment_bulk_cancel_confirm')],
         ])
     )">
+    <x-ui-list-toasts />
 
-    <div class="course-cohort-index-toolbar course-enrollment-index-toolbar">
-        <span class="course-enrollment-index-count">
-            {{ trans_choice('lf.LF_course_enrollment_index_count', $enrollments->total(), ['count' => $enrollments->total()]) }}
-        </span>
-        <a href="{{ route($routePrefix.'.create') }}" class="btn btn-primary course-enrollment-create-action">
-            <span aria-hidden="true">+</span>
-            {{ __('lf.LF_course_enrollment_common_create') }}
-        </a>
-    </div>
+    @if ($errors->any())
+        <div class="admin-alert admin-alert-danger">
+            <ul>
+                @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
 
-    <div class="admin-card admin-form-card course-enrollment-filter-card">
-        <form class="course-enrollment-filter-grid" method="GET" action="{{ route($routePrefix.'.index') }}" x-data="{ advancedFiltersOpen: @js($advancedFiltersOpen) }">
-            <input type="hidden" name="advanced_filters" :value="advancedFiltersOpen ? '1' : '0'">
-            <div class="lf-form-group">
-                <label class="lf-form-label" for="keyword">
-                    {{ __('lf.LF_course_enrollment_common_keyword') }}
-                </label>
-                <input id="keyword"
-                       type="search"
-                       name="keyword"
-                       class="lf-form-control"
-                       value="{{ $keyword }}"
-                       placeholder="{{ __('lf.LF_course_enrollment_common_keyword_placeholder') }}">
-            </div>
+    <x-ui-list-head :title="__('lf.LF_course_enrollment_index_heading')" :text="__('lf.LF_course_enrollment_index_description')" />
 
-            <div class="lf-form-group">
-                <label class="lf-form-label" for="status">
-                    {{ __('lf.LF_course_enrollment_common_status') }}
-                </label>
-                <select id="status" name="status" class="lf-form-control">
-                    <option value="">{{ __('lf.LF_course_enrollment_common_all_statuses') }}</option>
-                    @foreach (['pending', 'active', 'suspended', 'completed', 'expired', 'cancelled'] as $enrollmentStatus)
+    <section class="mk-section" aria-labelledby="admin-page-title">
+        <div class="mk-tablebar mk-tablebar--filters ui-enroll-filterbar">
+            <form class="mk-filter-form" method="GET" action="{{ route($routePrefix.'.index') }}" data-ui-live-filter x-data="{ advancedFiltersOpen: @js($advancedFiltersOpen) }">
+                <div class="ui-field mk-search">
+                    <label class="ui-field__label ui-sr-only" for="keyword">{{ __('lf.LF_course_enrollment_common_keyword') }}</label>
+                    <div class="ui-search">
+                        <input id="keyword" type="search" name="keyword" value="{{ $keyword }}"
+                               placeholder="{{ __('lf.LF_course_enrollment_common_keyword_placeholder') }}">
+                        <button type="submit" class="ui-button cursor-interaction" aria-label="{{ __('lf.LF_common_button_search') }}">
+                            <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="ui-field mk-search">
+                    <label class="ui-field__label ui-sr-only" for="status">{{ __('lf.LF_course_enrollment_common_status') }}</label>
+                    <select id="status" name="status" data-ui-kit-select data-ui-empty-label="{{ __('lf.LF_course_enrollment_index_no_options') }}" data-ui-clear-label="{{ __('lf.LF_course_enrollment_common_clear_filters') }}">
+                        <option value="">{{ __('lf.LF_course_enrollment_common_all_statuses') }}</option>
+                        @foreach (['pending', 'active', 'suspended', 'completed', 'expired', 'cancelled'] as $enrollmentStatus)
                         <option value="{{ $enrollmentStatus }}" @selected($status === $enrollmentStatus)>
                             {{ __('lf.LF_course_enrollment_common_'.$enrollmentStatus) }}
                         </option>
                     @endforeach
-                </select>
-            </div>
+                    </select>
+                </div>
 
-            <div class="lf-form-group">
-                <label class="lf-form-label" for="source">
-                    {{ __('lf.LF_course_enrollment_common_source') }}
-                </label>
-                <select id="source" name="source" class="lf-form-control">
-                    <option value="">{{ __('lf.LF_course_enrollment_common_all_sources') }}</option>
-                    @foreach (['admin', 'teacher', 'self_registration', 'purchase', 'promotion', 'import', 'api'] as $enrollmentSource)
+                <div class="ui-field mk-search">
+                    <label class="ui-field__label ui-sr-only" for="source">{{ __('lf.LF_course_enrollment_common_source') }}</label>
+                    <select id="source" name="source" data-ui-kit-select data-ui-empty-label="{{ __('lf.LF_course_enrollment_index_no_options') }}" data-ui-clear-label="{{ __('lf.LF_course_enrollment_common_clear_filters') }}">
+                        <option value="">{{ __('lf.LF_course_enrollment_common_all_sources') }}</option>
+                        @foreach (['admin', 'teacher', 'self_registration', 'purchase', 'promotion', 'import', 'api'] as $enrollmentSource)
                         <option value="{{ $enrollmentSource }}" @selected($source === $enrollmentSource)>
                             {{ __('lf.LF_course_enrollment_common_source_'.$enrollmentSource) }}
                         </option>
                     @endforeach
-                </select>
-            </div>
+                    </select>
+                </div>
 
-            <div class="course-enrollment-filter-toggle">
-                <button type="button" class="course-enrollment-filter-toggle-action" x-on:click="advancedFiltersOpen = !advancedFiltersOpen" :aria-expanded="advancedFiltersOpen.toString()" aria-controls="course-enrollment-advanced-filters">
+                <button type="button" class="ui-button ui-button--outline cursor-interaction" x-on:click="advancedFiltersOpen = !advancedFiltersOpen"
+                        :aria-expanded="advancedFiltersOpen.toString()" aria-controls="course-enrollment-advanced-filters">
                     <span x-show="!advancedFiltersOpen">{{ __('lf.LF_course_enrollment_filter_show_advanced') }}</span>
                     <span x-cloak x-show="advancedFiltersOpen">{{ __('lf.LF_course_enrollment_filter_hide_advanced') }}</span>
-                    <span aria-hidden="true" x-text="advancedFiltersOpen ? '−' : '+'"></span>
                 </button>
-            </div>
 
-            <div id="course-enrollment-advanced-filters" x-cloak x-show="advancedFiltersOpen" class="course-enrollment-advanced-filter-grid">
-                <div class="lf-form-group"><label class="lf-form-label" for="product_id">{{ __('lf.LF_course_enrollment_common_product') }}</label><select id="product_id" name="product_id" class="lf-form-control"><option value="">{{ __('lf.LF_course_enrollment_filter_all_products') }}</option>@foreach ($filterProducts as $product)<option value="{{ $product->id }}" @selected($productId === $product->id)>{{ $product->title }} · {{ $product->product_code }}</option>@endforeach</select></div>
-                <div class="lf-form-group"><label class="lf-form-label" for="student_id">{{ __('lf.LF_course_enrollment_common_student') }}</label><select id="student_id" name="student_id" class="lf-form-control"><option value="">{{ __('lf.LF_course_enrollment_filter_all_students') }}</option>@foreach ($filterStudents as $student)<option value="{{ $student->id }}" @selected($studentId === $student->id)>{{ $student->name }} · {{ $student->email }}</option>@endforeach</select></div>
-                <div class="lf-form-group"><label class="lf-form-label" for="enrolled_by">{{ __('lf.LF_course_enrollment_filter_creator') }}</label><select id="enrolled_by" name="enrolled_by" class="lf-form-control"><option value="">{{ __('lf.LF_course_enrollment_filter_all_creators') }}</option>@foreach ($filterCreators as $creator)<option value="{{ $creator->id }}" @selected($enrolledBy === $creator->id)>{{ $creator->name }}</option>@endforeach</select></div>
-                <div class="course-enrollment-date-range">
-                    <div class="lf-form-group">
-                        <label class="lf-form-label" for="enrolled_from">{{ __('lf.LF_course_enrollment_filter_from') }}</label>
-                        <input id="enrolled_from" name="enrolled_from" type="date" class="lf-form-control" value="{{ $enrolledFrom }}">
+                <span class="ui-live-slot" data-ui-live-region="clear-filters">
+                    @if ($hasActiveFilters)
+                        <a class="ui-button ui-button--outline cursor-interaction" href="{{ route($routePrefix.'.index') }}">{{ __('lf.LF_course_enrollment_common_clear_filters') }}</a>
+                    @endif
+                </span>
+
+                <input type="hidden" name="advanced_filters" :value="advancedFiltersOpen ? '1' : '0'">
+                <div id="course-enrollment-advanced-filters" x-cloak x-show="advancedFiltersOpen" class="course-enrollment-advanced-filter-grid">
+                    <div class="ui-field"><label class="ui-field__label" for="product_id">{{ __('lf.LF_course_enrollment_common_product') }}</label><select id="product_id" name="product_id" data-ui-kit-select data-ui-empty-label="{{ __('lf.LF_course_enrollment_index_no_options') }}" data-ui-clear-label="{{ __('lf.LF_course_enrollment_common_clear_filters') }}"><option value="">{{ __('lf.LF_course_enrollment_filter_all_products') }}</option>@foreach ($filterProducts as $product)<option value="{{ $product->id }}" @selected($productId === $product->id)>{{ $product->title }} · {{ $product->product_code }}</option>@endforeach</select></div>
+                <div class="ui-field"><label class="ui-field__label" for="student_id">{{ __('lf.LF_course_enrollment_common_student') }}</label><select id="student_id" name="student_id" data-ui-kit-select data-ui-empty-label="{{ __('lf.LF_course_enrollment_index_no_options') }}" data-ui-clear-label="{{ __('lf.LF_course_enrollment_common_clear_filters') }}"><option value="">{{ __('lf.LF_course_enrollment_filter_all_students') }}</option>@foreach ($filterStudents as $student)<option value="{{ $student->id }}" @selected($studentId === $student->id)>{{ $student->name }} · {{ $student->email }}</option>@endforeach</select></div>
+                <div class="ui-field"><label class="ui-field__label" for="enrolled_by">{{ __('lf.LF_course_enrollment_filter_creator') }}</label><select id="enrolled_by" name="enrolled_by" data-ui-kit-select data-ui-empty-label="{{ __('lf.LF_course_enrollment_index_no_options') }}" data-ui-clear-label="{{ __('lf.LF_course_enrollment_common_clear_filters') }}"><option value="">{{ __('lf.LF_course_enrollment_filter_all_creators') }}</option>@foreach ($filterCreators as $creator)<option value="{{ $creator->id }}" @selected($enrolledBy === $creator->id)>{{ $creator->name }}</option>@endforeach</select></div>
+                    <div class="ui-field">
+                        <label class="ui-field__label" for="enrolled_from">{{ __('lf.LF_course_enrollment_filter_from') }}</label>
+                        <input id="enrolled_from" name="enrolled_from" type="date" value="{{ $enrolledFrom }}" x-on:change="$el.form.requestSubmit()">
                     </div>
-                    <div class="lf-form-group">
-                        <label class="lf-form-label" for="enrolled_to">{{ __('lf.LF_course_enrollment_filter_to') }}</label>
-                        <input id="enrolled_to" name="enrolled_to" type="date" class="lf-form-control" value="{{ $enrolledTo }}">
+                    <div class="ui-field">
+                        <label class="ui-field__label" for="enrolled_to">{{ __('lf.LF_course_enrollment_filter_to') }}</label>
+                        <input id="enrolled_to" name="enrolled_to" type="date" value="{{ $enrolledTo }}" x-on:change="$el.form.requestSubmit()">
                     </div>
                 </div>
-            </div>
+            </form>
 
-            <div class="admin-form-actions course-enrollment-filter-actions">
-                <button type="submit" class="btn btn-primary">
-                    {{ __('lf.LF_common_button_search') }}
-                </button>
-                @if ($hasActiveFilters)
-                    <a class="admin-text-action" href="{{ route($routePrefix.'.index') }}">
-                        {{ __('lf.LF_course_enrollment_common_clear_filters') }}
-                    </a>
-                @endif
+            <div class="mk-table-top__actions">
+                <a class="ui-button ui-button--outline cursor-interaction" href="{{ route($routePrefix.'.create') }}">
+                    <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+                    {{ __('lf.LF_course_enrollment_common_create') }}
+                </a>
             </div>
-        </form>
-    </div>
+        </div>
 
-    <div x-cloak x-show="selectedIds.length > 0" class="course-enrollment-bulk-bar" aria-live="polite">
-        <strong x-text="selectedLabel"></strong>
-        <div class="course-enrollment-bulk-actions">
-            <button type="button" class="btn btn-secondary course-enrollment-bulk-action--suspend" x-on:click="openLifecycle('suspend', $event.currentTarget)" :disabled="submitting || !canSuspend" :aria-describedby="!canSuspend ? 'bulk-suspend-reason' : null">{{ __('lf.LF_course_enrollment_lifecycle_suspend') }}</button>
-            <button type="button" class="btn btn-secondary course-enrollment-bulk-action--reactivate" x-on:click="openLifecycle('reactivate', $event.currentTarget)" :disabled="submitting || !canReactivate" :aria-describedby="!canReactivate ? 'bulk-reactivate-reason' : null">{{ __('lf.LF_course_enrollment_lifecycle_reactivate') }}</button>
-            <button type="button" class="btn btn-danger course-enrollment-bulk-action--cancel" x-on:click="openLifecycle('cancel', $event.currentTarget)" :disabled="submitting || !canCancel" :aria-describedby="!canCancel ? 'bulk-cancel-reason' : null">{{ __('lf.LF_course_enrollment_lifecycle_cancel') }}</button>
-            <button type="button" class="btn btn-secondary" x-on:click="clearSelection" :disabled="submitting">{{ __('lf.LF_course_enrollment_bulk_clear') }}</button>
+        <div x-cloak x-show="selectedIds.length > 0" class="ui-enroll-bulkbar" aria-live="polite">
+            <strong x-text="selectedLabel"></strong>
+            <div class="course-enrollment-bulk-actions">
+            <button type="button" class="ui-button ui-button--outline cursor-interaction course-enrollment-bulk-action--suspend" x-on:click="openLifecycle('suspend', $event.currentTarget)" :disabled="submitting || !canSuspend" :aria-describedby="!canSuspend ? 'bulk-suspend-reason' : null">{{ __('lf.LF_course_enrollment_lifecycle_suspend') }}</button>
+            <button type="button" class="ui-button ui-button--outline cursor-interaction course-enrollment-bulk-action--reactivate" x-on:click="openLifecycle('reactivate', $event.currentTarget)" :disabled="submitting || !canReactivate" :aria-describedby="!canReactivate ? 'bulk-reactivate-reason' : null">{{ __('lf.LF_course_enrollment_lifecycle_reactivate') }}</button>
+            <button type="button" class="ui-button ui-button--danger-outline cursor-interaction course-enrollment-bulk-action--cancel" x-on:click="openLifecycle('cancel', $event.currentTarget)" :disabled="submitting || !canCancel" :aria-describedby="!canCancel ? 'bulk-cancel-reason' : null">{{ __('lf.LF_course_enrollment_lifecycle_cancel') }}</button>
+            <button type="button" class="ui-button cursor-interaction" x-on:click="clearSelection" :disabled="submitting">{{ __('lf.LF_course_enrollment_bulk_clear') }}</button>
             <span id="bulk-suspend-reason" class="sr-only">{{ __('lf.LF_course_enrollment_bulk_suspend_disabled') }}</span>
             <span id="bulk-reactivate-reason" class="sr-only">{{ __('lf.LF_course_enrollment_bulk_reactivate_disabled') }}</span>
             <span id="bulk-cancel-reason" class="sr-only">{{ __('lf.LF_course_enrollment_bulk_cancel_disabled') }}</span>
         </div>
-    </div>
+        </div>
 
-    <div class="admin-table-wrap course-cohort-index-table-wrap">
-        <table class="table course-cohort-index-table course-enrollment-index-table admin-managed-list admin-table-has-actions">
-            <thead>
-            <tr>
-                <th class="course-enrollment-select-column"><label><input type="checkbox" :checked="allPageSelected" x-on:change="togglePage($event.target.checked)"><span class="sr-only">{{ __('lf.LF_course_enrollment_select_page') }}</span></label></th>
-                <th class="admin-table-sequence admin-managed-sequence">{{ __('lf.table_no') }}</th>
-                <th>{{ __('lf.LF_course_enrollment_common_student') }}</th>
-                <th>{{ __('lf.LF_course_enrollment_common_product') }}</th>
-                <th>{{ __('lf.LF_course_enrollment_information') }}</th>
-                <th class="course-cohort-index-status admin-managed-status">{{ __('lf.LF_course_enrollment_common_status') }}</th>
-                <th class="course-cohort-index-actions admin-managed-actions">{{ __('lf.table_actions') }}</th>
-            </tr>
-            </thead>
-            <tbody>
-            @forelse ($enrollments as $enrollment)
+        <div class="mk-table-scroll" data-ui-live-region="table" role="region" aria-label="{{ __('lf.LF_course_enrollment_common_title') }}" tabindex="0">
+            <table class="ui-enroll-table" aria-labelledby="admin-page-title">
+                <colgroup>
+                    <col class="ui-col-check">
+                    <col class="mk-col-sequence">
+                    <col class="ui-enroll-col-student">
+                    <col>
+                    <col class="ui-enroll-col-source">
+                    <col class="ui-enroll-col-date">
+                    <col class="mk-col-status">
+                    <col class="mk-col-action">
+                </colgroup>
+                <thead>
                 <tr>
-                    <td class="course-enrollment-select-column" data-label="{{ __('lf.LF_course_enrollment_select_page') }}">
-                        @if (in_array($enrollment->status, ['pending', 'active', 'suspended'], true))
-                            <label><input type="checkbox" value="{{ $enrollment->id }}" x-model="selectedIds"><span class="sr-only">{{ __('lf.LF_course_enrollment_select_row', ['id' => $enrollment->id, 'student' => $enrollment->student_name]) }}</span></label>
-                        @else
-                            <span title="{{ __('lf.LF_course_enrollment_bulk_terminal') }}">—</span>
-                        @endif
-                    </td>
-                    <td class="admin-table-sequence admin-managed-sequence" data-label="{{ __('lf.table_no') }}">{{ $enrollments->firstItem() + $loop->index }}</td>
-                    <td data-label="{{ __('lf.LF_course_enrollment_common_student') }}">
-                        <strong class="course-cohort-index-primary">{{ $enrollment->student_name }}</strong>
-                        <span class="course-cohort-index-meta">{{ $enrollment->student_email }}</span>
-                    </td>
-                    <td data-label="{{ __('lf.LF_course_enrollment_common_product') }}">
-                        <strong class="course-cohort-index-primary">{{ $enrollment->product_title }}</strong>
-                        <span class="course-cohort-index-meta">{{ $enrollment->product_code }}</span>
-                        <span class="course-enrollment-version-meta">
-                            {{ __('lf.LF_course_enrollment_locked_version_label') }}:
-                            {{ __('lf.LF_course_product_item_common_version_number', ['number' => $enrollment->version_number]) }}
-                            · {{ $enrollment->version_code }}
-                        </span>
-                    </td>
-                    <td data-label="{{ __('lf.LF_course_enrollment_information') }}">
-                        <span class="course-enrollment-information-line">
-                            <strong>{{ __('lf.LF_course_enrollment_information_source') }}:</strong>
-                            {{ __('lf.LF_course_enrollment_common_source_'.$enrollment->source) }}
-                        </span>
-                        <span class="course-enrollment-information-line course-enrollment-source-meta">
-                            <strong>{{ __('lf.LF_course_enrollment_information_date') }}:</strong>
-                            {{ \Illuminate\Support\Carbon::parse($enrollment->enrolled_at)->format('d/m/Y H:i') }}
-                        </span>
-                    </td>
-                    <td class="course-cohort-index-status admin-managed-status" data-label="{{ __('lf.LF_course_enrollment_common_status') }}">
-                        <span @class([
-                            'badge',
-                            'course-enrollment-status-badge',
-                            'badge-success' => $enrollment->status === 'active',
-                            'course-enrollment-status-badge--suspended' => $enrollment->status === 'suspended',
-                            'badge-danger' => in_array($enrollment->status, ['expired', 'cancelled'], true),
-                        ])>
-                            {{ __('lf.LF_course_enrollment_common_'.$enrollment->status) }}
-                        </span>
-                    </td>
-                    <td class="course-cohort-index-actions admin-managed-actions" data-label="{{ __('lf.table_actions') }}">
-                        <x-admin-action-menu>
-                            <a class="admin-table-action-link admin-text-action" href="{{ route($routePrefix.'.show', $enrollment->id) }}">
-                                <x-admin-action-icon name="edit" />
-                                {{ __('lf.LF_course_template_action_manage') }}
-                            </a>
-                        </x-admin-action-menu>
-                    </td>
+                    <th scope="col" class="ui-check-cell">
+                        <input type="checkbox" class="ui-bulk-box" :checked="allPageSelected" x-on:change="togglePage($event.target.checked)" aria-label="{{ __('lf.LF_course_enrollment_select_page') }}">
+                    </th>
+                    <th scope="col" class="mk-sequence">{{ __('lf.table_no') }}</th>
+                    <th scope="col" class="mk-text-cell">{{ __('lf.LF_course_enrollment_common_student') }}</th>
+                    <th scope="col" class="mk-text-cell">{{ __('lf.LF_course_enrollment_common_product') }}</th>
+                    <th scope="col" class="mk-text-cell">{{ __('lf.LF_course_enrollment_information_source') }}</th>
+                    <th scope="col" class="mk-text-cell">{{ __('lf.LF_course_enrollment_information_date') }}</th>
+                    <th scope="col" class="ux-action-cell">{{ __('lf.LF_course_enrollment_common_status') }}</th>
+                    <th scope="col" class="ux-action-cell">{{ __('lf.table_actions') }}</th>
                 </tr>
-            @empty
-                <tr class="course-cohort-empty-row course-enrollment-empty-row">
-                    <td colspan="7" class="course-cohort-empty-cell course-enrollment-empty-cell">
-                        <div class="course-enrollment-empty-state" role="status">
-                            <strong>{{ $hasActiveFilters ? __('lf.LF_course_enrollment_filter_empty') : __('lf.LF_course_enrollment_common_empty') }}</strong>
-                            <span>{{ $hasActiveFilters ? __('lf.LF_course_enrollment_filter_empty_help') : __('lf.LF_course_enrollment_empty_help') }}</span>
-                            @if ($hasActiveFilters)
-                                <a class="admin-text-action" href="{{ route($routePrefix.'.index') }}">
-                                    {{ __('lf.LF_course_enrollment_common_clear_filters') }}
-                                </a>
+                </thead>
+                <tbody>
+                @forelse ($enrollments as $enrollment)
+                    @php($isOpenEnrollment = in_array($enrollment->status, ['pending', 'active', 'suspended'], true))
+                    <tr>
+                        <td class="ui-check-cell" data-label="{{ __('lf.LF_course_enrollment_select_page') }}">
+                            @if ($isOpenEnrollment)
+                                <input type="checkbox" class="ui-bulk-box" value="{{ $enrollment->id }}" x-model="selectedIds"
+                                       data-enrollment-state="{{ $enrollment->status }}" data-reactivation-eligible="{{ $enrollment->reactivation_eligible ? '1' : '0' }}"
+                                       aria-label="{{ __('lf.LF_course_enrollment_select_row', ['id' => $enrollment->id]) }}">
                             @else
-                                <a class="btn btn-primary" href="{{ route($routePrefix.'.create') }}">
-                                    {{ __('lf.LF_course_enrollment_common_create') }}
+                                <span class="ui-bulk-lock" tabindex="0" data-tooltip="{{ __('lf.LF_course_enrollment_bulk_terminal') }}" data-tooltip-align="start">
+                                    <input type="checkbox" class="ui-bulk-box" disabled aria-label="{{ __('lf.LF_course_enrollment_bulk_terminal') }}">
+                                </span>
+                            @endif
+                        </td>
+                        <td class="mk-sequence" data-label="{{ __('lf.table_no') }}">{{ $enrollments->firstItem() + $loop->index }}</td>
+                        <td class="mk-text-cell" data-label="{{ __('lf.LF_course_enrollment_common_student') }}">
+                            <span class="mk-name-text">{{ $enrollment->student_name }}</span>
+                            <span class="ui-caption ui-framework-description">{{ $enrollment->student_email }}</span>
+                        </td>
+                        <td class="mk-text-cell" data-label="{{ __('lf.LF_course_enrollment_common_product') }}">
+                            <span class="mk-name-text">{{ $enrollment->product_title }}</span>
+                            <span class="ui-caption ui-framework-description">{{ $enrollment->product_code }}</span>
+                            <span class="ui-caption ui-framework-description">{{ __('lf.LF_course_product_item_common_version_number', ['number' => $enrollment->version_number]) }} · {{ $enrollment->version_code }}</span>
+                        </td>
+                        <td class="mk-text-cell ui-enroll-nowrap" data-label="{{ __('lf.LF_course_enrollment_information_source') }}">{{ __('lf.LF_course_enrollment_common_source_'.$enrollment->source) }}</td>
+                        <td class="mk-text-cell ui-enroll-nowrap" data-label="{{ __('lf.LF_course_enrollment_information_date') }}">{{ \Illuminate\Support\Carbon::parse($enrollment->enrolled_at)->format('d/m/Y H:i') }}</td>
+                        <td class="ux-action-cell" data-label="{{ __('lf.LF_course_enrollment_common_status') }}">
+                            <span class="ui-status ui-status--{{ $enrollmentStatusTone($enrollment->status) }}">{{ __('lf.LF_course_enrollment_common_'.$enrollment->status) }}</span>
+                        </td>
+                        <td class="ux-action-cell" data-label="{{ __('lf.table_actions') }}">
+                            <a class="ux-row-edit cursor-interaction" href="{{ route($routePrefix.'.show', $enrollment->id) }}"
+                               aria-label="{{ __('lf.LF_course_template_action_manage') }}: {{ $enrollment->student_name }}"
+                               data-tooltip="{{ __('lf.LF_course_template_action_manage') }}">
+                                <x-backend-icon name="sliders" class="ui-icon" />
+                            </a>
+                            @if ($isOpenEnrollment)
+                                <a class="ux-row-edit cursor-interaction" href="{{ route($routePrefix.'.edit', $enrollment->id) }}"
+                                   aria-label="{{ __('lf.LF_course_enrollment_common_edit') }}: {{ $enrollment->student_name }}"
+                                   data-tooltip="{{ __('lf.LF_course_enrollment_common_edit') }}">
+                                    <x-backend-icon name="square-pen" class="ui-icon" />
                                 </a>
                             @endif
-                        </div>
-                    </td>
-                </tr>
-            @endforelse
-            </tbody>
-        </table>
-    </div>
-
-    @if ($enrollments->hasPages())
-        <div class="admin-pagination">
-            {{ $enrollments->links() }}
+                        </td>
+                    </tr>
+                @empty
+                    <tr class="mk-empty-row">
+                        <td class="mk-empty" colspan="8">
+                            <div role="status">
+                                <strong>{{ $hasActiveFilters ? __('lf.LF_course_enrollment_filter_empty') : __('lf.LF_course_enrollment_common_empty') }}</strong>
+                                <p class="ui-caption">{{ $hasActiveFilters ? __('lf.LF_course_enrollment_filter_empty_help') : __('lf.LF_course_enrollment_empty_help') }}</p>
+                                @unless ($hasActiveFilters)
+                                    <a class="ui-button ui-button--outline cursor-interaction" href="{{ route($routePrefix.'.create') }}">{{ __('lf.LF_course_enrollment_common_create') }}</a>
+                                @endunless
+                            </div>
+                        </td>
+                    </tr>
+                @endforelse
+                </tbody>
+            </table>
         </div>
-    @endif
+
+        <x-ui-list-foot :paginator="$enrollments"
+            :label="__('lf.LF_course_enrollment_common_title')"
+            :page-size-label="__('lf.LF_course_template_index_page_size')"
+            :page-size-option="__('lf.LF_course_template_index_page_size_option', ['count' => $enrollments->perPage()])" />
+    </section>
 
     <div x-cloak x-show="lifecycleModalOpen" class="admin-modal-backdrop" x-on:keydown.escape.window="if (!submitting) closeLifecycleModal()" x-on:click.self="if (!submitting) closeLifecycleModal()">
         <section class="admin-modal course-enrollment-lifecycle-modal" role="dialog" aria-modal="true" aria-labelledby="bulk-lifecycle-title" aria-describedby="bulk-lifecycle-body" :aria-busy="submitting">
@@ -261,7 +258,7 @@
                 <input type="hidden" name="action" :value="lifecycleAction">
                 <template x-for="id in selectedIds" :key="`lifecycle-${id}`"><input type="hidden" name="enrollment_ids[]" :value="id"></template>
                 <div class="course-enrollment-lifecycle-modal__body"><p id="bulk-lifecycle-body" x-text="lifecycleBody"></p></div>
-                <footer class="admin-form-footer course-enrollment-lifecycle-modal__footer" data-actions-align="end"><div class="admin-form-footer-primary"><button type="button" class="btn btn-secondary" x-on:click="closeLifecycleModal" :disabled="submitting">{{ __('lf.LF_common_button_cancel') }}</button><button type="submit" :class="lifecycleAction === 'cancel' ? 'btn btn-danger' : 'btn btn-primary'" :disabled="submitting"><span x-show="!submitting" x-text="lifecycleConfirm"></span><span x-cloak x-show="submitting">{{ __('lf.LF_course_enrollment_lifecycle_processing') }}</span></button></div></footer>
+                <footer class="admin-form-footer course-enrollment-lifecycle-modal__footer" data-actions-align="end"><div class="admin-form-footer-primary"><button type="button" class="ui-button cursor-interaction" x-on:click="closeLifecycleModal" :disabled="submitting">{{ __('lf.LF_common_button_cancel') }}</button><button type="submit" :class="lifecycleAction === 'cancel' ? 'ui-button ui-button--danger-outline cursor-interaction' : 'ui-button ui-button--primary cursor-interaction'" :disabled="submitting"><span x-show="!submitting" x-text="lifecycleConfirm"></span><span x-cloak x-show="submitting">{{ __('lf.LF_course_enrollment_lifecycle_processing') }}</span></button></div></footer>
                 <p class="sr-only" aria-live="polite" x-text="submitting ? @js(__('lf.LF_course_enrollment_lifecycle_processing')) : ''"></p>
             </form>
         </section>
@@ -282,6 +279,8 @@
                 get lifecycleTitle() { return (this.lifecycleCopy[this.lifecycleAction]?.title || '').replace(':count', this.selectedIds.length) },
                 get lifecycleBody() { return this.lifecycleCopy[this.lifecycleAction]?.body || '' },
                 get lifecycleConfirm() { return this.lifecycleCopy[this.lifecycleAction]?.confirm || '' },
+                // The live filter swapped the rows: this page's states come from the new checkboxes and the selection starts over.
+                syncPage() { const boxes = [...this.$root.querySelectorAll('[data-enrollment-state]')]; this.pageIds = boxes.map(box => box.value); this.pageStates = Object.fromEntries(boxes.map(box => [box.value, { status: box.dataset.enrollmentState, reactivationEligible: box.dataset.reactivationEligible === '1' }])); this.selectedIds = [] },
                 togglePage(checked) { this.selectedIds = checked ? [...this.pageIds] : [] },
                 clearSelection() { this.selectedIds = []; this.lifecycleModalOpen = false },
                 async openLifecycle(action, trigger) { if (this.submitting || this.lifecycleModalOpen || (action === 'suspend' && !this.canSuspend) || (action === 'reactivate' && !this.canReactivate) || (action === 'cancel' && !this.canCancel)) return; this.lifecycleAction = action; this.lifecycleTrigger = trigger; this.lifecycleModalOpen = true; await this.$nextTick(); this.$refs.lifecycleCancel.focus() },
