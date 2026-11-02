@@ -2786,6 +2786,7 @@ return [
     'LF_course_template_learning_ui_stat_lessons' => 'Lessons with competencies',
     'LF_course_template_learning_ui_stat_nodes' => 'Framework competencies used',
     'LF_course_template_learning_ui_stat_links' => 'Competency links in the draft',
+    'LF_course_template_learning_ui_stat_links_tip' => 'How many times a competency is attached to a lesson or activity. For example, a lesson with 2 competencies counts as 2 links.',
     'LF_course_template_learning_ui_stat_links_help' => 'Saved with the version on publish',
     'LF_course_template_learning_ui_empty_title' => 'No outcome framework selected',
     'LF_course_template_learning_ui_map_help' => 'Use “Attach competencies” on each lesson; several competencies can be chosen at once.',

@@ -2020,8 +2020,9 @@
 .lf-admin-ui.ui-structure .course-template-content-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 12px; padding: 0; border: 0; border-radius: 0; background: transparent; }
 .lf-admin-ui.ui-structure .course-template-content-count { display: flex; flex: 1; flex-wrap: wrap; align-items: baseline; gap: 2px 6px; min-width: 0; }
 /* The title takes its own line and the counts sit under it, so the line never breaks in the middle of the counts. */
-.lf-admin-ui.ui-structure .course-template-content-heading { flex-basis: 100%; color: var(--ui-text); font-size: 16px; font-weight: 600; line-height: 1.3; }
+.lf-admin-ui.ui-structure .course-template-content-heading { margin-right: 4px; color: var(--ui-text); font-size: 16px; font-weight: 600; line-height: 1.3; }
 .lf-admin-ui.ui-structure .course-template-content-toolbar .course-template-content-count strong,
+.lf-admin-ui.ui-structure .course-template-content-toolbar .course-template-content-count > span:not(.course-template-content-heading),
 .lf-admin-ui.ui-structure .course-template-content-toolbar .course-template-content-count .lf-secondary-text { margin: 0; color: var(--ct-text-3); font-size: 13px; font-weight: 400; }
 .lf-admin-ui.ui-structure .course-template-content-count .lf-secondary-text::before { content: "·"; margin-right: 6px; } /* the same 6px on both sides of the dot */
 .lf-admin-ui.ui-structure .course-template-content-tools { display: flex; align-items: center; gap: 8px; }
@@ -2759,10 +2760,16 @@
 .lf-admin-ui .ui-learning-node:has(input:checked:not(:disabled)) { border-color: var(--ui-primary); background: var(--ui-color-f7f8fd); }
 .lf-admin-ui .ui-learning-node:has(input:disabled) { border-style: dashed; background: var(--ui-color-f7f8fd); color: var(--ui-muted); cursor: default; }
 .lf-admin-ui .ui-learning-node input { flex: none; margin-top: 2px; }
+/* Already attached: a locked, visibly ticked box. Disabled inputs keep the kit's light fill, so the white tick turns grey. */
+.lf-admin-ui .ui-learning-node input:disabled:checked { border-color: var(--ui-color-c0c5cf); }
+.lf-admin-ui .ui-learning-node input:disabled:checked::after { border-color: var(--ui-muted); }
 .lf-admin-ui .ui-learning-node__body { display: grid; gap: 3px; min-width: 0; }
-.lf-admin-ui .ui-learning-node__top { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.lf-admin-ui .ui-learning-node-name { font-weight: 500; }
-.lf-admin-ui .ui-learning-node__desc { color: var(--ui-muted); font-size: 12px; line-height: 1.45; }
+.lf-admin-ui .ui-learning-node__top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 8px; min-height: 22px; }
+.lf-admin-ui .ui-learning-node .ui-learning-code { flex: 0 1 auto; min-width: 0; padding: 0; background: transparent; overflow-wrap: anywhere; }
+.lf-admin-ui .ui-learning-node .ui-learning-node-name { color: var(--ui-text); font-weight: 600; overflow-wrap: anywhere; }
+.lf-admin-ui .ui-learning-node__desc { color: var(--ui-color-6e7787); font-size: 12px; line-height: 1.45; }
+.lf-admin-ui .ui-learning-nodes__legend { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; margin-bottom: 8px; padding: 0; }
+.lf-admin-ui .ui-learning-nodes__legend .ui-caption { margin: 0; font-weight: 400; }
 .lf-admin-ui .ui-learning-subtitle { margin: 0 0 4px; font-size: 14px; font-weight: 500; }
 .lf-admin-ui .ui-learning-scale { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 8px 0 18px; padding: 0; }
 .lf-admin-ui .ui-learning-scale li { padding: 8px 10px; border: 1px solid var(--ui-color-e6e8ee); border-top: 3px solid var(--ui-level-1); border-radius: 6px; list-style: none; }

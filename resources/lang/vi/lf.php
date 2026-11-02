@@ -2786,6 +2786,7 @@ return [
     'LF_course_template_learning_ui_stat_lessons' => 'Bài học đã gắn năng lực',
     'LF_course_template_learning_ui_stat_nodes' => 'Năng lực của bộ chuẩn đã dùng',
     'LF_course_template_learning_ui_stat_links' => 'Liên kết năng lực trong bản nháp',
+    'LF_course_template_learning_ui_stat_links_tip' => 'Tổng số lần gắn năng lực vào bài học hoặc hoạt động. Ví dụ: một bài học gắn 2 năng lực được tính là 2 liên kết.',
     'LF_course_template_learning_ui_stat_links_help' => 'Lưu cùng phiên bản khi xuất bản',
     'LF_course_template_learning_ui_empty_title' => 'Chưa chọn bộ chuẩn đầu ra',
     'LF_course_template_learning_ui_map_help' => 'Bấm “Gắn năng lực” ở từng bài học; có thể chọn nhiều năng lực một lần.',

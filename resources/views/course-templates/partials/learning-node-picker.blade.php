@@ -59,7 +59,10 @@
                     <input type="search" x-model="q" x-on:keydown.enter.prevent placeholder="{{ __('lf.LF_course_template_learning_picker_search') }}" aria-label="{{ __('lf.LF_course_template_learning_picker_search') }}">
                 </label>
                 <fieldset class="ui-fieldset-reset">
-                    <legend class="ui-field__label">{{ __('lf.LF_course_template_learning_nodes_legend') }} <span class="ui-caption">· {{ __('lf.LF_course_template_learning_ui_available', ['count' => $availableCount]) }}</span></legend>
+                    <legend class="ui-field__label ui-learning-nodes__legend">
+                        <span>{{ __('lf.LF_course_template_learning_nodes_legend') }}</span>
+                        <span class="ui-caption">· {{ __('lf.LF_course_template_learning_ui_available', ['count' => $availableCount]) }}</span>
+                    </legend>
                     <div class="ui-learning-nodes">
                         @foreach ($pickerNodes as $node)
                             @php
@@ -72,11 +75,14 @@
                                     <input type="checkbox" name="learning_node_ids[]" value="{{ $node->id }}" x-model="chosen">
                                 @endif
                                 <span class="ui-learning-node__body">
+                                    {{-- Every card reads the same: code and status, then the name, then the description. --}}
                                     <span class="ui-learning-node__top">
                                         <span class="ui-learning-code">{{ $node->code_snapshot }}</span>
-                                        <span class="ui-learning-node-name">{{ $node->name_snapshot }}</span>
-                                        @if ($attached)<span class="ui-learning-badge ui-learning-badge--muted">{{ __('lf.LF_course_template_learning_ui_attached') }}</span>@endif
+                                        @if ($attached)
+                                            <span class="ui-learning-badge ui-learning-badge--success"><x-backend-icon name="check" class="ui-icon" />{{ __('lf.LF_course_template_learning_ui_attached') }}</span>
+                                        @endif
                                     </span>
+                                    <span class="ui-learning-node-name">{{ $node->name_snapshot }}</span>
                                     @if ($node->description_snapshot ?? null)
                                         <span class="ui-learning-node__desc">{{ $node->description_snapshot }}</span>
                                     @endif

@@ -222,7 +222,10 @@
                         <div class="ui-learning-progress" aria-hidden="true"><span style="width: {{ $percent($usedNodeCount, $nodes->count()) }}%"></span></div>
                     </div>
                     <div class="ui-learning-stat">
-                        <div class="ui-learning-stat__label">{{ __('lf.LF_course_template_learning_ui_stat_links') }}</div>
+                        <div class="ui-learning-stat__label ui-field__label--tip">
+                            <span>{{ __('lf.LF_course_template_learning_ui_stat_links') }}</span>
+                            <x-info-tip align="end" :text="__('lf.LF_course_template_learning_ui_stat_links_tip')" />
+                        </div>
                         <div class="ui-learning-stat__value">{{ $intents->count() }}</div>
                         <div class="ui-caption">{{ __('lf.LF_course_template_learning_ui_stat_links_help') }}</div>
                     </div>
