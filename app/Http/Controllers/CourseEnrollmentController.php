@@ -11,9 +11,11 @@ use App\Services\BulkEnrollmentService;
 use App\Services\BulkEnrollmentSubmissionToken;
 use App\Services\CourseEnrollmentLifecycleService;
 use App\Services\EnrollmentCreationAction;
+use App\Services\EnrollmentEligibilityPolicy;
 use App\Support\CourseType;
 use App\Support\TenantContext;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
@@ -51,7 +53,7 @@ class CourseEnrollmentController extends Controller
         $status = $request->query('status');
         $source = $request->query('source');
         $productId = $request->integer('product_id') ?: null;
-        $studentId = $request->integer('student_id') ?: null;
+        $courseType = $request->query('course_type');
         $enrolledBy = $request->integer('enrolled_by') ?: null;
         $enrolledFrom = $this->validDateFilter($request->query('enrolled_from'));
         $enrolledTo = $this->validDateFilter($request->query('enrolled_to'));
@@ -66,12 +68,8 @@ class CourseEnrollmentController extends Controller
         if ($productId && ! DB::table('core_course_products')->where('customer_id', $customerId)->where('id', $productId)->exists()) {
             $productId = null;
         }
-        if ($studentId && ! DB::table('users')
-            ->where('customer_id', $customerId)
-            ->where('id', $studentId)
-            ->where('role', 'student')
-            ->exists()) {
-            $studentId = null;
+        if (! in_array($courseType, CourseType::VALUES, true)) {
+            $courseType = null;
         }
         if ($enrolledBy && ! DB::table('users')->where('customer_id', $customerId)->where('id', $enrolledBy)->exists()) {
             $enrolledBy = null;
@@ -110,7 +108,7 @@ class CourseEnrollmentController extends Controller
                 $query->where('enrollments.source', $source);
             })
             ->when($productId, fn ($query) => $query->where('enrollments.product_id', $productId))
-            ->when($studentId, fn ($query) => $query->where('enrollments.student_id', $studentId))
+            ->when($courseType, fn ($query) => $query->where('versions.course_type_snapshot', $courseType))
             ->when($enrolledBy, fn ($query) => $query->where('enrollments.enrolled_by', $enrolledBy))
             ->when($enrolledFrom, fn ($query) => $query->where('enrollments.enrolled_at', '>=', $enrolledFrom.' 00:00:00'))
             ->when($enrolledTo, fn ($query) => $query->where('enrollments.enrolled_at', '<=', $enrolledTo.' 23:59:59'))
@@ -131,10 +129,10 @@ class CourseEnrollmentController extends Controller
             ->withQueryString();
 
         $enrollments->setCollection($enrollments->getCollection()->map(function (object $enrollment): object {
-            $learningWindowEndsAt = $enrollment->review_ends_at ?? $enrollment->access_ends_at;
+            $enrollment->learning_ended = $this->learningEnded($enrollment);
             $enrollment->reactivation_eligible = $enrollment->status === 'suspended'
                 && $enrollment->version_status === 'published'
-                && ($learningWindowEndsAt === null || Carbon::parse($learningWindowEndsAt)->isFuture());
+                && ! $enrollment->learning_ended;
 
             return $enrollment;
         }));
@@ -144,10 +142,10 @@ class CourseEnrollmentController extends Controller
             'keyword' => $keyword,
             'status' => $status,
             'source' => $source,
-            'productId' => $productId, 'studentId' => $studentId, 'enrolledBy' => $enrolledBy,
+            'courseType' => $courseType,
+            'productId' => $productId, 'enrolledBy' => $enrolledBy,
             'enrolledFrom' => $enrolledFrom, 'enrolledTo' => $enrolledTo,
             'filterProducts' => DB::table('core_course_products')->where('customer_id', $customerId)->orderBy('title')->get(['id', 'title', 'product_code']),
-            'filterStudents' => DB::table('users')->where('customer_id', $customerId)->where('role', 'student')->orderBy('name')->get(['id', 'name', 'email']),
             'filterCreators' => DB::table('users')->where('customer_id', $customerId)->whereIn('role', ['customer_admin', 'teacher'])->orderBy('name')->get(['id', 'name']),
             'routePrefix' => $this->routePrefix($request),
         ]);
@@ -280,6 +278,7 @@ class CourseEnrollmentController extends Controller
                         'student_id' => $pair['student_id'],
                         'student_name' => $pair['student_name'],
                         'reason' => $pair['reason'],
+                        'previous_enrollment_id' => $pair['previous_enrollment_id'],
                     ])->values()->all(),
                 ]];
             });
@@ -406,6 +405,8 @@ class CourseEnrollmentController extends Controller
         return view('course-enrollments.create', [
             'completedResult' => $result,
             'itemsPaginator' => $itemsPaginator,
+            'studentEmails' => DB::table('users')->where('customer_id', $this->customerId())
+                ->whereIn('id', $itemsPaginator->pluck('student_id'))->pluck('email', 'id'),
             'routePrefix' => $this->routePrefix($request),
         ]);
     }
@@ -435,13 +436,35 @@ class CourseEnrollmentController extends Controller
 
         $enrollment = $this->findEnrollment($customerId, $id);
 
+        $withinWindow = $enrollment->version_status === 'published' && ! $this->learningEnded($enrollment);
+
         return view('course-enrollments.show', [
             'enrollment' => $enrollment,
+            'learningState' => $this->learningState($enrollment),
+            'canReactivate' => $withinWindow,
+            'canActivate' => $withinWindow && $enrollment->product_status === 'active',
+            'previousEnrollmentId' => DB::table('core_course_enrollments')->where('customer_id', $customerId)
+                ->where('student_id', $enrollment->student_id)->where('product_id', $enrollment->product_id)
+                ->where('id', '<', $enrollment->id)->whereIn('status', EnrollmentEligibilityPolicy::TERMINAL)
+                ->max('id'),
+            'enrolledByName' => $enrollment->enrolled_by
+                ? DB::table('users')->where('customer_id', $customerId)->where('id', $enrollment->enrolled_by)->value('name')
+                : null,
+            'cohorts' => DB::table('core_course_cohort_students as memberships')
+                ->join('core_course_cohorts as cohorts', function ($join) use ($customerId): void {
+                    $join->on('cohorts.id', '=', 'memberships.cohort_id')->where('cohorts.customer_id', $customerId);
+                })
+                ->where('memberships.customer_id', $customerId)
+                ->where('memberships.enrollment_id', $enrollment->id)
+                ->where('memberships.status', 'active')
+                ->orderByDesc('memberships.id')
+                ->get(['cohorts.id', 'cohorts.name', 'cohorts.status', 'cohorts.start_date', 'cohorts.end_date']),
             'routePrefix' => $this->routePrefix($request),
         ]);
     }
 
-    public function edit(Request $request, int $id): View
+    /** The edit form is a popup; a saved or typed link to it lands on the enrollment's own page. */
+    public function edit(Request $request, int $id): View|RedirectResponse
     {
         $this->authorizeAdmin($request);
 
@@ -450,7 +473,11 @@ class CourseEnrollmentController extends Controller
         $enrollment = $this->findEnrollment($customerId, $id);
         abort_if(in_array($enrollment->status, ['completed', 'expired', 'cancelled'], true), 422);
 
-        return view('course-enrollments.edit', [
+        if (! $request->ajax()) {
+            return redirect()->route($this->routePrefix($request).'.show', $id);
+        }
+
+        return view('course-enrollments.dialog', [
             'enrollment' => $enrollment,
             'routePrefix' => $this->routePrefix($request),
         ]);
@@ -488,9 +515,14 @@ class CourseEnrollmentController extends Controller
             DB::table('core_course_enrollments')->where('customer_id', $customerId)->where('id', $id)->update($updates);
         }, 3);
 
-        return redirect()
+        $saved = redirect()
             ->route($this->routePrefix($request).'.show', $id)
             ->with('success', __('lf.LF_course_enrollment_common_updated'));
+
+        // The popup reloads the page it was opened from, which shows the flashed message.
+        return $request->expectsJson()
+            ? response()->json(['message' => __('lf.LF_course_enrollment_common_updated'), 'redirect' => url()->previous()])
+            : $saved;
     }
 
     public function activate(Request $request, int $id, CourseEnrollmentLifecycleService $service)
@@ -604,6 +636,29 @@ class CourseEnrollmentController extends Controller
         }
     }
 
+    /** An open Enrollment whose learning window has passed: the status stays as stored, access is already over. */
+    private function learningEnded(object $enrollment): bool
+    {
+        $endsAt = $enrollment->review_ends_at ?? $enrollment->access_ends_at;
+
+        return in_array($enrollment->status, EnrollmentEligibilityPolicy::NON_TERMINAL, true)
+            && $endsAt !== null && Carbon::parse($endsAt)->isPast();
+    }
+
+    private function learningState(object $enrollment): ?string
+    {
+        if (! in_array($enrollment->status, EnrollmentEligibilityPolicy::NON_TERMINAL, true) || ! $enrollment->access_ends_at) {
+            return null;
+        }
+
+        return match (true) {
+            $this->learningEnded($enrollment) => 'ended',
+            Carbon::parse($enrollment->access_starts_at)->isFuture() => 'upcoming',
+            Carbon::parse($enrollment->access_ends_at)->isPast() => 'review',
+            default => 'learning',
+        };
+    }
+
     private function findEnrollment(int $customerId, int $id): object
     {
         $enrollment = DB::table('core_course_enrollments as enrollments')
@@ -627,6 +682,8 @@ class CourseEnrollmentController extends Controller
                 'students.email as student_email',
                 'products.title as product_title',
                 'products.product_code',
+                'products.status as product_status',
+                'versions.status as version_status',
                 'versions.course_type_snapshot as course_type',
                 'products.registration_starts_at',
                 'products.registration_ends_at',

@@ -45,7 +45,8 @@ class EnrollmentEligibilityPolicy
             return ['status' => 'existing_non_terminal', 'previous_enrollment_id' => (int) $nonTerminal->id];
         }
 
-        $terminal = $history->first(
+        // A student can re-enroll several times: the new cycle follows the latest one that ended.
+        $terminal = $history->sortByDesc('id')->first(
             fn (object $row): bool => in_array($row->status, self::TERMINAL, true)
         );
 

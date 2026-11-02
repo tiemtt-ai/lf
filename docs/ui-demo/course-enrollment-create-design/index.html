@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ghi danh khóa học · Tạo ghi danh</title>
+<link rel="stylesheet" href="../admin-layout-developer/assets/admin-layout.css">
+<link rel="stylesheet" href="../ui-kit-developer/assets/ui-kit.css">
+<link rel="stylesheet" href="assets/enrollment.css?v=1.3">
+<script defer src="../ui-kit-developer/assets/lucide.min.js"></script>
+<script defer src="assets/enrollment.js?v=1.3"></script>
+</head>
+<body>
+<div id="admin-app">
+<div class="admin-shell" id="admin-shell">
+<aside class="admin-sidebar" id="admin-sidebar" aria-label="Điều hướng quản trị">
+<div class="admin-sidebar__brand"><img class="admin-brand-image" src="../admin-layout-developer/assets/brand-logo.png" alt="Master Korean" width="180" height="67"><span class="admin-brand-initial" role="img" aria-label="Master Korean">V</span><button id="admin-close" type="button" class="admin-icon-button admin-close" aria-label="Đóng menu" hidden><i data-lucide="x" class="admin-icon" aria-hidden="true"></i></button></div>
+<nav class="admin-nav" aria-label="Menu chính">
+<a href="#" class="admin-nav__item" aria-label="Bảng điều khiển" data-tooltip="Bảng điều khiển"><i data-lucide="house" class="admin-icon" aria-hidden="true"></i><span class="admin-nav__label">Bảng điều khiển</span></a>
+<a href="#" class="admin-nav__item" aria-label="Template khóa học" data-tooltip="Template khóa học"><i data-lucide="book-open" class="admin-icon" aria-hidden="true"></i><span class="admin-nav__label">Template khóa học</span></a>
+<a href="#" class="admin-nav__item" aria-label="Sản phẩm khóa học" data-tooltip="Sản phẩm khóa học"><i data-lucide="box" class="admin-icon" aria-hidden="true"></i><span class="admin-nav__label">Sản phẩm khóa học</span></a>
+<a href="#" class="admin-nav__item" aria-current="page" aria-label="Ghi danh khóa học" data-tooltip="Ghi danh khóa học"><i data-lucide="clipboard-check" class="admin-icon" aria-hidden="true"></i><span class="admin-nav__label">Ghi danh khóa học</span></a>
+<a href="#" class="admin-nav__item" aria-label="Lớp học" data-tooltip="Lớp học"><i data-lucide="users" class="admin-icon" aria-hidden="true"></i><span class="admin-nav__label">Lớp học</span></a>
+<a href="#" class="admin-nav__item" aria-label="Thư viện Media" data-tooltip="Thư viện Media"><i data-lucide="image" class="admin-icon" aria-hidden="true"></i><span class="admin-nav__label">Thư viện Media</span></a>
+</nav>
+<div class="admin-sidebar__footer"><div class="admin-user"><span class="admin-avatar">V1</span><span class="admin-user__text">Visang 1<small>Không gian quản trị</small></span></div></div>
+</aside>
+
+<div class="admin-main" id="admin-main">
+<header class="admin-header"><button id="admin-menu-toggle" type="button" class="admin-icon-button" aria-label="Thu gọn menu" aria-expanded="true" aria-controls="admin-sidebar"><i data-lucide="panel-left" class="admin-icon" aria-hidden="true"></i></button><span class="admin-breadcrumb"><span class="admin-system-name">Ghi danh khóa học</span> <span aria-hidden="true"> / </span><strong>Tạo ghi danh</strong></span></header>
+
+<main class="admin-content">
+<div id="ui-catalog-soft" class="enr">
+
+<div class="enr-demo" role="group" aria-label="Thao tác minh họa">
+  <i data-lucide="flask-conical" class="ui-icon" aria-hidden="true"></i><span>Bản thiết kế · dữ liệu minh họa:</span>
+  <button type="button" class="ui-button" data-demo="sample">Chọn mẫu có ghi danh lại</button>
+  <button type="button" class="ui-button" data-demo="invalid">Mẫu sản phẩm đã chọn hết điều kiện</button>
+  <button type="button" class="ui-button" data-demo="reset">Làm lại từ đầu</button>
+</div>
+
+<a class="enr-back" href="#"><i data-lucide="chevron-left" class="ui-icon" aria-hidden="true"></i>Về danh sách ghi danh</a>
+<div class="enr-head">
+  <div><h2>Tạo ghi danh</h2><span class="ui-caption">Mỗi học viên được ghép với từng sản phẩm đã chọn thành một ghi danh độc lập. Hệ thống kiểm tra điều kiện của từng cặp trước khi tạo.</span></div>
+  <nav class="enr-stepper" aria-label="Tiến trình tạo ghi danh"><ol>
+    <li class="enr-step" data-step-item="1"><span class="enr-step__dot">1</span><span class="enr-step__label">Chọn học viên &amp; sản phẩm</span></li>
+    <li class="enr-step" data-step-item="2"><span class="enr-step__dot">2</span><span class="enr-step__label">Kiểm tra &amp; xác nhận</span></li>
+    <li class="enr-step" data-step-item="3"><span class="enr-step__dot">3</span><span class="enr-step__label">Hoàn tất</span></li>
+  </ol></nav>
+</div>
+
+<!-- ============ STEP 1 ============ -->
+<div id="enr-step-1">
+  <section class="ui-section enr-setup-card" aria-label="Thiết lập chung">
+    <div class="enr-setup">
+      <label class="ui-field__label" for="enr-date"><span class="ui-field__required">*</span>Ngày ghi danh</label>
+      <input id="enr-date" type="datetime-local" required aria-describedby="enr-date-hint">
+      <span id="enr-date-hint" class="ui-caption"><i data-lucide="info" class="ui-icon" aria-hidden="true" style="width:13px;height:13px;vertical-align:-2px"></i> Mặc định là thời điểm hiện tại. Đổi ngày sẽ kiểm tra lại điều kiện sản phẩm.</span>
+    </div>
+  </section>
+
+  <div class="enr-alert enr-alert--danger" id="enr-invalid-alert" role="alert" tabindex="-1" hidden>
+    <i data-lucide="circle-alert" class="ui-icon" aria-hidden="true"></i>
+    <div><strong id="enr-invalid-title">Sản phẩm đã chọn không còn đủ điều kiện</strong>
+      <span id="enr-invalid-text"></span>
+      <ul id="enr-invalid-list" style="margin:4px 0 0;padding-left:18px"></ul>
+      <div class="enr-alert__actions"><button type="button" class="ui-button ui-button--sm" id="enr-fix-date"><i data-lucide="calendar" class="ui-icon" aria-hidden="true"></i>Đổi ngày ghi danh</button><button type="button" class="ui-button ui-button--sm" id="enr-remove-invalid">Bỏ chọn sản phẩm này</button></div>
+    </div>
+  </div>
+
+  <div class="enr-panels">
+    <section class="enr-panel" aria-labelledby="enr-students-title">
+      <div class="enr-panel__head"><h3 class="enr-panel__title" id="enr-students-title"><span class="enr-panel__icon"><i data-lucide="users" class="ui-icon" aria-hidden="true"></i></span>Học viên</h3><span class="ui-caption" id="enr-students-count" aria-live="polite">Đã chọn 0</span></div>
+      <div class="enr-panel__tools">
+        <div class="ui-search"><input id="enr-student-search" type="search" placeholder="Tìm theo tên hoặc email" aria-label="Tìm học viên theo tên hoặc email"><button class="ui-button" type="button" aria-label="Tìm kiếm" tabindex="-1"><i data-lucide="search" class="ui-icon" aria-hidden="true"></i></button></div>
+        <div class="enr-panel__bar"><label class="ui-check"><input type="checkbox" id="enr-students-all">Chọn tất cả trên trang</label><span class="ui-caption" id="enr-students-total"></span></div>
+        <div class="enr-selected" id="enr-students-chips" aria-label="Học viên đã chọn"></div>
+      </div>
+      <ul class="enr-list" id="enr-students"></ul>
+      <div class="enr-panel__foot"><span id="enr-students-page">Trang 1 / 1</span><span>10 / trang</span></div>
+    </section>
+
+    <section class="enr-panel" id="enr-product-panel" aria-labelledby="enr-products-title">
+      <div class="enr-panel__head"><h3 class="enr-panel__title" id="enr-products-title"><span class="enr-panel__icon"><i data-lucide="package" class="ui-icon" aria-hidden="true"></i></span>Sản phẩm</h3><span class="ui-caption" id="enr-products-count" aria-live="polite"></span></div>
+      <div class="enr-panel__tools">
+        <div class="ui-search"><input id="enr-product-search" type="search" placeholder="Tìm theo tên hoặc mã sản phẩm" aria-label="Tìm sản phẩm theo tên hoặc mã"><button class="ui-button" type="button" aria-label="Tìm kiếm" tabindex="-1"><i data-lucide="search" class="ui-icon" aria-hidden="true"></i></button></div>
+        <div class="enr-panel__bar"><label class="ui-check"><input type="checkbox" id="enr-products-all">Chọn tất cả sản phẩm đủ điều kiện</label><span class="ui-caption" title="Phiên bản được hệ thống xác định từ sản phẩm và khóa khi tạo ghi danh."><i data-lucide="lock" class="ui-icon" aria-hidden="true" style="width:12px;height:12px;vertical-align:-1px"></i> Khóa phiên bản khi tạo</span></div>
+      </div>
+      <div class="enr-checking enr-locked-note" id="enr-locked-note" role="note" hidden><i data-lucide="lock" class="ui-icon" aria-hidden="true"></i>Chọn ít nhất một học viên ở cột bên trái để kiểm tra và chọn sản phẩm.</div>
+      <div class="enr-checking" id="enr-checking" role="status" hidden><span class="enr-spinner" aria-hidden="true"></span>Đang kiểm tra sản phẩm phù hợp với học viên và ngày ghi danh…</div>
+      <ul class="enr-list" id="enr-products"></ul>
+      <div class="enr-panel__foot"><span id="enr-products-page">Trang 1 / 1</span><span id="enr-products-summary"></span></div>
+    </section>
+  </div>
+</div>
+
+<!-- ============ STEP 2 ============ -->
+<div id="enr-step-2" hidden>
+  <section class="ui-section enr-review-head" aria-label="Thông tin áp dụng cho mọi ghi danh">
+    <dl class="enr-facts">
+      <div><dt>Ngày ghi danh</dt><dd id="enr-stat-date"></dd></div>
+      <div><dt>Trạng thái sau khi tạo</dt><dd><span class="enr-badge enr-badge--success">Hoạt động</span></dd></div>
+      <div><dt>Nguồn ghi danh</dt><dd>Quản trị viên</dd></div>
+    </dl>
+    <button type="button" class="ui-button ui-button--sm" data-go="1"><i data-lucide="pencil" class="ui-icon" aria-hidden="true"></i>Đổi lựa chọn</button>
+  </section>
+
+  <section class="mk-section enr-pairs" aria-labelledby="enr-pairs-title">
+    <div class="mk-section-head">
+      <div><h3 id="enr-pairs-title">Danh sách ghi danh sẽ tạo</h3><p id="enr-pairs-summary"></p></div>
+      <button type="button" class="ui-button ui-button--outline ui-button--sm" id="enr-confirm-all" hidden><i data-lucide="check-check" class="ui-icon" aria-hidden="true"></i>Xác nhận tất cả ghi danh lại</button>
+    </div>
+    <div class="mk-tabs" role="tablist" aria-label="Lọc danh sách" id="enr-pair-tabs" hidden>
+      <button type="button" role="tab" class="mk-tab" aria-selected="true" data-pairfilter="all">Tất cả<span class="enr-count" id="enr-count-all">0</span></button>
+      <button type="button" role="tab" class="mk-tab" aria-selected="false" data-pairfilter="pending">Cần xác nhận<span class="enr-count enr-count--warn" id="enr-count-pending">0</span></button>
+    </div>
+    <div class="mk-table-scroll"><table class="enr-table enr-table--grouped" aria-labelledby="enr-pairs-title">
+      <thead><tr><th scope="col" class="enr-col-no">STT</th><th scope="col">Học viên</th><th scope="col" class="enr-col-result">Kết quả dự kiến</th></tr></thead>
+      <tbody id="enr-pairs"></tbody>
+    </table></div>
+    <div class="enr-pager" id="enr-pairs-pager"></div>
+  </section>
+
+  <section class="ui-section enr-notes" aria-label="Ghi chú nội bộ">
+    <button type="button" class="enr-link" id="enr-notes-toggle" aria-expanded="false" aria-controls="enr-notes-field"><i data-lucide="plus" class="ui-icon" aria-hidden="true" style="width:14px;height:14px;vertical-align:-2px"></i> Thêm ghi chú nội bộ <span class="ui-caption">(không bắt buộc · chỉ quản trị viên thấy)</span></button>
+    <div class="ui-field" id="enr-notes-field" hidden><label class="ui-field__label" for="enr-notes">Ghi chú nội bộ</label><textarea id="enr-notes" placeholder="Ví dụ: Ghi danh theo hợp đồng doanh nghiệp tháng 11"></textarea></div>
+  </section>
+</div>
+
+<!-- ============ STEP 3 ============ -->
+<div id="enr-step-3" hidden>
+  <div class="enr-success" role="status">
+    <span class="enr-success__icon"><i data-lucide="check" class="ui-icon" aria-hidden="true"></i></span>
+    <div><h3>Tạo ghi danh thành công</h3><p id="enr-done-text">Hệ thống đã tạo 1 ghi danh độc lập.</p>
+      <dl class="enr-facts"><div><dt>Hoàn tất lúc</dt><dd id="enr-done-at"></dd></div><div><dt>Người thực hiện</dt><dd>Visang 1</dd></div><div><dt>Ngày ghi danh</dt><dd id="enr-done-date"></dd></div><div><dt>Trạng thái</dt><dd><span class="enr-badge enr-badge--success">Hoạt động</span></dd></div><div><dt>Nguồn</dt><dd>Quản trị viên</dd></div></dl>
+    </div>
+  </div>
+  <section class="ui-section" aria-labelledby="enr-done-title">
+    <div class="enr-section-head"><h3 id="enr-done-title">Danh sách ghi danh đã tạo</h3><span class="ui-caption" id="enr-done-summary"></span></div>
+    <div class="mk-table-scroll"><table class="enr-table enr-table--grouped" aria-labelledby="enr-done-title">
+      <thead><tr><th scope="col" class="enr-col-no">STT</th><th scope="col">Học viên</th><th scope="col">Kết quả</th><th scope="col" class="enr-col-id">Mã ghi danh</th></tr></thead>
+      <tbody id="enr-done-rows"></tbody>
+    </table></div>
+    <div id="enr-done-notes" class="ui-caption" style="margin-top:12px" hidden></div>
+  </section>
+  <div class="enr-result-actions"><button type="button" class="ui-button" data-demo="reset"><i data-lucide="plus" class="ui-icon" aria-hidden="true"></i>Tạo ghi danh khác</button><a class="ui-button ui-button--primary" href="#">Về danh sách ghi danh</a></div>
+</div>
+
+<!-- Sticky action bar (steps 1–2) -->
+<div class="enr-actionbar" id="enr-actionbar">
+  <div class="enr-formula" aria-live="polite"><span><b id="enr-f-students">0</b> học viên</span><span class="enr-op">×</span><span><b id="enr-f-products">0</b> sản phẩm</span><span class="enr-op">=</span><span class="enr-total"><b id="enr-f-pairs">0</b> ghi danh</span></div>
+  <div class="enr-limit" id="enr-limit"><span class="enr-meter" aria-hidden="true"><span id="enr-meter" style="width:0"></span></span><span id="enr-limit-text">0/100 cặp tối đa</span></div>
+  <span class="enr-actionbar__msg" id="enr-action-msg" role="status"></span>
+  <div class="enr-actionbar__buttons">
+    <a class="ui-button" href="#">Hủy</a>
+    <button type="button" class="ui-button" id="enr-back" data-go="1" hidden><i data-lucide="arrow-left" class="ui-icon" aria-hidden="true"></i>Quay lại</button>
+    <button type="button" class="ui-button ui-button--primary" id="enr-next" disabled>Tiếp tục<i data-lucide="arrow-right" class="ui-icon" aria-hidden="true"></i></button>
+    <button type="button" class="ui-button ui-button--primary" id="enr-submit" hidden><i data-lucide="check" class="ui-icon" aria-hidden="true"></i><span>Tạo ghi danh</span></button>
+  </div>
+</div>
+
+<!-- Confirm all re-enrollments -->
+<dialog id="enr-confirm-dialog" class="ui-modal" data-columns="1" aria-labelledby="enr-confirm-title">
+  <form class="ui-modal__form" id="enr-confirm-form">
+    <header class="ui-modal__header"><div><h3 id="enr-confirm-title">Xác nhận tất cả ghi danh lại?</h3></div><button type="button" class="ui-modal__close" data-close aria-label="Đóng popup">×</button></header>
+    <div class="ui-modal__body"><p class="enr-modal-lead">Bạn đang chủ động tạo chu kỳ học mới cho <strong id="enr-confirm-count">0</strong> cặp học viên – sản phẩm đã từng ghi danh. Dữ liệu các ghi danh cũ vẫn được giữ nguyên.</p></div>
+    <footer class="ui-modal__footer"><button type="button" class="ui-button" data-close>Hủy</button><button type="submit" class="ui-button ui-button--primary">Xác nhận tất cả</button></footer>
+  </form>
+</dialog>
+
+<div class="enr-toast" id="enr-toast" role="status" aria-live="polite" hidden><span id="enr-toast-text"></span></div>
+
+</div>
+</main>
+<footer class="admin-page-footer">Copyright © VISANG Education Group Vietnam Company</footer>
+</div>
+</div>
+<dialog id="admin-drawer" class="admin-drawer" aria-label="Menu quản trị"></dialog>
+</div>
+</body>
+</html>

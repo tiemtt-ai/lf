@@ -224,6 +224,8 @@ class EnrollmentCreationAction
             $items[] = [
                 'student_id' => $pair['student_id'], 'student_name' => $pair['student_name'],
                 'product_id' => $pair['product_id'], 'product_title' => $product['title'],
+                'product_code' => $product['product_code'], 'version_number' => $product['version_number'],
+                'previous_enrollment_id' => $pair['previous_enrollment_id'],
                 'version_code' => $product['version_code'], 'enrollment_id' => $enrollmentId,
                 'status' => $confirmations->has($pair['student_id'].':'.$pair['product_id']) ? 'reenrolled' : 'created',
                 'time_windows' => $windows,

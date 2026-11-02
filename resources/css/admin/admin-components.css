@@ -8303,3 +8303,10 @@
 .lf-info-tip.is-open .lf-info-tip__bubble {
     display: block;
 }
+
+/* Spinner of the enrollment create wizard (the UI Kit stylesheet holds selectors scoped to .lf-admin-ui only). */
+@keyframes enr-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}

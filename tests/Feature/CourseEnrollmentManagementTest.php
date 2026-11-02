@@ -119,7 +119,7 @@ class CourseEnrollmentManagementTest extends TestCase
 
         foreach ([
             $this->actingAs($admin)
-                ->get("https://tenant-a.localhost/admin/course-enrollments/{$enrollmentId}/edit")
+                ->get("https://tenant-a.localhost/admin/course-enrollments/{$enrollmentId}/edit", ['X-Requested-With' => 'XMLHttpRequest'])
                 ->assertOk()
                 ->assertSee('Manual enrollment approved by admin.'),
             $this->actingAs($admin)
@@ -185,8 +185,7 @@ class CourseEnrollmentManagementTest extends TestCase
         $this->actingAs($admin)
             ->get("https://tenant-a.localhost/admin/course-enrollments/{$enrollmentId}")
             ->assertOk()
-            ->assertSee('class="ui-enroll-head"', false)
-            ->assertSeeInOrder(['id="enrollment-show-access"', __('lf.LF_course_enrollment_locked_version_label'), 'id="enrollment-show-information"', __('lf.LF_course_enrollment_common_source')], false)
+            ->assertSee('class="mk-section ui-framework__identity"', false)
             ->assertSee('class="ui-summary ui-enroll-summary"', false)
             ->assertSee('id="enrollment-show-access"', false)
             ->assertSee('id="enrollment-show-information"', false)
@@ -194,7 +193,6 @@ class CourseEnrollmentManagementTest extends TestCase
             ->assertSeeInOrder([
                 __('lf.LF_course_enrollment_common_enrolled_at'),
                 __('lf.LF_course_enrollment_common_source'),
-                __('lf.LF_course_enrollment_common_status'),
             ])
             ->assertDontSee('id="enrollment-show-access-window"', false)
             ->assertDontSee('id="enrollment-show-review-window"', false)
@@ -214,10 +212,10 @@ class CourseEnrollmentManagementTest extends TestCase
         $enrollmentId = $this->createEnrollment($customerId, $student->id, $productId, $versionId);
 
         $response = $this->actingAs($admin)
-            ->get("https://tenant-a.localhost/admin/course-enrollments/{$enrollmentId}/edit")
+            ->get("https://tenant-a.localhost/admin/course-enrollments/{$enrollmentId}/edit", ['X-Requested-With' => 'XMLHttpRequest'])
             ->assertOk()
-            ->assertSee('class="ui-enroll-form"', false)
-            ->assertSee('class="ui-enroll-form__actions"', false)
+            ->assertSee('class="ui-modal__form"', false)
+            ->assertDontSee('<html', false)
             ->assertSee('id="review_starts_at"', false)
             ->assertSee('id="review_ends_at"', false)
             ->assertDontSee('name="review_starts_at"', false)
@@ -227,8 +225,7 @@ class CourseEnrollmentManagementTest extends TestCase
 
         $html = $response->getContent();
         $positions = array_map(fn (string $id) => strpos($html, 'id="'.$id.'"'), [
-            'enrollment-edit-access',
-            'enrollment-edit-information',
+            'enrolled_at',
             'access_starts_at',
             'review_ends_at',
             'notes',
@@ -629,161 +626,46 @@ class CourseEnrollmentManagementTest extends TestCase
         $response = $this->actingAs($admin)
             ->get('https://tenant-a.localhost/admin/course-enrollments/create')
             ->assertOk()
-            ->assertSee('class="admin-form-standard"', false)
-            ->assertSeeText(__('lf.LF_bulk_enrollment_select_students_products'))
-            ->assertSeeText(__('lf.LF_bulk_enrollment_setup_confirm'))
-            ->assertSee('aria-label="'.__('lf.LF_bulk_enrollment_information_section').'"', false)
-            ->assertDontSee('configuration[access_starts_at]', false)
-            ->assertDontSee('configuration[access_ends_at]', false)
-            ->assertDontSee('configuration[review_starts_at]', false)
-            ->assertDontSee('configuration[review_ends_at]', false)
+            ->assertSee('class="lf-admin-ui lf-admin-ui--list enr"', false)
+            ->assertSeeText(__('lf.LF_bulk_enrollment_design_step_review'))
+            ->assertSeeText(__('lf.LF_bulk_enrollment_design_step_done'))
+            ->assertSeeText(__('lf.LF_bulk_enrollment_design_pairs_title'))
+            ->assertSeeText(__('lf.LF_bulk_enrollment_design_locked_note'))
+            ->assertSeeText(__('lf.LF_bulk_enrollment_students_panel'))
+            ->assertSeeText(__('lf.LF_bulk_enrollment_products_panel'))
+            ->assertSee('name="submission_token"', false)
+            ->assertSee('name="configuration[enrolled_at]"', false)
             ->assertSee('configuration[notes]', false)
-            ->assertDontSeeText(__('lf.LF_course_enrollment_times_automatic'))
+            ->assertDontSee('configuration[access_starts_at]', false)
+            ->assertDontSee('configuration[review_ends_at]', false)
             ->assertDontSee('name="version_id"', false)
             ->assertDontSee('name="source"', false)
             ->assertDontSee('name="source_id"', false)
             ->assertDontSee('name="status"', false)
             ->assertDontSee('name="enrolled_at"', false);
 
-        $response->assertSee('aria-live="polite"', false)
-            ->assertSeeText(__('lf.LF_bulk_enrollment_select_visible'))
-            ->assertSeeText(__('lf.LF_bulk_enrollment_start_title'))
-            ->assertSeeText(__('lf.LF_bulk_enrollment_start_content'))
-            ->assertSeeText(__('lf.LF_bulk_enrollment_select_student_first'))
-            ->assertSeeText(__('lf.LF_bulk_enrollment_students_panel'))
-            ->assertSeeText(__('lf.LF_bulk_enrollment_products_panel'))
-            ->assertSee('name="submission_token"', false)
-            ->assertSee('class="admin-table-wrap bulk-enrollment-review-table"', false)
-            ->assertDontSee('class="bulk-enrollment-summary"', false);
         $html = $response->getContent();
-        $this->assertSame(2, substr_count($html, '<li :class='));
-        $this->assertStringContainsString('class="bulk-enrollment-stepper"', $html);
-        $this->assertStringContainsString(':aria-current="step === 1 ? \'step\' : null"', $html);
-        $this->assertStringNotContainsString('role="radiogroup"', $html);
-        $this->assertStringNotContainsString('name="mode"', $html);
-        $this->assertStringContainsString('class="bulk-enrollment-dual-selectors"', $html);
-        $this->assertStringContainsString('student_ids[]', $html);
-        $this->assertStringContainsString('product_ids[]', $html);
-        $this->assertStringContainsString('get pairCount()', $html);
-        $this->assertStringContainsString('runPreflight(false, document.activeElement)', $html);
-        $this->assertStringContainsString('runPreflight(true, document.activeElement)', $html);
-        $this->assertStringContainsString('scheduleProductEligibility()', $html);
-        $this->assertStringContainsString('requestVersion !== this.productRequestVersion', $html);
-        $this->assertStringNotContainsString('x-show="productLoading && selectedStudents.length > 0"', $html);
-        $this->assertStringNotContainsString('bulk-enrollment-eligibility-progress', $html);
-        $this->assertStringContainsString('this.productAbortController?.abort()', $html);
-        $this->assertStringNotContainsString('this.productResults = this.productResults.map(item => ({ ...item, eligibility: null }))', $html);
-        $this->assertStringContainsString('get hasInvalidSelectedProducts()', $html);
-        $this->assertStringContainsString('x-show="errorMessage" x-text="errorMessage" role="alert" x-cloak', $html);
-        $this->assertStringContainsString('aria-labelledby="bulk-selection-error-title" x-cloak', $html);
-        $this->assertStringContainsString('x-show="productEligibilityError" class="admin-alert admin-alert-danger" role="alert" x-cloak', $html);
-        $this->assertStringContainsString('class="admin-alert admin-alert-info bulk-enrollment-start-guide" role="note"', $html);
-        $this->assertStringNotContainsString('bulk-enrollment-time-preview', $html);
-        $this->assertStringNotContainsString('previewProductTime', $html);
-        $this->assertStringContainsString('class="bulk-enrollment-date-setting"', $html);
-        $this->assertStringContainsString('class="lf-form-control bulk-enrollment-date-input"', $html);
-        $this->assertStringContainsString('class="lf-required-indicator" aria-hidden="true">*</span>', $html);
-        $this->assertStringNotContainsString('id="bulk-enrolled-at-error"', $html);
-        $this->assertStringContainsString("'has-value': configuration.enrolled_at", $html);
-        $this->assertStringNotContainsString('enrollmentDateCustomized', $html);
-        $this->assertStringNotContainsString('resetEnrollmentDateToNow', $html);
-        $this->assertStringContainsString('async validateEnrollmentDate(trigger = null)', $html);
-        $this->assertStringContainsString('x-show="enrollmentDatePromptVisible"', $html);
-        $this->assertStringContainsString('x-ref="enrollmentDatePromptClose"', $html);
-        $this->assertStringContainsString('closeEnrollmentDatePrompt()', $html);
-        $this->assertStringContainsString("document.getElementById('bulk-enrolled-at')?.focus()", $html);
-        $this->assertStringContainsString(__('lf.LF_course_enrollment_enrolled_at_popup_title'), $html);
-        $this->assertStringContainsString('class="bulk-enrollment-entry-row"', $html);
-        $this->assertStringContainsString("String(number).padStart(2, '0')", $html);
-        $this->assertStringContainsString('students.length === this.selectedStudents.length ? reason', $html);
-        $this->assertStringContainsString("'is-selected-invalid': productEligibilityReady && hasProduct(item.id) && item.eligibility === 'ineligible'", $html);
-        $this->assertStringContainsString('class="bulk-enrollment-invalid-reason"', $html);
-        $this->assertStringContainsString("'is-selected': hasProduct(item.id)", $html);
-        $this->assertStringContainsString('class="bulk-enrollment-eligibility-badge is-checking"', $html);
-        $this->assertStringContainsString('confirmationPerPage: 10', $html);
-        $this->assertStringContainsString('class="bulk-enrollment-reenrollment-confirmation"', $html);
-        $this->assertStringContainsString(__('lf.LF_bulk_enrollment_confirm_reenroll'), $html);
-        $this->assertStringContainsString('in paginatedPairs', $html);
-        $this->assertStringContainsString('bulk-enrollment-review-table__number', $html);
-        $this->assertStringContainsString('class="bulk-enrollment-product-window"', $html);
-        $this->assertStringContainsString('class="bulk-enrollment-registration-window"', $html);
-        $this->assertStringContainsString('registrationWindowLabel(item)', $html);
-        $this->assertStringContainsString('registrationWindowStatusLabel(item)', $html);
-        $this->assertStringContainsString(__('lf.LF_bulk_enrollment_registration_window'), $html);
-        $this->assertStringContainsString('pair.time_windows?.access_starts_at', $html);
-        $this->assertStringContainsString('pair.time_windows?.review_ends_at', $html);
-        $this->assertStringContainsString(__('lf.LF_bulk_enrollment_access_time'), $html);
-        $this->assertStringContainsString(__('lf.LF_bulk_enrollment_review_time'), $html);
-        $this->assertStringContainsString('class="bulk-enrollment-confirmation__facts"', $html);
-        $this->assertStringNotContainsString('x-show="selectedStudents.length > 0 && selectedProducts.length === 0"', $html);
-        $this->assertStringNotContainsString('class="bulk-enrollment-empty-state"', $html);
-        $this->assertStringContainsString('x-show="productSelectionPromptVisible" x-cloak class="admin-modal-backdrop"', $html);
-        $this->assertStringContainsString('class="admin-modal bulk-enrollment-guidance-modal" role="dialog" aria-modal="true"', $html);
-        $this->assertStringNotContainsString('x-on:click.capture="promptForStudentSelection"', $html);
-        $this->assertStringContainsString('x-on:click="if (selectedStudents.length === 0) { $event.preventDefault(); promptForStudentSelection($event.currentTarget) }"', $html);
-        $this->assertStringContainsString(':disabled="selectedStudents.length > 0 && (!productEligibilityReady || item.eligibility !== \'eligible\')"', $html);
-        $this->assertStringContainsString(':aria-disabled="selectedStudents.length === 0 || !productEligibilityReady || item.eligibility !== \'eligible\'"', $html);
-        $this->assertStringContainsString('productSelectionPromptVisible: false', $html);
-        $this->assertStringContainsString('async promptForStudentSelection(trigger)', $html);
-        $this->assertStringContainsString('this.$refs.productPromptClose.focus()', $html);
-        $this->assertSame(1, substr_count($html, 'x-ref="productPromptClose"'));
-        $this->assertStringContainsString(__('lf.LF_bulk_enrollment_acknowledge'), $html);
-        $this->assertStringContainsString('this.productPromptTrigger?.focus()', $html);
-        $this->assertStringContainsString('if (this.selectedStudents.length > 0) this.productSelectionPromptVisible = false', $html);
-        $this->assertStringContainsString('id="bulk-products-title" tabindex="-1"', $html);
-        $this->assertStringContainsString('productOnboardingShown: false', $html);
-        $this->assertStringContainsString('if (shouldGuideProducts) this.guideToProductsOnce()', $html);
-        $this->assertStringContainsString('if (this.productOnboardingShown) return', $html);
-        $this->assertStringContainsString("panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' })", $html);
-        $this->assertStringContainsString('smallViewport || !panelIsVisible', $html);
-        $this->assertStringNotContainsString('selectedStudents.length === 0" class="admin-alert admin-alert-danger', $html);
-        $this->assertStringContainsString('removeInvalidProducts()', $html);
-        $this->assertStringContainsString('item.eligibility !== \'eligible\'', $html);
-        $this->assertStringContainsString('eligibleVisibleProducts', $html);
-        $this->assertStringContainsString('x-text="item.code"', $html);
-        $this->assertStringContainsString('x-text="`· ${item.version?.code}`"', $html);
-        $this->assertStringContainsString('class="bulk-enrollment-product-meta__label"', $html);
-        $this->assertStringContainsString('class="bulk-enrollment-product-binding-note"', $html);
-        $this->assertSame(1, substr_count($html, __('lf.LF_course_enrollment_version_preview_help')));
-        $this->assertStringContainsString('class="bulk-enrollment-pagination"', $html);
-        $this->assertStringContainsString('aria-label="'.__('lf.LF_bulk_enrollment_students_pagination').'"', $html);
-        $this->assertStringContainsString('aria-label="'.__('lf.LF_bulk_enrollment_products_pagination').'"', $html);
-        $this->assertStringContainsString('x-show="studentLastPage > 1"', $html);
-        $this->assertStringContainsString('x-show="productLastPage > 1"', $html);
-        $this->assertStringContainsString('x-show="ineligibleProductLastPage > 1"', $html);
-        $this->assertStringContainsString('x-show="confirmationLastPage > 1"', $html);
-        $this->assertStringNotContainsString('item.product_code', $html);
-        $this->assertStringNotContainsString('item.version?.version_code', $html);
-        $this->assertStringNotContainsString('LF_course_enrollment_common_students', $html);
-        $this->assertStringNotContainsString('LF_course_enrollment_common_products', $html);
-        $this->assertStringNotContainsString('selectedProducts = productResults', $html);
-        $this->assertSame('Start enrollment', trans('lf.LF_bulk_enrollment_start_title', [], 'en'));
-        $this->assertSame('Select students to check eligible products.', trans('lf.LF_bulk_enrollment_select_student_first', [], 'en'));
-        $this->assertSame('Bắt đầu ghi danh', trans('lf.LF_bulk_enrollment_start_title', [], 'vi'));
-        $this->assertSame('Chọn học viên để kiểm tra sản phẩm phù hợp.', trans('lf.LF_bulk_enrollment_select_student_first', [], 'vi'));
-        $transferCss = file_get_contents(resource_path('css/admin/admin-pages.css'));
-        $this->assertStringContainsString('.bulk-enrollment-dual-selectors', $transferCss);
-        $this->assertStringContainsString('.bulk-enrollment-selector.is-onboarding-highlight', $transferCss);
-        $this->assertStringContainsString('grid-template-columns: repeat(2, minmax(0, 1fr));', $transferCss);
-        $this->assertStringContainsString('.bulk-enrollment-wizard-section', $transferCss);
-        $this->assertStringContainsString('width: min(720px, 100%);', $transferCss);
-        $this->assertStringContainsString('justify-items: center;', $transferCss);
-        $this->assertStringContainsString('margin: 0 auto 18px;', $transferCss);
-        $this->assertMatchesRegularExpression('/#bulk-setup-title\s*\{[^}]*font-size:\s*16px;/s', $transferCss);
-        $this->assertMatchesRegularExpression('/\.bulk-enrollment-confirmation__summary strong\s*\{[^}]*font-size:\s*15px;/s', $transferCss);
-        $this->assertMatchesRegularExpression('/\.bulk-enrollment-confirmation \.bulk-enrollment-review-table th,\s*\.bulk-enrollment-confirmation \.bulk-enrollment-review-table td\s*\{[^}]*font-size:\s*14px;/s', $transferCss);
-        $this->assertMatchesRegularExpression('/\.bulk-enrollment-pair-status\s*\{[^}]*font-size:\s*12px;/s', $transferCss);
-        $this->assertLessThan(strpos($html, 'class="admin-card admin-form-card admin-form-surface"'), strpos($html, 'class="bulk-enrollment-stepper"'));
-        $this->assertLessThan(
-            strpos($html, 'class="admin-table-wrap bulk-enrollment-review-table"'),
-            strpos($html, 'id="bulk-setup-title"')
-        );
-        $this->assertStringNotContainsString('id="bulk-enrollment-information"', $html);
-        $this->assertLessThan(
-            strpos($html, 'id="bulk-notes-label"'),
-            strpos($html, 'class="admin-table-wrap bulk-enrollment-review-table"')
-        );
-        $response->assertSeeText(__('lf.LF_bulk_enrollment_submit'));
+        foreach ([
+            'student_ids[]', 'product_ids[]', 'reenrollment_confirmations[${index}][previous_enrollment_id]',
+            'get pairCount()', 'runPreflight(false)', 'runPreflight(true)', 'scheduleProductEligibility()',
+            'requestVersion !== this.productRequestVersion', 'this.productAbortController?.abort()',
+            'x-show="productEligibilityError"', 'in invalidProducts', 'in productResults', 'in otherIneligibleProducts',
+            'removeInvalidProducts', 'ineligibleProductsVisible',
+        ] as $needle) {
+            $this->assertStringContainsString($needle, $html);
+        }
+        // Locked state instead of the old popups; a product is only selectable once checked as eligible.
+        $this->assertStringNotContainsString('promptForStudentSelection', $html);
+        $this->assertStringNotContainsString('enrollmentDatePromptVisible', $html);
+        $this->assertStringContainsString("this.selectedStudents.length === 0 || !this.productEligibilityReady || item.eligibility !== 'eligible'", $html);
+        $this->assertStringContainsString("if (checked && item.eligibility !== 'eligible') return", $html);
+        // Enter in a search box must not submit the form; only step 2 commits.
+        $this->assertSame(2, substr_count($html, 'x-on:keydown.enter.prevent'));
+        $this->assertStringContainsString('if (this.step !== 2 || this.submitting || this.pendingPairs.length) return', $html);
+        // Every re-enrollment pair needs confirmation, one by one or through the UI Kit dialog.
+        $this->assertStringContainsString(':disabled="loading || submitting || pendingPairs.length > 0"', $html);
+        $this->assertStringContainsString('<dialog x-ref="confirmAll" class="ui-modal" data-columns="1"', $html);
+        $this->assertStringContainsString('x-model="confirmedPairKeys"', $html);
     }
 
     public function test_bulk_preflight_is_tenant_scoped_for_both_selection_sets(): void
@@ -893,7 +775,7 @@ class CourseEnrollmentManagementTest extends TestCase
         $this->actingAs($admin)
             ->post("https://tenant-a.localhost/admin/course-enrollments/{$enrollmentId}/reactivate")
             ->assertSessionHasErrors('lifecycle');
-        $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-enrollments/{$enrollmentId}/edit")->assertStatus(422);
+        $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-enrollments/{$enrollmentId}/edit", ['X-Requested-With' => 'XMLHttpRequest'])->assertStatus(422);
         $this->actingAs($teacher)->post("https://tenant-a.localhost/admin/course-enrollments/{$enrollmentId}/cancel")->assertForbidden();
     }
 
@@ -1036,9 +918,9 @@ class CourseEnrollmentManagementTest extends TestCase
             'enrolled_at' => '2026-07-10 10:00:00',
         ]);
 
-        $response = $this->actingAs($admin)->get('https://tenant-a.localhost/admin/course-enrollments?source=self_registration&status=active&product_id='.$productId.'&student_id='.$student->id.'&enrolled_by='.$admin->id.'&enrolled_from=2026-07-10&enrolled_to=2026-07-10')
+        $response = $this->actingAs($admin)->get('https://tenant-a.localhost/admin/course-enrollments?source=self_registration&status=active&product_id='.$productId.'&enrolled_by='.$admin->id.'&enrolled_from=2026-07-10&enrolled_to=2026-07-10')
             ->assertOk()->assertSee('Filter Product')->assertSee('value="self_registration" selected', false)
-            ->assertSee('name="product_id"', false)->assertSee('name="student_id"', false)
+            ->assertSee('name="product_id"', false)->assertSee('name="course_type"', false)
             ->assertSee('name="enrolled_from"', false)->assertSee('name="enrolled_by"', false)
             ->assertSee('name="enrollment_ids[]"', false)
             ->assertDontSee('bulk-update', false);
@@ -1464,13 +1346,11 @@ class CourseEnrollmentManagementTest extends TestCase
         $enrollmentId = $this->createEnrollment($customerId, $student->id, $productId, $versionId);
 
         $this->actingAs($admin)->get('https://tenant-a.localhost/admin/course-enrollments/create')
-            ->assertOk()->assertSeeText(__('lf.LF_course_enrollment_version_preview_help'));
-        foreach (['show', 'edit'] as $page) {
-            $url = 'https://tenant-a.localhost/admin/course-enrollments/'.$enrollmentId
-                .($page === 'edit' ? '/edit' : '');
+            ->assertOk()->assertSeeText(__('lf.LF_bulk_enrollment_design_version_locked'));
+        foreach (['show'] as $page) {
+            $url = 'https://tenant-a.localhost/admin/course-enrollments/'.$enrollmentId;
             $this->actingAs($admin)->get($url)->assertOk()
                 ->assertSeeInOrder([
-                    __('lf.LF_course_enrollment_common_student'),
                     __('lf.LF_course_enrollment_common_product'),
                     __('lf.LF_course_enrollment_locked_version_label'),
                     __('lf.LF_course_enrollment_common_frozen_help'),
@@ -1478,12 +1358,87 @@ class CourseEnrollmentManagementTest extends TestCase
                 ->assertSeeText(__('lf.LF_course_enrollment_common_frozen_help'))
                 ->assertSeeText(__('lf.LF_course_enrollment_locked_version_label'))
                 ->assertDontSeeText(__('lf.LF_course_enrollment_locked_badge'))
-                ->assertSee('admin-form-field--full course-enrollment-binding-note', false)
                 ->assertDontSeeText(__('lf.LF_course_enrollment_locked_history_help', ['number' => 7]))
                 ->assertDontSeeText('Học viên, sản phẩm và phiên bản đã phát hành được khóa cho ghi danh này và không thể chỉnh sửa.')
                 ->assertDontSee('name="product_id"', false)
                 ->assertDontSee('name="version_id"', false);
         }
+    }
+
+    public function test_detail_shows_real_learning_access_by_course_type(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $student = $this->createUser($customerId, 'student');
+        $productId = $this->createProduct($customerId, 'Detail Product', 'detail-product');
+        $versionId = $this->createVersion($customerId, $admin->id);
+        $this->createProductItem($customerId, $productId, $versionId);
+        $enrollmentId = $this->createEnrollment($customerId, $student->id, $productId, $versionId);
+        $url = "https://tenant-a.localhost/admin/course-enrollments/{$enrollmentId}";
+
+        // A class-based course without a class: the student cannot learn and the page says so.
+        DB::table('core_course_template_versions')->where('id', $versionId)->update(['course_type_snapshot' => 'blended']);
+        $this->actingAs($admin)->get($url)->assertOk()
+            ->assertSee('data-enrollment-no-class', false)
+            ->assertSeeText(__('lf.LF_course_enrollment_detail_no_class'))
+            ->assertDontSeeText(__('lf.LF_bulk_enrollment_access_unlimited'));
+
+        // Self-paced after its window: still stored as active, shown as ended, and a suspended one cannot be reactivated.
+        DB::table('core_course_template_versions')->where('id', $versionId)->update(['course_type_snapshot' => 'self_paced']);
+        DB::table('core_course_enrollments')->where('id', $enrollmentId)->update([
+            'access_starts_at' => now()->subDays(40), 'access_ends_at' => now()->subDays(20),
+            'review_starts_at' => now()->subDays(20), 'review_ends_at' => now()->subDays(10),
+        ]);
+        $this->actingAs($admin)->get($url)->assertOk()
+            ->assertSeeText(__('lf.LF_course_enrollment_learning_ended'))
+            ->assertDontSee('data-enrollment-no-class', false);
+        $this->actingAs($admin)->get('https://tenant-a.localhost/admin/course-enrollments')->assertOk()
+            ->assertSeeText(__('lf.LF_course_enrollment_learning_ended'));
+
+        DB::table('core_course_enrollments')->where('id', $enrollmentId)->update(['status' => 'suspended']);
+        $this->actingAs($admin)->get($url)->assertOk()
+            ->assertSee('data-tooltip="'.e(__('lf.LF_course_enrollment_lifecycle_activation_ineligible')).'"', false)
+            ->assertDontSee('action="'.$url.'/reactivate"', false);
+
+        // An earlier cycle is linked from the re-enrollment.
+        DB::table('core_course_enrollments')->where('id', $enrollmentId)->update(['status' => 'cancelled', 'cancelled_at' => now()]);
+        $next = $this->createEnrollment($customerId, $student->id, $productId, $versionId);
+        $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-enrollments/{$next}")->assertOk()
+            ->assertSee('href="'.$url.'"', false)
+            ->assertSeeText(__('lf.LF_course_enrollment_detail_reenrolled_from', ['id' => '#'.$enrollmentId]));
+    }
+
+    public function test_edit_is_a_popup_that_saves_as_json_and_a_direct_link_lands_on_the_detail_page(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $student = $this->createUser($customerId, 'student');
+        $productId = $this->createProduct($customerId, 'Popup Product', 'popup-product');
+        $versionId = $this->createVersion($customerId, $admin->id);
+        $this->createProductItem($customerId, $productId, $versionId);
+        $enrollmentId = $this->createEnrollment($customerId, $student->id, $productId, $versionId);
+        $detail = "https://tenant-a.localhost/admin/course-enrollments/{$enrollmentId}";
+
+        $this->actingAs($admin)->get($detail.'/edit')->assertRedirect($detail);
+        $this->actingAs($admin)->get($detail)->assertOk()
+            ->assertSee('data-url="'.$detail.'/edit"', false)
+            ->assertSee('aria-labelledby="enrollment-dialog-title"', false);
+        $this->actingAs($admin)->get('https://tenant-a.localhost/admin/course-enrollments')->assertOk()
+            ->assertSee('data-url="'.$detail.'/edit"', false)
+            ->assertSee('aria-labelledby="enrollment-dialog-title"', false);
+        $this->actingAs($admin)->get($detail.'/edit', ['X-Requested-With' => 'XMLHttpRequest'])->assertOk()
+            ->assertSee('class="ui-modal__form"', false)
+            ->assertSee('name="notes"', false)
+            ->assertDontSee('name="product_id"', false)
+            ->assertDontSee('name="version_id"', false);
+
+        $list = 'https://tenant-a.localhost/admin/course-enrollments?keyword=Popup';
+        $this->actingAs($admin)->from($list)->putJson($detail, ['notes' => 'From the popup'])
+            ->assertOk()->assertJsonPath('redirect', $list);
+        $this->assertDatabaseHas('core_course_enrollments', ['id' => $enrollmentId, 'notes' => 'From the popup']);
+
+        $this->actingAs($admin)->putJson($detail, ['notes' => ['not', 'text']])
+            ->assertUnprocessable()->assertJsonValidationErrors('notes');
     }
 
     public function test_registration_boundaries_are_inclusive_and_projected_windows_are_frozen(): void
@@ -1631,7 +1586,7 @@ class CourseEnrollmentManagementTest extends TestCase
         }
 
         $this->actingAs($admin)
-            ->get('https://tenant-a.localhost/admin/course-enrollments/'.$singleEnrollment->id.'/edit')
+            ->get('https://tenant-a.localhost/admin/course-enrollments/'.$singleEnrollment->id.'/edit', ['X-Requested-With' => 'XMLHttpRequest'])
             ->assertOk()
             ->assertSee('name="enrolled_at"', false)
             ->assertDontSeeText(__('lf.LF_course_enrollment_legacy_duration_missing'));
@@ -1749,10 +1704,10 @@ class CourseEnrollmentManagementTest extends TestCase
         $this->assertSame('2026-08-05 10:00:00', $enrollment->access_starts_at);
 
         $this->actingAs($admin)
-            ->get('https://tenant-a.localhost/admin/course-enrollments/'.$enrollment->id.'/edit')
+            ->get('https://tenant-a.localhost/admin/course-enrollments/'.$enrollment->id.'/edit', ['X-Requested-With' => 'XMLHttpRequest'])
             ->assertOk()
             ->assertSee('course-enrollment-time-impact', false)
-            ->assertSee('id="enrolled_at" name="enrolled_at" type="datetime-local" x-model="enrolledAt"', false)
+            ->assertSee('id="enrolled_at" name="enrolled_at" type="datetime-local"', false)
             ->assertDontSee('enrollment-edit-access-window', false)
             ->assertDontSee('enrollment-edit-review-window', false)
             ->assertSeeText(__('lf.LF_course_enrollment_time_impact_title'))
@@ -1931,13 +1886,13 @@ class CourseEnrollmentManagementTest extends TestCase
         $pageOne->assertSeeInOrder([
             __('lf.table_no'),
             __('lf.LF_course_enrollment_common_student'),
-            __('lf.LF_course_enrollment_common_product'),
+            __('lf.LF_bulk_enrollment_design_result'),
             __('lf.LF_bulk_enrollment_enrollment_id'),
         ])->assertSee('Result Student 10')
             ->assertDontSee('Result Student 11');
 
         $this->actingAs($admin)->get($url.'&page=2')->assertOk()
-            ->assertSee('<td class="bulk-enrollment-result__number">11</td>', false)
+            ->assertSee('<td class="enr-col-no">11</td>', false)
             ->assertSee('Result Student 11')
             ->assertDontSee('Result Student 10');
     }
@@ -2024,6 +1979,56 @@ class CourseEnrollmentManagementTest extends TestCase
         $this->assertDatabaseCount('core_course_enrollments', 2);
         $this->assertDatabaseHas('core_course_enrollment_submissions', ['token_hash' => hash('sha256', $token), 'status' => 'completed']);
         $this->assertDatabaseMissing('core_course_enrollment_submissions', ['token_hash' => $token]);
+    }
+
+    public function test_list_filters_by_course_type_within_the_tenant(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $student = $this->createUser($customerId, 'student');
+        $selfPacedProduct = $this->createProduct($customerId, 'Self Paced Product', 'self-paced-product');
+        $selfPacedVersion = $this->createVersion($customerId, $admin->id);
+        $this->createProductItem($customerId, $selfPacedProduct, $selfPacedVersion);
+        $selfPacedRow = 'value="'.$this->createEnrollment($customerId, $student->id, $selfPacedProduct, $selfPacedVersion).'" x-model="selectedIds"';
+        $classProduct = $this->createProduct($customerId, 'Class Product', 'class-product');
+        $classVersion = $this->createVersion($customerId, $admin->id, versionNumber: 2);
+        $this->createProductItem($customerId, $classProduct, $classVersion);
+        $classRow = 'value="'.$this->createEnrollment($customerId, $student->id, $classProduct, $classVersion).'" x-model="selectedIds"';
+        DB::table('core_course_template_versions')->where('id', $selfPacedVersion)->update(['course_type_snapshot' => 'self_paced']);
+        DB::table('core_course_template_versions')->where('id', $classVersion)->update(['course_type_snapshot' => 'scheduled']);
+        $url = 'https://tenant-a.localhost/admin/course-enrollments';
+
+        $this->actingAs($admin)->get($url.'?course_type=scheduled')->assertOk()
+            ->assertSee('name="course_type"', false)
+            ->assertDontSee('name="student_id"', false)
+            ->assertSeeInOrder(['id="course-enrollment-advanced-filters"', 'name="source"'], false)
+            ->assertSee($classRow, false)
+            ->assertDontSee($selfPacedRow, false);
+        // An unknown value is ignored instead of emptying the list.
+        $this->actingAs($admin)->get($url.'?course_type=unknown')->assertOk()
+            ->assertSee($classRow, false)
+            ->assertSee($selfPacedRow, false);
+    }
+
+    public function test_reenrollment_follows_the_latest_ended_enrollment(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $student = $this->createUser($customerId, 'student');
+        $productId = $this->createProduct($customerId, 'Cycle Product', 'cycle-product');
+        $versionId = $this->createVersion($customerId, $admin->id);
+        $this->createProductItem($customerId, $productId, $versionId);
+        $oldestId = $this->createEnrollment($customerId, $student->id, $productId, $versionId, 'cancelled');
+        $latestId = $this->createEnrollment($customerId, $student->id, $productId, $versionId, 'cancelled');
+        $preflight = fn (int $previousId) => $this->actingAs($admin)->postJson('https://tenant-a.localhost/admin/course-enrollments/bulk/preflight', [
+            'student_ids' => [$student->id], 'product_ids' => [$productId],
+            'reenrollment_confirmations' => [['student_id' => $student->id, 'product_id' => $productId, 'previous_enrollment_id' => $previousId]],
+            'configuration' => $this->bulkConfiguration(), 'finalize' => true,
+        ]);
+
+        $preflight($oldestId)->assertOk()->assertJson(['valid' => false, 'submission_token' => null]);
+        $preflight($latestId)->assertOk()->assertJson(['valid' => true])
+            ->assertJsonPath('pairs.0.previous_enrollment_id', $latestId);
     }
 
     public function test_bulk_configuration_pair_limit_payload_binding_and_automatic_time_policy_are_enforced(): void
@@ -2192,7 +2197,7 @@ class CourseEnrollmentManagementTest extends TestCase
     ): int {
         $now = now();
 
-        return DB::table('core_course_templates')->insertGetId(['course_type' => 'blended', 
+        return DB::table('core_course_templates')->insertGetId(['course_type' => 'blended',
             'customer_id' => $customerId,
             'category_id' => null,
             'title' => $title,
@@ -2231,7 +2236,7 @@ class CourseEnrollmentManagementTest extends TestCase
         $templateId ??= $this->createTemplate($customerId, $userId, $title);
 
         // ADR-0022: the bound Version carries the course type; these fixtures default to self-paced.
-        return DB::table('core_course_template_versions')->insertGetId(['course_type_snapshot' => 'self_paced', 
+        return DB::table('core_course_template_versions')->insertGetId(['course_type_snapshot' => 'self_paced',
             'customer_id' => $customerId,
             'template_id' => $templateId,
             'version_number' => $versionNumber,

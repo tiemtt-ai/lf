@@ -1,12 +1,12 @@
 # LF-Tech-CSS.md
 
-Version: 1.7
+Version: 1.8
 
 Document Status: Approved
 
 Implementation Status: Unknown
 
-Last Updated: 2026-10-28
+Last Updated: 2026-11-02
 
 Document Path: tech/LF-Tech-CSS.md
 
@@ -88,6 +88,9 @@ phải code production.
 * README có metadata header chuẩn (Version, Document Status, Implementation
   Status: Not Applicable, Last Updated, Document Path), mục "Phạm vi",
   "Khác biệt so với UI Kit" và "Lịch sử thay đổi". Mỗi lần sửa tăng Version.
+* `index.html` nạp CSS/JS của bản thiết kế với hậu tố `?v=<Version>` và tăng
+  hậu tố mỗi lần sửa `assets/`, để trình duyệt không ghép HTML mới với file cũ
+  trong cache. Kiểm tra lại bằng cách mở trang thường (không ép tải lại).
 * README phải được đăng ký trong `docs/LF-DOCUMENTATION-MANIFEST.json`
   (area `ui-demo`) để `docs:lint` không báo lỗi.
 * Dữ liệu, thao tác và thông báo trong bản thiết kế chỉ để minh họa; không

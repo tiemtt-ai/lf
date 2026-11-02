@@ -7,7 +7,7 @@
 
 @section('vite')
     @parent
-    @vite(['resources/css/admin/admin-ui-kit.css', 'resources/js/admin-ui-kit-controls.js'])
+    @vite(['resources/css/admin/admin-ui-kit.css', 'resources/js/admin-ui-kit-controls.js', 'resources/js/admin-ui-kit-dialog-form.js'])
 @endsection
 
 @section('content')
@@ -30,7 +30,7 @@
             ]])
             ->all();
         $advancedFiltersOpen = request()->query('advanced_filters') === '1';
-        $hasActiveFilters = $keyword !== '' || $status || $source || $productId || $studentId || $enrolledBy || $enrolledFrom || $enrolledTo;
+        $hasActiveFilters = $keyword !== '' || $status || $source || $productId || $courseType || $enrolledBy || $enrolledFrom || $enrolledTo;
     @endphp
     @php
         $enrollmentStatusTone = fn (string $value): string => match ($value) {
@@ -41,7 +41,7 @@
             default => 'archived',
         };
     @endphp
-    <div id="enrollment-list" class="lf-admin-ui lf-admin-ui--list"
+    <div id="enrollment-list" data-ui-dialog-form-scope class="lf-admin-ui lf-admin-ui--list"
          x-on:ui-live-filter-updated="syncPage()"
          x-data="enrollmentIndexBulk(
         @js($editablePageIds),
@@ -96,13 +96,11 @@
                 </div>
 
                 <div class="ui-field mk-search">
-                    <label class="ui-field__label ui-sr-only" for="source">{{ __('lf.LF_course_enrollment_common_source') }}</label>
-                    <select id="source" name="source" data-ui-kit-select data-ui-empty-label="{{ __('lf.LF_course_enrollment_index_no_options') }}" data-ui-clear-label="{{ __('lf.LF_course_enrollment_common_clear_filters') }}">
-                        <option value="">{{ __('lf.LF_course_enrollment_common_all_sources') }}</option>
-                        @foreach (['admin', 'teacher', 'self_registration', 'purchase', 'promotion', 'import', 'api'] as $enrollmentSource)
-                        <option value="{{ $enrollmentSource }}" @selected($source === $enrollmentSource)>
-                            {{ __('lf.LF_course_enrollment_common_source_'.$enrollmentSource) }}
-                        </option>
+                    <label class="ui-field__label ui-sr-only" for="course_type">{{ __('lf.LF_course_type_label') }}</label>
+                    <select id="course_type" name="course_type" data-ui-kit-select data-ui-empty-label="{{ __('lf.LF_course_enrollment_index_no_options') }}" data-ui-clear-label="{{ __('lf.LF_course_enrollment_common_clear_filters') }}">
+                        <option value="">{{ __('lf.LF_course_enrollment_filter_all_course_types') }}</option>
+                        @foreach (\App\Support\CourseType::VALUES as $type)
+                        <option value="{{ $type }}" @selected($courseType === $type)>{{ __(\App\Support\CourseType::labelKey($type)) }}</option>
                     @endforeach
                     </select>
                 </div>
@@ -122,8 +120,16 @@
                 <input type="hidden" name="advanced_filters" :value="advancedFiltersOpen ? '1' : '0'">
                 <div id="course-enrollment-advanced-filters" x-cloak x-show="advancedFiltersOpen" class="course-enrollment-advanced-filter-grid">
                     <div class="ui-field"><label class="ui-field__label" for="product_id">{{ __('lf.LF_course_enrollment_common_product') }}</label><select id="product_id" name="product_id" data-ui-kit-select data-ui-empty-label="{{ __('lf.LF_course_enrollment_index_no_options') }}" data-ui-clear-label="{{ __('lf.LF_course_enrollment_common_clear_filters') }}"><option value="">{{ __('lf.LF_course_enrollment_filter_all_products') }}</option>@foreach ($filterProducts as $product)<option value="{{ $product->id }}" @selected($productId === $product->id)>{{ $product->title }} · {{ $product->product_code }}</option>@endforeach</select></div>
-                <div class="ui-field"><label class="ui-field__label" for="student_id">{{ __('lf.LF_course_enrollment_common_student') }}</label><select id="student_id" name="student_id" data-ui-kit-select data-ui-empty-label="{{ __('lf.LF_course_enrollment_index_no_options') }}" data-ui-clear-label="{{ __('lf.LF_course_enrollment_common_clear_filters') }}"><option value="">{{ __('lf.LF_course_enrollment_filter_all_students') }}</option>@foreach ($filterStudents as $student)<option value="{{ $student->id }}" @selected($studentId === $student->id)>{{ $student->name }} · {{ $student->email }}</option>@endforeach</select></div>
                 <div class="ui-field"><label class="ui-field__label" for="enrolled_by">{{ __('lf.LF_course_enrollment_filter_creator') }}</label><select id="enrolled_by" name="enrolled_by" data-ui-kit-select data-ui-empty-label="{{ __('lf.LF_course_enrollment_index_no_options') }}" data-ui-clear-label="{{ __('lf.LF_course_enrollment_common_clear_filters') }}"><option value="">{{ __('lf.LF_course_enrollment_filter_all_creators') }}</option>@foreach ($filterCreators as $creator)<option value="{{ $creator->id }}" @selected($enrolledBy === $creator->id)>{{ $creator->name }}</option>@endforeach</select></div>
+                    <div class="ui-field">
+                        <label class="ui-field__label" for="source">{{ __('lf.LF_course_enrollment_common_source') }}</label>
+                        <select id="source" name="source" data-ui-kit-select data-ui-empty-label="{{ __('lf.LF_course_enrollment_index_no_options') }}" data-ui-clear-label="{{ __('lf.LF_course_enrollment_common_clear_filters') }}">
+                            <option value="">{{ __('lf.LF_course_enrollment_common_all_sources') }}</option>
+                            @foreach (['admin', 'teacher', 'self_registration', 'purchase', 'promotion', 'import', 'api'] as $enrollmentSource)
+                                <option value="{{ $enrollmentSource }}" @selected($source === $enrollmentSource)>{{ __('lf.LF_course_enrollment_common_source_'.$enrollmentSource) }}</option>
+                            @endforeach
+                        </select>
+                    </div>
                     <div class="ui-field">
                         <label class="ui-field__label" for="enrolled_from">{{ __('lf.LF_course_enrollment_filter_from') }}</label>
                         <input id="enrolled_from" name="enrolled_from" type="date" value="{{ $enrolledFrom }}" x-on:change="$el.form.requestSubmit()">
@@ -211,6 +217,10 @@
                         <td class="mk-text-cell ui-enroll-nowrap" data-label="{{ __('lf.LF_course_enrollment_information_date') }}">{{ \Illuminate\Support\Carbon::parse($enrollment->enrolled_at)->format('d/m/Y H:i') }}</td>
                         <td class="ux-action-cell" data-label="{{ __('lf.LF_course_enrollment_common_status') }}">
                             <span class="ui-status ui-status--{{ $enrollmentStatusTone($enrollment->status) }}">{{ __('lf.LF_course_enrollment_common_'.$enrollment->status) }}</span>
+                            @if ($enrollment->learning_ended)
+                                <span class="ui-caption ui-enroll-ended">{{ __('lf.LF_course_enrollment_learning_ended') }}</span>
+                            @endif
+                            
                         </td>
                         <td class="ux-action-cell" data-label="{{ __('lf.table_actions') }}">
                             <a class="ux-row-edit cursor-interaction" href="{{ route($routePrefix.'.show', $enrollment->id) }}"
@@ -219,11 +229,12 @@
                                 <x-backend-icon name="sliders" class="ui-icon" />
                             </a>
                             @if ($isOpenEnrollment)
-                                <a class="ux-row-edit cursor-interaction" href="{{ route($routePrefix.'.edit', $enrollment->id) }}"
-                                   aria-label="{{ __('lf.LF_course_enrollment_common_edit') }}: {{ $enrollment->student_name }}"
-                                   data-tooltip="{{ __('lf.LF_course_enrollment_common_edit') }}">
+                                <button type="button" class="ux-row-edit cursor-interaction" data-ui-dialog-form-open aria-haspopup="dialog"
+                                        data-url="{{ route($routePrefix.'.edit', $enrollment->id) }}"
+                                        aria-label="{{ __('lf.LF_course_enrollment_common_edit') }}: {{ $enrollment->student_name }}"
+                                        data-tooltip="{{ __('lf.LF_course_enrollment_common_edit') }}">
                                     <x-backend-icon name="square-pen" class="ui-icon" />
-                                </a>
+                                </button>
                             @endif
                         </td>
                     </tr>
@@ -263,6 +274,8 @@
             </form>
         </section>
     </div>
+
+    @include('course-enrollments.partials.edit-dialog-shell')
     </div>
 
     <script>

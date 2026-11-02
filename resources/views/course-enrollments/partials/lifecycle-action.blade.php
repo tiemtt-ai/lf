@@ -1,4 +1,9 @@
 <div x-data="{ submitting: false }">
+    @if ($blockedReason ?? null)
+        <span class="ui-bulk-lock" tabindex="0" data-tooltip="{{ $blockedReason }}">
+            <button type="button" class="{{ $triggerClass }}" disabled>{{ $triggerLabel }}</button>
+        </span>
+    @else
     <button type="button" class="{{ $triggerClass }}" x-on:click="$refs.dialog.showModal()">{{ $triggerLabel }}</button>
     <dialog x-ref="dialog" class="ui-modal" data-columns="1" aria-labelledby="{{ $dialogId }}-title" x-on:cancel="if (submitting) $event.preventDefault()">
         <form method="POST" action="{{ $action }}" class="ui-modal__form" x-on:submit="if (submitting) { $event.preventDefault(); return } submitting = true">
@@ -17,4 +22,5 @@
             <p class="ui-sr-only" aria-live="polite" x-text="submitting ? @js(__('lf.LF_course_enrollment_lifecycle_processing')) : ''"></p>
         </form>
     </dialog>
+    @endif
 </div>
