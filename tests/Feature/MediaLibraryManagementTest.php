@@ -397,7 +397,7 @@ class MediaLibraryManagementTest extends TestCase
             ->get('https://tenant-a.localhost/admin/media?owner_type=course_category')
             ->assertOk()
             ->assertSeeText('Category Thumbnail')
-            ->assertSeeText('Danh mục sản phẩm')
+            ->assertSeeText('Danh mục khóa học')
             ->assertSeeText('1 nơi sử dụng')
             ->assertDontSeeText('Lesson Document');
 

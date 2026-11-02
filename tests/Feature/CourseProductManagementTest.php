@@ -170,9 +170,8 @@ class CourseProductManagementTest extends TestCase
         }
         $this->assertSame('2026-07-01T21:20', $xpath->query('//input[@name="registration_starts_at"]')->item(0)->getAttribute('value'));
 
-        // Featured is a switch like the category one, with no group label above it.
-        $this->assertSame(1, $xpath->query('//label[contains(@class, "ui-switch")]/input[@name="is_featured" and @role="switch"]')->length);
-        $this->assertStringNotContainsString(__('lf.LF_product_v2_group_display'), $content);
+        // Featured is a switch. No group headings, as in the other UI Kit forms (Owner, 2026-11-02).
+        $this->assertSame(1, $xpath->query('//label[contains(@class, "ui-switch-row")]//input[@name="is_featured" and @role="switch"]')->length);
         $this->assertSame(0, $xpath->query('//*[contains(@class, "ui-modal__section-title")]')->length, 'no group headings, only item labels');
     }
 
@@ -550,7 +549,8 @@ class CourseProductManagementTest extends TestCase
             ->get("https://tenant-a.localhost/admin/course-products/{$productId}/form", ['X-Requested-With' => 'XMLHttpRequest'])
             ->assertOk()
             ->assertDontSee('name="product_code"', false)
-            ->assertSee('id="product-form-product_code"', false)
+            ->assertSee('data-product-code', false)
+            ->assertDontSee('id="product-form-product_code"', false)
             ->assertSee('value="TOPIK"', false)
             ->assertSee('readonly', false);
 
@@ -1052,6 +1052,163 @@ class CourseProductManagementTest extends TestCase
         $this->assertDatabaseCount('core_course_product_items', 1);
     }
 
+    public function test_product_dialog_starts_from_the_template_and_derives_category_and_type(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        [$categoryId, $templateId] = $this->createProductV2CategoryAndTemplate($customerId, $admin->id);
+        $versionId = $this->createVersion($customerId, $admin->id, 'Published', 'published', $templateId);
+        $ajax = ['X-Requested-With' => 'XMLHttpRequest'];
+
+        $create = $this->actingAs($admin)->get('https://tenant-a.localhost/admin/course-products/create', $ajax)->assertOk()->getContent();
+        $positions = array_map(fn (string $marker) => strpos($create, $marker), [
+            'id="product-form-template_id"', 'data-product-binding', 'id="product-form-title"',
+        ]);
+        $this->assertNotContains(false, $positions);
+        $this->assertSame($positions, collect($positions)->sort()->values()->all());
+        $this->assertStringContainsString('<input type="hidden" name="category_id" value="" x-model="category">', $create);
+        $this->assertStringNotContainsString('id="product-form-category_id"', $create);
+        $this->assertStringContainsString('data-template-picker-category', $create);
+
+        // The category sent by the form must still agree with the Template.
+        $otherCategoryId = DB::table('core_course_categories')->insertGetId([
+            'customer_id' => $customerId, 'name' => 'Other', 'slug' => 'other', 'sort_order' => 1, 'is_featured' => false,
+            'status' => 'active', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-products', $this->validProductV2Data($otherCategoryId, $templateId, [
+            'title' => 'Wrong Category',
+        ]))->assertSessionHasErrors('template_id');
+        $this->assertDatabaseMissing('core_course_products', ['title' => 'Wrong Category']);
+
+        // A blended Version keeps no learning days, whatever was submitted.
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-products', $this->validProductV2Data($categoryId, $templateId, [
+            'title' => 'Blended Product', 'template_version_id' => $versionId, 'access_duration_days' => 30, 'review_duration_days' => 5,
+        ]))->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('core_course_products', ['title' => 'Blended Product', 'category_id' => $categoryId, 'access_duration_days' => null, 'review_duration_days' => null]);
+
+        // A self-paced Version requires them and keeps them.
+        DB::table('core_course_template_versions')->where('id', $versionId)->update(['course_type_snapshot' => 'self_paced']);
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-products', $this->validProductV2Data($categoryId, $templateId, [
+            'title' => 'No Days', 'template_version_id' => $versionId, 'access_duration_days' => null,
+        ]))->assertSessionHasErrors('access_duration_days');
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-products', $this->validProductV2Data($categoryId, $templateId, [
+            'title' => 'Self Paced Product', 'template_version_id' => $versionId, 'access_duration_days' => 30, 'review_duration_days' => 5,
+        ]))->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('core_course_products', ['title' => 'Self Paced Product', 'access_duration_days' => 30, 'review_duration_days' => 5]);
+
+        // Editing shows what the Template decided and the Version in use; a used Product locks the Template.
+        $productId = (int) DB::table('core_course_products')->where('title', 'Self Paced Product')->value('id');
+        DB::table('core_course_cohorts')->insert([
+            'customer_id' => $customerId, 'product_id' => $productId, 'version_id' => $versionId, 'name' => 'Class',
+            'status' => 'draft', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-products/{$productId}/form", $ajax)->assertOk()
+            ->assertSee('data-product-binding', false)
+            ->assertSee(__('lf.LF_product_v2_version_in_use'))
+            ->assertSee(__('lf.LF_product_v2_template_change_used'))
+            ->assertDontSee('<button id="product-form-template_id"', false)
+            ->assertDontSee('id="product-form-template_version_id"', false);
+    }
+
+    public function test_product_page_shows_a_success_message_once_as_a_toast(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $productId = $this->createProduct($customerId, 'Toast Product', 'toast-product');
+        $message = __('lf.LF_course_product_common_created_next_steps');
+
+        foreach (['', '?tab=versions', '?tab=relations'] as $query) {
+            $html = $this->actingAs($admin)->withSession(['success' => $message])
+                ->get("https://tenant-a.localhost/admin/course-products/{$productId}/edit{$query}")->assertOk()->getContent();
+            $this->assertSame(1, substr_count($html, $message), $query);
+            $this->assertStringNotContainsString('admin-alert-success', $html);
+            // Outside the tab panels, so it shows whichever tab is open.
+            $this->assertLessThan(strpos($html, 'id="course-product-panel-general"'), strpos($html, 'data-ui-toast-region'));
+        }
+    }
+
+    public function test_product_form_lists_filled_media_slots_first(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        [$categoryId, $templateId] = $this->createProductV2CategoryAndTemplate($customerId, $admin->id);
+        $versionId = $this->createVersion($customerId, $admin->id, 'Published', 'published', $templateId);
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-products', $this->validProductV2Data($categoryId, $templateId, [
+            'title' => 'Embed Product', 'template_version_id' => $versionId, 'uses_custom_intro_media' => 1,
+            'intro_video_source' => 'embed', 'intro_video_embed_url' => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+        ]))->assertSessionHasNoErrors();
+        $productId = (int) DB::table('core_course_products')->where('title', 'Embed Product')->value('id');
+
+        $html = $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-products/{$productId}/form", ['X-Requested-With' => 'XMLHttpRequest'])->assertOk()->getContent();
+        preg_match_all('/data-media-slot-field="([a-z]+)"/', $html, $matches);
+        $this->assertSame(['embed', 'image', 'video', 'document'], $matches[1]);
+
+        // Nothing filled keeps the fixed order.
+        $html = $this->actingAs($admin)->get('https://tenant-a.localhost/admin/course-products/create', ['X-Requested-With' => 'XMLHttpRequest'])->assertOk()->getContent();
+        preg_match_all('/data-media-slot-field="([a-z]+)"/', $html, $matches);
+        $this->assertSame(['image', 'video', 'embed', 'document'], $matches[1]);
+    }
+
+    public function test_template_picker_explains_why_a_template_cannot_be_chosen(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        [$categoryId, $templateId] = $this->createProductV2CategoryAndTemplate($customerId, $admin->id);
+        $this->createVersion($customerId, $admin->id, 'Published', 'published', $templateId);
+        $presenter = app(\App\Support\CourseProductVersionSummaryPresenter::class);
+        $row = fn (int $id): array => collect($presenter->pickerTemplates($customerId))->firstWhere('id', $id);
+
+        $this->assertTrue($row($templateId)['eligible']);
+        $this->assertSame($categoryId, $row($templateId)['category_id']);
+
+        $unpublished = $this->createTemplate($customerId, $admin->id, 'No Version');
+        DB::table('core_course_templates')->where('id', $unpublished)->update(['category_id' => $categoryId]);
+        $this->assertSame(__('lf.LF_product_template_picker_reason_unpublished'), $row($unpublished)['reason']);
+
+        DB::table('core_course_templates')->where('id', $templateId)->update(['category_id' => null]);
+        $this->assertSame(__('lf.LF_product_template_picker_reason_no_category'), $row($templateId)['reason']);
+        DB::table('core_course_templates')->where('id', $templateId)->update(['category_id' => $categoryId, 'status' => 'draft']);
+        $this->assertFalse($row($templateId)['eligible']);
+
+        DB::table('core_course_templates')->where('id', $templateId)->update(['status' => 'archived']);
+        $this->assertNull(collect($presenter->pickerTemplates($customerId))->firstWhere('id', $templateId));
+    }
+
+    public function test_upgrading_the_version_updates_the_category_and_keeps_existing_enrollments(): void
+    {
+        // ADR-0022: moving to a newer Version of the same Template is allowed for a used Product; the category
+        // follows that Version, and an existing Enrollment keeps the Version it was frozen on.
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $student = $this->createUser($customerId, 'student');
+        [$oldCategoryId, $templateId] = $this->createProductV2CategoryAndTemplate($customerId, $admin->id);
+        $newCategoryId = DB::table('core_course_categories')->insertGetId([
+            'customer_id' => $customerId, 'name' => 'New Level', 'slug' => 'new-level', 'sort_order' => 1, 'is_featured' => false,
+            'status' => 'active', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $v1 = $this->createVersion($customerId, $admin->id, title: 'V1', templateId: $templateId);
+        $v2 = $this->createVersion($customerId, $admin->id, title: 'V2', templateId: $templateId, versionNumber: 2);
+        DB::table('core_course_template_versions')->where('id', $v1)->update(['source_category_id' => $oldCategoryId]);
+        DB::table('core_course_template_versions')->where('id', $v2)->update(['source_category_id' => $newCategoryId]);
+        $productId = $this->createProduct($customerId, 'Used Product', 'used-product');
+        DB::table('core_course_products')->where('id', $productId)->update(['category_id' => $oldCategoryId]);
+        $this->createProductItem($customerId, $productId, $v1);
+        DB::table('core_course_template_versions')->where('template_id', $templateId)->update(['is_current' => false]);
+        $enrollmentId = DB::table('core_course_enrollments')->insertGetId([
+            'customer_id' => $customerId, 'student_id' => $student->id, 'product_id' => $productId, 'version_id' => $v1,
+            'source' => 'admin', 'status' => 'active', 'enrolled_at' => now(), 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->actingAs($admin)->post(
+            "https://tenant-a.localhost/admin/course-products/{$productId}/items",
+            $this->validProductItemData(['version_id' => $v2, 'status' => 'active'])
+        )->assertSessionHasNoErrors();
+
+        $this->assertSame($v2, (int) DB::table('core_course_product_items')->where('product_id', $productId)->value('version_id'));
+        $this->assertSame($newCategoryId, (int) DB::table('core_course_products')->where('id', $productId)->value('category_id'));
+        $this->assertSame($v1, (int) DB::table('core_course_enrollments')->where('id', $enrollmentId)->value('version_id'));
+    }
+
     public function test_a_used_product_moves_only_to_a_version_of_the_same_course_type(): void
     {
         // ADR-0022: the Product type is its Version type; learners or a class freeze it.
@@ -1181,12 +1338,16 @@ class CourseProductManagementTest extends TestCase
         $this->assertStringContainsString('Phiên bản 37', $versionPanel);
         $this->assertStringContainsString('VERSION-', $versionPanel);
         $this->assertSame(1, substr_count($versionPanel, 'TOPIK Beginner'));
-        $this->assertStringContainsString('class="badge badge-success"', $versionPanel);
+        $this->assertStringContainsString('class="ui-status ui-status--active"', $versionPanel);
         $this->assertStringContainsString('x-show="!replacing"', $versionPanel);
         $this->assertStringContainsString('id="course-product-version-replace-form"', $versionPanel);
         $this->assertStringContainsString('x-show="replacing" x-cloak', $versionPanel);
         $this->assertStringContainsString('Phiên bản 37 · VERSION-', $versionPanel);
-        $this->assertSame(1, substr_count($versionPanel, "\n                                    Thay phiên bản\n"));
+        // Only the label shows in the options, no leaked template syntax.
+        $this->assertStringNotContainsString('}}', $versionPanel);
+        $this->assertStringNotContainsString('{{', $versionPanel);
+        $this->assertMatchesRegularExpression('/<option value="\d+"[^>]*>Phiên bản 37 · VERSION-[^<\n]*<\/option>/', $versionPanel, 'one line, so the select shows it whole');
+        $this->assertSame(1, substr_count($versionPanel, 'Thay phiên bản'));
         $this->assertStringNotContainsString('name="sort_order"', $versionPanel);
         $this->assertStringNotContainsString('name="is_required"', $versionPanel);
         $this->assertStringNotContainsString('name="status"', $versionPanel);
@@ -1560,14 +1721,15 @@ class CourseProductManagementTest extends TestCase
             ->get("https://tenant-a.localhost/admin/course-products/{$productId}/edit")
             ->assertOk()
             ->assertSeeText('Quan hệ sản phẩm')
-            ->assertSeeText('Sản phẩm đã liên kết (1)')
+            ->assertSee('<span class="ui-tab-count">1</span>', false)
             ->assertSeeText('TOPIK Intermediate')
             ->assertSeeText('TOPIK-INT')
-            ->assertSeeText('Xem')
-            ->assertSeeText('Gỡ liên kết');
-        $this->assertMatchesRegularExpression('/<span class="course-product-relation-name">TOPIK Intermediate<\/span>\s*<span class="course-product-relation-code">TOPIK-INT<\/span>/', $response->getContent());
-        $this->assertStringContainsString('class="badge', $response->getContent());
-        $this->assertStringContainsString('admin-action-menu', $response->getContent());
+            ->assertSee('data-tooltip="'.__('lf.LF_course_product_relation_common_view_product').'"', false)
+            ->assertSee('data-tooltip="'.__('lf.LF_course_product_relation_common_remove').'"', false);
+        $this->assertMatchesRegularExpression('/<span class="mk-name-text">TOPIK Intermediate<\/span>\s*<br><span class="ui-caption">TOPIK-INT<\/span>/', $response->getContent());
+        $this->assertStringContainsString('<td class="mk-sequence" data-label="'.__('lf.table_no').'">1</td>', $response->getContent());
+        $this->assertStringContainsString('class="ui-status ui-status--', $response->getContent());
+        $this->assertStringContainsString('ux-row-delete', $response->getContent());
         $this->assertStringNotContainsString('<span aria-hidden="true"> | </span>', $response->getContent());
     }
 
@@ -1833,15 +1995,13 @@ class CourseProductManagementTest extends TestCase
         $response = $this->actingAs($admin)
             ->get("https://tenant-a.localhost/admin/course-products/{$sourceId}/edit")
             ->assertOk()
-            ->assertSee('role="combobox"', false)
-            ->assertSee('PRD-SEARCH-001')
-            ->assertSee('Final Acceptance Material')
+            ->assertSee('id="related_product_search" name="related_product_id" data-ui-kit-select', false)
             ->assertDontSee('PRD-ARCHIVED');
 
-        $this->assertStringNotContainsString(
-            'PRD-LINKED — Already linked',
-            $response->getContent()
-        );
+        // The UI Kit select searches its options: only eligible Products, not the ones already linked.
+        $options = Str::between($response->getContent(), 'id="related_product_search"', '</select>');
+        $this->assertStringContainsString('Final Acceptance Material · PRD-SEARCH-001', $options);
+        $this->assertStringNotContainsString('PRD-LINKED', $options);
         $this->assertNotSame($sourceId, $eligibleId);
         $this->assertNotSame($sourceId, $archivedId);
     }
@@ -1868,7 +2028,7 @@ class CourseProductManagementTest extends TestCase
             'product_id' => $firstId, 'related_product_id' => $sourceId,
         ]);
         $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-products/{$sourceId}/edit")
-            ->assertOk()->assertSeeText('Sản phẩm liên quan (2)')
+            ->assertOk()->assertSeeText('Sản phẩm liên quan')->assertSee('<span class="ui-tab-count">2</span>', false)
             ->assertSee('data-lf-confirm=', false);
     }
 
@@ -1886,9 +2046,9 @@ class CourseProductManagementTest extends TestCase
             ->assertOk()
             ->assertSeeText('Historical Target')
             ->assertSeeText('Đã lưu trữ')
-            ->assertSeeText('Xem')
+            ->assertSee('data-tooltip="'.__('lf.LF_course_product_relation_common_view_product').'"', false)
             ->assertDontSeeText('Gắn sản phẩm liên quan')
-            ->assertDontSeeText('Gỡ liên kết');
+            ->assertDontSee('data-tooltip="'.__('lf.LF_course_product_relation_common_remove').'"', false);
 
         $this->assertStringNotContainsString(route('admin.course-products.relations.store', $sourceId), $response->getContent());
         $this->assertStringNotContainsString(route('admin.course-products.relations.destroy', [$sourceId, $relationId]), $response->getContent());
@@ -2441,7 +2601,7 @@ class CourseProductManagementTest extends TestCase
             ->assertSeeText('Thông tin sản phẩm')
             ->assertSeeTextInOrder([
                 'Tên thương mại',
-                'Danh mục sản phẩm',
+                'Danh mục khóa học',
                 'Template khóa học',
                 'Phiên bản sử dụng',
                 'VERSION-'.$templateId.'-12',
@@ -3081,7 +3241,7 @@ class CourseProductManagementTest extends TestCase
             ->assertSee(route('admin.course-products.archive', $inactiveId), false)
             ->assertSeeText(__('lf.LF_product_status_archive_action'));
         $this->assertMatchesRegularExpression(
-            '/<form[^>]+action="'.preg_quote(route('admin.course-products.archive', $inactiveId), '/').'"[^>]*>.*course-product-danger-outline-action/s',
+            '/<form[^>]+action="'.preg_quote(route('admin.course-products.archive', $inactiveId), '/').'"[^>]*>.*ui-button--danger-outline/s',
             $inactiveResponse->getContent()
         );
 

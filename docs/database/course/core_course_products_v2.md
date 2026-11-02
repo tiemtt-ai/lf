@@ -101,6 +101,9 @@ Approved theo [ADR-0022](../../adr/ADR-0022-Course-Type-On-Template.md) (2026-11
 * Template được chọn bằng popup lọc theo loại (xem LF-Core-Course § Course Type).
 * Product đã có Enrollment hoặc Cohort chỉ được chuyển sang Version cùng loại.
 * Activation kiểm tra loại qua Version thay cho kiểm tra `offering_type`.
+* Danh mục kế thừa từ Template, chỉ đọc trên form. Nâng lên Version khác của cùng
+  Template cập nhật `category_id` theo `source_category_id` của Version đó; quy tắc
+  "Template phải thuộc danh mục của Product" chỉ còn kiểm tra khi gắn Template mới.
 
 # Content binding and activation
 

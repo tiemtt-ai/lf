@@ -493,6 +493,8 @@ class CourseCohortManagementTest extends TestCase
             ->assertSeeText(__('lf.LF_course_cohort_create_group_dates'))
             ->assertSee('class="admin-form-standard"', false)
             ->assertSee('course-cohort-edit-tabs', false)
+            ->assertSee('class="course-template-tab is-active"', false)
+            ->assertDontSee('class="btn btn-primary" href', false)
             ->assertSee('course-cohort-detail-tabs-help', false)
             ->assertViewHas('cohortTabs', fn (array $tabs): bool => collect($tabs)
                 ->whereIn('key', ['attendance', 'recordings'])

@@ -2,7 +2,7 @@
     $isEdit = isset($product) && $product !== null;
     $archived = $isEdit && $product->status === 'archived';
 @endphp
-<form class="ui-modal__form" method="POST" enctype="multipart/form-data" novalidate
+<form class="ui-modal__form" data-modal-columns="2" method="POST" enctype="multipart/form-data" novalidate
       action="{{ $isEdit ? route($routePrefix.'.update', array_filter(['id' => $product->id, 'context' => request()->query('context') === 'workspace' ? 'workspace' : null])) : route($routePrefix.'.store') }}">
     @csrf
     @if ($isEdit)
@@ -13,6 +13,10 @@
             <h3 id="product-dialog-title">
                 {{ $isEdit ? __('lf.LF_course_product_common_edit') : __('lf.LF_course_product_common_create') }}
             </h3>
+            {{-- The code is system-assigned and read-only, so it identifies the Product here instead of taking a field. --}}
+            @if ($isEdit)
+                <span class="ui-caption" data-product-code>{{ __('lf.LF_course_product_common_product_code') }}: {{ $product->product_code }}</span>
+            @endif
         </div>
         <button class="ui-modal__close cursor-interaction" type="button" data-ui-dialog-form-cancel
                 aria-label="{{ __('lf.LF_common_button_close') }}">×</button>

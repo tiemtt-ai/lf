@@ -53,3 +53,18 @@ test('row action icon buttons share one size and hover standard', () => {
         assert.equal(value, danger ? 'var(--ui-danger-soft)' : 'var(--ui-color-eef0fb)', key);
     }
 });
+
+test('Tabs share one type size across forms', () => {
+    const read = name => fs.readFileSync(new URL(`../../resources/css/admin/${name}`, import.meta.url), 'utf8');
+    const declared = (source, selector, prop) => {
+        const values = [];
+        postcss.parse(source).walkRules(rule => {
+            if (rule.selectors.includes(selector)) rule.walkDecls(prop, decl => values.push(decl.value));
+        });
+        return values;
+    };
+    assert.match(declared(css, '.lf-admin-ui.ui-structure .course-template-structure-tabs button', 'font')[0], /^400 14px\//);
+    assert.deepEqual(declared(css, '.lf-admin-ui.ui-structure .course-template-activity-tabs', 'font-size'), ['14px']);
+    assert.deepEqual(declared(read('admin-components.css'), '.course-cohort-detail-tabs .btn', 'font-size'), []);
+    assert.deepEqual(declared(read('admin-pages.css'), '.lf-framework__tabs .course-template-tab', 'font-size'), ['14px']);
+});

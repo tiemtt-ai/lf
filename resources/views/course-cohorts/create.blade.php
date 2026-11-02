@@ -5,14 +5,14 @@
 
 @section('content')
     <div x-data="{ lockedReason: '' }">
-        <nav class="admin-form-actions course-cohort-detail-tabs" aria-label="{{ __('lf.LF_course_cohort_common_tabs') }}">
+        <nav class="course-template-tabs course-cohort-detail-tabs" aria-label="{{ __('lf.LF_course_cohort_common_tabs') }}">
             @foreach ($cohortTabs as $tab)
                 @continue(in_array($tab['key'], ['attendance', 'recordings'], true))
                 <span class="sr-only">{{ $tab['note'] }}</span>
                 @if ($tab['accessible'])
-                    <button type="button" class="btn btn-primary" aria-current="page">{{ $tab['label'] }}</button>
+                    <button type="button" class="course-template-tab is-active" aria-current="page">{{ $tab['label'] }}</button>
                 @else
-                    <button type="button" class="btn btn-secondary course-cohort-detail-tab--locked" aria-disabled="true"
+                    <button type="button" class="course-template-tab course-cohort-detail-tab--locked" aria-disabled="true"
                             title="{{ $tab['locked_reason'] }}"
                             x-on:click="lockedReason = @js($tab['locked_reason'])"
                             x-on:focus="lockedReason = @js($tab['locked_reason'])">

@@ -16,7 +16,8 @@
     $customMedia = (bool) old('uses_custom_intro_media', $formProduct?->uses_custom_intro_media ?? false);
     $promotion = (bool) old('promotion_enabled', $formProduct?->promotion_enabled ?? false);
     $generatedSlug = old('slug', $formProduct?->slug ?? '');
-    $initialCategoryState = $categories->firstWhere('id', (int) $selectedCategory);
+    $pickerCategories = collect($pickerTemplates)->filter(fn (array $row) => $row['category_id'] !== null)
+        ->unique('category_id')->sortBy('category_name')->values();
     $initialTemplateState = $templates->firstWhere('id', (int) $selectedTemplate);
     $dateValue = static fn ($field) => old($field, $formProduct?->{$field})
         ? str_replace(' ', 'T', substr((string) old($field, $formProduct?->{$field}), 0, 16)) : null;
@@ -33,9 +34,9 @@
         this.previewOpen = true
     },
     closePreview() { this.previewOpen = false; this.preview = { name: '', url: '', mimeType: '', mediaType: '' } },
-    resetSelect(ref) { const el = this.$refs[ref]; if (! el) return; el.value = ''; el.dispatchEvent(new Event('change', { bubbles: true })) },
     category: @js($selectedCategory), template: @js($selectedTemplate),
-    pickerTemplates: @js($pickerTemplates), pickerTab: 'all', pickerQuery: '', boundType: @js($boundCourseType),
+    pickerTemplates: @js($pickerTemplates), pickerTab: 'all', pickerQuery: '', pickerCategory: '', templateMissing: false, boundType: @js($boundCourseType),
+    categoryNames: @js($categories->pluck('name', 'id')),
     courseTypeLabels: @js(collect(\App\Support\CourseType::VALUES)->mapWithKeys(fn ($type) => [$type => __(\App\Support\CourseType::labelKey($type))])),
     pickedTemplate() { return this.pickerTemplates.find(item => String(item.id) === String(this.template)) ?? null },
     // ADR-0022: the Product course type is the type of the Version it binds (a Draft without one shows the Template type).
@@ -48,24 +49,25 @@
     pickerRows() {
         const query = this.pickerQuery.trim().toLocaleLowerCase()
         return this.pickerTemplates.filter(item => (this.pickerTab === 'all' || item.course_type === this.pickerTab)
+            && (! this.pickerCategory || String(item.category_id) === this.pickerCategory)
             && (! query || [item.title, item.version_code, item.category_name].some(text => String(text ?? '').toLocaleLowerCase().includes(query))))
     },
     pickerCount(tab) { return this.pickerTemplates.filter(item => tab === 'all' || item.course_type === tab).length },
     openPicker() { this.pickerQuery = ''; this.$refs.templatePicker.showModal(); this.$nextTick(() => this.$refs.pickerSearch?.focus()) },
     chooseTemplate(row) {
         if (! row.eligible) return
-        const categorySelect = this.$refs.categorySelect
-        if (categorySelect && row.category_id !== null && String(categorySelect.value) !== String(row.category_id)) {
-            categorySelect.value = String(row.category_id)
-            categorySelect.dispatchEvent(new Event('change', { bubbles: true }))
-        }
+        // The category and the version follow the Template; a typed commercial name is never overwritten.
+        this.category = String(row.category_id)
         this.template = String(row.id)
+        this.templateMissing = false
         const latest = this.templates.find(item => String(item.id) === this.template)?.published_versions?.[0]
-        this.templateVersion = latest ? String(latest.id) : ''
+        this.templateVersion = latest && this.template !== this.persistedTemplate ? String(latest.id) : ''
         this.$nextTick(() => {
             const versionSelect = this.$refs.versionSelect
             if (versionSelect) { versionSelect.value = this.templateVersion; versionSelect.dispatchEvent(new Event('change', { bubbles: true })) }
         })
+        const title = this.$refs.titleInput
+        if (title && ! title.value.trim()) { title.value = row.title; title.dispatchEvent(new Event('input', { bubbles: true })) }
         this.$refs.templatePicker.close()
     },
     customDescription: @js($customDescription), customMedia: @js($customMedia), promotion: @js($promotion),
@@ -169,6 +171,7 @@
     },
     productSubmitConfirmed: false,
     async handleProductSubmit(event) {
+        if (!this.template) { event.preventDefault(); event.stopPropagation(); this.templateMissing = true; this.$root.querySelector('[data-template-picker-open]')?.focus(); return }
         if (!this.validateTimeWindows()) { event.preventDefault(); event.stopPropagation(); return }
         const targetStatus = event.target.querySelector('[name=status]')?.value
         const transitionKey = `${this.persistedStatus}:${targetStatus}`
@@ -201,24 +204,10 @@
     <fieldset class="ui-fieldset-reset" @disabled($formProduct?->status === 'archived')>
         <div class="ui-modal__grid">
 
-            <div class="ui-field">
-                <label class="ui-field__label" for="product-form-category_id">{!! $star !!}{{ __('lf.LF_product_v2_category') }}</label>
-                @if($canChangeTemplate)
-                    <select id="product-form-category_id" name="category_id" data-ui-kit-select required x-ref="categorySelect"
-                            data-ui-empty-label="{{ __('lf.LF_course_template_index_no_options') }}" data-ui-clear-label="{{ __('lf.LF_course_product_common_clear_filters') }}"
-                            x-on:change="category = $event.target.value; if (! templates.some(t => String(t.id) === template && String(t.category_id) === category)) { template = ''; templateVersion = ''; resetSelect('versionSelect') }">
-                        <option value="">{{ __('lf.LF_product_v2_select_category') }}</option>
-                        @foreach($categories as $categoryOption)
-                            <option value="{{ $categoryOption->id }}" @selected((string) $categoryOption->id === $selectedCategory)>{{ $categoryOption->name }}</option>
-                        @endforeach
-                    </select>
-                @else
-                    <input type="hidden" name="category_id" value="{{ $selectedCategory }}">
-                    <input id="product-form-category_id" type="text" readonly value="{{ $initialCategoryState?->name ?? '—' }}">
-                @endif
-            </div>
+            {{-- The Template comes first: the category, the course type and the version follow from it. --}}
+            <input type="hidden" name="category_id" value="{{ $selectedCategory }}" x-model="category">
 
-            <div class="ui-field" data-ui-error-for="template_id">
+            <div class="ui-field ui-field--full" data-ui-error-for="template_id">
                 <label class="ui-field__label" for="product-form-template_id">{!! $star !!}{{ __('lf.LF_product_v2_template') }}</label>
                 @if($canChangeTemplate)
                     {{-- ADR-0022: the Template is chosen in a picker filtered by course type; the field only shows the choice. --}}
@@ -229,6 +218,7 @@
                               x-bind:class="{ 'is-placeholder': ! template }">{{ __('lf.LF_product_v2_select_template') }}</span>
                         <x-backend-icon name="search" class="ui-icon" />
                     </button>
+                    <span class="ui-field__error" role="alert" x-show="templateMissing" x-cloak>{{ __('lf.LF_product_template_required') }}</span>
                     @if($initialTemplateState?->is_historical_binding)
                         <span class="ui-field__hint">{{ __('lf.LF_product_v2_historical_template_status', ['status' => $initialTemplateState->status_label]) }}</span>
                     @endif
@@ -242,17 +232,6 @@
                         default => 'lf.LF_product_v2_template_change_draft_required',
                     }) }}</span>
                 @endif
-            </div>
-
-            <div class="ui-field">
-                <span class="ui-field__label">{{ __('lf.LF_course_type_label') }}</span>
-                <span class="ui-course-type-readonly" data-product-course-type>
-                    <template x-if="courseType()">
-                        <span class="ui-course-type" x-bind:class="'ui-course-type--' + courseType()" x-bind:data-course-type="courseType()" x-text="courseTypeLabels[courseType()]"></span>
-                    </template>
-                    <span class="ui-caption" x-show="! courseType()">{{ __('lf.LF_course_type_from_template') }}</span>
-                </span>
-                <span class="ui-field__hint">{{ __('lf.LF_course_type_product_help') }}</span>
             </div>
 
             @if($canChangeTemplate)
@@ -271,13 +250,23 @@
                                 <button type="button" role="tab" class="ui-tabs__tab cursor-interaction" data-template-picker-tab="{{ $pickerTab }}"
                                         x-bind:aria-selected="(pickerTab === '{{ $pickerTab }}').toString()" x-on:click="pickerTab = '{{ $pickerTab }}'">
                                     {{ $pickerTab === 'all' ? __('lf.LF_course_type_all_short') : __(\App\Support\CourseType::labelKey($pickerTab)) }}
-                                    <span class="ui-template-picker__count" x-text="pickerCount('{{ $pickerTab }}')"></span>
+                                    <span class="ui-tab-count" x-text="pickerCount('{{ $pickerTab }}')"></span>
                                 </button>
                             @endforeach
                         </div>
-                        <div class="ui-search ui-template-picker__search">
-                            <input type="search" x-ref="pickerSearch" x-model="pickerQuery" aria-label="{{ __('lf.LF_product_template_picker_search') }}"
-                                   placeholder="{{ __('lf.LF_product_template_picker_search') }}">
+                        <div class="ui-template-picker__filters">
+                            <div class="ui-search ui-template-picker__search">
+                                <input type="search" x-ref="pickerSearch" x-model="pickerQuery" aria-label="{{ __('lf.LF_product_template_picker_search') }}"
+                                       placeholder="{{ __('lf.LF_product_template_picker_search') }}">
+                            </div>
+                            <select aria-label="{{ __('lf.LF_product_v2_category') }}" data-ui-kit-select data-template-picker-category
+                                    data-ui-empty-label="{{ __('lf.LF_course_template_index_no_options') }}" data-ui-clear-label="{{ __('lf.LF_course_product_common_clear_filters') }}"
+                                    x-on:change="pickerCategory = $event.target.value">
+                                <option value="">{{ __('lf.LF_product_template_picker_all_categories') }}</option>
+                                @foreach ($pickerCategories as $pickerCategoryOption)
+                                    <option value="{{ $pickerCategoryOption['category_id'] }}">{{ $pickerCategoryOption['category_name'] }}</option>
+                                @endforeach
+                            </select>
                         </div>
                         <ul class="ui-template-picker__list" role="listbox" aria-labelledby="product-template-picker-title">
                             <template x-for="row in pickerRows()" :key="row.id">
@@ -289,29 +278,44 @@
                                     x-on:click="chooseTemplate(row)" x-on:keydown.enter.prevent="chooseTemplate(row)">
                                     <span class="ui-template-picker__main">
                                         <b x-text="row.title"></b>
-                                        <span class="ui-caption">
-                                            <span x-text="row.version_code ?? '—'"></span>
-                                            <span x-show="row.category_name"> · <span x-text="row.category_name"></span></span>
-                                        </span>
+                                        {{-- One line of facts, so every row has the same shape. --}}
+                                        <span class="ui-caption" x-text="[row.version_code, row.category_name, row.version_label ?? @js(__('lf.LF_product_template_picker_no_version')), @js(__('lf.LF_product_template_picker_products')).replace(':count', row.product_count)].filter(Boolean).join(' · ')"></span>
                                         <span class="ui-template-picker__reason" x-show="row.reason" x-text="row.reason"></span>
                                     </span>
                                     <span class="ui-course-type" x-bind:class="'ui-course-type--' + row.course_type" x-text="row.course_type_label"></span>
-                                    <span class="ui-template-picker__meta">
-                                        <span x-text="row.version_label ?? @js(__('lf.LF_product_template_picker_no_version'))"></span>
-                                        <span class="ui-caption" x-text="@js(__('lf.LF_product_template_picker_products')).replace(':count', row.product_count)"></span>
-                                    </span>
+                                    <span class="ui-template-picker__check" aria-hidden="true" x-bind:class="{ 'is-on': String(row.id) === String(template) }"><x-backend-icon name="check" class="ui-icon" /></span>
                                 </li>
                             </template>
+                            {{-- Rows that cannot be chosen sit under this heading (CSS order), after the choosable ones. --}}
+                            <li class="ui-template-picker__group" role="presentation" x-show="pickerRows().some(row => ! row.eligible)">{{ __('lf.LF_product_template_picker_blocked') }}</li>
                             <li class="ui-template-picker__empty" x-show="pickerRows().length === 0">{{ __('lf.LF_product_template_picker_empty') }}</li>
                         </ul>
                     </div>
                 </dialog>
             @endif
 
-            @if(! $formProduct || $canChangeTemplate)
-                <div class="ui-field" @if($formProduct) x-show="template && template !== persistedTemplate" x-cloak @endif>
-                    <label class="ui-field__label" for="product-form-template_version_id">{!! $star !!}{{ $formProduct ? __('lf.LF_product_v2_template_change_version') : __('lf.LF_product_v2_course_version') }}</label>
-                    <select id="product-form-template_version_id" name="template_version_id" data-ui-kit-select x-ref="versionSelect"
+            <div class="ui-field ui-field--full" x-show="template" x-cloak data-product-binding>
+                <div class="ui-product-binding">
+                    <div class="ui-product-binding__item" data-ui-error-for="category_id">
+                        <span class="ui-field__label">{{ __('lf.LF_product_v2_category') }}</span>
+                        <span class="ui-product-binding__value" x-text="categoryNames[category] ?? '—'"></span>
+                    </div>
+                    <div class="ui-product-binding__item">
+                        <span class="ui-field__label">{{ __('lf.LF_course_type_label') }}</span>
+                        <span class="ui-course-type-readonly" data-product-course-type>
+                            <template x-if="courseType()">
+                                <span class="ui-course-type" x-bind:class="'ui-course-type--' + courseType()" x-bind:data-course-type="courseType()" x-text="courseTypeLabels[courseType()]"></span>
+                            </template>
+                        </span>
+                    </div>
+                    <div class="ui-product-binding__item ui-product-binding__version">
+                        @if(! $formProduct || $canChangeTemplate)
+                            <div class="ui-field" x-show="template !== persistedTemplate" x-cloak>
+                                <span class="ui-field__label ui-field__label--tip">
+                                    <label for="product-form-template_version_id">{!! $star !!}{{ $formProduct ? __('lf.LF_product_v2_template_change_version') : __('lf.LF_product_v2_course_version') }}</label>
+                                    <x-info-tip align="end" :text="__('lf.LF_product_v2_course_version_help')" />
+                                </span>
+                                <select id="product-form-template_version_id" name="template_version_id" data-ui-kit-select x-ref="versionSelect"
                             data-ui-empty-label="{{ __('lf.LF_course_template_index_no_options') }}" data-ui-clear-label="{{ __('lf.LF_course_product_common_clear_filters') }}"
                             x-on:change="templateVersion = $event.target.value"
                             @if($formProduct) x-bind:required="template && template !== persistedTemplate" @else x-bind:required="Boolean(template)" @endif>
@@ -324,44 +328,37 @@
                             @endforeach
                         @endforeach
                     </select>
-                    <span class="ui-field__hint">{{ __('lf.LF_product_v2_course_version_help') }}</span>
+                            </div>
+                        @endif
+                        @if($formProduct)
+                            <div x-show="template === persistedTemplate" x-cloak>
+                                <template x-for="item in templates.filter(t => String(t.id) === String(template))" :key="`version-${item.id}`">
+                                    <div aria-live="polite">
+                                        <span class="ui-field__label">{{ __('lf.LF_product_v2_version_in_use') }}</span>
+                                        <template x-if="item.version_summary">
+                                            <div>
+                                                <span class="ui-product-binding__value"><span x-text="item.version_summary.code"></span> · <span x-text="item.version_summary.status_label"></span></span>
+                                                <span class="ui-caption"><span x-text="item.version_summary.number_label"></span> · <span x-text="item.version_summary.lesson_text"></span> · <span x-text="item.version_summary.activity_text"></span></span>
+                                            </div>
+                                        </template>
+                                        <span x-show="!item.version_summary && !item.integrity_warning" class="ui-caption" role="status">{{ __('lf.LF_product_v2_missing_version') }}</span>
+                                        <span x-show="item.integrity_warning" class="ui-field__error" role="alert" x-text="item.integrity_warning"></span>
+                                    </div>
+                                </template>
+                            </div>
+                        @endif
+                    </div>
+                    <span class="ui-field__hint ui-product-binding__hint">{{ __('lf.LF_course_type_product_help') }}</span>
                 </div>
-            @endif
-
-            @if($formProduct)
-                <div class="ui-field ui-field--full">
-                    <template x-for="item in templates.filter(t => String(t.id) === String(template))" :key="`version-${item.id}`">
-                        <div class="ui-note-card" aria-live="polite">
-                            <template x-if="item.version_summary">
-                                <div>
-                                    <p class="ui-note-card__title">{{ __('lf.LF_product_v2_version_in_use') }}</p>
-                                    <p class="ui-note-card__text"><span x-text="item.version_summary.code"></span> · <span x-text="item.version_summary.status_label"></span></p>
-                                    <p class="ui-caption"><span x-text="item.version_summary.number_label"></span> · <span x-text="item.version_summary.lesson_text"></span> · <span x-text="item.version_summary.activity_text"></span></p>
-                                </div>
-                            </template>
-                            <p x-show="!item.version_summary" class="ui-note-card__title">{{ __('lf.LF_product_v2_version_in_use') }}</p>
-                            <p x-show="!item.version_summary && !item.integrity_warning" class="ui-caption" role="status">{{ __('lf.LF_product_v2_missing_version') }}</p>
-                            <p x-show="item.integrity_warning" class="ui-field__error" role="alert" x-text="item.integrity_warning"></p>
-                        </div>
-                    </template>
-                </div>
-            @endif
+            </div>
 
             <div class="ui-modal__row-break" aria-hidden="true"></div>
-            <div class="ui-field">
+            <div class="ui-field ui-field--full">
                 <label class="ui-field__label" for="product-form-title">{!! $star !!}{{ __('lf.LF_product_commercial_name') }}</label>
-                <input id="product-form-title" type="text" name="title" value="{{ $formProduct?->title }}" required maxlength="255"
+                <input id="product-form-title" type="text" name="title" value="{{ $formProduct?->title }}" required maxlength="255" x-ref="titleInput"
                        placeholder="{{ __('lf.LF_product_v2_placeholder_name') }}">
                 <span class="ui-field__hint">{{ __('lf.LF_product_commercial_name_help') }}</span>
             </div>
-
-
-            @if($formProduct)
-                <div class="ui-field">
-                    <label class="ui-field__label" for="product-form-product_code">{{ __('lf.LF_course_product_common_product_code') }}</label>
-                    <input id="product-form-product_code" type="text" readonly value="{{ $formProduct->product_code }}">
-                </div>
-            @endif
 
             <div class="ui-field" x-show="courseType() === 'self_paced'" x-cloak>
                 <label class="ui-field__label" for="product-form-access_duration_days"><span x-show="courseType() === 'self_paced'" x-cloak>{!! $star !!}</span>{{ __('lf.LF_product_v2_access_days') }}</label>
@@ -409,7 +406,18 @@
                  x-on:ui-embed-change="embedUrl = $event.detail.url; if (embedUrl) { videoFileChosen = false; $root.querySelector('[data-ui-media-slot][data-kind=video]')?.dispatchEvent(new CustomEvent('ui-media-clear')); }">
                 <input type="hidden" name="intro_video_source" :value="embedUrl ? 'embed' : (videoFileChosen ? 'upload' : (savedVideoSource === 'upload' ? 'upload' : ''))">
                 <div class="ui-field-row">
-                    <div class="ui-field">
+                    {{-- Filled slots come first; each keeps its fixed order within its group. Real DOM order, so Tab follows what is seen. --}}
+                    @php
+                        $mediaSlots = [];
+                        $mediaFilled = [
+                            'image' => (bool) ($introMedia['intro_image'] ?? null),
+                            'video' => (bool) ($introMedia['intro_video'] ?? null),
+                            'embed' => $formProduct?->intro_video_source === 'embed' && filled($formProduct?->intro_video_embed_url),
+                            'document' => (bool) ($introMedia['intro_document'] ?? null),
+                        ];
+                    @endphp
+                    @php ob_start(); @endphp
+                    <div class="ui-field" data-media-slot-field="image">
                         <p class="ui-field__label" id="product-intro-image-label">{{ __('lf.LF_course_template_intro_image') }}</p>
                         <x-ui-media-slot id="intro_image_file" name="intro_image_file" accept="image/*" kind="image"
                             labelledby="product-intro-image-label"
@@ -423,7 +431,9 @@
                             <x-upload-hint ui-kit :formats="['JPG', 'PNG', 'GIF', 'WEBP', 'SVG']" />
                         </x-ui-media-slot>
                     </div>
-                    <div class="ui-field">
+                    @php $mediaSlots['image'] = ob_get_clean(); @endphp
+                    @php ob_start(); @endphp
+                    <div class="ui-field" data-media-slot-field="video">
                         <p class="ui-field__label" id="product-intro-video-label">{{ __('lf.LF_course_template_intro_video') }}</p>
                         <x-ui-media-slot id="intro_video_file" name="intro_video_file" accept="video/*" kind="video" focus-alias="intro_video_source"
                             labelledby="product-intro-video-label"
@@ -437,7 +447,9 @@
                             <x-upload-hint ui-kit :formats="['MP4', 'WEBM', 'MOV', 'AVI']" :max-size="\App\Support\UploadLimit::effectiveVideoKilobytes()" />
                         </x-ui-media-slot>
                     </div>
-                    <div class="ui-field">
+                    @php $mediaSlots['video'] = ob_get_clean(); @endphp
+                    @php ob_start(); @endphp
+                    <div class="ui-field" data-media-slot-field="embed">
                         <p class="ui-field__label" id="product-intro-embed-label">{{ __('lf.LF_course_template_video_embed') }}</p>
                         <x-ui-embed-slot id="product-form-intro_video_embed_url" name="intro_video_embed_url"
                             labelledby="product-intro-embed-label"
@@ -448,7 +460,9 @@
                             {{ __('lf.LF_course_template_embed_hint') }}
                         </x-ui-embed-slot>
                     </div>
-                    <div class="ui-field">
+                    @php $mediaSlots['embed'] = ob_get_clean(); @endphp
+                    @php ob_start(); @endphp
+                    <div class="ui-field" data-media-slot-field="document">
                         <p class="ui-field__label" id="product-intro-document-label">{{ __('lf.LF_course_template_intro_document') }}</p>
                         <x-ui-media-slot id="intro_document_file" name="intro_document_file"
                             accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx" :kind="$introDocumentThumbnail['kind'] ?? 'document'"
@@ -463,6 +477,10 @@
                             <x-upload-hint ui-kit :formats="['PDF', 'DOC', 'DOCX', 'PPT', 'PPTX', 'XLS', 'XLSX']" />
                         </x-ui-media-slot>
                     </div>
+                    @php $mediaSlots['document'] = ob_get_clean(); @endphp
+                    @foreach (collect($mediaSlots)->sortBy(fn ($html, $slot) => $mediaFilled[$slot] ? 0 : 1) as $slotHtml)
+                        {!! $slotHtml !!}
+                    @endforeach
                 </div>
             </div>
 
@@ -481,22 +499,6 @@
                         <option value="{{ $currencyOption }}" @selected(($formProduct?->currency ?? 'VND') === $currencyOption)>{{ $currencyOption }}</option>
                     @endforeach
                 </select>
-            </div>
-
-            <div class="ui-note-card" aria-live="polite">
-                <p class="ui-note-card__title">{{ __('lf.LF_product_v2_selling_price') }}</p>
-                <p class="ui-note-card__text"><strong><span x-text="formatMoney(sellingPrice())"></span> <span x-text="currency"></span></strong><span x-show="promotion && discountType && Number(discount || 0) > 0" x-cloak> · {{ __('lf.LF_product_v2_save') }} <span x-text="formatMoney(discountAmount())"></span> <span x-text="currency"></span><span x-show="discountType === 'percentage'"> · <span x-text="`${Number(discount || 0)}%`"></span></span></span></p>
-            </div>
-
-            <div class="ui-field">
-                <label class="ui-field__label" for="product-form-registration_starts_at"><span x-show="registrationStart || registrationEnd" x-cloak>{!! $star !!}</span>{{ __('lf.LF_course_product_common_registration_starts_at') }}</label>
-                <x-ui-date-input time id="product-form-registration_starts_at" name="registration_starts_at" :value="$dateValue('registration_starts_at')"
-                                 x-ref="registrationStart" x-model="registrationStart" x-on:input="$el.setCustomValidity('')" />
-            </div>
-            <div class="ui-field">
-                <label class="ui-field__label" for="product-form-registration_ends_at"><span x-show="registrationStart || registrationEnd" x-cloak>{!! $star !!}</span>{{ __('lf.LF_course_product_common_registration_ends_at') }}</label>
-                <x-ui-date-input time id="product-form-registration_ends_at" name="registration_ends_at" :value="$dateValue('registration_ends_at')"
-                                 x-ref="registrationEnd" x-model="registrationEnd" x-on:input="$el.setCustomValidity('')" />
             </div>
 
             <div class="ui-field ui-field--full">
@@ -524,7 +526,6 @@
                        x-ref="discountInput" x-model="discountDisplay" x-on:input="updateDiscount($event.target.value)"
                        placeholder="{{ __('lf.LF_product_v2_discount_value') }}">
             </div>
-            <div x-show="promotion" x-cloak aria-hidden="true"></div>
             <div class="ui-field" x-show="promotion" x-cloak>
                 <label class="ui-field__label" for="product-form-sale_starts_at"><span x-show="promotionStart || promotionEnd" x-cloak>{!! $star !!}</span>{{ __('lf.LF_product_v2_promotion_starts_at') }}</label>
                 <x-ui-date-input time id="product-form-sale_starts_at" name="sale_starts_at" :value="$dateValue('sale_starts_at')"
@@ -536,6 +537,23 @@
                 <x-ui-date-input time id="product-form-sale_ends_at" name="sale_ends_at" :value="$dateValue('sale_ends_at')"
                                  x-bind:min="registrationStart || null" x-bind:max="registrationEnd || null"
                                  x-ref="promotionEnd" x-model="promotionEnd" x-on:input="$el.setCustomValidity('')" />
+            </div>
+
+            <div class="ui-note-card ui-field--full" aria-live="polite">
+                <p class="ui-note-card__title">{{ __('lf.LF_product_v2_selling_price') }}</p>
+                <p class="ui-note-card__text"><strong><span x-text="formatMoney(sellingPrice())"></span> <span x-text="currency"></span></strong><span x-show="promotion && discountType && Number(discount || 0) > 0" x-cloak> · {{ __('lf.LF_product_v2_save') }} <span x-text="formatMoney(discountAmount())"></span> <span x-text="currency"></span><span x-show="discountType === 'percentage'"> · <span x-text="`${Number(discount || 0)}%`"></span></span></span></p>
+            </div>
+
+            <div class="ui-modal__row-break" aria-hidden="true"></div>
+            <div class="ui-field">
+                <label class="ui-field__label" for="product-form-registration_starts_at"><span x-show="registrationStart || registrationEnd" x-cloak>{!! $star !!}</span>{{ __('lf.LF_course_product_common_registration_starts_at') }}</label>
+                <x-ui-date-input time id="product-form-registration_starts_at" name="registration_starts_at" :value="$dateValue('registration_starts_at')"
+                                 x-ref="registrationStart" x-model="registrationStart" x-on:input="$el.setCustomValidity('')" />
+            </div>
+            <div class="ui-field">
+                <label class="ui-field__label" for="product-form-registration_ends_at"><span x-show="registrationStart || registrationEnd" x-cloak>{!! $star !!}</span>{{ __('lf.LF_course_product_common_registration_ends_at') }}</label>
+                <x-ui-date-input time id="product-form-registration_ends_at" name="registration_ends_at" :value="$dateValue('registration_ends_at')"
+                                 x-ref="registrationEnd" x-model="registrationEnd" x-on:input="$el.setCustomValidity('')" />
             </div>
 
             <div class="ui-modal__row-break" aria-hidden="true"></div>
@@ -555,13 +573,14 @@
                 @endif
             </div>
 
-            <div class="ui-field">
-                <input type="hidden" name="is_featured" value="0">
-                <label class="ui-check ui-switch">
+            <label class="ui-switch-row ui-product-featured">
+                <span class="ui-switch-row__text"><b>{{ __('lf.LF_course_product_common_is_featured') }}</b></span>
+                <span class="ui-switch">
+                    <input type="hidden" name="is_featured" value="0">
                     <input id="product-form-is_featured" type="checkbox" role="switch" name="is_featured" value="1" @checked($formProduct?->is_featured)>
-                    <span>{{ __('lf.LF_course_product_common_is_featured') }}</span>
-                </label>
-            </div>
+                    <span></span>
+                </span>
+            </label>
         </div>
     </fieldset>
 

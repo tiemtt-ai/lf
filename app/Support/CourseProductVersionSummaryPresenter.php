@@ -182,6 +182,7 @@ class CourseProductVersionSummaryPresenter
                         'status' => __('lf.LF_course_template_common_'.$template->status),
                     ]),
                     $template->version_number === null => __('lf.LF_product_template_picker_reason_unpublished'),
+                    $template->category_id === null => __('lf.LF_product_template_picker_reason_no_category'),
                     default => null,
                 };
 

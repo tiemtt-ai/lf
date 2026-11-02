@@ -514,8 +514,7 @@ class CourseProductController extends Controller
                 ->where('versions.template_id', $item->template_id)
                 ->where('versions.status', 'published')
                 ->where('templates.status', 'active')
-                ->where('templates.category_id', $product->category_id)
-                ->lockForUpdate()->first(['versions.id', 'versions.course_type_snapshot']);
+                ->lockForUpdate()->first(['versions.id', 'versions.course_type_snapshot', 'versions.source_category_id']);
             if (! $version) {
                 throw ValidationException::withMessages([
                     'version_id' => __('lf.LF_course_product_item_validation_published_version'),
@@ -539,6 +538,12 @@ class CourseProductController extends Controller
             if (! CourseType::usesAccessDuration($version->course_type_snapshot)) {
                 DB::table('core_course_products')->where('customer_id', $customerId)->where('id', $productId)
                     ->update(['access_duration_days' => null, 'review_duration_days' => null]);
+            }
+            // ADR-0022: the category follows the Version; a category no longer in the tenant keeps the current one.
+            if ($version->source_category_id && (int) $version->source_category_id !== (int) $product->category_id
+                && DB::table('core_course_categories')->where('customer_id', $customerId)->where('id', $version->source_category_id)->exists()) {
+                DB::table('core_course_products')->where('customer_id', $customerId)->where('id', $productId)
+                    ->update(['category_id' => $version->source_category_id, 'updated_at' => $now]);
             }
             DB::table('core_course_product_items')->where('customer_id', $customerId)
                 ->where('product_id', $productId)->where('id', $item->id)->update([

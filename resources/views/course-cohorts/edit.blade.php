@@ -32,7 +32,7 @@
                 {{ __('lf.LF_course_cohort_tab_read_only') }}
             </span>
         @endif
-        <nav x-ref="tabs" class="admin-form-actions course-cohort-detail-tabs course-cohort-edit-tabs" aria-label="{{ __('lf.LF_course_cohort_common_tabs') }}">
+        <nav x-ref="tabs" class="course-template-tabs course-cohort-detail-tabs course-cohort-edit-tabs" aria-label="{{ __('lf.LF_course_cohort_common_tabs') }}">
             @foreach ($cohortTabs as $tab)
                 @continue(in_array($tab['key'], ['attendance', 'recordings'], true))
                 <span class="sr-only">{{ $tab['note'] }}</span>
@@ -40,7 +40,7 @@
                     ? route($routePrefix.'.edit', $cohort->id)
                     : $tab['route'])
                 @if ($tab['accessible'])
-                    <a @class(['btn', 'btn-primary' => $tab['key'] === 'overview', 'btn-secondary' => $tab['key'] !== 'overview'])
+                    <a @class(['course-template-tab', 'is-active' => $tab['key'] === 'overview'])
                        href="{{ $editRoute }}" @if($tab['key'] === 'overview') aria-current="page" @endif>
                         {{ $tab['label'] }}
                         @if ($tab['read_only'])
@@ -49,7 +49,7 @@
                         @endif
                     </a>
                 @else
-                    <button type="button" class="btn btn-secondary course-cohort-detail-tab--locked" aria-disabled="true"
+                    <button type="button" class="course-template-tab course-cohort-detail-tab--locked" aria-disabled="true"
                             title="{{ $tab['locked_reason'] }}"
                             x-on:click="lockedReason = @js($tab['locked_reason'])"
                             x-on:focus="lockedReason = @js($tab['locked_reason'])">

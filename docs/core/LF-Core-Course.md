@@ -514,6 +514,27 @@ chặn xuất bản).
   Product chưa có Enrollment và Cohort được gắn lại tự do; số ngày không còn áp
   dụng bị xóa trong cùng transaction.
 
+### Danh mục, tạo và sửa Product
+
+Danh mục phân loại theo nội dung khóa học (Owner xác nhận 2026-11-02) nên thuộc
+Template; Product kế thừa và hiển thị chỉ đọc, giống loại khóa học. Trên giao diện
+gọi là "Danh mục khóa học". Nếu sau này cần phân nhóm theo cách bán thì làm riêng ở
+Product dưới tên khác (ví dụ Nhóm bán hàng), không dùng chung bảng này.
+
+* **Tạo mới:** chọn Template trong popup, phiên bản mặc định là phiên bản đã
+  xuất bản mới nhất. Danh mục và loại hiện theo. Admin chỉ nhập phần kinh doanh:
+  tên thương mại, giá, thời gian đăng ký, số ngày học (nếu là Tự học).
+* **Đổi sang Template khác:** chỉ khi Product còn nháp và chưa phát sinh dữ liệu
+  sử dụng (ghi danh, lớp học và các dữ liệu học tập liên quan).
+* **Nâng lên Version khác của cùng Template:** được phép kể cả khi đã có học viên.
+  Danh mục của Product cập nhật theo `source_category_id` của Version đó.
+  Product đã có sử dụng vẫn phải giữ cùng loại khóa học: Template bị khóa loại kể
+  từ khi có Product gắn, nhưng các Version xuất bản trước đó có thể khác loại.
+* **Học viên và lớp khi nâng Version:** Enrollment hiện có giữ nguyên Version đã
+  đóng băng; ghi danh mới dùng Version mới. Cohort giữ Version đã đóng băng lúc
+  tạo; Cohort còn nháp gắn Version cũ không kích hoạt được sau khi Product đã
+  nâng Version (kiểm tra sẵn có của Cohort, chưa thay đổi).
+
 ### Chọn Template trên form Product
 
 Form Product mở popup chọn Template gồm:

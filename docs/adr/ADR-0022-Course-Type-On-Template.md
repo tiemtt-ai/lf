@@ -98,6 +98,11 @@ nhất quán).
   Product chưa có Enrollment và Cohort được gắn lại tự do; loại đi theo Version mới
   và các trường số ngày không còn áp dụng được xóa trong cùng transaction.
 
+Danh mục phân loại theo nội dung nên Product kế thừa từ Template và chỉ đọc. Nâng
+Version của cùng Template được phép khi đã có học viên, danh mục theo Version mới;
+Enrollment hiện có giữ Version đã đóng băng. Đổi sang Template khác chỉ khi Product
+còn nháp và chưa phát sinh dữ liệu sử dụng.
+
 ## 5. Lớp học chỉ dùng khóa học theo lớp
 
 Cohort chỉ được gắn Product có loại `scheduled` hoặc `blended` (tính từ

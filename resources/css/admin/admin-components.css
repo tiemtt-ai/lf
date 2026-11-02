@@ -881,11 +881,10 @@
     border-bottom: 1px solid var(--admin-border);
 }
 
-.admin-form-actions.course-cohort-detail-tabs {
+.course-template-tabs.course-cohort-detail-tabs {
     max-width: 100%;
     margin-top: 10px;
-    padding-bottom: 3px;
-    gap: 6px;
+    margin-bottom: 0;
     flex-wrap: nowrap;
     overflow-x: auto;
     overflow-y: hidden;
@@ -894,21 +893,29 @@
     -webkit-overflow-scrolling: touch;
 }
 
-.course-cohort-detail-tabs .btn {
-    min-height: 36px;
-    padding: 7px 10px;
-    flex: 1 0 auto;
-    border-radius: 7px;
-    font-size: 13px;
-    line-height: 1.35;
-    text-align: center;
-    white-space: nowrap;
+.course-cohort-detail-tabs .course-template-tab {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 6px;
 }
 
-.course-cohort-detail-tab--locked {
-    gap: 6px;
+.course-cohort-detail-tabs button.course-template-tab {
+    border: 0;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    background: transparent;
+    font: inherit;
+    cursor: pointer;
+}
+
+.course-cohort-detail-tabs button.course-template-tab.is-active {
+    border-bottom-color: currentColor;
+}
+
+.course-cohort-detail-tabs button.course-template-tab.course-cohort-detail-tab--locked {
+    border-bottom-color: transparent;
     color: var(--admin-text-muted);
-    background: var(--admin-surface-subtle);
 }
 
 .course-cohort-detail-tab--locked .backend-sidebar-icon {
@@ -3870,11 +3877,11 @@
 }
 
 @media (max-width: 767px) {
-    .admin-form-actions.course-cohort-detail-tabs {
+    .course-template-tabs.course-cohort-detail-tabs {
         scroll-snap-type: inline proximity;
     }
 
-    .course-cohort-detail-tabs .btn {
+    .course-cohort-detail-tabs .course-template-tab {
         scroll-snap-align: start;
     }
 
