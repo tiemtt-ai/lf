@@ -6,7 +6,7 @@ Document Status: Frozen
 
 Implementation Status: Implemented
 
-Last Updated: 2026-08-22
+Last Updated: 2026-11-02
 
 Document Path: database/learning/core_learning_frameworks.md
 
@@ -73,6 +73,11 @@ Archiving blocks new draft Versions but preserves all published history.
 Frameworks referenced by any Version, Definition, Evidence basis or Profile
 cannot be hard-deleted. Restoring an archived Framework requires an approved
 lifecycle action and audit actor; it never restores an archived Version.
+
+Amendment 2026-11-02 (Owner approved): `customer_admin` may hard-delete a
+Framework with no Version and no Definition through the authoring service. Every
+other reference reaches a Framework through one of these two, so no referenced
+Framework can be deleted; the `RESTRICT` foreign keys remain the final guard.
 
 Version-number allocation locks the parent Framework row with `SELECT ... FOR
 UPDATE`, reads the maximum committed number and inserts the next number in the

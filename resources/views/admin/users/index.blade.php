@@ -34,6 +34,8 @@
         </div>
     @endif
 
+    <x-ui-list-head :title="__('lf.LF_admin_user_index_heading')" :text="__('lf.LF_admin_user_index_description')" />
+
     <section class="mk-section" aria-labelledby="admin-page-title">
         <nav class="mk-tabs" data-ui-live-region="tabs" aria-label="{{ __('lf.LF_admin_user_role_navigation') }}">
             @foreach ($roleLabels as $roleKey => $label)

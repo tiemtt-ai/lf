@@ -15,6 +15,8 @@ class LearningFrameworkIndexTest extends TestCase
 {
     use RefreshDatabase;
 
+    private const LIST_URL = 'https://framework-search.localhost/admin/learning-frameworks';
+
     private User $admin;
 
     protected function setUp(): void
@@ -43,6 +45,11 @@ class LearningFrameworkIndexTest extends TestCase
             $table->unsignedBigInteger('framework_id');
             $table->unsignedInteger('version_number');
             $table->string('status');
+        });
+        Schema::create('core_learning_node_definitions', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('customer_id');
+            $table->unsignedBigInteger('framework_id');
         });
         Schema::create('core_learning_nodes', function (Blueprint $table): void {
             $table->id();
@@ -139,6 +146,97 @@ class LearningFrameworkIndexTest extends TestCase
             ->assertSee('name="mastery_scale[levels][3][key]"', false);
         $this->get('https://framework-search.localhost/admin/learning-frameworks')->assertOk();
         $this->assertDatabaseCount('core_learning_frameworks', 3);
+    }
+
+    public function test_list_has_a_title_and_description(): void
+    {
+        $this->actingAs($this->admin)->get(self::LIST_URL)->assertOk()
+            ->assertSeeInOrder([__('lf.LF_learning_index_title'), __('lf.LF_learning_manual_help'), 'framework-keyword']);
+    }
+
+    public function test_list_is_paginated_and_a_page_past_the_end_shows_the_last_page(): void
+    {
+        $tenant = (int) $this->admin->customer_id;
+        foreach (range(1, 10) as $number) {
+            DB::table('core_learning_frameworks')->insert([
+                'customer_id' => $tenant, 'name' => sprintf('Bộ %02d', $number), 'code' => "P-{$number}", 'status' => 'active',
+            ]);
+        }
+
+        $this->actingAs($this->admin)->get(self::LIST_URL)->assertOk()
+            ->assertViewHas('totalCount', 12)
+            ->assertViewHas('frameworks', fn ($items) => $items->count() === 10 && $items->total() === 12);
+
+        foreach (['?page=2', '?page=99'] as $query) {
+            $this->actingAs($this->admin)->get(self::LIST_URL.$query)->assertOk()
+                ->assertViewHas('frameworks', fn ($items) => $items->count() === 2 && $items->currentPage() === 2)
+                ->assertSee('<td class="mk-sequence" data-label="'.__('lf.table_no').'">11</td>', false);
+        }
+    }
+
+    public function test_only_a_framework_without_versions_or_definitions_can_be_selected_for_delete(): void
+    {
+        [$used, $defined, $empty] = $this->frameworksInUse();
+
+        $response = $this->actingAs($this->admin)->get(self::LIST_URL)->assertOk();
+
+        $response->assertSee('value="'.$empty.'"', false)
+            ->assertDontSee('value="'.$used.'"', false)
+            ->assertDontSee('value="'.$defined.'"', false)
+            ->assertSee(__('lf.LF_learning_delete_blocked'));
+    }
+
+    public function test_admin_can_delete_frameworks_without_versions_or_definitions(): void
+    {
+        [, , $empty] = $this->frameworksInUse();
+
+        $this->actingAs($this->admin)->deleteJson(self::LIST_URL, ['ids' => [$empty]])
+            ->assertOk()->assertJsonPath('message', trans_choice('lf.LF_learning_bulk_deleted', 1, ['count' => 1]));
+
+        $this->assertDatabaseMissing('core_learning_frameworks', ['id' => $empty]);
+    }
+
+    public function test_delete_is_all_or_nothing_when_a_framework_is_in_use(): void
+    {
+        [$used, $defined, $empty] = $this->frameworksInUse();
+
+        foreach ([$used, $defined] as $blocked) {
+            $this->actingAs($this->admin)->deleteJson(self::LIST_URL, ['ids' => [$empty, $blocked]])
+                ->assertStatus(409)->assertJsonPath('message', __('lf.LF_learning_delete_blocked_stale'));
+            $this->assertDatabaseHas('core_learning_frameworks', ['id' => $blocked]);
+        }
+        $this->assertDatabaseHas('core_learning_frameworks', ['id' => $empty]);
+    }
+
+    public function test_delete_cannot_reach_another_tenant_or_be_used_by_a_teacher(): void
+    {
+        [, , $empty] = $this->frameworksInUse();
+        $foreign = (int) DB::table('core_learning_frameworks')->where('code', 'KOR-PRIVATE')->value('id');
+
+        $this->actingAs($this->admin)->deleteJson(self::LIST_URL, ['ids' => [$empty, $foreign]])->assertNotFound();
+        $this->assertDatabaseHas('core_learning_frameworks', ['id' => $foreign]);
+        $this->assertDatabaseHas('core_learning_frameworks', ['id' => $empty]);
+
+        $this->admin->forceFill(['role' => 'teacher'])->save();
+        $this->actingAs($this->admin)->deleteJson(self::LIST_URL, ['ids' => [$empty]])->assertForbidden();
+        $this->assertDatabaseHas('core_learning_frameworks', ['id' => $empty]);
+    }
+
+    /** @return array{int, int, int} one Framework with a Version, one with a Definition, one with neither */
+    private function frameworksInUse(): array
+    {
+        $tenant = (int) $this->admin->customer_id;
+        $used = (int) DB::table('core_learning_frameworks')->where('code', 'KOR-01')->value('id');
+        $defined = (int) DB::table('core_learning_frameworks')->where('code', 'DIG-01')->value('id');
+        $empty = (int) DB::table('core_learning_frameworks')->insertGetId([
+            'customer_id' => $tenant, 'name' => 'Bộ trống', 'code' => 'EMPTY-01', 'status' => 'active',
+        ]);
+        DB::table('core_learning_framework_versions')->insert([
+            'customer_id' => $tenant, 'framework_id' => $used, 'version_number' => 1, 'status' => 'published',
+        ]);
+        DB::table('core_learning_node_definitions')->insert(['customer_id' => $tenant, 'framework_id' => $defined]);
+
+        return [$used, $defined, $empty];
     }
 
     private function url(string|array $keyword): string

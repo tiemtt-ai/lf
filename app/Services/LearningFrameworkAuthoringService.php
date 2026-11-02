@@ -84,6 +84,37 @@ final class LearningFrameworkAuthoringService
     }
 
     /**
+     * Hard-deletes Frameworks that never entered authoring. All other references (Nodes, Evidence,
+     * Profiles, mappings) reach a Framework through a Version or Definition, so these two checks
+     * decide it and the RESTRICT foreign keys remain the final guard. All or nothing.
+     *
+     * @param  list<int>  $frameworkIds
+     */
+    public function deleteFrameworks(int $actorId, array $frameworkIds): void
+    {
+        $customerId = $this->access->tenantId();
+
+        DB::transaction(function () use ($customerId, $actorId, $frameworkIds): void {
+            $this->assertActor($customerId, $actorId, self::CAPABILITY_AUTHOR);
+
+            $locked = DB::table('core_learning_frameworks')
+                ->where('customer_id', $customerId)->whereIn('id', $frameworkIds)
+                ->orderBy('id')->lockForUpdate()->pluck('id');
+            if ($locked->count() !== count($frameworkIds)) {
+                throw new RecordsNotFoundException('core_learning_frameworks row not found in tenant.');
+            }
+
+            foreach (['core_learning_framework_versions', 'core_learning_node_definitions'] as $table) {
+                if (DB::table($table)->where('customer_id', $customerId)->whereIn('framework_id', $frameworkIds)->exists()) {
+                    throw new DomainException('LF_FRAMEWORK_AUTHORING_FRAMEWORK_IN_USE');
+                }
+            }
+
+            DB::table('core_learning_frameworks')->where('customer_id', $customerId)->whereIn('id', $frameworkIds)->delete();
+        });
+    }
+
+    /**
      * @param  array<string, mixed>  $command
      */
     public function updateFramework(int $actorId, int $frameworkId, array $command): object

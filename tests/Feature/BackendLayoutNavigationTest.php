@@ -146,8 +146,9 @@ class BackendLayoutNavigationTest extends TestCase
             $html = $this->actingAs($admin)
                 ->get('https://tenant-a.localhost/admin/'.$path)
                 ->assertOk()
-                // The list names itself in the breadcrumb: its visible title is hidden (the h1 stays for screen readers).
+                // The list shows its own title (x-ui-list-head): the layout h1 stays hidden for screen readers.
                 ->assertSee('class="page-heading page-heading--hidden"', false)
+                ->assertSee('class="ui-page-head__title"', false)
                 ->assertDontSee('page-heading--with-actions', false)
                 ->assertSee('aria-current="page"', false)
                 ->assertSee('data-ui-dialog-form-for="'.$scopeId.'"', false)
@@ -164,6 +165,8 @@ class BackendLayoutNavigationTest extends TestCase
             ->assertOk()
             ->assertSee('class="page-heading page-heading--hidden"', false)
             ->assertDontSee('page-heading--with-actions', false)
+            ->assertSee('class="ui-page-head__title"', false)
+            ->assertSeeText(__('lf.LF_course_product_index_heading'))
             ->assertSee('data-ui-dialog-form-for="product-list"', false)
             ->assertSee('id="product-list"', false);
     }

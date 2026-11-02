@@ -37,6 +37,8 @@
         </div>
     @endif
 
+    <x-ui-list-head :title="__('lf.LF_course_product_index_heading')" :text="__('lf.LF_course_product_index_description')" />
+
     <section class="mk-section" aria-labelledby="admin-page-title">
         <div class="mk-tablebar mk-tablebar--filters">
             <form class="mk-filter-form" method="GET" action="{{ route($routePrefix.'.index') }}" data-ui-live-filter>

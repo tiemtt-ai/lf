@@ -30,6 +30,7 @@ final class LearningFrameworkReadService
             })
             ->select('frameworks.*')
             ->selectRaw('COUNT(versions.id) as version_count')
+            ->selectRaw('(SELECT COUNT(*) FROM core_learning_node_definitions d WHERE d.customer_id = frameworks.customer_id AND d.framework_id = frameworks.id) as definition_count')
             ->selectRaw("SUM(CASE WHEN versions.status = 'draft_snapshot' THEN 1 ELSE 0 END) as draft_count")
             ->selectRaw("SUM(CASE WHEN versions.status = 'published' THEN 1 ELSE 0 END) as published_count")
             ->selectRaw("MAX(CASE WHEN versions.status = 'published' THEN versions.version_number END) as current_version_number")

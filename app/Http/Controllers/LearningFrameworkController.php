@@ -13,7 +13,9 @@ use DomainException;
 use Illuminate\Database\QueryException;
 use Illuminate\Database\RecordsNotFoundException;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
@@ -41,7 +43,49 @@ final class LearningFrameworkController extends Controller
                 || ($needle !== '' && str_contains(Str::lower(Str::ascii((string) $value)), $needle))))->values();
         }
 
+        // The read service owns the tenant-scoped list; a page past the end (after a delete) shows the last one.
+        $perPage = 10;
+        $page = min(max(1, $request->integer('page', 1)), max(1, (int) ceil($frameworks->count() / $perPage)));
+        $frameworks = new LengthAwarePaginator(
+            $frameworks->forPage($page, $perPage)->values(), $frameworks->count(), $perPage, $page,
+            ['path' => $request->url(), 'query' => $request->query()]
+        );
+        $frameworks->getCollection()->each(function (object $framework): void {
+            $framework->delete_blocker = (int) $framework->version_count > 0 || (int) $framework->definition_count > 0
+                ? __('lf.LF_learning_delete_blocked')
+                : null;
+        });
+
         return view('learning-frameworks.index', compact('frameworks', 'keyword', 'totalCount'));
+    }
+
+    public function bulkDestroy(Request $request): JsonResponse|RedirectResponse
+    {
+        $validated = $request->validate([
+            'ids' => ['required', 'array', 'min:1', 'max:100'],
+            'ids.*' => ['required', 'integer', 'distinct'],
+        ]);
+        $ids = array_map('intval', $validated['ids']);
+
+        try {
+            $this->authoring->deleteFrameworks((int) $request->user()->id, $ids);
+        } catch (RecordsNotFoundException) {
+            abort(404);
+        } catch (DomainException|QueryException $exception) {
+            $blocked = $exception instanceof DomainException && $exception->getMessage() !== 'LF_FRAMEWORK_AUTHORING_FRAMEWORK_IN_USE'
+                ? __('lf.LF_learning_authoring_error', ['code' => $exception->getMessage()])
+                : __('lf.LF_learning_delete_blocked_stale');
+
+            return $request->expectsJson()
+                ? response()->json(['message' => $blocked], 409)
+                : back()->withErrors(['learning' => $blocked]);
+        }
+
+        $message = trans_choice('lf.LF_learning_bulk_deleted', count($ids), ['count' => count($ids)]);
+
+        return $request->expectsJson()
+            ? response()->json(['message' => $message])
+            : redirect()->route('admin.learning-frameworks.index')->with('success', $message);
     }
 
     public function create(): View

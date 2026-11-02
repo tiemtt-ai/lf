@@ -97,6 +97,25 @@ class LearningFrameworkAuthoringHttpMariaDbTest extends TestCase
         ]);
     }
 
+    public function test_only_a_framework_without_versions_or_definitions_can_be_deleted(): void
+    {
+        $empty = $this->createFramework('fw-delete-empty');
+        $defined = $this->createFramework('fw-delete-defined');
+        $this->admin()->post($this->host.'/admin/learning-frameworks/'.$defined->id.'/competencies', [
+            'node_type' => 'competency', 'canonical_name' => 'Năng lực giữ lại',
+        ])
+            ->assertSessionHasNoErrors();
+        $this->assertTrue(DB::table('core_learning_node_definitions')->where('framework_id', $defined->id)->exists());
+
+        $url = $this->host.'/admin/learning-frameworks';
+        $this->admin()->deleteJson($url, ['ids' => [$empty->id, $defined->id]])->assertStatus(409);
+        $this->assertDatabaseHas('core_learning_frameworks', ['id' => $empty->id]);
+        $this->assertDatabaseHas('core_learning_frameworks', ['id' => $defined->id]);
+
+        $this->admin()->deleteJson($url, ['ids' => [$empty->id]])->assertOk();
+        $this->assertDatabaseMissing('core_learning_frameworks', ['id' => $empty->id]);
+    }
+
     /**
      * trg_lrn_frameworks_bi_scale reads JSON_TYPE of each threshold and refuses
      * STRING. The form cannot send anything but a string, so the boundary is

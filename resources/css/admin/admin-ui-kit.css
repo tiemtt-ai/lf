@@ -3000,3 +3000,9 @@
 .lf-admin-ui .ui-product-relations__form { align-items: flex-start; }
 .lf-admin-ui .ui-product-relations__picker { flex: 1 1 280px; min-width: 0; }
 @media (max-width: 640px) { .lf-admin-ui .ui-product-version__summary { grid-template-columns: minmax(0, 1fr); } }
+.lf-admin-ui .ui-framework-col-use { width: 260px; }
+.lf-admin-ui .ui-framework-description { display: block; margin-top: 2px; }
+.lf-admin-ui .ui-framework-use { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.lf-admin-ui .ui-page-head { margin: 0 0 16px; }
+.lf-admin-ui .ui-page-head__title { margin: 0; color: var(--ui-text); font: 600 22px/1.35 var(--ui-font-family); }
+.lf-admin-ui .ui-page-head__text { max-width: 760px; margin: 4px 0 0; color: var(--ui-muted); font-size: 14px; line-height: 1.5; }

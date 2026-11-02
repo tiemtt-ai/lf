@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Route;
 Route::get('/learning-frameworks', [LearningFrameworkController::class, 'index'])->name('learning-frameworks.index');
 Route::get('/learning-frameworks/create', [LearningFrameworkController::class, 'create'])->name('learning-frameworks.create');
 Route::post('/learning-frameworks', [LearningFrameworkController::class, 'store'])->name('learning-frameworks.store');
+Route::delete('/learning-frameworks', [LearningFrameworkController::class, 'bulkDestroy'])->name('learning-frameworks.bulk-destroy');
 Route::get('/learning-frameworks/{framework}', [LearningFrameworkController::class, 'show'])->name('learning-frameworks.show');
 Route::put('/learning-frameworks/{framework}', [LearningFrameworkController::class, 'update'])->name('learning-frameworks.update');
 Route::post('/learning-frameworks/{framework}/versions', [LearningFrameworkController::class, 'storeVersion'])->name('learning-frameworks.versions.store');

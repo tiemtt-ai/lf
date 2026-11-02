@@ -143,6 +143,8 @@
         </div>
     @endif
 
+    <x-ui-list-head :title="__('lf.LF_media_file_index_heading')" :text="__('lf.LF_media_file_index_description')" />
+
     <section class="mk-section" aria-labelledby="admin-page-title">
         <nav class="mk-tabs" data-ui-live-region="tabs" aria-label="{{ __('lf.LF_media_file_common_type') }}">
             @foreach ($tabs as $availableTab)

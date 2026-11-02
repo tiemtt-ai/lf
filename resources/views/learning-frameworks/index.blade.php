@@ -3,108 +3,157 @@
 @section('title', __('lf.LF_learning_frameworks'))
 @section('page_title', __('lf.LF_learning_frameworks'))
 
+@section('page_title_hidden', '1')
+
+@section('vite')
+    @parent
+    @vite(['resources/css/admin/admin-ui-kit.css', 'resources/js/admin-ui-kit-controls.js', 'resources/js/admin-ui-kit-row-actions.js'])
+@endsection
+
 @section('content')
-    @include('learning-frameworks.partials.errors')
+<div class="lf-admin-ui lf-admin-ui--list" data-ui-row-actions
+     data-csrf="{{ csrf_token() }}"
+     data-msg-delete-error="{{ __('lf.LF_learning_delete_error') }}"
+     data-msg-session-expired="{{ __('lf.LF_learning_session_expired') }}">
+    <x-ui-list-toasts />
 
-    <div class="lf-framework-index">
-        <div class="lf-framework-index__toolbar">
-            <div class="lf-framework-index__intro">
-                <span class="lf-framework-index__count">
-                    {{ $keyword !== '' ? __('lf.LF_learning_index_results', ['count' => $frameworks->count(), 'total' => $totalCount]) : trans_choice('lf.LF_learning_index_count', $totalCount, ['count' => $totalCount]) }}
-                </span>
-                <p class="lf-framework-index__help">{{ __('lf.LF_learning_manual_help') }}</p>
-            </div>
-            @if ($totalCount > 0)
-                <a href="{{ route('admin.learning-frameworks.create') }}" class="btn admin-primary-outline-action lf-framework-index__create">
-                    <span aria-hidden="true">+</span>
-                    {{ __('lf.LF_learning_create_framework') }}
-                </a>
-            @endif
+    @if ($errors->any())
+        <div class="admin-alert admin-alert-danger">
+            <ul>
+                @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
         </div>
+    @endif
 
-        <div class="admin-card admin-form-card lf-framework-index__filter">
-            <form class="lf-framework-index__filter-grid" method="GET" action="{{ route('admin.learning-frameworks.index') }}" role="search">
-                <div class="lf-form-group">
-                    <label class="lf-form-label" for="framework-keyword">{{ __('lf.LF_common_button_search') }}</label>
-                    <input class="lf-form-control" id="framework-keyword" type="search" name="keyword" maxlength="255"
-                           value="{{ $keyword }}" placeholder="{{ __('lf.LF_learning_index_search_placeholder') }}">
+    <x-ui-list-head :title="__('lf.LF_learning_index_title')" :text="__('lf.LF_learning_manual_help')" />
+
+    <section class="mk-section" aria-labelledby="admin-page-title">
+        <div class="mk-tablebar mk-tablebar--filters">
+            <form class="mk-filter-form" method="GET" action="{{ route('admin.learning-frameworks.index') }}" role="search" data-ui-live-filter>
+                <div class="ui-field mk-search">
+                    <label class="ui-field__label ui-sr-only" for="framework-keyword">{{ __('lf.LF_common_button_search') }}</label>
+                    <div class="ui-search">
+                        <input id="framework-keyword" type="search" name="keyword" maxlength="255" value="{{ $keyword }}"
+                               placeholder="{{ __('lf.LF_learning_index_search_placeholder') }}">
+                        <button type="submit" class="ui-button cursor-interaction" aria-label="{{ __('lf.LF_common_button_search') }}">
+                            <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
+                        </button>
+                    </div>
                 </div>
-                <div class="admin-form-actions lf-framework-index__filter-actions">
-                    <button class="btn btn-primary" type="submit">{{ __('lf.LF_common_button_search') }}</button>
+
+                <span class="ui-live-slot" data-ui-live-region="clear-filters">
                     @if ($keyword !== '')
-                        <a class="admin-text-action" href="{{ route('admin.learning-frameworks.index') }}">{{ __('lf.LF_learning_index_clear') }}</a>
+                        <a class="ui-button ui-button--outline cursor-interaction" href="{{ route('admin.learning-frameworks.index') }}">{{ __('lf.LF_learning_index_clear') }}</a>
                     @endif
-                </div>
+                </span>
             </form>
+
+            <x-ui-list-toolbar :url="route('admin.learning-frameworks.bulk-destroy')" name="ids[]"
+                :label="__('lf.LF_learning_bulk_delete')"
+                :confirm-title="__('lf.LF_learning_bulk_delete_title')" :confirm-message="__('lf.LF_learning_bulk_delete_confirm', ['count' => ':count'])"
+                :confirm-label="__('lf.LF_learning_bulk_delete')">
+                <x-slot:create>
+                    @if ($totalCount > 0)
+                        <a class="ui-button ui-button--outline cursor-interaction" href="{{ route('admin.learning-frameworks.create') }}">
+                            <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+                            {{ __('lf.LF_learning_create_framework') }}
+                        </a>
+                    @endif
+                </x-slot:create>
+            </x-ui-list-toolbar>
         </div>
 
-        @if ($frameworks->isEmpty() && $keyword !== '')
-            <div class="admin-card lf-framework-index__empty" role="status">
-                <strong>{{ __('lf.LF_learning_index_no_results') }}</strong>
-                <span>{{ __('lf.LF_learning_index_no_results_help') }}</span>
-            </div>
-        @elseif ($frameworks->isEmpty())
-            <div class="admin-card lf-framework-index__empty" role="status">
-                <strong>{{ __('lf.LF_learning_empty') }}</strong>
-                <span>{{ __('lf.LF_learning_empty_help') }}</span>
-                <a class="btn admin-primary-outline-action lf-framework-index__create" href="{{ route('admin.learning-frameworks.create') }}">
-                    <span aria-hidden="true">+</span>
-                    {{ __('lf.LF_learning_create_framework') }}
-                </a>
-            </div>
-        @else
-            <div class="admin-table-wrap lf-framework-index__table-wrap">
-                <table class="table lf-framework-index__table admin-managed-list">
-                    <thead>
-                        <tr>
-                            <th scope="col" class="admin-table-sequence admin-managed-sequence">{{ __('lf.table_no') }}</th>
-                            <th scope="col">{{ __('lf.LF_learning_name') }}</th>
-                            <th scope="col" class="lf-framework-index__in-use">{{ __('lf.LF_learning_simple_index_in_use') }}</th>
-                            <th scope="col" class="admin-managed-status">{{ __('lf.LF_learning_status') }}</th>
-                            <th scope="col" class="admin-managed-actions">{{ __('lf.table_actions') }}</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach ($frameworks as $framework)
-                            <tr data-lf-framework-row="{{ $framework->id }}">
-                                <td class="admin-table-sequence admin-managed-sequence" data-label="{{ __('lf.table_no') }}">{{ $loop->iteration }}</td>
-                                <td data-label="{{ __('lf.LF_learning_name') }}">
-                                    <div class="lf-framework-index__identity">
-                                        <a class="lf-framework-index__name" href="{{ route('admin.learning-frameworks.show', $framework->id) }}">{{ $framework->name }}</a>
-                                        @if ($framework->description)
-                                            <span class="lf-framework-index__description">{{ \Illuminate\Support\Str::limit($framework->description, 140) }}</span>
-                                        @endif
-                                    </div>
-                                </td>
-                                <td class="lf-framework-index__in-use" data-label="{{ __('lf.LF_learning_simple_index_in_use') }}">
-                                    <span class="lf-framework-index__versions">
-                                        @if ($framework->current_version_number)
-                                            <span class="badge badge-success">{{ __('lf.LF_learning_simple_version', ['number' => $framework->current_version_number]) }}</span>
-                                            <span class="lf-framework-index__meta">{{ trans_choice('lf.LF_learning_simple_count', (int) $framework->competency_count, ['count' => (int) $framework->competency_count]) }}</span>
-                                        @else
-                                            <span class="badge badge-neutral">{{ __('lf.LF_learning_simple_status_unpublished') }}</span>
-                                        @endif
-                                        @if ((int) $framework->draft_count > 0)
-                                            <span class="badge lf-framework-index__draft">{{ __('lf.LF_learning_simple_index_has_draft') }}</span>
-                                        @endif
-                                    </span>
-                                </td>
-                                <td class="admin-managed-status" data-label="{{ __('lf.LF_learning_status') }}">
-                                    <span class="badge {{ $framework->status === 'active' ? 'badge-success' : 'badge-neutral' }}">
-                                        {{ $framework->status === 'active' ? __('lf.LF_common_status_common_active') : __('lf.LF_learning_status_archived') }}
-                                    </span>
-                                </td>
-                                <td class="admin-managed-actions" data-label="{{ __('lf.table_actions') }}">
-                                        <a class="btn btn-secondary course-template-manage" href="{{ route('admin.learning-frameworks.show', $framework->id) }}">
-                                            <x-admin-action-icon name="edit" />
-                                            {{ __('lf.LF_learning_manage') }}
-                                        </a>
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-        @endif
-    </div>
+        <div class="mk-table-scroll" data-ui-live-region="table" role="region" aria-label="{{ __('lf.LF_learning_frameworks') }}" tabindex="0">
+            <table aria-labelledby="admin-page-title">
+                <colgroup>
+                    <col class="ui-col-check">
+                    <col class="mk-col-sequence">
+                    <col>
+                    <col class="ui-framework-col-use">
+                    <col class="mk-col-status">
+                    <col class="mk-col-action">
+                </colgroup>
+                <thead>
+                <tr>
+                    <th scope="col" class="ui-check-cell">
+                        <input type="checkbox" class="ui-bulk-box" data-ui-bulk-select-all aria-label="{{ __('lf.LF_learning_select_all') }}">
+                    </th>
+                    <th scope="col" class="mk-sequence">{{ __('lf.table_no') }}</th>
+                    <th scope="col" class="mk-text-cell">{{ __('lf.LF_learning_name') }}</th>
+                    <th scope="col" class="mk-text-cell">{{ __('lf.LF_learning_simple_index_in_use') }}</th>
+                    <th scope="col" class="ux-action-cell">{{ __('lf.LF_learning_status') }}</th>
+                    <th scope="col" class="ux-action-cell">{{ __('lf.table_actions') }}</th>
+                </tr>
+                </thead>
+                <tbody>
+                @forelse ($frameworks as $framework)
+                    <tr data-lf-framework-row="{{ $framework->id }}">
+                        <td class="ui-check-cell" data-label="{{ __('lf.LF_learning_select') }}">
+                            @if ($framework->delete_blocker)
+                                <span class="ui-bulk-lock" tabindex="0" data-tooltip="{{ $framework->delete_blocker }}" data-tooltip-align="start">
+                                    <input type="checkbox" class="ui-bulk-box" disabled aria-label="{{ $framework->delete_blocker }}">
+                                </span>
+                            @else
+                                <input type="checkbox" class="ui-bulk-box" data-ui-bulk-item value="{{ $framework->id }}"
+                                       aria-label="{{ __('lf.LF_learning_select') }}: {{ $framework->name }}">
+                            @endif
+                        </td>
+                        <td class="mk-sequence" data-label="{{ __('lf.table_no') }}">{{ $frameworks->firstItem() + $loop->index }}</td>
+                        <td class="mk-text-cell" data-label="{{ __('lf.LF_learning_name') }}">
+                            <span class="mk-name-text">{{ $framework->name }}</span>
+                            @if ($framework->description)
+                                <span class="ui-caption ui-framework-description">{{ \Illuminate\Support\Str::limit($framework->description, 140) }}</span>
+                            @endif
+                        </td>
+                        <td class="mk-text-cell" data-label="{{ __('lf.LF_learning_simple_index_in_use') }}">
+                            <span class="ui-framework-use">
+                                @if ($framework->current_version_number)
+                                    <span class="ui-status ui-status--active">{{ __('lf.LF_learning_simple_version', ['number' => $framework->current_version_number]) }}</span>
+                                    <span class="ui-caption">{{ trans_choice('lf.LF_learning_simple_count', (int) $framework->competency_count, ['count' => (int) $framework->competency_count]) }}</span>
+                                @else
+                                    <span class="ui-status ui-status--archived">{{ __('lf.LF_learning_simple_status_unpublished') }}</span>
+                                @endif
+                                @if ((int) $framework->draft_count > 0)
+                                    <span class="ui-status ui-status--draft">{{ __('lf.LF_learning_simple_index_has_draft') }}</span>
+                                @endif
+                            </span>
+                        </td>
+                        <td class="ux-action-cell" data-label="{{ __('lf.LF_learning_status') }}">
+                            <span class="ui-status ui-status--{{ $framework->status === 'active' ? 'active' : 'archived' }}">
+                                {{ $framework->status === 'active' ? __('lf.LF_common_status_common_active') : __('lf.LF_learning_status_archived') }}
+                            </span>
+                        </td>
+                        <td class="ux-action-cell" data-label="{{ __('lf.table_actions') }}">
+                            <a class="ux-row-edit cursor-interaction" href="{{ route('admin.learning-frameworks.show', $framework->id) }}"
+                               aria-label="{{ __('lf.LF_learning_manage') }}: {{ $framework->name }}"
+                               data-tooltip="{{ __('lf.LF_learning_manage') }}">
+                                <x-backend-icon name="sliders" class="ui-icon" />
+                            </a>
+                        </td>
+                    </tr>
+                @empty
+                    <tr class="mk-empty-row">
+                        <td class="mk-empty" colspan="6">
+                            <div role="status">
+                                <strong>{{ $keyword !== '' ? __('lf.LF_learning_index_no_results') : __('lf.LF_learning_empty') }}</strong>
+                                <p class="ui-caption">{{ $keyword !== '' ? __('lf.LF_learning_index_no_results_help') : __('lf.LF_learning_empty_help') }}</p>
+                                @if ($totalCount === 0)
+                                    <a class="ui-button ui-button--outline cursor-interaction" href="{{ route('admin.learning-frameworks.create') }}">{{ __('lf.LF_learning_create_framework') }}</a>
+                                @endif
+                            </div>
+                        </td>
+                    </tr>
+                @endforelse
+                </tbody>
+            </table>
+        </div>
+
+        <x-ui-list-foot :paginator="$frameworks"
+            :label="__('lf.LF_learning_frameworks')"
+            :page-size-label="__('lf.LF_learning_index_page_size')"
+            :page-size-option="__('lf.LF_learning_index_page_size_option', ['count' => $frameworks->perPage()])" />
+    </section>
+</div>
 @endsection
