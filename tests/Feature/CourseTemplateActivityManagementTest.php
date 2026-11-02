@@ -843,6 +843,43 @@ class CourseTemplateActivityManagementTest extends TestCase
         }
     }
 
+    public function test_a_blended_course_keeps_the_mode_cards_and_explains_the_session_times(): void
+    {
+        [$customerId, $templateId, $sectionId, $lessonId] = $this->createHierarchy();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        DB::table('core_course_templates')->where('id', $templateId)->update(['course_type' => 'blended']);
+
+        $this->actingAs($admin)
+            ->get($this->activityCollectionUrl('admin', $templateId, $sectionId, $lessonId).'/create', ['X-Requested-With' => 'XMLHttpRequest'])
+            ->assertOk()
+            ->assertSee('name="learning_mode"', false)
+            ->assertSee('value="anytime"', false)
+            ->assertSee('lf-info-tip--lines', false)
+            ->assertSeeText(__('lf.LF_course_template_activity_learning_mode_anytime_help'))
+            ->assertSeeText(__('lf.LF_course_template_activity_phase_choose'))
+            ->assertDontSee('ui-option-cards__detail--solo', false);
+    }
+
+    public function test_a_scheduled_course_offers_only_the_session_phases_without_the_mode_cards(): void
+    {
+        [$customerId, $templateId, $sectionId, $lessonId] = $this->createHierarchy();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        DB::table('core_course_templates')->where('id', $templateId)->update(['course_type' => 'scheduled']);
+
+        $html = $this->actingAs($admin)
+            ->get($this->activityCollectionUrl('admin', $templateId, $sectionId, $lessonId).'/create', ['X-Requested-With' => 'XMLHttpRequest'])
+            ->assertOk()
+            ->assertSee('ui-option-cards__detail--solo', false)
+            ->assertSee('name="learning_phases[]"', false)
+            ->assertSee('lf-info-tip--lines', false)
+            ->assertDontSee('name="learning_mode"', false)
+            ->assertDontSee('value="anytime"', false)
+            ->assertDontSee(__('lf.LF_course_template_activity_phase_choose'))
+            ->getContent();
+        // A new Activity starts during the session.
+        $this->assertStringContainsString('during_session', $html);
+    }
+
     public function test_learning_availability_checkboxes_render_on_activity_form_and_detail(): void
     {
         [$customerId, $templateId, $sectionId, $lessonId] = $this->createHierarchy();

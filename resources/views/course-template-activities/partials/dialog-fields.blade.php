@@ -39,6 +39,10 @@
     if ($selfPaced) {
         $selectedLearningPhases = ['anytime'];
     }
+    if ($scheduled) {
+        // Only the session phases exist here; a new Activity still starts with one chosen.
+        $selectedLearningPhases = array_values(array_diff($selectedLearningPhases, ['anytime'])) ?: ($formActivity ? [] : ['during_session']);
+    }
     $storedEstimateMinutes = $formActivity?->estimated_duration_seconds !== null
         ? (int) ceil($formActivity->estimated_duration_seconds / 60)
         : null;
@@ -611,10 +615,16 @@
     <section class="ui-activity-section">
         <fieldset class="ui-field ui-fieldset-reset" data-ui-error-for="learning_phases">
             <input type="hidden" name="learning_phases_present" value="1">
-            <legend class="ui-field__label">{!! $star !!}{{ __('lf.LF_course_template_activity_learning_availability') }}</legend>
+            <legend @class(['ui-field__label', 'ui-field__label--tip' => $scheduled])>
+                <span>{!! $star !!}{{ __('lf.LF_course_template_activity_learning_availability') }}</span>
+                @if ($scheduled)
+                    <x-info-tip class="lf-info-tip--lines" :text="__('lf.LF_course_type_session_phases_help')" />
+                @endif
+            </legend>
+            {{-- A scheduled course has no "anytime": there is no mode to pick, so the phases stand alone under the title. --}}
+            @unless ($scheduled)
             {{-- Anytime and the session phases are exclusive: pick the mode first, then the phases of a session. --}}
-            {{-- A scheduled course has no "anytime": only the phases of a session are offered. --}}
-            <div class="ui-option-cards" role="radiogroup" @if ($scheduled) hidden @endif>
+            <div class="ui-option-cards" role="radiogroup">
                 @foreach (['anytime', 'session'] as $mode)
                     <div class="ui-option-box"
                          x-bind:class="{ 'is-selected': learningMode === '{{ $mode }}', 'is-disabled': liveLocked && '{{ $mode }}' === 'anytime' }">
@@ -627,15 +637,24 @@
                     </div>
                 @endforeach
             </div>
+            @endunless
             {{-- The phases of a session take a full-width row under both cards, pointing at the session card,
                  so choosing a mode never makes one card taller than the other. --}}
             <div @class(['ui-option-cards__detail', 'ui-option-cards__detail--solo' => $scheduled]) x-show="learningMode === 'session'" x-cloak
                  data-ui-required-group="learning_phases" data-ui-required-message="{{ __('lf.LF_course_template_activity_learning_phases_required') }}"
                  x-on:change="if ($event.target.name === 'learning_phases[]') $el.querySelectorAll('[data-ui-dialog-form-error]').forEach(node => node.remove())">
-                <span class="ui-activity-panel__head">
-                    <span class="ui-field__label">{!! $star !!}{{ __('lf.LF_course_template_activity_phase_choose') }}</span>
+                @if ($scheduled)
                     <span class="ui-field__hint">{{ __('lf.LF_course_template_activity_phase_choose_hint') }}</span>
-                </span>
+                @else
+                    <span class="ui-activity-panel__head">
+                        {{-- The field title above already carries the required mark. --}}
+                        <span class="ui-field__label ui-field__label--tip">
+                            <span>{{ __('lf.LF_course_template_activity_phase_choose') }}</span>
+                            <x-info-tip class="lf-info-tip--lines" :text="__('lf.LF_course_type_session_phases_help')" />
+                        </span>
+                        <span class="ui-field__hint">{{ __('lf.LF_course_template_activity_phase_choose_hint') }}</span>
+                    </span>
+                @endif
                 <div class="ui-chip-list">
                     @foreach (['before_session', 'during_session', 'after_session'] as $phase)
                         <label class="ui-chip">
@@ -651,7 +670,9 @@
                 <span class="ui-field__hint" x-show="liveLocked" x-cloak>{{ __('lf.LF_course_template_activity_live_phase_locked') }}</span>
                 <span class="ui-field__hint ui-field__hint--notice" role="status" x-show="liveLocked && liveAdjusted" x-cloak>{{ __('lf.LF_activity_live_phase_adjusted') }}</span>
             </div>
-            <input type="hidden" name="learning_phases[]" value="anytime" x-bind:disabled="learningMode !== 'anytime'">
+            @unless ($scheduled)
+                <input type="hidden" name="learning_phases[]" value="anytime" x-bind:disabled="learningMode !== 'anytime'">
+            @endunless
         </fieldset>
     </section>
     @endif

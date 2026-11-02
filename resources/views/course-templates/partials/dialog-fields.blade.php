@@ -56,12 +56,11 @@
                         @endif
                     </span>
                 @else
-                    <span class="ui-field__label-row">
-                        <label class="ui-field__label" for="template-form-course_type">{!! $star !!}{{ __('lf.LF_course_type_label') }}</label>
-                        {{-- The meaning of each type stays one hover or focus away, so the half-width field keeps one line. --}}
-                        <button type="button" class="ui-field-tip cursor-interaction" aria-label="{{ __('lf.LF_course_type_help_label') }}"
-                                aria-describedby="template-form-course_type-help" data-tooltip="{{ __('lf.LF_course_type_help') }}">i</button>
-                    </span>
+                    {{-- The meaning of each type stays in the tip, so the half-width field keeps one line. --}}
+                    <label class="ui-field__label ui-field__label--tip" for="template-form-course_type">
+                        <span>{!! $star !!}{{ __('lf.LF_course_type_label') }}</span>
+                        <x-info-tip class="lf-info-tip--lines" align="end" :label="__('lf.LF_course_type_help_label')" :text="__('lf.LF_course_type_help')" />
+                    </label>
                     <select id="template-form-course_type" name="course_type" data-ui-kit-select required
                             data-ui-empty-label="{{ __('lf.LF_course_template_index_no_options') }}" data-ui-clear-label="{{ __('lf.LF_course_template_common_clear_filters') }}">
                         <option value="" @selected($selectedCourseType === null)>{{ __('lf.LF_course_type_select') }}</option>
@@ -69,7 +68,6 @@
                             <option value="{{ $courseType }}" @selected($selectedCourseType === $courseType)>{{ __(\App\Support\CourseType::labelKey($courseType)) }}</option>
                         @endforeach
                     </select>
-                    <span id="template-form-course_type-help" class="ui-sr-only">{{ __('lf.LF_course_type_help') }}</span>
                 @endif
             </div>
 
