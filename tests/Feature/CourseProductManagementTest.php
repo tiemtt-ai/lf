@@ -123,6 +123,55 @@ class CourseProductManagementTest extends TestCase
             ->assertDontSeeText(__('lf.LF_course_product_common_empty'));
     }
 
+    public function test_template_picker_promises_the_type_of_the_latest_published_version(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        [, $templateId] = $this->createProductV2CategoryAndTemplate($customerId, $admin->id);
+        $this->createVersion($customerId, $admin->id, 'Published Version', templateId: $templateId, versionNumber: 1);
+        DB::table('core_course_templates')->where('id', $templateId)->update(['course_type' => 'self_paced']);
+        DB::table('core_course_template_versions')->where('template_id', $templateId)->update(['course_type_snapshot' => 'blended']);
+
+        $row = collect(app(\App\Support\CourseProductVersionSummaryPresenter::class)->pickerTemplates($customerId))
+            ->firstWhere('id', $templateId);
+
+        $this->assertSame('blended', $row['course_type']);
+        $this->assertSame(
+            __('lf.LF_product_template_picker_working_type', ['type' => __(\App\Support\CourseType::labelKey('self_paced'))]),
+            $row['working_type_note']
+        );
+
+        DB::table('core_course_template_versions')->where('template_id', $templateId)->update(['course_type_snapshot' => 'self_paced']);
+        $row = collect(app(\App\Support\CourseProductVersionSummaryPresenter::class)->pickerTemplates($customerId))
+            ->firstWhere('id', $templateId);
+
+        $this->assertSame('self_paced', $row['course_type']);
+        $this->assertNull($row['working_type_note']);
+    }
+
+    public function test_overview_shows_durations_only_for_a_self_paced_product(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, $admin->id, 'Duration Template', 'duration-template');
+        $versionId = $this->createVersion($customerId, $templateId, $admin->id);
+        $productId = $this->createProduct($customerId, 'Duration Product', 'duration-product', status: 'active');
+        $this->createProductItem($customerId, $productId, $versionId);
+        $url = "https://tenant-a.localhost/admin/course-products/{$productId}/edit";
+
+        $this->actingAs($admin)->get($url)->assertOk()
+            ->assertDontSee('data-summary-field="access"', false)
+            ->assertDontSee('data-summary-field="review"', false);
+
+        DB::table('core_course_template_versions')->where('id', $versionId)->update(['course_type_snapshot' => 'self_paced']);
+        DB::table('core_course_products')->where('id', $productId)->update(['access_duration_days' => 90, 'review_duration_days' => 30]);
+
+        $this->actingAs($admin)->get($url)->assertOk()
+            ->assertSee('data-summary-field="access"', false)
+            ->assertSee('data-summary-field="review"', false)
+            ->assertSeeTextInOrder([__('lf.LF_product_v2_access_days'), '90', __('lf.LF_product_v2_review_days'), '30']);
+    }
+
     public function test_product_dialog_fragments_render_for_create_and_edit_and_reject_plain_requests(): void
     {
         $customerId = $this->createTenant();
@@ -135,11 +184,13 @@ class CourseProductManagementTest extends TestCase
             ->assertOk()
             ->assertSee('ui-modal__form', false)
             ->assertSee('name="title"', false)
+            ->assertSee('selectedVersion()?.view_url', false)
             ->assertDontSee('<html', false);
 
         $this->get("https://tenant-a.localhost/admin/course-products/{$productId}/form", $ajax)
             ->assertOk()
             ->assertSee('ui-modal__form', false)
+            ->assertSee('item.version_summary?.view_url', false)
             ->assertSee('Dialog Product');
 
         $this->get("https://tenant-a.localhost/admin/course-products/{$productId}/form")->assertNotFound();

@@ -832,6 +832,7 @@ class CourseCohortController extends Controller
                 'versions.title_snapshot as version_title',
                 'versions.version_number',
                 'versions.version_code',
+                'versions.template_id as version_template_id',
                 'versions.course_type_snapshot as course_type'
             )
             ->selectSub($lessonCounts, 'lesson_count')

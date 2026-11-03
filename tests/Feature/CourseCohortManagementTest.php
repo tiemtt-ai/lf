@@ -634,6 +634,52 @@ class CourseCohortManagementTest extends TestCase
             ->assertDontSee('schedule_form=edit', false);
     }
 
+    public function test_create_and_detail_link_to_the_content_version(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $productId = $this->createProduct($customerId, 'Linked Product', 'linked-product');
+        $versionId = $this->createVersion($customerId, $admin->id);
+        $templateId = DB::table('core_course_template_versions')->where('id', $versionId)->value('template_id');
+        DB::table('core_course_product_items')->where('product_id', $productId)->update(['version_id' => $versionId, 'template_id' => $templateId, 'status' => 'active']);
+        $cohortId = $this->createCohort($customerId);
+        DB::table('core_course_cohorts')->where('id', $cohortId)->update(['product_id' => $productId, 'version_id' => $versionId, 'status' => 'draft']);
+        $versionPath = "/admin/course-templates/{$templateId}/versions/{$versionId}\"";
+
+        $create = $this->actingAs($admin)->get('https://tenant-a.localhost/admin/course-cohorts/create')->assertOk();
+        $this->assertTrue(str_contains($create->getContent(), 'selectedVersion.viewUrl'));
+        $this->assertSame($versionId, (int) $create->viewData('products')->firstWhere('id', $productId)->version_id);
+        $this->assertSame((int) $templateId, (int) $create->viewData('products')->firstWhere('id', $productId)->template_id);
+
+        // Once on the overview facts and once in the edit popup.
+        $detail = $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}")->assertOk();
+        $this->assertSame(2, substr_count($detail->getContent(), $versionPath));
+    }
+
+    public function test_product_registration_is_shown_apart_from_the_class_period(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $productId = $this->createProduct($customerId, 'Window Product', 'window-product');
+        $versionId = $this->createVersion($customerId, $admin->id);
+        $cohortId = $this->createCohort($customerId);
+        DB::table('core_course_cohorts')->where('id', $cohortId)->update(['product_id' => $productId, 'version_id' => $versionId]);
+        DB::table('core_course_products')->where('id', $productId)->update([
+            'registration_starts_at' => '2026-08-01 09:00:00', 'registration_ends_at' => '2026-08-15 18:00:00',
+        ]);
+
+        $html = $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}")->assertOk()
+            ->assertSeeText(__('lf.LF_course_cohort_product_registration_window'))
+            ->assertSeeText(__('lf.LF_course_cohort_product_registration_edit'))
+            ->assertSee("/admin/course-products/{$productId}/edit", false)
+            ->getContent();
+        // Inside the class information card, before the operating period card starts.
+        $this->assertLessThan(
+            strpos($html, 'id="cohort-show-dates"'),
+            strpos($html, 'id="cohort-show-product-registration-window')
+        );
+    }
+
     public function test_overview_note_follows_the_class_status(): void
     {
         $customerId = $this->createTenant();

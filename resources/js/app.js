@@ -337,6 +337,26 @@ window.courseTemplateLessonCollapse = (tenantId, templateId, lessonId, expandedB
     expandedByDefault,
 );
 
+// A lesson just added: open the sections around it, then bring it into view (after the pager has found its page).
+window.courseTemplateRevealLesson = (lesson) => {
+    for (let node = lesson.parentElement?.closest('.course-template-outline-section'); node; node = node.parentElement?.closest('.course-template-outline-section')) {
+        Alpine.$data(node).setExpanded(true);
+    }
+
+    // After the load: the browser's own jump to the #hash of the redirect would otherwise undo this scroll.
+    const reveal = () => window.setTimeout(() => {
+        lesson.scrollIntoView({ block: 'center' });
+        lesson.classList.add('is-flash');
+        window.setTimeout(() => lesson.classList.remove('is-flash'), 1600);
+    }, 150);
+
+    if (document.readyState === 'complete') {
+        reveal();
+    } else {
+        window.addEventListener('load', reveal, { once: true });
+    }
+};
+
 window.courseTemplateStructure = (initialTab, storageKey) => ({
     activeStructureTab: initialTab,
     storageKey,

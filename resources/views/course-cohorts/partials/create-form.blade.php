@@ -1,7 +1,13 @@
 @php
     $selectedProductId = (string) old('product_id', '');
+    $registrationDate = static fn ($value): string => $value ? \Illuminate\Support\Carbon::parse($value)->format('d/m/Y H:i') : '—';
     $productSummaries = $products->mapWithKeys(fn ($product) => [(string) $product->id => [
+        'registration' => $product->registration_starts_at || $product->registration_ends_at
+            ? $registrationDate($product->registration_starts_at).' → '.$registrationDate($product->registration_ends_at)
+            : __('lf.LF_course_cohort_product_registration_unlimited'),
+        'registrationEnded' => $product->registration_ends_at && \Illuminate\Support\Carbon::parse($product->registration_ends_at)->isPast(),
         'versionCode' => $product->version_code,
+        'viewUrl' => route('admin.course-templates.versions.show', [$product->template_id, $product->version_id]),
         'lessonCount' => (int) $product->lesson_count,
         'activityCount' => (int) $product->activity_count,
     ]]);
@@ -28,6 +34,10 @@
             @endforeach
         </select>
         <p class="ui-caption">{{ __('lf.LF_course_cohort_create_product_help') }}</p>
+        <p class="ui-caption ui-cohort-registration-note" x-show="selectedVersion" x-cloak>
+            {{ __('lf.LF_course_cohort_product_registration_window') }}: <span x-text="selectedVersion?.registration"></span>
+            <strong x-show="selectedVersion?.registrationEnded">· {{ __('lf.LF_course_cohort_product_registration_ended') }}</strong>
+        </p>
         @error('product_id')<p class="ui-field__error">{{ $message }}</p>@enderror
     </div>
     <div class="ui-field">
@@ -37,13 +47,18 @@
                 <span class="ui-caption">{{ __('lf.LF_course_cohort_create_select_product_for_version') }}</span>
             </template>
             <template x-if="selectedVersion">
-                <span>
+                <span class="ui-cohort-version">
+                    <span>
                     <strong x-text="@js(__('lf.LF_course_cohort_create_version_prefix')).replace(':code', selectedVersion.versionCode)"></strong>
                     <span class="ui-caption ui-framework-description">
                         {{ __('lf.LF_course_cohort_common_published') }}
                         · <span x-text="@js(__('lf.LF_course_cohort_create_lesson_count')).replace(':count', selectedVersion.lessonCount)"></span>
                         · <span x-text="@js(__('lf.LF_course_cohort_create_activity_count')).replace(':count', selectedVersion.activityCount)"></span>
                     </span>
+                    </span>
+                    <a :href="selectedVersion.viewUrl" class="ui-enroll-link ui-cohort-version-link" target="_blank" rel="noopener" aria-label="{{ __('lf.LF_product_v2_view_version_new_tab') }}">
+                        <x-backend-icon name="eye" class="ui-icon" />{{ __('lf.LF_course_product_item_common_view_version') }}
+                    </a>
                 </span>
             </template>
         </div>

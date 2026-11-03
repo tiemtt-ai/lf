@@ -41,6 +41,19 @@
             </header>
             <div class="ui-modal__body">
                 <div class="ui-modal__grid">
+                    @if ($cohort->version_id)
+                        <div class="ui-field ui-field--full">
+                            <span class="ui-field__label">{{ __('lf.LF_course_cohort_create_content_version') }}</span>
+                            <div class="ui-enroll-readonly ui-cohort-version">
+                                <span>{{ str_replace(':code', $cohort->version_code, __('lf.LF_course_cohort_create_version_prefix')) }}</span>
+                                @if ($cohort->version_template_id)
+                                    <a href="{{ route('admin.course-templates.versions.show', [$cohort->version_template_id, $cohort->version_id]) }}" class="ui-enroll-link ui-cohort-version-link" target="_blank" rel="noopener" aria-label="{{ __('lf.LF_product_v2_view_version_new_tab') }}">
+                                        <x-backend-icon name="eye" class="ui-icon" />{{ __('lf.LF_course_product_item_common_view_version') }}
+                                    </a>
+                                @endif
+                            </div>
+                        </div>
+                    @endif
                     <div class="ui-field">
                         <label class="ui-field__label" for="cohort-edit-name"><span class="ui-field__required" aria-hidden="true">*</span>{{ __('lf.LF_course_cohort_common_name') }}</label>
                         <input id="cohort-edit-name" type="text" name="name" autocomplete="off" value="{{ $editValue('name', $cohort->name) }}" data-original="{{ $cohort->name }}" maxlength="255" required>

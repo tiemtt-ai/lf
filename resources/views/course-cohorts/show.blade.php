@@ -68,6 +68,7 @@
                         @endif
                     </dd>
                 </div>
+                @include('course-cohorts.partials.product-registration-window', ['registrationWindowTitleId' => 'cohort-show-product-registration-window'])
                 @if (filled($cohort->notes))
                     <div class="ui-summary__item ui-summary__item--wide">
                         <dt>{{ __('lf.LF_course_cohort_common_notes') }}</dt>
@@ -77,7 +78,7 @@
             </dl>
         </section>
 
-        <section class="mk-section ui-cohort-dates" aria-labelledby="cohort-show-dates">
+        <section class="mk-section" aria-labelledby="cohort-show-dates">
             <div class="ui-summary-head"><h2 id="cohort-show-dates">{{ __('lf.LF_course_cohort_create_group_dates') }}</h2></div>
             <dl class="ui-summary ui-enroll-summary">
                 <div class="ui-summary__item">
@@ -88,7 +89,6 @@
                     <dt>{{ __('lf.LF_course_cohort_common_end_date') }}</dt>
                     <dd>{{ $cohort->end_date ? \Illuminate\Support\Carbon::parse($cohort->end_date)->format('d/m/Y') : '—' }}</dd>
                 </div>
-                @include('course-cohorts.partials.product-registration-window', ['registrationWindowTitleId' => 'cohort-show-product-registration-window'])
             </dl>
         </section>
     @elseif ($activeTab === 'students')

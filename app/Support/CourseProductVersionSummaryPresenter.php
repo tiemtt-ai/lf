@@ -173,7 +173,7 @@ class CourseProductVersionSummaryPresenter
             ->get([
                 'templates.id', 'templates.title', 'templates.category_id', 'categories.name as category_name',
                 'templates.status', 'templates.course_type',
-                'versions.version_number', 'versions.version_code',
+                'versions.version_number', 'versions.version_code', 'versions.course_type_snapshot as version_course_type',
                 DB::raw('COALESCE(product_counts.product_count, 0) as product_count'),
             ])
             ->map(function (object $template): array {
@@ -186,13 +186,20 @@ class CourseProductVersionSummaryPresenter
                     default => null,
                 };
 
+                // ADR-0022: a Product takes the type frozen in its Version, so the picker promises that one;
+                // the working copy's type only counts until something is published.
+                $courseType = (string) ($template->version_course_type ?? $template->course_type);
+
                 return [
                     'id' => (int) $template->id,
                     'title' => $template->title,
                     'category_id' => $template->category_id === null ? null : (int) $template->category_id,
                     'category_name' => $template->category_name,
-                    'course_type' => $template->course_type,
-                    'course_type_label' => __(CourseType::labelKey((string) $template->course_type)),
+                    'course_type' => $courseType,
+                    'course_type_label' => __(CourseType::labelKey($courseType)),
+                    'working_type_note' => $courseType !== (string) $template->course_type
+                        ? __('lf.LF_product_template_picker_working_type', ['type' => __(CourseType::labelKey((string) $template->course_type))])
+                        : null,
                     'version_label' => $template->version_number === null ? null : $this->versionNumberLabel((int) $template->version_number),
                     'version_code' => $template->version_code,
                     'product_count' => (int) $template->product_count,

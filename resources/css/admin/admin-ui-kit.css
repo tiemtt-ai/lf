@@ -2139,6 +2139,7 @@
 .lf-admin-ui.ui-structure .course-template-outline-section-header:hover { border-color: var(--ct-border-strong); }
 .lf-admin-ui.ui-structure .course-template-outline-section[data-section-depth="0"] > .course-template-outline-section-header { padding: 14px 12px; border-radius: 12px; box-shadow: var(--ct-shadow); }
 .lf-admin-ui.ui-structure .course-template-outline-section.is-flash > .course-template-outline-section-header { border-color: var(--ui-primary); box-shadow: 0 0 0 3px var(--ct-primary-tint); }
+.lf-admin-ui.ui-structure .course-template-lesson-item.is-flash { border-color: var(--ui-primary); box-shadow: 0 0 0 3px var(--ct-primary-tint); }
 .lf-admin-ui.ui-structure .course-template-outline-section-header > .course-template-section-toggle { flex: none; margin-left: -6px; border: 0; }
 .lf-admin-ui.ui-structure .course-template-section-toggle[aria-expanded="true"] .ui-icon { transform: rotate(180deg); }
 .lf-admin-ui.ui-structure .course-template-outline-section-number { display: grid; place-items: center; flex: none; min-width: 30px; height: 24px; padding: 0 6px; border-radius: 6px; background: var(--ct-surface-2); color: var(--ui-muted); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
@@ -2951,6 +2952,9 @@
 .lf-admin-ui .ui-product-binding .ui-course-type-readonly { min-height: 20px; }
 .lf-admin-ui .ui-product-binding__version .ui-caption { display: block; margin-top: 2px; }
 .lf-admin-ui .ui-product-binding__hint { grid-column: 1 / -1; }
+.lf-admin-ui .ui-product-binding__head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 10px; }
+.lf-admin-ui .ui-product-binding__link { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 400; white-space: nowrap; }
+.lf-admin-ui .ui-product-binding__link .ui-icon { width: 14px; height: 14px; }
 @media (max-width: 640px) {
     .lf-admin-ui .ui-template-picker__filters, .lf-admin-ui .ui-product-binding { grid-template-columns: minmax(0, 1fr); }
 }
@@ -3072,15 +3076,18 @@
 .lf-admin-ui .ui-cohort-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 24px; padding: 20px; }
 .lf-admin-ui .ui-cohort-form__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; padding: 14px 20px; border-top: 1px solid var(--ui-border); }
 .lf-admin-ui.ui-cohort .ui-version__chips { align-items: center; }
+.lf-admin-ui.ui-cohort .ui-version__chips > * { align-self: center; margin: 0; font-size: 13px; }
 .lf-admin-ui.ui-cohort .ui-framework__identity { align-items: center; padding-block: 14px; }
 .lf-admin-ui.ui-cohort .ui-version__identity { grid-template-columns: minmax(0, auto) minmax(0, 1fr); align-items: center; gap: 2px 10px; }
 .lf-admin-ui.ui-cohort .ui-version__identity h2 { grid-area: 1 / 1; }
 .lf-admin-ui.ui-cohort .ui-version__chips { grid-area: 1 / 2; }
 .lf-admin-ui .ui-cohort-code { display: flex; align-items: center; gap: 4px; grid-area: 2 / 1 / 2 / -1; }
 .lf-admin-ui .ui-cohort-code .ux-row-edit { margin-block: -4px; }
-.lf-admin-ui .ui-cohort-alert { display: flex; gap: 8px; align-items: flex-start; margin-top: 16px; padding: 12px 14px; border-radius: 7px; background: var(--ui-danger-soft); color: var(--ui-danger); font-size: 14px; line-height: 1.5; }
-.lf-admin-ui .ui-cohort-alert ul { margin: 4px 0 0; padding-left: 18px; }
-.lf-admin-ui .ui-cohort-alert .ui-icon { flex: none; margin-top: 2px; }
+.lf-admin-ui .ui-cohort-alert { display: flex; gap: 10px; align-items: flex-start; margin-top: 16px; padding: 12px 22px; border-radius: 7px; background: var(--ui-danger-soft); color: var(--ui-danger); font-size: 14px; line-height: 20px; }
+.lf-admin-ui .ui-cohort-alert strong { display: block; font-weight: 500; }
+.lf-admin-ui .ui-cohort-alert ul { margin: 2px 0 0; padding: 0; font-size: 13px; list-style: none; }
+.lf-admin-ui .ui-cohort-alert ul:has(li + li) { padding-left: 16px; list-style: disc; }
+.lf-admin-ui .ui-cohort-alert .ui-icon { flex: none; width: 18px; height: 18px; margin-top: 1px; }
 .lf-admin-ui .ui-cohort-capacity { display: block; height: 4px; margin-top: 6px; overflow: hidden; border-radius: 2px; background: var(--ui-color-eef0f5); }
 .lf-admin-ui .ui-cohort-capacity > span { display: block; height: 100%; background: var(--ui-primary); }
 .lf-admin-ui.ui-cohort .ui-summary-head h2 { font-size: 16px; font-weight: 600; }
@@ -3091,11 +3098,11 @@
 .lf-admin-ui.ui-cohort .ui-enroll-dt-tip { display: flex; height: 18px; }
 .lf-admin-ui.ui-cohort .mk-section { margin-top: 16px; }
 /* This card holds no table, and its help bubble must be able to leave the card. */
-.lf-admin-ui.ui-cohort .ui-cohort-dates { overflow: visible; }
+.lf-admin-ui.ui-cohort .course-cohort-detail { overflow: visible; }
 /* Anchored to the fact, not the icon: starting at the icon would run off the right edge of the last column. */
-.lf-admin-ui.ui-cohort .ui-cohort-dates .ui-summary__item { position: relative; }
-.lf-admin-ui.ui-cohort .ui-cohort-dates .lf-info-tip { position: static; }
-.lf-admin-ui.ui-cohort .ui-cohort-dates .lf-info-tip__bubble { top: 100%; right: auto; left: 0; margin-top: 4px; }
+.lf-admin-ui.ui-cohort .course-cohort-detail .ui-summary__item { position: relative; }
+.lf-admin-ui.ui-cohort .course-cohort-detail .lf-info-tip { position: static; }
+.lf-admin-ui.ui-cohort .course-cohort-detail .lf-info-tip__bubble { top: 100%; right: auto; left: 0; margin-top: 4px; }
 .lf-admin-ui .ui-cohort .course-cohort-readonly-label { display: inline-flex; align-items: center; gap: 4px; }
 .lf-admin-ui .ui-cohort-form__actions-group { display: flex; gap: 8px; margin-left: auto; }
 .lf-admin-ui .ui-cohort-inline-form { margin: 0 20px 16px; border: 1px solid var(--ui-border); border-radius: 7px; }
@@ -3127,6 +3134,12 @@
 .lf-admin-ui .ui-cohort-seat-warning { margin: 16px 20px 0; }
 .lf-admin-ui .ui-cohort-tab-notice { margin: 16px 20px; }
 /* Schedule popup: fields on the left, the live preview stays in view on the right. */
+.lf-admin-ui .ui-cohort-registration-note { display: block; margin-top: 4px; }
+.lf-admin-ui .ui-cohort-registration-note strong { font-weight: 500; color: var(--ui-notice-text); }
+.lf-admin-ui .ui-cohort-version { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; }
+.lf-admin-ui .ui-cohort-version-link { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 400; white-space: nowrap; }
+.lf-admin-ui .ui-cohort-version-link .ui-icon { width: 14px; height: 14px; }
+.lf-admin-ui .ui-summary__item .ui-cohort-version-link { display: flex; width: fit-content; margin-top: 4px; }
 .lf-admin-ui .ui-cohort-schedule-layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 24px; align-items: start; }
 .lf-admin-ui .ui-cohort-schedule-layout--even { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 18px; }
 .lf-admin-ui .ui-cohort-schedule-fields { display: flex; flex-direction: column; gap: 20px; min-width: 0; }

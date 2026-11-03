@@ -116,14 +116,16 @@
                     : [];
                 $activityDefaultPhase = $activityTabs[0] ?? 'anytime';
                 $activityCreateUrl = route($activityRoutePrefix.'.create', $lessonParameters);
+                // A lesson just added opens by itself: its next step is adding activities.
+                $lessonJustAdded = (int) session('course_template_lesson_focus') === (int) $lesson->id;
             @endphp
             <article class="course-template-lesson-item"
-                     @if ((int) session('course_template_lesson_focus') === (int) $lesson->id) data-pager-focus @endif
+                     @if ($lessonJustAdded) data-pager-focus x-init="courseTemplateRevealLesson($el)" @endif
                      x-data="courseTemplateLessonCollapse(
                          @js($template->customer_id),
                          @js($template->id),
                          @js($lesson->id),
-                         @js($loop->first)
+                         @js($loop->first || $lessonJustAdded)
                      )"
                      x-bind:class="{ 'is-expanded': expanded }">
                 <div class="course-template-lesson-summary"
@@ -184,7 +186,7 @@
                     <button type="button"
                             class="admin-link-button admin-text-action ui-row-action course-template-lesson-toggle"
                             aria-controls="{{ $lessonPanelId }}"
-                            aria-expanded="{{ $loop->first ? 'true' : 'false' }}"
+                            aria-expanded="{{ $loop->first || $lessonJustAdded ? 'true' : 'false' }}"
                             x-bind:aria-expanded="expanded.toString()"
                             aria-label="{{ __('lf.LF_course_template_lesson_common_toggle', ['title' => $lesson->title]) }}"
                             x-on:click="toggle()">
@@ -195,7 +197,7 @@
                 <section id="{{ $lessonPanelId }}"
                          class="course-template-activity-panel"
                          x-show="expanded"
-                         @unless ($loop->first) x-cloak @endunless
+                         @unless ($loop->first || $lessonJustAdded) x-cloak @endunless
                          x-data="{ phase: @js($activityDefaultPhase) }">
                     @if ($activityTabs !== [])
                         <div class="ui-tabs course-template-activity-tabs" role="tablist"

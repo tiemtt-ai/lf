@@ -136,7 +136,11 @@
                             ['promotion', __('lf.LF_product_v2_apply_promotion'), $product->promotion_enabled
                                 ? trim(($product->discount_type === 'percentage' ? rtrim(rtrim((string) $product->discount_value, '0'), '.').'%' : ($product->discount_value !== null ? $money($product->discount_value) : '')).' · '.($window($dateTime($product->sale_starts_at), $dateTime($product->sale_ends_at)) ?? ''), ' ·')
                                 : null],
-                            ['access', __('lf.LF_product_v2_access_days'), $product->access_duration_days],
+                            // ADR-0022: only a self-paced course has a duration in days; a class decides the others.
+                            ...(\App\Support\CourseType::usesAccessDuration($boundCourseType ?? null) ? [
+                                ['access', __('lf.LF_product_v2_access_days'), $product->access_duration_days],
+                                ['review', __('lf.LF_product_v2_review_days'), $product->review_duration_days],
+                            ] : []),
                         ]],
                         'availability' => [__('lf.LF_product_v2_group_availability'), [
                             ['status', __('lf.LF_course_product_common_status'), null],
@@ -176,8 +180,8 @@
                                                         <div class="ui-summary__version-meta">
                                                             <span class="ui-caption">{{ $versionSummary['number_label'] }} · {{ $versionSummary['lesson_text'] }} · {{ $versionSummary['activity_text'] }}</span>
                                                             @if ($versionSummary['view_url'])
-                                                                <a class="ui-caption" href="{{ $versionSummary['view_url'] }}" target="_blank" rel="noopener noreferrer"
-                                                                   aria-label="{{ __('lf.LF_product_v2_view_version_new_tab') }}">{{ __('lf.LF_product_v2_view_version') }}</a>
+                                                                <a class="ui-enroll-link ui-product-binding__link" href="{{ $versionSummary['view_url'] }}" target="_blank" rel="noopener noreferrer"
+                                                                   aria-label="{{ __('lf.LF_product_v2_view_version_new_tab') }}"><x-backend-icon name="eye" class="ui-icon" />{{ __('lf.LF_product_v2_view_version') }}</a>
                                                             @endif
                                                         </div>
                                                     </div>

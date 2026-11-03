@@ -136,6 +136,50 @@ class CourseTemplateLessonManagementTest extends TestCase
         ]);
     }
 
+    public function test_a_lesson_just_added_opens_by_itself_only_on_the_next_page_view(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, 'Open Course', 'open-course');
+        $collectionUrl = $this->directLessonCollectionUrl('admin', $templateId);
+        $editUrl = "https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=structure";
+
+        $this->actingAs($admin)->post($collectionUrl, $this->validLessonData(['title' => 'First Lesson']));
+        $this->actingAs($admin)->get($editUrl)->assertOk();
+
+        $this->actingAs($admin)->post($collectionUrl, $this->validLessonData(['title' => 'Second Lesson']));
+        $this->actingAs($admin)->get($editUrl)->assertOk()
+            ->assertSee('data-pager-focus', false)
+            ->assertSee('courseTemplateRevealLesson($el)', false)
+            ->assertSee('aria-expanded="true"', false);
+
+        // The flag is flashed: reloading no longer forces the lesson open or scrolls to it.
+        $this->actingAs($admin)->get($editUrl)->assertOk()
+            ->assertDontSee('courseTemplateRevealLesson($el)', false);
+    }
+
+    public function test_a_lesson_just_added_to_a_section_opens_the_same_way(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, 'Section Course', 'section-course');
+        $sectionId = $this->createSection($customerId, $templateId, 'Unit One');
+        $editUrl = "https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=structure";
+        $collectionUrl = "https://tenant-a.localhost/admin/course-templates/{$templateId}/sections/{$sectionId}/lessons";
+
+        $this->actingAs($admin)->post($collectionUrl, $this->validLessonData(['title' => 'First Section Lesson']))
+            ->assertSessionHasNoErrors();
+        $this->actingAs($admin)->get($editUrl)->assertOk();
+
+        $this->actingAs($admin)->post($collectionUrl, $this->validLessonData(['title' => 'Second Section Lesson']))
+            ->assertRedirect($editUrl."#course-template-section-{$sectionId}-lessons");
+        $this->actingAs($admin)->get($editUrl)->assertOk()
+            ->assertSee('courseTemplateRevealLesson($el)', false);
+
+        $this->actingAs($admin)->get($editUrl)->assertOk()
+            ->assertDontSee('courseTemplateRevealLesson($el)', false);
+    }
+
     public function test_admin_and_teacher_can_create_direct_lessons_without_sections(): void
     {
         $customerId = $this->createTenant();

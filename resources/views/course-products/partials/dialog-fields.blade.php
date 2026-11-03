@@ -280,6 +280,7 @@
                                         <b x-text="row.title"></b>
                                         {{-- One line of facts, so every row has the same shape. --}}
                                         <span class="ui-caption" x-text="[row.version_code, row.category_name, row.version_label ?? @js(__('lf.LF_product_template_picker_no_version')), @js(__('lf.LF_product_template_picker_products')).replace(':count', row.product_count)].filter(Boolean).join(' · ')"></span>
+                                        <span class="ui-caption" x-show="row.working_type_note" x-text="row.working_type_note"></span>
                                         <span class="ui-template-picker__reason" x-show="row.reason" x-text="row.reason"></span>
                                     </span>
                                     <span class="ui-course-type" x-bind:class="'ui-course-type--' + row.course_type" x-text="row.course_type_label"></span>
@@ -311,10 +312,15 @@
                     <div class="ui-product-binding__item ui-product-binding__version">
                         @if(! $formProduct || $canChangeTemplate)
                             <div class="ui-field" x-show="template !== persistedTemplate" x-cloak>
+                                <div class="ui-product-binding__head">
                                 <span class="ui-field__label ui-field__label--tip">
                                     <label for="product-form-template_version_id">{!! $star !!}{{ $formProduct ? __('lf.LF_product_v2_template_change_version') : __('lf.LF_product_v2_course_version') }}</label>
                                     <x-info-tip align="end" :text="__('lf.LF_product_v2_course_version_help')" />
                                 </span>
+                                    <a x-show="selectedVersion()?.view_url" x-cloak x-bind:href="selectedVersion()?.view_url" class="ui-enroll-link ui-product-binding__link" target="_blank" rel="noopener noreferrer" aria-label="{{ __('lf.LF_product_v2_view_version_new_tab') }}">
+                                        <x-backend-icon name="eye" class="ui-icon" />{{ __('lf.LF_product_v2_view_version') }}
+                                    </a>
+                                </div>
                                 <select id="product-form-template_version_id" name="template_version_id" data-ui-kit-select x-ref="versionSelect"
                             data-ui-empty-label="{{ __('lf.LF_course_template_index_no_options') }}" data-ui-clear-label="{{ __('lf.LF_course_product_common_clear_filters') }}"
                             x-on:change="templateVersion = $event.target.value"
@@ -324,7 +330,7 @@
                             @foreach($templateOption->published_versions as $versionOption)
                                 <option value="{{ $versionOption['id'] }}"
                                         :disabled="String({{ (int) $templateOption->id }}) !== String(template)"
-                                        @disabled((string) $templateOption->id !== $selectedTemplate)>{{ $versionOption['number_label'] }} · {{ $versionOption['code'] }}@if($versionOption['published_at']) · {{ $versionOption['published_at'] }}@endif</option>
+                                        @disabled((string) $templateOption->id !== $selectedTemplate)>{{ $versionOption['number_label'] }} · {{ $versionOption['code'] }} · {{ __(\App\Support\CourseType::labelKey((string) $versionOption['course_type'])) }}@if($versionOption['published_at']) · {{ $versionOption['published_at'] }}@endif</option>
                             @endforeach
                         @endforeach
                     </select>
@@ -334,7 +340,12 @@
                             <div x-show="template === persistedTemplate" x-cloak>
                                 <template x-for="item in templates.filter(t => String(t.id) === String(template))" :key="`version-${item.id}`">
                                     <div aria-live="polite">
-                                        <span class="ui-field__label">{{ __('lf.LF_product_v2_version_in_use') }}</span>
+                                        <div class="ui-product-binding__head">
+                                            <span class="ui-field__label">{{ __('lf.LF_product_v2_version_in_use') }}</span>
+                                            <a x-show="item.version_summary?.view_url" x-bind:href="item.version_summary?.view_url" class="ui-enroll-link ui-product-binding__link" target="_blank" rel="noopener noreferrer" aria-label="{{ __('lf.LF_product_v2_view_version_new_tab') }}">
+                                                <x-backend-icon name="eye" class="ui-icon" />{{ __('lf.LF_product_v2_view_version') }}
+                                            </a>
+                                        </div>
                                         <template x-if="item.version_summary">
                                             <div>
                                                 <span class="ui-product-binding__value"><span x-text="item.version_summary.code"></span> · <span x-text="item.version_summary.status_label"></span></span>

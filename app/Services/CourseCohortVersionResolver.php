@@ -40,7 +40,8 @@ class CourseCohortVersionResolver
             })
             ->select(
                 'products.id', 'products.title', 'products.product_code',
-                'versions.id as version_id', 'versions.version_code',
+                'products.registration_starts_at', 'products.registration_ends_at',
+                'versions.id as version_id', 'versions.template_id', 'versions.version_code',
                 'versions.version_number', 'versions.title_snapshot',
                 'versions.status as version_status', 'versions.course_type_snapshot as course_type'
             )
