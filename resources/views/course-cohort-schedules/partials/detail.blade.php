@@ -139,11 +139,11 @@
 
     <footer class="admin-form-footer admin-form-footer--sticky course-cohort-schedule-detail__footer" data-actions-align="end">
         <div class="admin-form-footer-primary">
-            <button type="button" class="btn btn-secondary" x-on:click="$dispatch('schedule-editor-close')">
+            <button type="button" class="ui-button cursor-interaction" x-on:click="$dispatch('schedule-editor-close')">
                 {{ __('lf.LF_common_button_close') }}
             </button>
             @if($canMutate)
-                <a class="btn btn-primary" href="{{ route('admin.course-cohorts.show', ['id' => $cohort->id, 'tab' => 'schedules', 'schedule_form' => 'edit', 'schedule_id' => $schedule->id]) }}#cohort-schedule-editor">
+                <a class="ui-button ui-button--primary cursor-interaction" href="{{ route('admin.course-cohorts.show', ['id' => $cohort->id, 'tab' => 'schedules', 'schedule_form' => 'edit', 'schedule_id' => $schedule->id]) }}#cohort-schedule-editor">
                     {{ __('lf.LF_common_button_edit') }}
                 </a>
             @endif

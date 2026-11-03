@@ -301,6 +301,9 @@ Student membership is not stored in `core_course_cohorts`.
 * Cohort is operational only.
 * A Cohort should be archived instead of hard deleted once operational records
   or student membership exist.
+* A draft Cohort that never held a membership, teacher assignment, Schedule,
+  Session or teacher judgment may be hard deleted. Ended memberships and removed
+  teachers still count as records. Any other Cohort keeps its row.
 
 ---
 

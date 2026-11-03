@@ -14,6 +14,17 @@ class CourseCohortLifecycleService
         'archived' => [],
     ];
 
+    /**
+     * Tables that keep a Cohort's operational records, including ended memberships and removed teachers.
+     * A teacher judgment always points at a membership, so a Cohort with one is already caught here.
+     */
+    private const RECORD_TABLES = [
+        'core_course_cohort_students',
+        'core_course_cohort_teachers',
+        'core_liveclass_schedules',
+        'core_liveclass_sessions',
+    ];
+
     public function __construct(
         private readonly CourseCohortVersionResolver $versionResolver
     ) {}
@@ -31,6 +42,57 @@ class CourseCohortLifecycleService
     public function archive(int $customerId, int $cohortId): void
     {
         $this->transition($customerId, $cohortId, 'archived');
+    }
+
+    /**
+     * Only a draft that never held any record can disappear; everything else is archived to keep its history.
+     * All or nothing: one blocked Cohort keeps the whole selection.
+     *
+     * @param  array<int, int>  $cohortIds
+     */
+    public function destroyEmptyDrafts(int $customerId, array $cohortIds): void
+    {
+        DB::transaction(function () use ($customerId, $cohortIds): void {
+            $cohorts = DB::table('core_course_cohorts')
+                ->where('customer_id', $customerId)
+                ->whereIn('id', $cohortIds)
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get(['id', 'status']);
+
+            abort_if($cohorts->count() !== count($cohortIds), 404);
+
+            if ($cohorts->contains(fn (object $cohort): bool => $cohort->status !== 'draft')) {
+                throw ValidationException::withMessages(['lifecycle' => __('lf.LF_course_cohort_delete_blocked_status')]);
+            }
+
+            if ($this->cohortIdsWithRecords($customerId, $cohortIds) !== []) {
+                throw ValidationException::withMessages(['lifecycle' => __('lf.LF_course_cohort_delete_blocked_records')]);
+            }
+
+            DB::table('core_course_cohorts')
+                ->where('customer_id', $customerId)
+                ->whereIn('id', $cohortIds)
+                ->delete();
+        }, 3);
+    }
+
+    /**
+     * @param  array<int, int>  $cohortIds
+     * @return array<int, int>
+     */
+    public function cohortIdsWithRecords(int $customerId, array $cohortIds): array
+    {
+        return collect(self::RECORD_TABLES)
+            ->flatMap(fn (string $table) => DB::table($table)
+                ->where('customer_id', $customerId)
+                ->whereIn('cohort_id', $cohortIds)
+                ->distinct()
+                ->pluck('cohort_id'))
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
     }
 
     public function activationIssues(int $customerId, int $cohortId): array

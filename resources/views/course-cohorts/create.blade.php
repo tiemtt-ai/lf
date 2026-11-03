@@ -3,34 +3,23 @@
 @section('title', __('lf.LF_course_cohort_common_create'))
 @section('page_title', __('lf.LF_course_cohort_common_create'))
 
+@section('page_title_hidden', '1')
+
+@section('page_back')
+    <x-page-back-link :href="route($routePrefix.'.index')" :label="__('lf.LF_course_cohort_common_back_to_cohorts')" />
+@endsection
+
+@section('vite')
+    @parent
+    @vite(['resources/css/admin/admin-ui-kit.css', 'resources/js/admin-ui-kit-controls.js'])
+@endsection
+
 @section('content')
-    <div x-data="{ lockedReason: '' }">
-        <nav class="course-template-tabs course-cohort-detail-tabs" aria-label="{{ __('lf.LF_course_cohort_common_tabs') }}">
-            @foreach ($cohortTabs as $tab)
-                @continue(in_array($tab['key'], ['attendance', 'recordings'], true))
-                <span class="sr-only">{{ $tab['note'] }}</span>
-                @if ($tab['accessible'])
-                    <button type="button" class="course-template-tab is-active" aria-current="page">{{ $tab['label'] }}</button>
-                @else
-                    <button type="button" class="course-template-tab course-cohort-detail-tab--locked" aria-disabled="true"
-                            title="{{ $tab['locked_reason'] }}"
-                            x-on:click="lockedReason = @js($tab['locked_reason'])"
-                            x-on:focus="lockedReason = @js($tab['locked_reason'])">
-                        <span>{{ $tab['label'] }}</span>
-                        <x-backend-icon name="lock" class="course-cohort-detail-tab__lock-icon" />
-                    </button>
-                    <span class="sr-only">{{ $tab['locked_reason'] }}</span>
-                @endif
-            @endforeach
-        </nav>
-        <p class="admin-form-section-help course-cohort-detail-tabs-help" role="status" aria-live="polite">
-            <span class="course-cohort-detail-tabs-help__icon" aria-hidden="true">i</span>
-            <span x-text="lockedReason || @js($cohortTabs[0]['note'])"></span>
-        </p>
-    </div>
+<div class="lf-admin-ui lf-admin-ui--list ui-cohort">
+    <x-ui-list-head :title="__('lf.LF_course_cohort_common_create')" :text="__('lf.LF_course_cohort_create_description')" />
 
     @if ($errors->any())
-        <div class="admin-alert admin-alert-danger admin-form-card">
+        <div class="admin-alert admin-alert-danger" role="alert">
             <ul>
                 @foreach ($errors->all() as $error)
                     <li>{{ $error }}</li>
@@ -39,15 +28,13 @@
         </div>
     @endif
 
-    <div class="admin-card admin-form-card admin-form-surface course-cohort-create">
-        <form class="admin-form-standard"
-              method="POST"
-              action="{{ route($routePrefix.'.store') }}"
-              x-data="{ submitting: false }"
-              x-on:submit="submitting = true">
-            @csrf
+    @include('course-cohorts.partials.page-tabs')
 
-            @include('course-cohorts.partials.create-form')
-        </form>
-    </div>
+    <form class="mk-section course-cohort-create" method="POST" action="{{ route($routePrefix.'.store') }}"
+          x-data="{ submitting: false }" x-on:submit="submitting = true">
+        @csrf
+
+        @include('course-cohorts.partials.create-form')
+    </form>
+</div>
 @endsection

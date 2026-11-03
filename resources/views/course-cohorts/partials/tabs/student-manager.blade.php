@@ -74,7 +74,7 @@
     </template>
 
     <header class="cohort-student-transfer-intro">
-        <p>{{ __('lf.LF_course_cohort_student_manage_help') }}</p>
+        <p class="ui-caption">{{ __('lf.LF_course_cohort_student_manage_help') }}</p>
     </header>
 
     <div class="bulk-enrollment-transfer" :aria-busy="loading.toString()">
@@ -84,7 +84,7 @@
             </div>
             <div class="bulk-enrollment-search">
                 <label class="sr-only" for="inline_eligible_student_search">{{ __('lf.LF_course_cohort_student_search_placeholder') }}</label>
-                <input id="inline_eligible_student_search" type="search" class="lf-form-control" x-model="query"
+                <input id="inline_eligible_student_search" type="search" x-model="query"
                        x-on:input.debounce.350ms="loadStudents(1)" placeholder="{{ __('lf.LF_course_cohort_student_search_placeholder') }}">
             </div>
             <label class="bulk-enrollment-transfer__select-all" x-show="results.length > 0" x-cloak>
@@ -92,21 +92,21 @@
                        :checked="results.length > 0 && results.filter(item => item.eligible || isSelected(item.id)).every(item => isSelected(item.id))">
                 {{ __('lf.LF_bulk_enrollment_select_visible') }}
             </label>
-            <div class="admin-table-wrap bulk-enrollment-selector__list">
-                <table class="table"><tbody>
+            <div class="bulk-enrollment-selector__list">
+                <table><tbody>
                     <template x-for="item in results" :key="item.id"><tr>
-                        <td><input type="checkbox" :checked="isSelected(item.id)" :disabled="!item.eligible && !isSelected(item.id)"
+                        <td class="ui-check-cell"><input type="checkbox" class="ui-bulk-box" :checked="isSelected(item.id)" :disabled="!item.eligible && !isSelected(item.id)"
                                    x-on:change="toggle(item, $event.target.checked)" :aria-label="`${item.name} · ${item.code}`"></td>
-                        <td><strong class="course-cohort-student-name" x-text="item.name"></strong><span class="cohort-student-option-meta"><span x-text="item.email"></span> · <span x-text="item.code"></span> · <span x-text="item.status_label"></span></span><span class="lf-form-error" x-show="item.current && !item.eligible">{{ __('lf.LF_course_cohort_student_inactive_warning') }}</span></td>
+                        <td class="mk-text-cell"><strong class="course-cohort-student-name" x-text="item.name"></strong><span class="cohort-student-option-meta"><span x-text="item.email"></span> · <span x-text="item.code"></span> · <span x-text="item.status_label"></span></span><span class="ui-field__error" x-show="item.current && !item.eligible">{{ __('lf.LF_course_cohort_student_inactive_warning') }}</span></td>
                     </tr></template>
-                    <tr x-show="loading" x-cloak><td colspan="2" role="status">{{ __('lf.LF_course_cohort_student_search_loading') }}</td></tr>
-                    <tr x-show="!loading && results.length === 0" x-cloak><td colspan="2" role="status">{{ __('lf.LF_course_cohort_student_search_empty') }}</td></tr>
+                    <tr x-show="loading" x-cloak><td class="mk-text-cell" colspan="2" role="status">{{ __('lf.LF_course_cohort_student_search_loading') }}</td></tr>
+                    <tr x-show="!loading && results.length === 0" x-cloak><td class="mk-text-cell" colspan="2" role="status">{{ __('lf.LF_course_cohort_student_search_empty') }}</td></tr>
                 </tbody></table>
             </div>
             <nav x-show="lastPage > 1" class="bulk-enrollment-pagination" aria-label="{{ __('lf.LF_bulk_enrollment_students_pagination') }}" x-cloak>
-                <button type="button" class="bulk-enrollment-pagination__button" x-on:click="loadStudents(page - 1)" :disabled="page <= 1">← {{ __('lf.LF_bulk_enrollment_previous') }}</button>
+                <button type="button" class="ui-button ui-button--sm cursor-interaction" x-on:click="loadStudents(page - 1)" :disabled="page <= 1">← {{ __('lf.LF_bulk_enrollment_previous') }}</button>
                 <span class="bulk-enrollment-pagination__status" x-text="`${page} / ${lastPage}`"></span>
-                <button type="button" class="bulk-enrollment-pagination__button" x-on:click="loadStudents(page + 1)" :disabled="page >= lastPage">{{ __('lf.LF_bulk_enrollment_next') }} →</button>
+                <button type="button" class="ui-button ui-button--sm cursor-interaction" x-on:click="loadStudents(page + 1)" :disabled="page >= lastPage">{{ __('lf.LF_bulk_enrollment_next') }} →</button>
             </nav>
         </section>
 
@@ -116,7 +116,7 @@
             </div>
             <div class="bulk-enrollment-search" x-bind:class="{ 'bulk-enrollment-search--placeholder': selectedItems.length === 0 }">
                 <label class="sr-only" for="inline_selected_student_search">{{ __('lf.LF_course_cohort_student_selected_search') }}</label>
-                <input id="inline_selected_student_search" type="search" class="lf-form-control" x-model="selectedQuery" x-bind:disabled="selectedItems.length === 0"
+                <input id="inline_selected_student_search" type="search" x-model="selectedQuery" x-bind:disabled="selectedItems.length === 0"
                        x-on:input="selectedPage = 1" placeholder="{{ __('lf.LF_course_cohort_student_selected_search') }}">
             </div>
             <p class="bulk-enrollment-transfer__selected-label" x-show="selectedItems.length > 0" x-cloak>{{ __('lf.LF_course_cohort_student_selected_after_save') }}</p>
@@ -127,24 +127,23 @@
             <p x-show="selectedItems.length > 0 && filteredSelected().length === 0" class="cohort-student-combobox-state" role="status">{{ __('lf.LF_course_cohort_student_search_empty') }}</p>
             <ul class="cohort-student-selected-list" x-show="filteredSelected().length > 0" x-cloak>
                 <template x-for="item in paginatedSelected()" :key="item.id"><li class="cohort-student-selected-chip">
-                    <span><strong class="course-cohort-student-name" x-text="item.name"></strong><span class="cohort-student-option-meta"><span x-text="item.email"></span> · <span x-text="item.code"></span></span><span class="lf-form-error" x-show="item.current && !item.eligible">{{ __('lf.LF_course_cohort_student_inactive_warning') }}</span></span>
+                    <span><strong class="course-cohort-student-name" x-text="item.name"></strong><span class="cohort-student-option-meta"><span x-text="item.email"></span> · <span x-text="item.code"></span></span><span class="ui-field__error" x-show="item.current && !item.eligible">{{ __('lf.LF_course_cohort_student_inactive_warning') }}</span></span>
                     <button type="button" class="cohort-student-chip-remove" x-on:click="remove(item.id)" :aria-label="`${@js(__('lf.LF_course_cohort_student_selected_remove'))} ${item.name}`">×</button>
                 </li></template>
             </ul>
             <nav x-show="selectedLastPage() > 1" class="bulk-enrollment-pagination" aria-label="{{ __('lf.LF_bulk_enrollment_students_pagination') }}" x-cloak>
-                <button type="button" class="bulk-enrollment-pagination__button" x-on:click="changeSelectedPage(selectedPage - 1)" :disabled="selectedPage <= 1">← {{ __('lf.LF_bulk_enrollment_previous') }}</button>
+                <button type="button" class="ui-button ui-button--sm cursor-interaction" x-on:click="changeSelectedPage(selectedPage - 1)" :disabled="selectedPage <= 1">← {{ __('lf.LF_bulk_enrollment_previous') }}</button>
                 <span class="bulk-enrollment-pagination__status" x-text="`${selectedPage} / ${selectedLastPage()}`"></span>
-                <button type="button" class="bulk-enrollment-pagination__button" x-on:click="changeSelectedPage(selectedPage + 1)" :disabled="selectedPage >= selectedLastPage()">{{ __('lf.LF_bulk_enrollment_next') }} →</button>
+                <button type="button" class="ui-button ui-button--sm cursor-interaction" x-on:click="changeSelectedPage(selectedPage + 1)" :disabled="selectedPage >= selectedLastPage()">{{ __('lf.LF_bulk_enrollment_next') }} →</button>
             </nav>
         </section>
     </div>
-    @error('enrollment_ids')<p class="lf-form-error" role="alert">{{ $message }}</p>@enderror
+    @error('enrollment_ids')<p class="ui-field__error" role="alert">{{ $message }}</p>@enderror
 
-    <footer class="admin-form-footer admin-form-footer--sticky course-cohort-student-inline-form__footer">
-        <strong class="course-cohort-session-form__footer-context">{{ __('lf.LF_course_cohort_student_manage_heading') }}</strong>
-        <div class="admin-form-footer-primary">
-            <button type="button" class="btn btn-secondary" x-on:click="formOpen = false">{{ __('lf.LF_common_button_cancel') }}</button>
-            <button type="submit" class="btn btn-primary" :disabled="submitting" :aria-busy="submitting">
+    <footer class="ui-cohort-form__actions course-cohort-student-inline-form__footer">
+        <div class="ui-cohort-form__actions-group">
+            <button type="button" class="ui-button cursor-interaction" x-on:click="formOpen = false">{{ __('lf.LF_common_button_cancel') }}</button>
+            <button type="submit" class="ui-button ui-button--primary cursor-interaction" :disabled="submitting" :aria-busy="submitting">
                 <span x-show="!submitting">{{ __('lf.LF_course_cohort_student_sync_save') }}</span>
                 <span x-show="submitting" x-cloak>{{ __('lf.LF_course_cohort_student_saving') }}</span>
             </button>

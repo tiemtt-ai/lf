@@ -23,9 +23,7 @@
                     <strong x-text="detail?.name"></strong>
                     <span x-text="detail?.email"></span>
                 </div>
-                <span class="badge"
-                      :class="{ 'badge-success': detail?.status === 'active' }"
-                      x-text="detail?.status_label"></span>
+                <span class="ui-status" :class="detail?.status === 'active' ? 'ui-status--active' : 'ui-status--archived'" x-text="detail?.status_label"></span>
             </div>
 
             <section class="cohort-enrollment-context" aria-labelledby="cohort-enrollment-context-title">
@@ -58,8 +56,8 @@
 
         <footer class="admin-form-footer cohort-enrollment-detail-modal__footer" data-actions-align="end">
             <div class="admin-form-footer-primary">
-                <button type="button" class="btn btn-secondary" x-on:click="closeDetail()">{{ __('lf.LF_common_button_close') }}</button>
-                <a class="btn btn-primary" :href="detail?.detail_url">{{ __('lf.LF_course_cohort_student_view_full_enrollment') }}</a>
+                <button type="button" class="ui-button cursor-interaction" x-on:click="closeDetail()">{{ __('lf.LF_common_button_close') }}</button>
+                <a class="ui-button ui-button--primary cursor-interaction" :href="detail?.detail_url">{{ __('lf.LF_course_cohort_student_view_full_enrollment') }}</a>
             </div>
         </footer>
     </section>

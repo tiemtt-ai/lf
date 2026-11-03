@@ -12,6 +12,10 @@
             x-bind:aria-label="isMobile ? @js(__('lf.LF_navigation_button_backend_menu_open')) : (sidebarCollapsed ? @js(__('lf.LF_navigation_button_backend_menu_expand')) : @js(__('lf.LF_navigation_button_backend_menu_collapse')))">
         <x-backend-icon name="panel-left" class="admin-icon" />
     </button>
+    {{-- Phones only: the sidebar and its logo stay closed there. --}}
+    <a class="admin-header-brand" href="{{ route($dashboardRoute) }}" aria-label="{{ $dashboardLabel }}">
+        <img src="{{ asset('assets/admin/brand-logo.png') }}" alt="Master Korean" width="180" height="67">
+    </a>
     <x-backend-breadcrumbs :breadcrumbs="$breadcrumbs" />
     <div class="admin-top-actions" x-data="{ open: null, closeMenu() { const button = this.$el.querySelector('[aria-expanded=true]'); this.open = null; button?.focus(); } }"
          x-on:click.outside="open = null" x-on:keydown.escape.stop="closeMenu()">

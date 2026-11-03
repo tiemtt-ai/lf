@@ -91,6 +91,17 @@ class CourseCohortController extends Controller
             ->paginate(10)
             ->withQueryString();
         $cohorts->getCollection()->each(CourseCohortMutationPolicy::decorate(...));
+        $cohortIdsWithRecords = $this->lifecycleService->cohortIdsWithRecords(
+            $customerId,
+            $cohorts->getCollection()->pluck('id')->map(fn ($id) => (int) $id)->all()
+        );
+        $cohorts->getCollection()->each(function (object $cohort) use ($cohortIdsWithRecords): void {
+            $cohort->delete_blocker = match (true) {
+                $cohort->status !== 'draft' => __('lf.LF_course_cohort_delete_blocked_status'),
+                in_array((int) $cohort->id, $cohortIdsWithRecords, true) => __('lf.LF_course_cohort_delete_blocked_records'),
+                default => null,
+            };
+        });
 
         return view('course-cohorts.index', [
             'cohorts' => $cohorts,
@@ -552,6 +563,33 @@ class CourseCohortController extends Controller
             ->with('success', __('lf.LF_course_cohort_lifecycle_archived'));
     }
 
+    public function bulkDestroy(Request $request)
+    {
+        $this->authorizeAdmin($request);
+
+        $validated = $request->validate([
+            'ids' => ['required', 'array', 'min:1', 'max:100'],
+            'ids.*' => ['required', 'integer', 'distinct'],
+        ]);
+        $ids = array_map('intval', $validated['ids']);
+
+        try {
+            $this->lifecycleService->destroyEmptyDrafts($this->customerId(), $ids);
+        } catch (ValidationException $exception) {
+            $blocked = $exception->errors()['lifecycle'][0];
+
+            return $request->expectsJson()
+                ? response()->json(['message' => $blocked], 409)
+                : back()->withErrors(['lifecycle' => $blocked]);
+        }
+
+        $message = trans_choice('lf.LF_course_cohort_bulk_deleted', count($ids), ['count' => count($ids)]);
+
+        return $request->expectsJson()
+            ? response()->json(['message' => $message])
+            : redirect()->route($this->routePrefix($request).'.index')->with('success', $message);
+    }
+
     private function validatedCreateData(Request $request, int $customerId): array
     {
         $input = array_intersect_key($request->request->all(), array_flip([
@@ -734,7 +772,8 @@ class CourseCohortController extends Controller
                 'products.registration_ends_at as product_registration_ends_at',
                 'versions.title_snapshot as version_title',
                 'versions.version_number',
-                'versions.version_code'
+                'versions.version_code',
+                'versions.course_type_snapshot as course_type'
             )
             ->selectSub($lessonCounts, 'lesson_count')
             ->selectSub($activityCounts, 'activity_count')

@@ -278,9 +278,8 @@ class CourseCohortManagementTest extends TestCase
             ->get('https://tenant-a.localhost/admin/course-cohorts')
             ->assertOk()
             ->assertSeeInOrder(['Z Newest Class', 'A Older Class'])
-            ->assertSee('course-cohort-index-table', false)
-            ->assertSee('course-cohort-index-toolbar', false)
-            ->assertSee('course-cohort-status-badge', false)
+            ->assertSee('lf-admin-ui lf-admin-ui--list', false)
+            ->assertSee('class="ui-status ui-status--', false)
             ->assertSeeText(__('lf.LF_course_cohort_common_version'));
     }
 
@@ -289,20 +288,14 @@ class CourseCohortManagementTest extends TestCase
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
 
-        $empty = $this->actingAs($admin)
+        $this->actingAs($admin)
             ->get('https://tenant-a.localhost/admin/course-cohorts')
             ->assertOk()
-            ->assertSee('course-cohort-filter-grid', false)
-            ->assertSee('course-cohort-index-count', false)
+            ->assertSee('data-ui-live-filter', false)
+            ->assertSeeText(__('lf.LF_course_cohort_index_heading'))
             ->assertSeeText('Chưa có lớp học nào.')
             ->assertSeeText('Tạo lớp học đầu tiên')
             ->assertDontSeeText('Chưa có Cohort nào.');
-
-        $this->assertSame(
-            1,
-            substr_count($empty->getContent(), 'course-cohort-index-toolbar'),
-            'The create action should live in one compact top toolbar.'
-        );
 
         $this->createCohort($customerId, 'Responsive Class');
 
@@ -321,6 +314,45 @@ class CourseCohortManagementTest extends TestCase
             ->assertOk()
             ->assertSeeText('Không tìm thấy lớp học phù hợp.')
             ->assertSeeText('Xóa bộ lọc');
+    }
+
+    public function test_only_an_empty_draft_cohort_can_be_deleted(): void
+    {
+        $customerId = $this->createTenant();
+        $otherCustomerId = $this->createTenant('tenant-b');
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $teacher = $this->createUser($customerId, 'teacher');
+        $emptyDraft = $this->createCohort($customerId, 'Empty Draft', 'draft');
+        $activeClass = $this->createCohort($customerId, 'Running Class', 'active');
+        $usedDraft = $this->createCohort($customerId, 'Used Draft', 'draft');
+        $otherTenantDraft = $this->createCohort($otherCustomerId, 'Other Tenant Draft', 'draft');
+        DB::table('core_course_cohort_teachers')->insert([
+            'customer_id' => $customerId, 'cohort_id' => $usedDraft, 'teacher_id' => $teacher->id,
+            'role' => 'teacher', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $base = 'https://tenant-a.localhost/admin/course-cohorts';
+
+        $selectable = fn (int $id): string => 'data-ui-bulk-item value="'.$id.'"';
+        $this->actingAs($admin)->get($base)->assertOk()
+            ->assertSee('data-ui-bulk-delete', false)
+            ->assertSee($selectable($emptyDraft), false)
+            ->assertDontSee($selectable($activeClass), false)
+            ->assertDontSee($selectable($usedDraft), false)
+            ->assertSee('data-tooltip="'.e(__('lf.LF_course_cohort_delete_blocked_status')).'"', false)
+            ->assertSee('data-tooltip="'.e(__('lf.LF_course_cohort_delete_blocked_records')).'"', false);
+
+        $this->actingAs($admin)->deleteJson($base, ['ids' => [$emptyDraft, $activeClass]])
+            ->assertStatus(409)->assertJson(['message' => __('lf.LF_course_cohort_delete_blocked_status')]);
+        $this->actingAs($admin)->deleteJson($base, ['ids' => [$emptyDraft, $usedDraft]])
+            ->assertStatus(409)->assertJson(['message' => __('lf.LF_course_cohort_delete_blocked_records')]);
+        $this->actingAs($admin)->deleteJson($base, ['ids' => [$emptyDraft, $otherTenantDraft]])->assertNotFound();
+        $this->actingAs($teacher)->deleteJson($base, ['ids' => [$emptyDraft]])->assertForbidden();
+        $this->assertSame(4, DB::table('core_course_cohorts')->count());
+
+        $this->actingAs($admin)->deleteJson($base, ['ids' => [$emptyDraft]])
+            ->assertOk()->assertJsonStructure(['message']);
+        $this->assertDatabaseMissing('core_course_cohorts', ['id' => $emptyDraft]);
+        $this->assertDatabaseHas('core_course_cohorts', ['id' => $usedDraft]);
     }
 
     public function test_teacher_and_student_cannot_access_admin_cohort_routes(): void
@@ -482,16 +514,13 @@ class CourseCohortManagementTest extends TestCase
             ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/edit")
             ->assertOk()
             ->assertSeeText('Sửa lớp học')
-            ->assertSeeText('Mã lớp học')
-            ->assertSeeText('Trạng thái')
             ->assertSeeText('Sản phẩm')
             ->assertSeeText('Phiên bản nội dung')
             ->assertSeeText(__('lf.LF_course_cohort_product_registration_window'))
             ->assertSeeText('01/08/2026 09:00')
             ->assertSeeText('15/08/2026 18:00')
             ->assertSeeText(__('lf.LF_course_cohort_product_registration_help'))
-            ->assertSeeText(__('lf.LF_course_cohort_create_group_dates'))
-            ->assertSee('class="admin-form-standard"', false)
+            ->assertSee('course-cohort-edit-overview', false)
             ->assertSee('course-cohort-edit-tabs', false)
             ->assertSee('class="course-template-tab is-active"', false)
             ->assertDontSee('class="btn btn-primary" href', false)
@@ -502,7 +531,6 @@ class CourseCohortManagementTest extends TestCase
                 ->whereIn('key', ['attendance', 'recordings'])
                 ->every(fn (array $tab): bool => ! $tab['accessible']))
             ->assertDontSee('🔒', false)
-            ->assertSee('cohort-edit-status-panel', false)
             ->assertDontSee('name="code"', false)
             ->assertDontSee('name="status"', false)
             ->assertDontSee('name="product_id"', false)
@@ -529,14 +557,6 @@ class CourseCohortManagementTest extends TestCase
         $sorted = $positions;
         sort($sorted);
         $this->assertSame($sorted, $positions);
-
-        $componentsCss = file_get_contents(resource_path('css/admin/admin-components.css'));
-        $this->assertStringContainsString('.cohort-edit-overview-heading h2', $componentsCss);
-        $this->assertStringContainsString('font-size: 26px;', $componentsCss);
-        $this->assertStringContainsString(
-            '.course-cohort-edit-overview .cohort-edit-overview-fields .lf-form-label',
-            $componentsCss
-        );
 
         DB::table('core_course_cohorts')->where('id', $cohortId)->update(['status' => 'completed']);
         $this->actingAs($admin)
@@ -645,7 +665,6 @@ class CourseCohortManagementTest extends TestCase
             ->assertSee('course-cohort-detail', false)
             ->assertSeeText(__('lf.LF_course_cohort_create_group_information'))
             ->assertSeeText(__('lf.LF_course_cohort_create_group_dates'))
-            ->assertSeeText(__('lf.LF_course_cohort_create_group_additional'))
             ->assertDontSeeText(__('lf.LF_course_cohort_common_description'))
             ->assertDontSeeText('Cohort media')
             ->assertDontSeeText(__('lf.LF_course_cohort_group_context'))
@@ -717,21 +736,13 @@ class CourseCohortManagementTest extends TestCase
         ]);
 
         DB::table('core_course_products')->where('id', $productId)->update(['status' => 'inactive']);
-        $blockedView = $this->actingAs($admin)
+        $this->actingAs($admin)
             ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}")
             ->assertOk()
             ->assertSee('course-cohort-activation-action', false)
             ->assertSee('id="cohort-activate-requirements"', false)
             ->assertSee('aria-describedby="cohort-activate-requirements"', false)
-            ->assertSee('course-cohort-activation-alert__icon', false);
-        $blockedDocument = new \DOMDocument;
-        @$blockedDocument->loadHTML($blockedView->getContent());
-        $blockedXpath = new \DOMXPath($blockedDocument);
-        $this->assertSame(1, $blockedXpath->query(
-            '//div[contains(concat(" ", normalize-space(@class), " "), " course-cohort-activation-action ")]'
-            .'/*[1][contains(concat(" ", normalize-space(@class), " "), " cohort-lifecycle-action ")]'
-            .'/following-sibling::div[@id="cohort-activate-requirements"]'
-        )->length);
+            ->assertSee('class="ui-cohort-alert"', false);
 
         $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/activate")
             ->assertSessionHasErrors('lifecycle');
@@ -892,9 +903,8 @@ class CourseCohortManagementTest extends TestCase
             ->assertSeeText(__('lf.LF_course_cohort_product_registration_help'))
             ->assertSeeText(__('lf.LF_course_cohort_common_archive'))
             ->assertSeeText(__('lf.LF_course_cohort_lifecycle_activate_body'));
-        $this->assertStringContainsString('cohort-overview-heading-actions', $draft->getContent());
-        $this->assertStringContainsString('btn btn-secondary', $draft->getContent());
-        $this->assertStringContainsString('cohort-lifecycle-dialog', $draft->getContent());
+        $this->assertStringContainsString('ui-enroll-head__actions', $draft->getContent());
+        $this->assertStringContainsString('class="ui-modal"', $draft->getContent());
         $this->assertStringContainsString('x-bind:aria-busy="submitting"', $draft->getContent());
 
         $active = $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-cohorts/{$ids['active']}")->assertOk();
@@ -945,8 +955,7 @@ class CourseCohortManagementTest extends TestCase
             ->assertDontSeeText('Mã lớp học')
             ->assertDontSeeText('Tự động tạo sau khi lưu')
             ->assertSee('aria-live="polite"', false)
-            ->assertSee('class="admin-form-standard"', false)
-            ->assertSee('class="admin-form-field-grid"', false)
+            ->assertSee('class="ui-cohort-form"', false)
             ->assertSee('x-bind:disabled="submitting"', false)
             ->assertDontSee('name="version_id"', false)
             ->assertDontSee('name="code"', false)
@@ -1025,7 +1034,7 @@ class CourseCohortManagementTest extends TestCase
 
         // The same class bound to a self-paced Version (legacy data) cannot be activated.
         DB::table('core_course_template_versions')->where('id', $versionId)->update(['course_type_snapshot' => 'self_paced']);
-        $issues = app(\App\Services\CourseCohortLifecycleService::class)->activationIssues($customerId, $cohortId);
+        $issues = app(CourseCohortLifecycleService::class)->activationIssues($customerId, $cohortId);
         $this->assertContains(__('lf.LF_course_type_cohort_legacy_self_paced'), $issues);
     }
 
@@ -1974,8 +1983,6 @@ class CourseCohortManagementTest extends TestCase
             ->assertSee('course-cohort-schedule-detail__eyebrow', false)
             ->assertSee('course-cohort-schedule-detail__section-header', false)
             ->assertSee('admin-form-footer--sticky course-cohort-schedule-detail__footer', false)
-            ->assertSee('admin-action-menu__trigger', false)
-            ->assertSee('admin-action-menu__dots', false)
             ->assertSee('course-cohort-schedules__table-wrap', false);
     }
 
@@ -2029,7 +2036,7 @@ class CourseCohortManagementTest extends TestCase
             ->assertSee('placeholder="'.__('lf.LF_course_cohort_schedule_reason_placeholder').'"', false)
             ->assertSee('course-cohort-schedule-preview__timezone', false)
             ->assertSee('course-cohort-schedule-preview__summary', false)
-            ->assertSee('course-cohort-schedules__col-slots', false)
+            ->assertSee('ui-cohort-col-slots', false)
             ->assertSee('id="schedule_starts_on"', false)
             ->assertSee('min="2026-08-01"', false)
             ->assertSee('max="2026-08-31"', false)
@@ -2078,8 +2085,7 @@ class CourseCohortManagementTest extends TestCase
             ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=schedules&schedule_form=edit&schedule_id={$scheduleId}")
             ->assertOk()
             ->assertDontSee('course-cohort-schedules__editor-header', false)
-            ->assertSee('course-cohort-schedules__status-badge', false)
-            ->assertSee('course-cohort-schedules__expected-count', false)
+            ->assertSee('class="ui-status ui-status--', false)
             ->assertSee('Evening schedule', false);
     }
 
@@ -3206,7 +3212,7 @@ class CourseCohortManagementTest extends TestCase
     ): int {
         $now = now();
 
-        return DB::table('core_course_templates')->insertGetId(['course_type' => 'blended', 
+        return DB::table('core_course_templates')->insertGetId(['course_type' => 'blended',
             'customer_id' => $customerId,
             'category_id' => null,
             'title' => $title,
@@ -3243,7 +3249,7 @@ class CourseCohortManagementTest extends TestCase
         $now = now();
         $templateId ??= $this->createTemplate($customerId, $userId, $title);
 
-        $versionId = DB::table('core_course_template_versions')->insertGetId(['course_type_snapshot' => 'blended', 
+        $versionId = DB::table('core_course_template_versions')->insertGetId(['course_type_snapshot' => 'blended',
             'customer_id' => $customerId,
             'template_id' => $templateId,
             'version_number' => $versionNumber,

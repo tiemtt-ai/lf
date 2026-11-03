@@ -3,249 +3,88 @@
 @section('title', $cohort->status === 'draft' ? __('lf.LF_course_cohort_setup_title') : ($cohort->status === 'active' ? __('lf.LF_course_cohort_management_title') : __('lf.LF_course_cohort_common_detail')))
 @section('page_title', $cohort->status === 'draft' ? __('lf.LF_course_cohort_setup_title') : ($cohort->status === 'active' ? __('lf.LF_course_cohort_management_title') : __('lf.LF_course_cohort_common_detail')))
 
+@section('page_title_hidden', '1')
+
+@section('page_back')
+    <x-page-back-link :href="route($routePrefix.'.index')" :label="__('lf.LF_course_cohort_common_back_to_cohorts')" />
+@endsection
+
+@section('vite')
+    @parent
+    @vite(['resources/css/admin/admin-ui-kit.css', 'resources/js/admin-ui-kit-controls.js'])
+@endsection
+
 @section('content')
-    @if (session('success'))
-        <div class="admin-alert admin-alert-success">
-            {{ session('success') }}
-        </div>
-    @endif
+<div class="lf-admin-ui lf-admin-ui--list ui-cohort">
+    <x-ui-list-toasts />
 
     @if ($errors->has('lifecycle'))
-        <div class="admin-alert admin-alert-danger" role="alert">
-            {{ $errors->first('lifecycle') }}
-        </div>
+        <div class="admin-alert admin-alert-danger" role="alert">{{ $errors->first('lifecycle') }}</div>
     @endif
 
     @if (!$cohort->product_id || !$cohort->version_id)
-        <div class="admin-alert admin-alert-danger" role="alert">
-            {{ __('lf.LF_course_cohort_common_configuration_required') }}
+        <div class="admin-alert admin-alert-danger" role="alert">{{ __('lf.LF_course_cohort_common_configuration_required') }}</div>
+    @endif
+
+    @include('course-cohorts.partials.identity', ['identityActions' => 'course-cohorts.partials.identity-actions'])
+
+    @if ($cohort->status === 'draft' && $activationIssues !== [])
+        <div id="cohort-activate-requirements" class="ui-cohort-alert" role="alert">
+            <x-backend-icon name="circle-alert" class="ui-icon" />
+            <div>
+                <strong>{{ __('lf.LF_course_cohort_activation_requirements') }}</strong>
+                <ul>@foreach ($activationIssues as $issue)<li>{{ $issue }}</li>@endforeach</ul>
+            </div>
         </div>
     @endif
 
-    <div x-data="{ lockedReason: '' }"
-         x-init="$nextTick(() => $refs.tabs.querySelector('[aria-current=page]')?.scrollIntoView({ behavior: 'auto', block: 'nearest', inline: 'nearest' }))">
-        @if (collect($cohortTabs)->contains('read_only', true))
-            <span class="course-cohort-readonly-label">
-                <x-backend-icon name="lock" />
-                {{ __('lf.LF_course_cohort_tab_read_only') }}
-            </span>
-        @endif
-        <nav x-ref="tabs" class="course-template-tabs course-cohort-detail-tabs" aria-label="{{ __('lf.LF_course_cohort_common_tabs') }}">
-            @foreach ($cohortTabs as $tab)
-                @continue(in_array($tab['key'], ['attendance', 'recordings'], true))
-                <span class="sr-only">{{ $tab['note'] }}</span>
-                @if ($tab['accessible'])
-                    <a @class(['course-template-tab', 'is-active' => $activeTab === $tab['key']])
-                       href="{{ $tab['route'] }}" @if($activeTab === $tab['key']) aria-current="page" @endif>
-                        {{ $tab['label'] }}
-                        @if ($tab['key'] === 'students') ({{ $activeMembershipCount }}/{{ $cohort->capacity ?? '∞' }}) @endif
-                        @if ($tab['read_only'])
-                            <x-backend-icon name="lock" class="course-cohort-detail-tab__lock-icon" />
-                            <span class="sr-only">{{ __('lf.LF_course_cohort_tab_read_only') }}</span>
-                        @endif
-                    </a>
-                @else
-                    <button type="button" class="course-template-tab course-cohort-detail-tab--locked" aria-disabled="true"
-                            title="{{ $tab['locked_reason'] }}"
-                            x-on:click="lockedReason = @js($tab['locked_reason'])"
-                            x-on:focus="lockedReason = @js($tab['locked_reason'])">
-                        <span>{{ $tab['label'] }}</span>
-                        <x-backend-icon name="lock" class="course-cohort-detail-tab__lock-icon" />
-                    </button>
-                    <span class="sr-only">{{ $tab['locked_reason'] }}</span>
-                @endif
-            @endforeach
-        </nav>
-        <p class="admin-form-section-help course-cohort-detail-tabs-help" role="status" aria-live="polite">
-            <span class="course-cohort-detail-tabs-help__icon" aria-hidden="true">i</span>
-            <span x-text="lockedReason || @js(collect($cohortTabs)->firstWhere('key', $activeTab)['note'])"></span>
-        </p>
-    </div>
-
-    <div class="cohort-detail-toolbar">
-        <a class="cohort-detail-back" href="{{ route($routePrefix.'.index') }}">
-            <span aria-hidden="true">←</span>
-            {{ __('lf.LF_course_cohort_common_back_to_cohorts') }}
-        </a>
-        <div class="cohort-detail-action-group">
-            @if ($cohort->status === 'draft')
-                <div class="course-cohort-activation-action">
-                    @include('course-cohorts.partials.lifecycle-action', [
-                        'dialogId' => 'cohort-activate',
-                        'action' => route($routePrefix.'.activate', $cohort->id),
-                        'triggerClass' => 'btn btn-secondary',
-                        'triggerLabel' => __('lf.LF_course_cohort_action_activate'),
-                        'title' => __('lf.LF_course_cohort_lifecycle_activate_title'),
-                        'body' => __('lf.LF_course_cohort_lifecycle_activate_body'),
-                        'confirmClass' => 'btn btn-primary',
-                        'confirmLabel' => __('lf.LF_course_cohort_lifecycle_activate_confirm'),
-                        'disabled' => $activationIssues !== [],
-                    ])
-                    @if ($activationIssues !== [])
-                        <div id="cohort-activate-requirements"
-                             class="admin-alert admin-alert-danger course-cohort-activation-alert"
-                             role="alert">
-                            <span class="course-cohort-activation-alert__icon" aria-hidden="true">!</span>
-                            <div>
-                                <strong>{{ __('lf.LF_course_cohort_activation_requirements') }}</strong>
-                                <ul>@foreach ($activationIssues as $issue)<li>{{ $issue }}</li>@endforeach</ul>
-                            </div>
-                        </div>
-                    @endif
-                </div>
-                @include('course-cohorts.partials.lifecycle-action', [
-                    'dialogId' => 'cohort-archive',
-                    'action' => route($routePrefix.'.archive', $cohort->id),
-                    'triggerClass' => 'admin-danger-text-action',
-                    'triggerLabel' => __('lf.LF_course_cohort_common_archive'),
-                    'title' => __('lf.LF_course_cohort_lifecycle_archive_title'),
-                    'body' => __('lf.LF_course_cohort_lifecycle_archive_body'),
-                    'confirmClass' => 'btn btn-danger',
-                    'confirmLabel' => __('lf.LF_course_cohort_lifecycle_archive_confirm'),
-                ])
-            @elseif ($cohort->status === 'active')
-                @include('course-cohorts.partials.lifecycle-action', [
-                    'dialogId' => 'cohort-complete',
-                    'action' => route($routePrefix.'.complete', $cohort->id),
-                    'triggerClass' => 'btn btn-secondary',
-                    'triggerLabel' => __('lf.LF_course_cohort_action_complete'),
-                    'title' => __('lf.LF_course_cohort_lifecycle_complete_title'),
-                    'body' => __('lf.LF_course_cohort_lifecycle_complete_body'),
-                    'confirmClass' => 'btn btn-primary',
-                    'confirmLabel' => __('lf.LF_course_cohort_lifecycle_complete_confirm'),
-                ])
-            @elseif ($cohort->status === 'completed')
-                @include('course-cohorts.partials.lifecycle-action', [
-                    'dialogId' => 'cohort-archive',
-                    'action' => route($routePrefix.'.archive', $cohort->id),
-                    'triggerClass' => 'admin-danger-text-action',
-                    'triggerLabel' => __('lf.LF_course_cohort_common_archive'),
-                    'title' => __('lf.LF_course_cohort_lifecycle_archive_title'),
-                    'body' => __('lf.LF_course_cohort_lifecycle_archive_body'),
-                    'confirmClass' => 'btn btn-danger',
-                    'confirmLabel' => __('lf.LF_course_cohort_lifecycle_archive_confirm'),
-                ])
-            @endif
-        </div>
-    </div>
+    @include('course-cohorts.partials.page-tabs', ['activeKey' => $activeTab])
 
     @if ($activeTab === 'overview')
-    <div id="overview" class="admin-card admin-form-card admin-form-surface course-cohort-detail">
-        <div class="admin-form-standard">
-            <section class="admin-form-standard-section cohort-overview-identity" aria-labelledby="cohort-show-information">
-                <div class="cohort-overview-heading">
-                    <div>
-                        <span class="cohort-overview-eyebrow">{{ __('lf.LF_course_cohort_create_group_information') }}</span>
-                        <h2 id="cohort-show-information">{{ $cohort->name }}</h2>
-                        <div class="cohort-overview-code" x-data="{ copied: false }">
-                            <span>{{ $cohort->code ?: '—' }}</span>
-                            @if ($cohort->code)
-                                <button type="button" class="admin-copy-action"
-                                        x-bind:class="{ 'is-copied': copied }"
-                                        x-bind:title="copied ? @js(__('lf.LF_course_cohort_edit_copied')) : @js(__('lf.LF_course_cohort_edit_copy_code'))"
-                                        x-bind:aria-label="copied ? @js(__('lf.LF_course_cohort_edit_copied')) : @js(__('lf.LF_course_cohort_edit_copy_code'))"
-                                        x-on:click="navigator.clipboard.writeText(@js($cohort->code)).then(() => { copied = true; setTimeout(() => copied = false, 1600) })">
-                                    <span x-show="!copied"><x-backend-icon name="copy" /></span>
-                                    <span x-cloak x-show="copied"><x-backend-icon name="check" /></span>
-                                </button>
-                            @endif
-                        </div>
-                    </div>
-                    <div class="cohort-overview-heading-actions">
-                        <div class="cohort-overview-status">
-                            <span>{{ __('lf.LF_course_cohort_common_status') }}</span>
-                            <strong @class([
-                                'badge',
-                                'badge-neutral' => $cohort->status === 'draft',
-                                'badge-success' => $cohort->status === 'active',
-                                'badge-info' => $cohort->status === 'completed',
-                                'badge-danger' => $cohort->status === 'archived',
-                            ])>{{ __('lf.LF_course_cohort_common_'.$cohort->status) }}</strong>
-                        </div>
-                        @if ($cohort->is_mutable)
-                            <a href="{{ route($routePrefix.'.edit', $cohort->id) }}" class="btn btn-secondary cohort-overview-edit-action">
-                                <x-backend-icon name="square-pen" />
-                                {{ __('lf.LF_course_cohort_action_edit_overview') }}
-                            </a>
+        <section id="overview" class="mk-section course-cohort-detail" aria-labelledby="cohort-show-information">
+            <div class="ui-summary-head"><h2 id="cohort-show-information">{{ __('lf.LF_course_cohort_create_group_information') }}</h2></div>
+            <dl class="ui-summary ui-enroll-summary">
+                @include('course-cohorts.partials.context-facts')
+                <div class="ui-summary__item">
+                    <dt>{{ __('lf.LF_course_cohort_overview_students') }}</dt>
+                    <dd>
+                        {{ trans_choice('lf.LF_course_cohort_overview_students_count', $activeMembershipCount, ['current' => $activeMembershipCount]) }}
+                        @if ($cohort->capacity)
+                            <span class="ui-caption ui-framework-description">{{ __('lf.LF_course_cohort_overview_students_limit', ['capacity' => $cohort->capacity]) }}</span>
+                            <span class="ui-cohort-capacity" role="progressbar" aria-valuemin="0" aria-valuemax="{{ $cohort->capacity }}" aria-valuenow="{{ $activeMembershipCount }}"
+                                  aria-label="{{ __('lf.LF_course_cohort_student_capacity_summary', ['current' => $activeMembershipCount, 'capacity' => $cohort->capacity]) }}">
+                                <span style="width: {{ min(100, round(($activeMembershipCount / $cohort->capacity) * 100)) }}%"></span>
+                            </span>
+                        @else
+                            <span class="ui-caption ui-framework-description">{{ __('lf.LF_course_cohort_student_capacity_unlimited') }}</span>
                         @endif
-                    </div>
+                    </dd>
                 </div>
+                @if (filled($cohort->notes))
+                    <div class="ui-summary__item ui-summary__item--wide">
+                        <dt>{{ __('lf.LF_course_cohort_common_notes') }}</dt>
+                        <dd class="ui-enroll-notes">{{ $cohort->notes }}</dd>
+                    </div>
+                @endif
+            </dl>
+        </section>
 
-                <div class="cohort-overview-summary">
-                <dl class="cohort-overview-context">
-                    <div>
-                        <dt>{{ __('lf.LF_course_cohort_common_product') }}</dt>
-                        <dd>
-                            <strong>{{ $cohort->product_title ?: '—' }}</strong>
-                            @if ($cohort->product_code)<span>{{ $cohort->product_code }} · {{ __('lf.LF_course_cohort_common_locked') }}</span>@endif
-                        </dd>
-                    </div>
-                    <div>
-                        <dt>{{ __('lf.LF_course_cohort_create_content_version') }}</dt>
-                        <dd>
-                            @if ($cohort->version_id)
-                                <strong>{{ str_replace(':code', $cohort->version_code, __('lf.LF_course_cohort_create_version_prefix')) }}</strong>
-                                <span>{{ __('lf.LF_course_cohort_common_published') }} · {{ __('lf.LF_course_cohort_create_lesson_count', ['count' => (int) $cohort->lesson_count]) }} · {{ __('lf.LF_course_cohort_create_activity_count', ['count' => (int) $cohort->activity_count]) }}</span>
-                            @else
-                                <strong>—</strong>
-                            @endif
-                        </dd>
-                    </div>
-                    <div>
-                        <dt>{{ __('lf.LF_course_cohort_overview_students') }}</dt>
-                        <dd class="cohort-overview-capacity">
-                            <strong>{{ trans_choice('lf.LF_course_cohort_overview_students_count', $activeMembershipCount, ['current' => $activeMembershipCount]) }}</strong>
-                            @if ($cohort->capacity)
-                                <span>{{ __('lf.LF_course_cohort_overview_students_limit', ['capacity' => $cohort->capacity]) }}</span>
-                                @php($capacityPercentage = min(100, round(($activeMembershipCount / $cohort->capacity) * 100)))
-                                <span class="cohort-overview-capacity__track"
-                                      role="progressbar"
-                                      aria-valuemin="0"
-                                      aria-valuemax="{{ $cohort->capacity }}"
-                                      aria-valuenow="{{ $activeMembershipCount }}"
-                                      aria-label="{{ __('lf.LF_course_cohort_student_capacity_summary', ['current' => $activeMembershipCount, 'capacity' => $cohort->capacity]) }}">
-                                    <span style="width: {{ $capacityPercentage }}%"></span>
-                                </span>
-                            @else
-                                <span>{{ __('lf.LF_course_cohort_student_capacity_unlimited') }}</span>
-                            @endif
-                        </dd>
-                    </div>
-                </dl>
-
-                @include('course-cohorts.partials.product-registration-window', [
-                    'registrationWindowTitleId' => 'cohort-show-product-registration-window',
-                    'compact' => true,
-                ])
+        <section class="mk-section" aria-labelledby="cohort-show-dates">
+            <div class="ui-summary-head"><h2 id="cohort-show-dates">{{ __('lf.LF_course_cohort_create_group_dates') }}</h2></div>
+            <dl class="ui-summary ui-enroll-summary">
+                <div class="ui-summary__item">
+                    <dt>{{ __('lf.LF_course_cohort_common_start_date') }}</dt>
+                    <dd>{{ $cohort->start_date ? \Illuminate\Support\Carbon::parse($cohort->start_date)->format('d/m/Y') : '—' }}</dd>
                 </div>
-            </section>
-
-            <div class="cohort-overview-secondary-grid">
-                <section class="admin-form-standard-section cohort-overview-section" aria-labelledby="cohort-show-dates">
-                    <header class="admin-form-section-header">
-                        <h2 id="cohort-show-dates" class="admin-form-section-title">{{ __('lf.LF_course_cohort_create_group_dates') }}</h2>
-                    </header>
-                    <div class="cohort-overview-dates">
-                        <dl><dt>{{ __('lf.LF_course_cohort_common_start_date') }}</dt><dd>{{ $cohort->start_date ? \Illuminate\Support\Carbon::parse($cohort->start_date)->format('d/m/Y') : '—' }}</dd></dl>
-                        <span class="cohort-overview-dates__arrow" aria-hidden="true">→</span>
-                        <dl><dt>{{ __('lf.LF_course_cohort_common_end_date') }}</dt><dd>{{ $cohort->end_date ? \Illuminate\Support\Carbon::parse($cohort->end_date)->format('d/m/Y') : '—' }}</dd></dl>
-                    </div>
-                </section>
-
-                <section class="admin-form-standard-section cohort-overview-section" aria-labelledby="cohort-show-additional">
-                    <header class="admin-form-section-header">
-                        <h2 id="cohort-show-additional" class="admin-form-section-title">{{ __('lf.LF_course_cohort_create_group_additional') }}</h2>
-                    </header>
-                    <div class="cohort-overview-notes">
-                        <span>{{ __('lf.LF_course_cohort_common_notes') }}</span>
-                        <p>{{ $cohort->notes ?: __('lf.LF_course_cohort_empty_notes') }}</p>
-                    </div>
-                </section>
-            </div>
-        </div>
-    </div>
+                <div class="ui-summary__item">
+                    <dt>{{ __('lf.LF_course_cohort_common_end_date') }}</dt>
+                    <dd>{{ $cohort->end_date ? \Illuminate\Support\Carbon::parse($cohort->end_date)->format('d/m/Y') : '—' }}</dd>
+                </div>
+                @include('course-cohorts.partials.product-registration-window', ['registrationWindowTitleId' => 'cohort-show-product-registration-window'])
+            </dl>
+        </section>
     @elseif ($activeTab === 'students')
-    <div class="admin-card admin-form-card admin-form-surface course-cohort-students-readonly"
+    <section class="mk-section course-cohort-students-readonly" aria-labelledby="cohort-show-students"
          x-data="{
              formOpen: @js($errors->any() || request()->boolean('manage')),
              detail: null,
@@ -260,127 +99,113 @@
              }
          }"
          x-on:keydown.escape.window="if (detail) closeDetail()">
-        <div class="admin-form-standard">
-            <section class="admin-form-standard-section" aria-labelledby="cohort-show-students">
-                <header class="admin-form-section-header">
-                    <div class="cohort-student-list-heading-main">
-                        <h2 id="cohort-show-students" class="admin-form-section-title">{{ __('lf.LF_course_cohort_student_view_title') }}</h2>
-                    </div>
-                    <div class="cohort-student-list-heading-actions">
-                        <span class="cohort-student-list-count">{{ __('lf.LF_course_cohort_student_capacity_count', ['current' => $activeMembershipCount, 'capacity' => $cohort->capacity ?? '∞']) }}</span>
-                        @if ($cohort->is_mutable)
-                            <button type="button" class="btn btn-primary"
-                                    x-show="!formOpen" x-cloak
-                                    x-on:click="formOpen = true"
-                                    x-bind:aria-expanded="formOpen.toString()"
-                                    aria-controls="cohort-student-manager-form">
-                                {{ __('lf.LF_course_cohort_student_manage_heading') }}
-                            </button>
-                        @endif
-                    </div>
-                </header>
-
-                @if ($cohort->is_mutable)
-                    @include('course-cohorts.partials.tabs.student-manager')
-                @endif
-
-                <form method="GET"
-                      action="{{ route($routePrefix.'.show', $cohort->id) }}"
-                      class="cohort-student-list-filter">
-                    <input type="hidden" name="tab" value="students">
-                    <div class="lf-form-group">
-                        <label class="lf-form-label" for="student_keyword">{{ __('lf.LF_course_cohort_student_common_keyword') }}</label>
-                        <input id="student_keyword" type="search" name="student_keyword" class="lf-form-control"
-                               value="{{ $studentKeyword }}" placeholder="{{ __('lf.LF_course_cohort_student_search_placeholder') }}">
-                    </div>
-                    <div class="admin-form-actions cohort-student-list-filter__actions">
-                        <button type="submit" class="btn btn-secondary">{{ __('lf.LF_common_button_search') }}</button>
-                        @if ($studentKeyword !== '')
-                            <a class="admin-text-action" href="{{ route($routePrefix.'.show', ['id' => $cohort->id, 'tab' => 'students']) }}">{{ __('lf.LF_course_cohort_student_common_clear_filters') }}</a>
-                        @endif
-                    </div>
-                </form>
-
-                <div class="admin-table-wrap cohort-student-list-table-wrap">
-                    <table class="table cohort-student-list-table course-cohort-roster-table admin-table-has-actions">
-                        <thead><tr>
-                            <th>{{ __('lf.LF_course_cohort_student_common_student') }}</th>
-                            <th>{{ __('lf.LF_course_cohort_student_common_enrollment') }}</th>
-                            <th>{{ __('lf.LF_course_cohort_student_common_status') }}</th>
-                            <th class="cohort-student-list-actions">{{ __('lf.table_actions') }}</th>
-                        </tr></thead>
-                        <tbody>
-                        @forelse ($students as $student)
-                            <tr>
-                                <td data-label="{{ __('lf.LF_course_cohort_student_common_student') }}">
-                                    <div class="cohort-student-identity">
-                                        <span class="cohort-student-avatar" aria-hidden="true">{{ mb_strtoupper(mb_substr(trim($student->student_name), 0, 1)) }}</span>
-                                        <span class="cohort-student-identity__content">
-                                            <strong class="course-cohort-index-primary">{{ $student->student_name }}</strong>
-                                            <span class="course-cohort-index-meta">{{ $student->student_email }}</span>
-                                        </span>
-                                    </div>
-                                </td>
-                                <td data-label="{{ __('lf.LF_course_cohort_student_common_enrollment') }}">
-                                    <strong class="cohort-student-enrollment-code">ENR-{{ str_pad((string) $student->enrollment_id, 6, '0', STR_PAD_LEFT) }}</strong>
-                                    <span class="course-cohort-index-meta">
-                                        {{ __('lf.LF_course_cohort_student_joined_short') }}:
-                                        {{ \Illuminate\Support\Carbon::parse($student->joined_at)->format('d/m/Y H:i') }}
-                                    </span>
-                                </td>
-                                <td class="cohort-student-list-status" data-label="{{ __('lf.LF_course_cohort_student_common_status') }}">
-                                    <span @class([
-                                        'badge',
-                                        'badge-success' => $student->enrollment_status === 'active',
-                                        'badge-danger' => in_array($student->enrollment_status, ['cancelled', 'expired'], true),
-                                    ])>{{ __('lf.LF_course_enrollment_common_'.$student->enrollment_status) }}</span>
-                                </td>
-                                <td class="cohort-student-list-actions" data-label="{{ __('lf.table_actions') }}">
-                                    <x-admin-action-menu :label="__('lf.table_actions').': '.$student->student_name">
-                                        <button type="button"
-                                                class="admin-link-button admin-text-action admin-table-action-link"
-                                                x-on:click="openDetail(@js([
-                                                    'id' => $student->enrollment_id,
-                                                    'name' => $student->student_name,
-                                                    'email' => $student->student_email,
-                                                    'code' => 'ENR-'.str_pad((string) $student->enrollment_id, 6, '0', STR_PAD_LEFT),
-                                                    'status' => $student->enrollment_status,
-                                                    'status_label' => __('lf.LF_course_enrollment_common_'.$student->enrollment_status),
-                                                    'source_label' => __('lf.LF_course_enrollment_common_source_'.$student->enrollment_source),
-                                                    'enrolled_at' => $student->enrolled_at ? \Illuminate\Support\Carbon::parse($student->enrolled_at)->format('d/m/Y H:i') : '—',
-                                                    'access_starts_at' => $student->access_starts_at ? \Illuminate\Support\Carbon::parse($student->access_starts_at)->format('d/m/Y H:i') : '—',
-                                                    'access_ends_at' => $student->access_ends_at ? \Illuminate\Support\Carbon::parse($student->access_ends_at)->format('d/m/Y H:i') : '—',
-                                                    'review_starts_at' => $student->review_starts_at ? \Illuminate\Support\Carbon::parse($student->review_starts_at)->format('d/m/Y H:i') : '—',
-                                                    'review_ends_at' => $student->review_ends_at ? \Illuminate\Support\Carbon::parse($student->review_ends_at)->format('d/m/Y H:i') : '—',
-                                                    'detail_url' => route('admin.course-enrollments.show', $student->enrollment_id),
-                                                    'current' => true,
-                                                ]), $event)">
-                                            <x-admin-action-icon name="view" />
-                                            {{ __('lf.LF_course_cohort_student_view_enrollment') }}
-                                        </button>
-                                    </x-admin-action-menu>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr class="cohort-student-list-empty-row">
-                                <td class="cohort-student-list-empty-cell" colspan="4">
-                                    <div class="course-cohort-empty-state" role="status">
-                                        <strong>{{ $studentKeyword !== '' ? __('lf.LF_course_cohort_student_filter_empty') : __('lf.LF_course_cohort_student_class_empty') }}</strong>
-                                        <span>{{ $studentKeyword !== '' ? __('lf.LF_course_cohort_student_filter_empty_help') : __('lf.LF_course_cohort_student_class_empty_help') }}</span>
-                                    </div>
-                                </td>
-                            </tr>
-                        @endforelse
-                        </tbody>
-                    </table>
-                </div>
-                @if ($students->hasPages())
-                    <div class="admin-pagination">{{ $students->links() }}</div>
-                @endif
-            </section>
+        <div class="ui-summary-head">
+            <h2 id="cohort-show-students">{{ __('lf.LF_course_cohort_student_view_title') }}</h2>
         </div>
+
+        @if ($cohort->is_mutable)
+            @include('course-cohorts.partials.tabs.student-manager')
+        @endif
+
+        <div class="mk-tablebar mk-tablebar--filters ui-enroll-filterbar">
+            <form method="GET" action="{{ route($routePrefix.'.show', $cohort->id) }}" class="mk-filter-form cohort-student-list-filter">
+                <div class="ui-field mk-search">
+                    <label class="ui-field__label ui-sr-only" for="student_keyword">{{ __('lf.LF_course_cohort_student_common_keyword') }}</label>
+                    <div class="ui-search">
+                        <input id="student_keyword" type="search" name="student_keyword" value="{{ $studentKeyword }}" placeholder="{{ __('lf.LF_course_cohort_student_search_placeholder') }}">
+                        <button type="submit" class="ui-button cursor-interaction" aria-label="{{ __('lf.LF_common_button_search') }}">
+                            <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
+                        </button>
+                    </div>
+                </div>
+                @if ($studentKeyword !== '')
+                    <a class="ui-button ui-button--outline cursor-interaction" href="{{ route($routePrefix.'.show', ['id' => $cohort->id, 'tab' => 'students']) }}">{{ __('lf.LF_course_cohort_student_common_clear_filters') }}</a>
+                @endif
+                <input type="hidden" name="tab" value="students">
+            </form>
+            <div class="mk-table-top__actions cohort-student-list-heading-actions">
+                <span class="ui-caption">{{ __('lf.LF_course_cohort_student_capacity_count', ['current' => $activeMembershipCount, 'capacity' => $cohort->capacity ?? '∞']) }}</span>
+                @if ($cohort->is_mutable)
+                    <button type="button" class="ui-button ui-button--outline cursor-interaction"
+                            x-show="!formOpen" x-cloak x-on:click="formOpen = true"
+                            x-bind:aria-expanded="formOpen.toString()" aria-controls="cohort-student-manager-form">
+                        {{ __('lf.LF_course_cohort_student_manage_heading') }}
+                    </button>
+                @endif
+            </div>
+        </div>
+
+        <div class="mk-table-scroll" role="region" aria-labelledby="cohort-show-students" tabindex="0">
+            <table class="cohort-student-list-table">
+                <colgroup><col><col><col class="mk-col-status"><col class="mk-col-action"></colgroup>
+                <thead><tr>
+                    <th scope="col" class="mk-text-cell">{{ __('lf.LF_course_cohort_student_common_student') }}</th>
+                    <th scope="col" class="mk-text-cell">{{ __('lf.LF_course_cohort_student_common_enrollment') }}</th>
+                    <th scope="col" class="ux-action-cell">{{ __('lf.LF_course_cohort_student_common_status') }}</th>
+                    <th scope="col" class="ux-action-cell">{{ __('lf.table_actions') }}</th>
+                </tr></thead>
+                <tbody>
+                @forelse ($students as $student)
+                    @php($studentTone = match ($student->enrollment_status) { 'active' => 'active', 'pending' => 'draft', 'suspended' => 'inactive', 'expired', 'cancelled' => 'danger', default => 'archived' })
+                    <tr>
+                        <td class="mk-text-cell" data-label="{{ __('lf.LF_course_cohort_student_common_student') }}">
+                            <span class="mk-name-text">{{ $student->student_name }}</span>
+                            <span class="ui-caption ui-framework-description">{{ $student->student_email }}</span>
+                        </td>
+                        <td class="mk-text-cell" data-label="{{ __('lf.LF_course_cohort_student_common_enrollment') }}">
+                            <span class="mk-name-text">ENR-{{ str_pad((string) $student->enrollment_id, 6, '0', STR_PAD_LEFT) }}</span>
+                            <span class="ui-caption ui-framework-description">{{ __('lf.LF_course_cohort_student_joined_short') }}: {{ \Illuminate\Support\Carbon::parse($student->joined_at)->format('d/m/Y H:i') }}</span>
+                        </td>
+                        <td class="ux-action-cell cohort-student-list-status" data-label="{{ __('lf.LF_course_cohort_student_common_status') }}">
+                            <span class="ui-status ui-status--{{ $studentTone }}">{{ __('lf.LF_course_enrollment_common_'.$student->enrollment_status) }}</span>
+                        </td>
+                        <td class="ux-action-cell" data-label="{{ __('lf.table_actions') }}">
+                            <button type="button" class="ux-row-edit cursor-interaction"
+                                    aria-label="{{ __('lf.LF_course_cohort_student_view_enrollment') }}: {{ $student->student_name }}"
+                                    data-tooltip="{{ __('lf.LF_course_cohort_student_view_enrollment') }}"
+                                    x-on:click="openDetail(@js([
+                                        'id' => $student->enrollment_id,
+                                        'name' => $student->student_name,
+                                        'email' => $student->student_email,
+                                        'code' => 'ENR-'.str_pad((string) $student->enrollment_id, 6, '0', STR_PAD_LEFT),
+                                        'status' => $student->enrollment_status,
+                                        'status_label' => __('lf.LF_course_enrollment_common_'.$student->enrollment_status),
+                                        'source_label' => __('lf.LF_course_enrollment_common_source_'.$student->enrollment_source),
+                                        'enrolled_at' => $student->enrolled_at ? \Illuminate\Support\Carbon::parse($student->enrolled_at)->format('d/m/Y H:i') : '—',
+                                        'access_starts_at' => $student->access_starts_at ? \Illuminate\Support\Carbon::parse($student->access_starts_at)->format('d/m/Y H:i') : '—',
+                                        'access_ends_at' => $student->access_ends_at ? \Illuminate\Support\Carbon::parse($student->access_ends_at)->format('d/m/Y H:i') : '—',
+                                        'review_starts_at' => $student->review_starts_at ? \Illuminate\Support\Carbon::parse($student->review_starts_at)->format('d/m/Y H:i') : '—',
+                                        'review_ends_at' => $student->review_ends_at ? \Illuminate\Support\Carbon::parse($student->review_ends_at)->format('d/m/Y H:i') : '—',
+                                        'detail_url' => route('admin.course-enrollments.show', $student->enrollment_id),
+                                        'current' => true,
+                                    ]), $event)">
+                                <x-backend-icon name="eye" class="ui-icon" />
+                            </button>
+                        </td>
+                    </tr>
+                @empty
+                    <tr class="mk-empty-row">
+                        <td class="mk-empty" colspan="4">
+                            <div role="status">
+                                <strong>{{ $studentKeyword !== '' ? __('lf.LF_course_cohort_student_filter_empty') : __('lf.LF_course_cohort_student_class_empty') }}</strong>
+                                <p class="ui-caption">{{ $studentKeyword !== '' ? __('lf.LF_course_cohort_student_filter_empty_help') : __('lf.LF_course_cohort_student_class_empty_help') }}</p>
+                            </div>
+                        </td>
+                    </tr>
+                @endforelse
+                </tbody>
+            </table>
+        </div>
+
+        @if ($students->hasPages())
+            <x-ui-list-foot :paginator="$students"
+                :label="__('lf.LF_course_cohort_student_view_title')"
+                :page-size-label="__('lf.LF_course_template_index_page_size')"
+                :page-size-option="__('lf.LF_course_template_index_page_size_option', ['count' => $students->perPage()])" />
+        @endif
+
         @include('course-cohorts.partials.enrollment-quick-view', ['cohort' => $cohort])
-    </div>
+    </section>
     @elseif ($activeTab === 'teachers')
         @include('course-cohorts.partials.tabs.teachers')
     @elseif ($activeTab === 'schedules')
@@ -392,4 +217,5 @@
     @elseif ($activeTab === 'recordings')
         @include('course-cohorts.partials.tabs.recordings')
     @endif
+</div>
 @endsection

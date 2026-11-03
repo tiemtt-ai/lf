@@ -109,6 +109,8 @@
     --ui-success: #166534;
     --ui-success-soft: #dcfce7;
     --ui-success-border: #bbf7d0;
+    --ui-completed: #0f6b78;
+    --ui-completed-soft: #e0f3f6;
     --ui-danger: #b42318;
     --ui-danger-soft: #fdecee;
     --ui-button-danger: #e60012;
@@ -3043,6 +3045,7 @@
     .lf-admin-ui .ui-framework-version__facts { grid-template-columns: minmax(0, 1fr); }
 }
 .lf-admin-ui .ui-status--danger { background: var(--ui-danger-soft); color: var(--ui-danger); }
+.lf-admin-ui .ui-status--completed { background: var(--ui-completed-soft); color: var(--ui-completed); }
 .lf-admin-ui .ui-enroll-table { min-width: 900px; table-layout: fixed; }
 .lf-admin-ui .ui-enroll-table .mk-col-status { width: 124px; }
 .lf-admin-ui .ui-enroll-table td { overflow-wrap: anywhere; }
@@ -3062,6 +3065,46 @@
 .lf-admin-ui.ui-enroll { display: grid; gap: 16px; max-width: none; }
 .lf-admin-ui.ui-enroll > .ui-page-head { margin: 0; }
 .lf-admin-ui.ui-enroll .mk-section { margin-top: 0; }
+.lf-admin-ui .ui-cohort-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 24px; padding: 20px; }
+.lf-admin-ui .ui-cohort-form__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; padding: 14px 20px; border-top: 1px solid var(--ui-border); }
+.lf-admin-ui.ui-cohort .ui-version__chips { align-items: center; }
+.lf-admin-ui .ui-cohort-code { display: inline-flex; align-items: center; gap: 4px; }
+.lf-admin-ui .ui-cohort-alert { display: flex; gap: 8px; align-items: flex-start; margin-top: 16px; padding: 12px 14px; border-radius: 7px; background: var(--ui-danger-soft); color: var(--ui-danger); font-size: 14px; line-height: 1.5; }
+.lf-admin-ui .ui-cohort-alert ul { margin: 4px 0 0; padding-left: 18px; }
+.lf-admin-ui .ui-cohort-alert .ui-icon { flex: none; margin-top: 2px; }
+.lf-admin-ui .ui-cohort-capacity { display: block; height: 4px; margin-top: 6px; overflow: hidden; border-radius: 2px; background: var(--ui-color-eef0f5); }
+.lf-admin-ui .ui-cohort-capacity > span { display: block; height: 100%; background: var(--ui-primary); }
+.lf-admin-ui.ui-cohort .ui-summary-head h2 { font-size: 16px; font-weight: 600; }
+.lf-admin-ui.ui-cohort .course-template-tabs { margin-top: 16px; }
+.lf-admin-ui.ui-cohort .course-cohort-detail-tabs-help { display: flex; align-items: center; gap: 6px; margin: 8px 0 0; }
+.lf-admin-ui.ui-cohort .mk-section { margin-top: 16px; }
+.lf-admin-ui .ui-cohort .course-cohort-readonly-label { display: inline-flex; align-items: center; gap: 4px; }
+.lf-admin-ui .ui-cohort-form__actions-group { display: flex; gap: 8px; margin-left: auto; }
+.lf-admin-ui .ui-cohort-inline-form { margin: 0 20px 16px; border: 1px solid var(--ui-border); border-radius: 7px; }
+.lf-admin-ui .ui-cohort-row-form { display: inline-flex; }
+.lf-admin-ui .ui-cohort-col-role { width: 170px; }
+.lf-admin-ui .ui-cohort-col-period { width: 200px; }
+.lf-admin-ui.ui-cohort .ui-summary-head p { margin: 2px 0 0; }
+.lf-admin-ui .cohort-student-transfer-intro { padding: 0 0 12px; }
+.lf-admin-ui .course-cohort-student-inline-form { margin: 16px 20px; padding: 16px 16px 0; border: 1px solid var(--ui-border); border-radius: 7px; }
+.lf-admin-ui .course-cohort-student-inline-form .ui-cohort-form__actions { margin: 16px -16px 0; }
+.lf-admin-ui .bulk-enrollment-selector__list table { min-width: 0; }
+.lf-admin-ui .bulk-enrollment-selector__list td { height: auto; padding: 8px 10px; border-right: 0; }
+.lf-admin-ui .course-cohort-teacher-removal-error { white-space: normal; }
+.lf-admin-ui .ui-cohort-col-count { width: 96px; }
+.lf-admin-ui .ui-cohort-line { display: block; }
+.lf-admin-ui .ui-cohort-col-slots { width: 210px; }
+.lf-admin-ui.ui-cohort .ui-summary-head .mk-table-top__actions { flex: none; flex-wrap: nowrap; white-space: nowrap; }
+.lf-admin-ui .ui-cohort-col-session-time { width: 210px; }
+.lf-admin-ui.ui-cohort .mk-name-text { display: block; white-space: normal; overflow-wrap: anywhere; }
+.lf-admin-ui .ui-cohort-session-table td { vertical-align: middle; }
+.lf-admin-ui .ui-cohort-session-table td strong { font-weight: 500; }
+.lf-admin-ui .course-cohort-schedules__inline-editor { margin: 16px 20px; padding: 16px; border: 1px solid var(--ui-border); border-radius: 7px; }
+.lf-admin-ui .course-cohort-schedules__inline-editor table,
+.lf-admin-ui .course-cohort-sessions form table { min-width: 0; }
+.lf-admin-ui .course-cohort-schedules__inline-editor :is(th, td) { text-align: left; }
+.lf-admin-ui .course-cohort-session-table-wrap { margin-top: 12px; }
+.lf-admin-ui :is(#session-batch-form, .course-cohort-session-form) { margin: 16px 20px; }
 .lf-admin-ui .ui-enroll-ended { display: block; margin-top: 2px; color: var(--ui-danger); white-space: nowrap; }
 .lf-admin-ui .ui-enroll-link { color: var(--ui-primary); }
 .lf-admin-ui .ui-enroll-dt-tip { display: inline-flex; align-items: center; gap: 4px; }
@@ -3281,6 +3324,7 @@
 .lf-admin-ui .enr-notes{padding:12px 16px}
 .lf-admin-ui .enr-notes .ui-field{margin-top:0}
 @media(max-width:680px){
+.lf-admin-ui .ui-cohort-form{grid-template-columns:minmax(0,1fr)}
 .lf-admin-ui .enr-success{gap:14px;padding:16px}
 .lf-admin-ui .enr-success__facts>div{flex:1 1 100%;padding:0;border-left:0}
   .lf-admin-ui .enr-table--grouped{min-width:0}

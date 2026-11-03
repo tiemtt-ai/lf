@@ -71,6 +71,9 @@ if ($registerCourseProductRoutes ?? false) {
     Route::post('/course-cohorts/{id}/complete', [CourseCohortController::class, 'complete'])
         ->name('course-cohorts.complete');
 
+    Route::delete('/course-cohorts', [CourseCohortController::class, 'bulkDestroy'])
+        ->name('course-cohorts.bulk-destroy');
+
     Route::post('/course-cohorts/{id}/archive', [CourseCohortController::class, 'archive'])
         ->name('course-cohorts.archive');
 

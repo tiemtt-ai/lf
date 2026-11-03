@@ -781,7 +781,7 @@ class CourseCohortStudentManagementTest extends TestCase
             ->assertSeeText(__('lf.LF_course_cohort_student_view_title'))
             ->assertSeeText($student->name)
             ->assertSeeText('ENR-'.str_pad((string) $enrollmentId, 6, '0', STR_PAD_LEFT))
-            ->assertSeeText('Xem ghi danh')
+            ->assertSee('Xem ghi danh', false)
             ->assertDontSeeText('Xem phân lớp')
             ->assertSee('cohort-student-list-filter', false)
             ->assertSee('cohort-student-list-table', false)

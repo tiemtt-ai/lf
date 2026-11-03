@@ -151,6 +151,8 @@
             <div class="admin-main">
                 @include('partials.backend.header')
                 <main id="admin-content" class="admin-content">
+                    {{-- Phones show the trail here, above the title; only one of the two copies is ever displayed. --}}
+                    <div class="admin-page-breadcrumb"><x-backend-breadcrumbs :breadcrumbs="$breadcrumbs" /></div>
                     @hasSection('page_back')
                         <div class="page-back">@yield('page_back')</div>
                     @endif

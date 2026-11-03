@@ -5791,16 +5791,6 @@
     .lf-admin-page .course-enrollment-index-table .course-template-manage { width: auto; max-width: 100%; flex: 0 0 auto; justify-self: start; box-sizing: border-box; }
 }
 
-@media (min-width: 768px) {
-    .lf-admin-page .course-cohort-manage-index { min-width: 0; width: 100%; }
-    .lf-admin-page .course-cohort-manage-index .course-cohort-index-sequence { width: 52px; min-width: 52px; padding-left: 8px; padding-right: 8px; text-align: center; box-sizing: border-box; }
-    .lf-admin-page .course-cohort-manage-index .course-cohort-index-status { width: 140px; text-align: center; }
-    .lf-admin-page .course-cohort-manage-index .course-cohort-index-actions { width: 128px; min-width: 128px; text-align: center; }
-}
-@media (max-width: 767px) {
-    .lf-admin-page .course-cohort-manage-index .course-template-manage { width: auto; max-width: 100%; flex: 0 0 auto; justify-self: start; box-sizing: border-box; }
-}
-
 /* Consistent utility columns for the five Course management lists. */
 @media (min-width: 768px) {
     .lf-admin-page .admin-managed-list .admin-managed-sequence {

@@ -390,10 +390,7 @@ class BackendLayoutNavigationTest extends TestCase
             "__('lf.LF_course_cohort_common_'.\$cohort->status)",
             $cohortIndex
         );
-        $this->assertStringContainsString('course-cohort-status-badge--draft', $cohortIndex);
-        $this->assertStringContainsString('badge-success', $cohortIndex);
-        $this->assertStringContainsString('course-cohort-status-badge--completed', $cohortIndex);
-        $this->assertStringContainsString('badge-danger', $cohortIndex);
+        $this->assertStringContainsString('ui-status ui-status--{{ $cohortStatusTone($cohort->status) }}', $cohortIndex);
 
         $productIndex = file_get_contents(
             base_path('resources/views/course-products/index.blade.php')
@@ -615,11 +612,6 @@ class BackendLayoutNavigationTest extends TestCase
     {
         $tableViews = [
             'resources/views/course-cohort-students/index.blade.php',
-            'resources/views/course-cohorts/index.blade.php',
-            'resources/views/course-cohorts/show.blade.php',
-            'resources/views/course-cohorts/partials/tabs/teachers.blade.php',
-            'resources/views/course-cohorts/partials/tabs/schedules.blade.php',
-            'resources/views/course-cohorts/partials/tabs/sessions.blade.php',
             'resources/views/media-categories/index.blade.php',
         ];
 

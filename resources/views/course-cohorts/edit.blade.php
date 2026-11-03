@@ -3,12 +3,23 @@
 @section('title', __('lf.LF_course_cohort_common_edit'))
 @section('page_title', __('lf.LF_course_cohort_common_edit'))
 
+@section('page_title_hidden', '1')
+
+@section('page_back')
+    <x-page-back-link :href="route($routePrefix.'.show', $cohort->id)" :label="__('lf.LF_course_cohort_common_back_to_detail')" />
+@endsection
+
+@section('vite')
+    @parent
+    @vite(['resources/css/admin/admin-ui-kit.css', 'resources/js/admin-ui-kit-controls.js'])
+@endsection
+
 @section('content')
-    @if (session('success'))
-        <div class="admin-alert admin-alert-success">{{ session('success') }}</div>
-    @endif
+<div class="lf-admin-ui lf-admin-ui--list ui-cohort">
+    <x-ui-list-toasts />
+
     @if ($errors->any())
-        <div class="admin-alert admin-alert-danger admin-form-card">
+        <div class="admin-alert admin-alert-danger" role="alert">
             <ul>
                 @foreach ($errors->all() as $error)
                     <li>{{ $error }}</li>
@@ -17,65 +28,22 @@
         </div>
     @endif
 
-    <div class="course-cohort-edit-navigation">
-        <a class="cohort-detail-back" href="{{ route($routePrefix.'.show', $cohort->id) }}">
-            <span aria-hidden="true">←</span>
-            {{ __('lf.LF_course_cohort_common_back_to_detail') }}
-        </a>
-    </div>
+    @include('course-cohorts.partials.identity')
 
-    <div x-data="{ lockedReason: '' }"
-         x-init="$nextTick(() => $refs.tabs.querySelector('[aria-current=page]')?.scrollIntoView({ behavior: 'auto', block: 'nearest', inline: 'nearest' }))">
-        @if (collect($cohortTabs)->contains('read_only', true))
-            <span class="course-cohort-readonly-label">
-                <x-backend-icon name="lock" />
-                {{ __('lf.LF_course_cohort_tab_read_only') }}
-            </span>
-        @endif
-        <nav x-ref="tabs" class="course-template-tabs course-cohort-detail-tabs course-cohort-edit-tabs" aria-label="{{ __('lf.LF_course_cohort_common_tabs') }}">
-            @foreach ($cohortTabs as $tab)
-                @continue(in_array($tab['key'], ['attendance', 'recordings'], true))
-                <span class="sr-only">{{ $tab['note'] }}</span>
-                @php($editRoute = $tab['key'] === 'overview'
-                    ? route($routePrefix.'.edit', $cohort->id)
-                    : $tab['route'])
-                @if ($tab['accessible'])
-                    <a @class(['course-template-tab', 'is-active' => $tab['key'] === 'overview'])
-                       href="{{ $editRoute }}" @if($tab['key'] === 'overview') aria-current="page" @endif>
-                        {{ $tab['label'] }}
-                        @if ($tab['read_only'])
-                            <x-backend-icon name="lock" class="course-cohort-detail-tab__lock-icon" />
-                            <span class="sr-only">{{ __('lf.LF_course_cohort_tab_read_only') }}</span>
-                        @endif
-                    </a>
-                @else
-                    <button type="button" class="course-template-tab course-cohort-detail-tab--locked" aria-disabled="true"
-                            title="{{ $tab['locked_reason'] }}"
-                            x-on:click="lockedReason = @js($tab['locked_reason'])"
-                            x-on:focus="lockedReason = @js($tab['locked_reason'])">
-                        <span>{{ $tab['label'] }}</span>
-                        <x-backend-icon name="lock" class="course-cohort-detail-tab__lock-icon" />
-                    </button>
-                    <span class="sr-only">{{ $tab['locked_reason'] }}</span>
-                @endif
-            @endforeach
-        </nav>
-        <p class="admin-form-section-help course-cohort-detail-tabs-help" role="status" aria-live="polite">
-            <span class="course-cohort-detail-tabs-help__icon" aria-hidden="true">i</span>
-            <span x-text="lockedReason || @js(collect($cohortTabs)->firstWhere('key', 'overview')['note'])"></span>
-        </p>
-    </div>
+    @include('course-cohorts.partials.page-tabs', [
+        'navClass' => 'course-cohort-edit-tabs',
+        'tabLink' => fn (array $tab): string => $tab['key'] === 'overview' ? route($routePrefix.'.edit', $cohort->id) : $tab['route'],
+    ])
 
-    <div class="admin-card admin-form-card admin-form-surface course-cohort-edit-overview">
-        <form method="POST" action="{{ route($routePrefix.'.update', $cohort->id) }}"
-              class="admin-form-standard" x-data="{ submitting: false }" x-on:submit="submitting = true">
-            @csrf
-            @method('PUT')
+    <form method="POST" action="{{ route($routePrefix.'.update', $cohort->id) }}" class="mk-section course-cohort-edit-overview"
+          x-data="{ submitting: false }" x-on:submit="submitting = true">
+        @csrf
+        @method('PUT')
 
-            @include('course-cohorts.partials.form', [
-                'cohort' => $cohort,
-                'submitLabel' => __('lf.LF_common_button_save_changes'),
-            ])
-        </form>
-    </div>
+        @include('course-cohorts.partials.form', [
+            'cohort' => $cohort,
+            'submitLabel' => __('lf.LF_common_button_save_changes'),
+        ])
+    </form>
+</div>
 @endsection
