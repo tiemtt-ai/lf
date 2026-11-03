@@ -3132,6 +3132,10 @@
 .lf-admin-ui .ui-cohort-detail-summary { padding: 0; }
 .lf-admin-ui .ui-cohort-detail-summary .ui-framework-description { font-size: 12px; line-height: 17.4px; font-weight: 400; }
 .lf-admin-ui .ui-cohort-seat-warning { margin: 16px 20px 0; }
+/* A short form: its dropdowns may leave the popup instead of being cut by the scroll box. Only low screens keep scrolling. */
+@media (min-width: 641px) and (min-height: 480px), (min-height: 700px) {
+    .lf-admin-ui .ui-modal.ui-cohort-teacher-modal, .lf-admin-ui .ui-cohort-teacher-modal .ui-modal__body { overflow: visible; }
+}
 .lf-admin-ui .ui-cohort-tab-notice { margin: 16px 20px; }
 /* Schedule popup: fields on the left, the live preview stays in view on the right. */
 .lf-admin-ui .ui-cohort-registration-note { display: block; margin-top: 4px; }

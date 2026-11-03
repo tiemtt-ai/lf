@@ -49,7 +49,7 @@
             </div>
 
             @if ($cohort->is_mutable)
-                <dialog x-ref="assignDialog" class="ui-modal" data-columns="2" aria-labelledby="cohort-teacher-assign-title"
+                <dialog x-ref="assignDialog" class="ui-modal ui-cohort-teacher-modal" data-columns="2" aria-labelledby="cohort-teacher-assign-title"
                         x-on:close="open = false" x-on:cancel="if (submitting) $event.preventDefault()">
                     <form id="cohort-teacher-assignment-form" method="POST" action="{{ route('admin.course-cohorts.teachers.store', $cohort->id) }}"
                           class="ui-modal__form" x-ref="assignForm"
