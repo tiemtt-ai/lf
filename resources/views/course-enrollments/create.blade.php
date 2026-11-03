@@ -62,15 +62,13 @@
 
         <div class="enr-success" role="status">
             <span class="enr-success__icon"><x-backend-icon name="check" class="ui-icon" /></span>
-            <div>
+            <div class="enr-success__body">
                 <h3>{{ __('lf.LF_bulk_enrollment_result_success_title') }}</h3>
                 <p>{{ __('lf.LF_bulk_enrollment_result_success_content', ['count' => $completedResult['summary']['total']]) }}</p>
-                <dl class="enr-facts" aria-label="{{ __('lf.LF_bulk_enrollment_completion_information') }}">
-                    <div><dt>{{ __('lf.LF_bulk_enrollment_completed_at') }}</dt><dd>{{ $formatCompletedDateTime($completedContext['completed_at'] ?? null) }}</dd></div>
-                    <div><dt>{{ __('lf.LF_bulk_enrollment_completed_by') }}</dt><dd>{{ $completedContext['completed_by_name'] ?? '—' }}</dd></div>
+                <dl class="enr-success__facts" aria-label="{{ __('lf.LF_bulk_enrollment_completion_information') }}">
                     <div><dt>{{ __('lf.LF_course_enrollment_common_enrolled_at') }}</dt><dd>{{ $formatCompletedDateTime($completedConfiguration['enrolled_at'] ?? ($completedContext['completed_at'] ?? null)) }}</dd></div>
-                    <div><dt>{{ __('lf.LF_bulk_enrollment_design_status') }}</dt><dd><span class="enr-badge enr-badge--success">{{ __('lf.LF_course_enrollment_common_active') }}</span></dd></div>
-                    <div><dt>{{ __('lf.LF_bulk_enrollment_design_source') }}</dt><dd>{{ __('lf.LF_course_enrollment_common_source_admin') }}</dd></div>
+                    <div><dt>{{ __('lf.LF_bulk_enrollment_completed_by') }}</dt><dd>{{ $completedContext['completed_by_name'] ?? '—' }} <span class="enr-success__muted">· {{ __('lf.LF_course_enrollment_common_source_admin') }}</span></dd></div>
+                    <div><dt>{{ __('lf.LF_bulk_enrollment_design_status') }}</dt><dd><span class="enr-success__status">{{ __('lf.LF_course_enrollment_common_active') }}</span></dd></div>
                 </dl>
             </div>
         </div>
