@@ -69,7 +69,7 @@
             </dl>
         </section>
 
-        <section class="mk-section" aria-labelledby="cohort-show-dates">
+        <section class="mk-section ui-cohort-dates" aria-labelledby="cohort-show-dates">
             <div class="ui-summary-head"><h2 id="cohort-show-dates">{{ __('lf.LF_course_cohort_create_group_dates') }}</h2></div>
             <dl class="ui-summary ui-enroll-summary">
                 <div class="ui-summary__item">
@@ -91,20 +91,30 @@
              detailTrigger: null,
              openDetail(item, event) {
                  this.detail = item; this.detailTrigger = event.currentTarget;
-                 this.$nextTick(() => this.$refs.detailClose.focus())
+                 this.$refs.detailDialog.showModal()
              },
              closeDetail() {
+                 this.$refs.detailDialog.close()
+             },
+             detailClosed() {
                  this.detail = null;
                  this.$nextTick(() => this.detailTrigger?.focus())
              }
          }"
-         x-on:keydown.escape.window="if (detail) closeDetail()">
+         x-init="$watch('formOpen', open => { const dialog = $refs.manageDialog; if (! dialog) return; open ? dialog.showModal() : dialog.close() }); if (formOpen) $refs.manageDialog?.showModal()">
         <div class="ui-summary-head">
             <h2 id="cohort-show-students">{{ __('lf.LF_course_cohort_student_view_title') }}</h2>
         </div>
 
         @if ($cohort->is_mutable)
             @include('course-cohorts.partials.tabs.student-manager')
+        @endif
+
+        @if ($cohort->is_mutable && $cancelledSeatCount > 0)
+            <div class="ui-banner ui-cohort-seat-warning" role="status">
+                <x-backend-icon name="circle" class="ui-icon ui-banner__icon" />
+                <span class="ui-banner__text">{{ trans_choice('lf.LF_course_cohort_student_cancelled_seat_warning', $cancelledSeatCount, ['count' => $cancelledSeatCount]) }}</span>
+            </div>
         @endif
 
         <div class="mk-tablebar mk-tablebar--filters ui-enroll-filterbar">
@@ -124,11 +134,9 @@
                 <input type="hidden" name="tab" value="students">
             </form>
             <div class="mk-table-top__actions cohort-student-list-heading-actions">
-                <span class="ui-caption">{{ __('lf.LF_course_cohort_student_capacity_count', ['current' => $activeMembershipCount, 'capacity' => $cohort->capacity ?? '∞']) }}</span>
                 @if ($cohort->is_mutable)
                     <button type="button" class="ui-button ui-button--outline cursor-interaction"
-                            x-show="!formOpen" x-cloak x-on:click="formOpen = true"
-                            x-bind:aria-expanded="formOpen.toString()" aria-controls="cohort-student-manager-form">
+                            aria-haspopup="dialog" x-on:click="formOpen = true">
                         {{ __('lf.LF_course_cohort_student_manage_heading') }}
                     </button>
                 @endif
@@ -136,9 +144,10 @@
         </div>
 
         <div class="mk-table-scroll" role="region" aria-labelledby="cohort-show-students" tabindex="0">
-            <table class="cohort-student-list-table">
-                <colgroup><col><col><col class="mk-col-status"><col class="mk-col-action"></colgroup>
+            <table class="ui-cohort-roster-table">
+                <colgroup><col class="mk-col-sequence"><col><col><col class="mk-col-status"><col class="mk-col-action"></colgroup>
                 <thead><tr>
+                    <th scope="col" class="mk-sequence">{{ __('lf.table_no') }}</th>
                     <th scope="col" class="mk-text-cell">{{ __('lf.LF_course_cohort_student_common_student') }}</th>
                     <th scope="col" class="mk-text-cell">{{ __('lf.LF_course_cohort_student_common_enrollment') }}</th>
                     <th scope="col" class="ux-action-cell">{{ __('lf.LF_course_cohort_student_common_status') }}</th>
@@ -148,6 +157,7 @@
                 @forelse ($students as $student)
                     @php($studentTone = match ($student->enrollment_status) { 'active' => 'active', 'pending' => 'draft', 'suspended' => 'inactive', 'expired', 'cancelled' => 'danger', default => 'archived' })
                     <tr>
+                        <td class="mk-sequence" data-label="{{ __('lf.table_no') }}">{{ $students->firstItem() + $loop->index }}</td>
                         <td class="mk-text-cell" data-label="{{ __('lf.LF_course_cohort_student_common_student') }}">
                             <span class="mk-name-text">{{ $student->student_name }}</span>
                             <span class="ui-caption ui-framework-description">{{ $student->student_email }}</span>
@@ -156,8 +166,11 @@
                             <span class="mk-name-text">ENR-{{ str_pad((string) $student->enrollment_id, 6, '0', STR_PAD_LEFT) }}</span>
                             <span class="ui-caption ui-framework-description">{{ __('lf.LF_course_cohort_student_joined_short') }}: {{ \Illuminate\Support\Carbon::parse($student->joined_at)->format('d/m/Y H:i') }}</span>
                         </td>
-                        <td class="ux-action-cell cohort-student-list-status" data-label="{{ __('lf.LF_course_cohort_student_common_status') }}">
+                        <td class="ux-action-cell" data-label="{{ __('lf.LF_course_cohort_student_common_status') }}">
                             <span class="ui-status ui-status--{{ $studentTone }}">{{ __('lf.LF_course_enrollment_common_'.$student->enrollment_status) }}</span>
+                            @if ($cohort->is_mutable && $student->enrollment_status === 'cancelled')
+                                <span class="ui-caption ui-cohort-seat-note"><x-backend-icon name="info" class="ui-icon" />{{ __('lf.LF_course_cohort_student_holds_seat') }}</span>
+                            @endif
                         </td>
                         <td class="ux-action-cell" data-label="{{ __('lf.table_actions') }}">
                             <button type="button" class="ux-row-edit cursor-interaction"
@@ -185,7 +198,7 @@
                     </tr>
                 @empty
                     <tr class="mk-empty-row">
-                        <td class="mk-empty" colspan="4">
+                        <td class="mk-empty" colspan="5">
                             <div role="status">
                                 <strong>{{ $studentKeyword !== '' ? __('lf.LF_course_cohort_student_filter_empty') : __('lf.LF_course_cohort_student_class_empty') }}</strong>
                                 <p class="ui-caption">{{ $studentKeyword !== '' ? __('lf.LF_course_cohort_student_filter_empty_help') : __('lf.LF_course_cohort_student_class_empty_help') }}</p>

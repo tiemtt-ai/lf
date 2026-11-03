@@ -200,6 +200,7 @@ class CourseCohortStudentController extends Controller
             'review_ends_at' => $this->formatEnrollmentDateTime($enrollment->review_ends_at),
             'detail_url' => route('admin.course-enrollments.show', $enrollment->id),
             'current' => (bool) ($enrollment->current_membership ?? false),
+            'account_active' => ($enrollment->student_status ?? 'active') === 'active',
             'eligible' => $enrollment->status === 'active' && ($enrollment->student_status ?? 'active') === 'active',
         ]);
 
@@ -280,6 +281,7 @@ class CourseCohortStudentController extends Controller
         $validated = Validator::make($request->all(), [
             'enrollment_ids' => ['nullable', 'array'],
             'enrollment_ids.*' => ['integer', 'min:1', 'distinct'],
+            'roster_snapshot' => ['nullable', 'string', 'regex:/^\d+(,\d+)*$/'],
             'customer_id' => ['prohibited'],
             'cohort_id' => ['prohibited'],
             'product_id' => ['prohibited'],
@@ -307,7 +309,17 @@ class CourseCohortStudentController extends Controller
             $currentMemberships = DB::table('core_course_cohort_students')
                 ->where('customer_id', $customerId)->where('cohort_id', $cohort)
                 ->where('status', 'active')->lockForUpdate()->get()->keyBy('enrollment_id');
-            $currentIds = $currentMemberships->keys()->map(fn ($id) => (int) $id)->all();
+            $currentIds = $currentMemberships->keys()->map(fn ($id) => (int) $id)->sort()->values()->all();
+
+            // Sync replaces the whole roster, so a form opened before someone else's
+            // change would silently undo it. The snapshot is what that form was shown.
+            throw_if(
+                $request->exists('roster_snapshot') && (string) ($validated['roster_snapshot'] ?? '') !== implode(',', $currentIds),
+                ValidationException::withMessages([
+                    'roster_snapshot' => __('lf.LF_course_cohort_student_validation_roster_changed'),
+                ])
+            );
+
             $addIds = array_values(array_diff($selectedIds, $currentIds));
             $removeIds = array_values(array_diff($currentIds, $selectedIds));
 

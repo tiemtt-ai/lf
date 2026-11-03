@@ -103,6 +103,19 @@ class CourseCohortStudentManagementTest extends TestCase
                 'LF_course_cohort_student_search_empty',
                 'LF_course_cohort_student_selected_empty',
                 'LF_course_cohort_student_inactive_warning',
+                'LF_course_cohort_student_cancelled_seat_warning',
+                'LF_course_cohort_student_holds_seat',
+                'LF_course_cohort_student_validation_roster_changed',
+                'LF_course_cohort_student_sync_remove_title',
+                'LF_course_cohort_student_sync_remove_confirm',
+                'LF_course_cohort_student_sync_confirm_save',
+                'LF_course_cohort_student_account_inactive',
+                'LF_course_cohort_student_capacity_full',
+                'LF_course_cohort_student_capacity_over',
+                'LF_course_cohort_student_change_add',
+                'LF_course_cohort_student_change_remove',
+                'LF_course_cohort_student_change_none',
+                'LF_course_cohort_student_selected_heading_capacity',
             ] as $key) {
                 $translation = app('translator')->get("lf.{$key}", [], $locale);
                 $this->assertNotSame("lf.{$key}", $translation, "Missing {$locale} translation for {$key}");
@@ -614,7 +627,7 @@ class CourseCohortStudentManagementTest extends TestCase
             ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=students&manage=1")
             ->assertOk()
             ->assertSeeText(__('lf.LF_course_cohort_student_view_title'))
-            ->assertSeeText(__('lf.LF_course_cohort_student_eligible_heading'))
+            ->assertSeeText(__('lf.LF_course_cohort_student_pick_heading'))
             ->assertSeeText(__('lf.LF_course_cohort_student_selected_search'))
             ->assertSee(route('admin.course-cohorts.show', ['id' => $cohortId, 'tab' => 'students']), false)
             ->assertSee("/admin/course-cohorts/{$cohortId}/students", false);
@@ -702,6 +715,98 @@ class CourseCohortStudentManagementTest extends TestCase
             ->assertJsonPath('data.0.current', true);
     }
 
+    public function test_student_tab_warns_when_a_cancelled_enrollment_still_holds_a_seat(): void
+    {
+        [$customerId, $admin, $student, $productId, $versionId] = $this->learningContext();
+        $cohortId = $this->createCohort($customerId, $productId, $versionId, capacity: 2);
+        $enrollmentId = $this->createEnrollment($customerId, $student->id, $productId, $versionId);
+        $this->createMembership($customerId, $cohortId, $enrollmentId, $productId, $student->id);
+        $url = "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=students";
+        $warning = trans_choice('lf.LF_course_cohort_student_cancelled_seat_warning', 1, ['count' => 1]);
+
+        // The manage popup's templates always carry the label, so the row is what changes the count.
+        $seatLabels = fn (): int => substr_count($this->actingAs($admin)->get($url)->getContent(), __('lf.LF_course_cohort_student_holds_seat'));
+        $this->actingAs($admin)->get($url)->assertOk()->assertDontSeeText($warning);
+        $labelsWithoutCancelled = $seatLabels();
+
+        DB::table('core_course_enrollments')->where('id', $enrollmentId)->update(['status' => 'cancelled']);
+
+        // Counts the whole roster, not the filtered page, and stays until explicit removal.
+        $this->actingAs($admin)->get($url.'&student_keyword=no-match-keyword')->assertOk()
+            ->assertSeeText($warning);
+        $this->actingAs($admin)->get($url)->assertOk()->assertSeeText($warning);
+        $this->assertSame($labelsWithoutCancelled + 1, $seatLabels());
+
+        // A closed class can no longer be changed, so the warning has nothing to act on.
+        DB::table('core_course_cohorts')->where('id', $cohortId)->update(['status' => 'completed']);
+
+        $this->actingAs($admin)->get($url)->assertOk()
+            ->assertDontSeeText($warning)
+            ->assertDontSeeText(__('lf.LF_course_cohort_student_holds_seat'));
+    }
+
+    public function test_sync_rejects_a_form_opened_before_the_roster_changed(): void
+    {
+        [$customerId, $admin, $seated, $productId, $versionId] = $this->learningContext();
+        $cohortId = $this->createCohort($customerId, $productId, $versionId, capacity: 5);
+        $seatedEnrollment = $this->createEnrollment($customerId, $seated->id, $productId, $versionId);
+        $this->createMembership($customerId, $cohortId, $seatedEnrollment, $productId, $seated->id);
+        $newcomer = $this->createUser($customerId, 'student');
+        $newcomerEnrollment = $this->createEnrollment($customerId, $newcomer->id, $productId, $versionId);
+        $tabUrl = "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=students";
+        $syncUrl = "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/students";
+
+        // The form was opened while the class was still empty, then the seated student arrived.
+        $this->actingAs($admin)->from($tabUrl)->put($syncUrl, [
+            'roster_snapshot' => '',
+            'enrollment_ids' => [$newcomerEnrollment],
+        ])->assertRedirect($tabUrl)->assertSessionHasErrors('roster_snapshot');
+
+        $this->assertSame(
+            [$seatedEnrollment],
+            DB::table('core_course_cohort_students')->where('cohort_id', $cohortId)->where('status', 'active')
+                ->pluck('enrollment_id')->map(fn ($id) => (int) $id)->all()
+        );
+
+        // Starts over from the fresh roster: the stale pick is not carried back.
+        $this->actingAs($admin)->get($tabUrl)->assertOk()
+            ->assertSeeText(__('lf.LF_course_cohort_student_validation_roster_changed'))
+            ->assertDontSee($newcomer->email);
+
+        $this->actingAs($admin)->from($tabUrl)->put($syncUrl, [
+            'roster_snapshot' => (string) $seatedEnrollment,
+            'enrollment_ids' => [$seatedEnrollment, $newcomerEnrollment],
+        ])->assertRedirect($tabUrl)->assertSessionHasNoErrors();
+
+        $this->assertSame(2, DB::table('core_course_cohort_students')
+            ->where('cohort_id', $cohortId)->where('status', 'active')->count());
+    }
+
+    public function test_failed_sync_keeps_the_picks_for_the_manage_popup(): void
+    {
+        [$customerId, $admin, $seated, $productId, $versionId] = $this->learningContext();
+        $cohortId = $this->createCohort($customerId, $productId, $versionId, capacity: 1);
+        $seatedEnrollment = $this->createEnrollment($customerId, $seated->id, $productId, $versionId);
+        $this->createMembership($customerId, $cohortId, $seatedEnrollment, $productId, $seated->id);
+        $newcomer = $this->createUser($customerId, 'student');
+        $newcomerEnrollment = $this->createEnrollment($customerId, $newcomer->id, $productId, $versionId);
+        $tabUrl = "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=students";
+
+        $otherStudent = $this->createUser($customerId, 'student');
+        $ineligibleEnrollment = $this->createEnrollment($customerId, $otherStudent->id, $productId, $versionId);
+        DB::table('core_course_enrollments')->where('id', $ineligibleEnrollment)->update(['status' => 'cancelled']);
+
+        $this->actingAs($admin)->from($tabUrl)->put("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/students", [
+            'roster_snapshot' => (string) $seatedEnrollment,
+            'enrollment_ids' => [$seatedEnrollment, $newcomerEnrollment, $ineligibleEnrollment],
+        ])->assertRedirect($tabUrl)->assertSessionHasErrors('enrollment_ids');
+
+        $this->actingAs($admin)->get($tabUrl)->assertOk()
+            ->assertSeeText(__('lf.LF_course_cohort_student_validation_capacity'))
+            ->assertSee($newcomer->email)
+            ->assertDontSee($otherStudent->email);
+    }
+
     public function test_edit_keeps_inactive_current_student_visible_and_does_not_recreate_unchanged_membership(): void
     {
         [$customerId, $admin, $student, $productId, $versionId] = $this->learningContext();
@@ -718,7 +823,7 @@ class CourseCohortStudentManagementTest extends TestCase
             ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=students&manage=1")
             ->assertOk()
             ->assertSee($student->name)
-            ->assertSeeText(__('lf.LF_course_cohort_student_inactive_warning'));
+            ->assertSeeText(__('lf.LF_course_cohort_student_holds_seat'));
 
         $this->actingAs($admin)
             ->getJson("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/students/search?manage=1")
@@ -727,6 +832,7 @@ class CourseCohortStudentManagementTest extends TestCase
                 'id' => $enrollmentId,
                 'current' => true,
                 'eligible' => false,
+                'account_active' => true,
             ]);
 
         $this->actingAs($admin)
@@ -784,9 +890,8 @@ class CourseCohortStudentManagementTest extends TestCase
             ->assertSee('Xem ghi danh', false)
             ->assertDontSeeText('Xem phân lớp')
             ->assertSee('cohort-student-list-filter', false)
-            ->assertSee('cohort-student-list-table', false)
+            ->assertSee('ui-cohort-roster-table', false)
             ->assertSee('cohort-student-list-heading-actions', false)
-            ->assertSee('cohort-student-list-status', false)
             ->assertSee('cohort-enrollment-detail-modal', false)
             ->assertSee('data-label="Học viên"', false)
             ->assertDontSee('class="admin-table-sequence"', false)

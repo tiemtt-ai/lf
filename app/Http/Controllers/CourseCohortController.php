@@ -208,6 +208,10 @@ class CourseCohortController extends Controller
             'studentKeyword' => '',
             'students' => collect(),
             'selectedEnrollments' => collect(),
+            'cancelledSeatCount' => 0,
+            'rosterSnapshot' => '',
+            'retainedEnrollmentIds' => null,
+            'retainedNewEnrollments' => collect(),
             'teachers' => collect(),
             'availableTeachers' => collect(),
             'schedules' => collect(),
@@ -300,7 +304,58 @@ class CourseCohortController extends Controller
             'students' => $students,
             'studentKeyword' => $studentKeyword,
             'selectedEnrollments' => $selectedEnrollments,
+            'cancelledSeatCount' => $selectedEnrollments->where('status', 'cancelled')->count(),
+            'rosterSnapshot' => $selectedEnrollments->pluck('id')->map(fn ($enrollmentId) => (int) $enrollmentId)->sort()->implode(','),
+            ...$this->retainedStudentSelection($request, $customerId, $id, $selectedEnrollments->pluck('id')->all()),
         ];
+    }
+
+    /**
+     * Picks that failed validation come back to the manage popup instead of being lost.
+     * A roster conflict starts over from the fresh roster: the old picks were made
+     * against a list that no longer exists, and would remove what was just added.
+     *
+     * @param  list<int>  $currentIds
+     */
+    private function retainedStudentSelection(Request $request, int $customerId, int $id, array $currentIds): array
+    {
+        $oldIds = $request->old('enrollment_ids');
+
+        if (! is_array($oldIds) || session('errors')?->has('roster_snapshot')) {
+            return ['retainedEnrollmentIds' => null, 'retainedNewEnrollments' => collect()];
+        }
+
+        $oldIds = array_values(array_unique(array_map('intval', array_filter($oldIds, 'is_numeric'))));
+        $newEnrollments = DB::table('core_course_enrollments as enrollments')
+            ->join('users as students', function ($join) use ($customerId): void {
+                $join->on('students.id', '=', 'enrollments.student_id')
+                    ->where('students.customer_id', $customerId)
+                    ->where('students.role', 'student')
+                    ->where('students.status', 'active');
+            })
+            ->join('core_course_cohorts as cohorts', function ($join) use ($customerId, $id): void {
+                $join->on('cohorts.product_id', '=', 'enrollments.product_id')
+                    ->on('cohorts.version_id', '=', 'enrollments.version_id')
+                    ->where('cohorts.customer_id', $customerId)
+                    ->where('cohorts.id', $id);
+            })
+            ->where('enrollments.customer_id', $customerId)
+            ->where('enrollments.status', 'active')
+            ->whereIn('enrollments.id', array_values(array_diff($oldIds, $currentIds)))
+            ->whereNotExists(function ($query) use ($customerId): void {
+                $query->selectRaw('1')->from('core_course_cohort_students as memberships')
+                    ->whereColumn('memberships.enrollment_id', 'enrollments.id')
+                    ->where('memberships.customer_id', $customerId)
+                    ->where('memberships.status', 'active');
+            })
+            ->orderBy('students.name')
+            ->get([
+                'enrollments.id', 'enrollments.status',
+                'students.name as student_name', 'students.email as student_email',
+                'students.status as student_status',
+            ]);
+
+        return ['retainedEnrollmentIds' => $oldIds, 'retainedNewEnrollments' => $newEnrollments];
     }
 
     private function teacherTabData(int $customerId, int $id): array

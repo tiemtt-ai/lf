@@ -1827,7 +1827,7 @@ class CourseCohortManagementTest extends TestCase
             ->assertOk();
         $students->assertSee(route('admin.course-cohorts.students.sync', $cohortId), false)
             ->assertSee('course-cohort-student-inline-form', false)
-            ->assertSee('course-cohort-student-name', false)
+            ->assertSee('ui-cohort-roster-table', false)
             ->assertDontSee(route('admin.course-cohorts.edit', ['id' => $cohortId, 'tab' => 'students']), false);
 
         $this->actingAs($admin)

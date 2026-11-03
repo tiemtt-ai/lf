@@ -3,6 +3,10 @@
     $activeKey ??= 'overview';
     $tabLink ??= fn (array $tab): string => $tab['route'];
     $activeNote = collect($cohortTabs)->firstWhere('key', $activeKey)['note'] ?? $cohortTabs[0]['note'];
+    // The overview note is a setup checklist: once a class left Draft it no longer applies.
+    if ($activeKey === 'overview' && isset($cohort) && $cohort->status !== 'draft') {
+        $activeNote = '';
+    }
 @endphp
 <div x-data="{ lockedReason: '' }"
      x-init="$nextTick(() => $refs.tabs.querySelector('[aria-current=page]')?.scrollIntoView({ behavior: 'auto', block: 'nearest', inline: 'nearest' }))">
@@ -34,7 +38,7 @@
             @endif
         @endforeach
     </nav>
-    <p class="ui-caption course-cohort-detail-tabs-help" role="status" aria-live="polite">
+    <p class="ui-caption course-cohort-detail-tabs-help" role="status" aria-live="polite" x-cloak x-show="lockedReason || @js($activeNote)">
         <x-backend-icon name="info" class="ui-icon" aria-hidden="true" />
         <span x-text="lockedReason || @js($activeNote)"></span>
     </p>
