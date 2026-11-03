@@ -86,7 +86,7 @@
     @elseif ($activeTab === 'students')
     <section class="mk-section course-cohort-students-readonly" aria-labelledby="cohort-show-students"
          x-data="{
-             formOpen: @js($errors->any() || request()->boolean('manage')),
+             formOpen: @js($errors->hasAny(['enrollment_ids', 'enrollment_ids.*', 'roster_snapshot']) || request()->boolean('manage')),
              detail: null,
              detailTrigger: null,
              openDetail(item, event) {

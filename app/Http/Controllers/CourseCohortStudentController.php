@@ -329,6 +329,12 @@ class CourseCohortStudentController extends Controller
                 ]);
             }
 
+            // ADR-0022: a legacy class bound to a self-paced course can still shrink, but takes no new member.
+            throw_if(
+                $addIds !== [] && ! app(CourseCohortVersionResolver::class)->runsInClass($customerId, (int) $lockedCohort->version_id),
+                ValidationException::withMessages(['enrollment_ids' => __('lf.LF_course_type_cohort_legacy_self_paced')])
+            );
+
             // Capacity was already validated once for the whole selection above,
             // so the per-row check is skipped here rather than re-run against
             // counts that do not yet reflect the removals below.

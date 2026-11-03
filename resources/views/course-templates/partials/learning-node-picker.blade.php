@@ -96,7 +96,7 @@
                 <span class="ui-caption" aria-live="polite" x-text="@js(__('lf.LF_course_template_learning_picker_count')).replace(':count', chosen.length)"></span>
                 <button type="button" class="ui-button cursor-interaction" x-on:click="$el.closest('form').reset(); chosen = []; invalid = false; $el.closest('dialog').close()">{{ __('lf.LF_common_button_cancel') }}</button>
                 <button type="submit" class="ui-button ui-button--primary cursor-interaction" x-bind:disabled="chosen.length === 0 || saving"
-                        data-loading-label="{{ __('lf.LF_course_template_learning_attaching') }}">{{ __('lf.LF_course_template_learning_submit') }}</button>
+                        data-loading-label="{{ __('lf.LF_course_template_learning_attaching') }}"><x-backend-icon name="check" class="ui-icon" />{{ __('lf.LF_course_template_learning_submit') }}</button>
             </footer>
         </form>
     @endif

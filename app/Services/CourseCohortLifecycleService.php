@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -93,6 +94,27 @@ class CourseCohortLifecycleService
             ->unique()
             ->values()
             ->all();
+    }
+
+    /**
+     * What completing the Cohort now would leave behind. Informs the confirmation only: completion stays allowed.
+     *
+     * @return array<int, string>
+     */
+    public function completionWarnings(int $customerId, object $cohort, int $activeMembershipCount): array
+    {
+        $openSessions = DB::table('core_liveclass_sessions')
+            ->where('customer_id', $customerId)
+            ->where('cohort_id', $cohort->id)
+            ->whereIn('status', ['scheduled', 'live'])
+            ->count();
+        $endsLater = $cohort->end_date && Carbon::parse($cohort->end_date)->isAfter(today());
+
+        return array_values(array_filter([
+            $endsLater ? __('lf.LF_course_cohort_complete_warning_end_date', ['date' => Carbon::parse($cohort->end_date)->format('d/m/Y')]) : null,
+            $openSessions > 0 ? __('lf.LF_course_cohort_complete_warning_sessions', ['count' => $openSessions]) : null,
+            $activeMembershipCount > 0 ? __('lf.LF_course_cohort_complete_warning_students', ['count' => $activeMembershipCount]) : null,
+        ]));
     }
 
     public function activationIssues(int $customerId, int $cohortId): array

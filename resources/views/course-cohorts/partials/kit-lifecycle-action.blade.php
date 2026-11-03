@@ -13,11 +13,19 @@
                 <button type="button" class="ui-modal__close cursor-interaction" x-on:click="$refs.dialog.close()" x-bind:disabled="submitting"
                         aria-label="{{ __('lf.LF_common_button_close') }}">×</button>
             </header>
-            <div class="ui-modal__body"><p id="{{ $dialogId }}-body" class="ui-enroll-dialog-text">{{ $body }}</p></div>
+            <div class="ui-modal__body">
+                <p id="{{ $dialogId }}-body" class="ui-enroll-dialog-text">{{ $body }}</p>
+                @if (! empty($warnings))
+                    <ul class="ui-banner ui-cohort-complete-warnings">
+                        @foreach ($warnings as $warning)<li>{{ $warning }}</li>@endforeach
+                    </ul>
+                @endif
+            </div>
             <footer class="ui-modal__footer">
                 <span></span>
                 <button type="button" class="ui-button cursor-interaction" x-on:click="$refs.dialog.close()" x-bind:disabled="submitting">{{ __('lf.LF_course_cohort_lifecycle_cancel') }}</button>
                 <button type="submit" class="{{ $confirmClass }}" x-bind:disabled="submitting" x-bind:aria-busy="submitting">
+                    @if (str_contains($confirmClass, 'ui-button--primary'))<x-backend-icon name="check" class="ui-icon" x-show="!submitting" />@endif
                     <span x-show="!submitting">{{ $confirmLabel }}</span>
                     <span x-cloak x-show="submitting">{{ __('lf.LF_course_cohort_lifecycle_processing') }}</span>
                 </button>

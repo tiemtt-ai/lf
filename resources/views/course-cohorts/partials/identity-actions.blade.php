@@ -1,9 +1,6 @@
 {{-- Status changes for the identity card. --}}
 @if ($cohort->is_mutable)
-    <a href="{{ route($routePrefix.'.edit', $cohort->id) }}" class="ui-button ui-button--outline cursor-interaction">
-        <x-backend-icon name="square-pen" class="ui-icon" />
-        {{ __('lf.LF_course_cohort_action_edit_overview') }}
-    </a>
+    @include('course-cohorts.partials.edit-dialog')
 @endif
 @if ($cohort->status === 'draft')
     <div class="course-cohort-activation-action">
@@ -33,10 +30,11 @@
     @include('course-cohorts.partials.kit-lifecycle-action', [
         'dialogId' => 'cohort-complete',
         'action' => route($routePrefix.'.complete', $cohort->id),
-        'triggerClass' => 'ui-button ui-button--primary cursor-interaction',
+        'triggerClass' => 'ui-button ui-button--outline cursor-interaction',
         'triggerLabel' => __('lf.LF_course_cohort_action_complete'),
         'title' => __('lf.LF_course_cohort_lifecycle_complete_title'),
         'body' => __('lf.LF_course_cohort_lifecycle_complete_body'),
+        'warnings' => $completionWarnings,
         'confirmClass' => 'ui-button ui-button--primary cursor-interaction',
         'confirmLabel' => __('lf.LF_course_cohort_lifecycle_complete_confirm'),
     ])

@@ -460,7 +460,7 @@
                 <div class="ui-modal__body"><p class="enr-modal-lead" x-text="@js(__('lf.LF_bulk_enrollment_design_confirm_all_text')).replace(':count', pendingPairs.length)"></p></div>
                 <footer class="ui-modal__footer">
                     <button type="button" class="ui-button cursor-interaction" x-on:click="$refs.confirmAll.close()">{{ __('lf.LF_common_button_cancel') }}</button>
-                    <button type="submit" class="ui-button ui-button--primary cursor-interaction">{{ __('lf.LF_bulk_enrollment_design_confirm_all_action') }}</button>
+                    <button type="submit" class="ui-button ui-button--primary cursor-interaction"><x-backend-icon name="check" class="ui-icon" />{{ __('lf.LF_bulk_enrollment_design_confirm_all_action') }}</button>
                 </footer>
             </form>
         </dialog>

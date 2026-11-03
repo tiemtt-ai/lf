@@ -14,7 +14,7 @@
     $startingItems = $retainedEnrollmentIds === null
         ? $rosterItems
         : $rosterItems->whereIn('id', $retainedEnrollmentIds)
-            ->concat($retainedNewEnrollments->map(fn ($enrollment) => $managedItem($enrollment, false)))->values();
+            ->concat($acceptsNewStudents ? $retainedNewEnrollments->map(fn ($enrollment) => $managedItem($enrollment, false)) : [])->values();
 @endphp
 <dialog x-ref="manageDialog" class="ui-modal" data-columns="2" aria-labelledby="cohort-student-manager-title" x-on:close="formOpen = false">
 <form id="cohort-student-manager-form" method="POST"
@@ -24,10 +24,11 @@
           query: '', selectedQuery: '', results: [], page: 1, lastPage: 1, selectedPage: 1,
           loading: false, submitting: false, requestToken: 0,
           capacity: @js($cohort->capacity !== null ? (int) $cohort->capacity : null),
+          acceptsNew: @js($acceptsNewStudents),
           roster: @js($rosterItems),
           selectedItems: @js($startingItems),
           isSelected(id) { return this.selectedItems.some(item => String(item.id) === String(id)) },
-          selectable(item) { return item.eligible || item.current },
+          selectable(item) { return item.current || (item.eligible && this.acceptsNew) },
           isFull() { return this.capacity !== null && this.selectedItems.length >= this.capacity },
           isOver() { return this.capacity !== null && this.selectedItems.length > this.capacity },
           addedCount() { return this.selectedItems.filter(item => !this.roster.some(member => String(member.id) === String(item.id))).length },
@@ -56,7 +57,7 @@
               if (!checked) { this.remove(item.id); return }
               if (this.selectable(item) && !this.isFull() && !this.isSelected(item.id)) this.selectedItems.push({ ...item })
           },
-          visibleEligible() { return this.results.filter(item => item.eligible) },
+          visibleEligible() { return this.results.filter(item => item.eligible && this.selectable(item)) },
           allVisibleSelected() { return this.visibleEligible().length > 0 && this.visibleEligible().every(item => this.isSelected(item.id)) },
           toggleVisible(event) {
               for (const item of this.visibleEligible()) this.toggle(item, event.target.checked)
@@ -141,6 +142,9 @@
             @break
         @endif
     @endforeach
+    @unless ($acceptsNewStudents)
+        <p class="ui-field__hint ui-field__hint--notice ui-cohort-manage-error--notice">{{ __('lf.LF_course_type_cohort_legacy_self_paced') }}</p>
+    @endunless
     <div class="bulk-enrollment-transfer" :aria-busy="loading.toString()">
         <section class="bulk-enrollment-transfer__panel bulk-enrollment-transfer__available" aria-labelledby="inline-eligible-students-title">
             <div class="bulk-enrollment-transfer__panel-header">
@@ -221,6 +225,7 @@
         <span class="ui-caption ui-cohort-manage-summary" role="status" x-text="changeSummary()"></span>
         <button type="button" class="ui-button cursor-interaction" x-on:click="formOpen = false">{{ __('lf.LF_common_button_cancel') }}</button>
         <button type="submit" class="ui-button ui-button--primary cursor-interaction" :disabled="submitting || !canSave()" :aria-busy="submitting">
+            <x-backend-icon name="check" class="ui-icon" x-show="!submitting" />
             <span x-show="!submitting">{{ __('lf.LF_course_cohort_student_sync_save') }}</span>
             <span x-show="submitting" x-cloak>{{ __('lf.LF_course_cohort_student_saving') }}</span>
         </button>
@@ -246,6 +251,7 @@
                 <span></span>
                 <button type="button" autofocus class="ui-button cursor-interaction" x-on:click="$refs.removeConfirmDialog.close()" :disabled="submitting">{{ __('lf.LF_common_button_back') }}</button>
                 <button type="submit" class="ui-button ui-button--primary cursor-interaction" :disabled="submitting" :aria-busy="submitting">
+                    <x-backend-icon name="check" class="ui-icon" x-show="!submitting" />
                     <span x-show="!submitting">{{ __('lf.LF_course_cohort_student_sync_confirm_save') }}</span>
                     <span x-show="submitting" x-cloak>{{ __('lf.LF_course_cohort_student_saving') }}</span>
                 </button>

@@ -1038,6 +1038,10 @@
     min-width: 0;
     overflow-wrap: anywhere
 }
+/* An empty feedback slot must not take room from the buttons and push them onto a second line. */
+.lf-admin-ui .ui-modal__footer>span:empty {
+    display: none
+}
 .lf-admin-ui .ui-modal__footer>.ui-button {
     flex: none;
     white-space: nowrap
@@ -3132,6 +3136,8 @@
 .lf-admin-ui .ui-modal .course-cohort-student-inline-form .cohort-student-selected-chip { flex: none; }
 .lf-admin-ui .ui-modal .course-cohort-student-inline-form .cohort-student-empty-state--selected { flex: 1 1 0; min-height: 0; }
 .lf-admin-ui .ui-modal .ui-cohort-manage-error { margin: 0 0 12px; color: var(--ui-danger); font-size: 13px; line-height: 20px; }
+.lf-admin-ui .ui-modal .ui-cohort-manage-error--notice { margin: 0 0 12px; }
+.lf-admin-ui .ui-cohort-complete-warnings { display: block; margin: 12px 0 0; padding-left: 28px; color: var(--ui-notice-text); line-height: 1.5; }
 .lf-admin-ui .ui-cohort-pick-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-top: 4px; }
 .lf-admin-ui .ui-cohort-pick-tags .ui-cohort-seat-note { margin-top: 0; }
 .lf-admin-ui .ui-cohort-capacity-note { flex: none; color: var(--ui-notice-text); white-space: nowrap; }

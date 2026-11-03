@@ -78,10 +78,6 @@ class CourseCohortStudentManagementTest extends TestCase
             ->assertSee('x-show="lastPage > 1"', false)
             ->assertSee('x-show="selectedLastPage() > 1"', false);
 
-        $legacyEditView = file_get_contents(resource_path('views/course-cohorts/edit.blade.php'));
-        $this->assertStringNotContainsString('selectedEnrollments', $legacyEditView);
-        $this->assertStringNotContainsString('course-cohorts.students.sync', $legacyEditView);
-        $this->assertStringNotContainsString('bulk-enrollment-pagination', $legacyEditView);
     }
 
     public function test_student_workspace_translations_exist_in_vietnamese_and_english(): void
@@ -779,6 +775,53 @@ class CourseCohortStudentManagementTest extends TestCase
         ])->assertRedirect($tabUrl)->assertSessionHasNoErrors();
 
         $this->assertSame(2, DB::table('core_course_cohort_students')
+            ->where('cohort_id', $cohortId)->where('status', 'active')->count());
+    }
+
+    public function test_edit_popup_keeps_input_and_reports_capacity_below_the_roster(): void
+    {
+        [$customerId, $admin, $student, $productId, $versionId] = $this->learningContext();
+        $cohortId = $this->createCohort($customerId, $productId, $versionId, capacity: 5);
+        foreach ([$student, $this->createUser($customerId, 'student')] as $member) {
+            $enrollmentId = $this->createEnrollment($customerId, $member->id, $productId, $versionId);
+            $this->createMembership($customerId, $cohortId, $enrollmentId, $productId, $member->id);
+        }
+        $showUrl = "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}";
+
+        $this->actingAs($admin)->from($showUrl)->put($showUrl, [
+            '_form' => 'cohort_edit', 'name' => 'Tên vừa gõ', 'capacity' => 1,
+        ])->assertRedirect($showUrl)->assertSessionHasErrors('capacity');
+
+        $this->actingAs($admin)->get($showUrl)->assertOk()
+            ->assertSee('value="Tên vừa gõ"', false)
+            ->assertSeeText(__('lf.LF_course_cohort_validation_capacity_below_membership'))
+            ->assertSee('min="2"', false);
+    }
+
+    public function test_sync_lets_a_legacy_self_paced_class_shrink_but_not_grow(): void
+    {
+        [$customerId, $admin, $seated, $productId, $versionId] = $this->learningContext();
+        $cohortId = $this->createCohort($customerId, $productId, $versionId, capacity: 5);
+        $seatedEnrollment = $this->createEnrollment($customerId, $seated->id, $productId, $versionId);
+        $this->createMembership($customerId, $cohortId, $seatedEnrollment, $productId, $seated->id);
+        $newcomer = $this->createUser($customerId, 'student');
+        $newcomerEnrollment = $this->createEnrollment($customerId, $newcomer->id, $productId, $versionId);
+        DB::table('core_course_template_versions')->where('id', $versionId)->update(['course_type_snapshot' => 'self_paced']);
+        $tabUrl = "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=students";
+        $syncUrl = "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/students";
+
+        $this->actingAs($admin)->get($tabUrl)->assertOk()
+            ->assertSeeText(__('lf.LF_course_type_cohort_legacy_self_paced'));
+
+        $this->actingAs($admin)->from($tabUrl)->put($syncUrl, [
+            'enrollment_ids' => [$seatedEnrollment, $newcomerEnrollment],
+        ])->assertRedirect($tabUrl)->assertSessionHasErrors('enrollment_ids');
+        $this->assertSame(1, DB::table('core_course_cohort_students')
+            ->where('cohort_id', $cohortId)->where('status', 'active')->count());
+
+        $this->actingAs($admin)->from($tabUrl)->put($syncUrl, ['enrollment_ids' => []])
+            ->assertRedirect($tabUrl)->assertSessionHasNoErrors();
+        $this->assertSame(0, DB::table('core_course_cohort_students')
             ->where('cohort_id', $cohortId)->where('status', 'active')->count());
     }
 

@@ -157,10 +157,6 @@ class CourseCohortManagementTest extends TestCase
                 ->get('https://tenant-a.localhost/admin/course-cohorts/create')
                 ->assertOk(),
             $this->actingAs($admin)
-                ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/edit")
-                ->assertOk()
-                ->assertSee('Bring printed placement tests.'),
-            $this->actingAs($admin)
                 ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}")
                 ->assertOk()
                 ->assertSeeText('Bring printed placement tests.'),
@@ -488,7 +484,7 @@ class CourseCohortManagementTest extends TestCase
             ->assertDontSee('name="code"', false);
 
         $this->actingAs($admin)
-            ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/edit")
+            ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?edit=1")
             ->assertOk()
             ->assertDontSee('name="code"', false)
             ->assertSeeText('COH-EXISTING');
@@ -510,8 +506,12 @@ class CourseCohortManagementTest extends TestCase
             'registration_ends_at' => '2026-08-15 18:00:00',
         ]);
 
-        $response = $this->actingAs($admin)
+        $this->actingAs($admin)
             ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/edit")
+            ->assertRedirect("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?edit=1");
+
+        $response = $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?edit=1")
             ->assertOk()
             ->assertSeeText('Sửa lớp học')
             ->assertSeeText('Sản phẩm')
@@ -520,10 +520,8 @@ class CourseCohortManagementTest extends TestCase
             ->assertSeeText('01/08/2026 09:00')
             ->assertSeeText('15/08/2026 18:00')
             ->assertSeeText(__('lf.LF_course_cohort_product_registration_help'))
-            ->assertSee('course-cohort-edit-overview', false)
-            ->assertSee('course-cohort-edit-tabs', false)
+            ->assertSee('id="cohort-edit-title"', false)
             ->assertSee('class="course-template-tab is-active"', false)
-            ->assertDontSee('class="btn btn-primary" href', false)
             ->assertSee('course-cohort-detail-tabs-help', false)
             ->assertViewHas('cohortTabs', fn (array $tabs): bool => collect($tabs)
                 ->whereIn('key', ['attendance', 'recordings'])
@@ -543,15 +541,11 @@ class CourseCohortManagementTest extends TestCase
 
         $html = $response->getContent();
         $positions = [
-            strpos($html, 'id="cohort-edit-code"'),
-            strpos($html, 'id="cohort-edit-status"'),
-            strpos($html, 'id="cohort-edit-product"'),
-            strpos($html, 'id="cohort-edit-version"'),
-            strpos($html, 'id="name"'),
-            strpos($html, 'id="capacity"'),
-            strpos($html, 'id="start_date"'),
-            strpos($html, 'id="end_date"'),
-            strpos($html, 'id="notes"'),
+            strpos($html, 'id="cohort-edit-name"'),
+            strpos($html, 'id="cohort-edit-capacity"'),
+            strpos($html, 'id="cohort-edit-start_date"'),
+            strpos($html, 'id="cohort-edit-end_date"'),
+            strpos($html, 'id="cohort-edit-notes"'),
         ];
         $this->assertNotContains(false, $positions);
         $sorted = $positions;
@@ -560,10 +554,32 @@ class CourseCohortManagementTest extends TestCase
 
         DB::table('core_course_cohorts')->where('id', $cohortId)->update(['status' => 'completed']);
         $this->actingAs($admin)
-            ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/edit")
+            ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?edit=1")
             ->assertOk()
-            ->assertSee('readonly', false)
+            ->assertDontSee('id="cohort-edit-title"', false)
             ->assertDontSeeText(__('lf.LF_common_button_save_changes'));
+    }
+
+    public function test_complete_confirmation_warns_about_what_is_left_without_blocking(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $cohortId = $this->createCohort($customerId);
+        DB::table('core_course_cohorts')->where('id', $cohortId)->update([
+            'status' => 'active', 'start_date' => now()->toDateString(), 'end_date' => now()->addDays(10)->toDateString(),
+        ]);
+        $url = "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}";
+
+        $this->actingAs($admin)->get($url)->assertOk()
+            ->assertSeeText(__('lf.LF_course_cohort_lifecycle_complete_body'))
+            ->assertSeeText(__('lf.LF_course_cohort_complete_warning_end_date', ['date' => now()->addDays(10)->format('d/m/Y')]));
+
+        DB::table('core_course_cohorts')->where('id', $cohortId)->update(['end_date' => now()->subDay()->toDateString()]);
+        $this->actingAs($admin)->get($url)->assertOk()
+            ->assertDontSee('ui-cohort-complete-warnings', false);
+
+        $this->actingAs($admin)->post("{$url}/complete")->assertRedirect($url);
+        $this->assertSame('completed', DB::table('core_course_cohorts')->where('id', $cohortId)->value('status'));
     }
 
     public function test_non_teacher_and_unpublished_version_are_rejected(): void

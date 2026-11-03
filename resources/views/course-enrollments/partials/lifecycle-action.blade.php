@@ -17,7 +17,7 @@
             <footer class="ui-modal__footer">
                 <span></span>
                 <button type="button" class="ui-button cursor-interaction" x-on:click="$refs.dialog.close()" x-bind:disabled="submitting">{{ __('lf.LF_common_button_cancel') }}</button>
-                <button type="submit" class="{{ $confirmClass }}" x-bind:disabled="submitting" x-bind:aria-busy="submitting"><span x-show="!submitting">{{ $confirmLabel }}</span><span x-cloak x-show="submitting">{{ __('lf.LF_course_enrollment_lifecycle_processing') }}</span></button>
+                <button type="submit" class="{{ $confirmClass }}" x-bind:disabled="submitting" x-bind:aria-busy="submitting">@if (str_contains($confirmClass, 'ui-button--primary'))<x-backend-icon name="check" class="ui-icon" x-show="!submitting" />@endif<span x-show="!submitting">{{ $confirmLabel }}</span><span x-cloak x-show="submitting">{{ __('lf.LF_course_enrollment_lifecycle_processing') }}</span></button>
             </footer>
             <p class="ui-sr-only" aria-live="polite" x-text="submitting ? @js(__('lf.LF_course_enrollment_lifecycle_processing')) : ''"></p>
         </form>

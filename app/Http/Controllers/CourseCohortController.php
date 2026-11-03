@@ -195,7 +195,7 @@ class CourseCohortController extends Controller
         $activeTab = collect($tabs)->firstWhere('key', $requestedTab)['accessible'] ? $requestedTab : 'overview';
 
         $tabData = match ($activeTab) {
-            'students' => $this->studentTabData($request, $customerId, $id),
+            'students' => $this->studentTabData($request, $customerId, $id, $cohort),
             'teachers' => $this->teacherTabData($customerId, $id),
             'schedules' => $this->scheduleTabData($request, $customerId, $id),
             'sessions' => $this->sessionTabData($customerId, $cohort, $cohortSessions),
@@ -205,10 +205,14 @@ class CourseCohortController extends Controller
         };
 
         return view('course-cohorts.show', array_merge([
+            'completionWarnings' => $cohort->status === 'active'
+                ? $this->lifecycleService->completionWarnings($customerId, $cohort, $activeMembershipCount)
+                : [],
             'studentKeyword' => '',
             'students' => collect(),
             'selectedEnrollments' => collect(),
             'cancelledSeatCount' => 0,
+            'acceptsNewStudents' => true,
             'rosterSnapshot' => '',
             'retainedEnrollmentIds' => null,
             'retainedNewEnrollments' => collect(),
@@ -241,7 +245,7 @@ class CourseCohortController extends Controller
             ->orderBy('name')->get(['id', 'name', 'email']);
     }
 
-    private function studentTabData(Request $request, int $customerId, int $id): array
+    private function studentTabData(Request $request, int $customerId, int $id, object $cohort): array
     {
         $studentKeyword = trim((string) $request->query('student_keyword', ''));
         $selectedEnrollments = DB::table('core_course_cohort_students as memberships')
@@ -305,6 +309,7 @@ class CourseCohortController extends Controller
             'studentKeyword' => $studentKeyword,
             'selectedEnrollments' => $selectedEnrollments,
             'cancelledSeatCount' => $selectedEnrollments->where('status', 'cancelled')->count(),
+            'acceptsNewStudents' => $this->versionResolver->runsInClass($customerId, $cohort->version_id ? (int) $cohort->version_id : null),
             'rosterSnapshot' => $selectedEnrollments->pluck('id')->map(fn ($enrollmentId) => (int) $enrollmentId)->sort()->implode(','),
             ...$this->retainedStudentSelection($request, $customerId, $id, $selectedEnrollments->pluck('id')->all()),
         ];
@@ -485,7 +490,7 @@ class CourseCohortController extends Controller
         return ['sessions' => $sessions, 'recordings' => $recordings];
     }
 
-    public function edit(Request $request, int $id): View|RedirectResponse
+    public function edit(Request $request, int $id): RedirectResponse
     {
         $this->authorizeAdmin($request);
 
@@ -499,26 +504,9 @@ class CourseCohortController extends Controller
             ]);
         }
 
-        $activeMembershipCount = (int) DB::table('core_course_cohort_students')
-            ->where('customer_id', $customerId)
-            ->where('cohort_id', $id)
-            ->where('status', 'active')
-            ->count();
-
-        return view('course-cohorts.edit', [
-            'cohort' => $cohort,
-            'cohortTabs' => $this->cohortTabs($cohort, $this->routePrefix($request),
-                'overview', [
-                    'students' => $activeMembershipCount,
-                    'schedules' => (int) DB::table('core_liveclass_schedules')
-                        ->where('customer_id', $customerId)->where('cohort_id', $id)->count(),
-                    'sessions' => (int) DB::table('core_liveclass_sessions')->where('customer_id', $customerId)
-                        ->where('cohort_id', $id)->count(),
-                    'recordings' => (int) DB::table('core_liveclass_recordings as recordings')
-                        ->join('core_liveclass_sessions as sessions', 'sessions.id', '=', 'recordings.session_id')
-                        ->where('recordings.customer_id', $customerId)->where('sessions.cohort_id', $id)->count(),
-                ]),
-            'routePrefix' => $this->routePrefix($request),
+        return redirect()->route($this->routePrefix($request).'.show', [
+            'id' => $cohort->id,
+            'edit' => 1,
         ]);
     }
 
@@ -537,8 +525,11 @@ class CourseCohortController extends Controller
             abort_if(! $locked, 404);
             $activeCount = DB::table('core_course_cohort_students')->where('customer_id', $customerId)
                 ->where('cohort_id', $id)->where('status', 'active')->count();
-            abort_if($validated['capacity'] !== null && (int) $validated['capacity'] < $activeCount, 422,
-                __('lf.LF_course_cohort_validation_capacity_below_membership'));
+            if ($validated['capacity'] !== null && (int) $validated['capacity'] < $activeCount) {
+                throw ValidationException::withMessages([
+                    'capacity' => __('lf.LF_course_cohort_validation_capacity_below_membership'),
+                ]);
+            }
 
             // Authoritative re-check, now that the Cohort row is locked.
             // validatedUpdateData() already ran the same check for early UX
@@ -645,6 +636,18 @@ class CourseCohortController extends Controller
             : redirect()->route($this->routePrefix($request).'.index')->with('success', $message);
     }
 
+    private function cohortFieldLabels(): array
+    {
+        return [
+            'product_id' => __('lf.LF_course_cohort_common_product'),
+            'name' => __('lf.LF_course_cohort_common_name'),
+            'capacity' => __('lf.LF_course_cohort_common_capacity'),
+            'start_date' => __('lf.LF_course_cohort_common_start_date'),
+            'end_date' => __('lf.LF_course_cohort_common_end_date'),
+            'notes' => __('lf.LF_course_cohort_common_notes'),
+        ];
+    }
+
     private function validatedCreateData(Request $request, int $customerId): array
     {
         $input = array_intersect_key($request->request->all(), array_flip([
@@ -658,7 +661,7 @@ class CourseCohortController extends Controller
             'start_date' => ['required', 'date'],
             'end_date' => ['required', 'date', 'after_or_equal:start_date'],
             'notes' => ['nullable', 'string'],
-        ]);
+        ], [], $this->cohortFieldLabels());
 
         $validator->after(function ($validator) use ($request, $customerId): void {
             foreach ([
@@ -694,7 +697,7 @@ class CourseCohortController extends Controller
             'start_date' => ['nullable', 'required_with:end_date', 'date'],
             'end_date' => ['nullable', 'required_with:start_date', 'date', 'after_or_equal:start_date'],
             'notes' => ['nullable', 'string'],
-        ]);
+        ], [], $this->cohortFieldLabels());
 
         $validator->after(function ($validator) use ($request, $customerId, $cohort, $input): void {
             foreach (['customer_id', 'version_id', 'teacher_id'] as $managed) {

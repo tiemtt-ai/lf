@@ -56,7 +56,7 @@
         </div>
         <footer class="ui-modal__footer">
             <button type="button" class="ui-button cursor-interaction" x-on:click="reset($el)">{{ __('lf.LF_common_button_cancel') }}</button>
-            <button type="submit" class="ui-button ui-button--primary cursor-interaction" x-bind:disabled="! picked || picked === current">{{ __('lf.LF_course_template_learning_change_apply') }}</button>
+            <button type="submit" class="ui-button ui-button--primary cursor-interaction" x-bind:disabled="! picked || picked === current"><x-backend-icon name="check" class="ui-icon" />{{ __('lf.LF_course_template_learning_change_apply') }}</button>
         </footer>
     @else
         <button type="submit" class="ui-button ui-button--primary cursor-interaction" x-bind:disabled="! picked">

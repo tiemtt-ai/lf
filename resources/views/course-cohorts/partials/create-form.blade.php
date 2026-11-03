@@ -66,14 +66,12 @@
     </div>
     <div class="ui-field">
         <label class="ui-field__label" for="start_date"><span class="ui-field__required" aria-hidden="true">*</span>{{ __('lf.LF_course_cohort_common_start_date') }}</label>
-        <input id="start_date" type="date" name="start_date" value="{{ old('start_date') }}" required
-               @error('start_date') aria-invalid="true" aria-describedby="start_date_error" @enderror>
+        <x-ui-date-input id="start_date" name="start_date" :value="old('start_date')" required />
         @error('start_date')<p class="ui-field__error">{{ $message }}</p>@enderror
     </div>
     <div class="ui-field">
         <label class="ui-field__label" for="end_date"><span class="ui-field__required" aria-hidden="true">*</span>{{ __('lf.LF_course_cohort_common_end_date') }}</label>
-        <input id="end_date" type="date" name="end_date" value="{{ old('end_date') }}" required min="{{ old('start_date') }}"
-               @error('end_date') aria-invalid="true" aria-describedby="end_date_error" @enderror>
+        <x-ui-date-input id="end_date" name="end_date" :value="old('end_date')" required />
         @error('end_date')<p class="ui-field__error">{{ $message }}</p>@enderror
     </div>
     <div class="ui-field ui-field--full">
