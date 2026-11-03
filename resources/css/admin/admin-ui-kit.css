@@ -3108,7 +3108,7 @@
 .lf-admin-ui .course-cohort-teacher-removal-error { white-space: normal; }
 .lf-admin-ui .ui-cohort-col-count { width: 96px; }
 .lf-admin-ui .ui-cohort-line { display: block; }
-.lf-admin-ui .ui-cohort-col-slots { width: 210px; }
+.lf-admin-ui .ui-cohort-col-slots { width: 180px; }
 .lf-admin-ui.ui-cohort .ui-summary-head .mk-table-top__actions { flex: none; flex-wrap: nowrap; white-space: nowrap; }
 .lf-admin-ui .ui-cohort-col-session-time { width: 210px; }
 .lf-admin-ui.ui-cohort .mk-name-text { display: block; white-space: normal; overflow-wrap: anywhere; }
@@ -3125,6 +3125,38 @@
 .lf-admin-ui .ui-cohort-detail-summary { padding: 0; }
 .lf-admin-ui .ui-cohort-detail-summary .ui-framework-description { font-size: 12px; line-height: 17.4px; font-weight: 400; }
 .lf-admin-ui .ui-cohort-seat-warning { margin: 16px 20px 0; }
+.lf-admin-ui .ui-cohort-tab-notice { margin: 16px 20px; }
+/* Schedule popup: fields on the left, the live preview stays in view on the right. */
+.lf-admin-ui .ui-cohort-schedule-layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 24px; align-items: start; }
+.lf-admin-ui .ui-cohort-schedule-layout--even { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 18px; }
+.lf-admin-ui .ui-cohort-schedule-fields { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.lf-admin-ui .ui-cohort-schedule-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 22px; }
+.lf-admin-ui .ui-cohort-schedule-group { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.lf-admin-ui .ui-cohort-schedule-group .ui-caption { margin: 0; }
+.lf-admin-ui .ui-cohort-schedule-group__foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.lf-admin-ui .ui-cohort-schedule-slot { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) 30px; gap: 12px; align-items: start; }
+.lf-admin-ui .ui-cohort-schedule-slot .ux-row-delete { margin-top: 29px; }
+.lf-admin-ui .ui-cohort-schedule-exclusion-pick { max-width: 240px; }
+.lf-admin-ui .ui-cohort-schedule-exclusion { display: grid; grid-template-columns: 96px minmax(0, 1fr) 30px; gap: 12px; align-items: center; }
+.lf-admin-ui .ui-cohort-schedule-exclusion__date { font-size: 14px; }
+.lf-admin-ui .ui-cohort-schedule-preview { position: sticky; top: 0; display: flex; flex-direction: column; gap: 8px; padding: 14px; border: 1px solid var(--ui-border); border-radius: 7px; background: var(--ui-color-f7f8fa); }
+.lf-admin-ui .ui-cohort-schedule-preview .ui-caption { margin: 0; }
+.lf-admin-ui .ui-cohort-schedule-preview__head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.lf-admin-ui .ui-cohort-schedule-preview__list { display: flex; flex-direction: column; gap: 6px; max-height: 300px; margin: 0; padding: 0; overflow-y: auto; list-style: none; }
+.lf-admin-ui .ui-cohort-schedule-preview__list li { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding-bottom: 6px; border-bottom: 1px solid var(--ui-border); }
+.lf-admin-ui .ui-cohort-schedule-preview__list li:last-child { padding-bottom: 0; border-bottom: 0; }
+.lf-admin-ui .ui-cohort-schedule-preview__list .mk-name-text { white-space: normal; }
+.lf-admin-ui .ui-cohort-schedule-preview__list .ui-caption { flex: none; }
+.lf-admin-ui .ui-cohort-schedule-facts { padding: 0; }
+@media (max-width: 860px) {
+    .lf-admin-ui .ui-cohort-schedule-layout, .lf-admin-ui .ui-cohort-schedule-layout--even { grid-template-columns: minmax(0, 1fr); }
+    .lf-admin-ui .ui-cohort-schedule-preview { position: static; }
+}
+@media (max-width: 640px) {
+    .lf-admin-ui .ui-cohort-schedule-grid { grid-template-columns: minmax(0, 1fr); }
+    .lf-admin-ui .ui-cohort-schedule-slot { grid-template-columns: repeat(2, minmax(0, 1fr)) 30px; }
+    .lf-admin-ui .ui-cohort-schedule-slot > .ui-field:first-child { grid-column: 1 / -1; }
+}
 @media (max-width: 680px) {
     .lf-admin-ui.ui-cohort .ui-summary-head { flex-direction: column; align-items: stretch; gap: 10px; }
     .lf-admin-ui.ui-cohort .ui-summary-head .mk-table-top__actions { justify-content: space-between; }

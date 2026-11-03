@@ -197,7 +197,7 @@ class CourseCohortController extends Controller
         $tabData = match ($activeTab) {
             'students' => $this->studentTabData($request, $customerId, $id, $cohort),
             'teachers' => $this->teacherTabData($customerId, $id),
-            'schedules' => $this->scheduleTabData($request, $customerId, $id),
+            'schedules' => $this->scheduleTabData($request, $customerId, $id, $cohort),
             'sessions' => $this->sessionTabData($customerId, $cohort, $cohortSessions),
             'attendance' => $this->attendanceTabData($request, $customerId, $id, $eligibleAttendanceSessions),
             'recordings' => $this->recordingTabData($customerId, $id, $cohortSessions),
@@ -382,7 +382,7 @@ class CourseCohortController extends Controller
         ];
     }
 
-    private function scheduleTabData(Request $request, int $customerId, int $cohortId): array
+    private function scheduleTabData(Request $request, int $customerId, int $cohortId, object $cohort): array
     {
         $formMode = in_array($request->query('schedule_form'), ['create', 'view', 'edit'], true)
             ? $request->query('schedule_form')
@@ -391,6 +391,7 @@ class CourseCohortController extends Controller
         return array_merge([
             'schedules' => $this->scheduleReadModel->paginate($customerId, $cohortId),
             'scheduleFormMode' => $formMode,
+            'scheduleAcceptsNew' => ! $cohort->version_id || $this->versionResolver->runsInClass($customerId, (int) $cohort->version_id),
             'scheduleTimezones' => timezone_identifiers_list(),
         ], $this->scheduleReadModel->formState(
             $customerId, $cohortId, $formMode, $request->integer('schedule_id')

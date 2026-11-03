@@ -1,45 +1,61 @@
+{{-- Schedule add/edit popup: fields on the left, the live preview on the right. --}}
 @php
-    $initialSlots = old('slots', $slots->map(fn ($slot) => [
+    $editing = $mode === 'edit';
+    $formKey = 'schedule_'.$mode;
+    $retry = old('_form') === $formKey;
+    $idPrefix = $editing ? 'edit_schedule' : 'schedule';
+    $dialogTitle = $editing ? __('lf.LF_common_button_edit').': '.$schedule->name : __('lf.LF_course_cohort_schedule_add');
+    $savedSlots = $slots->map(fn ($slot) => [
         'weekday' => (string) $slot->weekday,
         'start_time' => substr($slot->start_time, 0, 5),
         'end_time' => substr($slot->end_time, 0, 5),
         'persisted' => true,
-    ])->all());
-    if ($initialSlots === []) $initialSlots = [['weekday' => '1', 'start_time' => '', 'end_time' => '']];
-    $initialSlots = collect($initialSlots)->values()->map(fn ($slot, $index) => array_merge($slot, [
-        'persisted' => (bool) ($slot['persisted'] ?? ($editing && $slots->has($index))),
-    ]))->all();
-    $initialSlotErrors = collect($initialSlots)->mapWithKeys(fn ($slot, $index) => [$index => [
-        'weekday' => $errors->first("slots.$index.weekday"),
-        'start_time' => $errors->first("slots.$index.start_time"),
-        'end_time' => $errors->first("slots.$index.end_time"),
-    ]])->all();
-    $initialExclusions = old('exclusions', $exclusions->map(fn ($item) => [
-        'excluded_on' => $item->excluded_on,
+    ])->values()->all();
+    $savedSlots = $savedSlots ?: [['weekday' => '1', 'start_time' => '', 'end_time' => '', 'persisted' => false]];
+    $savedExclusions = $exclusions->map(fn ($item) => [
+        'excluded_on' => substr((string) $item->excluded_on, 0, 10),
         'reason' => $item->reason,
-    ])->all());
-    $scheduleName = old('name', $schedule->name ?? '');
-    $scheduleStartsOn = old('starts_on', $schedule->starts_on ?? $cohort->start_date ?? '');
-    $scheduleEndsOn = old('ends_on', $schedule->ends_on ?? $cohort->end_date ?? '');
-    $scheduleTimezone = old('timezone', $schedule->timezone ?? config('app.timezone'));
+    ])->values()->all();
+    $savedFields = [
+        'name' => $schedule->name ?? '',
+        'timezone' => $schedule->timezone ?? config('app.timezone'),
+        'startsOn' => $schedule->starts_on ?? $cohort->start_date ?? '',
+        'endsOn' => $schedule->ends_on ?? $cohort->end_date ?? '',
+    ];
+    $initialSlots = collect($retry ? old('slots', $savedSlots) : $savedSlots)->values()->map(fn ($slot, $index) => array_merge($slot, [
+        'persisted' => (bool) ($slot['persisted'] ?? ($editing && $slots->values()->has($index))),
+        'errors' => $retry ? [
+            'weekday' => $errors->first("slots.$index.weekday"),
+            'start_time' => $errors->first("slots.$index.start_time"),
+            'end_time' => $errors->first("slots.$index.end_time"),
+        ] : [],
+    ]))->all();
+    $initialExclusions = array_values($retry ? old('exclusions', $savedExclusions) : $savedExclusions);
+    $summaryErrors = $retry
+        ? collect($errors->messages())->reject(fn ($messages, $key) => preg_match('/^slots\.\d+\.(weekday|start_time|end_time)$/', $key))->flatten()
+        : collect();
+    $initialFields = [
+        'name' => $retry ? old('name', $savedFields['name']) : $savedFields['name'],
+        'timezone' => $retry ? old('timezone', $savedFields['timezone']) : $savedFields['timezone'],
+        'startsOn' => $retry ? old('starts_on', $savedFields['startsOn']) : $savedFields['startsOn'],
+        'endsOn' => $retry ? old('ends_on', $savedFields['endsOn']) : $savedFields['endsOn'],
+    ];
 @endphp
-
-<div class="course-cohort-schedule-form"
+<dialog class="ui-modal ui-cohort-schedule-modal" data-columns="3" aria-labelledby="{{ $idPrefix }}_title"
      x-data="{
-        slots: @js(array_values($initialSlots)), exclusions: @js(array_values($initialExclusions)),
-        name: @js($scheduleName), startsOn: @js($scheduleStartsOn), endsOn: @js($scheduleEndsOn), timezone: @js($scheduleTimezone),
-        preview: [], previewCount: 0, previewLoading: false, previewError: '', previewTimer: null,
-        maxSlots: 50, maxExclusions: 366, slotErrors: @js($initialSlotErrors),
+        slots: [], exclusions: [], slotKey: 0,
+        saved: @js(['fields' => $savedFields, 'slots' => $savedSlots, 'exclusions' => $savedExclusions]),
+        name: @js($initialFields['name']), timezone: @js($initialFields['timezone']),
+        startsOn: @js($initialFields['startsOn']), endsOn: @js($initialFields['endsOn']),
+        preview: [], previewCount: 0, previewLoading: false, previewError: '', previewTimer: null, previewToken: 0,
+        maxSlots: 50, maxExclusions: 366, submitting: false, showErrors: true,
+        withKey(slot) { return { errors: {}, persisted: false, ...slot, key: ++this.slotKey } },
+        open() { this.$refs.dialog.showModal(); this.queuePreview() },
         addSlot() {
             if (this.slots.length >= this.maxSlots) return
-            this.slots.push({ weekday: '', start_time: '', end_time: '', persisted: false })
-            const index = this.slots.length - 1
-            this.slotErrors[index] = { weekday: '', start_time: '', end_time: '' }
-            this.$nextTick(() => {
-                const field = document.getElementById(`slot_weekday_${index}`)
-                field?.focus()
-                field?.closest('.course-cohort-schedule-form__slot-row')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-            })
+            const slot = this.withKey({ weekday: '', start_time: '', end_time: '' })
+            this.slots.push(slot)
+            this.$nextTick(() => document.getElementById(`{{ $idPrefix }}_start_${slot.key}`)?.focus())
         },
         async removeSlot(index) {
             if (this.slots.length <= 1) return
@@ -55,119 +71,210 @@
                 if (!confirmed) return
             }
             this.slots.splice(index, 1)
-            const nextErrors = {}
-            Object.entries(this.slotErrors).forEach(([key, value]) => {
-                const current = Number(key)
-                if (current < index) nextErrors[current] = value
-                if (current > index) nextErrors[current - 1] = value
-            })
-            this.slotErrors = nextErrors
             this.queuePreview()
         },
-        addExclusion() {
-            if (this.exclusions.length >= this.maxExclusions) return
-            this.exclusions.push({ excluded_on: '', reason: '' })
-            const index = this.exclusions.length - 1
-            this.$nextTick(() => {
-                const field = document.getElementById(`excluded_on_${index}`)
-                field?.focus()
-                field?.closest('.course-cohort-schedule-form__exclusion-row')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-            })
+        dateFrom(field) { return field.parentElement.querySelector('input[type=hidden]')?.value ?? '' },
+        addExclusion(field) {
+            const date = this.dateFrom(field)
+            this.setDate(field, '')
+            if (!date || this.exclusions.length >= this.maxExclusions || this.exclusions.some(item => item.excluded_on === date)) return
+            this.exclusions.push({ excluded_on: date, reason: '' })
+            this.exclusions.sort((a, b) => a.excluded_on.localeCompare(b.excluded_on))
         },
         removeExclusion(index) { this.exclusions.splice(index, 1); this.queuePreview() },
+        // The kit date field shows dd/mm/yyyy and keeps the submitted yyyy-mm-dd in its hidden sibling.
+        setDate(field, iso) {
+            if (!field) return
+            field.value = iso ? iso.split('-').reverse().join('/') : ''
+            field.dataset.iso = iso
+            const hidden = field.parentElement.querySelector('input[type=hidden]')
+            if (hidden) hidden.value = iso
+        },
+        displayDate(iso) { return iso ? iso.split('-').reverse().join('/') : '' },
         queuePreview() { clearTimeout(this.previewTimer); this.previewTimer = setTimeout(() => this.loadPreview(), 250) },
         async loadPreview() {
-            if (!this.name || !this.startsOn || !this.endsOn || !this.timezone || this.slots.some(slot => !slot.weekday || !slot.start_time || !slot.end_time)) {
-                this.preview = []; this.previewCount = 0; return
+            const token = ++this.previewToken
+            if (!this.startsOn || !this.endsOn || !this.timezone || this.slots.some(slot => !slot.weekday || !slot.start_time || !slot.end_time)) {
+                this.preview = []; this.previewCount = 0; this.previewError = ''; this.previewLoading = false; return
             }
             this.previewLoading = true; this.previewError = ''
             try {
                 const response = await fetch(@js(route('admin.course-cohorts.schedules.preview', $cohort->id)), {
                     method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': @js(csrf_token()) },
-                    body: JSON.stringify({ name: this.name, starts_on: this.startsOn, ends_on: this.endsOn, timezone: this.timezone, slots: this.slots, exclusions: this.exclusions.filter(item => item.excluded_on) })
+                    body: JSON.stringify({
+                        starts_on: this.startsOn, ends_on: this.endsOn, timezone: this.timezone,
+                        slots: this.slots.map(({ weekday, start_time, end_time }) => ({ weekday, start_time, end_time })),
+                        exclusions: this.exclusions.filter(item => item.excluded_on)
+                    })
                 })
                 const payload = await response.json()
-                if (!response.ok) { this.preview = []; this.previewCount = 0; this.previewError = Object.values(payload.errors || {}).flat()[0] || @js(__('lf.LF_course_cohort_schedule_preview_invalid')); return }
+                if (token !== this.previewToken) return
+                if (!response.ok) { this.preview = []; this.previewCount = 0; this.previewError = Object.values(payload.errors || {}).flat()[0] || @js(__('lf.LF_course_cohort_schedule_preview_failed')); return }
                 this.preview = payload.data; this.previewCount = payload.count
-            } catch (error) { this.previewError = @js(__('lf.LF_course_cohort_schedule_preview_failed')) }
-            finally { this.previewLoading = false }
-        }
-     }" x-init="$nextTick(() => loadPreview())" x-on:input.debounce.250ms="queuePreview()" x-on:change="queuePreview()">
-    @if(empty($inline))
-    <section class="admin-form-standard-section">
-        <div class="cohort-student-class-summary course-cohort-schedule-form__cohort-summary">
-            <div><span class="cohort-student-class-eyebrow">{{ __('lf.LF_course_cohort_student_section_class') }}</span><strong>{{ $cohort->name }}</strong></div>
-            <span>{{ $cohort->code }} · {{ $cohort->product_title ?? '—' }}</span>
-            <span><strong>{{ __('lf.LF_course_cohort_create_group_dates') }}:</strong> {{ $cohort->start_date ? \Illuminate\Support\Carbon::parse($cohort->start_date)->format('d/m/Y') : '—' }} → {{ $cohort->end_date ? \Illuminate\Support\Carbon::parse($cohort->end_date)->format('d/m/Y') : '—' }}</span>
-        </div>
-    </section>
-    @endif
-
-    <section class="admin-form-standard-section course-cohort-schedule-form__section" aria-labelledby="schedule-general-title">
-        <header class="admin-form-section-header"><div><h2 id="schedule-general-title" class="admin-form-section-title">{{ __('lf.LF_course_cohort_schedule_general') }}</h2>@if(empty($inline))<p class="admin-form-section-help">{{ __('lf.LF_course_cohort_schedule_general_help') }}</p>@endif</div></header>
-        <div class="admin-form-fields course-cohort-schedule-form__general-grid">
-            <div class="ui-field course-cohort-schedule-form__name"><x-form-label for="schedule_name" :value="__('lf.LF_course_cohort_schedule_name')" :required="true" /><input id="schedule_name" name="name" maxlength="255" required x-model="name" placeholder="{{ __('lf.LF_course_cohort_schedule_name_placeholder') }}"></div>
-            <div class="ui-field course-cohort-schedule-form__timezone"><x-form-label for="schedule_timezone" :value="__('lf.LF_course_cohort_schedule_timezone')" :required="true" /><select id="schedule_timezone" name="timezone" required x-model="timezone">@foreach($timezones as $item)<option value="{{ $item }}">{{ $item }}</option>@endforeach</select></div>
-            <div class="ui-field"><x-form-label for="schedule_starts_on" :value="__('lf.LF_course_cohort_schedule_starts_on')" :required="true" /><input id="schedule_starts_on" type="date" name="starts_on" required x-model="startsOn" x-bind:class="{ 'is-lf-placeholder': !startsOn }" min="{{ $cohort->start_date }}" max="{{ $cohort->end_date }}" lang="{{ str_replace('_', '-', app()->getLocale()) }}"></div>
-            <div class="ui-field"><x-form-label for="schedule_ends_on" :value="__('lf.LF_course_cohort_schedule_ends_on')" :required="true" /><input id="schedule_ends_on" type="date" name="ends_on" required x-model="endsOn" x-bind:class="{ 'is-lf-placeholder': !endsOn }" x-bind:min="startsOn || @js($cohort->start_date)" max="{{ $cohort->end_date }}" lang="{{ str_replace('_', '-', app()->getLocale()) }}"></div>
-        </div>
-    </section>
-
-    <section class="admin-form-standard-section course-cohort-schedule-form__section" aria-labelledby="schedule-slots-title">
-        <header class="admin-form-section-header"><div><h2 id="schedule-slots-title" class="admin-form-section-title">{{ __('lf.LF_course_cohort_schedule_slots') }}</h2><p class="admin-form-section-help">{{ __('lf.LF_course_cohort_schedule_slots_help') }}</p></div></header>
-        <div class="course-cohort-schedule-form__repeaters">
-            <template x-for="(slot, index) in slots" :key="`slot-${index}`">
-                <div class="course-cohort-schedule-form__slot-row">
-                    <span class="course-cohort-schedule-form__row-number" x-text="index + 1" aria-hidden="true"></span>
-                    <div class="ui-field"><label class="ui-field__label" x-bind:for="`slot_weekday_${index}`">{{ __('lf.LF_course_cohort_schedule_weekday') }} <span aria-hidden="true">*</span></label><select x-bind:id="`slot_weekday_${index}`" x-bind:name="`slots[${index}][weekday]`" x-model="slot.weekday" required><option value="">{{ __('lf.LF_course_cohort_schedule_select_weekday') }}</option>@foreach(range(1,7) as $weekday)<option value="{{ $weekday }}">{{ __('lf.LF_course_cohort_schedule_weekday_'.$weekday) }}</option>@endforeach</select><p class="ui-field__error" x-show="slotErrors[index]?.weekday" x-text="slotErrors[index]?.weekday"></p></div>
-                    <div class="ui-field"><label class="ui-field__label" x-bind:for="`slot_start_${index}`">{{ __('lf.LF_course_cohort_schedule_start_time') }} <span aria-hidden="true">*</span></label><input type="time" x-bind:id="`slot_start_${index}`" x-bind:name="`slots[${index}][start_time]`" x-model="slot.start_time" required><p class="ui-field__error" x-show="slotErrors[index]?.start_time" x-text="slotErrors[index]?.start_time"></p></div>
-                    <div class="ui-field"><label class="ui-field__label" x-bind:for="`slot_end_${index}`">{{ __('lf.LF_course_cohort_schedule_end_time') }} <span aria-hidden="true">*</span></label><input type="time" x-bind:id="`slot_end_${index}`" x-bind:name="`slots[${index}][end_time]`" x-bind:min="slot.start_time" x-model="slot.end_time" required><p class="ui-field__error" x-show="slotErrors[index]?.end_time" x-text="slotErrors[index]?.end_time"></p></div>
-                    <button type="button" class="course-cohort-schedule-form__row-action course-cohort-schedule-form__row-action--remove" x-show="slots.length > 1" x-cloak x-on:click="removeSlot(index)" x-bind:aria-label="`${@js(__('lf.LF_common_button_remove'))} ${index + 1}`" title="{{ __('lf.LF_common_button_remove') }}"><x-backend-icon name="trash" /></button>
-                </div>
-            </template>
-            <div class="course-cohort-schedule-form__slot-footer">
-                <button type="button" class="course-cohort-schedule-form__append" x-on:click="addSlot()" x-bind:disabled="slots.length >= maxSlots"><x-backend-icon name="plus" />{{ __('lf.LF_course_cohort_schedule_add_slot') }}</button>
-                <p class="admin-form-section-help" x-show="slots.length >= maxSlots" x-cloak>{{ __('lf.LF_course_cohort_schedule_slot_limit', ['count' => 50]) }}</p>
-            </div>
-        </div>
-    </section>
-
-    <section class="admin-form-standard-section course-cohort-schedule-form__section" aria-labelledby="schedule-exclusions-title">
-        <header class="admin-form-section-header"><div><h2 id="schedule-exclusions-title" class="admin-form-section-title">{{ __('lf.LF_course_cohort_schedule_exclusions') }}</h2><p class="admin-form-section-help">{{ __('lf.LF_course_cohort_schedule_exclusions_help') }}</p></div></header>
-        <div class="course-cohort-schedule-form__repeaters">
-            <template x-for="(exclusion, index) in exclusions" :key="`exclusion-${index}`">
-                <div class="course-cohort-schedule-form__exclusion-row">
-                    <span class="course-cohort-schedule-form__row-number" x-text="index + 1" aria-hidden="true"></span>
-                    <div class="ui-field"><label class="ui-field__label" x-bind:for="`excluded_on_${index}`">{{ __('lf.LF_course_cohort_schedule_excluded_on') }} <span aria-hidden="true">*</span></label><input type="date" x-bind:id="`excluded_on_${index}`" x-bind:name="`exclusions[${index}][excluded_on]`" x-model="exclusion.excluded_on" x-bind:min="startsOn" x-bind:max="endsOn" required></div>
-                    <div class="ui-field"><label class="ui-field__label" x-bind:for="`exclusion_reason_${index}`">{{ __('lf.LF_course_cohort_schedule_reason') }}</label><input maxlength="500" x-bind:id="`exclusion_reason_${index}`" x-bind:name="`exclusions[${index}][reason]`" x-model="exclusion.reason" placeholder="{{ __('lf.LF_course_cohort_schedule_reason_placeholder') }}"></div>
-                    <button type="button" class="course-cohort-schedule-form__row-action course-cohort-schedule-form__row-action--remove" x-on:click="removeExclusion(index)" x-bind:aria-label="`${@js(__('lf.LF_common_button_remove'))} ${index + 1}`" title="{{ __('lf.LF_common_button_remove') }}"><x-backend-icon name="trash" /></button>
-                </div>
-            </template>
-            <p class="course-cohort-schedule-form__empty-repeater" x-show="exclusions.length === 0">{{ __('lf.LF_course_cohort_schedule_no_exclusions') }}</p>
-            <div class="course-cohort-schedule-form__slot-footer">
-                <button type="button" class="course-cohort-schedule-form__append course-cohort-schedule-form__append--exclusion" x-on:click="addExclusion()" x-bind:disabled="exclusions.length >= maxExclusions"><x-backend-icon name="plus" />{{ __('lf.LF_course_cohort_schedule_add_exclusion') }}</button>
-                <p class="admin-form-section-help" x-show="exclusions.length >= maxExclusions" x-cloak>{{ __('lf.LF_course_cohort_schedule_exclusion_limit', ['count' => 366]) }}</p>
-            </div>
-        </div>
-    </section>
-
-    <section class="admin-form-standard-section course-cohort-schedule-form__section course-cohort-schedule-form__preview" aria-labelledby="schedule-preview-title">
-        <header class="admin-form-section-header"><div><h2 id="schedule-preview-title" class="admin-form-section-title">{{ __('lf.LF_course_cohort_schedule_preview') }}</h2><p class="admin-form-section-help">{{ __('lf.LF_course_cohort_schedule_preview_notice') }}</p></div><div class="course-cohort-schedule-preview__summary"><span class="course-cohort-schedule-preview__timezone"><span>{{ __('lf.LF_course_cohort_schedule_timezone') }}:</span> <strong x-text="timezone"></strong></span><span class="course-cohort-schedule-preview__count" x-text="previewLoading ? @js(__('lf.LF_course_cohort_schedule_preview_loading')) : @js(__('lf.LF_course_cohort_schedule_expected_count_value')).replace(':count', previewCount)"></span></div></header>
-        <p class="ui-field__error" role="alert" x-show="previewError" x-text="previewError" x-cloak></p>
-        <div class="course-cohort-schedule-preview__list" x-show="preview.length" x-cloak>
-            <template x-for="item in preview" :key="`${item.starts_at}-${item.ends_at}`"><div class="course-cohort-schedule-preview__item"><strong x-text="new Intl.DateTimeFormat(@js(app()->getLocale()), { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric', timeZone: item.timezone }).format(new Date(item.starts_at))"></strong><span x-text="`${item.start_time}–${item.end_time}`"></span></div></template>
-        </div>
-        <p class="course-cohort-schedule-preview__empty" x-show="!previewLoading && !preview.length && !previewError">{{ __('lf.LF_course_cohort_schedule_preview_empty') }}</p>
-    </section>
-
-    <footer class="admin-form-footer" data-actions-align="end">
-        <div class="admin-form-footer-primary">
-            @if(! empty($inline))
-                <button class="ui-button cursor-interaction" type="button" x-on:click="$dispatch('schedule-editor-close')">{{ __('lf.LF_common_button_cancel') }}</button>
+            } catch (error) {
+                if (token === this.previewToken) this.previewError = @js(__('lf.LF_course_cohort_schedule_preview_failed'))
+            } finally {
+                if (token === this.previewToken) this.previewLoading = false
+            }
+        },
+        dismiss() {
+            if (this.$refs.dialog.open) this.$refs.dialog.close()
+            this.closed()
+        },
+        closed() {
+            this.showErrors = false
+            @if ($editing)
+                history.replaceState(null, '', @js(route('admin.course-cohorts.show', ['id' => $cohort->id, 'tab' => 'schedules'])))
             @else
-                <a class="ui-button cursor-interaction" href="{{ route('admin.course-cohorts.show', ['id' => $cohort->id, 'tab' => 'schedules']) }}">{{ __('lf.LF_common_button_cancel') }}</a>
+                this.name = this.saved.fields.name
+                this.timezone = this.saved.fields.timezone
+                this.startsOn = this.saved.fields.startsOn
+                this.endsOn = this.saved.fields.endsOn
+                this.$refs.timezoneSelect.value = this.timezone
+                this.$refs.timezoneSelect.dispatchEvent(new Event('change', { bubbles: true }))
+                this.setDate(this.$refs.startsOnField, this.startsOn)
+                this.setDate(this.$refs.endsOnField, this.endsOn)
+                this.slots = this.saved.slots.map(slot => this.withKey(slot))
+                this.exclusions = this.saved.exclusions.map(item => ({ ...item }))
+                this.queuePreview()
             @endif
-            <button class="ui-button ui-button--primary cursor-interaction" type="submit">{{ $editing ? __('lf.LF_common_button_save_changes') : __('lf.LF_course_cohort_schedule_save') }}</button>
+        },
+        init() {
+            this.slots = @js($initialSlots).map(slot => this.withKey(slot))
+            this.exclusions = @js($initialExclusions);
+            if (@js($retry || $autoOpen)) this.$nextTick(() => this.open())
+        }
+     }"
+     x-ref="dialog"
+     @unless ($editing) x-on:schedule-create-open.window="open()" @endunless
+     x-on:close="closed()" x-on:cancel="if (submitting) $event.preventDefault()">
+    <form method="POST" action="{{ $action }}" class="ui-modal__form"
+          x-on:submit="if (submitting) { $event.preventDefault(); return } submitting = true"
+          x-on:input.debounce.250ms="queuePreview()" x-on:change="queuePreview()">
+        @csrf
+        @if ($editing) @method('PUT') @endif
+        <input type="hidden" name="_form" value="{{ $formKey }}">
+        <header class="ui-modal__header">
+            <div><h3 id="{{ $idPrefix }}_title">{{ $dialogTitle }}</h3></div>
+            <button type="button" class="ui-modal__close cursor-interaction" x-on:click="dismiss()" :disabled="submitting" aria-label="{{ __('lf.LF_common_button_close') }}">×</button>
+        </header>
+        <div class="ui-modal__body">
+            @if ($summaryErrors->isNotEmpty())
+                <div class="ui-field__error ui-cohort-manage-error" role="alert" x-show="showErrors">
+                    @foreach ($summaryErrors as $error)<p>{{ $error }}</p>@endforeach
+                </div>
+            @endif
+            <div class="ui-cohort-schedule-layout">
+                <div class="ui-cohort-schedule-fields">
+                    <div class="ui-cohort-schedule-grid">
+                        <div class="ui-field">
+                            <label class="ui-field__label" for="{{ $idPrefix }}_name"><span class="ui-field__required" aria-hidden="true">*</span>{{ __('lf.LF_course_cohort_schedule_name') }}</label>
+                            <input id="{{ $idPrefix }}_name" name="name" maxlength="255" required autocomplete="off" x-model="name" placeholder="{{ __('lf.LF_course_cohort_schedule_name_placeholder') }}">
+                        </div>
+                        <div class="ui-field">
+                            <label class="ui-field__label" for="{{ $idPrefix }}_timezone"><span class="ui-field__required" aria-hidden="true">*</span>{{ __('lf.LF_course_cohort_schedule_timezone') }}</label>
+                            <select id="{{ $idPrefix }}_timezone" name="timezone" required data-ui-kit-select x-ref="timezoneSelect" x-model="timezone">
+                                @foreach ($timezones as $item)<option value="{{ $item }}" @selected($item === $initialFields['timezone'])>{{ $item }}</option>@endforeach
+                            </select>
+                        </div>
+                        <div class="ui-field">
+                            <label class="ui-field__label" for="{{ $idPrefix }}_starts_on"><span class="ui-field__required" aria-hidden="true">*</span>{{ __('lf.LF_course_cohort_schedule_starts_on') }}</label>
+                            <x-ui-date-input :id="$idPrefix.'_starts_on'" name="starts_on" :value="$initialFields['startsOn']" :min="$cohort->start_date" :max="$cohort->end_date" required
+                                             x-ref="startsOnField" x-on:change="startsOn = dateFrom($el)" />
+                        </div>
+                        <div class="ui-field">
+                            <label class="ui-field__label" for="{{ $idPrefix }}_ends_on"><span class="ui-field__required" aria-hidden="true">*</span>{{ __('lf.LF_course_cohort_schedule_ends_on') }}</label>
+                            <x-ui-date-input :id="$idPrefix.'_ends_on'" name="ends_on" :value="$initialFields['endsOn']" :min="$cohort->start_date" :max="$cohort->end_date" required
+                                             x-ref="endsOnField" x-on:change="endsOn = dateFrom($el)" />
+                        </div>
+                    </div>
+
+                    <div class="ui-cohort-schedule-group" role="group" aria-labelledby="{{ $idPrefix }}_slots_label">
+                        <p id="{{ $idPrefix }}_slots_label" class="ui-field__label"><span class="ui-field__required" aria-hidden="true">*</span>{{ __('lf.LF_course_cohort_schedule_slots') }}</p>
+                        <p class="ui-caption">{{ __('lf.LF_course_cohort_schedule_slots_help') }}</p>
+                        <template x-for="(slot, index) in slots" :key="slot.key">
+                            <div class="ui-cohort-schedule-slot">
+                                <div class="ui-field">
+                                    <label class="ui-field__label" x-bind:for="`{{ $idPrefix }}_weekday_${slot.key}`">{{ __('lf.LF_course_cohort_schedule_weekday') }}</label>
+                                    <select data-ui-kit-select x-bind:id="`{{ $idPrefix }}_weekday_${slot.key}`" x-bind:name="`slots[${index}][weekday]`" x-model="slot.weekday" required
+                                            x-init="$nextTick(() => window.LFUiKitSelect?.($el))">
+                                        <option value="">{{ __('lf.LF_course_cohort_schedule_select_weekday') }}</option>
+                                        @foreach (range(1, 7) as $weekday)<option value="{{ $weekday }}">{{ __('lf.LF_course_cohort_schedule_weekday_'.$weekday) }}</option>@endforeach
+                                    </select>
+                                    <p class="ui-field__error" x-show="showErrors && slot.errors.weekday" x-text="slot.errors.weekday"></p>
+                                </div>
+                                <div class="ui-field">
+                                    <label class="ui-field__label" x-bind:for="`{{ $idPrefix }}_start_${slot.key}`">{{ __('lf.LF_course_cohort_schedule_start_time') }}</label>
+                                    <input type="time" x-bind:id="`{{ $idPrefix }}_start_${slot.key}`" x-bind:name="`slots[${index}][start_time]`" x-model="slot.start_time" required>
+                                    <p class="ui-field__error" x-show="showErrors && slot.errors.start_time" x-text="slot.errors.start_time"></p>
+                                </div>
+                                <div class="ui-field">
+                                    <label class="ui-field__label" x-bind:for="`{{ $idPrefix }}_end_${slot.key}`">{{ __('lf.LF_course_cohort_schedule_end_time') }}</label>
+                                    <input type="time" x-bind:id="`{{ $idPrefix }}_end_${slot.key}`" x-bind:name="`slots[${index}][end_time]`" x-bind:min="slot.start_time" x-model="slot.end_time" required>
+                                    <p class="ui-field__error" x-show="showErrors && slot.errors.end_time" x-text="slot.errors.end_time"></p>
+                                </div>
+                                <button type="button" class="ux-row-delete cursor-interaction" x-show="slots.length > 1" x-cloak x-on:click="removeSlot(index)"
+                                        x-bind:aria-label="`${@js(__('lf.LF_common_button_remove'))} ${index + 1}`" data-tooltip="{{ __('lf.LF_common_button_remove') }}">
+                                    <x-backend-icon name="trash" class="ui-icon" />
+                                </button>
+                            </div>
+                        </template>
+                        <div class="ui-cohort-schedule-group__foot">
+                            <button type="button" class="ui-button ui-button--outline ui-button--sm cursor-interaction" x-on:click="addSlot()" x-bind:disabled="slots.length >= maxSlots">
+                                <x-backend-icon name="plus" class="ui-icon" />{{ __('lf.LF_course_cohort_schedule_add_slot') }}
+                            </button>
+                            <p class="ui-caption" x-show="slots.length >= maxSlots" x-cloak>{{ __('lf.LF_course_cohort_schedule_slot_limit', ['count' => 50]) }}</p>
+                        </div>
+                    </div>
+
+                    <div class="ui-cohort-schedule-group" role="group" aria-labelledby="{{ $idPrefix }}_exclusions_label">
+                        <label id="{{ $idPrefix }}_exclusions_label" class="ui-field__label" for="{{ $idPrefix }}_exclusion_pick">{{ __('lf.LF_course_cohort_schedule_exclusions') }}</label>
+                        <p class="ui-caption">{{ __('lf.LF_course_cohort_schedule_exclusions_help') }}</p>
+                        <div class="ui-cohort-schedule-exclusion-pick">
+                            <x-ui-date-input :id="$idPrefix.'_exclusion_pick'" name="" :min="$cohort->start_date" :max="$cohort->end_date"
+                                             x-on:change="addExclusion($el)" />
+                        </div>
+                        <template x-for="(exclusion, index) in exclusions" :key="exclusion.excluded_on">
+                            <div class="ui-cohort-schedule-exclusion">
+                                <span class="ui-cohort-schedule-exclusion__date" x-text="displayDate(exclusion.excluded_on)"></span>
+                                <input type="hidden" x-bind:name="`exclusions[${index}][excluded_on]`" x-bind:value="exclusion.excluded_on">
+                                <input maxlength="500" x-bind:name="`exclusions[${index}][reason]`" x-model="exclusion.reason" x-bind:aria-label="`{{ __('lf.LF_course_cohort_schedule_reason') }} ${displayDate(exclusion.excluded_on)}`" placeholder="{{ __('lf.LF_course_cohort_schedule_reason_placeholder') }}">
+                                <button type="button" class="ux-row-delete cursor-interaction" x-on:click="removeExclusion(index)"
+                                        x-bind:aria-label="`${@js(__('lf.LF_common_button_remove'))} ${displayDate(exclusion.excluded_on)}`" data-tooltip="{{ __('lf.LF_common_button_remove') }}">
+                                    <x-backend-icon name="trash" class="ui-icon" />
+                                </button>
+                            </div>
+                        </template>
+                        <p class="ui-caption" x-show="exclusions.length >= maxExclusions" x-cloak>{{ __('lf.LF_course_cohort_schedule_exclusion_limit', ['count' => 366]) }}</p>
+                    </div>
+                </div>
+
+                <aside class="ui-cohort-schedule-preview" aria-labelledby="{{ $idPrefix }}_preview_label">
+                    <div class="ui-cohort-schedule-preview__head">
+                        <p id="{{ $idPrefix }}_preview_label" class="ui-field__label">{{ __('lf.LF_course_cohort_schedule_preview') }}</p>
+                        <span class="ui-caption" x-text="previewLoading ? @js(__('lf.LF_course_cohort_schedule_preview_loading')) : @js(__('lf.LF_course_cohort_schedule_expected_count_value')).replace(':count', previewCount)"></span>
+                    </div>
+                    <p class="ui-caption">{{ __('lf.LF_course_cohort_schedule_preview_notice') }}</p>
+                    <p class="ui-field__error" role="alert" x-show="previewError" x-text="previewError" x-cloak></p>
+                    <ul class="ui-cohort-schedule-preview__list" x-show="preview.length" x-cloak>
+                        <template x-for="item in preview" :key="`${item.starts_at}-${item.ends_at}`">
+                            <li>
+                                <span class="mk-name-text" x-text="new Intl.DateTimeFormat(@js(app()->getLocale()), { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric', timeZone: item.timezone }).format(new Date(item.starts_at))"></span>
+                                <span class="ui-caption" x-text="`${item.start_time}–${item.end_time}`"></span>
+                            </li>
+                        </template>
+                    </ul>
+                    <p class="ui-caption" x-show="!previewLoading && !preview.length && !previewError">{{ __('lf.LF_course_cohort_schedule_preview_empty') }}</p>
+                </aside>
+            </div>
         </div>
-    </footer>
-</div>
+        <footer class="ui-modal__footer">
+            <span></span>
+            <button type="button" class="ui-button cursor-interaction" x-on:click="dismiss()" :disabled="submitting">{{ __('lf.LF_common_button_cancel') }}</button>
+            <button type="submit" class="ui-button ui-button--primary cursor-interaction" :disabled="submitting" :aria-busy="submitting">
+                <x-backend-icon name="check" class="ui-icon" />
+                {{ $editing ? __('lf.LF_common_button_save_changes') : __('lf.LF_course_cohort_schedule_save') }}
+            </button>
+        </footer>
+    </form>
+</dialog>

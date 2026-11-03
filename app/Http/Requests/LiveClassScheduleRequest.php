@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Services\CourseCohortMutationPolicy;
+use App\Services\CourseCohortVersionResolver;
 use App\Support\TenantContext;
 use DateTimeZone;
 use Illuminate\Foundation\Http\FormRequest;
@@ -40,7 +41,8 @@ class LiveClassScheduleRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['required', 'string', 'max:255'],
+            // The live preview runs before the admin has named the schedule.
+            'name' => [$this->routeIs('*.preview') ? 'nullable' : 'required', 'string', 'max:255'],
             'starts_on' => ['required', 'date_format:Y-m-d'],
             'ends_on' => ['required', 'date_format:Y-m-d', 'after_or_equal:starts_on'],
             'timezone' => ['required', 'string', 'max:64', Rule::in(DateTimeZone::listIdentifiers())],
@@ -74,9 +76,17 @@ class LiveClassScheduleRequest extends FormRequest
             $cohort = DB::table('core_course_cohorts')
                 ->where('customer_id', $customerId)
                 ->where('id', (int) $this->route('cohort'))
-                ->first(['start_date', 'end_date']);
+                ->first(['start_date', 'end_date', 'version_id']);
             if (! $cohort?->start_date || ! $cohort?->end_date) {
                 $validator->errors()->add('starts_on', __('lf.LF_course_cohort_schedule_validation_cohort_period'));
+
+                return;
+            }
+
+            // ADR-0022: a legacy class bound to a self-paced course takes no new schedule; existing ones stay editable.
+            if (! $this->route('schedule') && ! $this->routeIs('*.preview') && $cohort->version_id
+                && ! app(CourseCohortVersionResolver::class)->runsInClass($customerId, (int) $cohort->version_id)) {
+                $validator->errors()->add('starts_on', __('lf.LF_course_type_cohort_legacy_self_paced'));
 
                 return;
             }
@@ -91,9 +101,10 @@ class LiveClassScheduleRequest extends FormRequest
                 ]));
             }
 
-            $slotsByWeekday = collect($this->input('slots', []))->groupBy('weekday');
+            $slotsByWeekday = collect($this->input('slots', []))->groupBy('weekday', true);
             foreach ($slotsByWeekday as $slots) {
-                $normalized = $slots->map(fn (array $slot): array => [
+                $normalized = $slots->map(fn (array $slot, int|string $index): array => [
+                    'row' => $index,
                     'start' => $this->minutes((string) ($slot['start_time'] ?? '')),
                     'end' => $this->minutes((string) ($slot['end_time'] ?? '')),
                 ])->sortBy('start')->values();
@@ -103,7 +114,7 @@ class LiveClassScheduleRequest extends FormRequest
                         continue;
                     }
                     if ($slot['end'] <= $slot['start']) {
-                        $validator->errors()->add("slots.{$index}.end_time", __('lf.LF_course_cohort_schedule_validation_time_order'));
+                        $validator->errors()->add("slots.{$slot['row']}.end_time", __('lf.LF_course_cohort_schedule_validation_time_order'));
                     }
                     if ($index > 0 && $slot['start'] < $normalized[$index - 1]['end']) {
                         $validator->errors()->add('slots', __('lf.LF_course_cohort_schedule_validation_overlap'));

@@ -791,6 +791,8 @@ export function initUiKitLiveFilter(form, deps = {}) {
 
 if (typeof document !== 'undefined') {
     const initialize = () => {
+        // Rows Alpine adds later (a repeater) enhance their own select through this.
+        window.LFUiKitSelect = initUiKitSelect;
         document.querySelectorAll('.lf-admin-ui select[data-ui-kit-select]').forEach(initUiKitSelect);
         document.querySelectorAll('.lf-admin-ui form[data-ui-live-filter]').forEach(form => initUiKitLiveFilter(form));
         initUiKitDateInputs(document);

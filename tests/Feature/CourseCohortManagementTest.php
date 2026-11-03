@@ -577,6 +577,63 @@ class CourseCohortManagementTest extends TestCase
             ->assertSeeText(__('lf.LF_course_cohort_action_complete'));
     }
 
+    public function test_schedule_request_reports_the_row_and_blocks_new_schedules_on_a_self_paced_class(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $cohortId = $this->createCohort($customerId);
+        $versionId = $this->createVersion($customerId, $admin->id);
+        DB::table('core_course_cohorts')->where('id', $cohortId)->update([
+            'status' => 'active', 'start_date' => '2026-08-01', 'end_date' => '2026-08-31', 'version_id' => $versionId,
+        ]);
+        $url = "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/schedules";
+        $slots = [
+            ['weekday' => 2, 'start_time' => '08:00', 'end_time' => '09:00'],
+            ['weekday' => 3, 'start_time' => '08:00', 'end_time' => '09:00'],
+            ['weekday' => 3, 'start_time' => '11:00', 'end_time' => '10:00'],
+        ];
+
+        // Row 2 is wrong, whatever its position among the slots of that weekday.
+        $this->actingAs($admin)->from($url)->post($url, $this->validScheduleData(['slots' => $slots]))
+            ->assertSessionHasErrors('slots.2.end_time')
+            ->assertSessionDoesntHaveErrors('slots.1.end_time');
+
+        // The live preview does not need a name yet.
+        $this->actingAs($admin)->postJson($url.'/preview', array_diff_key(
+            $this->validScheduleData(),
+            ['name' => true]
+        ))->assertOk();
+
+        DB::table('core_course_template_versions')->where('id', $versionId)->update(['course_type_snapshot' => 'self_paced']);
+
+        $this->actingAs($admin)->from($url)->post($url, $this->validScheduleData())->assertSessionHasErrors('starts_on');
+        $this->assertSame(0, DB::table('core_liveclass_schedules')->where('cohort_id', $cohortId)->count());
+
+        $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=schedules")->assertOk()
+            ->assertSeeText(__('lf.LF_course_type_cohort_legacy_self_paced'))
+            ->assertDontSee('schedule-create-open', false);
+    }
+
+    public function test_schedule_detail_opens_on_a_read_only_class(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $cohortId = $this->createCohort($customerId);
+        DB::table('core_course_cohorts')->where('id', $cohortId)->update([
+            'status' => 'active', 'start_date' => '2026-08-01', 'end_date' => '2026-08-31',
+        ]);
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/schedules", $this->validScheduleData())
+            ->assertSessionHasNoErrors();
+        $scheduleId = (int) DB::table('core_liveclass_schedules')->where('cohort_id', $cohortId)->value('id');
+        DB::table('core_course_cohorts')->where('id', $cohortId)->update(['status' => 'completed']);
+
+        $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=schedules&schedule_form=view&schedule_id={$scheduleId}")
+            ->assertOk()
+            ->assertSee('ui-modal ui-cohort-schedule-detail', false)
+            ->assertDontSee('schedule_form=edit', false);
+    }
+
     public function test_overview_note_follows_the_class_status(): void
     {
         $customerId = $this->createTenant();
@@ -2039,11 +2096,8 @@ class CourseCohortManagementTest extends TestCase
             ->assertSeeText(__('lf.LF_course_cohort_schedule_expected_count'))
             ->assertSeeText(__('lf.LF_course_cohort_schedule_detail_notice'))
             ->assertSeeText(__('lf.LF_course_cohort_schedule_status_upcoming'))
-            ->assertSee('course-cohort-schedule-detail--inline', false)
-            ->assertSee('course-cohort-schedule-detail__eyebrow', false)
-            ->assertSee('course-cohort-schedule-detail__section-header', false)
-            ->assertSee('admin-form-footer--sticky course-cohort-schedule-detail__footer', false)
-            ->assertSee('course-cohort-schedules__table-wrap', false);
+            ->assertSee('ui-modal ui-cohort-schedule-detail', false)
+            ->assertSee('ui-cohort-col-slots', false);
     }
 
     public function test_schedule_preview_includes_both_date_boundaries_and_multiple_slots_per_day(): void
@@ -2094,42 +2148,21 @@ class CourseCohortManagementTest extends TestCase
             ->assertSeeText(__('lf.LF_course_cohort_schedule_preview_empty'))
             ->assertSee('placeholder="'.__('lf.LF_course_cohort_schedule_name_placeholder').'"', false)
             ->assertSee('placeholder="'.__('lf.LF_course_cohort_schedule_reason_placeholder').'"', false)
-            ->assertSee('course-cohort-schedule-preview__timezone', false)
-            ->assertSee('course-cohort-schedule-preview__summary', false)
             ->assertSee('ui-cohort-col-slots', false)
             ->assertSee('id="schedule_starts_on"', false)
+            ->assertSee('data-ui-kit-date', false)
             ->assertSee('min="2026-08-01"', false)
             ->assertSee('max="2026-08-31"', false)
-            ->assertSee("'is-lf-placeholder': !startsOn", false)
-            ->assertSee('x-show="!formOpen"', false)
-            ->assertSee('course-cohort-schedules__operation-window', false)
+            ->assertSee('schedule-create-open', false)
             ->assertDontSee('id="schedule_starts_on" disabled', false)
             ->assertDontSee('id="schedule_starts_on" readonly', false);
-        $this->assertTrue(
-            strpos($createResponse->getContent(), 'id="cohort-schedule-editor"')
-                < strpos($createResponse->getContent(), 'course-cohort-schedules__table-wrap')
-        );
-        $this->assertSame(
-            2,
-            substr_count($createResponse->getContent(), 'class="course-cohort-schedule-form__append')
-        );
-        $this->assertSame(
-            1,
-            substr_count($createResponse->getContent(), 'course-cohort-schedule-form__append--exclusion')
-        );
         $createResponse
             ->assertSee('this.slots.push', false)
             ->assertSee('this.slots.splice(index, 1)', false)
             ->assertSee('if (this.slots.length <= 1) return', false)
-            ->assertSee('field?.focus()', false)
-            ->assertSee('scrollIntoView', false)
             ->assertSee('maxSlots: 50', false)
             ->assertSee('maxExclusions: 366', false)
-            ->assertSee('this.exclusions.push', false)
-            ->assertDontSee('addExclusion(index)', false)
-            ->assertSee('this.exclusions.length - 1', false)
-            ->assertSee("closest('.course-cohort-schedule-form__exclusion-row')", false)
-            ->assertSee('nextErrors[current - 1] = value', false);
+            ->assertSee('this.exclusions.push', false);
 
         $this->actingAs($admin)->post(
             "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/schedules",

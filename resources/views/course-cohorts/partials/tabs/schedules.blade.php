@@ -1,80 +1,75 @@
-@php($inlineScheduleMode = in_array($scheduleFormMode, ['view', 'edit'], true) ? $scheduleFormMode : 'create')
-<section class="mk-section course-cohort-schedules" aria-labelledby="cohort-schedules-title"
-     x-data="{
-         formOpen: @js($scheduleFormMode !== null),
-         openForm() {
-             this.formOpen = true
-             this.$nextTick(() => this.$refs.editor?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
-         }
-     }"
-     x-init="if (formOpen) $nextTick(() => $refs.editor?.scrollIntoView({ behavior: 'smooth', block: 'start' }))"
-     x-on:schedule-editor-close.window="formOpen = false">
+@php
+    $hasOperatingPeriod = $cohort->start_date && $cohort->end_date;
+    $canAddSchedule = $cohort->is_mutable && $hasOperatingPeriod && $scheduleAcceptsNew;
+@endphp
+<section class="mk-section course-cohort-schedules" aria-labelledby="cohort-schedules-title">
             <div class="ui-summary-head">
                 <div>
                     <h2 id="cohort-schedules-title">{{ __('lf.LF_course_cohort_schedule_list_title') }}</h2>
-                    <p class="ui-caption">{{ __('lf.LF_course_cohort_schedule_list_help') }}</p>
-                    @if($cohort->start_date && $cohort->end_date)
-                        <p class="ui-caption course-cohort-schedules__operation-window">
+                    <p class="ui-caption">
+                        {{ __('lf.LF_course_cohort_schedule_list_help') }}
+                        @if ($hasOperatingPeriod)
                             {{ __('lf.LF_course_cohort_create_group_dates') }}:
-                            {{ \Illuminate\Support\Carbon::parse($cohort->start_date)->format('d/m/Y') }} → {{ \Illuminate\Support\Carbon::parse($cohort->end_date)->format('d/m/Y') }}
-                        </p>
-                    @endif
+                            <span class="ui-enroll-nowrap">{{ \Illuminate\Support\Carbon::parse($cohort->start_date)->format('d/m/Y') }} → {{ \Illuminate\Support\Carbon::parse($cohort->end_date)->format('d/m/Y') }}</span>.
+                        @endif
+                    </p>
                 </div>
                 <div class="mk-table-top__actions">
-                    <span class="ui-caption">{{ trans_choice('lf.LF_course_cohort_schedule_count', $schedules->total(), ['count' => $schedules->total()]) }}</span>
-                    @if ($cohort->is_mutable && $cohort->start_date && $cohort->end_date)
+                    <span class="ui-caption ui-enroll-nowrap">{{ trans_choice('lf.LF_course_cohort_schedule_count', $schedules->total(), ['count' => $schedules->total()]) }}</span>
+                    @if ($canAddSchedule)
                         <button type="button" class="ui-button ui-button--outline cursor-interaction course-cohort-schedules__create"
-                                x-show="!formOpen" x-cloak
-                                x-on:click="openForm()" x-bind:aria-expanded="formOpen.toString()"
-                                aria-controls="cohort-schedule-editor">
+                                aria-haspopup="dialog" x-on:click="$dispatch('schedule-create-open')">
                             {{ __('lf.LF_course_cohort_schedule_add') }}
                         </button>
                     @endif
                 </div>
             </div>
 
-            @if($cohort->is_mutable && (! $cohort->start_date || ! $cohort->end_date))
-                <div class="admin-alert admin-alert-warning course-cohort-schedules__operation-required" role="status">
-                    <span>{{ __('lf.LF_course_cohort_schedule_operation_required') }}</span>
-                    <a class="admin-text-action" href="{{ route('admin.course-cohorts.edit', $cohort->id) }}">{{ __('lf.LF_course_cohort_schedule_operation_action') }}</a>
+            @if ($cohort->is_mutable && ! $hasOperatingPeriod)
+                <div class="ui-banner ui-cohort-tab-notice" role="status">
+                    <span class="ui-banner__text">{{ __('lf.LF_course_cohort_schedule_operation_required') }}</span>
+                    <a class="ui-button ui-button--sm ui-button--outline cursor-interaction" href="{{ route('admin.course-cohorts.edit', $cohort->id) }}">{{ __('lf.LF_course_cohort_schedule_operation_action') }}</a>
+                </div>
+            @elseif ($cohort->is_mutable && ! $scheduleAcceptsNew && $schedules->total() > 0)
+                <div class="ui-banner ui-cohort-tab-notice" role="status">
+                    <span class="ui-banner__text">{{ __('lf.LF_course_type_cohort_legacy_self_paced') }}</span>
                 </div>
             @endif
 
-            @if($cohort->is_mutable && $cohort->start_date && $cohort->end_date)
-                <div id="cohort-schedule-editor" class="course-cohort-schedules__inline-editor" tabindex="-1"
-                     x-ref="editor" x-show="formOpen" x-cloak x-transition.opacity.duration.150ms>
-                    @if($inlineScheduleMode === 'view')
-                        @include('course-cohort-schedules.partials.detail', [
-                            'schedule' => $scheduleFormSchedule,
-                            'slots' => $scheduleFormSlots,
-                            'exclusions' => $scheduleFormExclusions,
-                            'preview' => $scheduleFormPreview,
-                            'derivedStatus' => $scheduleFormDerivedStatus,
-                            'canMutate' => $cohort->is_mutable,
-                        ])
-                    @else
-                    @include('course-cohort-schedules.partials.errors')
-                    <form method="POST"
-                          action="{{ $inlineScheduleMode === 'edit'
-                              ? route('admin.course-cohorts.schedules.update', [$cohort->id, $scheduleFormSchedule->id])
-                              : route('admin.course-cohorts.schedules.store', $cohort->id) }}"
-                          class="admin-form-standard course-cohort-schedules__inline-form">
-                        @csrf
-                        @if($inlineScheduleMode === 'edit') @method('PUT') @endif
-                        @include('course-cohort-schedules.partials.form', [
-                            'editing' => $inlineScheduleMode === 'edit',
-                            'inline' => true,
-                            'schedule' => $scheduleFormSchedule,
-                            'slots' => $scheduleFormSlots,
-                            'exclusions' => $scheduleFormExclusions,
-                            'timezones' => $scheduleTimezones,
-                        ])
-                    </form>
-                    @endif
-                </div>
+            @if ($canAddSchedule)
+                @include('course-cohort-schedules.partials.form', [
+                    'mode' => 'create',
+                    'action' => route('admin.course-cohorts.schedules.store', $cohort->id),
+                    'schedule' => null,
+                    'slots' => collect(),
+                    'exclusions' => collect(),
+                    'timezones' => $scheduleTimezones,
+                    'autoOpen' => $scheduleFormMode === 'create',
+                ])
+            @endif
+            @if ($scheduleFormMode === 'edit' && $cohort->is_mutable && $hasOperatingPeriod)
+                @include('course-cohort-schedules.partials.form', [
+                    'mode' => 'edit',
+                    'action' => route('admin.course-cohorts.schedules.update', [$cohort->id, $scheduleFormSchedule->id]),
+                    'schedule' => $scheduleFormSchedule,
+                    'slots' => $scheduleFormSlots,
+                    'exclusions' => $scheduleFormExclusions,
+                    'timezones' => $scheduleTimezones,
+                    'autoOpen' => true,
+                ])
+            @endif
+            @if ($scheduleFormMode === 'view')
+                @include('course-cohort-schedules.partials.detail', [
+                    'schedule' => $scheduleFormSchedule,
+                    'slots' => $scheduleFormSlots,
+                    'exclusions' => $scheduleFormExclusions,
+                    'preview' => $scheduleFormPreview,
+                    'derivedStatus' => $scheduleFormDerivedStatus,
+                    'canMutate' => $cohort->is_mutable,
+                ])
             @endif
 
-            <div class="mk-table-scroll course-cohort-schedules__table-wrap" role="region" aria-labelledby="cohort-schedules-title" tabindex="0">
+            <div class="mk-table-scroll" role="region" aria-labelledby="cohort-schedules-title" tabindex="0">
                 <table>
                     <colgroup>
                         <col class="mk-col-sequence">
@@ -122,13 +117,13 @@
                             </td>
                             <td class="ux-action-cell" data-label="{{ __('lf.table_actions') }}">
                                 <a class="ux-row-edit cursor-interaction"
-                                   href="{{ route('admin.course-cohorts.show', ['id' => $cohort->id, 'tab' => 'schedules', 'schedule_form' => 'view', 'schedule_id' => $schedule->id]) }}#cohort-schedule-editor"
+                                   href="{{ route('admin.course-cohorts.show', ['id' => $cohort->id, 'tab' => 'schedules', 'schedule_form' => 'view', 'schedule_id' => $schedule->id]) }}"
                                    aria-label="{{ __('lf.LF_common_button_view') }}: {{ $schedule->name }}" data-tooltip="{{ __('lf.LF_common_button_view') }}">
                                     <x-backend-icon name="eye" class="ui-icon" />
                                 </a>
                                 @if ($cohort->is_mutable)
                                     <a class="ux-row-edit cursor-interaction"
-                                       href="{{ route('admin.course-cohorts.show', ['id' => $cohort->id, 'tab' => 'schedules', 'schedule_form' => 'edit', 'schedule_id' => $schedule->id]) }}#cohort-schedule-editor"
+                                       href="{{ route('admin.course-cohorts.show', ['id' => $cohort->id, 'tab' => 'schedules', 'schedule_form' => 'edit', 'schedule_id' => $schedule->id]) }}"
                                        aria-label="{{ __('lf.LF_common_button_edit') }}: {{ $schedule->name }}" data-tooltip="{{ __('lf.LF_common_button_edit') }}">
                                         <x-backend-icon name="square-pen" class="ui-icon" />
                                     </a>
@@ -139,9 +134,9 @@
                         <tr class="mk-empty-row"><td class="mk-empty" colspan="7">
                             <div role="status">
                                 <strong>{{ __('lf.LF_course_cohort_schedule_empty') }}</strong>
-                                <p class="ui-caption">{{ __('lf.LF_course_cohort_schedule_empty_help') }}</p>
-                                @if ($cohort->is_mutable && $cohort->start_date && $cohort->end_date)
-                                    <button type="button" class="ui-button ui-button--outline cursor-interaction" x-show="!formOpen" x-cloak x-on:click="openForm()">{{ __('lf.LF_course_cohort_schedule_add') }}</button>
+                                <p class="ui-caption">{{ $cohort->is_mutable && ! $scheduleAcceptsNew ? __('lf.LF_course_type_cohort_legacy_self_paced') : __('lf.LF_course_cohort_schedule_empty_help') }}</p>
+                                @if ($canAddSchedule)
+                                    <button type="button" class="ui-button ui-button--outline cursor-interaction" aria-haspopup="dialog" x-on:click="$dispatch('schedule-create-open')">{{ __('lf.LF_course_cohort_schedule_add') }}</button>
                                 @endif
                             </div>
                         </td></tr>
