@@ -1,19 +1,16 @@
-{{-- Cohort page tabs: a locked tab explains itself in the help line below instead of opening. --}}
+{{-- Cohort page tabs: a locked tab explains itself in the help line below instead of opening. Each tab describes itself in its own card head. --}}
 @php
     $activeKey ??= 'overview';
     $tabLink ??= fn (array $tab): string => $tab['route'];
-    $activeNote = collect($cohortTabs)->firstWhere('key', $activeKey)['note'] ?? $cohortTabs[0]['note'];
-    // The overview note is a setup checklist: once a class left Draft it no longer applies.
-    if ($activeKey === 'overview' && isset($cohort) && $cohort->status !== 'draft') {
-        $activeNote = '';
-    }
+    // The overview note is a setup checklist: once a class left Draft, the overview only reports.
+    $overviewNote = isset($cohort) && $cohort->status !== 'draft' ? __('lf.LF_course_cohort_tab_overview_running_note') : null;
 @endphp
 <div x-data="{ lockedReason: '' }"
      x-init="$nextTick(() => $refs.tabs.querySelector('[aria-current=page]')?.scrollIntoView({ behavior: 'auto', block: 'nearest', inline: 'nearest' }))">
     <nav x-ref="tabs" @class(['course-template-tabs', 'course-cohort-detail-tabs', $navClass ?? null]) aria-label="{{ __('lf.LF_course_cohort_common_tabs') }}">
         @foreach ($cohortTabs as $tab)
             @continue(in_array($tab['key'], ['attendance', 'recordings'], true))
-            <span class="sr-only">{{ $tab['note'] }}</span>
+            <span class="sr-only">{{ $tab['key'] === 'overview' && $overviewNote ? $overviewNote : $tab['note'] }}</span>
             @if ($tab['accessible'] && $tab['route'])
                 <a @class(['course-template-tab', 'is-active' => $activeKey === $tab['key']])
                    href="{{ $tabLink($tab) }}" @if($activeKey === $tab['key']) aria-current="page" @endif>
@@ -38,8 +35,8 @@
             @endif
         @endforeach
     </nav>
-    <p class="ui-caption course-cohort-detail-tabs-help" role="status" aria-live="polite" x-cloak x-show="lockedReason || @js($activeNote)">
+    <p class="ui-caption course-cohort-detail-tabs-help" role="status" aria-live="polite" x-cloak x-show="lockedReason">
         <x-backend-icon name="info" class="ui-icon" aria-hidden="true" />
-        <span x-text="lockedReason || @js($activeNote)"></span>
+        <span x-text="lockedReason"></span>
     </p>
 </div>

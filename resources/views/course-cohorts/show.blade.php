@@ -42,7 +42,15 @@
 
     @if ($activeTab === 'overview')
         <section id="overview" class="mk-section course-cohort-detail" aria-labelledby="cohort-show-information">
-            <div class="ui-summary-head"><h2 id="cohort-show-information">{{ __('lf.LF_course_cohort_create_group_information') }}</h2></div>
+            <div class="ui-summary-head">
+                <div>
+                    <h2 id="cohort-show-information">{{ __('lf.LF_course_cohort_create_group_information') }}</h2>
+                    <p class="ui-caption">{{ __($cohort->status === 'draft' ? 'lf.LF_course_cohort_tab_overview_detail_note' : 'lf.LF_course_cohort_tab_overview_running_note') }}</p>
+                </div>
+                @if ($cohort->is_mutable)
+                    <div class="mk-table-top__actions">@include('course-cohorts.partials.edit-dialog')</div>
+                @endif
+            </div>
             <dl class="ui-summary ui-enroll-summary">
                 @include('course-cohorts.partials.context-facts')
                 <div class="ui-summary__item">
@@ -103,7 +111,18 @@
          }"
          x-init="$watch('formOpen', open => { const dialog = $refs.manageDialog; if (! dialog) return; open ? dialog.showModal() : dialog.close() }); if (formOpen) $refs.manageDialog?.showModal()">
         <div class="ui-summary-head">
-            <h2 id="cohort-show-students">{{ __('lf.LF_course_cohort_student_view_title') }}</h2>
+            <div>
+                <h2 id="cohort-show-students">{{ __('lf.LF_course_cohort_student_view_title') }}</h2>
+                <p class="ui-caption">{{ __('lf.LF_course_cohort_tab_students_detail_note') }}</p>
+            </div>
+            @if ($cohort->is_mutable)
+                <div class="mk-table-top__actions">
+                    <button type="button" class="ui-button ui-button--outline cursor-interaction"
+                            aria-haspopup="dialog" x-on:click="formOpen = true">
+                        {{ __('lf.LF_course_cohort_student_manage_heading') }}
+                    </button>
+                </div>
+            @endif
         </div>
 
         @if ($cohort->is_mutable)
@@ -133,14 +152,6 @@
                 @endif
                 <input type="hidden" name="tab" value="students">
             </form>
-            <div class="mk-table-top__actions cohort-student-list-heading-actions">
-                @if ($cohort->is_mutable)
-                    <button type="button" class="ui-button ui-button--outline cursor-interaction"
-                            aria-haspopup="dialog" x-on:click="formOpen = true">
-                        {{ __('lf.LF_course_cohort_student_manage_heading') }}
-                    </button>
-                @endif
-            </div>
         </div>
 
         <div class="mk-table-scroll" role="region" aria-labelledby="cohort-show-students" tabindex="0">

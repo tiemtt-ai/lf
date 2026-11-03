@@ -1,7 +1,4 @@
-{{-- Status changes for the identity card. --}}
-@if ($cohort->is_mutable)
-    @include('course-cohorts.partials.edit-dialog')
-@endif
+{{-- Status changes for the identity card: they concern the whole class, unlike the per-tab actions. --}}
 @if ($cohort->status === 'draft')
     <div class="course-cohort-activation-action">
         @include('course-cohorts.partials.kit-lifecycle-action', [

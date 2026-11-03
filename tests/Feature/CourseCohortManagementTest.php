@@ -560,6 +560,43 @@ class CourseCohortManagementTest extends TestCase
             ->assertDontSeeText(__('lf.LF_common_button_save_changes'));
     }
 
+    public function test_edit_action_lives_on_the_overview_tab_only(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $cohortId = $this->createCohort($customerId);
+        DB::table('core_course_cohorts')->where('id', $cohortId)->update(['status' => 'active']);
+        $url = "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}";
+
+        $this->actingAs($admin)->get($url)->assertOk()
+            ->assertSee('id="cohort-edit-title"', false)
+            ->assertSeeText(__('lf.LF_course_cohort_action_complete'));
+
+        $this->actingAs($admin)->get($url.'?tab=teachers')->assertOk()
+            ->assertDontSee('id="cohort-edit-title"', false)
+            ->assertSeeText(__('lf.LF_course_cohort_action_complete'));
+    }
+
+    public function test_overview_note_follows_the_class_status(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $cohortId = $this->createCohort($customerId);
+        $url = "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}";
+        DB::table('core_course_cohorts')->where('id', $cohortId)->update(['status' => 'draft']);
+
+        $this->actingAs($admin)->get($url)->assertOk()
+            ->assertSeeText(__('lf.LF_course_cohort_tab_overview_detail_note'))
+            ->assertDontSeeText(__('lf.LF_course_cohort_tab_overview_running_note'));
+
+        foreach (['active', 'completed', 'archived'] as $status) {
+            DB::table('core_course_cohorts')->where('id', $cohortId)->update(['status' => $status]);
+            $this->actingAs($admin)->get($url)->assertOk()
+                ->assertSeeText(__('lf.LF_course_cohort_tab_overview_running_note'))
+                ->assertDontSeeText(__('lf.LF_course_cohort_tab_overview_detail_note'));
+        }
+    }
+
     public function test_complete_confirmation_warns_about_what_is_left_without_blocking(): void
     {
         $customerId = $this->createTenant();
@@ -1105,7 +1142,7 @@ class CourseCohortManagementTest extends TestCase
         }
         $detail->assertSee('min="2026-08-01"', false)
             ->assertSee('max="2026-08-14"', false)
-            ->assertSee('x-bind:readonly="role === \'primary_teacher\'"', false)
+            ->assertSee('x-show="role !== \'primary_teacher\'"', false)
             ->assertSeeText(__('lf.LF_course_cohort_teacher_primary_period_summary', [
                 'from' => '01/08/2026',
                 'to' => '14/08/2026',
@@ -1131,6 +1168,13 @@ class CourseCohortManagementTest extends TestCase
             'role' => 'primary_teacher', 'status' => 'active',
             'assigned_from' => '2026-08-01', 'assigned_to' => '2026-08-14',
         ]);
+
+        // Choosing a second primary demotes the current one, so the form says so and does not default to it.
+        $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=teachers")
+            ->assertOk()
+            ->assertSeeText(__('lf.LF_course_cohort_teacher_primary_replace_notice', ['name' => $teacher->name]))
+            ->assertSee('defaultRole: \'teacher\'', false);
 
         $this->actingAs($admin)
             ->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/teachers", [

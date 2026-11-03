@@ -934,7 +934,7 @@ class CourseCohortStudentManagementTest extends TestCase
             ->assertDontSeeText('Xem phân lớp')
             ->assertSee('cohort-student-list-filter', false)
             ->assertSee('ui-cohort-roster-table', false)
-            ->assertSee('cohort-student-list-heading-actions', false)
+            ->assertSee('aria-haspopup="dialog"', false)
             ->assertSee('cohort-enrollment-detail-modal', false)
             ->assertSee('data-label="Học viên"', false)
             ->assertDontSee('class="admin-table-sequence"', false)

@@ -3125,6 +3125,12 @@
 .lf-admin-ui .ui-cohort-detail-summary { padding: 0; }
 .lf-admin-ui .ui-cohort-detail-summary .ui-framework-description { font-size: 12px; line-height: 17.4px; font-weight: 400; }
 .lf-admin-ui .ui-cohort-seat-warning { margin: 16px 20px 0; }
+@media (max-width: 680px) {
+    .lf-admin-ui.ui-cohort .ui-summary-head { flex-direction: column; align-items: stretch; gap: 10px; }
+    .lf-admin-ui.ui-cohort .ui-summary-head .mk-table-top__actions { justify-content: space-between; }
+    .lf-admin-ui .course-cohort-teachers table { min-width: 760px; }
+}
+.lf-admin-ui.ui-cohort .ui-modal .ui-field__error { color: var(--ui-invalid); }
 /* Manage students popup: two flat columns of equal height; each list scrolls inside, so ticking never resizes the popup. */
 .lf-admin-ui .ui-modal .course-cohort-student-inline-form .bulk-enrollment-transfer { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: 'available selected'; align-items: stretch; gap: 0; }
 .lf-admin-ui .ui-modal .course-cohort-student-inline-form .bulk-enrollment-transfer__panel { display: flex; flex-direction: column; align-self: stretch; min-width: 0; padding: 0; border: 0; border-radius: 0; background: transparent; }
