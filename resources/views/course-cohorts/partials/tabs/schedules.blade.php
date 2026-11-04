@@ -63,7 +63,7 @@
                     'schedule' => $scheduleFormSchedule,
                     'slots' => $scheduleFormSlots,
                     'exclusions' => $scheduleFormExclusions,
-                    'preview' => $scheduleFormPreview,
+                    'plan' => $scheduleFormPlan,
                     'derivedStatus' => $scheduleFormDerivedStatus,
                     'canMutate' => $cohort->is_mutable,
                 ])
@@ -135,9 +135,6 @@
                             <div role="status">
                                 <strong>{{ __('lf.LF_course_cohort_schedule_empty') }}</strong>
                                 <p class="ui-caption">{{ $cohort->is_mutable && ! $scheduleAcceptsNew ? __('lf.LF_course_type_cohort_legacy_self_paced') : __('lf.LF_course_cohort_schedule_empty_help') }}</p>
-                                @if ($canAddSchedule)
-                                    <button type="button" class="ui-button ui-button--outline cursor-interaction" aria-haspopup="dialog" x-on:click="$dispatch('schedule-create-open')">{{ __('lf.LF_course_cohort_schedule_add') }}</button>
-                                @endif
                             </div>
                         </td></tr>
                     @endforelse

@@ -146,9 +146,6 @@
                             <div role="status">
                                 <strong>{{ $hasActiveFilters ? __('lf.LF_course_cohort_filter_empty') : __('lf.LF_course_cohort_common_empty') }}</strong>
                                 <p class="ui-caption">{{ $hasActiveFilters ? __('lf.LF_course_cohort_filter_empty_help') : __('lf.LF_course_cohort_empty_help') }}</p>
-                                @unless ($hasActiveFilters)
-                                    <a class="ui-button ui-button--outline cursor-interaction" href="{{ route($routePrefix.'.create') }}">{{ __('lf.LF_course_cohort_common_create') }}</a>
-                                @endunless
                             </div>
                         </td>
                     </tr>

@@ -436,6 +436,7 @@ class CourseCohortController extends Controller
             'availableTeachers' => $availableTeachers,
             'sessions' => $sessions,
             'sessionWindow' => CourseCohortSessionWindow::for($cohort),
+            'sessionAcceptsNew' => ! $cohort->version_id || $this->versionResolver->runsInClass($customerId, (int) $cohort->version_id),
             'plannedOccurrences' => $this->sessionReadModel->plannedOccurrences($customerId, (int) $cohort->id),
         ];
     }

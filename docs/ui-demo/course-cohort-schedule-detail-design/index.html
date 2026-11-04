@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lớp học · Chi tiết lịch học</title>
+<link rel="stylesheet" href="../admin-layout-developer/assets/admin-layout.css">
+<link rel="stylesheet" href="../ui-kit-developer/assets/ui-kit.css">
+<link rel="stylesheet" href="assets/schedule.css?v=1.6">
+<script defer src="../ui-kit-developer/assets/lucide.min.js"></script>
+<script defer src="assets/schedule.js?v=1.6"></script>
+</head>
+<body>
+<div id="admin-app">
+<div class="admin-shell" id="admin-shell">
+<aside class="admin-sidebar" id="admin-sidebar" aria-label="Điều hướng quản trị">
+<div class="admin-sidebar__brand"><img class="admin-brand-image" src="../admin-layout-developer/assets/brand-logo.png" alt="Master Korean" width="180" height="67"><span class="admin-brand-initial" role="img" aria-label="Master Korean">V</span><button id="admin-close" type="button" class="admin-icon-button admin-close" aria-label="Đóng menu" hidden><i data-lucide="x" class="admin-icon" aria-hidden="true"></i></button></div>
+<nav class="admin-nav" aria-label="Menu chính">
+<a href="#" class="admin-nav__item" aria-label="Bảng điều khiển" data-tooltip="Bảng điều khiển"><i data-lucide="house" class="admin-icon" aria-hidden="true"></i><span class="admin-nav__label">Bảng điều khiển</span></a>
+<a href="#" class="admin-nav__item" aria-label="Sản phẩm khóa học" data-tooltip="Sản phẩm khóa học"><i data-lucide="box" class="admin-icon" aria-hidden="true"></i><span class="admin-nav__label">Sản phẩm khóa học</span></a>
+<a href="#" class="admin-nav__item" aria-label="Ghi danh khóa học" data-tooltip="Ghi danh khóa học"><i data-lucide="clipboard-check" class="admin-icon" aria-hidden="true"></i><span class="admin-nav__label">Ghi danh khóa học</span></a>
+<a href="#" class="admin-nav__item" aria-current="page" aria-label="Lớp học" data-tooltip="Lớp học"><i data-lucide="users" class="admin-icon" aria-hidden="true"></i><span class="admin-nav__label">Lớp học</span></a>
+</nav>
+<div class="admin-sidebar__footer"><div class="admin-user"><span class="admin-avatar">V1</span><span class="admin-user__text">Visang 1<small>Không gian quản trị</small></span></div></div>
+</aside>
+
+<div class="admin-main" id="admin-main">
+<header class="admin-header"><button id="admin-menu-toggle" type="button" class="admin-icon-button" aria-label="Thu gọn menu" aria-expanded="true" aria-controls="admin-sidebar"><i data-lucide="panel-left" class="admin-icon" aria-hidden="true"></i></button><span class="admin-breadcrumb"><span class="admin-system-name">Lớp học</span> <span aria-hidden="true"> / </span><strong>Lịch học</strong></span></header>
+
+<main class="admin-content">
+<div id="ui-catalog-soft" class="sch">
+
+<div class="sch-demo" role="group" aria-label="Trạng thái minh họa">
+  <i data-lucide="flask-conical" class="ui-icon" aria-hidden="true"></i><span>Bản thiết kế · xem:</span>
+  <button type="button" class="ui-button" data-demo="month" aria-pressed="true">Lịch 1 tháng (dữ liệu dev)</button>
+  <button type="button" class="ui-button" data-demo="quarter" aria-pressed="false">Lịch 3 tháng, nhiều ngày loại trừ</button>
+  <button type="button" class="ui-button" data-demo="upcoming" aria-pressed="false">Sắp áp dụng · không loại trừ</button>
+  <button type="button" class="ui-button ui-button--primary" data-open-detail>Mở lại popup</button>
+</div>
+
+<!-- Context only: the cohort's schedule tab behind the popup -->
+<section class="ui-section" aria-label="Lịch học của lớp">
+  <div class="sch-bg-row">
+    <div><h2>Lịch học</h2><span class="ui-caption">Quản lý quy tắc lịch định kỳ của lớp. Lịch học chỉ tạo bản xem trước và không tạo Buổi học thực tế.</span></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="ui-button ui-button--sm" data-open-detail><i data-lucide="eye" class="ui-icon" aria-hidden="true"></i>Xem chi tiết lịch</button><button type="button" class="ui-button ui-button--outline ui-button--sm" data-open-form="create"><i data-lucide="plus" class="ui-icon" aria-hidden="true"></i>Thêm lịch học</button></div>
+  </div>
+</section>
+
+<dialog id="sch-dialog" class="ui-modal sch-modal" data-columns="3" aria-labelledby="sch-title" aria-describedby="sch-notice">
+  <div class="ui-modal__form">
+    <header class="ui-modal__header">
+      <div>
+        <h3 id="sch-title"><span id="sch-name"></span><span id="sch-status"></span></h3>
+        <span class="sch-notice" id="sch-notice"><i data-lucide="info" class="ui-icon" aria-hidden="true"></i>Kế hoạch dự kiến — chưa phải các Buổi học thực tế.</span>
+      </div>
+      <button type="button" class="ui-modal__close" data-close aria-label="Đóng popup">×</button>
+    </header>
+    <div class="ui-modal__body">
+      <dl class="sch-summary">
+        <div><dt>Thời gian áp dụng</dt><dd id="sch-period"></dd></div>
+        <div><dt>Số buổi dự kiến</dt><dd id="sch-count"></dd></div>
+        <div><dt>Tổng thời lượng</dt><dd id="sch-hours"></dd></div>
+        <div><dt>Múi giờ</dt><dd id="sch-tz"></dd></div>
+      </dl>
+
+      <section class="sch-block" aria-labelledby="sch-week-title">
+        <div class="sch-block__head"><h4 class="sch-block__title" id="sch-week-title">Lặp hằng tuần <span class="ui-caption" id="sch-week-count"></span></h4></div>
+        <ul class="sch-week" id="sch-week"></ul>
+      </section>
+
+      <section class="sch-block" aria-labelledby="sch-plan-title">
+        <div class="sch-block__head">
+          <h4 class="sch-block__title" id="sch-plan-title">Các buổi dự kiến</h4>
+          <div class="sch-seg" role="group" aria-label="Kiểu hiển thị">
+            <button type="button" data-view="calendar" aria-pressed="true"><i data-lucide="calendar-days" class="ui-icon" aria-hidden="true"></i>Lịch tháng</button>
+            <button type="button" data-view="list" aria-pressed="false"><i data-lucide="list" class="ui-icon" aria-hidden="true"></i>Danh sách</button>
+          </div>
+        </div>
+        <div id="sch-view-calendar">
+          <div class="sch-monthbar">
+            <button type="button" class="sch-iconbtn" id="sch-prev" aria-label="Tháng trước"><i data-lucide="chevron-left" class="ui-icon" aria-hidden="true"></i></button>
+            <strong id="sch-month" aria-live="polite"></strong>
+            <button type="button" class="sch-iconbtn" id="sch-next" aria-label="Tháng sau"><i data-lucide="chevron-right" class="ui-icon" aria-hidden="true"></i></button>
+            <span class="ui-caption" id="sch-month-count"></span>
+          </div>
+          <div class="sch-cal" id="sch-cal" role="grid" aria-labelledby="sch-month"></div>
+          <div class="sch-legend" aria-hidden="true">
+            <span><i style="background:var(--sch-soft);border-left:3px solid var(--ui-primary)"></i>Buổi dự kiến</span>
+            <span><i style="background:var(--sch-warn-bg);border-left:3px solid #e2a33b"></i>Ngày loại trừ</span>
+            <span><i style="background:repeating-linear-gradient(135deg,#fafbfc 0 3px,#e9ebf1 3px 6px)"></i>Ngoài thời gian áp dụng</span>
+          </div>
+        </div>
+        <div id="sch-view-list" hidden><ul class="sch-list" id="sch-list"></ul></div>
+      </section>
+
+      <section class="sch-block" aria-labelledby="sch-excl-title">
+        <div class="sch-block__head"><h4 class="sch-block__title" id="sch-excl-title">Ngày loại trừ <span class="ui-caption" id="sch-excl-count"></span></h4></div>
+        <ul class="sch-excl-list" id="sch-excl"></ul>
+      </section>
+    </div>
+    <footer class="ui-modal__footer">
+      <span class="sch-footer-note" id="sch-updated">Sửa lịch không tạo hay thay đổi Buổi học thực tế.</span>
+      <button type="button" class="ui-button" data-close>Đóng</button>
+      <button type="button" class="ui-button ui-button--primary" data-open-form="edit"><i data-lucide="square-pen" class="ui-icon" aria-hidden="true"></i>Sửa lịch học</button>
+    </footer>
+  </div>
+</dialog>
+
+<!-- ===== Form: Thêm / Sửa lịch học ===== -->
+<dialog id="sch-form" class="ui-modal sch-modal" data-columns="3" aria-labelledby="sch-form-title">
+  <form class="ui-modal__form" id="sch-form-el" novalidate>
+    <header class="ui-modal__header">
+      <div><h3 id="sch-form-title">Sửa lịch học</h3><span class="sch-notice"><i data-lucide="info" class="ui-icon" aria-hidden="true"></i>Lưu lịch không tạo hay thay đổi Buổi học thực tế.</span></div>
+      <button type="button" class="ui-modal__close" data-form-cancel aria-label="Đóng popup">×</button>
+    </header>
+    <div class="ui-modal__body">
+      <div class="sch-form__layout">
+        <div class="sch-form__main">
+          <div class="sch-alert" id="f-alert" role="alert" tabindex="-1" hidden><i data-lucide="circle-alert" class="ui-icon" aria-hidden="true"></i><div><strong>Chưa thể lưu lịch học</strong><ul id="f-alert-list"></ul></div></div>
+
+          <section class="sch-form__section" aria-labelledby="f-general-title">
+            <header><h4 id="f-general-title">Thông tin chung</h4><span class="ui-caption">Khoảng áp dụng và múi giờ dùng để tính các ngày học dự kiến.</span></header>
+            <div class="sch-form__grid">
+              <div class="ui-field"><label class="ui-field__label" for="f-name"><span class="ui-field__required">*</span>Tên lịch</label><input id="f-name" placeholder="Ví dụ: Lịch học chính" maxlength="120"><span class="sch-error" id="f-name-err" hidden></span></div>
+              <div class="ui-field"><label class="ui-field__label" for="f-tz"><span class="ui-field__required">*</span>Múi giờ</label><select id="f-tz"><option value="Asia/Ho_Chi_Minh">Asia/Ho_Chi_Minh (GMT+7)</option><option value="Asia/Seoul">Asia/Seoul (GMT+9)</option><option value="Asia/Tokyo">Asia/Tokyo (GMT+9)</option><option value="UTC">UTC (GMT+0)</option></select></div>
+              <div class="ui-field"><label class="ui-field__label" for="f-from"><span class="ui-field__required">*</span>Ngày bắt đầu áp dụng</label><input id="f-from" type="date"></div>
+              <div class="ui-field"><label class="ui-field__label" for="f-to"><span class="ui-field__required">*</span>Ngày kết thúc áp dụng</label><input id="f-to" type="date"></div>
+              <div class="sch-form__period-hint"><i data-lucide="calendar-range" class="ui-icon" aria-hidden="true"></i><span id="f-cohort"></span><button type="button" class="sch-linkbtn" id="f-use-cohort">Dùng toàn bộ thời gian vận hành</button></div>
+              <span class="sch-error" id="f-period-err" style="grid-column:1/-1;margin-top:-8px" hidden></span>
+            </div>
+          </section>
+
+          <section class="sch-form__section" aria-labelledby="f-slots-title">
+            <header><h4 id="f-slots-title"><span class="ui-field__required" style="color:#d34651;margin-right:4px">*</span>Khung giờ định kỳ <span class="ui-caption" id="f-slots-count"></span></h4><span class="ui-caption">Chọn ngày học trong tuần và giờ học. Một ngày có thể có nhiều khung giờ nếu không chồng lấn.</span></header>
+            <ul class="sch-days" id="f-days"></ul>
+            <span class="sch-error" id="f-slots-err" hidden></span>
+          </section>
+
+          <section class="sch-form__section" aria-labelledby="f-excl-title">
+            <header><h4 id="f-excl-title">Ngày loại trừ <span class="ui-caption" id="f-excl-count"></span></h4><span class="ui-caption">Không có buổi học vào các ngày này. Có thể bấm một buổi trên lịch xem trước để loại trừ nhanh.</span></header>
+            <div class="sch-excl-add">
+              <div class="ui-field"><label class="ui-field__label" for="f-excl-date">Ngày</label><input id="f-excl-date" type="date"></div>
+              <div class="ui-field"><label class="ui-field__label" for="f-excl-reason">Lý do</label><input id="f-excl-reason" placeholder="Ví dụ: Ngày nghỉ lễ" maxlength="120"></div>
+              <button type="button" class="ui-button ui-button--outline" id="f-excl-add"><i data-lucide="plus" class="ui-icon" aria-hidden="true"></i>Thêm</button>
+            </div>
+            <span class="sch-error" id="f-excl-err" hidden></span>
+            <ul class="sch-excl-rows" id="f-excl"></ul>
+          </section>
+        </div>
+
+        <aside class="sch-preview" aria-labelledby="f-preview-title">
+          <div class="sch-preview__head"><div><h4 id="f-preview-title">Xem trước lịch học</h4><span class="ui-caption">Chưa phải các Buổi học thực tế.</span></div><span class="ui-caption" id="f-preview-status" aria-live="polite"></span></div>
+          <dl class="sch-preview__stats"><div><dt>Buổi dự kiến</dt><dd id="f-p-count">0</dd></div><div><dt>Tổng giờ</dt><dd id="f-p-hours">0</dd></div><div><dt>Đã loại trừ</dt><dd id="f-p-excl">0</dd></div></dl>
+          <p class="sch-preview__diff" id="f-p-diff" hidden></p>
+          <div id="f-p-body">
+            <div class="sch-monthbar">
+              <button type="button" class="sch-iconbtn" id="f-prev" aria-label="Tháng trước"><i data-lucide="chevron-left" class="ui-icon" aria-hidden="true"></i></button>
+              <strong id="f-month" aria-live="polite"></strong>
+              <button type="button" class="sch-iconbtn" id="f-next" aria-label="Tháng sau"><i data-lucide="chevron-right" class="ui-icon" aria-hidden="true"></i></button>
+            </div>
+            <div class="sch-cal" id="f-cal" role="grid" aria-labelledby="f-month"></div>
+            <p class="sch-preview__tip" style="margin-top:8px"><i data-lucide="mouse-pointer-click" class="ui-icon" aria-hidden="true"></i>Bấm một ngày có buổi học để loại trừ, bấm lại để bỏ loại trừ.</p>
+          </div>
+          <div class="sch-preview__empty" id="f-p-empty" hidden>Hoàn tất khoảng thời gian áp dụng và ít nhất một khung giờ để xem lịch dự kiến.</div>
+        </aside>
+      </div>
+    </div>
+    <footer class="ui-modal__footer">
+      <span class="sch-footer-note" id="f-note" aria-live="polite"></span>
+      <button type="button" class="ui-button" data-form-cancel>Hủy</button>
+      <button type="submit" class="ui-button ui-button--primary" id="f-save"><i data-lucide="check" class="ui-icon" aria-hidden="true"></i><span>Lưu thay đổi</span></button>
+    </footer>
+  </form>
+</dialog>
+
+<dialog id="sch-discard" class="ui-modal" data-columns="1" aria-labelledby="sch-discard-title">
+  <div class="ui-modal__form">
+    <header class="ui-modal__header"><div><h3 id="sch-discard-title">Bỏ thay đổi chưa lưu?</h3></div><button type="button" class="ui-modal__close" data-discard-no aria-label="Đóng popup">×</button></header>
+    <div class="ui-modal__body"><p>Các thay đổi trong lịch học sẽ không được lưu.</p></div>
+    <footer class="ui-modal__footer"><button type="button" class="ui-button" data-discard-no>Tiếp tục sửa</button><button type="button" class="ui-button ui-button--primary" data-discard-yes>Bỏ thay đổi</button></footer>
+  </div>
+</dialog>
+<div class="sch-toast" id="sch-toast" role="status" hidden></div>
+
+</div>
+</main>
+<footer class="admin-page-footer">Copyright © VISANG Education Group Vietnam Company</footer>
+</div>
+</div>
+<dialog id="admin-drawer" class="admin-drawer" aria-label="Menu quản trị"></dialog>
+</div>
+</body>
+</html>

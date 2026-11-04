@@ -101,6 +101,8 @@ if ($registerCourseProductRoutes ?? false) {
         ->name('course-cohorts.sessions.update');
     Route::put('/course-cohorts/{cohort}/sessions/{session}/schedule', [CourseCohortOperationController::class, 'updateSchedule'])
         ->name('course-cohorts.sessions.schedule');
+    Route::put('/course-cohorts/{cohort}/sessions/{session}/teachers', [CourseCohortOperationController::class, 'assignSessionTeachers'])
+        ->name('course-cohorts.sessions.teachers');
     Route::post('/course-cohorts/{cohort}/sessions/{session}/start', [CourseCohortOperationController::class, 'startSession'])
         ->name('course-cohorts.sessions.start');
     Route::post('/course-cohorts/{cohort}/sessions/{session}/complete', [CourseCohortOperationController::class, 'completeSession'])

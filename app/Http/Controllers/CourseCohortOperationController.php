@@ -549,6 +549,13 @@ class CourseCohortOperationController extends Controller
                 ->where('id', $session)->lockForUpdate()->firstOrFail();
             abort_unless($this->sessionPolicy->canReschedule($sessionRow), 422,
                 __('lf.LF_course_cohort_session_reschedule_status_invalid'));
+            $sameMinute = fn (string $a, string $b): bool => Carbon::parse($a)->format('Y-m-d H:i') === Carbon::parse($b)->format('Y-m-d H:i');
+            if ($sameMinute($validated['scheduled_start_at'], $sessionRow->scheduled_start_at)
+                && $sameMinute($validated['scheduled_end_at'], $sessionRow->scheduled_end_at)) {
+                throw ValidationException::withMessages([
+                    'scheduled_start_at' => __('lf.LF_course_cohort_session_reschedule_unchanged'),
+                ]);
+            }
             // Reschedule keeps the Session's recorded timezone: the admin enters
             // the new interval in the same frame the Session already uses.
             $this->validateSessionScheduleWindow($cohortRow, $validated, $sessionRow->timezone);
@@ -591,6 +598,54 @@ class CourseCohortOperationController extends Controller
 
         return $this->tab($cohort, 'sessions')
             ->with('success', __('lf.LF_course_cohort_session_rescheduled'));
+    }
+
+    public function assignSessionTeachers(Request $request, int $cohort, int $session): RedirectResponse
+    {
+        $customerId = $this->authorizeAdmin($request);
+        $this->setupCohort($customerId, $cohort);
+
+        if ($request->has('teacher_ids')) {
+            $request->merge(['teacher_ids' => $this->deduplicateTeacherIds($request->input('teacher_ids'))]);
+        }
+
+        $validated = $request->validate([
+            'teacher_ids' => ['required', 'array', 'min:1'],
+            'teacher_ids.*' => ['integer', Rule::exists('users', 'id')
+                ->where(fn ($query) => $query->where('customer_id', $customerId)->where('role', 'teacher')->where('status', 'active'))],
+        ]);
+
+        DB::transaction(function () use ($customerId, $cohort, $session, $validated, $request): void {
+            $cohortRow = DB::table('core_course_cohorts')->where('customer_id', $customerId)
+                ->where('id', $cohort)->lockForUpdate()->firstOrFail();
+            $sessionRow = DB::table('core_liveclass_sessions')
+                ->where('customer_id', $customerId)->where('cohort_id', $cohort)
+                ->where('id', $session)->lockForUpdate()->firstOrFail();
+            $hasTeacher = $this->sessionHasAssignedTeacher($customerId, $sessionRow);
+            abort_unless(
+                $this->sessionPolicy->canAssignLateTeachers(
+                    $sessionRow,
+                    $cohortRow->status,
+                    $hasTeacher,
+                    $this->sessionHasEvidence($customerId, $session),
+                    now()
+                ),
+                422,
+                __('lf.LF_course_cohort_session_assign_teachers_locked')
+            );
+
+            $team = $this->canonicalSessionTeacherTeam($customerId, $cohort, [
+                'teacher_ids' => $validated['teacher_ids'],
+                'scheduled_start_at' => $sessionRow->scheduled_start_at,
+                'scheduled_end_at' => $sessionRow->scheduled_end_at,
+            ]);
+            $this->replaceSessionTeacherTeam($customerId, $session, $team, (int) $request->user()->id);
+            DB::table('core_liveclass_sessions')->where('customer_id', $customerId)
+                ->where('id', $session)->update(['updated_at' => now()]);
+        });
+
+        return $this->tab($cohort, 'sessions')
+            ->with('success', __('lf.LF_course_cohort_session_assign_teachers_saved'));
     }
 
     public function startSession(Request $request, int $cohort, int $session): RedirectResponse

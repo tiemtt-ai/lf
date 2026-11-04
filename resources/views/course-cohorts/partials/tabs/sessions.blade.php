@@ -2,12 +2,30 @@
     // Khoảng lịch hợp lệ do backend quyết định (CourseCohortSessionWindow) và
     // được dùng chung với validation; view không tự suy ra. NULL nghĩa là lớp
     // legacy chưa đủ thời gian vận hành.
+    $sessionWindowOpen = $sessionWindow && $sessionWindow['min']->lte($sessionWindow['max']);
+    $canCreateSession = $cohort->is_mutable && $sessionAcceptsNew && $sessionWindowOpen;
+    $canBatchCreate = $canCreateSession && $plannedOccurrences->contains(fn (array $item): bool => ! $item['consumed']);
     $batchHasErrors = collect($errors->keys())->contains(fn ($key) => str_starts_with($key, 'occurrences'));
+    $formHasErrors = old('form_context') === 'session' && $errors->any();
     $rescheduleHasErrors = old('form_context') === 'reschedule'
         && collect($errors->keys())->contains(fn ($key) => in_array($key, ['scheduled_start_at', 'scheduled_end_at', 'reason'], true));
     $rescheduleOldSession = $rescheduleHasErrors
         ? $sessions->firstWhere('id', (int) old('reschedule_session_id'))
         : null;
+    // Lưu sửa bị lỗi phải mở lại đúng buổi đang sửa, không rơi về form tạo mới.
+    $formOldSession = $formHasErrors && old('editing_session_id')
+        ? $sessions->firstWhere('id', (int) old('editing_session_id'))
+        : null;
+    $assignHasErrors = old('form_context') === 'assign_teachers' && $errors->any();
+    $assignOldSession = $assignHasErrors ? $sessions->firstWhere('id', (int) old('assign_session_id')) : null;
+    // Lỗi của ô đang hiện nằm ngay dưới ô đó; đầu popup chỉ còn lỗi không có chỗ hiện (khi sửa, ô thời gian bị ẩn).
+    $formInlineKeys = ['title', 'version_lesson_id', 'version_activity_id', 'delivery_mode', 'teacher_ids', 'meeting_url', 'online_provider', 'room_name', 'address'];
+    if (! $formOldSession) {
+        array_push($formInlineKeys, 'scheduled_start_at', 'scheduled_end_at');
+    }
+    $formSummaryErrors = $formHasErrors
+        ? collect($errors->messages())->reject(fn ($messages, $key) => in_array($key, $formInlineKeys, true) || str_starts_with($key, 'teacher_ids.'))->flatten()
+        : collect();
     $occurrenceKey = fn (array $item): string => implode('|', [
         $item['schedule_id'] ?? '', $item['schedule_slot_id'] ?? '', $item['source_local_date'] ?? $item['date'] ?? '',
     ]);
@@ -31,7 +49,6 @@
             'lessonId' => (string) ($old['version_lesson_id'] ?? ''),
             'activityId' => (string) ($old['version_activity_id'] ?? ''),
             'teacherIds' => $uniqueTeacherIds($old['teacher_ids'] ?? []),
-            'teacherOpen' => false,
             'mode' => (string) ($old['delivery_mode'] ?? ''),
             'meetingCopied' => false,
             'meetingUrl' => (string) ($old['meeting_url'] ?? ''),
@@ -40,87 +57,126 @@
     })->values();
     $batchTimezones = $plannedOccurrences->pluck('timezone')->filter()->unique()->values();
     $commonBatchTimezone = $batchTimezones->count() === 1 ? $batchTimezones->first() : null;
+    $teacherRoleLabel = fn (object $teacher): string => $teacher->role === 'primary_teacher'
+        ? __('lf.LF_course_cohort_session_teacher_role_cohort_primary')
+        : __('lf.LF_course_cohort_teacher_role_'.$teacher->role);
+    $lifecycleActions = ['start', 'complete', 'cancel', 'no-show'];
 @endphp
-<section class="mk-section course-cohort-sessions"
+<section class="mk-section course-cohort-sessions" aria-labelledby="cohort-sessions-title"
      x-data="{
-         formOpen: @js($errors->any() && ! $batchHasErrors && ! $rescheduleHasErrors), batchOpen: @js($batchHasErrors), editingId: null, editingSession: null, submitting: false, batchMessage: '', detailSession: null, meetingLinkCopied: false,
+         editingId: @js($formOldSession?->id), editingSession: @js($formOldSession), submitting: false, syncing: false, batchMessage: '', batchSubmitting: false,
+         detailSession: null, detailActions: [], lifecycle: null, lifecycleReason: '', lifecycleSubmitting: false,
+         showFormErrors: true, showRescheduleErrors: true, meetingLinkCopied: false,
          rescheduleSession: @js($rescheduleOldSession),
          rescheduleStart: @js($rescheduleHasErrors ? old('scheduled_start_at', '') : ''),
          rescheduleEnd: @js($rescheduleHasErrors ? old('scheduled_end_at', '') : ''),
          rescheduleReason: @js($rescheduleHasErrors ? old('reason', '') : ''),
          rescheduleStartError: @js($rescheduleHasErrors ? $errors->first('scheduled_start_at') : ''),
-         sessionType: @js(old('session_type', 'curriculum')),
-         lessonId: @js((string) old('version_lesson_id', '')),
-         activityId: @js((string) old('version_activity_id', '')),
-         title: @js(old('title', '')), titleDirty: @js(old('title') !== null),
-         mode: @js(old('delivery_mode', 'online')),
-         teacherIds: @js($uniqueTeacherIds(old('teacher_ids', []))), teacherOpen: false,
-         startsAt: @js(old('scheduled_start_at', '')), endsAt: @js(old('scheduled_end_at', '')),
+         rescheduleSubmitting: false,
+         assignSession: @js($assignOldSession), assignTeacherIds: @js($assignHasErrors ? $uniqueTeacherIds(old('teacher_ids', [])) : []), assignSubmitting: false, showAssignErrors: true,
+         assignUrl: @js(route('admin.course-cohorts.sessions.teachers', [$cohort->id, '__SESSION__'])),
+         sessionType: @js($formHasErrors ? old('session_type', 'curriculum') : 'curriculum'),
+         lessonId: @js($formHasErrors ? (string) old('version_lesson_id', '') : ''),
+         activityId: @js($formHasErrors ? (string) old('version_activity_id', '') : ''),
+         title: @js($formHasErrors ? old('title', '') : ''), titleDirty: @js($formHasErrors && old('title') !== null),
+         mode: @js($formHasErrors ? old('delivery_mode', 'online') : 'online'),
+         teacherIds: @js($formHasErrors ? $uniqueTeacherIds(old('teacher_ids', [])) : []),
+         startsAt: @js($formHasErrors ? old('scheduled_start_at', '') : ''), endsAt: @js($formHasErrors ? old('scheduled_end_at', '') : ''),
          scheduleMin: @js($sessionWindow ? $sessionWindow['min']->format('Y-m-d\TH:i') : ''),
          scheduleMax: @js($sessionWindow ? $sessionWindow['max']->format('Y-m-d\TH:i') : ''),
-         provider: @js(old('online_provider', '')), meetingUrl: @js(old('meeting_url', '')), meetingDefault: '',
-         roomName: @js(old('room_name', '')), address: @js(old('address', '')),
+         provider: @js($formHasErrors ? old('online_provider', '') : ''), meetingUrl: @js($formHasErrors ? old('meeting_url', '') : ''), meetingDefault: '',
+         roomName: @js($formHasErrors ? old('room_name', '') : ''), address: @js($formHasErrors ? old('address', '') : ''),
+         batchRoom: @js($batchHasErrors ? old('room_name', '') : ''), batchAddress: @js($batchHasErrors ? old('address', '') : ''),
          statusLabels: @js(collect(['scheduled', 'live', 'completed', 'cancelled', 'no_show'])->mapWithKeys(fn ($status) => [$status => __('lf.LF_course_cohort_session_status_'.$status)])),
          typeLabels: @js(collect(['curriculum', 'operational'])->mapWithKeys(fn ($type) => [$type => __('lf.LF_course_cohort_session_type_'.$type)])),
          modeLabels: @js(collect(['online', 'offline', 'hybrid'])->mapWithKeys(fn ($mode) => [$mode => __('lf.LF_course_cohort_session_mode_'.$mode)])),
          relationLabels: @js(collect(['on_schedule', 'rescheduled', 'off_schedule', 'source_unknown'])->mapWithKeys(fn ($relation) => [$relation => __('lf.LF_course_cohort_session_relation_'.$relation)])),
+         statusTones: { scheduled: 'draft', live: 'active', completed: 'completed', cancelled: 'danger', no_show: 'archived' },
+         lifecycleTexts: @js(collect($lifecycleActions)->mapWithKeys(fn ($action) => [$action => [
+             'label' => __('lf.LF_course_cohort_session_action_'.$action),
+             'title' => __('lf.LF_course_cohort_session_lifecycle_'.$action.'_title'),
+             'body' => __('lf.LF_course_cohort_session_lifecycle_'.$action.'_body'),
+             'danger' => in_array($action, ['cancel', 'no-show'], true),
+         ]])),
          lessons: @js($versionLessons), activities: @js($versionActivities),
-         occurrences: @js($plannedOccurrences),
          batchRows: @js($batchRows),
          teachers: @js($availableTeachers->map(fn ($teacher) => [
              'id' => (string) $teacher->id,
-             'name' => $teacher->name,
-             'role' => $teacher->role,
-             'role_label' => $teacher->role === 'primary_teacher'
-                 ? __('lf.LF_course_cohort_session_teacher_role_cohort_primary')
-                 : __('lf.LF_course_cohort_teacher_role_'.$teacher->role),
              'assigned_from' => $teacher->assigned_from,
              'assigned_to' => $teacher->assigned_to,
          ])->values()),
-         sessions: @js($sessions),
          storeUrl: @js(route('admin.course-cohorts.sessions.store', $cohort->id)),
          updateUrl: @js(route('admin.course-cohorts.sessions.update', [$cohort->id, '__SESSION__'])),
          rescheduleUrl: @js(route('admin.course-cohorts.sessions.schedule', [$cohort->id, '__SESSION__'])),
-         availableActivities() {
-             return this.activities.filter(item => String(item.version_lesson_id) === String(this.lessonId))
+         init() {
+             if (@js($batchHasErrors)) this.openBatch()
+             else if (@js($rescheduleHasErrors && $rescheduleOldSession)) { this.previousStart = this.rescheduleStart; this.$nextTick(() => this.$refs.rescheduleDialog?.showModal()) }
+             else if (@js($formHasErrors)) this.showSessionDialog()
+             else if (@js($assignHasErrors && $assignOldSession)) { this.syncSelects(this.$refs.assignDialog); this.$nextTick(() => this.$refs.assignDialog?.showModal()) }
          },
-         selectedActivity() {
-             return this.activities.find(item => String(item.id) === String(this.activityId)) || null
-         },
-         selectableTeachers() {
-             return this.teachers.filter(teacher => {
-                 if (!this.startsAt || !this.endsAt) return false
-                 const startsOn = this.startsAt.slice(0, 10)
-                 const endsOn = this.endsAt.slice(0, 10)
-                 return (!teacher.assigned_from || startsOn >= teacher.assigned_from)
-                     && (!teacher.assigned_to || endsOn <= teacher.assigned_to)
+         // Kit selects redraw on change. A sync only repaints them: the handlers below must not treat it as a pick.
+         syncSelects(scope) {
+             this.$nextTick(() => {
+                 this.syncing = true
+                 scope?.querySelectorAll('select[data-ui-kit-select]').forEach(select => select.dispatchEvent(new Event('change', { bubbles: true })))
+                 this.syncing = false
              })
          },
+         teacherFits(teacher, startsOn, endsOn) {
+             return (!teacher.assigned_from || startsOn >= teacher.assigned_from) && (!teacher.assigned_to || endsOn <= teacher.assigned_to)
+         },
+         selectableTeachers() {
+             if (!this.startsAt || !this.endsAt) return []
+             return this.teachers.filter(teacher => this.teacherFits(teacher, this.startsAt.slice(0, 10), this.endsAt.slice(0, 10)))
+         },
+         teacherSelectable(id) { return this.selectableTeachers().some(teacher => teacher.id === String(id)) },
          syncTeacherAvailability() {
-             const eligibleIds = this.selectableTeachers().map(teacher => String(teacher.id))
+             const eligibleIds = this.selectableTeachers().map(teacher => teacher.id)
              this.teacherIds = this.teacherIds.filter(id => eligibleIds.includes(String(id)))
+             this.syncSelects(this.$refs.sessionTeacherField)
          },
-         selectedTeachers() {
-             return this.teachers.filter(teacher => this.teacherIds.includes(String(teacher.id)))
+         // Moving the start keeps the length of the session, so the end does not have to be picked again.
+         movedEnd(previousStart, nextStart, end) {
+             if (!previousStart || !nextStart || !end) return end
+             const parse = value => new Date(String(value).replace(' ', 'T')).getTime()
+             const moved = new Date(parse(end) + parse(nextStart) - parse(previousStart))
+             if (Number.isNaN(moved.getTime())) return end
+             const pad = number => String(number).padStart(2, '0')
+             return `${moved.getFullYear()}-${pad(moved.getMonth() + 1)}-${pad(moved.getDate())}T${pad(moved.getHours())}:${pad(moved.getMinutes())}`
          },
-         toggleTeacher(teacherId) {
-             const id = String(teacherId)
-             const uniqueIds = [...new Set(this.teacherIds.map(String))]
-             this.teacherIds = uniqueIds.includes(id) ? uniqueIds.filter(item => item !== id) : [...uniqueIds, id]
-         },
+         previousStart: '',
          sessionStartChanged() {
-             this.endsAt = ''
+             this.endsAt = this.movedEnd(this.previousStart, this.startsAt, this.endsAt)
+             this.previousStart = this.startsAt
+             this.clearTimeError(this.$refs.sessionStart)
+             this.clearTimeError(this.$refs.sessionEnd)
              this.syncTeacherAvailability()
+         },
+         sessionEndChanged() {
+             this.clearTimeError(this.$refs.sessionEnd)
+             this.syncTeacherAvailability()
+         },
+         clearTimeError(field) { field?.setCustomValidity?.('') },
+         timeError(field, message) {
+             field?.setCustomValidity?.(message)
+             field?.reportValidity?.()
+         },
+         // Required/ordered checks only: overlap and the class window stay with the backend, which knows the timezones.
+         timesInvalid(startField, endField, start, end) {
+             if (!start) { this.timeError(startField, @js(__('lf.LF_course_cohort_session_time_required'))); return true }
+             if (!end) { this.timeError(endField, @js(__('lf.LF_course_cohort_session_time_required'))); return true }
+             if (String(end) <= String(start)) { this.timeError(endField, @js(__('lf.LF_course_cohort_session_end_after_start'))); return true }
+             return false
          },
          batchActivities(row) { return this.activities.filter(item => String(item.version_lesson_id) === String(row.lessonId)) },
          selectedBatchActivity(row) { return this.activities.find(item => String(item.id) === String(row.activityId)) || null },
          batchMeetingUrl(row) { return row.meetingUrl || '' },
          batchActivityChanged(row) {
+             if (this.syncing) return
              const next = this.selectedBatchActivity(row)?.live_class_url_snapshot || ''
              if (!row.meetingUrl || row.meetingUrl === row.meetingDefault) row.meetingUrl = next
              row.meetingDefault = next; row.meetingCopied = false
          },
-         batchMeetingProvider(row) { return this.meetingProvider(this.batchMeetingUrl(row)) },
          copyBatchMeetingLink(row) {
              const url = this.batchMeetingUrl(row)
              if (!url) return
@@ -129,15 +185,16 @@
                  setTimeout(() => row.meetingCopied = false, 1600)
              })
          },
-         batchLessonChanged(row) { row.activityId = ''; this.batchActivityChanged(row); const lesson = this.lessons.find(item => String(item.id) === String(row.lessonId)); row.title = lesson?.title_snapshot || '' },
-         batchSelectableTeachers(row) {
-             return this.teachers.filter(teacher => (!teacher.assigned_from || row.date >= teacher.assigned_from) && (!teacher.assigned_to || row.date <= teacher.assigned_to))
+         batchLessonChanged(row, field) {
+             if (this.syncing) return
+             row.activityId = ''
+             this.batchActivityChanged(row)
+             const lesson = this.lessons.find(item => String(item.id) === String(row.lessonId))
+             row.title = lesson?.title_snapshot || ''
+             this.syncSelects(field?.closest('article'))
          },
-         selectedBatchTeachers(row) { return this.teachers.filter(teacher => row.teacherIds.includes(String(teacher.id))) },
-         toggleBatchTeacher(row, teacherId) {
-             const id = String(teacherId)
-             const uniqueIds = [...new Set(row.teacherIds.map(String))]
-             row.teacherIds = uniqueIds.includes(id) ? uniqueIds.filter(item => item !== id) : [...uniqueIds, id]
+         batchTeacherSelectable(row, id) {
+             return this.teachers.some(teacher => teacher.id === String(id) && this.teacherFits(teacher, row.date, row.date))
          },
          async resetBatchRow(row, trigger) {
              if (this.batchRowHasDraft(row)) {
@@ -150,25 +207,20 @@
                  if (!confirmed) return
              }
              row.title = ''; row.lessonId = ''; row.activityId = ''; row.teacherIds = []
-             row.teacherOpen = false; row.mode = ''; row.hasError = false; row.meetingCopied = false
+             row.mode = ''; row.hasError = false; row.meetingCopied = false
              row.meetingUrl = ''; row.meetingDefault = ''
-         },
-         activateBatchRow(row, index, focusFirst = false) {
-             if (row.consumed) return
-             row.selected = true
-             row.expanded = true
-             this.batchMessage = ''
-             if (focusFirst) this.$nextTick(() => document.getElementById(`batch_lesson_${index}`)?.focus())
-         },
-         beginBatchConfiguration(row, index, event) {
-             if (row.selected || row.consumed || event?.target?.closest('[data-batch-passive]')) return
-             this.activateBatchRow(row, index)
+             this.syncSelects(trigger.closest('article'))
          },
          toggleBatchRow(row, checked) {
              row.selected = checked
              row.expanded = checked
-             row.teacherOpen = false
              this.batchMessage = ''
+         },
+         // The row header selects a row on first use, then only folds it. Unselecting keeps what was picked.
+         batchHeaderClicked(row) {
+             if (row.consumed) return
+             if (!row.selected) this.toggleBatchRow(row, true)
+             else row.expanded = !row.expanded
          },
          toggleAllBatch(event) { this.batchRows.filter(row => !row.consumed).forEach(row => this.toggleBatchRow(row, event.target.checked)) },
          selectedBatchCount() { return this.batchRows.filter(row => row.selected).length },
@@ -176,6 +228,7 @@
          batchRowReady(row) { return Boolean(row.title && row.lessonId && row.activityId && row.mode) },
          batchRowHasDraft(row) { return Boolean(row.title || row.lessonId || row.activityId || row.teacherIds.length || row.mode) },
          readyBatchCount() { return this.batchRows.filter(row => row.selected && this.batchRowReady(row)).length },
+         batchNeedsLocation() { return this.batchRows.some(row => row.selected && (row.mode === 'offline' || row.mode === 'hybrid')) },
          batchRowState(row) {
              if (row.consumed) return @js(__('lf.LF_course_cohort_session_batch_created_state'));
              if (row.hasError) return @js(__('lf.LF_course_cohort_session_batch_error_state'));
@@ -183,6 +236,12 @@
              return this.batchRowReady(row)
                  ? @js(__('lf.LF_course_cohort_session_batch_configured'))
                  : @js(__('lf.LF_course_cohort_session_batch_incomplete'));
+         },
+         batchRowTone(row) {
+             if (row.consumed) return 'ui-status--completed'
+             if (row.hasError) return 'ui-status--danger'
+             if (!row.selected) return 'ui-status--archived'
+             return this.batchRowReady(row) ? 'ui-status--active' : 'ui-status--inactive'
          },
          batchRowSummary(row) {
              if (!this.batchRowReady(row)) return ''
@@ -195,14 +254,18 @@
                  ? @js(__('lf.LF_course_cohort_session_batch_incomplete_hint'))
                  : ''
          },
-         openBatch() { this.formOpen = false; this.batchOpen = true; this.submitting = false; this.$nextTick(() => this.$refs.batchForm?.scrollIntoView({ behavior: 'smooth', block: 'start' })) },
-         closeBatch() { this.batchOpen = false; this.submitting = false },
+         openBatch() {
+             this.batchSubmitting = false
+             this.syncSelects(this.$refs.batchDialog)
+             this.$nextTick(() => this.$refs.batchDialog?.showModal())
+         },
+         closeBatch() { if (this.$refs.batchDialog?.open) this.$refs.batchDialog.close() },
          submitBatch(event) {
-             if (this.submitting) { event.preventDefault(); return }
+             if (this.batchSubmitting) { event.preventDefault(); return }
              if (this.selectedBatchCount() === 0) {
                  event.preventDefault()
                  this.batchMessage = @js(__('lf.LF_course_cohort_session_batch_select_required'));
-                 this.$nextTick(() => setTimeout(() => document.querySelector('.course-cohort-session-batch-message')?.focus(), 0))
+                 this.$nextTick(() => this.$refs.batchMessage?.focus())
                  return
              }
              const invalidRow = this.batchRows.find(row => row.selected && !this.batchRowReady(row))
@@ -210,14 +273,21 @@
                  event.preventDefault()
                  invalidRow.expanded = true
                  this.batchMessage = @js(__('lf.LF_course_cohort_session_batch_complete_required'));
-                 this.$nextTick(() => document.getElementById(`batch_lesson_${this.batchRows.indexOf(invalidRow)}`)?.focus())
+                 this.$nextTick(() => document.getElementById(`batch_lesson_${this.batchRows.indexOf(invalidRow)}-ui-kit`)?.focus())
                  return
              }
+             if (this.batchNeedsLocation() && (!this.batchRoom.trim() || !this.batchAddress.trim())) {
+                 event.preventDefault()
+                 this.batchMessage = @js(__('lf.LF_course_cohort_session_batch_location_required'));
+                 this.$nextTick(() => document.getElementById(this.batchRoom.trim() ? 'batch_address' : 'batch_room_name')?.focus())
+                 return
+             }
+             this.batchMessage = ''
              this.batchRows.forEach(row => { row.teacherIds = [...new Set(row.teacherIds.map(String))] })
-             this.submitting = true
+             this.batchSubmitting = true
          },
          curriculumMeetingUrl() {
-             return this.selectedActivity()?.live_class_url_snapshot || ''
+             return this.activities.find(item => String(item.id) === String(this.activityId))?.live_class_url_snapshot || ''
          },
          meetingProvider(url) {
              if (!url) return ''
@@ -229,12 +299,10 @@
                  return host.replace(/^www\./, '')
              } catch (_) { return '' }
          },
+         // Stored times are wall-clock in the session's own timezone: split the text, never go through the browser's zone.
          formatSessionDateTime(value) {
-             if (!value) return '—'
-             const date = new Date(String(value).replace(' ', 'T'))
-             if (Number.isNaN(date.getTime())) return value
-             const pad = number => String(number).padStart(2, '0')
-             return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+             const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/)
+             return match ? `${match[3]}/${match[2]}/${match[1]} ${match[4]}:${match[5]}` : (value || '—')
          },
          copyCurriculumMeetingLink() {
              const url = this.meetingUrl
@@ -246,534 +314,188 @@
          },
          resetForm() {
              this.editingId = null; this.editingSession = null; this.sessionType = 'curriculum'; this.lessonId = ''; this.activityId = ''
-             this.title = ''; this.titleDirty = false; this.mode = 'online'; this.teacherIds = []; this.teacherOpen = false
-             this.startsAt = ''; this.endsAt = ''; this.provider = ''; this.meetingUrl = ''; this.meetingDefault = ''
+             this.title = ''; this.titleDirty = false; this.mode = 'online'; this.teacherIds = []
+             this.startsAt = ''; this.endsAt = ''; this.previousStart = ''; this.provider = ''; this.meetingUrl = ''; this.meetingDefault = ''
              this.roomName = ''; this.address = ''; this.submitting = false; this.meetingLinkCopied = false
+             this.clearTimeError(this.$refs.sessionStart)
+             this.clearTimeError(this.$refs.sessionEnd)
+         },
+         showSessionDialog() {
+             this.previousStart = this.startsAt
+             this.syncSelects(this.$refs.sessionDialog)
+             this.$nextTick(() => this.$refs.sessionDialog?.showModal())
          },
          openCreate() {
-             this.resetForm(); this.batchOpen = false; this.formOpen = true
-             this.$nextTick(() => this.$refs.sessionTypeCurriculum?.focus())
+             this.showFormErrors = false
+             this.resetForm()
+             this.showSessionDialog()
          },
          editSession(item) {
-             this.editingId = item.id; this.editingSession = item; this.batchOpen = false; this.formOpen = true; this.sessionType = item.session_type
+             this.showFormErrors = false
+             this.resetForm()
+             this.editingId = item.id; this.editingSession = item; this.sessionType = item.session_type
              this.lessonId = item.version_lesson_id ? String(item.version_lesson_id) : ''
              this.activityId = item.version_activity_id ? String(item.version_activity_id) : ''
              this.title = item.title; this.titleDirty = true; this.mode = item.delivery_mode
-             this.teacherIds = [...new Set((item.teacher_ids || []).map(String))]; this.teacherOpen = false
+             this.teacherIds = [...new Set((item.teacher_ids || []).map(String))]
              this.startsAt = item.scheduled_start_at.slice(0, 16).replace(' ', 'T')
              this.endsAt = item.scheduled_end_at.slice(0, 16).replace(' ', 'T')
              this.provider = item.online_provider || ''; this.meetingUrl = item.meeting_url_snapshot || ''
              this.meetingDefault = this.curriculumMeetingUrl()
              this.roomName = item.room_name_snapshot || ''; this.address = item.address_snapshot || ''
-             this.$nextTick(() => { this.$refs.sessionForm.scrollIntoView({ behavior: 'smooth', block: 'start' }); this.$refs.sessionTitle.focus() })
+             this.showSessionDialog()
          },
+         closeForm() { if (this.$refs.sessionDialog?.open) this.$refs.sessionDialog.close() },
+         sessionDialogClosed() { this.showFormErrors = false; this.resetForm() },
          switchType(type) {
              this.sessionType = type
-             if (type === 'operational') { this.lessonId = ''; this.activityId = ''; this.activityChanged(); if (!this.titleDirty) this.title = '' }
+             if (type === 'operational') {
+                 this.lessonId = ''; this.activityId = ''; this.activityChanged()
+                 if (!this.titleDirty) this.title = ''
+                 this.syncSelects(this.$refs.sessionDialog)
+             }
          },
          lessonChanged() {
+             if (this.syncing) return
              this.activityId = ''
              this.activityChanged()
              const lesson = this.lessons.find(item => String(item.id) === String(this.lessonId))
              if (!this.titleDirty) this.title = lesson?.title_snapshot || ''
+             this.syncSelects(this.$refs.sessionDialog)
          },
          activityChanged() {
+             if (this.syncing) return
              // The Activity link is only a default: keep a link the admin typed.
              const next = this.curriculumMeetingUrl()
              if (!this.meetingUrl || this.meetingUrl === this.meetingDefault) this.meetingUrl = next
              this.meetingDefault = next
              this.meetingLinkCopied = false
          },
-         cancelForm() { this.formOpen = false; this.resetForm() },
-         openDetail(item) {
-             this.detailSession = item
-             this.$nextTick(() => this.$refs.sessionDetailClose?.focus())
+         submitForm(event) {
+             if (this.submitting) { event.preventDefault(); return }
+             if (!this.editingId && this.timesInvalid(this.$refs.sessionStart, this.$refs.sessionEnd, this.startsAt, this.endsAt)) {
+                 event.preventDefault()
+                 return
+             }
+             this.submitting = true
          },
-         closeDetail() { this.detailSession = null },
+         openDetail(item, trigger) {
+             this.detailSession = item
+             this.detailActions = @js($lifecycleActions)
+                 .map(key => ({ key, url: trigger.getAttribute(`data-lifecycle-${key}`), ...this.lifecycleTexts[key] }))
+                 .filter(action => action.url)
+             this.$refs.detailDialog.showModal()
+         },
+         closeDetail() { this.$refs.detailDialog.close() },
+         openLifecycle(action) {
+             this.lifecycle = action
+             this.lifecycleReason = ''
+             this.lifecycleSubmitting = false
+             this.$refs.lifecycleDialog.showModal()
+         },
+         closeLifecycle() { if (!this.lifecycleSubmitting) this.$refs.lifecycleDialog.close() },
          openReschedule(item) {
+             this.showRescheduleErrors = false
              this.rescheduleSession = item
              this.rescheduleStart = item.scheduled_start_at.slice(0, 16).replace(' ', 'T')
              this.rescheduleEnd = item.scheduled_end_at.slice(0, 16).replace(' ', 'T')
+             this.previousStart = this.rescheduleStart
              this.rescheduleReason = ''
              this.rescheduleStartError = ''
-             this.$nextTick(() => this.$refs.rescheduleStart?.focus())
+             this.clearTimeError(this.$refs.rescheduleStart)
+             this.clearTimeError(this.$refs.rescheduleEnd)
+             this.$refs.rescheduleDialog.showModal()
          },
          rescheduleStartChanged() {
-             this.rescheduleEnd = ''
+             this.rescheduleEnd = this.movedEnd(this.previousStart, this.rescheduleStart, this.rescheduleEnd)
+             this.previousStart = this.rescheduleStart
              this.rescheduleStartError = ''
+             this.clearTimeError(this.$refs.rescheduleStart)
+             this.clearTimeError(this.$refs.rescheduleEnd)
          },
          submitReschedule(event) {
+             if (this.rescheduleSubmitting) { event.preventDefault(); return }
              this.rescheduleStartError = ''
-             const toTimestamp = value => new Date(String(value || '').replace(' ', 'T')).getTime()
-             const start = toTimestamp(this.rescheduleStart)
-             const end = toTimestamp(this.rescheduleEnd)
-             const hasOverlap = this.sessions.some(item => {
-                 if (String(item.id) === String(this.rescheduleSession?.id)) return false
-                 if (['cancelled', 'no_show'].includes(item.status)) return false
-                 return toTimestamp(item.scheduled_start_at) < end
-                     && toTimestamp(item.scheduled_end_at) > start
-             })
-             if (!hasOverlap) return
-             event.preventDefault()
-             this.rescheduleStartError = @js(__('lf.LF_course_cohort_session_schedule_overlap'));
-             this.$nextTick(() => this.$refs.rescheduleStart?.focus())
+             if (this.timesInvalid(this.$refs.rescheduleStart, this.$refs.rescheduleEnd, this.rescheduleStart, this.rescheduleEnd)) {
+                 event.preventDefault()
+                 return
+             }
+             const current = value => String(value || '').slice(0, 16).replace(' ', 'T')
+             if (this.rescheduleStart === current(this.rescheduleSession?.scheduled_start_at)
+                 && this.rescheduleEnd === current(this.rescheduleSession?.scheduled_end_at)) {
+                 event.preventDefault()
+                 this.timeError(this.$refs.rescheduleStart, @js(__('lf.LF_course_cohort_session_reschedule_unchanged')));
+                 return
+             }
+             this.rescheduleSubmitting = true
          },
-         closeReschedule() {
+         assignTeacherSelectable(id) {
+             if (!this.assignSession) return false
+             const date = value => String(value).slice(0, 10)
+             return this.teachers.some(teacher => teacher.id === String(id) && this.teacherFits(teacher, date(this.assignSession.scheduled_start_at), date(this.assignSession.scheduled_end_at)))
+         },
+         openAssign(item) {
+             this.showAssignErrors = false
+             this.assignSession = item
+             this.assignTeacherIds = []
+             this.syncSelects(this.$refs.assignDialog)
+             this.$nextTick(() => this.$refs.assignDialog.showModal())
+         },
+         closeAssign() { if (this.$refs.assignDialog?.open) this.$refs.assignDialog.close() },
+         closeReschedule() { if (this.$refs.rescheduleDialog?.open) this.$refs.rescheduleDialog.close() },
+         rescheduleDialogClosed() {
+             this.showRescheduleErrors = false
              this.rescheduleSession = null
              this.rescheduleStart = ''
              this.rescheduleEnd = ''
              this.rescheduleReason = ''
              this.rescheduleStartError = ''
-         },
-         submitForm(event) {
-             if (this.submitting) { event.preventDefault(); return }
-             this.submitting = true
          }
-     }"
-     x-init="$nextTick(() => {
-         const rescheduleError = document.querySelector('.course-cohort-session-reschedule-modal [aria-invalid=\"true\"]')
-         const batchError = document.querySelector('#session-batch-form [aria-invalid=\"true\"]')
-         if (rescheduleError) rescheduleError.focus()
-         else if (batchError) { batchError.closest('.course-cohort-session-batch-item')?.querySelector('.course-cohort-session-batch-item__trigger')?.setAttribute('aria-expanded', 'true'); batchError.focus() }
-         else document.querySelector('.course-cohort-session-error-summary a')?.focus()
-     })">
-            <div class="ui-summary-head course-cohort-sessions__header">
+     }">
+            <div class="ui-summary-head">
                 <div>
-                    <h2>
-                        <span x-show="!batchOpen">{{ __('lf.LF_course_cohort_session_title') }}</span>
-                        <span x-show="batchOpen" x-cloak>{{ __('lf.LF_course_cohort_session_batch_title') }}</span>
-                    </h2>
-                    <p class="ui-caption">
-                        <span x-show="!batchOpen">{{ __('lf.LF_course_cohort_session_help') }}</span>
-                        <span x-show="batchOpen" x-cloak>
-                            {{ __('lf.LF_course_cohort_session_batch_help') }}
-                            @if($commonBatchTimezone)
-                                <small class="course-cohort-session-batch-timezone">{{ __('lf.LF_course_cohort_session_batch_timezone', ['timezone' => $commonBatchTimezone]) }}</small>
-                            @endif
-                        </span>
-                    </p>
+                    <h2 id="cohort-sessions-title">{{ __('lf.LF_course_cohort_session_title') }}</h2>
+                    <p class="ui-caption">{{ __('lf.LF_course_cohort_session_help') }}</p>
                 </div>
                 <div class="mk-table-top__actions">
-                    <span class="ui-caption" x-show="!batchOpen">{{ __('lf.LF_course_cohort_session_count', ['count' => $sessions->count()]) }}</span>
-                    <span class="ui-caption" x-show="batchOpen" x-cloak x-text="`${selectedBatchCount()}/${selectableBatchCount()} ${@js(__('lf.LF_course_cohort_session_batch_selected_count'))}`"></span>
-                    @if ($cohort->is_mutable)
-                        @if($plannedOccurrences->isNotEmpty())
-                            <button type="button" class="ui-button ui-button--outline cursor-interaction" x-show="!formOpen && !batchOpen" x-on:click="openBatch()">{{ __('lf.LF_course_cohort_session_batch_open') }}</button>
-                        @endif
-                        <button type="button" class="ui-button cursor-interaction" x-show="!formOpen && !batchOpen" x-on:click="openCreate()">{{ __('lf.LF_course_cohort_session_manual_open') }}</button>
+                    <span class="ui-caption ui-enroll-nowrap">{{ __('lf.LF_course_cohort_session_count', ['count' => $sessions->count()]) }}</span>
+                    @if ($canBatchCreate)
+                        <button type="button" class="ui-button ui-button--outline cursor-interaction" aria-haspopup="dialog" x-on:click="openBatch()">{{ __('lf.LF_course_cohort_session_batch_open') }}</button>
+                    @endif
+                    @if ($canCreateSession)
+                        <button type="button" class="ui-button ui-button--outline cursor-interaction" aria-haspopup="dialog" x-on:click="openCreate()">{{ __('lf.LF_course_cohort_session_manual_open') }}</button>
                     @endif
                 </div>
             </div>
 
-            @if ($errors->any() && ! $rescheduleHasErrors)
-                <div class="admin-alert admin-alert-danger course-cohort-session-error-summary" role="alert">
-                    <a class="admin-text-action" href="{{ $batchHasErrors ? '#session-batch-form' : '#session_title' }}">{{ $errors->first() }}</a>
+            @if ($cohort->is_mutable && ! $sessionAcceptsNew)
+                <div class="ui-banner ui-cohort-tab-notice" role="status">
+                    <span class="ui-banner__text">{{ __('lf.LF_course_type_cohort_legacy_self_paced') }}</span>
+                </div>
+            @elseif ($cohort->is_mutable && ! $sessionWindow)
+                <div class="ui-banner ui-cohort-tab-notice" role="status">
+                    <span class="ui-banner__text">{{ __('lf.LF_course_cohort_session_schedule_cohort_period_required') }}</span>
+                    <a class="ui-button ui-button--sm ui-button--outline cursor-interaction" href="{{ route('admin.course-cohorts.edit', $cohort->id) }}">{{ __('lf.LF_course_cohort_schedule_operation_action') }}</a>
+                </div>
+            @elseif ($cohort->is_mutable && ! $sessionWindowOpen)
+                <div class="ui-banner ui-cohort-tab-notice" role="status">
+                    <span class="ui-banner__text">{{ __('lf.LF_course_cohort_session_window_passed') }}</span>
                 </div>
             @endif
 
-            @if ($cohort->is_mutable)
-                <form id="session-batch-form" x-show="batchOpen" x-cloak x-ref="batchForm" method="POST"
-                      action="{{ route('admin.course-cohorts.sessions.batch.store', $cohort->id) }}"
-                      class="course-cohort-session-batch-form" x-on:submit="submitBatch($event)" novalidate>
-                    @csrf
-                    <div class="course-cohort-session-batch-list">
-                        <label class="course-cohort-session-batch-select-all">
-                            <input type="checkbox"
-                                   x-bind:checked="selectableBatchCount() > 0 && selectedBatchCount() === selectableBatchCount()"
-                                   x-effect="$el.indeterminate = selectedBatchCount() > 0 && selectedBatchCount() < selectableBatchCount()"
-                                   x-on:change="toggleAllBatch($event)">
-                            <span>{{ __('lf.LF_course_cohort_session_batch_select_all') }}</span>
-                        </label>
-
-                        @foreach($plannedOccurrences as $index => $occurrence)
-                            <article class="course-cohort-session-batch-item"
-                                     x-bind:class="{ 'is-selected': batchRows[{{ $index }}].selected, 'is-expanded': batchRows[{{ $index }}].expanded, 'is-incomplete': batchRows[{{ $index }}].selected && !batchRowReady(batchRows[{{ $index }}]) && !batchRows[{{ $index }}].hasError, 'is-configured': batchRows[{{ $index }}].selected && batchRowReady(batchRows[{{ $index }}]), 'has-error': batchRows[{{ $index }}].hasError, 'is-disabled': batchRows[{{ $index }}].consumed }">
-                                <input type="hidden" name="occurrences[{{ $index }}][selected]" value="0">
-                                <input type="hidden" name="occurrences[{{ $index }}][schedule_id]" value="{{ $occurrence['schedule_id'] }}">
-                                <input type="hidden" name="occurrences[{{ $index }}][schedule_slot_id]" value="{{ $occurrence['schedule_slot_id'] }}">
-                                <input type="hidden" name="occurrences[{{ $index }}][source_local_date]" value="{{ $occurrence['date'] }}">
-                                <input type="hidden" name="occurrences[{{ $index }}][title]" x-model="batchRows[{{ $index }}].title" x-bind:disabled="!batchRows[{{ $index }}].selected">
-                                <input type="hidden" name="occurrences[{{ $index }}][version_lesson_id]" x-model="batchRows[{{ $index }}].lessonId" x-bind:disabled="!batchRows[{{ $index }}].selected">
-                                <input type="hidden" name="occurrences[{{ $index }}][version_activity_id]" x-model="batchRows[{{ $index }}].activityId" x-bind:disabled="!batchRows[{{ $index }}].selected">
-                                <input type="hidden" name="occurrences[{{ $index }}][delivery_mode]" x-model="batchRows[{{ $index }}].mode" x-bind:disabled="!batchRows[{{ $index }}].selected">
-                                <input type="hidden" name="occurrences[{{ $index }}][meeting_url]" x-model="batchRows[{{ $index }}].meetingUrl" x-bind:disabled="!batchRows[{{ $index }}].selected || !['online', 'hybrid'].includes(batchRows[{{ $index }}].mode)">
-
-                                <div class="course-cohort-session-batch-item__summary">
-                                    <label class="course-cohort-session-batch-item__selection" for="batch_occurrence_{{ $index }}">
-                                        <input id="batch_occurrence_{{ $index }}" type="checkbox" name="occurrences[{{ $index }}][selected]" value="1"
-                                               x-bind:checked="batchRows[{{ $index }}].selected"
-                                               x-bind:disabled="batchRows[{{ $index }}].consumed"
-                                               x-on:change="toggleBatchRow(batchRows[{{ $index }}], $event.target.checked)">
-                                        <span class="sr-only">{{ __('lf.LF_course_cohort_session_batch_select_occurrence', [
-                                            'date' => \Illuminate\Support\Carbon::parse($occurrence['date'])->format('d/m/Y'),
-                                            'time' => $occurrence['start_time'].'–'.$occurrence['end_time'],
-                                        ]) }}</span>
-                                    </label>
-                                    <button id="batch_occurrence_trigger_{{ $index }}" type="button"
-                                            class="course-cohort-session-batch-item__trigger"
-                                            x-bind:aria-expanded="batchRows[{{ $index }}].expanded.toString()"
-                                            x-bind:disabled="batchRows[{{ $index }}].consumed"
-                                            aria-controls="batch_occurrence_panel_{{ $index }}"
-                                            x-on:click="if (!batchRows[{{ $index }}].consumed) batchRows[{{ $index }}].expanded = !batchRows[{{ $index }}].expanded">
-                                        <span class="course-cohort-session-batch-item__date">
-                                            <strong>{{ \Illuminate\Support\Carbon::parse($occurrence['date'])->format('d/m/Y') }}</strong>
-                                            <span>{{ \Illuminate\Support\Str::ucfirst(\Illuminate\Support\Carbon::parse($occurrence['date'])->translatedFormat('l')) }}</span>
-                                            <span>{{ $occurrence['start_time'] }}–{{ $occurrence['end_time'] }}</span>
-                                        </span>
-                                        <span class="course-cohort-session-batch-item__meta">
-                                            <span>
-                                                {{ $occurrence['schedule_name'] }}
-                                                @if(! $commonBatchTimezone) · {{ $occurrence['timezone'] }} @endif
-                                            </span>
-                                            <small x-show="batchRowSummary(batchRows[{{ $index }}])" x-text="batchRowSummary(batchRows[{{ $index }}])"></small>
-                                            <small class="course-cohort-session-batch-item__hint" x-show="batchRowHint(batchRows[{{ $index }}])" x-text="batchRowHint(batchRows[{{ $index }}])"></small>
-                                        </span>
-                                        <span class="course-cohort-session-batch-item__state" x-text="batchRowState(batchRows[{{ $index }}])"></span>
-                                        <span class="course-cohort-session-batch-item__chevron" x-show="!batchRows[{{ $index }}].consumed" aria-hidden="true"></span>
-                                    </button>
-                                </div>
-
-                                <div id="batch_occurrence_panel_{{ $index }}" class="course-cohort-session-batch-item__form"
-                                     role="region" aria-labelledby="batch_occurrence_trigger_{{ $index }}"
-                                     x-bind:class="{ 'is-awaiting-selection': !batchRows[{{ $index }}].selected }"
-                                     x-on:pointerdown.capture="beginBatchConfiguration(batchRows[{{ $index }}], {{ $index }}, $event)"
-                                     x-on:focusin.capture="beginBatchConfiguration(batchRows[{{ $index }}], {{ $index }}, $event)"
-                                     x-show="!batchRows[{{ $index }}].consumed && batchRows[{{ $index }}].expanded" x-cloak>
-                                    <div class="course-cohort-session-batch-item__selection-notice" data-batch-passive x-show="!batchRows[{{ $index }}].selected" x-cloak>
-                                        <p>{{ __('lf.LF_course_cohort_session_batch_not_selected_notice') }}</p>
-                                        <button type="button" class="ui-button cursor-interaction"
-                                                x-on:click="activateBatchRow(batchRows[{{ $index }}], {{ $index }}, true)">
-                                            {{ __('lf.LF_course_cohort_session_batch_select_and_configure') }}
-                                        </button>
-                                    </div>
-                                    <div class="course-cohort-session-batch-item__form-heading">
-                                        <strong>{{ __('lf.LF_course_cohort_session_batch_configuration') }}</strong>
-                                        <button type="button" data-batch-passive class="admin-text-action course-cohort-session-batch-item__reset" x-show="batchRowHasDraft(batchRows[{{ $index }}])" x-cloak x-on:click="resetBatchRow(batchRows[{{ $index }}], $event.currentTarget)" aria-label="{{ __('lf.LF_course_cohort_session_batch_reset_occurrence', ['date' => \Illuminate\Support\Carbon::parse($occurrence['date'])->format('d/m/Y')]) }}">{{ __('lf.LF_course_cohort_session_batch_reset_configuration') }}</button>
-                                    </div>
-                                    <div class="ui-field">
-                                        <label class="ui-field__label" for="batch_lesson_{{ $index }}">{{ __('lf.LF_course_cohort_session_lesson') }} <span aria-hidden="true">*</span></label>
-                                        <select id="batch_lesson_{{ $index }}" x-model="batchRows[{{ $index }}].lessonId" x-on:change="batchLessonChanged(batchRows[{{ $index }}])" x-bind:tabindex="batchRows[{{ $index }}].selected ? 0 : -1" @error("occurrences.$index.version_lesson_id") aria-invalid="true" aria-describedby="batch_lesson_error_{{ $index }}" @enderror><option value="">{{ __('lf.LF_course_cohort_session_select_lesson') }}</option>@foreach($versionLessons as $lesson)<option value="{{ $lesson->id }}">{{ $lesson->title_snapshot }}</option>@endforeach</select>
-                                        @error("occurrences.$index.version_lesson_id")<p id="batch_lesson_error_{{ $index }}" class="ui-field__error" role="alert">{{ $message }}</p>@enderror
-                                    </div>
-                                    <div class="ui-field">
-                                        <label class="ui-field__label" for="batch_activity_{{ $index }}">{{ __('lf.LF_course_cohort_session_activity') }} <span aria-hidden="true">*</span></label>
-                                        <select id="batch_activity_{{ $index }}" x-model="batchRows[{{ $index }}].activityId" x-on:change="batchActivityChanged(batchRows[{{ $index }}])" x-bind:tabindex="batchRows[{{ $index }}].selected ? 0 : -1" @error("occurrences.$index.version_activity_id") aria-invalid="true" aria-describedby="batch_activity_error_{{ $index }}" @enderror>
-                                            <option value="">{{ __('lf.LF_course_cohort_session_select_activity') }}</option>
-                                            @foreach($versionActivities as $activity)
-                                                <option value="{{ $activity->id }}"
-                                                        x-bind:hidden="String({{ $activity->version_lesson_id }}) !== String(batchRows[{{ $index }}].lessonId)"
-                                                        x-bind:disabled="String({{ $activity->version_lesson_id }}) !== String(batchRows[{{ $index }}].lessonId)">
-                                                    {{ $activity->title_snapshot }}
-                                                </option>
-                                            @endforeach
-                                        </select>
-                                        @error("occurrences.$index.version_activity_id")<p id="batch_activity_error_{{ $index }}" class="ui-field__error" role="alert">{{ $message }}</p>@enderror
-                                    </div>
-                                    <div class="ui-field course-cohort-session-batch-item__teachers-field">
-                                        <span class="ui-field__label">{{ __('lf.LF_course_cohort_session_teachers') }}</span>
-                                        <div class="course-cohort-session-batch-teachers" x-on:click.outside="batchRows[{{ $index }}].teacherOpen = false">
-                                            <div class="course-cohort-session-batch-teachers__control"
-                                                 role="combobox" x-bind:tabindex="batchRows[{{ $index }}].selected ? 0 : -1"
-                                                 aria-haspopup="listbox"
-                                                 x-bind:aria-expanded="batchRows[{{ $index }}].teacherOpen.toString()"
-                                                 aria-controls="batch-teacher-options-{{ $index }}"
-                                                 x-on:click="batchRows[{{ $index }}].teacherOpen = !batchRows[{{ $index }}].teacherOpen"
-                                                 x-on:keydown.enter.prevent="batchRows[{{ $index }}].teacherOpen = !batchRows[{{ $index }}].teacherOpen"
-                                                 x-on:keydown.escape.stop="batchRows[{{ $index }}].teacherOpen = false">
-                                                <span class="course-cohort-session-batch-teachers__placeholder"
-                                                      x-show="batchRows[{{ $index }}].teacherIds.length === 0">{{ __('lf.LF_course_cohort_session_batch_no_teacher') }}</span>
-                                                <template x-for="teacher in selectedBatchTeachers(batchRows[{{ $index }}])" :key="teacher.id">
-                                                    <span class="course-cohort-session-batch-teachers__chip">
-                                                        <span x-text="teacher.name"></span>
-                                                        <button type="button" x-on:click.stop="toggleBatchTeacher(batchRows[{{ $index }}], teacher.id)" x-bind:aria-label="`{{ __('lf.LF_common_button_remove') }} ${teacher.name}`">×</button>
-                                                    </span>
-                                                </template>
-                                            </div>
-                                            <div id="batch-teacher-options-{{ $index }}"
-                                                 class="course-cohort-session-batch-teachers__options"
-                                                 role="listbox" aria-multiselectable="true"
-                                                 x-show="batchRows[{{ $index }}].teacherOpen" x-cloak>
-                                                <template x-for="teacher in batchSelectableTeachers(batchRows[{{ $index }}])" :key="teacher.id">
-                                                    <button type="button" role="option"
-                                                            class="course-cohort-session-batch-teachers__option"
-                                                            x-bind:aria-selected="batchRows[{{ $index }}].teacherIds.includes(String(teacher.id)).toString()"
-                                                            x-bind:class="{ 'is-selected': batchRows[{{ $index }}].teacherIds.includes(String(teacher.id)) }"
-                                                            x-on:click="toggleBatchTeacher(batchRows[{{ $index }}], teacher.id)">
-                                                        <span><span x-text="teacher.name"></span> · <span x-text="teacher.role_label"></span></span>
-                                                        <span aria-hidden="true" x-show="batchRows[{{ $index }}].teacherIds.includes(String(teacher.id))">✓</span>
-                                                    </button>
-                                                </template>
-                                                <p class="course-cohort-session-batch-teachers__empty"
-                                                   x-show="batchSelectableTeachers(batchRows[{{ $index }}]).length === 0">{{ __('lf.LF_course_cohort_session_teachers_empty') }}</p>
-                                            </div>
-                                            <template x-for="teacherId in batchRows[{{ $index }}].teacherIds" :key="teacherId">
-                                                <input type="hidden" name="occurrences[{{ $index }}][teacher_ids][]" x-bind:value="teacherId" x-bind:disabled="!batchRows[{{ $index }}].selected">
-                                            </template>
-                                        </div>
-                                        @error("occurrences.$index.teacher_ids")<p class="ui-field__error" role="alert">{{ $message }}</p>@enderror
-                                    </div>
-                                    <div class="ui-field">
-                                        <label class="ui-field__label" for="batch_mode_{{ $index }}">{{ __('lf.LF_course_cohort_session_mode') }} <span aria-hidden="true">*</span></label>
-                                        <select id="batch_mode_{{ $index }}" x-model="batchRows[{{ $index }}].mode" x-bind:tabindex="batchRows[{{ $index }}].selected ? 0 : -1" @error("occurrences.$index.delivery_mode") aria-invalid="true" aria-describedby="batch_mode_error_{{ $index }}" @enderror><option value="">{{ __('lf.LF_course_cohort_session_select_mode') }}</option>@foreach(['online','offline','hybrid'] as $deliveryMode)<option value="{{ $deliveryMode }}">{{ __('lf.LF_course_cohort_session_mode_'.$deliveryMode) }}</option>@endforeach</select>
-                                        @error("occurrences.$index.delivery_mode")<p id="batch_mode_error_{{ $index }}" class="ui-field__error" role="alert">{{ $message }}</p>@enderror
-                                    </div>
-                                    <div class="ui-field"
-                                         x-show="batchRows[{{ $index }}].mode === 'online' || batchRows[{{ $index }}].mode === 'hybrid'"
-                                         x-cloak>
-                                        <label class="ui-field__label" for="batch_provider_{{ $index }}">{{ __('lf.LF_course_cohort_session_provider') }}</label>
-                                        <input id="batch_provider_{{ $index }}" readonly
-                                               x-bind:value="batchMeetingProvider(batchRows[{{ $index }}])"
-                                               placeholder="{{ __('lf.LF_course_cohort_session_meeting_not_available') }}">
-                                    </div>
-                                    <div class="ui-field"
-                                         x-show="batchRows[{{ $index }}].mode === 'online' || batchRows[{{ $index }}].mode === 'hybrid'"
-                                         x-cloak>
-                                        <label class="ui-field__label" for="batch_meeting_url_{{ $index }}">{{ __('lf.LF_course_cohort_session_meeting_url') }}</label>
-                                        <div class="course-cohort-session-batch-meeting-link">
-                                            <div class="course-cohort-session-copy-control">
-                                                <input id="batch_meeting_url_{{ $index }}" type="url"
-                                                       x-model.trim="batchRows[{{ $index }}].meetingUrl"
-                                                       x-bind:tabindex="batchRows[{{ $index }}].selected ? 0 : -1"
-                                                       @error("occurrences.$index.meeting_url") aria-invalid="true" @enderror
-                                                       placeholder="{{ __('lf.LF_course_cohort_session_meeting_url_placeholder') }}">
-                                                <button type="button" class="admin-copy-action course-cohort-session-copy-control__button"
-                                                        x-show="batchMeetingUrl(batchRows[{{ $index }}])"
-                                                        x-on:click="copyBatchMeetingLink(batchRows[{{ $index }}])"
-                                                        x-bind:class="{ 'is-copied': batchRows[{{ $index }}].meetingCopied }"
-                                                        x-bind:title="batchRows[{{ $index }}].meetingCopied ? @js(__('lf.LF_course_cohort_edit_copied')) : @js(__('lf.LF_course_cohort_session_copy_meeting_url'))"
-                                                        x-bind:aria-label="batchRows[{{ $index }}].meetingCopied ? @js(__('lf.LF_course_cohort_edit_copied')) : @js(__('lf.LF_course_cohort_session_copy_meeting_url'))">
-                                                    <span x-show="!batchRows[{{ $index }}].meetingCopied"><x-backend-icon name="copy" /></span>
-                                                    <span x-cloak x-show="batchRows[{{ $index }}].meetingCopied"><x-backend-icon name="check" /></span>
-                                                </button>
-                                            </div>
-                                            <a class="ui-button cursor-interaction course-cohort-session-open-link"
-                                               x-show="batchMeetingUrl(batchRows[{{ $index }}])"
-                                               x-bind:href="batchMeetingUrl(batchRows[{{ $index }}])"
-                                               target="_blank" rel="noopener noreferrer">
-                                                <x-backend-icon name="external-link" />
-                                                {{ __('lf.LF_course_cohort_session_join') }}
-                                            </a>
-                                        </div>
-                                    </div>
-                                    @error("occurrences.$index.meeting_url")<p class="ui-field__error" role="alert">{{ $message }}</p>@enderror
-                                    <p class="course-cohort-session-batch-meeting-help"
-                                       x-show="batchRows[{{ $index }}].mode === 'online' || batchRows[{{ $index }}].mode === 'hybrid'"
-                                       x-cloak>{{ __('lf.LF_course_cohort_session_curriculum_meeting_help') }}</p>
-                                </div>
-                            </article>
-                        @endforeach
-                    </div>
-
-                    <div class="course-cohort-session-batch-location" x-show="batchRows.some(row => row.selected && (row.mode === 'offline' || row.mode === 'hybrid'))" x-cloak>
-                        <div class="ui-field"><x-form-label for="batch_room_name" :value="__('lf.LF_course_cohort_session_room')" :required="true" /><input id="batch_room_name" name="room_name"></div>
-                        <div class="ui-field"><x-form-label for="batch_address" :value="__('lf.LF_course_cohort_session_address')" :required="true" /><input id="batch_address" name="address"></div>
-                    </div>
-                    <p x-ref="batchMessage" class="ui-field__error course-cohort-session-batch-message" role="alert" tabindex="-1" x-show="batchMessage" x-text="batchMessage" x-cloak></p>
-                    @error('occurrences')<p class="ui-field__error" role="alert">{{ $message }}</p>@enderror
-                    <footer class="admin-form-footer admin-form-footer--sticky course-cohort-session-form__footer">
-                        <strong class="course-cohort-session-form__footer-context"><span x-text="readyBatchCount()"></span> {{ __('lf.LF_course_cohort_session_batch_ready') }}</strong>
-                        <div class="admin-form-footer-primary"><button type="button" class="ui-button cursor-interaction" x-on:click="closeBatch()">{{ __('lf.LF_common_button_cancel') }}</button><button type="submit" class="ui-button ui-button--primary cursor-interaction" x-bind:disabled="submitting" x-text="`${@js(__('lf.LF_course_cohort_session_batch_create'))} (${selectedBatchCount()})`"></button></div>
-                    </footer>
-                </form>
-
-                <form x-show="formOpen" x-cloak x-ref="sessionForm" method="POST"
-                      action="{{ route('admin.course-cohorts.sessions.store', $cohort->id) }}"
-                      x-bind:action="editingId ? updateUrl.replace('__SESSION__', editingId) : storeUrl"
-                      class="course-cohort-session-form" x-on:submit="submitForm($event)">
-                    @csrf
-                    <input type="hidden" name="_method" value="PUT" x-bind:disabled="!editingId">
-
-                    <p class="admin-form-inline-notice" x-show="editingId" x-cloak>
-                        <span class="admin-form-inline-notice-icon" aria-hidden="true">i</span>
-                        <span>
-                            <strong x-text="relationLabels[editingSession?.schedule_relation] || '—'"></strong>
-                            — {{ __('lf.LF_course_cohort_session_edit_scope_help') }}
-                        </span>
-                    </p>
-
-                    <fieldset class="course-cohort-session-type">
-                        <legend class="ui-field__label">{{ __('lf.LF_course_cohort_session_type') }} <span aria-hidden="true">*</span></legend>
-                        <div class="course-cohort-session-type__options">
-                            <label class="admin-form-option-panel admin-form-option-panel--compact">
-                                <input x-ref="sessionTypeCurriculum" type="radio" name="session_type" value="curriculum"
-                                       x-bind:checked="sessionType === 'curriculum'" x-on:change="switchType('curriculum')">
-                                <span><strong>{{ __('lf.LF_course_cohort_session_type_curriculum') }}</strong><small>{{ __('lf.LF_course_cohort_session_curriculum_help') }}</small></span>
-                            </label>
-                            <label class="admin-form-option-panel admin-form-option-panel--compact">
-                                <input type="radio" name="session_type" value="operational"
-                                       x-bind:checked="sessionType === 'operational'" x-on:change="switchType('operational')">
-                                <span><strong>{{ __('lf.LF_course_cohort_session_type_operational') }}</strong><small>{{ __('lf.LF_course_cohort_session_operational_help') }}</small></span>
-                            </label>
-                        </div>
-                    </fieldset>
-
-                    <div class="course-cohort-session-form__grid" x-show="sessionType === 'curriculum'">
-                        <div class="ui-field">
-                            <x-form-label for="version_lesson_id" :value="__('lf.LF_course_cohort_session_lesson')" :required="true" />
-                            <select id="version_lesson_id" name="version_lesson_id" class="course-cohort-session-form__bound-control"
-                                    x-model="lessonId" x-on:change="lessonChanged()" x-bind:required="sessionType === 'curriculum'"
-                                    x-bind:class="{ 'has-value': lessonId }">
-                                <option value="">{{ __('lf.LF_course_cohort_session_select_lesson') }}</option>
-                                @foreach ($versionLessons as $lesson)<option value="{{ $lesson->id }}">{{ $lesson->title_snapshot }}</option>@endforeach
-                            </select>
-                            @error('version_lesson_id')<p class="ui-field__error" role="alert">{{ $message }}</p>@enderror
-                        </div>
-                        <div class="ui-field">
-                            <x-form-label for="version_activity_id" :value="__('lf.LF_course_cohort_session_activity')" :required="true" />
-                            <select id="version_activity_id" name="version_activity_id" class="course-cohort-session-form__bound-control"
-                                    x-model="activityId" x-on:change="activityChanged()" x-bind:required="sessionType === 'curriculum'" x-bind:disabled="!lessonId"
-                                    x-bind:class="{ 'has-value': activityId }">
-                                <option value="">{{ __('lf.LF_course_cohort_session_select_activity') }}</option>
-                                @foreach($versionActivities as $activity)
-                                    <option value="{{ $activity->id }}"
-                                            x-bind:hidden="String({{ $activity->version_lesson_id }}) !== String(lessonId)"
-                                            x-bind:disabled="String({{ $activity->version_lesson_id }}) !== String(lessonId)">
-                                        {{ $activity->title_snapshot }}
-                                    </option>
-                                @endforeach
-                            </select>
-                            <p class="ui-caption course-cohort-session-form__binding-help" x-show="lessonId && availableActivities().length === 0" x-cloak>{{ __('lf.LF_course_cohort_session_no_live_activity') }}</p>
-                            @error('version_activity_id')<p class="ui-field__error" role="alert">{{ $message }}</p>@enderror
-                        </div>
-                    </div>
-
-                    <p class="admin-form-inline-notice" x-show="sessionType === 'operational'" x-cloak>
-                        <span class="admin-form-inline-notice-icon" aria-hidden="true">i</span>
-                        <span>{{ __('lf.LF_course_cohort_session_operational_help') }}</span>
-                    </p>
-
-                    <div class="course-cohort-session-form__grid">
-                        <div class="ui-field">
-                            <x-form-label for="session_title" :value="__('lf.LF_course_cohort_session_name')" :required="true" />
-                            <input x-ref="sessionTitle" id="session_title" name="title"
-                                   x-model="title" x-on:input="titleDirty = true" required maxlength="255"
-                                   placeholder="{{ __('lf.LF_course_cohort_session_name_placeholder') }}">
-                            <p class="ui-caption">{{ __('lf.LF_course_cohort_session_title_help') }}</p>
-                            @error('title')<p class="ui-field__error" role="alert">{{ $message }}</p>@enderror
-                        </div>
-                        <div class="ui-field">
-                            <x-form-label for="delivery_mode" :value="__('lf.LF_course_cohort_session_mode')" :required="true" />
-                            <select id="delivery_mode" name="delivery_mode" x-model="mode" required>
-                                @foreach (['online', 'offline', 'hybrid'] as $mode)<option value="{{ $mode }}">{{ __('lf.LF_course_cohort_session_mode_'.$mode) }}</option>@endforeach
-                            </select>
-                        </div>
-                        <div class="ui-field">
-                            <x-form-label for="scheduled_start_at" :value="__('lf.LF_course_cohort_session_start')" :required="true" />
-                            <input id="scheduled_start_at" type="datetime-local" name="scheduled_start_at"
-                                   x-model="startsAt" x-on:change="sessionStartChanged()" x-bind:min="scheduleMin" x-bind:max="scheduleMax"
-                                   x-bind:readonly="Boolean(editingId)" x-bind:class="{ 'has-value': startsAt }" required>
-                            <p class="ui-caption" x-show="editingId" x-cloak>{{ __('lf.LF_course_cohort_session_edit_schedule_help') }}</p>
-                        </div>
-                        <div class="ui-field">
-                            <x-form-label for="scheduled_end_at" :value="__('lf.LF_course_cohort_session_end')" :required="true" />
-                            <input id="scheduled_end_at" type="datetime-local" name="scheduled_end_at"
-                                   x-model="endsAt" x-on:change="syncTeacherAvailability()" x-bind:min="startsAt || scheduleMin" x-bind:max="scheduleMax"
-                                   x-bind:readonly="Boolean(editingId)" x-bind:class="{ 'has-value': endsAt }" required>
-                        </div>
-                        <div class="ui-field admin-form-field--full course-cohort-session-additional-teachers">
-                            <span class="ui-field__label">{{ __('lf.LF_course_cohort_session_teachers') }}</span>
-                            <div class="course-cohort-session-batch-teachers" x-on:click.outside="teacherOpen = false">
-                                <div class="course-cohort-session-batch-teachers__control"
-                                     role="combobox" tabindex="0" aria-haspopup="listbox"
-                                     x-bind:aria-expanded="teacherOpen.toString()"
-                                     aria-controls="session-teacher-options"
-                                     x-on:click="teacherOpen = !teacherOpen"
-                                     x-on:keydown.enter.prevent="teacherOpen = !teacherOpen"
-                                     x-on:keydown.escape.stop="teacherOpen = false">
-                                    <span class="course-cohort-session-batch-teachers__placeholder"
-                                          x-show="teacherIds.length === 0">{{ __('lf.LF_course_cohort_session_batch_no_teacher') }}</span>
-                                    <template x-for="teacher in selectedTeachers()" :key="teacher.id">
-                                        <span class="course-cohort-session-batch-teachers__chip">
-                                            <span x-text="teacher.name"></span>
-                                            <button type="button" x-on:click.stop="toggleTeacher(teacher.id)"
-                                                    x-bind:aria-label="`{{ __('lf.LF_common_button_remove') }} ${teacher.name}`">×</button>
-                                        </span>
-                                    </template>
-                                </div>
-                                <div id="session-teacher-options" class="course-cohort-session-batch-teachers__options"
-                                     role="listbox" aria-multiselectable="true" x-show="teacherOpen" x-cloak>
-                                    <template x-for="teacher in selectableTeachers()" :key="teacher.id">
-                                        <button type="button" role="option" class="course-cohort-session-batch-teachers__option"
-                                                x-bind:aria-selected="teacherIds.includes(String(teacher.id)).toString()"
-                                                x-bind:class="{ 'is-selected': teacherIds.includes(String(teacher.id)) }"
-                                                x-on:click="toggleTeacher(teacher.id)">
-                                            <span><span x-text="teacher.name"></span> · <span x-text="teacher.role_label"></span></span>
-                                            <span aria-hidden="true" x-show="teacherIds.includes(String(teacher.id))">✓</span>
-                                        </button>
-                                    </template>
-                                    <p class="course-cohort-session-batch-teachers__empty"
-                                       x-show="selectableTeachers().length === 0">{{ __('lf.LF_course_cohort_session_teachers_empty') }}</p>
-                                </div>
-                                <template x-for="teacherId in teacherIds" :key="teacherId">
-                                    <input type="hidden" name="teacher_ids[]" x-bind:value="teacherId">
-                                </template>
-                            </div>
-                            <p class="ui-caption" x-show="!startsAt || !endsAt" x-cloak>{{ __('lf.LF_course_cohort_session_teachers_time_help') }}</p>
-                            <p class="ui-caption" x-show="startsAt && endsAt && selectableTeachers().length === 0" x-cloak>{{ __('lf.LF_course_cohort_session_teachers_empty') }}</p>
-                            @error('teacher_ids')<p class="ui-field__error" role="alert">{{ $message }}</p>@enderror
-                            @error('teacher_ids.*')<p class="ui-field__error" role="alert">{{ $message }}</p>@enderror
-                        </div>
-                        <div class="ui-field" x-show="(mode === 'online' || mode === 'hybrid') && sessionType === 'curriculum'" x-cloak>
-                            <x-form-label for="curriculum_online_provider" :value="__('lf.LF_course_cohort_session_provider')" />
-                            <input id="curriculum_online_provider" readonly
-                                   x-bind:value="meetingProvider(meetingUrl) || @js(__('lf.LF_course_cohort_session_meeting_not_available'))">
-                        </div>
-                        <div class="ui-field" x-show="(mode === 'online' || mode === 'hybrid') && sessionType === 'curriculum'" x-cloak>
-                            <x-form-label for="curriculum_meeting_url" :value="__('lf.LF_course_cohort_session_meeting_url')" />
-                            <div class="course-cohort-session-copy-control">
-                                <input id="curriculum_meeting_url" type="url" name="meeting_url"
-                                       x-model.trim="meetingUrl" x-bind:disabled="sessionType !== 'curriculum' || !(mode === 'online' || mode === 'hybrid')"
-                                       placeholder="{{ __('lf.LF_course_cohort_session_meeting_url_placeholder') }}">
-                                <button type="button" class="admin-copy-action course-cohort-session-copy-control__button"
-                                        x-show="meetingUrl" x-on:click="copyCurriculumMeetingLink()"
-                                        x-bind:class="{ 'is-copied': meetingLinkCopied }"
-                                        x-bind:title="meetingLinkCopied ? @js(__('lf.LF_course_cohort_edit_copied')) : @js(__('lf.LF_course_cohort_session_copy_meeting_url'))"
-                                        x-bind:aria-label="meetingLinkCopied ? @js(__('lf.LF_course_cohort_edit_copied')) : @js(__('lf.LF_course_cohort_session_copy_meeting_url'))">
-                                    <span x-show="!meetingLinkCopied"><x-backend-icon name="copy" /></span>
-                                    <span x-show="meetingLinkCopied" x-cloak><x-backend-icon name="check" /></span>
-                                </button>
-                            </div>
-                            @error('meeting_url')<p class="ui-field__error" role="alert" x-show="sessionType === 'curriculum'">{{ $message }}</p>@enderror
-                            <p class="ui-caption">{{ __('lf.LF_course_cohort_session_curriculum_meeting_help') }}</p>
-                        </div>
-                        <div class="ui-field" x-show="(mode === 'online' || mode === 'hybrid') && sessionType === 'operational'" x-cloak>
-                            <x-form-label for="online_provider" :value="__('lf.LF_course_cohort_session_provider')" />
-                            <input id="online_provider" name="online_provider" x-model="provider"
-                                   placeholder="{{ __('lf.LF_course_cohort_session_provider_placeholder') }}">
-                        </div>
-                        <div class="ui-field" x-show="(mode === 'online' || mode === 'hybrid') && sessionType === 'operational'" x-cloak>
-                            <x-form-label for="meeting_url" :value="__('lf.LF_course_cohort_session_meeting_url')" />
-                            <input id="meeting_url" type="url" name="meeting_url" x-model="meetingUrl"
-                                   x-bind:disabled="sessionType !== 'operational' || !(mode === 'online' || mode === 'hybrid')"
-                                   placeholder="{{ __('lf.LF_course_cohort_session_meeting_url_placeholder') }}">
-                            <p class="ui-caption">{{ __('lf.LF_course_cohort_session_operational_meeting_help') }}</p>
-                        </div>
-                        <div class="ui-field" x-show="mode === 'offline' || mode === 'hybrid'" x-cloak>
-                            <x-form-label for="room_name" :value="__('lf.LF_course_cohort_session_room')" :required="true" />
-                            <input id="room_name" name="room_name" x-model="roomName" x-bind:required="mode === 'offline' || mode === 'hybrid'"
-                                   placeholder="{{ __('lf.LF_course_cohort_session_room_placeholder') }}">
-                        </div>
-                        <div class="ui-field" x-show="mode === 'offline' || mode === 'hybrid'" x-cloak>
-                            <x-form-label for="address" :value="__('lf.LF_course_cohort_session_address')" :required="true" />
-                            <input id="address" name="address" x-model="address" x-bind:required="mode === 'offline' || mode === 'hybrid'"
-                                   placeholder="{{ __('lf.LF_course_cohort_session_address_placeholder') }}">
-                        </div>
-                    </div>
-
-                    <footer class="admin-form-footer admin-form-footer--sticky course-cohort-session-form__footer">
-                        <strong class="course-cohort-session-form__footer-context" x-text="editingId ? @js(__('lf.LF_course_cohort_session_edit')) : @js(__('lf.LF_course_cohort_session_create'))"></strong>
-                        <div class="admin-form-footer-primary">
-                            <button type="button" class="ui-button cursor-interaction" x-on:click="cancelForm()">{{ __('lf.LF_common_button_cancel') }}</button>
-                            <button type="submit" class="ui-button ui-button--primary cursor-interaction" x-bind:disabled="submitting" x-bind:aria-busy="submitting">
-                                <span x-show="!submitting" x-text="editingId ? @js(__('lf.LF_course_cohort_session_save_changes')) : @js(__('lf.LF_course_cohort_session_save'))"></span>
-                                <span x-show="submitting" x-cloak>{{ __('lf.LF_course_cohort_student_saving') }}</span>
-                            </button>
-                        </div>
-                    </footer>
-                </form>
+            {{-- Lỗi không thuộc popup nào (lỗi lifecycle đã hiện ở đầu trang). --}}
+            @if ($errors->any() && ! $batchHasErrors && ! $rescheduleHasErrors && ! $formHasErrors && ! $assignHasErrors && ! $errors->has('lifecycle'))
+                <div class="ui-banner ui-cohort-tab-notice" role="alert"><span class="ui-banner__text">{{ $errors->first() }}</span></div>
             @endif
 
-            <div class="mk-table-scroll course-cohort-session-table-wrap">
+            @if ($canBatchCreate)
+                @include('course-cohorts.partials.tabs.session-batch')
+            @endif
+            @if ($cohort->is_mutable)
+                @include('course-cohorts.partials.tabs.session-form')
+            @endif
+
+            <div class="mk-table-scroll" role="region" aria-labelledby="cohort-sessions-title" tabindex="0">
                 <table class="ui-cohort-session-table">
                     <colgroup>
                         <col class="mk-col-sequence">
@@ -781,7 +503,7 @@
                         <col class="ui-cohort-col-session-time">
                         <col class="ui-cohort-col-role">
                         <col class="mk-col-status">
-                        <col class="mk-col-action">
+                        <col class="mk-col-action-wide">
                     </colgroup>
                     <thead><tr>
                         <th scope="col" class="mk-sequence">{{ __('lf.table_no') }}</th>
@@ -796,119 +518,82 @@
                         @php
                             $sessionStartsAt = \Illuminate\Support\Carbon::parse($session->scheduled_start_at);
                             $sessionEndsAt = \Illuminate\Support\Carbon::parse($session->scheduled_end_at);
-                            $sessionOccursOnOneDay = $sessionStartsAt->isSameDay($sessionEndsAt);
-                            $sessionDisplayTitle = $session->title;
                             $sessionContentDetails = collect($session->session_type === 'curriculum'
                                 ? [$session->lesson_title, $session->activity_title]
                                 : [])
                                 ->filter()
-                                ->reject(fn ($value) => \Illuminate\Support\Str::lower(\Illuminate\Support\Str::squish($value)) === \Illuminate\Support\Str::lower(\Illuminate\Support\Str::squish($sessionDisplayTitle)))
+                                ->reject(fn ($value) => \Illuminate\Support\Str::lower(\Illuminate\Support\Str::squish($value)) === \Illuminate\Support\Str::lower(\Illuminate\Support\Str::squish($session->title)))
                                 ->unique(fn ($value) => \Illuminate\Support\Str::lower(\Illuminate\Support\Str::squish($value)));
+                            $sessionTone = match ($session->status) { 'live' => 'active', 'completed' => 'completed', 'cancelled' => 'danger', 'no_show' => 'archived', default => 'draft' };
+                            $sessionTeacherNames = $session->teacher_team->isNotEmpty() ? $session->teacher_team->pluck('name')->join(', ') : $session->primary_teacher_name;
+                            $sessionEndsLifecycleOpen = in_array($session->status, ['scheduled', 'live'], true);
+                            // Session status là thao tác vận hành nên chỉ mở khi lớp đang hoạt động.
+                            $sessionLifecycle = $cohort->status !== 'active' ? [] : array_filter([
+                                'start' => $session->status === 'scheduled',
+                                'complete' => $session->status === 'live',
+                                'cancel' => $sessionEndsLifecycleOpen,
+                                'no-show' => $sessionEndsLifecycleOpen,
+                            ]);
                         @endphp
                         <tr>
                             <td class="mk-sequence" data-label="{{ __('lf.table_no') }}">{{ $loop->iteration }}</td>
-                            <td class="mk-text-cell course-cohort-session-table__summary" data-label="{{ __('lf.LF_course_cohort_session_table_session') }}">
-                                <strong class="course-cohort-session-table__primary">{{ $sessionDisplayTitle }}</strong>
-                                @foreach($sessionContentDetails as $contentDetail)
-                                    <span class="course-cohort-session-table__meta">{{ $contentDetail }}</span>
+                            <td class="mk-text-cell" data-label="{{ __('lf.LF_course_cohort_session_table_session') }}">
+                                <span class="mk-name-text">{{ $session->title }}</span>
+                                @foreach ($sessionContentDetails as $contentDetail)
+                                    <span class="ui-caption ui-framework-description">{{ $contentDetail }}</span>
                                 @endforeach
-                                <span class="course-cohort-session-table__meta">{{ __('lf.LF_course_cohort_session_table_type_'.$session->session_type) }} · {{ __('lf.LF_course_cohort_session_mode_'.$session->delivery_mode) }}</span>
-                                <span class="badge course-cohort-session-origin-badge course-cohort-session-origin-badge--{{ $session->schedule_relation }}">{{ __('lf.LF_course_cohort_session_relation_'.$session->schedule_relation) }}</span>
+                                <span class="ui-caption ui-framework-description">{{ __('lf.LF_course_cohort_session_table_type_'.$session->session_type) }} · {{ __('lf.LF_course_cohort_session_mode_'.$session->delivery_mode) }} · {{ __('lf.LF_course_cohort_session_relation_'.$session->schedule_relation) }}</span>
                             </td>
                             <td class="mk-text-cell" data-label="{{ __('lf.LF_course_cohort_session_table_date_time') }}">
-                                <dl class="course-cohort-session-table__schedule">
-                                    @if($sessionOccursOnOneDay)
-                                        <div class="course-cohort-session-table__date">
-                                            <dd>{{ $sessionStartsAt->format('d/m/Y') }}</dd>
-                                            <dt>{{ \Illuminate\Support\Str::ucfirst($sessionStartsAt->translatedFormat('l')) }}</dt>
-                                        </div>
-                                        <div class="course-cohort-session-table__time">
-                                            <dt>{{ __('lf.LF_course_cohort_session_table_time_range') }}</dt>
-                                            <dd>{{ $sessionStartsAt->format('H:i') }}–{{ $sessionEndsAt->format('H:i') }}</dd>
-                                        </div>
-                                    @else
-                                        <div class="course-cohort-session-table__date-range">
-                                            <dt>{{ __('lf.LF_course_cohort_session_table_start') }}</dt>
-                                            <dd>{{ $sessionStartsAt->format('d/m/Y H:i') }}</dd>
-                                        </div>
-                                        <div class="course-cohort-session-table__date-range">
-                                            <dt>{{ __('lf.LF_course_cohort_session_table_end') }}</dt>
-                                            <dd>{{ $sessionEndsAt->format('d/m/Y H:i') }}</dd>
-                                        </div>
-                                    @endif
-                                </dl>
+                                @if ($sessionStartsAt->isSameDay($sessionEndsAt))
+                                    <span class="ui-cohort-line ui-enroll-nowrap">{{ $sessionStartsAt->format('d/m/Y') }} · {{ $sessionStartsAt->format('H:i') }}–{{ $sessionEndsAt->format('H:i') }}</span>
+                                @else
+                                    <span class="ui-cohort-line ui-enroll-nowrap">{{ $sessionStartsAt->format('d/m/Y H:i') }}</span>
+                                    <span class="ui-cohort-line ui-enroll-nowrap">→ {{ $sessionEndsAt->format('d/m/Y H:i') }}</span>
+                                @endif
+                                <span class="ui-caption ui-framework-description">{{ \Illuminate\Support\Str::ucfirst($sessionStartsAt->translatedFormat('l')) }}@if ($session->timezone && $session->timezone !== config('app.timezone')) · {{ $session->timezone }}@endif</span>
                             </td>
                             <td class="mk-text-cell" data-label="{{ __('lf.LF_course_cohort_session_table_teachers') }}">
-                                @if($session->teacher_team->isNotEmpty())
-                                    <strong class="course-cohort-session-table__primary">{{ $session->teacher_team->pluck('name')->join(', ') }}</strong>
+                                @if ($sessionTeacherNames)
+                                    {{ $sessionTeacherNames }}
                                 @else
-                                    <span class="course-cohort-session-table__empty-value">{{ $session->primary_teacher_name ?: __('lf.LF_course_cohort_session_batch_no_teacher') }}</span>
+                                    <span @class(['ui-caption', 'ui-cohort-session-unassigned' => $sessionEndsLifecycleOpen])>{{ __('lf.LF_course_cohort_session_batch_no_teacher') }}</span>
                                 @endif
                             </td>
                             <td class="ux-action-cell" data-label="{{ __('lf.LF_course_cohort_common_status') }}">
-                                <span @class([
-                                    'badge',
-                                    'course-cohort-session-status-badge',
-                                    'course-cohort-session-status-badge--'.$session->status,
-                                ])>{{ __('lf.LF_course_cohort_session_status_'.$session->status) }}</span>
+                                <span class="ui-status ui-status--{{ $sessionTone }}">{{ __('lf.LF_course_cohort_session_status_'.$session->status) }}</span>
+                                @if ($session->is_past_due)
+                                    <span class="ui-caption ui-framework-description ui-cohort-session-overdue">{{ __('lf.LF_course_cohort_session_past_due') }}</span>
+                                @endif
                             </td>
                             <td class="ux-action-cell" data-label="{{ __('lf.table_actions') }}">
-                                <x-admin-action-menu :label="__('lf.table_actions').': '.$session->title">
-                                        <button type="button" role="menuitem" class="admin-link-button admin-text-action admin-table-action-link"
-                                                x-on:click="actionsOpen = false; openDetail(@js($session))">
-                                            <svg class="course-cohort-session-action-menu__icon" viewBox="0 0 24 24" aria-hidden="true">
-                                                <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
-                                                <circle cx="12" cy="12" r="2.5" />
-                                            </svg>
-                                            {{ __('lf.LF_course_cohort_session_details') }}
-                                        </button>
-                                        @if ($session->can_edit)
-                                            <button type="button" role="menuitem" class="admin-link-button admin-text-action admin-table-action-link"
-                                                    x-on:click="actionsOpen = false; editSession(@js($session))">
-                                                <svg class="course-cohort-session-action-menu__icon" viewBox="0 0 24 24" aria-hidden="true">
-                                                    <path d="m4 16.5-.8 4.3 4.3-.8L19 8.5 15.5 5 4 16.5Z" />
-                                                    <path d="m13.8 6.7 3.5 3.5" />
-                                                </svg>
-                                                {{ __('lf.LF_course_cohort_session_edit') }}
-                                            </button>
-                                        @endif
-                                        @if ($session->status === 'scheduled' && $cohort->is_mutable)
-                                            <button type="button" role="menuitem" class="admin-link-button admin-text-action admin-table-action-link"
-                                                    x-on:click="actionsOpen = false; openReschedule(@js($session))">
-                                                <svg class="course-cohort-session-action-menu__icon" viewBox="0 0 24 24" aria-hidden="true">
-                                                    <rect x="3" y="5" width="18" height="16" rx="2" />
-                                                    <path d="M8 3v4M16 3v4M3 10h18M8 15h8M13 12l3 3-3 3" />
-                                                </svg>
-                                                {{ __('lf.LF_course_cohort_session_change_schedule') }}
-                                            </button>
-                                        @endif
-                                        {{-- Session status là thao tác vận hành nên chỉ mở khi lớp đang hoạt động. --}}
-                                        @if ($cohort->status === 'active')
-                                            @foreach ([
-                                                'start' => ['scheduled'],
-                                                'complete' => ['live'],
-                                                'cancel' => ['scheduled', 'live'],
-                                                'no-show' => ['scheduled', 'live'],
-                                            ] as $action => $allowedFrom)
-                                                @if (in_array($session->status, $allowedFrom, true))
-                                                    @include('course-cohorts.partials.lifecycle-action', [
-                                                        'dialogId' => 'session-'.$action.'-'.$session->id,
-                                                        'action' => route('admin.course-cohorts.sessions.'.$action, [$cohort->id, $session->id]),
-                                                        'triggerClass' => in_array($action, ['cancel', 'no-show'], true)
-                                                            ? 'admin-danger-text-action admin-table-action-link'
-                                                            : 'admin-link-button admin-text-action admin-table-action-link',
-                                                        'triggerLabel' => __('lf.LF_course_cohort_session_action_'.$action),
-                                                        'title' => __('lf.LF_course_cohort_session_lifecycle_'.$action.'_title'),
-                                                        'body' => __('lf.LF_course_cohort_session_lifecycle_'.$action.'_body'),
-                                                        'confirmClass' => in_array($action, ['cancel', 'no-show'], true)
-                                                            ? 'btn btn-danger'
-                                                            : 'btn btn-primary',
-                                                        'confirmLabel' => __('lf.LF_course_cohort_session_action_'.$action),
-                                                    ])
-                                                @endif
-                                            @endforeach
-                                        @endif
-                                </x-admin-action-menu>
+                                <button type="button" class="ux-row-edit cursor-interaction" aria-haspopup="dialog"
+                                        aria-label="{{ __('lf.LF_course_cohort_session_details') }}: {{ $session->title }}" data-tooltip="{{ __('lf.LF_course_cohort_session_details') }}"
+                                        @foreach (array_keys($sessionLifecycle) as $action) data-lifecycle-{{ $action }}="{{ route('admin.course-cohorts.sessions.'.$action, [$cohort->id, $session->id]) }}" @endforeach
+                                        x-on:click="openDetail(@js($session), $el)">
+                                    <x-backend-icon name="eye" class="ui-icon" />
+                                </button>
+                                @if ($session->can_edit && $cohort->is_mutable)
+                                    <button type="button" class="ux-row-edit cursor-interaction" aria-haspopup="dialog"
+                                            aria-label="{{ __('lf.LF_course_cohort_session_edit') }}: {{ $session->title }}" data-tooltip="{{ __('lf.LF_course_cohort_session_edit') }}"
+                                            x-on:click="editSession(@js($session))">
+                                        <x-backend-icon name="square-pen" class="ui-icon" />
+                                    </button>
+                                @endif
+                                @if ($session->can_assign_teachers)
+                                    <button type="button" class="ux-row-edit cursor-interaction" aria-haspopup="dialog"
+                                            aria-label="{{ __('lf.LF_course_cohort_session_assign_teachers') }}: {{ $session->title }}" data-tooltip="{{ __('lf.LF_course_cohort_session_assign_teachers') }}"
+                                            x-on:click="openAssign(@js($session))">
+                                        <x-backend-icon name="users" class="ui-icon" />
+                                    </button>
+                                @endif
+                                @if ($session->status === 'scheduled' && $cohort->is_mutable)
+                                    <button type="button" class="ux-row-edit cursor-interaction" aria-haspopup="dialog"
+                                            aria-label="{{ __('lf.LF_course_cohort_session_change_schedule') }}: {{ $session->title }}" data-tooltip="{{ __('lf.LF_course_cohort_session_change_schedule') }}"
+                                            x-on:click="openReschedule(@js($session))">
+                                        <x-backend-icon name="calendar" class="ui-icon" />
+                                    </button>
+                                @endif
                             </td>
                         </tr>
                     @empty
@@ -916,18 +601,7 @@
                             <td class="mk-empty" colspan="6">
                                 <div role="status">
                                     <strong>{{ __('lf.LF_course_cohort_session_empty') }}</strong>
-                                    <span>{{ __('lf.LF_course_cohort_session_empty_help') }}</span>
-                                    @if ($cohort->is_mutable)
-                                        @if($plannedOccurrences->isNotEmpty())
-                                            <button type="button" class="ui-button ui-button--primary cursor-interaction" x-on:click="openBatch()">
-                                                {{ __('lf.LF_course_cohort_session_batch_open') }}
-                                            </button>
-                                        @else
-                                            <button type="button" class="ui-button ui-button--primary cursor-interaction" x-on:click="openCreate()">
-                                                {{ __('lf.LF_course_cohort_session_manual_open') }}
-                                            </button>
-                                        @endif
-                                    @endif
+                                    <p class="ui-caption">{{ __('lf.LF_course_cohort_session_empty_help') }}</p>
                                 </div>
                             </td>
                         </tr>
@@ -936,154 +610,9 @@
                 </table>
             </div>
 
-    <div x-cloak x-show="detailSession" class="admin-modal-backdrop"
-         x-on:click.self="closeDetail()" x-on:keydown.escape.window="closeDetail()">
-        <section class="admin-modal course-cohort-session-modal" role="dialog" aria-modal="true"
-                 aria-labelledby="course-cohort-session-detail-title">
-            <header class="admin-modal-header">
-                <div>
-                    <span class="course-cohort-session-modal__eyebrow">{{ __('lf.LF_course_cohort_session_details') }}</span>
-                    <h2 id="course-cohort-session-detail-title" x-text="detailSession?.title"></h2>
-                    <div class="course-cohort-session-modal__summary">
-                        <span x-text="typeLabels[detailSession?.session_type] || '—'"></span>
-                        <span aria-hidden="true">•</span>
-                        <span x-text="modeLabels[detailSession?.delivery_mode] || '—'"></span>
-                    </div>
-                </div>
-                <span class="badge course-cohort-session-modal__status"
-                      x-bind:class="detailSession ? 'course-cohort-session-status-badge--' + detailSession.status : ''"
-                      x-text="statusLabels[detailSession?.status] || '—'"></span>
-                <button x-ref="sessionDetailClose" type="button"
-                        class="course-enrollment-lifecycle-modal__close" x-on:click="closeDetail()"
-                        aria-label="{{ __('lf.LF_common_button_close') }}"><span aria-hidden="true">×</span></button>
-            </header>
-            <div class="course-cohort-session-modal__body">
-                <section class="course-cohort-session-modal__section">
-                    <h3>{{ __('lf.LF_course_cohort_session_detail_schedule') }}</h3>
-                    <dl class="course-cohort-session-modal__grid course-cohort-session-modal__grid--schedule">
-                        <div class="course-cohort-session-modal__schedule-source"><dt>{{ __('lf.LF_course_cohort_session_source') }}</dt><dd x-text="relationLabels[detailSession?.schedule_relation] || '—'"></dd></div>
-                        <div><dt>{{ __('lf.LF_course_cohort_session_start') }}</dt><dd x-text="formatSessionDateTime(detailSession?.scheduled_start_at)"></dd></div>
-                        <div><dt>{{ __('lf.LF_course_cohort_session_end') }}</dt><dd x-text="formatSessionDateTime(detailSession?.scheduled_end_at)"></dd></div>
-                    </dl>
-                </section>
-                <section class="course-cohort-session-modal__section">
-                    <h3>{{ __('lf.LF_course_cohort_session_detail_content') }}</h3>
-                    <dl class="course-cohort-session-modal__grid">
-                        <div><dt>{{ __('lf.LF_course_cohort_session_version') }}</dt><dd>{{ $cohort->version_code }}</dd></div>
-                        <div><dt>{{ __('lf.LF_course_cohort_session_lesson') }}</dt><dd x-text="detailSession?.lesson_title || @js(__('lf.LF_course_cohort_session_outside_content'))"></dd></div>
-                        <div><dt>{{ __('lf.LF_course_cohort_session_activity') }}</dt><dd x-text="detailSession?.activity_title || '—'"></dd></div>
-                        <div><dt>{{ __('lf.LF_course_cohort_session_teachers') }}</dt><dd x-text="(detailSession?.teacher_team || []).map(teacher => teacher.name).join(', ') || detailSession?.primary_teacher_name || '—'"></dd></div>
-                    </dl>
-                </section>
-                <section class="course-cohort-session-modal__section"
-                         x-show="detailSession?.delivery_mode === 'online' || detailSession?.delivery_mode === 'hybrid' || detailSession?.room_name_snapshot || detailSession?.address_snapshot">
-                    <h3>{{ __('lf.LF_course_cohort_session_detail_join') }}</h3>
-                    <dl class="course-cohort-session-modal__grid">
-                        <div x-show="detailSession?.delivery_mode === 'online' || detailSession?.delivery_mode === 'hybrid'">
-                            <dt>{{ __('lf.LF_course_cohort_session_provider') }}</dt>
-                            <dd x-text="detailSession?.online_provider || meetingProvider(detailSession?.meeting_url_snapshot || detailSession?.activity_meeting_url) || @js(__('lf.LF_course_cohort_session_meeting_not_available'))"></dd>
-                        </div>
-                        <div x-show="detailSession?.meeting_url_snapshot || detailSession?.activity_meeting_url">
-                            <dt>{{ __('lf.LF_course_cohort_session_meeting_url') }}</dt>
-                            <dd><a class="admin-text-action course-cohort-session-modal__join-link"
-                                   x-bind:href="detailSession?.meeting_url_snapshot || detailSession?.activity_meeting_url"
-                                   target="_blank" rel="noopener noreferrer"><x-backend-icon name="external-link" />{{ __('lf.LF_course_cohort_session_join') }}</a></dd>
-                        </div>
-                        <div x-show="detailSession?.room_name_snapshot"><dt>{{ __('lf.LF_course_cohort_session_room') }}</dt><dd x-text="detailSession?.room_name_snapshot"></dd></div>
-                        <div x-show="detailSession?.address_snapshot"><dt>{{ __('lf.LF_course_cohort_session_address') }}</dt><dd x-text="detailSession?.address_snapshot"></dd></div>
-                    </dl>
-                </section>
-            </div>
-            <footer class="admin-form-footer" data-actions-align="end">
-                <div class="admin-form-footer-primary">
-                    <button type="button" class="ui-button cursor-interaction" x-on:click="closeDetail()">{{ __('lf.LF_common_button_close') }}</button>
-                </div>
-            </footer>
-        </section>
-    </div>
-
-    <div x-cloak x-show="rescheduleSession" class="admin-modal-backdrop"
-         x-on:click.self="closeReschedule()" x-on:keydown.escape.window="closeReschedule()">
-        <form method="POST"
-              x-bind:action="rescheduleSession ? rescheduleUrl.replace('__SESSION__', rescheduleSession.id) : ''"
-              x-on:submit="submitReschedule($event)"
-              class="admin-modal course-cohort-session-modal course-cohort-session-reschedule-modal"
-              role="dialog" aria-modal="true" aria-labelledby="course-cohort-session-reschedule-title">
-            @csrf @method('PUT')
-            <input type="hidden" name="form_context" value="reschedule">
-            <input type="hidden" name="reschedule_session_id" x-bind:value="rescheduleSession?.id || ''">
-            <header class="admin-modal-header">
-                <div>
-                    <span class="course-cohort-session-modal__eyebrow">{{ __('lf.LF_course_cohort_session_change_schedule') }}</span>
-                    <h2 id="course-cohort-session-reschedule-title" x-text="rescheduleSession?.title"></h2>
-                </div>
-                <button type="button" class="course-enrollment-lifecycle-modal__close"
-                        x-on:click="closeReschedule()" aria-label="{{ __('lf.LF_common_button_close') }}">
-                    <span aria-hidden="true">×</span>
-                </button>
-            </header>
-            <div class="course-cohort-session-modal__body course-cohort-session-reschedule-modal__body">
-                <section class="course-cohort-session-modal__section course-cohort-session-reschedule-current"
-                         aria-labelledby="course-cohort-session-current-schedule">
-                    <h3 id="course-cohort-session-current-schedule">{{ __('lf.LF_course_cohort_session_current_schedule') }}</h3>
-                    <dl>
-                        <div class="course-cohort-session-modal__schedule-source"><dt>{{ __('lf.LF_course_cohort_session_source') }}</dt><dd x-text="relationLabels[rescheduleSession?.schedule_relation] || '—'"></dd></div>
-                        <div><dt>{{ __('lf.LF_course_cohort_session_start') }}</dt><dd x-text="formatSessionDateTime(rescheduleSession?.scheduled_start_at)"></dd></div>
-                        <div><dt>{{ __('lf.LF_course_cohort_session_end') }}</dt><dd x-text="formatSessionDateTime(rescheduleSession?.scheduled_end_at)"></dd></div>
-                    </dl>
-                </section>
-                <section class="course-cohort-session-modal__section course-cohort-session-reschedule-new"
-                         aria-labelledby="course-cohort-session-new-schedule">
-                    <h3 id="course-cohort-session-new-schedule">{{ __('lf.LF_course_cohort_session_new_schedule') }}</h3>
-                    <div class="course-cohort-session-reschedule-grid">
-                        <div class="ui-field">
-                            <x-form-label for="reschedule_start_at" :value="__('lf.LF_course_cohort_session_start')" :required="true" />
-                            <input x-ref="rescheduleStart" id="reschedule_start_at" type="datetime-local"
-                                   name="scheduled_start_at" x-model="rescheduleStart"
-                                   x-on:change="rescheduleStartChanged()" x-on:input="rescheduleStartError = ''" x-bind:min="scheduleMin" x-bind:max="scheduleMax"
-                                   x-bind:class="{ 'has-value': rescheduleStart }" required
-                                   x-bind:aria-invalid="rescheduleStartError ? 'true' : null" aria-describedby="reschedule_start_error">
-                            <div class="course-cohort-session-reschedule-error-slot">
-                                <p id="reschedule_start_error" class="ui-field__error" role="alert" aria-live="polite"
-                                   x-show="rescheduleStartError" x-text="rescheduleStartError" x-cloak></p>
-                            </div>
-                        </div>
-                        <div class="ui-field">
-                            <x-form-label for="reschedule_end_at" :value="__('lf.LF_course_cohort_session_end')" :required="true" />
-                            <input id="reschedule_end_at" type="datetime-local" name="scheduled_end_at"
-                                   x-model="rescheduleEnd"
-                                   x-bind:min="rescheduleStart || scheduleMin" x-bind:max="scheduleMax"
-                                   x-bind:class="{ 'has-value': rescheduleEnd }" required
-                                   @if($rescheduleHasErrors && $errors->has('scheduled_end_at')) aria-invalid="true" aria-describedby="reschedule_end_error" @endif>
-                            <div class="course-cohort-session-reschedule-error-slot">
-                                @if($rescheduleHasErrors)
-                                    @error('scheduled_end_at')
-                                        <p id="reschedule_end_error" class="ui-field__error" role="alert">{{ $message }}</p>
-                                    @enderror
-                                @endif
-                            </div>
-                        </div>
-                        <div class="ui-field admin-form-field--full">
-                            <x-form-label for="reschedule_reason" :value="__('lf.LF_course_cohort_session_change_reason')" />
-                            <textarea id="reschedule_reason" name="reason" rows="2" maxlength="1000"
-                                      x-model="rescheduleReason"
-                                      @if($rescheduleHasErrors && $errors->has('reason')) aria-invalid="true" aria-describedby="reschedule_reason_error" @endif></textarea>
-                            @if($rescheduleHasErrors)
-                                @error('reason')
-                                    <p id="reschedule_reason_error" class="ui-field__error" role="alert">{{ $message }}</p>
-                                @enderror
-                            @endif
-                            <p class="ui-caption">{{ __('lf.LF_course_cohort_session_change_reason_help') }}</p>
-                        </div>
-                    </div>
-                </section>
-            </div>
-            <footer class="admin-form-footer" data-actions-align="end">
-                <div class="admin-form-footer-primary">
-                    <button type="button" class="ui-button cursor-interaction" x-on:click="closeReschedule()">{{ __('lf.LF_common_button_cancel') }}</button>
-                    <button type="submit" class="ui-button ui-button--primary cursor-interaction">{{ __('lf.LF_course_cohort_session_save_schedule') }}</button>
-                </div>
-            </footer>
-        </form>
-    </div>
+            @include('course-cohorts.partials.tabs.session-detail')
+            @if ($cohort->is_mutable)
+                @include('course-cohorts.partials.tabs.session-reschedule')
+                @include('course-cohorts.partials.tabs.session-assign-teachers')
+            @endif
 </section>

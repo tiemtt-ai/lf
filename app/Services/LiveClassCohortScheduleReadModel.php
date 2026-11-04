@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -76,7 +77,7 @@ class LiveClassCohortScheduleReadModel
             'scheduleFormSchedule' => null,
             'scheduleFormSlots' => collect(),
             'scheduleFormExclusions' => collect(),
-            'scheduleFormPreview' => collect(),
+            'scheduleFormPlan' => null,
             'scheduleFormDerivedStatus' => null,
         ];
 
@@ -92,21 +93,117 @@ class LiveClassCohortScheduleReadModel
         $slots = $this->slotsFor($customerId, collect([$schedule->id]));
         $exclusions = $this->exclusionsFor($customerId, collect([$schedule->id]));
 
+        $derivedStatus = $mode === 'view'
+            ? $this->previewService->derivedStatus($schedule->starts_on, $schedule->ends_on, $schedule->timezone)
+            : null;
+
         return array_merge($empty, [
             'scheduleFormSchedule' => $schedule,
             'scheduleFormSlots' => $slots,
             'scheduleFormExclusions' => $exclusions,
-            'scheduleFormPreview' => $mode === 'view'
-                ? $this->previewService->calculate(
-                    $schedule->starts_on, $schedule->ends_on, $schedule->timezone, $slots, $exclusions
-                )
-                : collect(),
-            'scheduleFormDerivedStatus' => $mode === 'view'
-                ? $this->previewService->derivedStatus(
-                    $schedule->starts_on, $schedule->ends_on, $schedule->timezone
-                )
-                : null,
+            'scheduleFormPlan' => $mode === 'view' ? $this->detailPlan($schedule, $slots, $exclusions, $derivedStatus) : null,
+            'scheduleFormDerivedStatus' => $derivedStatus,
         ]);
+    }
+
+    /**
+     * What the detail popup shows: every projected occurrence, the excluded ones
+     * marked instead of dropped so a date off stays visible where it falls. Only
+     * for reading: the preview contract without exclusions is unchanged, and
+     * "past" and "next" are judged in the Schedule's own timezone.
+     *
+     * @return array<string, mixed>
+     */
+    private function detailPlan(object $schedule, Collection $slots, Collection $exclusions, string $status): array
+    {
+        $timezone = $schedule->timezone;
+        $now = CarbonImmutable::now($timezone);
+        $start = CarbonImmutable::createFromFormat('!Y-m-d', $schedule->starts_on, $timezone);
+        $end = CarbonImmutable::createFromFormat('!Y-m-d', $schedule->ends_on, $timezone);
+        $reasons = $exclusions->mapWithKeys(fn (object $item): array => [substr((string) $item->excluded_on, 0, 10) => $item->reason]);
+
+        $number = 0;
+        $nextFound = false;
+        $items = $this->previewService->calculate($schedule->starts_on, $schedule->ends_on, $timezone, $slots)
+            ->map(function (array $occurrence) use ($reasons, $now, $status, &$number, &$nextFound): array {
+                $excluded = $reasons->has($occurrence['date']);
+                $endsAt = CarbonImmutable::parse($occurrence['ends_at']);
+                $past = ! $excluded && $endsAt->lte($now);
+                $next = ! $excluded && ! $past && ! $nextFound && $status === 'current';
+                $nextFound = $nextFound || $next;
+
+                return array_merge($occurrence, [
+                    'excluded' => $excluded,
+                    'reason' => $excluded ? $reasons->get($occurrence['date']) : null,
+                    'past' => $past,
+                    'next' => $next,
+                    'number' => $excluded ? null : ++$number,
+                    'minutes' => (int) CarbonImmutable::parse($occurrence['starts_at'])->diffInMinutes($endsAt),
+                ]);
+            })->values();
+        $sessions = $items->reject(fn (array $item): bool => $item['excluded']);
+
+        $months = [];
+        for ($first = $start->startOfMonth(); $first->lte($end); $first = $first->addMonthNoOverflow()) {
+            $inMonth = $items->filter(fn (array $item): bool => str_starts_with($item['date'], $first->format('Y-m')));
+            $cells = array_fill(0, $first->dayOfWeekIso - 1, null);
+            for ($day = $first; $day->month === $first->month; $day = $day->addDay()) {
+                $cells[] = [
+                    'day' => $day->day,
+                    'out' => $day->lt($start) || $day->gt($end),
+                    'today' => $day->isSameDay($now),
+                    'items' => $inMonth->where('date', $day->format('Y-m-d'))->values()->all(),
+                ];
+            }
+            $months[] = [
+                'key' => $first->format('Y-m'),
+                'year' => $first->year,
+                'month' => $first->month,
+                'count' => $inMonth->reject(fn (array $item): bool => $item['excluded'])->count(),
+                'cells' => array_merge($cells, array_fill(0, (7 - count($cells) % 7) % 7, null)),
+            ];
+        }
+
+        $weeks = $items
+            ->groupBy(function (array $item) use ($timezone): string {
+                $date = CarbonImmutable::createFromFormat('!Y-m-d', $item['date'], $timezone);
+
+                return $date->subDays($date->dayOfWeekIso - 1)->format('Y-m-d');
+            })
+            ->map(fn (Collection $week, string $monday): array => [
+                'from' => $monday,
+                'to' => CarbonImmutable::parse($monday)->addDays(6)->format('Y-m-d'),
+                'count' => $week->reject(fn (array $item): bool => $item['excluded'])->count(),
+                'items' => $week->all(),
+            ])->values()->all();
+
+        $next = $items->firstWhere('next', true);
+        $focusMonth = $next ? substr($next['date'], 0, 7) : $now->format('Y-m');
+        $initialMonth = array_search($focusMonth, array_column($months, 'key'), true);
+
+        return [
+            'days' => (int) $start->diffInDays($end) + 1,
+            'session_count' => $sessions->count(),
+            'past_count' => $sessions->where('past', true)->count(),
+            'next' => $next,
+            'total_minutes' => $sessions->sum('minutes'),
+            'timezone_offset' => 'GMT'.$now->format('P'),
+            'months' => $months,
+            'initial_month' => $initialMonth === false ? 0 : $initialMonth,
+            'weeks' => $weeks,
+            'exclusions' => $exclusions
+                ->map(function (object $item) use ($items, $timezone): array {
+                    $date = substr((string) $item->excluded_on, 0, 10);
+
+                    return [
+                        'date' => $date,
+                        'weekday' => CarbonImmutable::createFromFormat('!Y-m-d', $date, $timezone)->dayOfWeekIso,
+                        'reason' => $item->reason,
+                        'hits' => $items->where('date', $date)->count(),
+                    ];
+                })
+                ->sortBy('date')->values()->all(),
+        ];
     }
 
     /**

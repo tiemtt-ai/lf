@@ -1,12 +1,12 @@
 # LF-Core-LiveClass.md
 
-Version: 2.6
+Version: 2.7
 
 Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-11-01
+Last Updated: 2026-11-04
 
 Document Path: core/LF-Core-LiveClass.md
 
@@ -703,6 +703,10 @@ recurring Schedule persistence:
   one assigned teacher before Cohort activation;
 * an unassigned Session in an already active Cohort cannot accept runtime
   evidence such as Attendance or Recording until a teacher is assigned;
+* Owner decision 2026-11-04: in a `draft` Cohort, a `scheduled` Session whose
+  start has passed, with no teacher and no evidence, may still receive teachers
+  through a dedicated action. Other fields and the times stay unchanged, and
+  each teacher must still be available for the Session's dates;
 * title, type, curriculum binding and delivery fields may be edited only while
   the Session has not started, remains in a pre-runtime state and has no
   Attendance, Recording, Replay, Progress evidence or other operational child;

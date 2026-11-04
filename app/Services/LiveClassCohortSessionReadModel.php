@@ -85,9 +85,11 @@ class LiveClassCohortSessionReadModel
             ->get(['assignments.session_id', 'assignments.teacher_id', 'assignments.role', 'teachers.name'])
             ->groupBy('session_id');
         $sessionsWithEvidence = $this->sessionIdsWithEvidence($customerId, $sessionIds);
+        $cohortStatus = (string) DB::table('core_course_cohorts')
+            ->where('customer_id', $customerId)->where('id', $cohortId)->value('status');
         $now = now();
 
-        $sessions->each(function (object $session) use ($teamBySession, $sessionsWithEvidence, $now): void {
+        $sessions->each(function (object $session) use ($teamBySession, $sessionsWithEvidence, $cohortStatus, $now): void {
             $team = $teamBySession->get($session->id, collect())->values();
             $session->teacher_team = $team;
             $teacherIds = $team->pluck('teacher_id')->map(fn ($id): string => (string) $id);
@@ -96,8 +98,17 @@ class LiveClassCohortSessionReadModel
             }
             $session->teacher_ids = $teacherIds->unique()->values();
             $session->schedule_relation = $this->originService->classify($session);
+            $session->is_past_due = $session->status === 'scheduled'
+                && LiveClassSessionTime::utc($session->scheduled_start_at, $session->timezone)->lte($now);
             $session->can_edit = $this->sessionPolicy->canEdit(
                 $session,
+                $sessionsWithEvidence->contains((int) $session->id),
+                $now
+            );
+            $session->can_assign_teachers = $this->sessionPolicy->canAssignLateTeachers(
+                $session,
+                $cohortStatus,
+                $teacherIds->isNotEmpty(),
                 $sessionsWithEvidence->contains((int) $session->id),
                 $now
             );
@@ -162,7 +173,13 @@ class LiveClassCohortSessionReadModel
             }
         }
 
-        return $occurrences->take($limit)->values();
+        // Several Schedules may interleave. Rows already used never push an open
+        // one past the limit, otherwise the later dates could not be created.
+        $byStart = fn (array $occurrence): string => $occurrence['date'].' '.$occurrence['start_time'];
+        $open = $occurrences->reject(fn (array $occurrence): bool => $occurrence['consumed'])->sortBy($byStart)->take($limit);
+        $used = $occurrences->filter(fn (array $occurrence): bool => $occurrence['consumed'])->sortBy($byStart)->take($limit - $open->count());
+
+        return $open->concat($used)->sortBy($byStart)->values();
     }
 
     /**

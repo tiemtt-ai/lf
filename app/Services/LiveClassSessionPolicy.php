@@ -21,6 +21,26 @@ class LiveClassSessionPolicy
             && $this->startsAt($session)->gt($now);
     }
 
+    /**
+     * A draft Cohort cannot activate while an open Session has no Teacher, and
+     * the general edit closes once the start time passes. Without this narrow
+     * exception such a Session could never be released. Owner decision 2026-11-04.
+     */
+    public function canAssignLateTeachers(
+        object $session,
+        string $cohortStatus,
+        bool $hasTeacher,
+        bool $hasEvidence,
+        CarbonInterface $now
+    ): bool {
+        return $cohortStatus === 'draft'
+            && ! $hasTeacher
+            && ! $hasEvidence
+            && $session->status === 'scheduled'
+            && ! $session->actual_start_at
+            && $this->startsAt($session)->lte($now);
+    }
+
     public function canReschedule(object $session): bool
     {
         return $session->status === 'scheduled';

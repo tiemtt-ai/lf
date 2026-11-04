@@ -3120,13 +3120,47 @@
 .lf-admin-ui .ui-cohort-col-session-time { width: 210px; }
 .lf-admin-ui.ui-cohort .mk-name-text { display: block; white-space: normal; overflow-wrap: anywhere; }
 .lf-admin-ui .ui-cohort-session-table td { vertical-align: middle; }
-.lf-admin-ui .ui-cohort-session-table td strong { font-weight: 500; }
+.lf-admin-ui .ui-cohort-session-unassigned, .lf-admin-ui .ui-cohort-session-overdue { color: var(--ui-warning); }
+.lf-admin-ui .ui-cohort-session-overdue { margin-top: 4px; }
+.lf-admin-ui .ui-cohort-session-time-text { margin: 0; font-size: 14px; }
+.lf-admin-ui .ui-cohort-session-link { display: flex; align-items: center; gap: 6px; }
+.lf-admin-ui .ui-cohort-session-link input { flex: 1; min-width: 0; }
+.lf-admin-ui .ui-cohort-session-reason { margin-top: 14px; }
+.lf-admin-ui .ui-cohort-session-footer-start { display: flex; flex-wrap: wrap; gap: 10px; margin-right: auto; }
+.lf-admin-ui .ui-cohort-session-modal fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
+@media (min-width: 641px) {
+    .lf-admin-ui .ui-cohort-session-modal .ui-option-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.lf-admin-ui .ui-cohort-session-batch__toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.lf-admin-ui .ui-cohort-session-batch { display: flex; flex-direction: column; gap: 8px; }
+.lf-admin-ui .ui-cohort-session-batch__row { border: 1px solid var(--ui-border); border-radius: 7px; background: var(--ui-white); }
+.lf-admin-ui .ui-cohort-session-batch__row.is-selected { border-color: var(--ui-primary); }
+.lf-admin-ui .ui-cohort-session-batch__row.has-error { border-color: var(--ui-invalid); }
+.lf-admin-ui .ui-cohort-session-batch__row.is-disabled { background: var(--ui-color-f7f8fa); }
+.lf-admin-ui .ui-cohort-session-batch__head { display: flex; align-items: center; }
+.lf-admin-ui .ui-cohort-session-batch__check { display: flex; flex: none; align-items: center; align-self: stretch; padding: 0 4px 0 14px; cursor: pointer; }
+.lf-admin-ui .ui-cohort-session-batch__trigger { display: flex; flex: 1; align-items: center; gap: 16px; min-width: 0; padding: 10px 14px 10px 8px; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; }
+.lf-admin-ui .ui-cohort-session-batch__trigger:disabled { cursor: default; }
+.lf-admin-ui .ui-cohort-session-batch__when { display: grid; flex: none; width: 210px; }
+.lf-admin-ui .ui-cohort-session-batch__meta { display: grid; flex: 1; min-width: 0; }
+.lf-admin-ui .ui-cohort-session-batch__trigger .ui-status { flex: none; }
+.lf-admin-ui .ui-cohort-session-batch__chevron { flex: none; width: 8px; height: 8px; border-right: 1.5px solid var(--ui-muted); border-bottom: 1.5px solid var(--ui-muted); transform: rotate(45deg) translate(-2px, -2px); }
+.lf-admin-ui .ui-cohort-session-batch__trigger[aria-expanded=true] .ui-cohort-session-batch__chevron { transform: rotate(-135deg) translate(-2px, -2px); }
+.lf-admin-ui .ui-cohort-session-batch__panel { padding: 14px; border-top: 1px solid var(--ui-color-eceef3); }
+.lf-admin-ui .ui-cohort-session-batch__link { grid-column: span 2; }
+.lf-admin-ui .ui-cohort-session-batch__reset { margin-top: 12px; }
+.lf-admin-ui .ui-cohort-session-batch__location { margin-top: 16px; }
+.lf-admin-ui .ui-cohort-session-batch__message { margin: 12px 0 0; }
+.lf-admin-ui .ui-cohort-session-batch__message:focus { outline: none; }
+@media (max-width: 640px) {
+    .lf-admin-ui .ui-cohort-session-batch__trigger { flex-wrap: wrap; gap: 6px 12px; }
+    .lf-admin-ui .ui-cohort-session-batch__when { width: 100%; }
+    .lf-admin-ui .ui-cohort-session-batch__meta { flex-basis: 100%; }
+    .lf-admin-ui .ui-cohort-session-batch__link { grid-column: auto; }
+}
 .lf-admin-ui .course-cohort-schedules__inline-editor { margin: 16px 20px; padding: 16px; border: 1px solid var(--ui-border); border-radius: 7px; }
-.lf-admin-ui .course-cohort-schedules__inline-editor table,
-.lf-admin-ui .course-cohort-sessions form table { min-width: 0; }
+.lf-admin-ui .course-cohort-schedules__inline-editor table { min-width: 0; }
 .lf-admin-ui .course-cohort-schedules__inline-editor :is(th, td) { text-align: left; }
-.lf-admin-ui .course-cohort-session-table-wrap { margin-top: 12px; }
-.lf-admin-ui :is(#session-batch-form, .course-cohort-session-form) { margin: 16px 20px; }
 .lf-admin-ui .ui-modal .cohort-student-transfer-intro { margin: 2px 0 0; padding: 0; border: 0; background: transparent; }
 .lf-admin-ui .ui-modal .course-cohort-student-inline-form { margin: 0; padding: 0; border: 0; border-radius: 0; background: transparent; }
 .lf-admin-ui .ui-cohort-detail-summary { padding: 0; }
@@ -3145,34 +3179,144 @@
 .lf-admin-ui .ui-cohort-version-link .ui-icon { width: 14px; height: 14px; }
 .lf-admin-ui .ui-summary__item .ui-cohort-version-link { display: flex; width: fit-content; margin-top: 4px; }
 .lf-admin-ui .ui-cohort-schedule-layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 24px; align-items: start; }
-.lf-admin-ui .ui-cohort-schedule-layout--even { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 18px; }
-.lf-admin-ui .ui-cohort-schedule-fields { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.lf-admin-ui .ui-cohort-schedule-fields { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
 .lf-admin-ui .ui-cohort-schedule-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 22px; }
-.lf-admin-ui .ui-cohort-schedule-group { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.lf-admin-ui .ui-cohort-schedule-group { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.lf-admin-ui .ui-cohort-schedule-modal p.ui-field__label, .lf-admin-ui .ui-cohort-session-modal p.ui-field__label { margin: 0; color: var(--ui-text); font-size: 14px; line-height: 20px; }
 .lf-admin-ui .ui-cohort-schedule-group .ui-caption { margin: 0; }
-.lf-admin-ui .ui-cohort-schedule-group__foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.lf-admin-ui .ui-cohort-schedule-slot { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) 30px; gap: 12px; align-items: start; }
-.lf-admin-ui .ui-cohort-schedule-slot .ux-row-delete { margin-top: 29px; }
-.lf-admin-ui .ui-cohort-schedule-exclusion-pick { max-width: 240px; }
-.lf-admin-ui .ui-cohort-schedule-exclusion { display: grid; grid-template-columns: 96px minmax(0, 1fr) 30px; gap: 12px; align-items: center; }
-.lf-admin-ui .ui-cohort-schedule-exclusion__date { font-size: 14px; }
+.lf-admin-ui .ui-cohort-schedule-day { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 8px; padding: 10px 14px; border-radius: 7px; background: var(--ui-color-f7f8fa); }
+.lf-admin-ui p.ui-cohort-schedule-day__name { margin: 0; color: var(--ui-text); font-size: 14px; font-weight: 500; line-height: 36px; }
+.lf-admin-ui .ui-cohort-schedule-day__rows { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.lf-admin-ui .ui-cohort-schedule-slot { display: grid; grid-template-columns: 120px auto 120px 76px 30px minmax(0, 1fr); align-items: center; gap: 8px; }
+.lf-admin-ui .ui-cohort-schedule-slot .ui-cohort-schedule-day__add { grid-column: 6; justify-self: end; white-space: nowrap; }
+.lf-admin-ui .ui-modal .ui-cohort-manage-error p { margin: 0; color: inherit; font-size: inherit; }
+.lf-admin-ui .ui-cohort-schedule-slot__dash { color: var(--ui-muted); }
+.lf-admin-ui .ui-cohort-schedule-day__add { display: inline-flex; align-items: center; gap: 6px; margin-inline: -8px; padding: 4px 8px; border: 0; border-radius: var(--ui-control-radius); background: transparent; color: var(--ui-primary); font: 14px/20px var(--ui-font-family); transition: background-color .14s; }
+.lf-admin-ui .ui-cohort-schedule-day__add:hover:not(:disabled) { background: var(--ui-color-eef0fb); }
+.lf-admin-ui .ui-cohort-schedule-day__add:focus-visible { outline: none; background: var(--ui-color-eef0fb); box-shadow: 0 0 0 2px var(--ui-border-hover); }
+.lf-admin-ui .ui-cohort-schedule-day__add:disabled { color: var(--ui-color-a0a6b1); cursor: not-allowed; }
+.lf-admin-ui .ui-cohort-schedule-day__add .ui-icon { width: 14px; height: 14px; }
+.lf-admin-ui .ui-cohort-schedule-row-delete { color: var(--ui-muted); }
+.lf-admin-ui .ui-cohort-schedule-row-delete:hover:not(:disabled) { color: var(--ui-invalid); }
+.lf-admin-ui .ui-cohort-schedule-exclusion-add { display: grid; grid-template-columns: 180px minmax(0, 1fr) auto; align-items: end; gap: 8px; }
+.lf-admin-ui .ui-cohort-schedule-exclusions { margin: 0; padding: 0; border: 1px solid var(--ui-color-e6e8ee); border-radius: 7px; list-style: none; }
+.lf-admin-ui .ui-cohort-schedule-exclusion { display: grid; grid-template-columns: 100px 150px minmax(0, 1fr) 30px; align-items: center; gap: 12px; padding: 8px 12px; }
+.lf-admin-ui .ui-cohort-schedule-exclusion + .ui-cohort-schedule-exclusion { border-top: 1px solid var(--ui-color-eceef3); }
+.lf-admin-ui .ui-cohort-schedule-exclusion > .ui-status { justify-self: start; }
+.lf-admin-ui .ui-cohort-schedule-exclusion__date { display: grid; font-size: 14px; line-height: 20px; }
 .lf-admin-ui .ui-cohort-schedule-preview { position: sticky; top: 0; display: flex; flex-direction: column; gap: 8px; padding: 14px; border: 1px solid var(--ui-border); border-radius: 7px; background: var(--ui-color-f7f8fa); }
 .lf-admin-ui .ui-cohort-schedule-preview .ui-caption { margin: 0; }
-.lf-admin-ui .ui-cohort-schedule-preview__head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.lf-admin-ui .ui-cohort-schedule-preview__head { display: grid; gap: 2px; margin-bottom: 4px; }
+.lf-admin-ui p.ui-cohort-schedule-preview__title { margin: 0; color: var(--ui-text); font-size: 15px; font-weight: 500; line-height: 22px; }
 .lf-admin-ui .ui-cohort-schedule-preview__list { display: flex; flex-direction: column; gap: 6px; max-height: 300px; margin: 0; padding: 0; overflow-y: auto; list-style: none; }
 .lf-admin-ui .ui-cohort-schedule-preview__list li { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding-bottom: 6px; border-bottom: 1px solid var(--ui-border); }
 .lf-admin-ui .ui-cohort-schedule-preview__list li:last-child { padding-bottom: 0; border-bottom: 0; }
 .lf-admin-ui .ui-cohort-schedule-preview__list .mk-name-text { white-space: normal; }
 .lf-admin-ui .ui-cohort-schedule-preview__list .ui-caption { flex: none; }
-.lf-admin-ui .ui-cohort-schedule-facts { padding: 0; }
+.lf-admin-ui .ui-cohort-schedule-detail:focus { outline: none; }
+.lf-admin-ui .ui-modal .ui-cohort-schedule-detail__title { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.lf-admin-ui .ui-cohort-schedule-detail__notice { display: flex; align-items: center; gap: 6px; margin: 0; }
+.lf-admin-ui .ui-cohort-schedule-detail__notice .ui-icon { flex: none; width: 14px; height: 14px; color: var(--ui-primary); }
+.lf-admin-ui .ui-cohort-schedule-detail__summary { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; padding: 0; border: 1px solid var(--ui-color-eceef3); border-radius: 7px; }
+.lf-admin-ui .ui-cohort-schedule-detail__summary .ui-summary__item { padding: 10px 14px; }
+.lf-admin-ui .ui-cohort-schedule-detail__summary .ui-summary__item + .ui-summary__item { border-left: 1px solid var(--ui-color-eceef3); }
+.lf-admin-ui .ui-cohort-schedule-detail__block { margin-top: 18px; }
+.lf-admin-ui .ui-cohort-schedule-detail__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+.lf-admin-ui .ui-cohort-schedule-detail__head h4 { margin: 0; font-size: 14px; font-weight: 500; line-height: 20px; }
+.lf-admin-ui .ui-cohort-schedule-detail__head h4 .ui-caption { font-weight: 400; }
+.lf-admin-ui .ui-cohort-schedule-detail__block > .ui-caption { margin: 0; }
+.lf-admin-ui .ui-cohort-schedule-detail__week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; margin: 0; padding: 0; list-style: none; }
+.lf-admin-ui .ui-cohort-schedule-detail__week li { display: flex; flex-direction: column; gap: 2px; min-height: 58px; padding: 8px 10px; border: 1px solid var(--ui-color-eceef3); border-radius: 6px; background: var(--ui-color-f7f8fa); }
+.lf-admin-ui .ui-cohort-schedule-detail__week li.is-on { border-color: var(--ui-border-hover); background: var(--ui-color-eef0fb); }
+.lf-admin-ui .ui-cohort-schedule-detail__weekday { color: var(--ui-muted); font-size: 12px; }
+.lf-admin-ui .ui-cohort-schedule-detail__week li.is-on .ui-cohort-schedule-detail__weekday { color: var(--ui-primary); font-weight: 500; }
+.lf-admin-ui .ui-cohort-schedule-detail__weektime { font-size: 14px; line-height: 20px; }
+.lf-admin-ui .ui-cohort-schedule-detail__views { display: inline-flex; overflow: hidden; border: 1px solid var(--ui-border); border-radius: var(--ui-control-radius); }
+.lf-admin-ui .ui-cohort-schedule-detail__views button { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 4px 12px; border: 0; background: var(--ui-white); color: var(--ui-muted); font: 14px/20px var(--ui-font-family); }
+.lf-admin-ui .ui-cohort-schedule-detail__views button + button { border-left: 1px solid var(--ui-border); }
+.lf-admin-ui .ui-cohort-schedule-detail__views button[aria-pressed=true] { background: var(--ui-color-eef0fb); color: var(--ui-primary); }
+.lf-admin-ui .ui-cohort-schedule-detail__views .ui-icon { width: 14px; height: 14px; }
+.lf-admin-ui .ui-cohort-schedule-detail__monthbar { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.lf-admin-ui .ui-cohort-schedule-detail__monthbar strong { min-width: 110px; font-size: 14px; font-weight: 500; text-align: center; }
+.lf-admin-ui .ui-cohort-schedule-detail__monthbar .ui-caption { margin-left: auto; }
+.lf-admin-ui .ui-cohort-schedule-detail__monthbar .ux-row-edit:disabled { color: var(--ui-color-a0a6b1); background: transparent; cursor: not-allowed; }
+.lf-admin-ui .ui-cohort-schedule-detail__calendar { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); overflow: hidden; border: 1px solid var(--ui-color-e6e8ee); border-radius: 7px; }
+.lf-admin-ui .ui-cohort-schedule-detail__dow { padding: 6px 8px; border-bottom: 1px solid var(--ui-color-e6e8ee); background: var(--ui-color-f7f8fa); color: var(--ui-muted); font-size: 12px; }
+.lf-admin-ui .ui-cohort-schedule-detail__day { display: flex; flex-direction: column; gap: 3px; min-width: 0; min-height: 66px; padding: 6px 8px; border-top: 1px solid var(--ui-color-eceef3); border-left: 1px solid var(--ui-color-eceef3); }
+.lf-admin-ui .ui-cohort-schedule-detail__day:nth-child(7n + 1) { border-left: 0; }
+.lf-admin-ui .ui-cohort-schedule-detail__day:nth-child(-n + 14) { border-top: 0; }
+.lf-admin-ui .ui-cohort-schedule-detail__day.is-blank { background: var(--ui-color-f7f8fa); }
+.lf-admin-ui .ui-cohort-schedule-detail__day.is-out, .lf-admin-ui .ui-cohort-schedule-detail__swatch.is-out { background: repeating-linear-gradient(135deg, var(--ui-white) 0 4px, var(--ui-color-eef0f5) 4px 8px); }
+.lf-admin-ui .ui-cohort-schedule-detail__daynum { color: var(--ui-muted); font-size: 12px; line-height: 20px; }
+.lf-admin-ui .ui-cohort-schedule-detail__day.is-out .ui-cohort-schedule-detail__daynum { color: var(--ui-color-a0a6b1); }
+.lf-admin-ui .ui-cohort-schedule-detail__day.is-today .ui-cohort-schedule-detail__daynum { width: 20px; border-radius: 50%; background: var(--ui-primary); color: var(--ui-white); text-align: center; }
+.lf-admin-ui .ui-cohort-schedule-detail__mark { display: block; overflow: hidden; padding: 2px 6px; border-left: 3px solid var(--ui-primary); border-radius: 4px; background: var(--ui-color-eef0fb); color: var(--ui-primary); font-size: 12px; line-height: 18px; text-overflow: ellipsis; white-space: nowrap; }
+.lf-admin-ui .ui-cohort-schedule-detail__mark.is-past { border-left-color: var(--ui-color-a0a6b1); background: var(--ui-color-eef0f5); color: var(--ui-muted); }
+.lf-admin-ui .ui-cohort-schedule-detail__mark.is-next { border-left-color: var(--ui-success); background: var(--ui-success-soft); color: var(--ui-success); font-weight: 500; }
+.lf-admin-ui .ui-cohort-schedule-detail__mark.is-excluded { border-left-color: var(--ui-warning); background: var(--ui-warning-soft); color: var(--ui-warning); }
+.lf-admin-ui .ui-cohort-schedule-detail__legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 8px; color: var(--ui-muted); font-size: 12px; }
+.lf-admin-ui .ui-cohort-schedule-detail__legend span { display: inline-flex; align-items: center; gap: 6px; }
+.lf-admin-ui .ui-cohort-schedule-detail__swatch { width: 12px; height: 12px; border-radius: 3px; background: var(--ui-color-eef0fb); box-shadow: inset 3px 0 0 var(--ui-primary); }
+.lf-admin-ui .ui-cohort-schedule-detail__swatch.is-past { background: var(--ui-color-eef0f5); box-shadow: inset 3px 0 0 var(--ui-color-a0a6b1); }
+.lf-admin-ui .ui-cohort-schedule-detail__swatch.is-next { background: var(--ui-success-soft); box-shadow: inset 3px 0 0 var(--ui-success); }
+.lf-admin-ui .ui-cohort-schedule-detail__swatch.is-excluded { background: var(--ui-warning-soft); box-shadow: inset 3px 0 0 var(--ui-warning); }
+.lf-admin-ui .ui-cohort-schedule-detail__swatch.is-out { box-shadow: inset 0 0 0 1px var(--ui-color-e6e8ee); }
+.lf-admin-ui .ui-cohort-schedule-detail__list { position: relative; max-height: 420px; margin: 0; padding: 0; overflow-y: auto; border: 1px solid var(--ui-color-e6e8ee); border-radius: 7px; list-style: none; }
+.lf-admin-ui .ui-cohort-schedule-detail__listweek { display: flex; justify-content: space-between; gap: 12px; padding: 6px 14px; border-top: 1px solid var(--ui-color-e6e8ee); background: var(--ui-color-f7f8fa); color: var(--ui-muted); font-size: 12px; }
+.lf-admin-ui .ui-cohort-schedule-detail__listweek:first-child { border-top: 0; }
+.lf-admin-ui .ui-cohort-schedule-detail__listrow { display: grid; grid-template-columns: 28px 170px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 8px 14px; border-top: 1px solid var(--ui-color-eceef3); font-size: 14px; line-height: 20px; }
+.lf-admin-ui .ui-cohort-schedule-detail__listrow > .ui-caption:first-child { text-align: right; }
+.lf-admin-ui .ui-cohort-schedule-detail__listrow.is-past { color: var(--ui-muted); }
+.lf-admin-ui .ui-cohort-schedule-detail__listrow.is-next { background: var(--ui-success-soft); box-shadow: inset 3px 0 0 var(--ui-success); }
+.lf-admin-ui .ui-cohort-schedule-detail__listrow.is-excluded { background: var(--ui-notice-soft); color: var(--ui-warning); }
+.lf-admin-ui .ui-cohort-schedule-detail__listrow.is-excluded .ui-cohort-schedule-detail__listdate { text-decoration: line-through; }
+.lf-admin-ui .ui-cohort-schedule-detail__exclusions { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.lf-admin-ui .ui-cohort-schedule-detail__exclusions li { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; padding: 4px 10px; border: 1px solid var(--ui-notice-border); border-radius: 5px; background: var(--ui-notice-soft); font-size: 14px; line-height: 20px; }
+.lf-admin-ui .ui-cohort-schedule-detail__exclusions .ui-cohort-schedule-detail__listdate { font-weight: 500; }
+.lf-admin-ui .ui-cohort-schedule-detail__exclusions .ui-caption { color: var(--ui-warning); }
+@media (max-width: 900px) {
+    .lf-admin-ui .ui-cohort-schedule-detail__summary { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0; }
+    .lf-admin-ui .ui-cohort-schedule-detail__summary .ui-summary__item:nth-child(3) { border-left: 0; }
+    .lf-admin-ui .ui-cohort-schedule-detail__summary .ui-summary__item:nth-child(n + 3) { border-top: 1px solid var(--ui-color-eceef3); }
+}
+@media (max-width: 680px) {
+    .lf-admin-ui .ui-cohort-schedule-detail__week { grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); }
+    .lf-admin-ui .ui-cohort-schedule-detail__week li:not(.is-on) { display: none; }
+    .lf-admin-ui .ui-cohort-schedule-detail__day { min-height: 44px; padding: 4px; }
+    .lf-admin-ui .ui-cohort-schedule-detail__mark { height: 6px; padding: 0; border-left: 0; font-size: 0; }
+    .lf-admin-ui .ui-cohort-schedule-detail__mark.is-past { background: var(--ui-color-a0a6b1); }
+    .lf-admin-ui .ui-cohort-schedule-detail__mark.is-next { background: var(--ui-success); }
+    .lf-admin-ui .ui-cohort-schedule-detail__mark.is-excluded { background: var(--ui-warning); }
+    .lf-admin-ui .ui-cohort-schedule-detail__mark:not(.is-past, .is-next, .is-excluded) { background: var(--ui-primary); }
+    .lf-admin-ui .ui-cohort-schedule-detail__monthbar .ui-caption { display: none; }
+    .lf-admin-ui .ui-cohort-schedule-detail__listrow { grid-template-columns: 24px minmax(0, 1fr); gap: 2px 10px; }
+    .lf-admin-ui .ui-cohort-schedule-detail__listrow > :not(:first-child) { grid-column: 2; }
+    .lf-admin-ui .ui-cohort-schedule-detail__listrow > .ui-caption:first-child { grid-row: 1 / span 3; align-self: start; text-align: left; }
+    .lf-admin-ui .ui-cohort-schedule-detail__listrow > .ui-status { justify-self: start; }
+}
+@media (max-width: 1180px) {
+    .lf-admin-ui .ui-cohort-schedule-slot .ui-cohort-schedule-day__add { grid-column: 1 / -1; justify-self: start; }
+}
+/* The preview runs as tall as the form; its list scrolls inside instead of stretching the popup. */
+@media (min-width: 861px) {
+    .lf-admin-ui .ui-cohort-schedule-modal .ui-cohort-schedule-layout { align-items: stretch; }
+    .lf-admin-ui .ui-cohort-schedule-modal .ui-cohort-schedule-preview { position: static; min-height: 0; }
+    .lf-admin-ui .ui-cohort-schedule-modal .ui-cohort-schedule-preview__list { flex: 1 1 0; max-height: none; min-height: 0; }
+}
 @media (max-width: 860px) {
-    .lf-admin-ui .ui-cohort-schedule-layout, .lf-admin-ui .ui-cohort-schedule-layout--even { grid-template-columns: minmax(0, 1fr); }
+    .lf-admin-ui .ui-cohort-schedule-layout { grid-template-columns: minmax(0, 1fr); }
     .lf-admin-ui .ui-cohort-schedule-preview { position: static; }
 }
 @media (max-width: 640px) {
     .lf-admin-ui .ui-cohort-schedule-grid { grid-template-columns: minmax(0, 1fr); }
-    .lf-admin-ui .ui-cohort-schedule-slot { grid-template-columns: repeat(2, minmax(0, 1fr)) 30px; }
-    .lf-admin-ui .ui-cohort-schedule-slot > .ui-field:first-child { grid-column: 1 / -1; }
+    .lf-admin-ui .ui-cohort-schedule-day { grid-template-columns: minmax(0, 1fr); }
+    .lf-admin-ui p.ui-cohort-schedule-day__name { line-height: 20px; }
+    .lf-admin-ui .ui-cohort-schedule-slot { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) 30px; }
+    .lf-admin-ui .ui-cohort-schedule-slot > .ui-caption { grid-column: 1 / -1; grid-row: 2; }
+    .lf-admin-ui .ui-cohort-schedule-slot .ui-cohort-schedule-day__add { grid-row: 3; }
+    .lf-admin-ui .ui-cohort-schedule-exclusion-add { grid-template-columns: minmax(0, 1fr); }
+    .lf-admin-ui .ui-cohort-schedule-exclusion { grid-template-columns: minmax(0, 1fr) 30px; }
+    .lf-admin-ui .ui-cohort-schedule-exclusion > .ui-status, .lf-admin-ui .ui-cohort-schedule-exclusion > input:not([type=hidden]) { grid-column: 1; }
 }
 @media (max-width: 680px) {
     .lf-admin-ui.ui-cohort .ui-summary-head { flex-direction: column; align-items: stretch; gap: 10px; }
