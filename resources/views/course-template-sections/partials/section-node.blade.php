@@ -7,6 +7,8 @@
 <article id="course-template-section-{{ $currentSection->id }}"
          class="course-template-outline-section"
          data-section-id="{{ $currentSection->id }}"
+         data-order-id="{{ $currentSection->id }}"
+         @if ($canReorderSection ?? false) x-sort:item="{{ $currentSection->id }}" @endif
          data-section-depth="{{ $depth }}"
          x-data="courseTemplateSectionCollapse(
              @js($template->customer_id),
@@ -15,6 +17,20 @@
          )">
     <header class="course-template-outline-section-header"
             x-on:click="if (! $event.target.closest('button, a, form, input')) toggle()">
+        @if ($canReorderSection ?? false)
+            {{-- Hidden while searching: the visible rows are then only part of the list. --}}
+            <button type="button"
+                    class="admin-link-button admin-text-action ui-row-action course-template-order-handle"
+                    x-sort:handle
+                    x-show="query.trim() === ''"
+                    aria-label="{{ __('lf.LF_course_template_section_reorder_handle', ['title' => $currentSection->title]) }}"
+                    aria-keyshortcuts="ArrowUp ArrowDown"
+                    data-tooltip="{{ __('lf.LF_course_template_lesson_reorder_hint') }}"
+                    x-on:keydown.up.prevent="courseTemplateOrder($el.closest('[data-reorder-url]')).move($el, -1)"
+                    x-on:keydown.down.prevent="courseTemplateOrder($el.closest('[data-reorder-url]')).move($el, 1)">
+                <x-backend-icon name="grip-vertical" class="ui-icon" />
+            </button>
+        @endif
         <span class="course-template-outline-section-number" aria-hidden="true">{{ $sectionOutlineNumbers[$currentSection->id] ?? '' }}</span>
         <div class="course-template-outline-section-copy">
             <h3 class="course-template-outline-section-title">
@@ -116,11 +132,22 @@
         @endif
 
         @if ($childSections->isNotEmpty())
-            <div class="course-template-outline-children">
+            <div class="course-template-outline-children"
+                 @if ($childSections->count() > 1)
+                     data-reorder-url="{{ route($sectionRoutePrefix.'.reorder', $template->id) }}?parent_section_id={{ $currentSection->id }}"
+                     data-reorder-field="section_ids"
+                     data-msg-saved="{{ __('lf.LF_course_template_section_reorder_saved') }}"
+                     data-msg-error="{{ __('lf.LF_course_template_section_reorder_error') }}"
+                     data-msg-outside="{{ __('lf.LF_course_template_section_reorder_outside') }}"
+                     x-init="courseTemplateOrder($el)"
+                     x-sort:config="courseTemplateOrder($el).sortable"
+                     x-sort.ghost="courseTemplateOrder($el).dropped()"
+                 @endif>
                 @foreach ($childSections as $childSection)
                     @include('course-template-sections.partials.section-node', [
                         'section' => $childSection,
                         'depth' => $depth + 1,
+                        'canReorderSection' => $childSections->count() > 1,
                     ])
                 @endforeach
             </div>

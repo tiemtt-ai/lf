@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Services\AiAuthoringEntryService;
 use App\Services\CourseTemplateCourseTypeService;
 use App\Services\CourseTemplateLearningMappingIntentService;
+use App\Services\CourseTemplateLessonUnlockOrder;
 use App\Services\CourseTemplatePublishingService;
 use App\Services\CourseTemplatePublishReadinessService;
 use App\Services\CourseTemplateVersionDetailPresenter;
@@ -922,6 +923,18 @@ class CourseTemplateController extends Controller
         foreach ($activitiesByLesson as $lessonId => $activities) {
             if (count($activities) > 0) {
                 $blockers[(int) $lessonId] = __('lf.LF_course_template_lesson_delete_blocked_activities');
+            }
+        }
+
+        $unlockOrder = app(CourseTemplateLessonUnlockOrder::class);
+        foreach ([false, true] as $sectioned) {
+            $firstLessonId = (int) ($unlockOrder->orderedLessons($customerId, $templateId, $sectioned ? 0 : null)->first()?->id ?? 0);
+            $violation = $firstLessonId
+                ? $unlockOrder->deleteViolation($customerId, $templateId, $firstLessonId, $sectioned)
+                : null;
+
+            if ($violation !== null) {
+                $blockers[$firstLessonId] ??= $violation;
             }
         }
 

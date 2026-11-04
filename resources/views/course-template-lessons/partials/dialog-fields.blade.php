@@ -99,14 +99,5 @@
                 @endforeach
             </select>
         </div>
-
-        {{-- The display order is always the last field of the form. --}}
-        <div class="ui-field ui-field--row-start">
-            <label class="ui-field__label" for="lesson-form-sort_order">@if ($formLesson){!! $star !!}@endif{{ __('lf.LF_course_template_lesson_common_sort_order') }}</label>
-            <input id="lesson-form-sort_order" type="number" min="0" name="sort_order"
-                   value="{{ $formLesson?->sort_order ?? $suggestedSortOrder ?? null }}"
-                   placeholder="{{ __('lf.LF_course_template_lesson_placeholder_sort_order') }}" @if ($formLesson) required @endif>
-            <span class="ui-field__hint">{{ __('lf.LF_course_template_lesson_common_sort_order_help') }}</span>
-        </div>
     </div>
 </div>

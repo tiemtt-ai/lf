@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\CourseTemplateLessonUnlockOrder;
 use App\Support\TenantContext;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -14,6 +16,10 @@ use Illuminate\View\View;
 
 class CourseTemplateLessonController extends Controller
 {
+    public function __construct(
+        private readonly CourseTemplateLessonUnlockOrder $unlockOrder
+    ) {}
+
     public function index(
         Request $request,
         int $templateId,
@@ -123,6 +129,21 @@ class CourseTemplateLessonController extends Controller
         return $this->destroyLesson($request, $templateId, $lessonId, null);
     }
 
+    public function reorder(
+        Request $request,
+        int $templateId,
+        int $sectionId
+    ): JsonResponse {
+        return $this->reorderLessons($request, $templateId, $sectionId);
+    }
+
+    public function reorderDirect(
+        Request $request,
+        int $templateId
+    ): JsonResponse {
+        return $this->reorderLessons($request, $templateId, null);
+    }
+
     private function createView(
         Request $request,
         int $templateId,
@@ -149,11 +170,6 @@ class CourseTemplateLessonController extends Controller
             'requiredFields' => $this->requiredFields(
                 $customerId,
                 $templateId
-            ),
-            'suggestedSortOrder' => $this->nextSortOrder(
-                $customerId,
-                $templateId,
-                $sectionId
             ),
             'routePrefix' => $this->routePrefix($request, $sectionId),
             'templateRoutePrefix' => $this->templateRoutePrefix($request),
@@ -344,6 +360,8 @@ class CourseTemplateLessonController extends Controller
 
         DB::transaction(function () use ($customerId, $templateId, $sectionId, $lessonId, $validated): void {
             $this->lockTemplate($customerId, $templateId);
+            $violationsBefore = $this->unlockOrder->violations($customerId, $templateId, $sectionId !== null);
+            $validated['sort_order'] ??= $this->findLesson($customerId, $templateId, $sectionId, $lessonId)->sort_order;
             DB::table('core_course_template_lessons')
                 ->where('customer_id', $customerId)
                 ->where('template_id', $templateId)
@@ -360,6 +378,18 @@ class CourseTemplateLessonController extends Controller
                 $lessonId,
                 $validated
             );
+
+            // The form checks this lesson's own rule; a new position can also break the lessons that depend on it.
+            $newViolations = array_diff_key(
+                $this->unlockOrder->violations($customerId, $templateId, $sectionId !== null),
+                $violationsBefore
+            );
+
+            if ($newViolations !== []) {
+                throw ValidationException::withMessages([
+                    'sort_order' => reset($newViolations),
+                ]);
+            }
         });
 
         if ($request->expectsJson()) {
@@ -408,7 +438,7 @@ class CourseTemplateLessonController extends Controller
 
         $deleted = DB::transaction(function () use ($customerId, $templateId, $sectionId, $lessonId): bool {
             $this->lockTemplate($customerId, $templateId);
-            if ($this->deleteBlockReason($customerId, $templateId, $lessonId) !== null) {
+            if ($this->deleteBlockReason($customerId, $templateId, $lessonId, $sectionId) !== null) {
                 return false;
             }
             DB::table('core_course_template_lesson_prerequisites')
@@ -438,7 +468,11 @@ class CourseTemplateLessonController extends Controller
             if ($request->expectsJson()) {
                 return response()->json([
                     'message' => $this->deleteBlockMessage(
-                        $this->deleteBlockReason($customerId, $templateId, $lessonId)
+                        $this->deleteBlockReason($customerId, $templateId, $lessonId, $sectionId),
+                        $customerId,
+                        $templateId,
+                        $lessonId,
+                        $sectionId
                     ),
                 ], 409);
             }
@@ -462,6 +496,86 @@ class CourseTemplateLessonController extends Controller
         return redirect()
             ->to($structureUrl)
             ->with('success', __('lf.LF_course_template_lesson_common_deleted'));
+    }
+
+    /**
+     * Saves the order of one group (the direct lessons or one Section's lessons) sent as the complete list of its ids.
+     * A list that is not exactly that group changes nothing (409), and so does an order that would break an unlock rule
+     * which holds today (422, naming the lessons). Older problems the move does not cause never block it.
+     */
+    private function reorderLessons(
+        Request $request,
+        int $templateId,
+        ?int $sectionId
+    ): JsonResponse {
+        abort_unless($request->expectsJson(), 404);
+
+        $customerId = $this->customerId();
+        $this->findTemplate($customerId, $templateId);
+
+        if ($sectionId !== null) {
+            $this->findSection($customerId, $templateId, $sectionId);
+        }
+
+        $validated = $request->validate([
+            'lesson_ids' => ['required', 'array', 'min:1'],
+            'lesson_ids.*' => ['required', 'integer', 'distinct'],
+        ]);
+        $lessonIds = array_map('intval', array_values($validated['lesson_ids']));
+
+        $applied = DB::transaction(function () use ($customerId, $templateId, $sectionId, $lessonIds): bool {
+            $this->lockTemplate($customerId, $templateId);
+
+            $group = fn () => DB::table('core_course_template_lessons')
+                ->where('customer_id', $customerId)
+                ->where('template_id', $templateId)
+                ->when(
+                    $sectionId === null,
+                    fn ($query) => $query->whereNull('template_section_id'),
+                    fn ($query) => $query->where('template_section_id', $sectionId)
+                );
+            $currentOrders = $group()->pluck('sort_order', 'id');
+
+            if ($currentOrders->keys()->map(fn ($id): int => (int) $id)->sort()->values()->all()
+                !== collect($lessonIds)->sort()->values()->all()) {
+                return false;
+            }
+
+            $violationsBefore = $this->unlockOrder->violations($customerId, $templateId, $sectionId !== null);
+            $now = now();
+
+            foreach ($lessonIds as $index => $lessonId) {
+                if ((int) $currentOrders[$lessonId] !== $index + 1) {
+                    $group()->where('id', $lessonId)->update([
+                        'sort_order' => $index + 1,
+                        'updated_at' => $now,
+                    ]);
+                }
+            }
+
+            $newViolations = array_diff_key(
+                $this->unlockOrder->violations($customerId, $templateId, $sectionId !== null),
+                $violationsBefore
+            );
+
+            if ($newViolations !== []) {
+                throw ValidationException::withMessages([
+                    'lesson_ids' => reset($newViolations),
+                ]);
+            }
+
+            return true;
+        });
+
+        if (! $applied) {
+            return response()->json([
+                'message' => __('lf.LF_course_template_lesson_reorder_stale'),
+            ], 409);
+        }
+
+        return response()->json([
+            'message' => __('lf.LF_course_template_lesson_reorder_saved'),
+        ]);
     }
 
     private function lockTemplate(int $customerId, int $templateId): void
@@ -493,13 +607,12 @@ class CourseTemplateLessonController extends Controller
             $sectionId
         ): void {
             $rule = $request->input('unlock_rule');
+            // Without an order a new lesson goes last and an existing one stays where it is.
             $prospectiveSortOrder = $request->filled('sort_order')
                 ? $request->integer('sort_order')
-                : $this->nextSortOrder(
-                    $customerId,
-                    $templateId,
-                    $sectionId
-                );
+                : ($lessonId === null
+                    ? $this->nextSortOrder($customerId, $templateId, $sectionId)
+                    : null);
             $prospectivePrerequisites = $this->prerequisiteLessons(
                 $customerId,
                 $templateId,
@@ -610,11 +723,7 @@ class CourseTemplateLessonController extends Controller
             'title' => ['required', 'string', 'max:255'],
             'short_description' => ['nullable', 'string', 'max:500'],
             'description' => ['nullable', 'string'],
-            'sort_order' => [
-                $lessonId === null ? 'nullable' : 'required',
-                'integer',
-                'min:0',
-            ],
+            'sort_order' => ['nullable', 'integer', 'min:0'],
             'is_preview' => ['required', 'boolean'],
             'lesson_type' => ['required', Rule::in([
                 'regular', 'review', 'midterm_exam', 'final_exam', 'other_exam',
@@ -704,106 +813,13 @@ class CourseTemplateLessonController extends Controller
         ?int $excludedLessonId = null,
         ?int $prospectiveSortOrder = null
     ) {
-        $lessons = DB::table('core_course_template_lessons')
-            ->where('customer_id', $customerId)
-            ->where('template_id', $templateId)
-            ->when(
-                $sectionId === null,
-                fn ($query) => $query->whereNull('template_section_id'),
-                fn ($query) => $query->whereNotNull('template_section_id')
-            )
-            ->orderBy('template_section_id')
-            ->orderBy('sort_order')
-            ->orderBy('id')
-            ->get();
-
-        $targetLessonId = $excludedLessonId;
-        if ($prospectiveSortOrder !== null) {
-            if ($targetLessonId === null) {
-                $targetLessonId = PHP_INT_MAX;
-                $lessons->push((object) [
-                    'id' => $targetLessonId,
-                    'template_section_id' => $sectionId,
-                    'title' => '',
-                    'sort_order' => $prospectiveSortOrder,
-                ]);
-            } else {
-                $target = $lessons->firstWhere('id', $targetLessonId);
-                if ($target) {
-                    $target->sort_order = $prospectiveSortOrder;
-                }
-            }
-        }
-
-        if ($sectionId === null) {
-            $ordered = $lessons->sortBy(fn (object $lesson): string => sprintf(
-                '%010d:%020d',
-                $lesson->sort_order,
-                $lesson->id
-            ))->values();
-
-            return $targetLessonId === null
-                ? $ordered
-                : $ordered->takeUntil(
-                    fn (object $lesson): bool => (int) $lesson->id === $targetLessonId
-                )->values();
-        }
-
-        $sections = DB::table('core_course_template_sections')
-            ->where('customer_id', $customerId)
-            ->where('template_id', $templateId)
-            ->get()->keyBy('id');
-
-        $sectionOrderKeys = [];
-        $children = $sections->groupBy(
-            fn (object $section): int => (int) ($section->parent_section_id ?? 0)
+        return $this->unlockOrder->orderedLessons(
+            $customerId,
+            $templateId,
+            $sectionId,
+            $excludedLessonId,
+            $prospectiveSortOrder
         );
-        $walk = function (int $parentId, array $parentKey = []) use (
-            &$walk,
-            &$sectionOrderKeys,
-            $children
-        ): void {
-            $siblings = $children->get($parentId, collect())->sortBy(
-                fn (object $section): string => sprintf(
-                    '%010d:%020d',
-                    $section->display_order,
-                    $section->id
-                )
-            );
-            foreach ($siblings as $section) {
-                $key = [...$parentKey, sprintf(
-                    'S%010d:%020d',
-                    $section->display_order,
-                    $section->id
-                )];
-                $sectionOrderKeys[$section->id] = implode('/', $key);
-                $walk((int) $section->id, $key);
-            }
-        };
-        $walk(0);
-
-        foreach ($lessons as $lesson) {
-            $labels = [];
-            $currentId = (int) $lesson->template_section_id;
-            $visited = [];
-            while ($currentId && isset($sections[$currentId]) && ! isset($visited[$currentId])) {
-                $visited[$currentId] = true;
-                array_unshift($labels, $sections[$currentId]->title);
-                $currentId = (int) ($sections[$currentId]->parent_section_id ?? 0);
-            }
-            $lesson->option_label = implode(' › ', [...$labels, $lesson->title]);
-        }
-
-        $ordered = $lessons->sortBy(function (object $lesson) use ($sectionOrderKeys): string {
-            return ($sectionOrderKeys[$lesson->template_section_id] ?? '')
-                .sprintf('/L%010d:%020d', $lesson->sort_order, $lesson->id);
-        })->values();
-
-        return $targetLessonId === null
-            ? $ordered
-            : $ordered->takeUntil(
-                fn (object $lesson): bool => (int) $lesson->id === $targetLessonId
-            )->values();
     }
 
     private function nextSortOrder(
@@ -880,11 +896,12 @@ class CourseTemplateLessonController extends Controller
         return false;
     }
 
-    /** Why the lesson cannot be deleted: 'activities', 'referenced' (another lesson unlocks after it) or null. */
+    /** Why the lesson cannot be deleted: 'activities', 'referenced' (another lesson unlocks after it), 'first' (the next lesson needs one before it) or null. */
     private function deleteBlockReason(
         int $customerId,
         int $templateId,
-        int $lessonId
+        int $lessonId,
+        ?int $sectionId
     ): ?string {
         if (Schema::hasTable('core_course_template_activities')
             && DB::table('core_course_template_activities')
@@ -908,12 +925,20 @@ class CourseTemplateLessonController extends Controller
             return 'referenced';
         }
 
-        return null;
+        return $this->unlockOrder->deleteViolation($customerId, $templateId, $lessonId, $sectionId !== null) !== null
+            ? 'first'
+            : null;
     }
 
-    private function deleteBlockMessage(?string $reason): string
-    {
+    private function deleteBlockMessage(
+        ?string $reason,
+        int $customerId,
+        int $templateId,
+        int $lessonId,
+        ?int $sectionId
+    ): string {
         return match ($reason) {
+            'first' => (string) $this->unlockOrder->deleteViolation($customerId, $templateId, $lessonId, $sectionId !== null),
             'activities' => __('lf.LF_course_template_lesson_delete_blocked_activities'),
             'referenced' => __('lf.LF_course_template_lesson_delete_blocked_referenced'),
             default => __('lf.LF_course_template_lesson_common_delete_blocked'),

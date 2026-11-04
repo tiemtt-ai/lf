@@ -332,11 +332,10 @@ class CourseTemplateSectionManagementTest extends TestCase
             "https://tenant-a.localhost/admin/course-templates/{$emptyTemplateId}/sections/create"
         );
         $this->assertSame(
-            '1',
+            0,
             $this->xpath($emptyCreate->getContent())
                 ->query('//input[@name="display_order"]')
-                ->item(0)
-                ->getAttribute('value')
+                ->length
         );
         $firstData = $this->validSectionData(['title' => 'First Automatic']);
         unset($firstData['display_order']);
@@ -374,31 +373,28 @@ class CourseTemplateSectionManagementTest extends TestCase
             "https://tenant-a.localhost/admin/course-templates/{$templateId}/sections/create"
         );
         $this->assertSame(
-            '11',
+            0,
             $this->xpath($rootCreate->getContent())
                 ->query('//input[@name="display_order"]')
-                ->item(0)
-                ->getAttribute('value')
+                ->length
         );
         $childCreate = $this->actingAs($admin)->withHeaders($this->ajaxHeaders())->get(
             "https://tenant-a.localhost/admin/course-templates/{$templateId}/sections/create?parent_section_id={$parentId}"
         );
         $this->assertSame(
-            '5',
+            0,
             $this->xpath($childCreate->getContent())
                 ->query('//input[@name="display_order"]')
-                ->item(0)
-                ->getAttribute('value')
+                ->length
         );
         $edit = $this->actingAs($admin)->get(
             "https://tenant-a.localhost/admin/course-templates/{$templateId}/sections/{$parentId}/edit"
         );
         $this->assertSame(
-            '7',
+            0,
             $this->xpath($edit->getContent())
                 ->query('//input[@name="display_order"]')
-                ->item(0)
-                ->getAttribute('value')
+                ->length
         );
 
         $rootData = $this->validSectionData([
@@ -946,12 +942,10 @@ class CourseTemplateSectionManagementTest extends TestCase
             ->assertSee('class="ui-modal__form"', false)
             ->assertSee('data-ui-dialog-form-submit', false)
             ->assertSeeText('Vị trí')
-            ->assertSee('id="section-form-display_order"', false)
-            ->assertSee('readonly', false)
+            ->assertDontSee('id="section-form-display_order"', false)
             ->assertDontSeeText('Hệ thống đề xuất thứ tự tiếp theo; có thể điều chỉnh khi cần.')
             ->assertSee('placeholder="Nhập tên phần học"', false)
-            ->assertSee('placeholder="Nhập mô tả phần học"', false)
-            ->assertSee('placeholder="Ví dụ: 1"', false);
+            ->assertSee('placeholder="Nhập mô tả phần học"', false);
 
         foreach (['title', 'allows_lessons'] as $field) {
             $this->assertSame(
@@ -960,7 +954,7 @@ class CourseTemplateSectionManagementTest extends TestCase
             );
         }
 
-        foreach (['parent_section_id', 'description', 'display_order'] as $field) {
+        foreach (['parent_section_id', 'description'] as $field) {
             $this->assertSame(
                 0,
                 $this->requiredIndicatorCount($response->getContent(), $field)
@@ -975,8 +969,7 @@ class CourseTemplateSectionManagementTest extends TestCase
             )
             ->assertOk()
             ->assertSee('placeholder="Enter section name"', false)
-            ->assertSee('placeholder="Enter section description"', false)
-            ->assertSee('placeholder="Example: 1"', false);
+            ->assertSee('placeholder="Enter section description"', false);
 
         $css = file_get_contents(resource_path('css/admin/admin-components.css'));
         $this->assertStringContainsString(

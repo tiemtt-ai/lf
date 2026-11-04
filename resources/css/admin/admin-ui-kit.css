@@ -2060,6 +2060,20 @@
 .lf-admin-ui.ui-structure .course-template-lesson-item:hover,
 .lf-admin-ui.ui-structure .course-template-lesson-item:focus-within { background: var(--ui-white); }
 .lf-admin-ui.ui-structure .course-template-lesson-summary { display: flex; align-items: flex-start; justify-content: flex-start; gap: 12px; padding: 16px; cursor: pointer; }
+/* Drag handle of a lesson (course-template-lesson-order.js); its tooltip opens to the right, the handle being the first thing in the row. */
+.lf-admin-ui.ui-structure .course-template-order-handle { flex: none; margin: 0 -6px; color: var(--ct-text-3); cursor: grab; touch-action: none; }
+.lf-admin-ui.ui-structure .course-template-lesson-summary > .course-template-order-handle { height: 40px; }
+.lf-admin-ui.ui-structure .course-template-order-handle:active { cursor: grabbing; }
+.lf-admin-ui.ui-structure .course-template-order-handle[data-tooltip]::after { right: auto; left: 0; }
+/* From the press to the drop the hint would only cover the row beside it. */
+body.sorting .lf-admin-ui.ui-structure .course-template-order-handle[data-tooltip]:is(:hover, :focus-visible)::after,
+.lf-admin-ui.ui-structure .sortable-chosen .course-template-order-handle[data-tooltip]:is(:hover, :focus-visible)::after { display: none; }
+.lf-admin-ui.ui-structure .course-template-lesson-item.sortable-ghost { border-style: dashed; border-color: var(--ui-primary); background: var(--ct-primary-soft); box-shadow: none; }
+.lf-admin-ui.ui-structure .course-template-lesson-item.sortable-ghost > * { opacity: .35; }
+.lf-admin-ui.ui-structure .course-template-activity-item.sortable-ghost { outline: 1px dashed var(--ui-primary); outline-offset: -1px; border-radius: 9px; background: var(--ct-primary-soft); }
+.lf-admin-ui.ui-structure .course-template-activity-item.sortable-ghost > * { opacity: .35; }
+.lf-admin-ui.ui-structure .course-template-outline-section.sortable-ghost > .course-template-outline-section-header { border-style: dashed; border-color: var(--ui-primary); background: var(--ct-primary-soft); box-shadow: none; }
+.lf-admin-ui.ui-structure .course-template-outline-section.sortable-ghost > * { opacity: .5; }
 /* The number is a quiet locator, not a call to action: neutral by default, tinted only while the lesson is open. */
 .lf-admin-ui.ui-structure .course-template-lesson-number { display: grid; place-items: center; flex: none; width: 40px; height: 40px; border-radius: 10px; background: color-mix(in srgb, var(--ct-text-3) 10%, var(--ui-white)); color: var(--ct-text-3); font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; transition: background-color .15s, color .15s; }
 .lf-admin-ui.ui-structure .course-template-lesson-item.is-expanded .course-template-lesson-number { background: var(--ct-primary-soft); color: var(--ui-primary); }
@@ -2163,6 +2177,7 @@
 .lf-admin-ui.ui-structure .course-template-outline-section .course-template-lesson-item { box-shadow: none; }
 .lf-admin-ui.ui-structure .course-template-outline-section .course-template-lesson-summary { padding: 12px 12px 12px 12px; }
 .lf-admin-ui.ui-structure .course-template-outline-section .course-template-lesson-number { width: 34px; height: 34px; border-radius: 8px; font-size: 13px; }
+.lf-admin-ui.ui-structure .course-template-outline-section .course-template-lesson-summary > .course-template-order-handle { height: 34px; }
 .lf-admin-ui.ui-structure .course-template-outline-section .course-template-lesson-copy strong { font-size: 14px; }
 .lf-admin-ui.ui-structure .course-template-outline-section .course-template-activity-panel { padding: 10px 12px 12px 52px; }
 .lf-admin-ui.ui-structure .course-template-lesson-empty,
@@ -2187,7 +2202,9 @@
     .lf-admin-ui.ui-structure .course-template-lesson-summary > .admin-table-actions { margin-left: auto; }
     .lf-admin-ui.ui-structure .course-template-activity-panel,
     .lf-admin-ui.ui-structure .course-template-outline-section .course-template-activity-panel { padding-left: 12px; }
-    .lf-admin-ui.ui-structure .course-template-activity-item { flex-wrap: wrap; }
+    /* Narrow: handle and identity share the first line; the actions wrap below. */
+    .lf-admin-ui.ui-structure .course-template-activity-item { flex-flow: row wrap; }
+    .lf-admin-ui.ui-structure .course-template-activity-item > .course-template-activity-identity { flex: 1 1 calc(100% - 42px); }
     .lf-admin-ui.ui-structure .course-template-activity-item > .admin-table-actions { margin-left: 46px; opacity: 1; }
     .lf-admin-ui.ui-structure .course-template-section-branch { margin-left: 8px; padding-left: 10px; }
     .lf-admin-ui.ui-structure .course-template-outline-section-header { flex-wrap: wrap; }
@@ -2456,8 +2473,6 @@
 .lf-admin-ui .ui-option-card > span:last-child { display: grid; line-height: 1.35; }
 .lf-admin-ui .ui-option-card b { font-size: 13.5px; font-weight: 500; }
 .lf-admin-ui .ui-option-card small { color: var(--ui-muted); font-size: 12px; }
-.lf-admin-ui .ui-activity-more { padding: 14px 0 4px; border-top: 1px solid var(--ui-color-eceef3); }
-.lf-admin-ui .ui-activity-more > summary { margin-bottom: 14px; color: var(--ui-primary); font-size: 13px; font-weight: 500; cursor: pointer; }
 @media (max-width: 640px) {
     .lf-admin-ui .ui-type-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .lf-admin-ui .ui-option-cards, .lf-admin-ui .ui-modal__grid--pair { grid-template-columns: 1fr; }
@@ -2616,7 +2631,6 @@
     opacity: 0;
     pointer-events: none;
 }
-.lf-admin-ui .ui-activity-last { padding-top: 16px; border-top: 1px solid var(--ui-color-eceef3); }
 
 /* Activity form (3rd design, 2-column popup): neutral type icons that turn primary when chosen, larger type cards,
    and the session phases inside the "By session" card. */

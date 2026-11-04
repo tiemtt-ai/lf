@@ -5,6 +5,7 @@
          data-csrf="{{ csrf_token() }}"
          data-msg-delete-error="{{ __('lf.LF_course_template_lesson_delete_error') }}"
          data-msg-session-expired="{{ __('lf.LF_course_template_lesson_dialog_session_expired') }}"
+         x-on:course-template-order-changed="$event.target.getAttribute('data-reorder-field') === 'section_ids' && courseTemplateRefreshOutline($el.querySelector('.course-template-outline-sections'), $el.querySelector('.course-template-content-toc'))"
          x-data="courseTemplateStructure(
              @js($sections->isNotEmpty() && $directLessons->isEmpty() ? 'sections' : 'direct'),
              @js('lf-course-template-'.$template->id.'-structure-tab')
@@ -165,10 +166,22 @@
             @endif
         </div>
 
-        <div class="course-template-outline-sections">
+        @php $canReorderRootSections = $sectionsByParent->get('root', collect())->count() > 1; @endphp
+        <div class="course-template-outline-sections"
+             @if ($canReorderRootSections)
+                 data-reorder-url="{{ route($sectionRoutePrefix.'.reorder', $template->id) }}"
+                 data-reorder-field="section_ids"
+                 data-msg-saved="{{ __('lf.LF_course_template_section_reorder_saved') }}"
+                 data-msg-error="{{ __('lf.LF_course_template_section_reorder_error') }}"
+                 data-msg-outside="{{ __('lf.LF_course_template_section_reorder_outside') }}"
+                 x-init="courseTemplateOrder($el)"
+                 x-sort:config="courseTemplateOrder($el).sortable"
+                 x-sort.ghost="courseTemplateOrder($el).dropped()"
+             @endif>
             @forelse ($sectionsByParent->get('root', collect()) as $section)
                 @include('course-template-sections.partials.section-node', [
                     'depth' => 0,
+                    'canReorderSection' => $canReorderRootSections,
                 ])
             @empty
                 <div class="course-template-content-empty">
@@ -207,7 +220,7 @@
             <h3 id="course-template-content-toc-title">{{ __('lf.LF_course_template_content_toc_title') }}</h3>
             <ol>
                 @foreach ($sectionOutline as $row)
-                    <li>
+                    <li data-toc-section-id="{{ $row['section']->id }}">
                         <button type="button"
                                 style="--toc-depth: {{ $row['depth'] }}"
                                 x-on:click="revealSection(@js($row['section']->id))">

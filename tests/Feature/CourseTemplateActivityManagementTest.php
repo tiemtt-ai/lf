@@ -1207,6 +1207,153 @@ class CourseTemplateActivityManagementTest extends TestCase
         );
     }
 
+    public function test_admin_and_teacher_reorder_the_activities_of_one_lesson_on_both_routes(): void
+    {
+        [$customerId, $templateId, $sectionId, $lessonId] = $this->createHierarchy();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $teacher = $this->createUser($customerId, 'teacher');
+        DB::table('core_course_templates')->where('id', $templateId)->update(['created_by' => $teacher->id]);
+        $a = $this->createActivity($customerId, $templateId, $lessonId, 'A', 1);
+        $b = $this->createActivity($customerId, $templateId, $lessonId, 'B', 2);
+        $c = $this->createActivity($customerId, $templateId, $lessonId, 'C', 3);
+        $otherLessonId = $this->createLesson($customerId, $templateId, $sectionId, 'Other');
+        $other = $this->createActivity($customerId, $templateId, $otherLessonId, 'Other', 7);
+
+        $this->actingAs($admin)
+            ->patchJson($this->activityCollectionUrl('admin', $templateId, $sectionId, $lessonId).'/reorder', ['activity_ids' => [$c, $a, $b]])
+            ->assertOk()
+            ->assertJsonPath('message', __('lf.LF_course_template_activity_reorder_saved'));
+        $this->assertActivityOrders([$c => 1, $a => 2, $b => 3, $other => 7]);
+
+        $this->actingAs($teacher)
+            ->patchJson($this->activityCollectionUrl('teacher', $templateId, $sectionId, $lessonId).'/reorder', ['activity_ids' => [$b, $c, $a]])
+            ->assertOk();
+        $this->assertActivityOrders([$b => 1, $c => 2, $a => 3, $other => 7]);
+    }
+
+    public function test_activities_of_a_direct_lesson_reorder_on_the_direct_route(): void
+    {
+        [$customerId, $templateId, $lessonId] = $this->createDirectHierarchy();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $x = $this->createActivity($customerId, $templateId, $lessonId, 'X', 1);
+        $y = $this->createActivity($customerId, $templateId, $lessonId, 'Y', 2);
+
+        $this->actingAs($admin)
+            ->patchJson($this->directActivityCollectionUrl('admin', $templateId, $lessonId).'/reorder', ['activity_ids' => [$y, $x]])
+            ->assertOk();
+        $this->assertActivityOrders([$y => 1, $x => 2]);
+    }
+
+    public function test_activity_reorder_ignores_prerequisites_because_the_order_is_display_only(): void
+    {
+        [$customerId, $templateId, $sectionId, $lessonId] = $this->createHierarchy();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $a = $this->createActivity($customerId, $templateId, $lessonId, 'A', 1);
+        $b = $this->createActivity($customerId, $templateId, $lessonId, 'B', 2, $a);
+
+        $this->actingAs($admin)
+            ->patchJson($this->activityCollectionUrl('admin', $templateId, $sectionId, $lessonId).'/reorder', ['activity_ids' => [$b, $a]])
+            ->assertOk();
+        $this->assertActivityOrders([$b => 1, $a => 2]);
+        $this->assertDatabaseHas('core_course_template_activities', ['id' => $b, 'unlock_after_activity_id' => $a]);
+    }
+
+    public function test_activity_reorder_refuses_a_list_that_is_not_exactly_the_lesson(): void
+    {
+        [$customerId, $templateId, $sectionId, $lessonId] = $this->createHierarchy();
+        [$otherCustomerId, $otherTemplateId, , $otherTenantLessonId] = $this->createHierarchy('tenant-b', 'other');
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $a = $this->createActivity($customerId, $templateId, $lessonId, 'A', 1);
+        $b = $this->createActivity($customerId, $templateId, $lessonId, 'B', 2);
+        $siblingLessonId = $this->createLesson($customerId, $templateId, $sectionId, 'Sibling');
+        $sibling = $this->createActivity($customerId, $templateId, $siblingLessonId, 'Sibling', 1);
+        $foreign = $this->createActivity($otherCustomerId, $otherTemplateId, $otherTenantLessonId, 'Foreign', 1);
+        $url = $this->activityCollectionUrl('admin', $templateId, $sectionId, $lessonId).'/reorder';
+
+        foreach ([[$b], [$b, $a, $sibling], [$b, $a, $foreign], [$b, $sibling]] as $wrong) {
+            $this->actingAs($admin)->patchJson($url, ['activity_ids' => $wrong])
+                ->assertStatus(409)
+                ->assertJsonPath('message', __('lf.LF_course_template_activity_reorder_stale'));
+        }
+        $this->actingAs($admin)->patchJson($url, ['activity_ids' => [$a, $a]])->assertUnprocessable();
+        $this->actingAs($admin)->patchJson($url, ['activity_ids' => []])->assertUnprocessable();
+        $this->actingAs($admin)->patch($url, ['activity_ids' => [$b, $a]])->assertNotFound();
+
+        $this->assertActivityOrders([$a => 1, $b => 2, $sibling => 1, $foreign => 1]);
+    }
+
+    public function test_activity_reorder_respects_tenant_role_assignment_and_hierarchy(): void
+    {
+        [$customerId, $templateId, $sectionId, $lessonId] = $this->createHierarchy();
+        [$otherCustomerId, $otherTemplateId, $otherSectionId, $otherLessonId] = $this->createHierarchy('tenant-b', 'other');
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $unassignedTeacher = $this->createUser($customerId, 'teacher');
+        $student = $this->createUser($customerId, 'student');
+        $a = $this->createActivity($customerId, $templateId, $lessonId, 'A', 1);
+        $b = $this->createActivity($customerId, $templateId, $lessonId, 'B', 2);
+        $x = $this->createActivity($otherCustomerId, $otherTemplateId, $otherLessonId, 'X', 1);
+        $y = $this->createActivity($otherCustomerId, $otherTemplateId, $otherLessonId, 'Y', 2);
+        $secondSectionId = $this->createSection($customerId, $templateId, 'Second');
+        $payload = ['activity_ids' => [$b, $a]];
+        $url = fn (string $area): string => $this->activityCollectionUrl($area, $templateId, $sectionId, $lessonId).'/reorder';
+
+        $this->patchJson($url('admin'), $payload)->assertUnauthorized();
+        $this->actingAs($student)->patchJson($url('admin'), $payload)->assertForbidden();
+        $this->actingAs($student)->patchJson($url('teacher'), $payload)->assertForbidden();
+        $this->actingAs($unassignedTeacher)->patchJson($url('teacher'), $payload)->assertNotFound();
+        $this->actingAs($unassignedTeacher)->patchJson($url('admin'), $payload)->assertForbidden();
+        $this->actingAs($admin)
+            ->patchJson($this->activityCollectionUrl('admin', $otherTemplateId, $otherSectionId, $otherLessonId).'/reorder', ['activity_ids' => [$y, $x]])
+            ->assertNotFound();
+        // A Lesson reached through a Section it is not in, or through the direct route while it has a Section.
+        $this->actingAs($admin)
+            ->patchJson($this->activityCollectionUrl('admin', $templateId, $secondSectionId, $lessonId).'/reorder', $payload)
+            ->assertNotFound();
+        $this->actingAs($admin)
+            ->patchJson($this->directActivityCollectionUrl('admin', $templateId, $lessonId).'/reorder', $payload)
+            ->assertNotFound();
+
+        $this->assertActivityOrders([$a => 1, $b => 2, $x => 1, $y => 2]);
+    }
+
+    public function test_activity_form_has_no_order_field_a_new_one_goes_last_and_an_edit_keeps_the_place(): void
+    {
+        [$customerId, $templateId, $sectionId, $lessonId] = $this->createHierarchy();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $a = $this->createActivity($customerId, $templateId, $lessonId, 'A', 4);
+        $this->createActivity($customerId, $templateId, $lessonId, 'B', 9);
+        $collection = $this->activityCollectionUrl('admin', $templateId, $sectionId, $lessonId);
+
+        foreach (["{$collection}/create", "{$collection}/{$a}/edit"] as $form) {
+            $this->actingAs($admin)->withHeaders($this->ajaxHeaders())->get($form)
+                ->assertOk()
+                ->assertDontSee('name="sort_order"', false);
+        }
+
+        $data = array_diff_key($this->validActivityData(['estimated_duration_minutes' => 5]), ['sort_order' => true]);
+        $this->actingAs($admin)->post($collection, array_merge($data, ['title' => 'New']))->assertSessionDoesntHaveErrors();
+        $this->assertDatabaseHas('core_course_template_activities', ['title' => 'New', 'sort_order' => 10]);
+
+        $this->actingAs($admin)->put("{$collection}/{$a}", array_merge($data, ['title' => 'A renamed']))->assertSessionDoesntHaveErrors();
+        $this->assertDatabaseHas('core_course_template_activities', ['id' => $a, 'title' => 'A renamed', 'sort_order' => 4]);
+    }
+
+    public function test_the_activity_handle_appears_only_on_a_lesson_with_two_activities(): void
+    {
+        [$customerId, $templateId, $sectionId, $lessonId] = $this->createHierarchy();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $this->createActivity($customerId, $templateId, $lessonId, 'First', 1);
+        $edit = "https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=structure";
+        $reorderUrl = $this->activityCollectionUrl('admin', $templateId, $sectionId, $lessonId).'/reorder';
+
+        $this->actingAs($admin)->get($edit)->assertOk()->assertDontSee($reorderUrl, false);
+
+        $this->createActivity($customerId, $templateId, $lessonId, 'Second', 2);
+        $this->actingAs($admin)->get($edit)->assertOk()
+            ->assertSee($reorderUrl, false)
+            ->assertSee(__('lf.LF_course_template_activity_reorder_handle', ['title' => 'Second']));
+    }
+
     public function test_template_edit_shows_the_correct_add_activity_action_for_each_lesson(): void
     {
         [$customerId, $templateId, $sectionId, $lessonId] =
@@ -1281,8 +1428,7 @@ class CourseTemplateActivityManagementTest extends TestCase
             ->assertSee('placeholder="Nhập tên hoạt động"', false)
             ->assertSee('placeholder="Nhập mô tả hoạt động"', false)
             ->assertSee('placeholder="Ví dụ: 15"', false)
-            ->assertSee('Chọn Activity điều kiện')
-            ->assertSee('placeholder="Ví dụ: 1"', false);
+            ->assertSee('Chọn Activity điều kiện');
 
         $this->assertActivityTypeSelector($createResponse->getContent());
         $this->assertSame(
@@ -1310,8 +1456,7 @@ class CourseTemplateActivityManagementTest extends TestCase
             ->assertOk()
             ->assertSee('placeholder="Enter activity name"', false)
             ->assertSee('placeholder="Enter activity description"', false)
-            ->assertSee('Select a prerequisite activity')
-            ->assertSee('placeholder="Example: 1"', false);
+            ->assertSee('Select a prerequisite activity');
     }
 
     public function test_popup_save_answers_json_with_the_toast_redirect_and_keeps_the_background_notice(): void
@@ -1436,6 +1581,18 @@ class CourseTemplateActivityManagementTest extends TestCase
             '$request->request->all()',
             $source
         );
+    }
+
+    /** @param array<int, int> $orders sort_order by activity id */
+    private function assertActivityOrders(array $orders): void
+    {
+        foreach ($orders as $activityId => $sortOrder) {
+            $this->assertSame(
+                $sortOrder,
+                (int) DB::table('core_course_template_activities')->where('id', $activityId)->value('sort_order'),
+                "sort_order of activity {$activityId}"
+            );
+        }
     }
 
     private function createHierarchy(

@@ -2,16 +2,23 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\CourseTemplateLessonUnlockOrder;
 use App\Support\TenantContext;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class CourseTemplateSectionController extends Controller
 {
+    public function __construct(
+        private readonly CourseTemplateLessonUnlockOrder $unlockOrder
+    ) {}
+
     public function index(Request $request, int $templateId)
     {
         $this->findTemplate($this->customerId(), $templateId);
@@ -41,17 +48,7 @@ class CourseTemplateSectionController extends Controller
         return view('course-template-sections.dialog', [
             'template' => $template,
             'parentSections' => $parentSections,
-            'nextDisplayOrders' => $this->nextDisplayOrders(
-                $customerId,
-                $templateId,
-                $parentSections
-            ),
             'parentSectionId' => $parentSectionId,
-            'suggestedDisplayOrder' => $this->nextDisplayOrder(
-                $customerId,
-                $templateId,
-                $parentSectionId
-            ),
             'requiredFields' => $this->requiredFields(
                 $customerId,
                 $templateId
@@ -173,6 +170,13 @@ class CourseTemplateSectionController extends Controller
 
         DB::transaction(function () use ($customerId, $templateId, $sectionId, $validated): void {
             $this->lockTemplate($customerId, $templateId);
+            $current = $this->findSection($customerId, $templateId, $sectionId);
+            $parentChanged = (int) $current->parent_section_id !== (int) ($validated['parent_section_id'] ?? 0);
+            // Without an order a Section stays where it is, or goes last under a new parent.
+            $validated['display_order'] ??= $parentChanged
+                ? $this->nextDisplayOrder($customerId, $templateId, $validated['parent_section_id'] ?? null)
+                : $current->display_order;
+            $violationsBefore = $this->unlockOrder->violations($customerId, $templateId, true);
             DB::table('core_course_template_sections')
                 ->where('customer_id', $customerId)
                 ->where('template_id', $templateId)
@@ -180,6 +184,18 @@ class CourseTemplateSectionController extends Controller
                 ->update($this->sectionValues($validated, [
                     'updated_at' => now(),
                 ]));
+
+            // Moving a Section moves all its Lessons against the Lessons of every other Section.
+            $newViolations = array_diff_key(
+                $this->unlockOrder->violations($customerId, $templateId, true),
+                $violationsBefore
+            );
+
+            if ($newViolations !== []) {
+                throw ValidationException::withMessages([
+                    $parentChanged ? 'parent_section_id' : 'display_order' => reset($newViolations),
+                ]);
+            }
         });
 
         if ($request->expectsJson()) {
@@ -200,6 +216,80 @@ class CourseTemplateSectionController extends Controller
                 [$templateId, $sectionId]
             )
             ->with('success', __('lf.LF_course_template_section_common_updated'));
+    }
+
+    /**
+     * The order of the Sections under one parent. A Section carries its branch and its Lessons, so the Sectioned lane can
+     * end up breaking an unlock rule: that is refused here as it is on every other change of order.
+     */
+    public function reorder(Request $request, int $templateId): JsonResponse
+    {
+        abort_unless($request->expectsJson(), 404);
+
+        $customerId = $this->customerId();
+        $this->findTemplate($customerId, $templateId);
+
+        $validated = $request->validate([
+            'parent_section_id' => ['nullable', 'integer'],
+            'section_ids' => ['required', 'array', 'min:1'],
+            'section_ids.*' => ['required', 'integer', 'distinct'],
+        ]);
+        $parentId = isset($validated['parent_section_id']) ? (int) $validated['parent_section_id'] : null;
+        $sectionIds = array_map('intval', array_values($validated['section_ids']));
+
+        $applied = DB::transaction(function () use ($customerId, $templateId, $parentId, $sectionIds): bool {
+            $this->lockTemplate($customerId, $templateId);
+
+            $group = fn () => DB::table('core_course_template_sections')
+                ->where('customer_id', $customerId)
+                ->where('template_id', $templateId)
+                ->when(
+                    $parentId === null,
+                    fn ($query) => $query->whereNull('parent_section_id'),
+                    fn ($query) => $query->where('parent_section_id', $parentId)
+                );
+            $currentOrders = $group()->pluck('display_order', 'id');
+
+            if ($currentOrders->keys()->map(fn ($id): int => (int) $id)->sort()->values()->all()
+                !== collect($sectionIds)->sort()->values()->all()) {
+                return false;
+            }
+
+            $violationsBefore = $this->unlockOrder->violations($customerId, $templateId, true);
+            $now = now();
+
+            foreach ($sectionIds as $index => $sectionId) {
+                if ((int) $currentOrders[$sectionId] !== $index + 1) {
+                    $group()->where('id', $sectionId)->update([
+                        'display_order' => $index + 1,
+                        'updated_at' => $now,
+                    ]);
+                }
+            }
+
+            $newViolations = array_diff_key(
+                $this->unlockOrder->violations($customerId, $templateId, true),
+                $violationsBefore
+            );
+
+            if ($newViolations !== []) {
+                throw ValidationException::withMessages([
+                    'section_ids' => reset($newViolations),
+                ]);
+            }
+
+            return true;
+        });
+
+        if (! $applied) {
+            return response()->json([
+                'message' => __('lf.LF_course_template_section_reorder_stale'),
+            ], 409);
+        }
+
+        return response()->json([
+            'message' => __('lf.LF_course_template_section_reorder_saved'),
+        ]);
     }
 
     public function destroy(
@@ -349,11 +439,7 @@ class CourseTemplateSectionController extends Controller
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'allows_lessons' => ['required', 'boolean'],
-            'display_order' => [
-                $sectionId === null ? 'nullable' : 'required',
-                'integer',
-                'min:0',
-            ],
+            'display_order' => ['nullable', 'integer', 'min:0'],
         ];
     }
 
@@ -416,26 +502,6 @@ class CourseTemplateSectionController extends Controller
                 )
             )
             ->max('display_order') + 1;
-    }
-
-    private function nextDisplayOrders(
-        int $customerId,
-        int $templateId,
-        $parentSections
-    ): array {
-        $orders = [
-            'root' => $this->nextDisplayOrder($customerId, $templateId, null),
-        ];
-
-        foreach ($parentSections as $parentSection) {
-            $orders[(string) $parentSection->id] = $this->nextDisplayOrder(
-                $customerId,
-                $templateId,
-                (int) $parentSection->id
-            );
-        }
-
-        return $orders;
     }
 
     private function flattenSections($sections, ?int $parentId = null, int $depth = 0): array

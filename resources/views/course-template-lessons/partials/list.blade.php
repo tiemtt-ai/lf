@@ -3,6 +3,7 @@
     $lessonBaseParameters = $section
         ? [$template->id, $section->id]
         : [$template->id];
+    $canReorderLessons = $lessons->count() > 1;
 @endphp
 
 <section id="{{ $panelId }}"
@@ -79,8 +80,19 @@
     </div>
 
     {{-- Direct lessons are paged on the client, 15 per page; search and fold-all still cover every lesson. --}}
-    <div @unless ($section) x-data="lfLessonPager(15, @js('lf-course-template-'.$template->id.'-direct-page'), { summary: @js(__('lf.LF_course_template_lesson_pager_summary')) })" @endunless>
-    <div class="course-template-lesson-list" @unless ($section) x-ref="list" @endunless>
+    <div @unless ($section) x-data="lfLessonPager(15, @js('lf-course-template-'.$template->id.'-direct-page'), { summary: @js(__('lf.LF_course_template_lesson_pager_summary')) })" x-on:course-template-order-changed="$event.target === $refs.list && refresh($event.detail.item)" @endunless>
+    <div class="course-template-lesson-list" @unless ($section) x-ref="list" @endunless
+         @if ($canReorderLessons)
+             data-reorder-url="{{ route($lessonRoutePrefix.'.reorder', $lessonBaseParameters) }}"
+             data-reorder-field="lesson_ids"
+             data-order-number=".course-template-lesson-number"
+             data-msg-saved="{{ __('lf.LF_course_template_lesson_reorder_saved') }}"
+             data-msg-error="{{ __('lf.LF_course_template_lesson_reorder_error') }}"
+             data-msg-outside="{{ __($section ? 'lf.LF_course_template_lesson_reorder_outside' : 'lf.LF_course_template_lesson_reorder_outside_direct') }}"
+             x-init="courseTemplateOrder($el)"
+             x-sort:config="courseTemplateOrder($el).sortable"
+             x-sort.ghost="courseTemplateOrder($el).dropped()"
+         @endif>
         @forelse ($lessons as $lesson)
             @php
                 $lessonActivities = $activitiesByLesson->get(
@@ -116,10 +128,13 @@
                     : [];
                 $activityDefaultPhase = $activityTabs[0] ?? 'anytime';
                 $activityCreateUrl = route($activityRoutePrefix.'.create', $lessonParameters);
+                $canReorderActivities = $lessonActivities->count() > 1;
                 // A lesson just added opens by itself: its next step is adding activities.
                 $lessonJustAdded = (int) session('course_template_lesson_focus') === (int) $lesson->id;
             @endphp
             <article class="course-template-lesson-item"
+                     data-order-id="{{ $lesson->id }}"
+                     @if ($canReorderLessons) x-sort:item="{{ $lesson->id }}" @endif
                      @if ($lessonJustAdded) data-pager-focus x-init="courseTemplateRevealLesson($el)" @endif
                      x-data="courseTemplateLessonCollapse(
                          @js($template->customer_id),
@@ -130,6 +145,20 @@
                      x-bind:class="{ 'is-expanded': expanded }">
                 <div class="course-template-lesson-summary"
                      x-on:click="if (! $event.target.closest('button, a, form, input')) toggle()">
+                    @if ($canReorderLessons)
+                        {{-- Hidden while searching: the visible rows are then only part of the list. --}}
+                        <button type="button"
+                                class="admin-link-button admin-text-action ui-row-action course-template-order-handle"
+                                x-sort:handle
+                                x-show="query.trim() === ''"
+                                aria-label="{{ __('lf.LF_course_template_lesson_reorder_handle', ['title' => $lesson->title]) }}"
+                                aria-keyshortcuts="ArrowUp ArrowDown"
+                                data-tooltip="{{ __('lf.LF_course_template_lesson_reorder_hint') }}"
+                                x-on:keydown.up.prevent="courseTemplateOrder($el.closest('[data-reorder-url]')).move($el, -1)"
+                                x-on:keydown.down.prevent="courseTemplateOrder($el.closest('[data-reorder-url]')).move($el, 1)">
+                            <x-backend-icon name="grip-vertical" class="ui-icon" />
+                        </button>
+                    @endif
                     <span class="course-template-lesson-number" aria-hidden="true">{{ str_pad((string) $loop->iteration, 2, '0', STR_PAD_LEFT) }}</span>
                     <div class="course-template-lesson-copy">
                         <strong>{{ $lesson->title }}</strong>
@@ -216,7 +245,17 @@
                         </div>
                     @endif
                     <div class="course-template-activity-list" id="course-template-lesson-{{ $lesson->id }}-activity-list"
-                         @if ($activityTabs !== []) role="tabpanel" x-bind:aria-labelledby="'course-template-lesson-{{ $lesson->id }}-tab-' + phase" @endif>
+                         @if ($activityTabs !== []) role="tabpanel" x-bind:aria-labelledby="'course-template-lesson-{{ $lesson->id }}-tab-' + phase" @endif
+                         @if ($canReorderActivities)
+                             data-reorder-url="{{ route($activityRoutePrefix.'.reorder', $lessonParameters) }}"
+                             data-reorder-field="activity_ids"
+                             data-msg-saved="{{ __('lf.LF_course_template_activity_reorder_saved') }}"
+                             data-msg-error="{{ __('lf.LF_course_template_activity_reorder_error') }}"
+                             data-msg-outside="{{ __('lf.LF_course_template_activity_reorder_outside') }}"
+                             x-init="courseTemplateOrder($el)"
+                             x-sort:config="courseTemplateOrder($el).sortable"
+                             x-sort.ghost="courseTemplateOrder($el).dropped()"
+                         @endif>
                         @forelse ($lessonActivities as $activity)
                             @php
                                 $activityParameters = array_merge(
@@ -241,9 +280,25 @@
                                 };
                             @endphp
                             <div class="course-template-activity-item"
+                                 data-order-id="{{ $activity->id }}"
+                                 @if ($canReorderActivities) x-sort:item="{{ $activity->id }}" @endif
                                  @if ($activityTabs !== [])
                                      x-show="@js(array_keys(array_filter(array_map(static fn (string $column): bool => (bool) ($activity->{$column} ?? false), $activityPhases)))).includes(phase)"
                                  @endif>
+                                @if ($canReorderActivities)
+                                    <button type="button"
+                                            class="admin-link-button admin-text-action ui-row-action course-template-order-handle"
+                                            x-sort:handle
+                                            {{-- A phase tab with one activity has nothing to swap with. --}}
+                                            x-show="query.trim() === ''@if ($activityTabs !== []) && @js($activityPhaseCounts)[phase] > 1 @endif"
+                                            aria-label="{{ __('lf.LF_course_template_activity_reorder_handle', ['title' => $activity->title]) }}"
+                                            aria-keyshortcuts="ArrowUp ArrowDown"
+                                            data-tooltip="{{ __('lf.LF_course_template_lesson_reorder_hint') }}"
+                                            x-on:keydown.up.prevent="courseTemplateOrder($el.closest('[data-reorder-url]')).move($el, -1)"
+                                            x-on:keydown.down.prevent="courseTemplateOrder($el.closest('[data-reorder-url]')).move($el, 1)">
+                                        <x-backend-icon name="grip-vertical" class="ui-icon" />
+                                    </button>
+                                @endif
                                 <div class="course-template-activity-identity">
                                     <span class="course-template-activity-icon course-template-activity-icon--{{ match ($activity->activity_type) {
                                         'video', 'embedded_video' => 'video',

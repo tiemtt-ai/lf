@@ -12,6 +12,7 @@ use App\Services\VideoSttQualification;
 use App\Support\CourseType;
 use App\Support\TenantContext;
 use App\Support\UploadLimit;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -294,6 +295,82 @@ class CourseTemplateActivityController extends Controller
         );
     }
 
+    public function reorder(
+        Request $request,
+        int $templateId,
+        int $sectionId,
+        int $lessonId
+    ): JsonResponse {
+        return $this->reorderActivities($request, $templateId, $lessonId, $sectionId);
+    }
+
+    public function reorderDirect(
+        Request $request,
+        int $templateId,
+        int $lessonId
+    ): JsonResponse {
+        return $this->reorderActivities($request, $templateId, $lessonId, null);
+    }
+
+    /**
+     * The order of an Activity is display order only: an Activity prerequisite need not precede its dependent.
+     */
+    private function reorderActivities(
+        Request $request,
+        int $templateId,
+        int $lessonId,
+        ?int $sectionId
+    ): JsonResponse {
+        abort_unless($request->expectsJson(), 404);
+
+        $customerId = $this->customerId();
+        $this->findHierarchy($customerId, $templateId, $sectionId, $lessonId);
+
+        $validated = $request->validate([
+            'activity_ids' => ['required', 'array', 'min:1'],
+            'activity_ids.*' => ['required', 'integer', 'distinct'],
+        ]);
+        $activityIds = array_map('intval', array_values($validated['activity_ids']));
+
+        $applied = DB::transaction(function () use ($customerId, $templateId, $lessonId, $activityIds): bool {
+            $this->lockTemplate($customerId, $templateId);
+
+            $group = fn () => DB::table('core_course_template_activities')
+                ->where('customer_id', $customerId)
+                ->where('template_id', $templateId)
+                ->where('template_lesson_id', $lessonId);
+            $currentOrders = $group()->pluck('sort_order', 'id');
+
+            if ($currentOrders->keys()->map(fn ($id): int => (int) $id)->sort()->values()->all()
+                !== collect($activityIds)->sort()->values()->all()) {
+                return false;
+            }
+
+            $now = now();
+
+            foreach ($activityIds as $index => $activityId) {
+                if ((int) $currentOrders[$activityId] !== $index + 1) {
+                    $group()->where('id', $activityId)->update([
+                        'sort_order' => $index + 1,
+                        'updated_at' => $now,
+                    ]);
+                }
+            }
+
+            return true;
+        });
+
+        if (! $applied) {
+            return response()->json([
+                'message' => __('lf.LF_course_template_activity_reorder_stale'),
+            ], 409);
+        }
+
+        return response()->json([
+            'message' => __('lf.LF_course_template_activity_reorder_saved'),
+        ]);
+    }
+
     private function indexForLesson(
         Request $request,
         int $templateId,
@@ -346,11 +423,6 @@ class CourseTemplateActivityController extends Controller
             'activityTypes' => self::ACTIVITY_TYPES,
             'manualDurationTypes' => self::MANUAL_DURATION_TYPES,
             'activityMedia' => collect(),
-            'suggestedSortOrder' => $this->nextSortOrder(
-                $customerId,
-                $templateId,
-                $lessonId
-            ),
             'routePrefix' => $this->routePrefix($request, $sectionId),
             'templateRoutePrefix' => $this->templateRoutePrefix($request),
             'videoSttQualification' => $this->videoSttQualification->status(),

@@ -6,7 +6,7 @@ Document Status: Approved
 
 Implementation Status: Unknown
 
-Last Updated: 2026-11-01
+Last Updated: 2026-11-04
 
 Document Path: core/LF-Core-Course.md
 
@@ -107,6 +107,14 @@ Direct and Sectioned Lessons use separate content lanes. Direct Lessons consider
 earlier direct Lessons only. Sectioned Lessons use depth-first Section-tree
 order, then Lesson `sort_order`, then Lesson `id`. Selected prerequisites must
 precede the dependent Lesson in the same lane.
+
+Reordering a working Lesson group (the direct Lessons or one Section's Lessons),
+editing one Lesson's `sort_order`, or reordering the Sections under one parent or
+changing a Section's order or parent is refused when the new order would break a rule that holds today: a Lesson placed
+before a selected prerequisite, or an `all_previous_lessons_completed` Lesson
+placed first in its lane. Deleting the Lesson that would leave such a Lesson
+first is refused too. Moving a Lesson to another Section is not part of
+reordering.
 
 Publish freezes the effective set as immutable Version Lesson prerequisite
 rows. Runtime evaluates completed Lesson Progress only in the exact tenant,
@@ -376,7 +384,8 @@ and `previous_activity_completed`, matching the immutable Version Activity
 runtime contract. `VersionActivityAccessService` evaluates the frozen
 prerequisite against completed Activity Progress in the exact tenant, student,
 Enrollment, Product, Version and Version Lesson context. Activity prerequisites
-need not precede the dependent Activity by `sort_order`.
+need not precede the dependent Activity by `sort_order`, so reordering the
+Activities of a working Lesson is never refused for unlock rules.
 
 ### Activity Learning Availability
 

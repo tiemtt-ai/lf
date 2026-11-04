@@ -322,13 +322,7 @@ class CourseTemplateLessonManagementTest extends TestCase
         $directCreate = $this->actingAs($admin)->withHeaders($this->ajaxHeaders())->get(
             $this->directLessonCollectionUrl('admin', $templateId).'/create'
         );
-        $this->assertSame(
-            '7',
-            $this->xpath($directCreate->getContent())
-                ->query('//input[@name="sort_order"]')
-                ->item(0)
-                ->getAttribute('value')
-        );
+        $directCreate->assertOk()->assertDontSee('name="sort_order"', false);
         $firstSectionCreate = $this->actingAs($admin)->withHeaders($this->ajaxHeaders())->get(
             $this->lessonCollectionUrl(
                 'admin',
@@ -336,13 +330,7 @@ class CourseTemplateLessonManagementTest extends TestCase
                 $firstSectionId
             ).'/create'
         );
-        $this->assertSame(
-            '10',
-            $this->xpath($firstSectionCreate->getContent())
-                ->query('//input[@name="sort_order"]')
-                ->item(0)
-                ->getAttribute('value')
-        );
+        $firstSectionCreate->assertOk()->assertDontSee('name="sort_order"', false);
         $secondSectionCreate = $this->actingAs($admin)->withHeaders($this->ajaxHeaders())->get(
             $this->lessonCollectionUrl(
                 'admin',
@@ -350,13 +338,7 @@ class CourseTemplateLessonManagementTest extends TestCase
                 $secondSectionId
             ).'/create'
         );
-        $this->assertSame(
-            '1',
-            $this->xpath($secondSectionCreate->getContent())
-                ->query('//input[@name="sort_order"]')
-                ->item(0)
-                ->getAttribute('value')
-        );
+        $secondSectionCreate->assertOk()->assertDontSee('name="sort_order"', false);
 
         $directData = $this->validLessonData(['title' => 'Automatic Direct']);
         unset($directData['sort_order']);
@@ -1503,7 +1485,6 @@ class CourseTemplateLessonManagementTest extends TestCase
             'description',
             'unlock_after_lesson_id',
             'unlock_at',
-            'sort_order',
         ] as $field) {
             $this->assertSame(
                 0,
@@ -1560,7 +1541,6 @@ class CourseTemplateLessonManagementTest extends TestCase
                 'title',
                 'short_description',
                 'description',
-                'sort_order',
                 'is_preview',
                 'lesson_type',
                 'unlock_rule',
@@ -1569,6 +1549,8 @@ class CourseTemplateLessonManagementTest extends TestCase
             ] as $field) {
                 $response->assertSee('name="'.$field.'"', false);
             }
+
+            $response->assertDontSee('name="sort_order"', false);
 
             $content = $response->getContent();
             $this->assertLessThan(
@@ -1753,6 +1735,799 @@ class CourseTemplateLessonManagementTest extends TestCase
         );
     }
 
+    public function test_admin_and_teacher_can_reorder_direct_lessons_and_other_groups_stay(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $teacher = $this->createUser($customerId, 'teacher');
+        $templateId = $this->createTemplate($customerId, 'Order', 'order', null, $teacher->id);
+        $sectionId = $this->createSection($customerId, $templateId, 'Section');
+        [$a, $b, $c] = $this->createOrderedLessons($customerId, $templateId, null, ['A', 'B', 'C']);
+        [$inSection] = $this->createOrderedLessons($customerId, $templateId, $sectionId, ['In section']);
+        DB::table('core_course_template_lessons')->where('id', $inSection)->update(['sort_order' => 7]);
+
+        $this->actingAs($admin)
+            ->patchJson($this->reorderUrl('admin', $templateId), ['lesson_ids' => [$c, $a, $b]])
+            ->assertOk()
+            ->assertJsonPath('message', __('lf.LF_course_template_lesson_reorder_saved'));
+        $this->assertLessonOrders([$c => 1, $a => 2, $b => 3, $inSection => 7]);
+
+        $this->actingAs($teacher)
+            ->patchJson($this->reorderUrl('teacher', $templateId), ['lesson_ids' => [$b, $c, $a]])
+            ->assertOk();
+        $this->assertLessonOrders([$b => 1, $c => 2, $a => 3, $inSection => 7]);
+    }
+
+    public function test_reorder_of_a_section_touches_only_that_section(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, 'Order', 'order');
+        $sectionId = $this->createSection($customerId, $templateId, 'One');
+        $otherSectionId = $this->createSection($customerId, $templateId, 'Two');
+        [$a, $b] = $this->createOrderedLessons($customerId, $templateId, $sectionId, ['A', 'B']);
+        [$other] = $this->createOrderedLessons($customerId, $templateId, $otherSectionId, ['Other']);
+        [$direct] = $this->createOrderedLessons($customerId, $templateId, null, ['Direct']);
+
+        $this->actingAs($admin)
+            ->patchJson($this->reorderUrl('admin', $templateId, $sectionId), ['lesson_ids' => [$b, $a]])
+            ->assertOk();
+        $this->assertLessonOrders([$b => 1, $a => 2, $other => 1, $direct => 1]);
+
+        foreach ([[$b, $a, $other], [$b, $a, $direct], [$a]] as $wrongGroup) {
+            $this->actingAs($admin)
+                ->patchJson($this->reorderUrl('admin', $templateId, $sectionId), ['lesson_ids' => $wrongGroup])
+                ->assertStatus(409)
+                ->assertJsonPath('message', __('lf.LF_course_template_lesson_reorder_stale'));
+        }
+        $this->assertLessonOrders([$b => 1, $a => 2, $other => 1, $direct => 1]);
+    }
+
+    public function test_reorder_refuses_a_tampered_list_without_writing(): void
+    {
+        $customerId = $this->createTenant();
+        $otherCustomerId = $this->createTenant('tenant-b');
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, 'Order', 'order');
+        $otherTemplateId = $this->createTemplate($otherCustomerId, 'Foreign', 'foreign');
+        [$a, $b] = $this->createOrderedLessons($customerId, $templateId, null, ['A', 'B']);
+        [$foreign] = $this->createOrderedLessons($otherCustomerId, $otherTemplateId, null, ['Foreign']);
+        $url = $this->reorderUrl('admin', $templateId);
+
+        $this->actingAs($admin)->patchJson($url, ['lesson_ids' => [$b, $a, $foreign]])->assertStatus(409);
+        $this->actingAs($admin)->patchJson($url, ['lesson_ids' => [$foreign, $b]])->assertStatus(409);
+        $this->actingAs($admin)->patchJson($url, ['lesson_ids' => [$b, $b]])->assertUnprocessable();
+        $this->actingAs($admin)->patchJson($url, ['lesson_ids' => ['x', $a]])->assertUnprocessable();
+        $this->actingAs($admin)->patchJson($url, ['lesson_ids' => []])->assertUnprocessable();
+        $this->actingAs($admin)->patchJson($url, [])->assertUnprocessable();
+
+        $this->assertLessonOrders([$a => 1, $b => 2, $foreign => 1]);
+    }
+
+    public function test_reorder_blocks_a_new_prerequisite_violation_in_both_directions_and_names_the_lessons(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, 'Order', 'order');
+        [$a, $b, $c] = $this->createOrderedLessons($customerId, $templateId, null, ['Alpha', 'Beta', 'Gamma']);
+        $this->selectPrerequisite($customerId, $templateId, $c, $a);
+        $url = $this->reorderUrl('admin', $templateId);
+        $message = __('lf.LF_course_template_lesson_reorder_blocked_prerequisite', [
+            'lesson' => 'Gamma',
+            'prerequisite' => 'Alpha',
+        ]);
+
+        // The dependent moved before its prerequisite, and the prerequisite moved after its dependent.
+        foreach ([[$c, $a, $b], [$b, $c, $a]] as $order) {
+            $this->actingAs($admin)
+                ->patchJson($url, ['lesson_ids' => $order])
+                ->assertUnprocessable()
+                ->assertJsonPath('message', $message);
+            $this->assertLessonOrders([$a => 1, $b => 2, $c => 3]);
+        }
+
+        $this->actingAs($admin)->patchJson($url, ['lesson_ids' => [$b, $a, $c]])->assertOk();
+        $this->assertLessonOrders([$b => 1, $a => 2, $c => 3]);
+    }
+
+    public function test_reorder_blocks_all_previous_rule_in_first_place_and_the_legacy_single_prerequisite(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, 'Order', 'order');
+        [$a, $b, $c] = $this->createOrderedLessons($customerId, $templateId, null, ['Alpha', 'Beta', 'Gamma']);
+        DB::table('core_course_template_lessons')->where('id', $b)
+            ->update(['unlock_rule' => 'all_previous_lessons_completed']);
+        DB::table('core_course_template_lessons')->where('id', $c)
+            ->update(['unlock_rule' => 'previous_lesson_completed', 'unlock_after_lesson_id' => $a]);
+        $url = $this->reorderUrl('admin', $templateId);
+
+        $this->actingAs($admin)->patchJson($url, ['lesson_ids' => [$b, $a, $c]])
+            ->assertUnprocessable()
+            ->assertJsonPath('message', __('lf.LF_course_template_lesson_reorder_blocked_first', ['lesson' => 'Beta']));
+        $this->actingAs($admin)->patchJson($url, ['lesson_ids' => [$c, $a, $b]])
+            ->assertUnprocessable()
+            ->assertJsonPath('message', __('lf.LF_course_template_lesson_reorder_blocked_prerequisite', [
+                'lesson' => 'Gamma',
+                'prerequisite' => 'Alpha',
+            ]));
+        $this->assertLessonOrders([$a => 1, $b => 2, $c => 3]);
+    }
+
+    public function test_reorder_checks_prerequisites_across_sections_of_the_lane_and_ignores_older_problems(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, 'Order', 'order');
+        $firstSectionId = $this->createSection($customerId, $templateId, 'One');
+        $secondSectionId = $this->createSection($customerId, $templateId, 'Two');
+        DB::table('core_course_template_sections')->where('id', $firstSectionId)->update(['display_order' => 1]);
+        DB::table('core_course_template_sections')->where('id', $secondSectionId)->update(['display_order' => 2]);
+        [$a, $b] = $this->createOrderedLessons($customerId, $templateId, $firstSectionId, ['Alpha', 'Beta']);
+        [$c, $d] = $this->createOrderedLessons($customerId, $templateId, $secondSectionId, ['Gamma', 'Delta']);
+        // An edge from a later Section stays valid whatever the order inside the first one.
+        $this->selectPrerequisite($customerId, $templateId, $c, $a);
+        // Already wrong before this move: Delta is required by an earlier lesson. It must not block unrelated work.
+        $this->selectPrerequisite($customerId, $templateId, $b, $d);
+
+        $this->actingAs($admin)
+            ->patchJson($this->reorderUrl('admin', $templateId, $firstSectionId), ['lesson_ids' => [$b, $a]])
+            ->assertOk();
+        $this->assertLessonOrders([$b => 1, $a => 2, $c => 1, $d => 2]);
+    }
+
+    public function test_reorder_respects_tenant_role_and_template_assignment(): void
+    {
+        $customerId = $this->createTenant();
+        $otherCustomerId = $this->createTenant('tenant-b');
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $unassignedTeacher = $this->createUser($customerId, 'teacher');
+        $student = $this->createUser($customerId, 'student');
+        $templateId = $this->createTemplate($customerId, 'Order', 'order');
+        $otherTemplateId = $this->createTemplate($otherCustomerId, 'Foreign', 'foreign');
+        $foreignSectionId = $this->createSection($otherCustomerId, $otherTemplateId, 'Foreign');
+        [$a, $b] = $this->createOrderedLessons($customerId, $templateId, null, ['A', 'B']);
+        [$x, $y] = $this->createOrderedLessons($otherCustomerId, $otherTemplateId, null, ['X', 'Y']);
+        $payload = ['lesson_ids' => [$b, $a]];
+
+        $this->patchJson($this->reorderUrl('admin', $templateId), $payload)->assertUnauthorized();
+        $this->actingAs($student)->patchJson($this->reorderUrl('admin', $templateId), $payload)->assertForbidden();
+        $this->actingAs($student)->patchJson($this->reorderUrl('teacher', $templateId), $payload)->assertForbidden();
+        $this->actingAs($unassignedTeacher)->patchJson($this->reorderUrl('teacher', $templateId), $payload)->assertNotFound();
+        $this->actingAs($unassignedTeacher)->patchJson($this->reorderUrl('admin', $templateId), $payload)->assertForbidden();
+        $this->actingAs($admin)
+            ->patchJson($this->reorderUrl('admin', $otherTemplateId), ['lesson_ids' => [$y, $x]])
+            ->assertNotFound();
+        $this->actingAs($admin)
+            ->patchJson($this->reorderUrl('admin', $templateId, $foreignSectionId), $payload)
+            ->assertNotFound();
+
+        $this->assertLessonOrders([$a => 1, $b => 2, $x => 1, $y => 2]);
+    }
+
+    public function test_reorder_answers_only_json_requests(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, 'Order', 'order');
+        [$a, $b] = $this->createOrderedLessons($customerId, $templateId, null, ['A', 'B']);
+
+        $this->actingAs($admin)
+            ->patch($this->reorderUrl('admin', $templateId), ['lesson_ids' => [$b, $a]])
+            ->assertNotFound();
+        $this->assertLessonOrders([$a => 1, $b => 2]);
+    }
+
+    public function test_the_drag_handle_appears_only_on_a_group_with_two_lessons(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, 'Order', 'order');
+        $sectionId = $this->createSection($customerId, $templateId, 'Section');
+        $this->createOrderedLessons($customerId, $templateId, $sectionId, ['Only one']);
+        $edit = "https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=structure";
+
+        $this->actingAs($admin)->get($edit)->assertOk()->assertDontSee('course-template-order-handle');
+
+        $this->createOrderedLessons($customerId, $templateId, null, ['First', 'Second']);
+        $this->actingAs($admin)->get($edit)->assertOk()
+            ->assertSee('course-template-order-handle')
+            ->assertSee($this->reorderUrl('admin', $templateId))
+            ->assertDontSee($this->reorderUrl('admin', $templateId, $sectionId))
+            ->assertSee(__('lf.LF_course_template_lesson_reorder_handle', ['title' => 'Second']));
+    }
+
+    public function test_update_rejects_moving_a_prerequisite_after_its_dependent_and_saves_nothing(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, 'Order', 'order');
+        $sectionId = $this->createSection($customerId, $templateId, 'Section');
+        // The message names the lesson as the author just typed it; that title is not saved.
+        $message = __('lf.LF_course_template_lesson_reorder_blocked_prerequisite', [
+            'lesson' => 'Gamma',
+            'prerequisite' => 'Renamed',
+        ]);
+
+        foreach ([
+            [null, $this->directLessonCollectionUrl('admin', $templateId)],
+            [$sectionId, $this->lessonCollectionUrl('admin', $templateId, $sectionId)],
+        ] as [$lane, $collectionUrl]) {
+            [$a, $b, $c] = $this->createOrderedLessons($customerId, $templateId, $lane, ['Alpha', 'Beta', 'Gamma']);
+            $this->selectPrerequisite($customerId, $templateId, $c, $a);
+            $moved = $this->validLessonData(['title' => 'Renamed', 'sort_order' => 9]);
+
+            $this->actingAs($admin)
+                ->from($collectionUrl)
+                ->put("{$collectionUrl}/{$a}", $moved)
+                ->assertSessionHasErrors(['sort_order' => $message]);
+            $this->actingAs($admin)
+                ->putJson("{$collectionUrl}/{$a}", $moved)
+                ->assertUnprocessable()
+                ->assertJsonPath('errors.sort_order.0', $message);
+
+            $this->assertLessonOrders([$a => 1, $b => 2, $c => 3]);
+            $this->assertDatabaseHas('core_course_template_lessons', ['id' => $a, 'title' => 'Alpha']);
+        }
+    }
+
+    public function test_update_refusal_also_rolls_back_the_prerequisites_of_the_moved_lesson(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, 'Order', 'order');
+        [$first, $a, $c] = $this->createOrderedLessons($customerId, $templateId, null, ['First', 'Alpha', 'Gamma']);
+        $this->selectPrerequisite($customerId, $templateId, $a, $first);
+        $this->selectPrerequisite($customerId, $templateId, $c, $a);
+
+        $this->actingAs($admin)
+            ->putJson($this->directLessonCollectionUrl('admin', $templateId)."/{$a}", $this->validLessonData([
+                'title' => 'Alpha',
+                'sort_order' => 9,
+                'unlock_rule' => 'none',
+            ]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('sort_order');
+
+        $this->assertDatabaseHas('core_course_template_lessons', [
+            'id' => $a,
+            'sort_order' => 2,
+            'unlock_rule' => 'selected_lessons_completed',
+        ]);
+        $this->assertDatabaseHas('core_course_template_lesson_prerequisites', [
+            'lesson_id' => $a,
+            'prerequisite_lesson_id' => $first,
+        ]);
+    }
+
+    public function test_update_rejects_leaving_an_all_previous_lesson_or_a_legacy_dependent_in_a_wrong_place(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, 'Order', 'order');
+        [$a, $b, $c] = $this->createOrderedLessons($customerId, $templateId, null, ['Alpha', 'Beta', 'Gamma']);
+        DB::table('core_course_template_lessons')->where('id', $b)
+            ->update(['unlock_rule' => 'all_previous_lessons_completed']);
+        $url = $this->directLessonCollectionUrl('admin', $templateId);
+
+        $this->actingAs($admin)
+            ->putJson("{$url}/{$a}", $this->validLessonData(['title' => 'Alpha', 'sort_order' => 5]))
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.sort_order.0', __('lf.LF_course_template_lesson_reorder_blocked_first', ['lesson' => 'Beta']));
+
+        DB::table('core_course_template_lessons')->where('id', $b)->update(['unlock_rule' => 'none']);
+        DB::table('core_course_template_lessons')->where('id', $c)
+            ->update(['unlock_rule' => 'previous_lesson_completed', 'unlock_after_lesson_id' => $b]);
+
+        $this->actingAs($admin)
+            ->putJson("{$url}/{$b}", $this->validLessonData(['title' => 'Beta', 'sort_order' => 5]))
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.sort_order.0', __('lf.LF_course_template_lesson_reorder_blocked_prerequisite', [
+                'lesson' => 'Gamma',
+                'prerequisite' => 'Beta',
+            ]));
+        $this->assertLessonOrders([$a => 1, $b => 2, $c => 3]);
+    }
+
+    public function test_update_still_allows_safe_moves_and_edits_when_an_older_problem_exists(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, 'Order', 'order');
+        [$a, $b, $c, $d] = $this->createOrderedLessons($customerId, $templateId, null, ['Alpha', 'Beta', 'Gamma', 'Delta']);
+        $this->selectPrerequisite($customerId, $templateId, $c, $a);
+        // Already wrong before this edit: Beta requires a lesson placed after it.
+        $this->selectPrerequisite($customerId, $templateId, $b, $d);
+        $url = $this->directLessonCollectionUrl('admin', $templateId);
+
+        // A prerequisite that stays before its dependent, the dependent moved later, and a plain rename.
+        $this->actingAs($admin)
+            ->putJson("{$url}/{$c}", $this->validLessonData([
+                'title' => 'Gamma',
+                'sort_order' => 3,
+                'unlock_rule' => 'selected_lessons_completed',
+                'prerequisite_match' => 'all',
+                'prerequisite_lesson_ids' => [$a],
+            ]))
+            ->assertOk();
+        $this->actingAs($admin)
+            ->putJson("{$url}/{$a}", $this->validLessonData(['title' => 'Alpha renamed', 'sort_order' => 1]))
+            ->assertOk();
+        $this->assertDatabaseHas('core_course_template_lessons', ['id' => $a, 'title' => 'Alpha renamed']);
+
+        // Dropping the dependent's rule in the same save frees its prerequisite on the next one.
+        $this->actingAs($admin)
+            ->putJson("{$url}/{$c}", $this->validLessonData(['title' => 'Gamma', 'sort_order' => 3, 'unlock_rule' => 'none']))
+            ->assertOk();
+        $this->actingAs($admin)
+            ->putJson("{$url}/{$a}", $this->validLessonData(['title' => 'Alpha renamed', 'sort_order' => 9]))
+            ->assertOk();
+        $this->assertLessonOrders([$a => 9, $b => 2, $c => 3, $d => 4]);
+    }
+
+    public function test_update_without_an_order_keeps_the_position_and_still_checks_prerequisites_against_it(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, 'Order', 'order');
+        [$a, $b, $c] = $this->createOrderedLessons($customerId, $templateId, null, ['Alpha', 'Beta', 'Gamma']);
+        $url = $this->directLessonCollectionUrl('admin', $templateId);
+        $withoutOrder = function (array $overrides): array {
+            $data = $this->validLessonData($overrides);
+            unset($data['sort_order']);
+
+            return $data;
+        };
+
+        $this->actingAs($admin)
+            ->putJson("{$url}/{$b}", $withoutOrder(['title' => 'Beta renamed']))
+            ->assertOk();
+        $this->assertLessonOrders([$a => 1, $b => 2, $c => 3]);
+        $this->assertDatabaseHas('core_course_template_lessons', ['id' => $b, 'title' => 'Beta renamed']);
+
+        // Beta stays second: a lesson after it cannot become its prerequisite, one before it can.
+        $this->actingAs($admin)
+            ->putJson("{$url}/{$b}", $withoutOrder([
+                'title' => 'Beta',
+                'unlock_rule' => 'selected_lessons_completed',
+                'prerequisite_match' => 'all',
+                'prerequisite_lesson_ids' => [$c],
+            ]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('prerequisite_lesson_ids');
+        $this->actingAs($admin)
+            ->putJson("{$url}/{$b}", $withoutOrder([
+                'title' => 'Beta',
+                'unlock_rule' => 'selected_lessons_completed',
+                'prerequisite_match' => 'all',
+                'prerequisite_lesson_ids' => [$a],
+            ]))
+            ->assertOk();
+        $this->assertLessonOrders([$a => 1, $b => 2, $c => 3]);
+
+        // The first lesson stays first, so it still has no lesson before it.
+        $this->actingAs($admin)
+            ->putJson("{$url}/{$a}", $withoutOrder(['title' => 'Alpha', 'unlock_rule' => 'all_previous_lessons_completed']))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('unlock_rule');
+    }
+
+    public function test_admin_and_teacher_reorder_root_and_child_sections_and_other_groups_stay(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $teacher = $this->createUser($customerId, 'teacher');
+        $templateId = $this->createTemplate($customerId, 'Order', 'order', null, $teacher->id);
+        [$one, $two, $three] = $this->createOrderedSections($customerId, $templateId, ['One', 'Two', 'Three']);
+        [$childA, $childB] = $this->createOrderedSections($customerId, $templateId, ['Child A', 'Child B']);
+        DB::table('core_course_template_sections')->whereIn('id', [$childA, $childB])->update(['parent_section_id' => $two]);
+
+        $this->actingAs($admin)
+            ->patchJson($this->sectionReorderUrl('admin', $templateId), ['section_ids' => [$three, $one, $two]])
+            ->assertOk()
+            ->assertJsonPath('message', __('lf.LF_course_template_section_reorder_saved'));
+        $this->assertSectionOrders([$three => 1, $one => 2, $two => 3, $childA => 1, $childB => 2]);
+
+        $this->actingAs($teacher)
+            ->patchJson($this->sectionReorderUrl('teacher', $templateId, $two), ['section_ids' => [$childB, $childA]])
+            ->assertOk();
+        $this->assertSectionOrders([$three => 1, $one => 2, $two => 3, $childB => 1, $childA => 2]);
+    }
+
+    public function test_section_reorder_refuses_a_list_that_is_not_exactly_the_group(): void
+    {
+        $customerId = $this->createTenant();
+        $otherCustomerId = $this->createTenant('tenant-b');
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, 'Order', 'order');
+        $secondTemplateId = $this->createTemplate($customerId, 'Second', 'second');
+        $otherTemplateId = $this->createTemplate($otherCustomerId, 'Foreign', 'foreign');
+        [$one, $two] = $this->createOrderedSections($customerId, $templateId, ['One', 'Two']);
+        [$child] = $this->createOrderedSections($customerId, $templateId, ['Child']);
+        DB::table('core_course_template_sections')->where('id', $child)->update(['parent_section_id' => $one]);
+        [$sameTenant] = $this->createOrderedSections($customerId, $secondTemplateId, ['Same tenant']);
+        [$foreign] = $this->createOrderedSections($otherCustomerId, $otherTemplateId, ['Foreign']);
+        $url = $this->sectionReorderUrl('admin', $templateId);
+
+        foreach ([[$two], [$two, $one, $child], [$two, $one, $sameTenant], [$two, $one, $foreign], [$two, $one, 999999]] as $wrong) {
+            $this->actingAs($admin)->patchJson($url, ['section_ids' => $wrong])
+                ->assertStatus(409)
+                ->assertJsonPath('message', __('lf.LF_course_template_section_reorder_stale'));
+        }
+        // A parent of another Template or tenant is an empty group, whatever ids come with it.
+        $this->actingAs($admin)
+            ->patchJson($this->sectionReorderUrl('admin', $templateId, $foreign), ['section_ids' => [$two, $one]])
+            ->assertStatus(409);
+        $this->actingAs($admin)->patchJson($url, ['section_ids' => [$two, $two]])->assertUnprocessable();
+        $this->actingAs($admin)->patchJson($url, ['section_ids' => []])->assertUnprocessable();
+        $this->actingAs($admin)->patchJson($url.'?parent_section_id=x', ['section_ids' => [$two, $one]])->assertUnprocessable();
+        $this->actingAs($admin)->patch($url, ['section_ids' => [$two, $one]])->assertNotFound();
+
+        $this->assertSectionOrders([$one => 1, $two => 2, $child => 1, $sameTenant => 1, $foreign => 1]);
+    }
+
+    public function test_section_reorder_blocks_new_unlock_violations_in_a_branch_and_ignores_older_ones(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, 'Order', 'order');
+        [$one, $two, $three] = $this->createOrderedSections($customerId, $templateId, ['One', 'Two', 'Three']);
+        [$deep] = $this->createOrderedSections($customerId, $templateId, ['Deep']);
+        DB::table('core_course_template_sections')->where('id', $deep)->update(['parent_section_id' => $one]);
+        // The prerequisite sits in a child: moving its root moves the branch past the dependent Lesson.
+        [$alpha] = $this->createOrderedLessons($customerId, $templateId, $deep, ['Alpha']);
+        [$gamma] = $this->createOrderedLessons($customerId, $templateId, $two, ['Gamma']);
+        [$older] = $this->createOrderedLessons($customerId, $templateId, $three, ['Older']);
+        $this->selectPrerequisite($customerId, $templateId, $gamma, $alpha);
+        $url = $this->sectionReorderUrl('admin', $templateId);
+
+        $this->actingAs($admin)
+            ->patchJson($url, ['section_ids' => [$two, $one, $three]])
+            ->assertUnprocessable()
+            ->assertJsonPath('message', __('lf.LF_course_template_lesson_reorder_blocked_prerequisite', [
+                'lesson' => 'Gamma',
+                'prerequisite' => 'Alpha',
+            ]));
+        $this->assertSectionOrders([$one => 1, $two => 2, $three => 3]);
+
+        // A safe move goes through although an older problem elsewhere stays.
+        $this->selectPrerequisite($customerId, $templateId, $alpha, $older);
+        $this->actingAs($admin)
+            ->patchJson($url, ['section_ids' => [$one, $three, $two]])
+            ->assertOk();
+        $this->assertSectionOrders([$one => 1, $three => 2, $two => 3]);
+    }
+
+    public function test_section_reorder_blocks_leaving_an_all_previous_lesson_first(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, 'Order', 'order');
+        [$one, $two] = $this->createOrderedSections($customerId, $templateId, ['One', 'Two']);
+        $this->createOrderedLessons($customerId, $templateId, $one, ['Alpha']);
+        [$gamma] = $this->createOrderedLessons($customerId, $templateId, $two, ['Gamma']);
+        DB::table('core_course_template_lessons')->where('id', $gamma)->update(['unlock_rule' => 'all_previous_lessons_completed']);
+
+        $this->actingAs($admin)
+            ->patchJson($this->sectionReorderUrl('admin', $templateId), ['section_ids' => [$two, $one]])
+            ->assertUnprocessable()
+            ->assertJsonPath('message', __('lf.LF_course_template_lesson_reorder_blocked_first', ['lesson' => 'Gamma']));
+        $this->assertSectionOrders([$one => 1, $two => 2]);
+    }
+
+    public function test_section_reorder_respects_tenant_role_and_template_assignment(): void
+    {
+        $customerId = $this->createTenant();
+        $otherCustomerId = $this->createTenant('tenant-b');
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $unassignedTeacher = $this->createUser($customerId, 'teacher');
+        $student = $this->createUser($customerId, 'student');
+        $templateId = $this->createTemplate($customerId, 'Order', 'order');
+        $otherTemplateId = $this->createTemplate($otherCustomerId, 'Foreign', 'foreign');
+        [$a, $b] = $this->createOrderedSections($customerId, $templateId, ['A', 'B']);
+        [$x, $y] = $this->createOrderedSections($otherCustomerId, $otherTemplateId, ['X', 'Y']);
+        $payload = ['section_ids' => [$b, $a]];
+
+        $this->patchJson($this->sectionReorderUrl('admin', $templateId), $payload)->assertUnauthorized();
+        $this->actingAs($student)->patchJson($this->sectionReorderUrl('admin', $templateId), $payload)->assertForbidden();
+        $this->actingAs($student)->patchJson($this->sectionReorderUrl('teacher', $templateId), $payload)->assertForbidden();
+        $this->actingAs($unassignedTeacher)->patchJson($this->sectionReorderUrl('teacher', $templateId), $payload)->assertNotFound();
+        $this->actingAs($unassignedTeacher)->patchJson($this->sectionReorderUrl('admin', $templateId), $payload)->assertForbidden();
+        $this->actingAs($admin)
+            ->patchJson($this->sectionReorderUrl('admin', $otherTemplateId), ['section_ids' => [$y, $x]])
+            ->assertNotFound();
+
+        $this->assertSectionOrders([$a => 1, $b => 2, $x => 1, $y => 2]);
+    }
+
+    public function test_section_form_without_an_order_keeps_the_place_and_a_new_parent_puts_it_last(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, 'Order', 'order');
+        [$one, $two, $three] = $this->createOrderedSections($customerId, $templateId, ['One', 'Two', 'Three']);
+        [$child] = $this->createOrderedSections($customerId, $templateId, ['Child']);
+        DB::table('core_course_template_sections')->where('id', $child)->update(['parent_section_id' => $one, 'display_order' => 4]);
+        $url = "https://tenant-a.localhost/admin/course-templates/{$templateId}/sections/{$two}";
+        $data = fn (array $overrides): array => array_diff_key($this->validSectionData($overrides), ['display_order' => true]);
+
+        $this->actingAs($admin)->putJson($url, $data(['title' => 'Renamed']))->assertOk();
+        $this->assertDatabaseHas('core_course_template_sections', ['id' => $two, 'title' => 'Renamed', 'display_order' => 2]);
+
+        $this->actingAs($admin)->putJson($url, $data(['title' => 'Renamed', 'parent_section_id' => $one]))->assertOk();
+        $this->assertDatabaseHas('core_course_template_sections', ['id' => $two, 'parent_section_id' => $one, 'display_order' => 5]);
+
+        $this->actingAs($admin)->putJson($url, $data(['title' => 'Renamed']))->assertOk();
+        $this->assertDatabaseHas('core_course_template_sections', ['id' => $two, 'parent_section_id' => null, 'display_order' => 4]);
+        $this->assertSectionOrders([$one => 1, $three => 3, $child => 4]);
+    }
+
+    public function test_the_section_handle_appears_only_among_two_or_more_siblings(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, 'Order', 'order');
+        [$only] = $this->createOrderedSections($customerId, $templateId, ['Only root']);
+        [$lonely] = $this->createOrderedSections($customerId, $templateId, ['Lonely child']);
+        DB::table('core_course_template_sections')->where('id', $lonely)->update(['parent_section_id' => $only]);
+        $edit = "https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=structure";
+
+        $this->actingAs($admin)->get($edit)->assertOk()->assertDontSee('data-reorder-field="section_ids"', false);
+
+        [$second] = $this->createOrderedSections($customerId, $templateId, ['Second child']);
+        DB::table('core_course_template_sections')->where('id', $second)->update(['parent_section_id' => $only]);
+        $reorderUrl = $this->sectionReorderUrl('admin', $templateId);
+        $this->actingAs($admin)->get($edit)->assertOk()
+            ->assertSee($reorderUrl.'?parent_section_id='.$only, false)
+            ->assertDontSee('data-reorder-url="'.$reorderUrl.'"', false)
+            ->assertSee(__('lf.LF_course_template_section_reorder_handle', ['title' => 'Second child']))
+            ->assertDontSee(__('lf.LF_course_template_section_reorder_handle', ['title' => 'Only root']));
+    }
+
+    public function test_section_update_rejects_an_order_that_breaks_a_lesson_in_another_section(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, 'Order', 'order');
+        [$one, $two, $three] = $this->createOrderedSections($customerId, $templateId, ['One', 'Two', 'Three']);
+        [$alpha] = $this->createOrderedLessons($customerId, $templateId, $one, ['Alpha']);
+        [$gamma] = $this->createOrderedLessons($customerId, $templateId, $two, ['Gamma']);
+        $this->selectPrerequisite($customerId, $templateId, $gamma, $alpha);
+        $message = __('lf.LF_course_template_lesson_reorder_blocked_prerequisite', [
+            'lesson' => 'Gamma',
+            'prerequisite' => 'Alpha',
+        ]);
+        $sectionUrl = fn (int $id): string => "https://tenant-a.localhost/admin/course-templates/{$templateId}/sections/{$id}";
+
+        $this->actingAs($admin)
+            ->putJson($sectionUrl($one), $this->validSectionData(['title' => 'Renamed', 'display_order' => 9]))
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.display_order.0', $message);
+        $this->actingAs($admin)
+            ->putJson($sectionUrl($two), $this->validSectionData(['title' => 'Two', 'display_order' => 0]))
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.display_order.0', $message);
+        // A new parent carries the Section after the Lesson that depends on it: the error goes to the parent field.
+        $this->actingAs($admin)
+            ->putJson($sectionUrl($one), $this->validSectionData([
+                'title' => 'One',
+                'display_order' => 1,
+                'parent_section_id' => $three,
+            ]))
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.parent_section_id.0', $message);
+
+        $this->assertDatabaseHas('core_course_template_sections', [
+            'id' => $one,
+            'title' => 'One',
+            'display_order' => 1,
+            'parent_section_id' => null,
+        ]);
+        $this->assertDatabaseHas('core_course_template_sections', ['id' => $two, 'display_order' => 2]);
+    }
+
+    public function test_section_update_rejects_leaving_an_all_previous_lesson_first_and_allows_safe_changes(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, 'Order', 'order');
+        [$one, $two, $three] = $this->createOrderedSections($customerId, $templateId, ['One', 'Two', 'Three']);
+        [$alpha] = $this->createOrderedLessons($customerId, $templateId, $one, ['Alpha']);
+        [$beta] = $this->createOrderedLessons($customerId, $templateId, $two, ['Beta']);
+        [$delta] = $this->createOrderedLessons($customerId, $templateId, $three, ['Delta']);
+        DB::table('core_course_template_lessons')->where('id', $beta)
+            ->update(['unlock_rule' => 'all_previous_lessons_completed']);
+        $sectionUrl = fn (int $id): string => "https://tenant-a.localhost/admin/course-templates/{$templateId}/sections/{$id}";
+
+        $this->actingAs($admin)
+            ->putJson($sectionUrl($one), $this->validSectionData(['title' => 'One', 'display_order' => 9]))
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.display_order.0', __('lf.LF_course_template_lesson_reorder_blocked_first', ['lesson' => 'Beta']));
+
+        // Three moves freely, and a rename leaves the order alone. An older problem does not block either.
+        $this->selectPrerequisite($customerId, $templateId, $alpha, $delta);
+        $this->actingAs($admin)
+            ->putJson($sectionUrl($three), $this->validSectionData(['title' => 'Three', 'display_order' => 7]))
+            ->assertOk();
+        $this->actingAs($admin)
+            ->putJson($sectionUrl($two), $this->validSectionData(['title' => 'Two renamed', 'display_order' => 2]))
+            ->assertOk();
+        $this->assertDatabaseHas('core_course_template_sections', ['id' => $three, 'display_order' => 7]);
+        $this->assertDatabaseHas('core_course_template_sections', ['id' => $two, 'title' => 'Two renamed']);
+    }
+
+    public function test_section_update_ignores_rules_of_direct_lessons(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, 'Order', 'order');
+        [$one] = $this->createOrderedSections($customerId, $templateId, ['One']);
+        [$a, $b] = $this->createOrderedLessons($customerId, $templateId, null, ['Alpha', 'Beta']);
+        $this->selectPrerequisite($customerId, $templateId, $a, $b);
+
+        $this->actingAs($admin)
+            ->putJson(
+                "https://tenant-a.localhost/admin/course-templates/{$templateId}/sections/{$one}",
+                $this->validSectionData(['title' => 'One', 'display_order' => 9])
+            )
+            ->assertOk();
+    }
+
+    public function test_deleting_the_lesson_that_would_leave_an_all_previous_lesson_first_is_refused(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, 'Order', 'order');
+        [$one, $two] = $this->createOrderedSections($customerId, $templateId, ['One', 'Two']);
+        $collections = [
+            $this->directLessonCollectionUrl('admin', $templateId) => [null, null],
+            $this->lessonCollectionUrl('admin', $templateId, $one) => [$one, $two],
+        ];
+
+        foreach ($collections as $url => [$firstGroup, $secondGroup]) {
+            [$a] = $this->createOrderedLessons($customerId, $templateId, $firstGroup, ['Alpha']);
+            [$b] = $secondGroup === null
+                ? [$this->createLesson($customerId, $templateId, null, 'Beta')]
+                : $this->createOrderedLessons($customerId, $templateId, $secondGroup, ['Beta']);
+            DB::table('core_course_template_lessons')->where('id', $b)
+                ->update(['sort_order' => 2, 'unlock_rule' => 'all_previous_lessons_completed']);
+            $message = __('lf.LF_course_template_lesson_delete_blocked_first', ['lesson' => 'Beta']);
+
+            $this->actingAs($admin)
+                ->deleteJson("{$url}/{$a}")
+                ->assertStatus(409)
+                ->assertJsonPath('message', $message);
+            $this->assertDatabaseHas('core_course_template_lessons', ['id' => $a]);
+
+            // The button says so up front.
+            $this->actingAs($admin)
+                ->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=structure")
+                ->assertOk()
+                ->assertSee('data-tooltip="'.e($message).'"', false);
+
+            // Beta needs no lesson before it any more: Alpha can go.
+            DB::table('core_course_template_lessons')->where('id', $b)->update(['unlock_rule' => 'none']);
+            $this->actingAs($admin)->deleteJson("{$url}/{$a}")->assertOk();
+            $this->assertDatabaseMissing('core_course_template_lessons', ['id' => $a]);
+            DB::table('core_course_template_lessons')->where('id', $b)->delete();
+        }
+    }
+
+    public function test_deleting_a_lesson_that_is_not_first_ignores_a_later_all_previous_lesson(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, 'Order', 'order');
+        [$a, $b, $c] = $this->createOrderedLessons($customerId, $templateId, null, ['Alpha', 'Beta', 'Gamma']);
+        DB::table('core_course_template_lessons')->where('id', $c)
+            ->update(['unlock_rule' => 'all_previous_lessons_completed']);
+
+        $this->actingAs($admin)
+            ->deleteJson($this->directLessonCollectionUrl('admin', $templateId)."/{$b}")
+            ->assertOk();
+        $this->assertDatabaseMissing('core_course_template_lessons', ['id' => $b]);
+        $this->assertDatabaseHas('core_course_template_lessons', ['id' => $a]);
+
+        // Gamma, second now, keeps Alpha before it: the lesson after it can still go.
+        $delta = $this->createLesson($customerId, $templateId, null, 'Delta');
+        DB::table('core_course_template_lessons')->where('id', $delta)->update(['sort_order' => 4]);
+        $this->actingAs($admin)
+            ->deleteJson($this->directLessonCollectionUrl('admin', $templateId)."/{$delta}")
+            ->assertOk();
+        $this->assertDatabaseMissing('core_course_template_lessons', ['id' => $delta]);
+    }
+
+    /** @return array<int, int> ids, display_order numbered from 1 in the given order */
+    private function createOrderedSections(int $customerId, int $templateId, array $titles): array
+    {
+        $ids = [];
+        foreach ($titles as $index => $title) {
+            $id = $this->createSection($customerId, $templateId, $title);
+            DB::table('core_course_template_sections')->where('id', $id)->update(['display_order' => $index + 1]);
+            $ids[] = $id;
+        }
+
+        return $ids;
+    }
+
+    private function validSectionData(array $overrides = []): array
+    {
+        return array_merge([
+            'title' => 'Section',
+            'description' => null,
+            'parent_section_id' => null,
+            'allows_lessons' => 1,
+            'display_order' => 1,
+        ], $overrides);
+    }
+
+    /** @return array<int, int> ids, numbered from 1 in the given order */
+    private function createOrderedLessons(int $customerId, int $templateId, ?int $sectionId, array $titles): array
+    {
+        $ids = [];
+        foreach ($titles as $index => $title) {
+            $id = $this->createLesson($customerId, $templateId, $sectionId, $title);
+            DB::table('core_course_template_lessons')->where('id', $id)->update(['sort_order' => $index + 1]);
+            $ids[] = $id;
+        }
+
+        return $ids;
+    }
+
+    private function selectPrerequisite(int $customerId, int $templateId, int $lessonId, int $prerequisiteId): void
+    {
+        DB::table('core_course_template_lessons')->where('id', $lessonId)->update([
+            'unlock_rule' => 'selected_lessons_completed',
+            'prerequisite_match' => 'all',
+        ]);
+        DB::table('core_course_template_lesson_prerequisites')->insert([
+            'customer_id' => $customerId,
+            'template_id' => $templateId,
+            'lesson_id' => $lessonId,
+            'prerequisite_lesson_id' => $prerequisiteId,
+            'sort_order' => 0,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    private function reorderUrl(string $area, int $templateId, ?int $sectionId = null): string
+    {
+        return "https://tenant-a.localhost/{$area}/course-templates/{$templateId}"
+            .($sectionId === null ? '' : "/sections/{$sectionId}")
+            .'/lessons/reorder';
+    }
+
+    private function sectionReorderUrl(string $area, int $templateId, ?int $parentSectionId = null): string
+    {
+        return "https://tenant-a.localhost/{$area}/course-templates/{$templateId}/sections/reorder"
+            .($parentSectionId === null ? '' : "?parent_section_id={$parentSectionId}");
+    }
+
+    /** @param array<int, int> $orders display_order by section id */
+    private function assertSectionOrders(array $orders): void
+    {
+        foreach ($orders as $sectionId => $displayOrder) {
+            $this->assertSame(
+                $displayOrder,
+                (int) DB::table('core_course_template_sections')->where('id', $sectionId)->value('display_order'),
+                "display_order of section {$sectionId}"
+            );
+        }
+    }
+
+    /** @param array<int, int> $orders sort_order by lesson id */
+    private function assertLessonOrders(array $orders): void
+    {
+        foreach ($orders as $lessonId => $sortOrder) {
+            $this->assertSame(
+                $sortOrder,
+                (int) DB::table('core_course_template_lessons')->where('id', $lessonId)->value('sort_order'),
+                "sort_order of lesson {$lessonId}"
+            );
+        }
+    }
+
     private function createTenant(string $slug = 'tenant-a'): int
     {
         return DB::table('saas_customers')->insertGetId([
@@ -1787,7 +2562,7 @@ class CourseTemplateLessonManagementTest extends TestCase
     ): int {
         $now = now();
 
-        return DB::table('core_course_templates')->insertGetId(['course_type' => 'blended', 
+        return DB::table('core_course_templates')->insertGetId(['course_type' => 'blended',
             'customer_id' => $customerId,
             'category_id' => null,
             'title' => $title,

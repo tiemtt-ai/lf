@@ -18,6 +18,7 @@
         'info' => '<circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path>',
         'square-pen' => '<path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z"></path>',
         'arrow-up-right' => '<path d="M7 7h10v10"></path><path d="M7 17 17 7"></path>',
+        'grip-vertical' => '<circle cx="9" cy="12" r="1"></circle><circle cx="9" cy="5" r="1"></circle><circle cx="9" cy="19" r="1"></circle><circle cx="15" cy="12" r="1"></circle><circle cx="15" cy="5" r="1"></circle><circle cx="15" cy="19" r="1"></circle>',
         'chevron-down' => '<path d="m6 9 6 6 6-6"></path>',
         'chevron-left' => '<path d="m15 18-6-6 6-6"></path>',
         'chevron-right' => '<path d="m9 18 6-6-6-6"></path>',

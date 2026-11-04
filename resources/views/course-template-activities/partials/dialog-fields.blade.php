@@ -719,21 +719,6 @@
             </div>
         </div>
 
-        <label class="ui-switch-row ui-switch-row--boxed">
-            <span class="ui-switch-row__text">
-                <b>{{ __('lf.LF_course_template_activity_common_required') }}</b>
-                <small>{{ __('lf.LF_course_template_activity_required_help') }}</small>
-            </span>
-            <span class="ui-switch">
-                <input type="hidden" name="is_required" value="0">
-                <input id="activity-form-is_required" type="checkbox" name="is_required" value="1" @checked($selectedRequired === '1')>
-                <span></span>
-            </span>
-        </label>
-    </section>
-
-    <details class="ui-activity-more">
-        <summary>{{ __('lf.LF_course_template_activity_section_more') }}</summary>
         <div class="ui-modal__grid ui-modal__grid--pair">
             <div class="ui-field">
                 <label class="ui-field__label" for="activity-form-is_preview">{!! $star !!}{{ __('lf.LF_course_template_activity_common_preview') }}</label>
@@ -742,7 +727,6 @@
                     <option value="1" @selected($selectedPreview === '1')>{{ __('lf.LF_course_template_activity_common_yes') }}</option>
                 </select>
             </div>
-
 
             <div class="ui-field">
                 <label class="ui-field__label" for="activity-form-unlock_rule">{!! $star !!}{{ __('lf.LF_course_template_activity_common_unlock_rule') }}</label>
@@ -764,17 +748,19 @@
                 </select>
             </div>
         </div>
-    </details>
 
-    {{-- The display order is always the last field of the form. --}}
-    <div class="ui-modal__grid ui-modal__grid--pair ui-activity-last">
-        <div class="ui-field">
-            <label class="ui-field__label" for="activity-form-sort_order">{{ __('lf.LF_course_template_activity_common_sort_order') }}</label>
-            <input id="activity-form-sort_order" type="number" min="0" name="sort_order"
-                   value="{{ $formActivity?->sort_order ?? $suggestedSortOrder ?? null }}"
-                   placeholder="{{ __('lf.LF_course_template_activity_placeholder_sort_order') }}">
-        </div>
-    </div>
+        <label class="ui-switch-row ui-switch-row--boxed">
+            <span class="ui-switch-row__text">
+                <b>{{ __('lf.LF_course_template_activity_common_required') }}</b>
+                <small>{{ __('lf.LF_course_template_activity_required_help') }}</small>
+            </span>
+            <span class="ui-switch">
+                <input type="hidden" name="is_required" value="0">
+                <input id="activity-form-is_required" type="checkbox" name="is_required" value="1" @checked($selectedRequired === '1')>
+                <span></span>
+            </span>
+        </label>
+    </section>
 
     <x-media-preview-modal ui-kit id="activity-form-preview-title" show="previewOpen" close="closePreview()" title="preview.name" compact="false">
         <template x-if="previewOpen && preview.mediaType === 'video'">

@@ -338,6 +338,11 @@ Route::post(
     [CourseTemplateLessonController::class, 'storeDirect']
 )->name('course-templates.lessons.store');
 
+Route::patch(
+    '/course-templates/{templateId}/lessons/reorder',
+    [CourseTemplateLessonController::class, 'reorderDirect']
+)->name('course-templates.lessons.reorder');
+
 Route::get(
     '/course-templates/{templateId}/lessons/{lessonId}/edit',
     [CourseTemplateLessonController::class, 'editDirect']
@@ -352,6 +357,11 @@ Route::delete(
     '/course-templates/{templateId}/lessons/{lessonId}',
     [CourseTemplateLessonController::class, 'destroyDirect']
 )->name('course-templates.lessons.destroy');
+
+Route::patch(
+    '/course-templates/{templateId}/lessons/{lessonId}/activities/reorder',
+    [CourseTemplateActivityController::class, 'reorderDirect']
+)->name('course-templates.lessons.activities.reorder');
 
 Route::get(
     '/course-templates/{templateId}/lessons/{lessonId}/activities',
@@ -392,6 +402,11 @@ Route::post(
     '/course-templates/{templateId}/lessons/{lessonId}/activities/{activityId}/initialize-transcription',
     [CourseTemplateActivityController::class, 'initializeTranscriptionDirect']
 )->name('course-templates.lessons.activities.initialize-transcription');
+
+Route::patch(
+    '/course-templates/{templateId}/sections/reorder',
+    [CourseTemplateSectionController::class, 'reorder']
+)->name('course-templates.sections.reorder');
 
 Route::get(
     '/course-templates/{templateId}/sections',
@@ -438,6 +453,11 @@ Route::post(
     [CourseTemplateLessonController::class, 'store']
 )->name('course-templates.sections.lessons.store');
 
+Route::patch(
+    '/course-templates/{templateId}/sections/{sectionId}/lessons/reorder',
+    [CourseTemplateLessonController::class, 'reorder']
+)->name('course-templates.sections.lessons.reorder');
+
 Route::get(
     '/course-templates/{templateId}/sections/{sectionId}/lessons/{lessonId}/edit',
     [CourseTemplateLessonController::class, 'edit']
@@ -452,6 +472,11 @@ Route::delete(
     '/course-templates/{templateId}/sections/{sectionId}/lessons/{lessonId}',
     [CourseTemplateLessonController::class, 'destroy']
 )->name('course-templates.sections.lessons.destroy');
+
+Route::patch(
+    '/course-templates/{templateId}/sections/{sectionId}/lessons/{lessonId}/activities/reorder',
+    [CourseTemplateActivityController::class, 'reorder']
+)->name('course-templates.sections.lessons.activities.reorder');
 
 Route::get(
     '/course-templates/{templateId}/sections/{sectionId}/lessons/{lessonId}/activities',

@@ -1,6 +1,8 @@
 import './bootstrap';
 
 import Alpine from 'alpinejs';
+import sort from '@alpinejs/sort';
+import { courseTemplateOrder, courseTemplateRefreshOutline } from './course-template-order';
 import './ai-authoring';
 
 window.Alpine = Alpine;
@@ -412,6 +414,7 @@ window.lfLessonPager = (perPage, storageKey, labels) => ({
     page: 1,
     total: 0,
     perPage,
+    matched: [],
 
     init() {
         try {
@@ -451,6 +454,13 @@ window.lfLessonPager = (perPage, storageKey, labels) => ({
         this.resetQueued = true;
         window.setTimeout(() => {
             this.resetQueued = false;
+
+            // Dragging also writes style on the cards: only a change in which cards match starts over.
+            const matching = this.matching();
+            if (matching.length === this.matched.length && matching.every((item) => this.matched.includes(item))) {
+                return;
+            }
+
             this.page = 1;
             this.refresh();
         }, 0);
@@ -458,6 +468,7 @@ window.lfLessonPager = (perPage, storageKey, labels) => ({
 
     refresh(focus = null) {
         const matching = this.matching();
+        this.matched = matching;
         this.total = matching.length;
 
         if (focus && matching.includes(focus)) {
@@ -612,6 +623,9 @@ if (document.readyState === 'loading') {
     bootLfConfirmDialog();
 }
 
+window.courseTemplateOrder = courseTemplateOrder;
+window.courseTemplateRefreshOutline = courseTemplateRefreshOutline;
+Alpine.plugin(sort);
 Alpine.start();
 
 // Alpine can populate a date/time control after the initial placeholder scan.
