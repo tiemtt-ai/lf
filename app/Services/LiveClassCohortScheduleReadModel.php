@@ -26,7 +26,8 @@ class LiveClassCohortScheduleReadModel
 
     /**
      * Paginated Schedules, each decorated with its Slots, Exclusions, projected
-     * occurrence count and date-derived status.
+     * occurrence count, how many of those occurrences already have a Session and
+     * date-derived status.
      *
      * Schedule status is never persisted — it is derived from the current date
      * in the Schedule's own timezone, per `core_liveclass_schedules.md`.
@@ -47,14 +48,25 @@ class LiveClassCohortScheduleReadModel
 
         $slots = $this->slotsFor($customerId, $scheduleIds)->groupBy('schedule_id');
         $exclusions = $this->exclusionsFor($customerId, $scheduleIds)->groupBy('schedule_id');
+        $origins = DB::table('core_liveclass_session_schedule_origins')
+            ->where('customer_id', $customerId)->whereIn('schedule_id', $scheduleIds)
+            ->get(['schedule_id', 'schedule_slot_id', 'source_local_date'])
+            ->groupBy('schedule_id');
 
-        $schedules->getCollection()->each(function (object $schedule) use ($slots, $exclusions): void {
+        $schedules->getCollection()->each(function (object $schedule) use ($slots, $exclusions, $origins): void {
             $schedule->slots = $slots->get($schedule->id, collect())->values();
             $schedule->exclusions = $exclusions->get($schedule->id, collect())->values();
-            $schedule->preview_count = $this->previewService->calculate(
+            $preview = $this->previewService->calculate(
                 $schedule->starts_on, $schedule->ends_on, $schedule->timezone,
                 $schedule->slots, $schedule->exclusions
-            )->count();
+            );
+            $schedule->preview_count = $preview->count();
+            // Only occurrences still in the plan count: an Origin outlives a later
+            // Schedule edit, and "6/4" would read as a progress bar gone wrong.
+            $planned = $preview->mapWithKeys(fn (array $item): array => [$item['schedule_slot_id'].'|'.$item['date'] => true]);
+            $schedule->created_session_count = $origins->get($schedule->id, collect())
+                ->filter(fn (object $origin): bool => $planned->has($origin->schedule_slot_id.'|'.substr((string) $origin->source_local_date, 0, 10)))
+                ->count();
             $schedule->derived_status = $this->previewService->derivedStatus(
                 $schedule->starts_on, $schedule->ends_on, $schedule->timezone
             );

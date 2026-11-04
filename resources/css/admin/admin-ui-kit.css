@@ -3115,7 +3115,12 @@
 .lf-admin-ui .course-cohort-teacher-removal-error { white-space: normal; }
 .lf-admin-ui .ui-cohort-col-count { width: 96px; }
 .lf-admin-ui .ui-cohort-line { display: block; }
-.lf-admin-ui .ui-cohort-col-slots { width: 180px; }
+.lf-admin-ui .ui-cohort-col-slots { width: 240px; }
+.lf-admin-ui .ui-cohort-schedule-name { display: block; color: var(--ui-text); font-weight: 400; overflow-wrap: anywhere; text-decoration: none; white-space: normal; }
+.lf-admin-ui .ui-cohort-schedule-name:hover { color: var(--ui-primary); text-decoration: underline; }
+.lf-admin-ui .ui-cohort-schedule-line { display: flex; gap: 8px; }
+.lf-admin-ui .ui-cohort-schedule-line__day { flex: none; width: 22px; color: var(--ui-muted); }
+.lf-admin-ui .ui-cohort-schedule-line__times { display: flex; flex-wrap: wrap; gap: 0 6px; min-width: 0; }
 .lf-admin-ui.ui-cohort .ui-summary-head .mk-table-top__actions { flex: none; flex-wrap: nowrap; white-space: nowrap; }
 .lf-admin-ui .ui-cohort-col-session-time { width: 210px; }
 .lf-admin-ui.ui-cohort .mk-name-text { display: block; white-space: normal; overflow-wrap: anywhere; }

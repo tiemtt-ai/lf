@@ -85,25 +85,39 @@
                         <th scope="col" class="mk-text-cell">{{ __('lf.LF_course_cohort_schedule_list_name') }}</th>
                         <th scope="col" class="mk-text-cell">{{ __('lf.LF_course_cohort_schedule_days_and_times') }}</th>
                         <th scope="col" class="mk-text-cell">{{ __('lf.LF_course_cohort_schedule_period') }}</th>
-                        <th scope="col" class="ux-action-cell">{{ __('lf.LF_course_cohort_schedule_expected_count') }}</th>
+                        <th scope="col" class="ux-action-cell">{{ __('lf.LF_course_cohort_schedule_list_sessions') }}</th>
                         <th scope="col" class="ux-action-cell">{{ __('lf.LF_course_cohort_schedule_status') }}</th>
                         <th scope="col" class="ux-action-cell">{{ __('lf.table_actions') }}</th>
                     </tr></thead>
                     <tbody>
                     @forelse ($schedules as $schedule)
-                        @php($scheduleTone = match ($schedule->derived_status) { 'current' => 'active', 'upcoming' => 'draft', 'completed' => 'completed', default => 'archived' })
                         <tr>
                             <td class="mk-sequence" data-label="{{ __('lf.table_no') }}">{{ $schedules->firstItem() + $loop->index }}</td>
                             <td class="mk-text-cell" data-label="{{ __('lf.LF_course_cohort_schedule_list_name') }}">
-                                <span class="mk-name-text">{{ $schedule->name }}</span>
-                                <span class="ui-caption ui-framework-description">{{ $schedule->timezone }}</span>
+                                <a class="ui-cohort-schedule-name cursor-interaction" href="{{ route('admin.course-cohorts.show', ['id' => $cohort->id, 'tab' => 'schedules', 'schedule_form' => 'view', 'schedule_id' => $schedule->id]) }}">{{ $schedule->name }}</a>
+                                @if ($schedule->timezone !== config('app.timezone'))
+                                    <span class="ui-caption ui-framework-description">{{ $schedule->timezone }}</span>
+                                @endif
                             </td>
+                            @php
+                                $scheduleTone = match ($schedule->derived_status) { 'current' => 'active', 'upcoming' => 'draft', 'completed' => 'completed', default => 'archived' };
+                                $scheduleDays = $schedule->slots->groupBy(fn ($slot) => (int) $slot->weekday)->sortKeys();
+                                $scheduleVisibleDays = $scheduleDays->take(4);
+                                $scheduleHiddenSlots = $scheduleDays->skip(4)->flatten(1)->count();
+                            @endphp
                             <td class="mk-text-cell" data-label="{{ __('lf.LF_course_cohort_schedule_days_and_times') }}">
-                                @foreach ($schedule->slots->take(3) as $slot)
-                                    <span class="ui-cohort-line">{{ __('lf.LF_course_cohort_schedule_weekday_'.$slot->weekday) }} · {{ substr($slot->start_time, 0, 5) }}–{{ substr($slot->end_time, 0, 5) }}</span>
+                                @foreach ($scheduleVisibleDays as $weekday => $daySlots)
+                                    <span class="ui-cohort-schedule-line">
+                                        <span class="ui-cohort-schedule-line__day" title="{{ __('lf.LF_course_cohort_schedule_weekday_'.$weekday) }}">{{ __('lf.LF_common_weekday_'.['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'][$weekday - 1]) }}</span>
+                                        <span class="ui-cohort-schedule-line__times">
+                                            @foreach ($daySlots->sortBy('start_time') as $slot)
+                                                <span class="ui-enroll-nowrap">{{ substr($slot->start_time, 0, 5) }}–{{ substr($slot->end_time, 0, 5) }}@unless ($loop->last),@endunless</span>
+                                            @endforeach
+                                        </span>
+                                    </span>
                                 @endforeach
-                                @if ($schedule->slots->count() > 3)
-                                    <span class="ui-caption ui-framework-description">{{ __('lf.LF_course_cohort_schedule_more_slots', ['count' => $schedule->slots->count() - 3]) }}</span>
+                                @if ($scheduleHiddenSlots > 0)
+                                    <span class="ui-caption ui-framework-description">{{ __('lf.LF_course_cohort_schedule_more_slots', ['count' => $scheduleHiddenSlots]) }}</span>
                                 @endif
                             </td>
                             <td class="mk-text-cell ui-enroll-nowrap" data-label="{{ __('lf.LF_course_cohort_schedule_period') }}">
@@ -111,7 +125,10 @@
                                 <span aria-hidden="true">→</span>
                                 {{ \Illuminate\Support\Carbon::parse($schedule->ends_on)->format('d/m/Y') }}
                             </td>
-                            <td class="ux-action-cell" data-label="{{ __('lf.LF_course_cohort_schedule_expected_count') }}">{{ $schedule->preview_count }}</td>
+                            <td class="ux-action-cell" data-label="{{ __('lf.LF_course_cohort_schedule_list_sessions') }}" title="{{ __('lf.LF_course_cohort_schedule_list_sessions_progress', ['created' => $schedule->created_session_count, 'planned' => $schedule->preview_count]) }}">
+                                <span class="ui-sr-only">{{ __('lf.LF_course_cohort_schedule_list_sessions_progress', ['created' => $schedule->created_session_count, 'planned' => $schedule->preview_count]) }}</span>
+                                <span aria-hidden="true">{{ $schedule->created_session_count }}/{{ $schedule->preview_count }}</span>
+                            </td>
                             <td class="ux-action-cell" data-label="{{ __('lf.LF_course_cohort_schedule_status') }}">
                                 <span class="ui-status ui-status--{{ $scheduleTone }}">{{ __('lf.LF_course_cohort_schedule_status_'.$schedule->derived_status) }}</span>
                             </td>

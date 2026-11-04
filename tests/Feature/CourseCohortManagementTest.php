@@ -3226,6 +3226,51 @@ class CourseCohortManagementTest extends TestCase
         $this->assertStringNotContainsString("slotsError: ''", $response->getContent());
     }
 
+    public function test_schedule_list_shows_created_sessions_against_the_plan(): void
+    {
+        [$customerId, $admin, $cohortId] = $this->lifecycleCohort();
+        DB::table('core_course_cohorts')->where('id', $cohortId)->update([
+            'start_date' => now()->toDateString(), 'end_date' => now()->addMonths(3)->toDateString(),
+        ]);
+        $monday = now()->addMonth()->startOfWeek();
+        $scheduleId = DB::table('core_liveclass_schedules')->insertGetId([
+            'customer_id' => $customerId, 'cohort_id' => $cohortId, 'name' => 'Progress plan',
+            'starts_on' => $monday->toDateString(), 'ends_on' => $monday->copy()->addDays(13)->toDateString(),
+            'timezone' => config('app.timezone'), 'created_by' => $admin->id, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $slot = fn (int $weekday, string $start, string $end): int => DB::table('core_liveclass_schedule_slots')->insertGetId([
+            'customer_id' => $customerId, 'schedule_id' => $scheduleId, 'weekday' => $weekday, 'start_time' => $start,
+            'end_time' => $end, 'sort_order' => $weekday, 'created_by' => $admin->id, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $mondaySlot = $slot(1, '09:00:00', '10:00:00');
+        $slot(1, '14:00:00', '15:00:00');
+        foreach ([2, 3, 4, 5] as $weekday) {
+            $slot($weekday, '09:00:00', '10:00:00');
+        }
+        $origin = fn (string $date, int $sessionId): bool => DB::table('core_liveclass_session_schedule_origins')->insert([
+            'customer_id' => $customerId, 'session_id' => $sessionId, 'schedule_id' => $scheduleId, 'schedule_slot_id' => $mondaySlot,
+            'source_local_date' => $date, 'source_local_start_time' => '09:00:00', 'source_local_end_time' => '10:00:00',
+            'source_timezone' => config('app.timezone'), 'source_start_at' => $date.' 02:00:00', 'source_end_at' => $date.' 03:00:00',
+            'created_by' => $admin->id, 'created_at' => now(),
+        ]);
+        $date = $monday->toDateString();
+        $origin($date, $this->operationalSession($customerId, $cohortId, $admin, "$date 09:00:00", "$date 10:00:00"));
+        // Ngày này nằm ngoài kế hoạch hiện tại nên không được tính vào tiến độ.
+        $outside = $monday->copy()->addDays(21)->toDateString();
+        $this->operationalSession($customerId, $cohortId, $admin, "$outside 09:00:00", "$outside 10:00:00");
+        $origin($outside, (int) DB::table('core_liveclass_sessions')->where('cohort_id', $cohortId)->max('id'));
+
+        $this->actingAs($admin)
+            ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=schedules")
+            ->assertOk()
+            ->assertSeeText('1/12')
+            ->assertSeeText(__('lf.LF_course_cohort_schedule_list_sessions_progress', ['created' => 1, 'planned' => 12]))
+            // Hai giờ của Thứ Hai gộp một dòng; 5 thứ thì thứ thứ năm thu vào "+1".
+            ->assertSeeInOrder(['09:00–10:00,', '14:00–15:00'])
+            ->assertSeeText(__('lf.LF_course_cohort_schedule_more_slots', ['count' => 1]))
+            ->assertDontSee('<span class="ui-caption ui-framework-description">'.config('app.timezone').'</span>', false);
+    }
+
     public function test_schedule_detail_shows_excluded_occurrences_where_they_fall(): void
     {
         [$customerId, $admin, $cohortId] = $this->lifecycleCohort();
