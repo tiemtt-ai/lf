@@ -413,12 +413,8 @@
              this.rescheduleStartError = ''
          }
      }">
-            <div class="ui-summary-head">
-                <div>
-                    <h2 id="cohort-sessions-title">{{ __('lf.LF_course_cohort_session_title') }}</h2>
-                    <p class="ui-caption">{{ __('lf.LF_course_cohort_session_help', ['count' => $sessions->count() + collect($contentTree['proposals'])->whereNotNull('occurrence')->count()]) }}</p>
-                </div>
-            </div>
+            {{-- The tab already names this section; the list below has the only visible title. --}}
+            <h2 id="cohort-sessions-title" class="ui-sr-only">{{ __('lf.LF_course_cohort_session_title') }}</h2>
 
             @if ($cohort->is_mutable && ! $sessionAcceptsNew)
                 <div class="ui-banner ui-cohort-tab-notice" role="status">

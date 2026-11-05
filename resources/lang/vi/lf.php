@@ -2679,7 +2679,6 @@ return [
     'LF_course_cohort_session_assign_teachers_saved' => 'Đã phân công giáo viên cho buổi học.',
     'LF_course_cohort_session_assign_teachers_locked' => 'Chỉ phân công được cho buổi đã quá giờ, chưa có giáo viên và chưa có dữ liệu vận hành của lớp bản nháp.',
     'LF_course_cohort_session_title' => 'Buổi học',
-    'LF_course_cohort_session_help' => ':count buổi học của lớp, gắn theo chương trình.',
     'LF_course_cohort_session_type' => 'Loại buổi học',
     'LF_course_cohort_session_type_curriculum' => 'Buổi trong chương trình',
     'LF_course_cohort_session_type_operational' => 'Buổi ngoài chương trình',

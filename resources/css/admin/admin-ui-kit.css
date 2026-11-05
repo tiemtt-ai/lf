@@ -2043,8 +2043,11 @@
 .lf-admin-ui.ui-structure .course-template-content-toolbar .course-template-content-count .lf-secondary-text { margin: 0; color: var(--ct-text-3); font-size: 13px; font-weight: 400; }
 .lf-admin-ui.ui-structure .course-template-content-count .lf-secondary-text::before { content: "·"; margin-right: 6px; } /* the same 6px on both sides of the dot */
 .lf-admin-ui.ui-structure .course-template-content-tools { display: flex; align-items: center; gap: 8px; }
-.lf-admin-ui.ui-structure .course-template-content-search { display: flex; align-items: center; gap: 6px; width: 220px; height: 32px; padding: 0 10px; border: 1px solid var(--ct-border-strong); border-radius: 8px; background: var(--ui-white); color: var(--ct-text-3); }
-.lf-admin-ui.ui-structure .course-template-content-search:focus-within { border-color: var(--ui-primary); box-shadow: 0 0 0 3px var(--ct-primary-tint); }
+.lf-admin-ui.ui-structure .course-template-content-search { display: flex; align-items: center; gap: 6px; width: 220px; height: 32px; padding: 0 10px; border: 1px solid var(--ui-border); border-radius: var(--ui-control-radius); background: var(--ui-white); color: var(--ct-text-3); transition: border-color .14s, box-shadow .14s; }
+/* The kit's control states, on the box: the input inside must not draw its own ring. */
+.lf-admin-ui.ui-structure .course-template-content-search:hover { border-color: var(--ui-border-hover); }
+.lf-admin-ui.ui-structure .course-template-content-search:focus-within { border-color: var(--ui-primary); box-shadow: 0 0 0 2px var(--ui-focus-ring); }
+.lf-admin-ui.ui-structure .course-template-content-search input[type=search]:focus-visible { box-shadow: none; }
 .lf-admin-ui.ui-structure .course-template-content-search .ui-icon { width: 16px; height: 16px; flex: none; }
 .lf-admin-ui.ui-structure .course-template-content-search input[type=search] { min-height: 0; border-radius: 0; flex: 1; min-width: 0; height: 100%; padding: 0; border: 0; outline: 0; background: transparent; box-shadow: none; color: var(--ui-text); font: inherit; font-size: 13px; }
 .lf-admin-ui.ui-structure .ui-row-action.course-template-content-fold-all { width: 32px; height: 32px; border: 1px solid var(--ct-border-strong); border-radius: 8px; background: var(--ui-white); color: var(--ui-text); }

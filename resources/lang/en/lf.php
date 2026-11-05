@@ -2679,7 +2679,6 @@ return [
     'LF_course_cohort_session_assign_teachers_saved' => 'Teachers assigned to the session.',
     'LF_course_cohort_session_assign_teachers_locked' => 'Teachers can only be added to a past-start session of a draft class that has no teacher and no operational data.',
     'LF_course_cohort_session_title' => 'Sessions',
-    'LF_course_cohort_session_help' => ':count sessions of this class, following the programme.',
     'LF_course_cohort_session_type' => 'Session type',
     'LF_course_cohort_session_type_curriculum' => 'Curriculum session',
     'LF_course_cohort_session_type_operational' => 'Operational session',
