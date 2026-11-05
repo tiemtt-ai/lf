@@ -22,4 +22,7 @@
             {{ __('lf.LF_course_cohort_session_tree_unscheduled') }}
         @endif
     </span>
+    @if ($treeLessonSessions->first()?->schedule_relation === 'rescheduled')
+        @include('course-cohorts.partials.tabs.session-tree-date-edited', ['session' => $treeLessonSessions->first()])
+    @endif
 @endif

@@ -98,6 +98,9 @@ class LiveClassCohortSessionReadModel
             }
             $session->teacher_ids = $teacherIds->unique()->values();
             $session->schedule_relation = $this->originService->classify($session);
+            // The Schedule's date of this Session, in its own timezone: what "back to default" restores.
+            $session->default_start_at = $session->schedule_origin_id ? $this->localFromUtc($session->source_start_at, $session->timezone) : null;
+            $session->default_end_at = $session->schedule_origin_id ? $this->localFromUtc($session->source_end_at, $session->timezone) : null;
             $session->is_past_due = $session->status === 'scheduled'
                 && LiveClassSessionTime::utc($session->scheduled_start_at, $session->timezone)->lte($now);
             $session->can_edit = $this->sessionPolicy->canEdit(
@@ -121,6 +124,11 @@ class LiveClassCohortSessionReadModel
         });
 
         return $sessions;
+    }
+
+    private function localFromUtc(string $utc, string $timezone): string
+    {
+        return \Carbon\CarbonImmutable::parse($utc, 'UTC')->setTimezone($timezone)->format('Y-m-d\TH:i');
     }
 
     /**

@@ -12,7 +12,9 @@ Document Path: database/liveclass/core_liveclass_session_schedule_origins.md
 
 ## Purpose
 
-Stores immutable lineage for a concrete Session explicitly confirmed from one
+Stores immutable lineage for a concrete Session created automatically when a
+Schedule is saved (ADR-0002 § Automatic Session Generation Amendment), or
+explicitly confirmed from one
 projected Cohort Schedule occurrence. This table is the only authority for
 Schedule-origin classification; Session metadata and timestamp coincidence are
 not lineage.
@@ -38,7 +40,7 @@ Session 1 → 0..1 Origin
 | `source_timezone` | `VARCHAR(64)` | no | IANA timezone frozen from Schedule. |
 | `source_start_at` | `DATETIME` | no | Absolute source start instant normalized to UTC. |
 | `source_end_at` | `DATETIME` | no | Absolute source end instant normalized to UTC. |
-| `created_by` | `BIGINT UNSIGNED` | no | Same-tenant actor confirming the batch. |
+| `created_by` | `BIGINT UNSIGNED` | no | Same-tenant actor saving the Schedule or the Session. |
 | `created_at` | `TIMESTAMP` | no | Origin creation time. |
 
 There is no `updated_at`, status, metadata or soft-delete column. Origin rows
@@ -115,16 +117,16 @@ for verifying that Slot belongs to Schedule.
 
 ## Write And Transaction Policy
 
-Preview writes nothing. On confirmation, one atomic transaction must:
+Preview writes nothing. On saving a Schedule, one atomic transaction must:
 
 1. resolve and lock the same-tenant Cohort, Schedule and selected Slots;
 2. recalculate occurrences with canonical Schedule preview rules;
 3. reject excluded/out-of-range/already-consumed rows and all invalid Session
    bindings;
-4. create every selected Session and explicit Session Teacher assignment;
+4. create every paired Session and its Session Teacher assignments;
 5. create one Origin for each new Session.
 
-Any failure rolls back the complete batch. No partial success is permitted.
+Any failure rolls back the Schedule save with its Sessions. No partial success is permitted.
 The request cannot supply authoritative occurrence timestamps, timezone,
 customer, Cohort or Schedule metadata.
 

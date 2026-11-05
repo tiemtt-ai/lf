@@ -158,6 +158,11 @@
                                      x-on:change="sessionEndChanged()" x-bind:min="startsAt || scheduleMin" x-bind:max="scheduleMax" />
                     @error('scheduled_end_at')<p class="ui-field__error" role="alert" x-show="showFormErrors">{{ $message }}</p>@enderror
                 </div>
+                <div class="ui-field ui-field--full" x-show="!activityScope() && canResetSchedule()" x-cloak>
+                    <button type="button" class="ui-button ui-button--sm ui-button--outline ui-cohort-session-reset cursor-interaction" x-on:click="resetSchedule()">
+                        <span x-text="@js(__('lf.LF_course_cohort_session_date_reset')) + ' (' + scheduleDefaultLabel() + ')'"></span>
+                    </button>
+                </div>
                 <div class="ui-field ui-field--full" x-show="scheduleMoved()" x-cloak>
                     <label class="ui-field__label" for="session_change_reason">{{ __('lf.LF_course_cohort_session_change_reason') }}</label>
                     <textarea id="session_change_reason" name="reason" rows="2" maxlength="1000" x-model="scheduleReason" x-bind:disabled="!scheduleMoved()"></textarea>

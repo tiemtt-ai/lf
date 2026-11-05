@@ -1,6 +1,6 @@
 # ADR-0023 — Cohort Content Order
 
-Version: 1.3
+Version: 1.4
 
 Status: Approved
 
@@ -10,7 +10,7 @@ Last Updated: 2026-11-05
 
 Proposal Date: 2026-11-05
 
-Approval Date: 2026-11-05 (bản 1.3 ghi quyết định cả box đi theo bài và cách 1 của Owner)
+Approval Date: 2026-11-05 (bản 1.3 ghi quyết định cả box đi theo bài và cách 1 của Owner; bản 1.4 ghi việc lưu Lịch học tự tạo Session)
 
 Document Path: adr/ADR-0023-Cohort-Content-Order.md
 
@@ -101,7 +101,8 @@ Giới hạn và biên:
 * Đoạn bị đổi là các chỉ số có Activity khác trước.
 * Session `cancelled` và Session ngoài chương trình không được gắn lại. Session `cancelled` ở lại Activity của nó và vẫn hiện ngày cũ tại vị trí mới của Activity đó.
 * Session thủ công không có Origin chiếm một vị trí mà không tiêu thụ occurrence, nên các ngày chưa lưu phía sau lùi một vị trí. Chấp nhận ở giai đoạn này.
-* Đây không phải đồng bộ theo Schedule mà ADR-0002 còn hoãn: không có Session nào đổi giờ, và chỉ tạo Session trong trường hợp 5.
+* Đây không phải đồng bộ theo Schedule mà ADR-0002 còn hoãn: không có Session nào đổi giờ, và lần kéo chỉ tạo Session trong trường hợp 5.
+* Bản 1.4: lưu Lịch học đã tự tạo Session (ADR-0002, Automatic Session Generation Amendment), nên ngày chưa lưu chỉ còn ở trường hợp ít gặp, ví dụ sau khi hủy buổi. Các quy tắc trên vẫn áp dụng cho những ngày đó.
 
 ## 4. Khóa những gì đã qua
 

@@ -16,6 +16,42 @@ Approved
 
 Document Path: adr/ADR-0002-LiveClass-Foundation.md
 
+## Automatic Session Generation Amendment
+
+Approved: 2026-11-05 (Owner decision)
+
+This amendment supersedes the clauses below that keep automatic generation
+deferred, that require an admin to confirm each occurrence, and that say saving
+a Schedule must not create a Session.
+
+Saving a Schedule (create or update) now creates Sessions in the same
+transaction:
+
+* Free future occurrences of the Cohort are paired, in the Cohort's programme
+  order, with `live_class` Activities that have no delivering Session. This is
+  the pairing the Sessions tab already showed.
+* Each Session starts `scheduled`, with the Lesson's title, online, the Activity's
+  link and the Cohort's teachers active on that date. Each gets an immutable
+  Origin; occurrence uniqueness still applies.
+* Learners see them under the same rules as any Session. Changes are made on the
+  Sessions tab, Session by Session.
+
+Unchanged: an existing Session or Origin is never updated, moved or cancelled by a
+Schedule edit, so Schedule-driven synchronization stays deferred, as do Schedule
+deletion and replacement. A Slot used by an Origin still cannot be removed.
+Occurrences beyond the number of Activities stay unused. Saving is refused, and
+nothing is stored, when the Cohort's free dates do not reach every `live_class`
+Activity without a delivering Session (Owner decision 2026-11-05): the form says
+how many are missing while editing, and the backend decides.
+
+A class teacher added later joins upcoming Sessions that have no team, within
+their period, because such Sessions block Cohort activation.
+
+The admin batch endpoint and form are removed, and the manual create button is
+removed from the Sessions tab. A
+date can still appear without a Session, for example after a cancellation; it
+keeps the read-only presentation and is saved from its row.
+
 ## Session Status Vocabulary And Replacement Scope Clarification
 
 Approved: 2026-08-10
@@ -87,7 +123,8 @@ Approved: 2026-08-05
 This amendment authorizes explicit, immutable provenance when an authorized
 actor creates one or more concrete Sessions from selected projected Schedule
 occurrences. It supersedes only the clauses that deferred Schedule-to-Session
-provenance, confirmed generation and idempotency. Automatic generation,
+provenance, confirmed generation and idempotency. Automatic generation (now
+authorized by the Automatic Session Generation Amendment above),
 Schedule-driven synchronization, replacement Sessions and Schedule deletion
 remain unapproved.
 
@@ -260,7 +297,8 @@ Schedule deletion, automatic generation, future-Session synchronization,
 shared holiday calendars and Schedule-driven bulk rescheduling remain
 deferred. Explicit preview/selection/confirmation and immutable provenance are
 authorized only by the Schedule-To-Session Origin Amendment above. Creating or
-updating a Schedule still must not create, update, cancel or delete any Session.
+updating a Schedule still must not update, cancel or delete any Session; creating
+Sessions on save is authorized by the Automatic Session Generation Amendment.
 
 ## Curriculum And Operational Session Amendment
 

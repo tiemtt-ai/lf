@@ -7,6 +7,7 @@ use App\Http\Requests\LiveClassScheduleRequest;
 use App\Services\CourseCohortMutationPolicy;
 use App\Services\LiveClassSchedulePreviewService;
 use App\Services\LiveClassScheduleService;
+use App\Services\LiveClassScheduleSessionGenerator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,7 +21,8 @@ class LiveClassScheduleController extends Controller
 
     public function __construct(
         private readonly LiveClassSchedulePreviewService $previewService,
-        private readonly LiveClassScheduleService $scheduleService
+        private readonly LiveClassScheduleService $scheduleService,
+        private readonly LiveClassScheduleSessionGenerator $sessionGenerator
     ) {}
 
     public function create(Request $request, int $cohort): RedirectResponse
@@ -38,15 +40,21 @@ class LiveClassScheduleController extends Controller
 
     public function store(LiveClassScheduleRequest $request, int $cohort): RedirectResponse
     {
-        $scheduleId = $this->scheduleService->create(
-            $this->customerId(),
-            $cohort,
-            (int) $request->user()->id,
-            $request->validated()
-        );
+        $created = DB::transaction(function () use ($request, $cohort): int {
+            $this->scheduleService->create(
+                $this->customerId(),
+                $cohort,
+                (int) $request->user()->id,
+                $request->validated()
+            );
+
+            return $this->sessionGenerator->generate($this->customerId(), $cohort, (int) $request->user()->id);
+        }, 3);
 
         return redirect()->route('admin.course-cohorts.show', ['id' => $cohort, 'tab' => 'schedules'])
-            ->with('success', __('lf.LF_course_cohort_schedule_created'));
+            ->with('success', $created > 0
+                ? __('lf.LF_course_cohort_schedule_created_with_sessions', ['count' => $created])
+                : __('lf.LF_course_cohort_schedule_created'));
     }
 
     public function show(Request $request, int $cohort, int $schedule): RedirectResponse
@@ -83,16 +91,22 @@ class LiveClassScheduleController extends Controller
         int $cohort,
         int $schedule
     ): RedirectResponse {
-        $this->scheduleService->update(
-            $this->customerId(),
-            $cohort,
-            $schedule,
-            (int) $request->user()->id,
-            $request->validated()
-        );
+        $created = DB::transaction(function () use ($request, $cohort, $schedule): int {
+            $this->scheduleService->update(
+                $this->customerId(),
+                $cohort,
+                $schedule,
+                (int) $request->user()->id,
+                $request->validated()
+            );
+
+            return $this->sessionGenerator->generate($this->customerId(), $cohort, (int) $request->user()->id);
+        }, 3);
 
         return redirect()->route('admin.course-cohorts.show', ['id' => $cohort, 'tab' => 'schedules'])
-            ->with('success', __('lf.LF_course_cohort_schedule_updated'));
+            ->with('success', $created > 0
+                ? __('lf.LF_course_cohort_schedule_updated_with_sessions', ['count' => $created])
+                : __('lf.LF_course_cohort_schedule_updated'));
     }
 
     public function preview(LiveClassScheduleRequest $request, int $cohort): JsonResponse
@@ -109,6 +123,9 @@ class LiveClassScheduleController extends Controller
         return response()->json([
             'count' => $preview->count(),
             'data' => $preview,
+            'missing' => $this->sessionGenerator->missingDates(
+                $this->customerId(), $cohort, $request->integer('editing_schedule_id') ?: null, $preview
+            ),
             'notice' => __('lf.LF_course_cohort_schedule_preview_notice'),
         ]);
     }

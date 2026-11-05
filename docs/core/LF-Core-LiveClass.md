@@ -1,12 +1,12 @@
 # LF-Core-LiveClass.md
 
-Version: 2.7
+Version: 2.8
 
 Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-11-04
+Last Updated: 2026-11-05
 
 Document Path: core/LF-Core-LiveClass.md
 
@@ -515,28 +515,26 @@ identity/diff and must not delete-and-recreate referenced Slots. Updating
 Schedule/Slot changes only future projected occurrences; it never changes an
 existing Origin or Session.
 
-Creation is an explicit four-stage operation:
-
-1. Select one Schedule and a range within both Schedule and Cohort windows.
-2. Recalculate projected occurrences with canonical Slots, exclusions and
-   Schedule timezone; preview persists nothing.
-3. Select occurrences and explicitly assign valid curriculum/operational
-   Session data. Schedule never guesses Lesson or Activity.
-4. Confirm one atomic batch. Backend recalculates and locks canonical data,
-   rejects the whole batch on any invalid row and writes Sessions plus Origins.
+Saving a Schedule creates the Sessions itself (ADR-0002 § Automatic Session
+Generation Amendment): free future occurrences go, in programme order, to
+`live_class` Activities without a delivering Session, with the Lesson's title,
+online, the Activity's link and the Cohort's teachers of that date, in the
+transaction saving the Schedule. Saving is refused when the free dates do not
+reach every such Activity; extra dates stay unused. Changes are made on the
+Sessions tab.
 
 Client occurrence timestamps, timezone and tenant metadata are never trusted.
 Uniqueness on the occurrence identity provides the final double-submit guard.
 This flow creates no Attendance, Recording, Replay, Progress or Completion.
 
-Programme dates are a read-only presentation on the Cohort Sessions tab. Free
-future occurrences are paired, in programme order, with `live_class` Activities
+A date can still lack a Session, for example after a cancellation or when a
+Schedule predates generation. Such programme dates are a read-only presentation
+on the Cohort Sessions tab. Free future occurrences are paired, in programme order, with `live_class` Activities
 that have no delivering Session (`scheduled`, `live`, `completed`). The tab shows
 such a date like a Session, with the Cohort's teachers, but it persists nothing:
 teachers, learners, Attendance and lifecycle actions do not see it. It follows
 the Schedule when that changes, and becomes a Session only when an admin saves it
-in the Session form or confirms it in a batch, so the pairing remains a suggestion
-the admin confirms, not a guess by the Schedule. An occurrence whose start has
+in the Session form. An occurrence whose start has
 passed, or that another Session occupies, is not shown. A Session cannot be moved
 onto a date shown on another lesson.
 
@@ -544,7 +542,9 @@ A Session form may change the date and time of a Session. The change is applied
 only when the form declares it, passes the same Cohort window, overlap and
 teacher checks as a reschedule, and writes the same audit row. When creating
 from a proposal with a different time, the Origin keeps the original occurrence
-and the audit row records the move. Once a Session's start has passed it can no
+and the audit row records the move. The Sessions tab marks a `rescheduled` Session
+as edited, and its form can restore the Origin's date; saving that is a reschedule
+like any other, with its audit row. Once a Session's start has passed it can no
 longer be moved or edited.
 
 Presentation labels are derived from immutable lineage:
@@ -606,7 +606,7 @@ Course definition, because each Cohort uses its own room and the URL is often
 unknown when the Template is authored. For a curriculum Session the Version
 Activity `live_class_url_snapshot`, when present, is only prefilled as a
 default; the administrator may enter, replace or leave the URL empty for
-later, on single create, batch create and edit. A submitted empty URL falls
+later, on create and edit. A submitted empty URL falls
 back to that default. `online_provider` is derived from the final URL for
 curriculum Sessions. A Session without a URL shows "not available" to
 learners and teachers until one is added.

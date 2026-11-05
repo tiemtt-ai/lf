@@ -3171,8 +3171,9 @@ body.sorting .lf-admin-ui.ui-structure .course-template-order-handle[data-toolti
 .lf-admin-ui .ui-cohort-session-tree__order-lock[data-tooltip]::after { right: auto; left: 0; }
 .lf-admin-ui .ui-cohort-session-tree__actions { display: flex; align-items: center; justify-content: flex-end; gap: 2px; }
 .lf-admin-ui .ui-cohort-session-tree__loose { padding: 0 22px 22px; }
+.lf-admin-ui .ui-cohort-session-edited { padding: 0 8px; font-size: 12px; line-height: 18px; white-space: nowrap; }
+.lf-admin-ui .ui-cohort-session-reset { align-self: flex-start; }
 .lf-admin-ui .ui-cohort-session-tree__loose h3 { margin: 0 0 8px; font-size: 14px; font-weight: 600; }
-.lf-admin-ui .ui-cohort-session-batch__mapped { margin-bottom: 12px; }
 @media (max-width: 720px) {
     .lf-admin-ui .ui-cohort-session-tree__slot { grid-template-columns: minmax(0, 1fr) auto; }
     .lf-admin-ui .ui-cohort-session-tree__teachers { grid-column: 1 / -1; grid-row: 2; }
@@ -3199,33 +3200,6 @@ body.sorting .lf-admin-ui.ui-structure .course-template-order-handle[data-toolti
 .lf-admin-ui .ui-cohort-session-template dd { font-size: 14px; line-height: 20px; font-weight: 400; }
 @media (min-width: 641px) {
     .lf-admin-ui .ui-cohort-session-modal .ui-option-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-.lf-admin-ui .ui-cohort-session-batch__toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
-.lf-admin-ui .ui-cohort-session-batch { display: flex; flex-direction: column; gap: 8px; }
-.lf-admin-ui .ui-cohort-session-batch__row { border: 1px solid var(--ui-border); border-radius: 7px; background: var(--ui-white); }
-.lf-admin-ui .ui-cohort-session-batch__row.is-selected { border-color: var(--ui-primary); }
-.lf-admin-ui .ui-cohort-session-batch__row.has-error { border-color: var(--ui-invalid); }
-.lf-admin-ui .ui-cohort-session-batch__row.is-disabled { background: var(--ui-color-f7f8fa); }
-.lf-admin-ui .ui-cohort-session-batch__head { display: flex; align-items: center; }
-.lf-admin-ui .ui-cohort-session-batch__check { display: flex; flex: none; align-items: center; align-self: stretch; padding: 0 4px 0 14px; cursor: pointer; }
-.lf-admin-ui .ui-cohort-session-batch__trigger { display: flex; flex: 1; align-items: center; gap: 16px; min-width: 0; padding: 10px 14px 10px 8px; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; }
-.lf-admin-ui .ui-cohort-session-batch__trigger:disabled { cursor: default; }
-.lf-admin-ui .ui-cohort-session-batch__when { display: grid; flex: none; width: 210px; }
-.lf-admin-ui .ui-cohort-session-batch__meta { display: grid; flex: 1; min-width: 0; }
-.lf-admin-ui .ui-cohort-session-batch__trigger .ui-status { flex: none; }
-.lf-admin-ui .ui-cohort-session-batch__chevron { flex: none; width: 8px; height: 8px; border-right: 1.5px solid var(--ui-muted); border-bottom: 1.5px solid var(--ui-muted); transform: rotate(45deg) translate(-2px, -2px); }
-.lf-admin-ui .ui-cohort-session-batch__trigger[aria-expanded=true] .ui-cohort-session-batch__chevron { transform: rotate(-135deg) translate(-2px, -2px); }
-.lf-admin-ui .ui-cohort-session-batch__panel { padding: 14px; border-top: 1px solid var(--ui-color-eceef3); }
-.lf-admin-ui .ui-cohort-session-batch__link { grid-column: span 2; }
-.lf-admin-ui .ui-cohort-session-batch__reset { margin-top: 12px; }
-.lf-admin-ui .ui-cohort-session-batch__location { margin-top: 16px; }
-.lf-admin-ui .ui-cohort-session-batch__message { margin: 12px 0 0; }
-.lf-admin-ui .ui-cohort-session-batch__message:focus { outline: none; }
-@media (max-width: 640px) {
-    .lf-admin-ui .ui-cohort-session-batch__trigger { flex-wrap: wrap; gap: 6px 12px; }
-    .lf-admin-ui .ui-cohort-session-batch__when { width: 100%; }
-    .lf-admin-ui .ui-cohort-session-batch__meta { flex-basis: 100%; }
-    .lf-admin-ui .ui-cohort-session-batch__link { grid-column: auto; }
 }
 .lf-admin-ui .course-cohort-schedules__inline-editor { margin: 16px 20px; padding: 16px; border: 1px solid var(--ui-border); border-radius: 7px; }
 .lf-admin-ui .course-cohort-schedules__inline-editor table { min-width: 0; }

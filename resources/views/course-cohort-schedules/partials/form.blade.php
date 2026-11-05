@@ -47,7 +47,7 @@
         saved: @js(['fields' => $savedFields, 'slots' => $savedSlots, 'exclusions' => $savedExclusions]),
         name: @js($initialFields['name']), timezone: @js($initialFields['timezone']),
         startsOn: @js($initialFields['startsOn']), endsOn: @js($initialFields['endsOn']),
-        preview: [], previewCount: 0, previewLoading: false, previewError: '', previewTimer: null, previewToken: 0,
+        preview: [], previewCount: 0, previewMissing: 0, previewLoading: false, previewError: '', previewTimer: null, previewToken: 0,
         maxSlots: 50, maxExclusions: 366, submitting: false, showErrors: true,
         withKey(slot) { return { errors: {}, persisted: false, ...slot, key: ++this.slotKey } },
         open() { this.$refs.dialog.showModal(); this.queuePreview() },
@@ -92,6 +92,7 @@
                 && slot.start_time < other.end_time && other.start_time < slot.end_time)
         },
         hasSlotConflict() { return this.slots.some(slot => this.slotConflict(slot)) },
+        missingMessage() { return @js(__('lf.LF_course_cohort_schedule_not_enough_dates')).replace(':missing', this.previewMissing) },
         slotsMessage() { return this.hasSlotConflict() ? @js(__('lf.LF_course_cohort_schedule_validation_overlap')) : this.slotsError },
         slotDuration(slot) {
             if (!slot.start_time || !slot.end_time) return ''
@@ -150,7 +151,7 @@
         async loadPreview() {
             const token = ++this.previewToken
             if (!this.startsOn || !this.endsOn || !this.timezone || !this.slots.length || this.slots.some(slot => !slot.weekday || !slot.start_time || !slot.end_time)) {
-                this.preview = []; this.previewCount = 0; this.previewError = ''; this.previewLoading = false; return
+                this.preview = []; this.previewCount = 0; this.previewMissing = 0; this.previewError = ''; this.previewLoading = false; return
             }
             this.previewLoading = true; this.previewError = ''
             try {
@@ -159,13 +160,14 @@
                     body: JSON.stringify({
                         starts_on: this.startsOn, ends_on: this.endsOn, timezone: this.timezone,
                         slots: this.slots.map(({ weekday, start_time, end_time }) => ({ weekday, start_time, end_time })),
-                        exclusions: this.exclusions.filter(item => item.excluded_on)
+                        exclusions: this.exclusions.filter(item => item.excluded_on),
+                        editing_schedule_id: @js($editing ? $schedule->id : null)
                     })
                 })
                 const payload = await response.json()
                 if (token !== this.previewToken) return
-                if (!response.ok) { this.preview = []; this.previewCount = 0; this.previewError = Object.values(payload.errors || {}).flat()[0] || @js(__('lf.LF_course_cohort_schedule_preview_failed')); return }
-                this.preview = payload.data; this.previewCount = payload.count
+                if (!response.ok) { this.preview = []; this.previewCount = 0; this.previewMissing = 0; this.previewError = Object.values(payload.errors || {}).flat()[0] || @js(__('lf.LF_course_cohort_schedule_preview_failed')); return }
+                this.preview = payload.data; this.previewCount = payload.count; this.previewMissing = payload.missing || 0
             } catch (error) {
                 if (token === this.previewToken) this.previewError = @js(__('lf.LF_course_cohort_schedule_preview_failed'))
             } finally {
@@ -212,6 +214,11 @@
                 return
             }
             if (this.hasSlotConflict()) { event.preventDefault(); return }
+            if (this.previewMissing > 0) {
+                event.preventDefault()
+                this.slotsError = this.missingMessage()
+                return
+            }
             this.submitting = true
         },
         init() {
@@ -361,6 +368,7 @@
                         <a class="ui-link-button" href="{{ route('admin.course-cohorts.show', [$cohort->id, 'tab' => 'sessions']) }}" target="_blank" rel="noopener">{{ __('lf.LF_course_cohort_schedule_preview_lessons_link') }}</a>
                     </p>
                     <p class="ui-field__error" role="alert" x-show="previewError" x-text="previewError" x-cloak></p>
+                    <p class="ui-field__error" role="alert" x-show="previewMissing > 0 && !previewLoading" x-text="missingMessage()" x-cloak></p>
                     <ul class="ui-cohort-schedule-preview__list" x-show="preview.length" x-cloak>
                         <template x-for="item in preview" :key="`${item.starts_at}-${item.ends_at}`">
                             <li>

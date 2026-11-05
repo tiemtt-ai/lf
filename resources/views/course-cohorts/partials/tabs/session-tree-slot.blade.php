@@ -17,6 +17,9 @@
         @else
             <span class="ui-enroll-nowrap ui-cohort-session-tree__time">{{ $sessionStartsAt->format('d/m/Y H:i') }} → {{ $sessionEndsAt->format('d/m/Y H:i') }}</span>
         @endif
+        @if ($session->schedule_relation === 'rescheduled')
+            @include('course-cohorts.partials.tabs.session-tree-date-edited')
+        @endif
         <span class="ui-caption">{{ collect([
             \Illuminate\Support\Str::ucfirst($sessionStartsAt->translatedFormat('l')),
             __('lf.LF_course_cohort_session_mode_'.$session->delivery_mode),
