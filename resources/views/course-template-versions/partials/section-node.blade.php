@@ -53,7 +53,8 @@
                         {{ __('lf.LF_course_template_lesson_common_list_title') }} ({{ $sectionLessons->count() }})
                     </h4>
                 </div>
-                <div class="course-template-lesson-list">
+                <div class="course-template-lesson-list"
+                     @isset($sessionTree) @include('course-cohorts.partials.tabs.session-tree-lesson-order', ['orderLessons' => $sectionLessons, 'orderSectionId' => $currentSection->id]) @endisset>
                     @forelse ($sectionLessons as $lesson)
                         @include('course-template-versions.partials.lesson')
                     @empty

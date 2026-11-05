@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lớp học · Buổi học</title>
+<link rel="stylesheet" href="../admin-layout-developer/assets/admin-layout.css">
+<link rel="stylesheet" href="../ui-kit-developer/assets/ui-kit.css">
+<link rel="stylesheet" href="assets/sessions.css?v=1.0">
+<script defer src="../ui-kit-developer/assets/lucide.min.js"></script>
+<script defer src="assets/sessions.js?v=1.0"></script>
+</head>
+<body>
+<div id="admin-app">
+<div class="admin-shell" id="admin-shell">
+<aside class="admin-sidebar" id="admin-sidebar" aria-label="Điều hướng quản trị">
+<div class="admin-sidebar__brand"><img class="admin-brand-image" src="../admin-layout-developer/assets/brand-logo.png" alt="Master Korean" width="180" height="67"><span class="admin-brand-initial" role="img" aria-label="Master Korean">V</span><button id="admin-close" type="button" class="admin-icon-button admin-close" aria-label="Đóng menu" hidden><i data-lucide="x" class="admin-icon" aria-hidden="true"></i></button></div>
+<nav class="admin-nav" aria-label="Menu chính">
+<a href="#" class="admin-nav__item" aria-label="Bảng điều khiển" data-tooltip="Bảng điều khiển"><i data-lucide="house" class="admin-icon" aria-hidden="true"></i><span class="admin-nav__label">Bảng điều khiển</span></a>
+<a href="#" class="admin-nav__item" aria-label="Sản phẩm khóa học" data-tooltip="Sản phẩm khóa học"><i data-lucide="box" class="admin-icon" aria-hidden="true"></i><span class="admin-nav__label">Sản phẩm khóa học</span></a>
+<a href="#" class="admin-nav__item" aria-label="Ghi danh khóa học" data-tooltip="Ghi danh khóa học"><i data-lucide="clipboard-check" class="admin-icon" aria-hidden="true"></i><span class="admin-nav__label">Ghi danh khóa học</span></a>
+<a href="#" class="admin-nav__item" aria-current="page" aria-label="Lớp học" data-tooltip="Lớp học"><i data-lucide="users" class="admin-icon" aria-hidden="true"></i><span class="admin-nav__label">Lớp học</span></a>
+</nav>
+<div class="admin-sidebar__footer"><div class="admin-user"><span class="admin-avatar">V1</span><span class="admin-user__text">Visang 1<small>Không gian quản trị</small></span></div></div>
+</aside>
+
+<div class="admin-main" id="admin-main">
+<header class="admin-header"><button id="admin-menu-toggle" type="button" class="admin-icon-button" aria-label="Thu gọn menu" aria-expanded="true" aria-controls="admin-sidebar"><i data-lucide="panel-left" class="admin-icon" aria-hidden="true"></i></button><span class="admin-breadcrumb"><span class="admin-system-name">Lớp học</span> <span aria-hidden="true"> / </span><strong>Buổi học</strong></span></header>
+
+<main class="admin-content">
+<div id="ui-catalog-soft" class="ses">
+
+<div class="ses-demo" role="group" aria-label="Thao tác minh họa">
+  <i data-lucide="flask-conical" class="ui-icon" aria-hidden="true"></i><span>Bản thiết kế · dữ liệu minh họa · “hôm nay” = 05/11/2026 10:00</span>
+  <button type="button" class="ui-button" data-demo="reset">Làm lại dữ liệu</button>
+  <button type="button" class="ui-button" data-demo="edit">Mở mẫu: sửa giờ buổi Bài 4</button>
+  <button type="button" class="ui-button" data-demo="extra">Mở mẫu: thêm buổi cho bài đã có buổi</button>
+</div>
+
+<div class="ses-cohort">
+  <div><h2>Lớp tiếng Hàn sơ cấp 1 – K12</h2><span class="ui-caption">Tiếng Hàn sơ cấp 1 · Version 4 (khóa) · Theo lịch · 01/11/2026 → 30/11/2026 · Asia/Ho_Chi_Minh</span></div>
+  <span class="ses-badge ses-badge--success">Đang hoạt động</span>
+</div>
+<nav class="mk-tabs ses-tabs" aria-label="Các phần của lớp học">
+  <a class="mk-tab" href="#">Tổng quan</a><a class="mk-tab" href="#">Học viên</a><a class="mk-tab" href="#">Giáo viên</a><a class="mk-tab" href="#">Lịch học</a><a class="mk-tab" href="#" aria-current="page">Buổi học</a><a class="mk-tab" href="#">Điểm danh</a><a class="mk-tab" href="#">Ghi hình</a>
+</nav>
+
+<section class="ui-section" aria-labelledby="ses-title">
+  <div class="ses-head">
+    <div><h3 id="ses-title" style="font-size:15px">Buổi học</h3><span class="ui-caption">Buổi học thực tế của lớp. Hoạt động Trước / Trong / Sau của bài học mở theo giờ của buổi học gắn bài đó.</span></div>
+    <div class="ses-head__actions">
+      <button type="button" class="ui-button ui-button--outline" data-open-batch><i data-lucide="calendar-plus" class="ui-icon" aria-hidden="true"></i>Tạo từ lịch học</button>
+      <button type="button" class="ui-button ui-button--primary" data-open-add><i data-lucide="plus" class="ui-icon" aria-hidden="true"></i>Thêm buổi học</button>
+    </div>
+  </div>
+  <dl class="ses-summary" id="ses-summary"></dl>
+
+  <div class="ses-toolbar">
+    <div class="ses-seg" role="group" aria-label="Kiểu xem">
+      <button type="button" data-view="time" aria-pressed="true"><i data-lucide="calendar-days" class="ui-icon" aria-hidden="true"></i>Theo thời gian</button>
+      <button type="button" data-view="program" aria-pressed="false"><i data-lucide="list-tree" class="ui-icon" aria-hidden="true"></i>Theo chương trình</button>
+    </div>
+    <div class="ses-chips" id="ses-filters" role="group" aria-label="Lọc buổi học"></div>
+    <div class="ui-search"><input id="ses-search" type="search" placeholder="Tìm buổi, bài học, giáo viên" aria-label="Tìm buổi, bài học, giáo viên"><button class="ui-button" type="button" aria-label="Tìm kiếm" tabindex="-1"><i data-lucide="search" class="ui-icon" aria-hidden="true"></i></button></div>
+  </div>
+  <ul class="ses-list" id="ses-list" aria-live="polite"></ul>
+</section>
+
+<!-- Popup: xem / sửa một buổi học -->
+<dialog id="ses-edit" class="ui-modal ses-modal" data-columns="3" aria-labelledby="ses-edit-title">
+  <form class="ui-modal__form" id="ses-edit-form" novalidate>
+    <header class="ui-modal__header"><div><h3 id="ses-edit-title"></h3><span class="ui-caption" id="ses-edit-sub"></span></div><button type="button" class="ui-modal__close" data-dlg-cancel aria-label="Đóng popup">×</button></header>
+    <div class="ui-modal__body" id="ses-edit-body"></div>
+    <footer class="ui-modal__footer"><span class="ses-footer-note" id="ses-edit-note"></span><button type="button" class="ui-button" data-dlg-cancel>Đóng</button><button type="submit" class="ui-button ui-button--primary" id="ses-edit-save"><i data-lucide="check" class="ui-icon" aria-hidden="true"></i><span>Lưu thay đổi</span></button></footer>
+  </form>
+</dialog>
+
+<!-- Popup: thêm một buổi học -->
+<dialog id="ses-add" class="ui-modal ses-modal" data-columns="3" aria-labelledby="ses-add-title">
+  <form class="ui-modal__form" id="ses-add-form" novalidate>
+    <header class="ui-modal__header"><div><h3 id="ses-add-title">Thêm buổi học</h3><span class="ui-caption" id="ses-add-sub">Buổi học được tạo ở trạng thái Đã lên lịch.</span></div><button type="button" class="ui-modal__close" data-dlg-cancel aria-label="Đóng popup">×</button></header>
+    <div class="ui-modal__body" id="ses-add-body"></div>
+    <footer class="ui-modal__footer"><span class="ses-footer-note" id="ses-add-note"></span><button type="button" class="ui-button" data-dlg-cancel>Hủy</button><button type="submit" class="ui-button ui-button--primary"><i data-lucide="check" class="ui-icon" aria-hidden="true"></i>Thêm buổi học</button></footer>
+  </form>
+</dialog>
+
+<!-- Popup: tạo nhiều buổi từ lịch học -->
+<dialog id="ses-batch" class="ui-modal ses-modal" data-columns="3" aria-labelledby="ses-batch-title">
+  <form class="ui-modal__form" id="ses-batch-form" novalidate>
+    <header class="ui-modal__header"><div><h3 id="ses-batch-title">Tạo buổi học từ lịch học</h3><span class="ui-caption">Chọn ngày dự kiến, gán bài học, hình thức và giáo viên. Không có buổi nào được tạo nếu một dòng đã chọn còn lỗi.</span></div><button type="button" class="ui-modal__close" data-dlg-cancel aria-label="Đóng popup">×</button></header>
+    <div class="ui-modal__body" id="ses-batch-body"></div>
+    <footer class="ui-modal__footer"><span class="ses-footer-note" id="ses-batch-note"></span><button type="button" class="ui-button" data-dlg-cancel>Hủy</button><button type="submit" class="ui-button ui-button--primary" id="ses-batch-save"><i data-lucide="check" class="ui-icon" aria-hidden="true"></i><span>Tạo buổi học</span></button></footer>
+  </form>
+</dialog>
+
+<div class="ses-toast" id="ses-toast" role="status" hidden></div>
+</div>
+</main>
+<footer class="admin-page-footer">Copyright © VISANG Education Group Vietnam Company</footer>
+</div>
+</div>
+<dialog id="admin-drawer" class="admin-drawer" aria-label="Menu quản trị"></dialog>
+</div>
+</body>
+</html>

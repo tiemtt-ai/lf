@@ -372,6 +372,8 @@ docs/adr/
 | [ADR-0020](adr/ADR-0020-AI-Vision-Interpretation-Boundary.md) | Approved: diễn giải là output AI không phải row media_*; mỗi call một ai_model_runs; quota chặn trước; retention thừa kế ADR-0018 |
 | [ADR-0021](adr/ADR-0021-Media-Sharing-Within-Tenant.md) | Approved: chia sẻ Media trong tenant, admin thấy hết, giáo viên theo chia sẻ (người cụ thể hoặc nhóm vai trò), chặn thu hồi khi đang dùng, media cũ riêng tư |
 | [ADR-0022](adr/ADR-0022-Course-Type-On-Template.md) | Approved: loại khóa học Tự học / Theo lịch / Kết hợp thuộc Course Template và Version; Product bỏ `offering_type`; Cohort chỉ dùng khóa học theo lớp |
+| [ADR-0023](adr/ADR-0023-Cohort-Content-Order.md) | Approved: thứ tự Lesson và Activity riêng của lớp, ngày theo vị trí, khóa lịch đã qua |
+| [ADR-0024](adr/ADR-0024-Cohort-Owned-Content.md) | Archived: Owner rút 2026-11-05; lớp không có bản nội dung riêng |
 
 ---
 
@@ -439,6 +441,8 @@ docs/quality/
 | [quality/LF-Media-Read-Contract-Architecture-Review.md](quality/LF-Media-Read-Contract-Architecture-Review.md) | Media Read A–H self-assessment packet; independent review pending |
 | [quality/LF-Media-Structured-Extraction-Architecture-Review.md](quality/LF-Media-Structured-Extraction-Architecture-Review.md) | Round 3 của region/table/cell + job identity/read selector; Gate M PASS và schema đã apply, Runtime Gate R vẫn NO |
 | [quality/LF-Course-Lesson-Multiple-Prerequisites-Architecture-Review.md](quality/LF-Course-Lesson-Multiple-Prerequisites-Architecture-Review.md) | Approved Course Lesson multiple-prerequisite architecture review |
+| [quality/LF-Cohort-Content-Order-Architecture-Review.md](quality/LF-Cohort-Content-Order-Architecture-Review.md) | Rà soát ADR-0023 và hai bảng thứ tự của lớp; Pass with changes, đã Freeze |
+| [quality/LF-Cohort-Owned-Content-Architecture-Review.md](quality/LF-Cohort-Owned-Content-Architecture-Review.md) | Rà soát ADR-0024, đã rút; không cần sửa Guardrails. |
 | [quality/LF-Version-Activity-Media-Snapshot-Architecture-Review.md](quality/LF-Version-Activity-Media-Snapshot-Architecture-Review.md) | Approved Version Activity media snapshot architecture review |
 | [quality/LF-Course-Product-Architecture-Review.md](quality/LF-Course-Product-Architecture-Review.md) | Approved Course Product CRUD architecture review |
 | [quality/LF-Course-Product-Integrated-Architecture-Review.md](quality/LF-Course-Product-Integrated-Architecture-Review.md) | Approved and frozen integrated Product v2 phase-one review |

@@ -25,6 +25,18 @@
                 <div class="ui-summary__item"><dt>{{ __('lf.LF_course_cohort_session_lesson') }}</dt><dd x-text="detailSession?.lesson_title || @js(__('lf.LF_course_cohort_session_outside_content'))"></dd></div>
                 <div class="ui-summary__item"><dt>{{ __('lf.LF_course_cohort_session_activity') }}</dt><dd x-text="detailSession?.activity_title || '—'"></dd></div>
                 <div class="ui-summary__item"><dt>{{ __('lf.LF_course_cohort_session_teachers') }}</dt><dd x-text="(detailSession?.teacher_team || []).map(teacher => teacher.name).join(', ') || detailSession?.primary_teacher_name || @js(__('lf.LF_course_cohort_session_batch_no_teacher'))"></dd></div>
+                <div class="ui-summary__item ui-summary__item--wide" x-show="detailTeacherContacts().length">
+                    <dt>{{ __('lf.LF_course_cohort_session_teacher_contact') }}</dt>
+                    <dd><ul class="ui-cohort-session-contacts" x-show="detailTeacherContacts().length" x-cloak>
+                        <template x-for="teacher in detailTeacherContacts()" :key="teacher.id">
+                            <li>
+                                <span x-text="teacher.name"></span>
+                                <a x-show="teacher.phone" x-bind:href="`tel:${teacher.phone}`" x-text="teacher.phone"></a>
+                                <a x-show="teacher.email" x-bind:href="`mailto:${teacher.email}`" x-text="teacher.email"></a>
+                            </li>
+                        </template>
+                    </ul></dd>
+                </div>
                 <div class="ui-summary__item" x-show="detailSession?.delivery_mode === 'online' || detailSession?.delivery_mode === 'hybrid'">
                     <dt>{{ __('lf.LF_course_cohort_session_provider') }}</dt>
                     <dd x-text="detailSession?.online_provider || meetingProvider(detailSession?.meeting_url_snapshot || detailSession?.activity_meeting_url) || @js(__('lf.LF_course_cohort_session_meeting_not_available'))"></dd>

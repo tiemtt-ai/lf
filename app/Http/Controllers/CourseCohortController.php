@@ -7,6 +7,8 @@ use App\Services\CourseCohortLifecycleService;
 use App\Services\CourseCohortMutationPolicy;
 use App\Services\CourseCohortSessionWindow;
 use App\Services\CourseCohortVersionResolver;
+use App\Services\CourseCohortContentOrder;
+use App\Services\CourseCohortContentTree;
 use App\Services\LiveClassCohortScheduleReadModel;
 use App\Services\LiveClassCohortSessionReadModel;
 use App\Services\LiveClassSessionPolicy;
@@ -39,7 +41,9 @@ class CourseCohortController extends Controller
         private readonly CourseCohortLifecycleService $lifecycleService,
         private readonly LiveClassSessionPolicy $sessionPolicy,
         private readonly LiveClassCohortSessionReadModel $sessionReadModel,
-        private readonly LiveClassCohortScheduleReadModel $scheduleReadModel
+        private readonly LiveClassCohortScheduleReadModel $scheduleReadModel,
+        private readonly CourseCohortContentTree $contentTree,
+        private readonly CourseCohortContentOrder $contentOrder
     ) {}
 
     public function index(Request $request): View
@@ -393,6 +397,11 @@ class CourseCohortController extends Controller
             'scheduleFormMode' => $formMode,
             'scheduleAcceptsNew' => ! $cohort->version_id || $this->versionResolver->runsInClass($customerId, (int) $cohort->version_id),
             'scheduleTimezones' => timezone_identifiers_list(),
+            'liveLessonCount' => $cohort->version_id
+                ? DB::table('core_course_template_version_activities')
+                    ->where('customer_id', $customerId)->where('template_version_id', $cohort->version_id)
+                    ->where('activity_type', 'live_class')->distinct()->count('version_lesson_id')
+                : 0,
         ], $this->scheduleReadModel->formState(
             $customerId, $cohortId, $formMode, $request->integer('schedule_id')
         ));
@@ -405,12 +414,32 @@ class CourseCohortController extends Controller
         if ($cohort->version_id) {
             $versionLessons = DB::table('core_course_template_version_lessons')
                 ->where('customer_id', $customerId)->where('template_version_id', $cohort->version_id)
-                ->orderBy('sort_order')->orderBy('id')->get(['id', 'title_snapshot']);
+                ->get([
+                    'id', 'title_snapshot', 'sort_order', 'short_description_snapshot', 'description_snapshot',
+                    'lesson_type', 'is_preview', 'unlock_rule_snapshot', 'unlock_at_snapshot',
+                ]);
+            $lessonTitles = $versionLessons->pluck('title_snapshot', 'id');
+            $prerequisiteTitles = DB::table('core_course_template_version_lesson_prerequisites')
+                ->where('customer_id', $customerId)->where('template_version_id', $cohort->version_id)
+                ->orderBy('sort_order')
+                ->get(['version_lesson_id', 'prerequisite_version_lesson_id'])
+                ->groupBy('version_lesson_id')
+                ->map(fn (Collection $rows): array => $rows->map(fn (object $row): ?string => $lessonTitles->get($row->prerequisite_version_lesson_id))->filter()->values()->all());
+            $versionLessons->each(function (object $lesson) use ($prerequisiteTitles): void {
+                $lesson->prerequisite_titles = $prerequisiteTitles->get($lesson->id, []);
+            });
             $versionActivities = DB::table('core_course_template_version_activities')
                 ->where('customer_id', $customerId)->where('template_version_id', $cohort->version_id)
                 ->where('activity_type', 'live_class')
-                ->orderBy('sort_order')->orderBy('id')
-                ->get(['id', 'version_lesson_id', 'title_snapshot', 'live_class_url_snapshot']);
+                ->get([
+                    'id', 'version_lesson_id', 'title_snapshot', 'live_class_url_snapshot', 'sort_order',
+                    'description_snapshot', 'estimated_duration_seconds_snapshot', 'completion_rule', 'is_preview', 'is_required',
+                    'unlock_rule_snapshot', 'unlock_after_version_activity_id',
+                    'available_anytime', 'available_before_session', 'available_during_session', 'available_after_session',
+                ]);
+            // Pickers follow the class's own order, as the programme above them does (ADR-0023 §6).
+            $versionLessons = $this->contentOrder->lessons($customerId, (int) $cohort->id, $versionLessons);
+            $versionActivities = $this->contentOrder->activities($customerId, (int) $cohort->id, $versionActivities);
         }
 
         $availableTeachers = DB::table('core_course_cohort_teachers as assignments')
@@ -426,18 +455,28 @@ class CourseCohortController extends Controller
             ->orderByRaw("CASE assignments.role WHEN 'primary_teacher' THEN 0 WHEN 'teacher' THEN 1 ELSE 2 END")
             ->orderBy('teachers.name')
             ->get([
-                'teachers.id', 'teachers.name', 'teachers.email',
+                'teachers.id', 'teachers.name', 'teachers.email', 'teachers.phone',
                 'assignments.role', 'assignments.assigned_from', 'assignments.assigned_to',
             ]);
+
+        $plannedOccurrences = $this->sessionReadModel->plannedOccurrences($customerId, (int) $cohort->id);
 
         return [
             'versionLessons' => $versionLessons,
             'versionActivities' => $versionActivities,
             'availableTeachers' => $availableTeachers,
             'sessions' => $sessions,
+            'contentTree' => $this->contentTree->build(
+                $customerId,
+                (int) $cohort->id,
+                $cohort->version_id ? (int) $cohort->version_id : null,
+                $sessions,
+                $cohort->is_mutable ? $plannedOccurrences : collect(),
+                $availableTeachers
+            ),
             'sessionWindow' => CourseCohortSessionWindow::for($cohort),
             'sessionAcceptsNew' => ! $cohort->version_id || $this->versionResolver->runsInClass($customerId, (int) $cohort->version_id),
-            'plannedOccurrences' => $this->sessionReadModel->plannedOccurrences($customerId, (int) $cohort->id),
+            'plannedOccurrences' => $plannedOccurrences,
         ];
     }
 

@@ -12,6 +12,14 @@ Document Path: core/LF-Core-Course.md
 
 ---
 
+
+> Amendment 2026-11-05 (Approved, [ADR-0023](../adr/ADR-0023-Cohort-Content-Order.md)):
+> mỗi lớp có thể có thứ tự Lesson và Activity riêng, lưu ở `core_course_cohort_lesson_orders`
+> và `core_course_cohort_activity_orders`; không có dòng nào nghĩa là dùng thứ tự của Version.
+> Màn hình trong ngữ cảnh lớp đọc qua `CourseCohortContentOrder`, không đọc trực tiếp `sort_order`
+> của Version. Kéo bài thì cả box đi theo nội dung (tên, link, hình thức, phòng, địa chỉ, giáo viên), ngày giờ đứng yên theo vị trí;
+> buổi đã qua bị khóa.
+
 # LF-Core Course Architecture
 
 Kiến trúc Course Domain chính thức:

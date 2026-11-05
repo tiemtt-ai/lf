@@ -10,14 +10,15 @@ class Toast {
     getAttribute() { return null; }
 }
 
-function setup(lessonIds = [1, 2, 3, 4], { numbered = true } = {}) {
+function setup(lessonIds = [1, 2, 3, 4], { numbered = true, reloads = false } = {}) {
     const flash = new Toast();
     const pageError = new Toast();
     const scope = {
         getAttribute: name => ({ 'data-csrf': 'TOKEN', 'data-msg-session-expired': 'SESSION' })[name] ?? null,
         querySelector: selector => (selector.includes('flash') ? flash : pageError),
     };
-    const win = { document: { activeElement: null }, fetches: [], pending: [] };
+    const win = { document: { activeElement: null }, fetches: [], pending: [], reloads: 0 };
+    win.location = { reload() { win.reloads += 1; } };
     win.fetch = (url, options) => {
         win.fetches.push({ url, options, ids: JSON.parse(options.body).item_ids });
         return new Promise((resolve, reject) => win.pending.push({ resolve, reject }));
@@ -27,6 +28,7 @@ function setup(lessonIds = [1, 2, 3, 4], { numbered = true } = {}) {
     const list = {
         children,
         closest: () => scope,
+        hasAttribute: name => name === 'data-reorder-reload' && reloads,
         contains: node => node === win.document.activeElement,
         getAttribute: name => ({ 'data-reorder-url': '/reorder', 'data-reorder-field': 'item_ids', 'data-order-number': numbered ? '.number' : null, 'data-msg-saved': 'SAVED', 'data-msg-error': 'ERROR', 'data-msg-outside': 'OUTSIDE' })[name],
         getBoundingClientRect: () => ({ top: 100, bottom: 500, left: 200, right: 800 }),
@@ -111,6 +113,25 @@ test('a drop saves the complete group as JSON with the CSRF token and renumbers 
     assert.equal(t.flash.textContent, 'SAVED');
     assert.equal(t.flash.hidden, false);
     assert.equal(t.pageError.hidden, true);
+});
+
+test('a list that shows derived data reloads once its last move is saved, and not after a refusal', async () => {
+    const t = setup([1, 2, 3], { reloads: true });
+    t.drag(3, 1);
+    t.drag(2, 3);
+    t.win.pending[0].resolve(t.reply(200, {}));
+    await t.tick();
+    assert.equal(t.win.reloads, 0, 'a newer move is still on its way');
+    t.win.pending[1].resolve(t.reply(200, {}));
+    await t.tick();
+    assert.equal(t.win.reloads, 1);
+
+    const refused = setup([1, 2], { reloads: true });
+    refused.drag(2, 1);
+    refused.win.pending[0].resolve(refused.reply(422, { message: 'NO' }));
+    await refused.tick();
+    assert.equal(refused.win.reloads, 0);
+    assert.deepEqual(refused.ids(), [1, 2]);
 });
 
 test('nothing is sent when the order did not change', async () => {

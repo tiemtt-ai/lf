@@ -105,6 +105,12 @@ class LiveClassCohortSessionReadModel
                 $sessionsWithEvidence->contains((int) $session->id),
                 $now
             );
+            $session->can_reschedule = $this->sessionPolicy->canReschedule($session, $now);
+            $session->position_lock_reason = $this->sessionPolicy->positionLockReason(
+                $session,
+                $sessionsWithEvidence->contains((int) $session->id),
+                $now
+            );
             $session->can_assign_teachers = $this->sessionPolicy->canAssignLateTeachers(
                 $session,
                 $cohortStatus,
@@ -186,7 +192,7 @@ class LiveClassCohortSessionReadModel
      * @param  Collection<int, mixed>  $sessionIds
      * @return Collection<int, int>
      */
-    private function sessionIdsWithEvidence(int $customerId, Collection $sessionIds): Collection
+    public function sessionIdsWithEvidence(int $customerId, Collection $sessionIds): Collection
     {
         return DB::table('core_liveclass_attendances')
             ->where('customer_id', $customerId)->whereIn('session_id', $sessionIds)->pluck('session_id')

@@ -41,9 +41,33 @@ class LiveClassSessionPolicy
             && $this->startsAt($session)->lte($now);
     }
 
-    public function canReschedule(object $session): bool
+    /** A Session whose start has passed stays where it is. Owner decision 2026-11-05. */
+    public function canReschedule(object $session, CarbonInterface $now): bool
     {
-        return $session->status === 'scheduled';
+        return $session->status === 'scheduled'
+            && ! $session->actual_start_at
+            && $this->startsAt($session)->gt($now);
+    }
+
+    /** ADR-0023 §4: this Session has happened, whatever its outcome, so its Activity keeps its place in the Cohort's order. */
+    public function locksPosition(object $session, bool $hasEvidence, CarbonInterface $now): bool
+    {
+        return $this->positionLockReason($session, $hasEvidence, $now) !== null;
+    }
+
+    /** Why the Session locks its place, as the suffix of `LF_course_cohort_order_lock_*`; null when it does not. */
+    public function positionLockReason(object $session, bool $hasEvidence, CarbonInterface $now): ?string
+    {
+        return match (true) {
+            $hasEvidence => 'evidence',
+            $session->status === 'live' => 'live',
+            $session->status === 'completed' => 'completed',
+            $session->status === 'no_show' => 'no_show',
+            (bool) $session->actual_start_at => 'started',
+            ! $this->startsAt($session)->lte($now) => null,
+            $session->status === 'cancelled' => 'cancelled',
+            default => 'past',
+        };
     }
 
     public function canRecordAttendance(object $session, CarbonInterface $now): bool

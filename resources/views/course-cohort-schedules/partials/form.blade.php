@@ -356,6 +356,10 @@
                         <p id="{{ $idPrefix }}_preview_label" class="ui-cohort-schedule-preview__title">{{ __('lf.LF_course_cohort_schedule_preview') }}</p>
                         <span class="ui-caption" x-text="previewSummary()"></span>
                     </div>
+                    <p class="ui-caption" x-show="previewCount > 0 && !previewLoading" x-cloak>
+                        <span x-text="@js(__('lf.LF_course_cohort_schedule_preview_lessons', ['lessons' => $liveLessonCount ?? 0])).replace(':days', previewCount)"></span>
+                        <a class="ui-link-button" href="{{ route('admin.course-cohorts.show', [$cohort->id, 'tab' => 'sessions']) }}" target="_blank" rel="noopener">{{ __('lf.LF_course_cohort_schedule_preview_lessons_link') }}</a>
+                    </p>
                     <p class="ui-field__error" role="alert" x-show="previewError" x-text="previewError" x-cloak></p>
                     <ul class="ui-cohort-schedule-preview__list" x-show="preview.length" x-cloak>
                         <template x-for="item in preview" :key="`${item.starts_at}-${item.ends_at}`">

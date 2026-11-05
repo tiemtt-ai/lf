@@ -1,12 +1,12 @@
 # Table: core_course_cohort_teachers
 
-Version: 1.3
+Version: 1.4
 
 Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-08-15
+Last Updated: 2026-11-05
 
 Document Path: database/course/core_course_cohort_teachers.md
 
@@ -83,6 +83,18 @@ thầm loại bỏ membership không hợp lệ.
 Kiểm tra chạy trong cùng transaction với thao tác gỡ, sau khi lock dòng Cohort.
 Hợp đồng phía Session nằm tại
 [core_liveclass_session_teachers](../liveclass/core_liveclass_session_teachers.md).
+
+## Assignment Edit Rule — 2026-11-05
+
+Assignment đang hoạt động được sửa `role`, `assigned_from`, `assigned_to` khi
+Cohort còn cho phép sửa; không đổi `teacher_id`. Các luật về `primary_teacher`
+và khoảng phụ trách ở trên giữ nguyên.
+
+Thao tác sửa không thay đổi `core_liveclass_session_teachers`. Với vai trò
+`teacher` hoặc `assistant`, thao tác bị từ chối (fail-closed) nếu khoảng mới làm
+một Session thuộc nhóm chặn của Assignment Deactivation Policy rơi ra ngoài
+khoảng phụ trách, và phải liệt kê đầy đủ các Session đó. Kiểm tra chạy trong
+cùng transaction, sau khi lock dòng Cohort.
 
 ## Indexes
 

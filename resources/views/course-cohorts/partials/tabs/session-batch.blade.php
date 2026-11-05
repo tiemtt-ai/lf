@@ -16,6 +16,9 @@
         </header>
         <div class="ui-modal__body">
             @error('occurrences')<div class="ui-field__error ui-cohort-manage-error" role="alert">{{ $message }}</div>@enderror
+            <div class="ui-banner ui-cohort-session-batch__mapped" role="status" x-show="batchMapped > 0" x-cloak>
+                <span class="ui-banner__text" x-text="@js(__('lf.LF_course_cohort_session_batch_mapped_notice')).replace(':count', batchMapped)"></span>
+            </div>
             <div class="ui-cohort-session-batch__toolbar">
                 <label class="ui-check">
                     <input type="checkbox"

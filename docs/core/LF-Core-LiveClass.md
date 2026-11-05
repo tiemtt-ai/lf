@@ -12,6 +12,17 @@ Document Path: core/LF-Core-LiveClass.md
 
 ---
 
+
+> Amendment 2026-11-05 (Approved, [ADR-0023](../adr/ADR-0023-Cohort-Content-Order.md)):
+> mỗi lớp có thể có thứ tự Lesson và Activity riêng, lưu ở `core_course_cohort_lesson_orders`
+> và `core_course_cohort_activity_orders`; không có dòng nào nghĩa là dùng thứ tự của Version.
+> Màn hình trong ngữ cảnh lớp đọc qua `CourseCohortContentOrder`, không đọc trực tiếp `sort_order`
+> của Version. Kéo bài thì cả box đi theo nội dung (tên, link, hình thức, phòng, địa chỉ, giáo viên), ngày giờ đứng yên theo vị trí;
+> buổi đã qua bị khóa. Owner chốt 2026-11-05: form sửa buổi thuộc chương trình chỉ hiện các trường
+> của Template (kể cả tên); chỉ sửa ngày giờ, giáo viên, hình thức, link tham gia, phòng, địa chỉ (link theo
+> § Session Meeting URL: mở từ dòng link của Template, chỉ áp dụng cho buổi đó, để trống thì dùng lại link Template). Buổi sắp tới
+> chưa gán giáo viên hiện giáo viên của lớp theo ngày đó và mở form với họ được chọn sẵn.
+
 # LF-Core LiveClass Architecture
 
 LiveClass Domain quản lý hoạt động học đồng bộ và hybrid:
@@ -517,6 +528,24 @@ Creation is an explicit four-stage operation:
 Client occurrence timestamps, timezone and tenant metadata are never trusted.
 Uniqueness on the occurrence identity provides the final double-submit guard.
 This flow creates no Attendance, Recording, Replay, Progress or Completion.
+
+Programme dates are a read-only presentation on the Cohort Sessions tab. Free
+future occurrences are paired, in programme order, with `live_class` Activities
+that have no delivering Session (`scheduled`, `live`, `completed`). The tab shows
+such a date like a Session, with the Cohort's teachers, but it persists nothing:
+teachers, learners, Attendance and lifecycle actions do not see it. It follows
+the Schedule when that changes, and becomes a Session only when an admin saves it
+in the Session form or confirms it in a batch, so the pairing remains a suggestion
+the admin confirms, not a guess by the Schedule. An occurrence whose start has
+passed, or that another Session occupies, is not shown. A Session cannot be moved
+onto a date shown on another lesson.
+
+A Session form may change the date and time of a Session. The change is applied
+only when the form declares it, passes the same Cohort window, overlap and
+teacher checks as a reschedule, and writes the same audit row. When creating
+from a proposal with a different time, the Origin keeps the original occurrence
+and the audit row records the move. Once a Session's start has passed it can no
+longer be moved or edited.
 
 Presentation labels are derived from immutable lineage:
 

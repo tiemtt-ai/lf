@@ -25,15 +25,32 @@
     $activityTabs = $sessionActivityCount > 0 ? array_keys(array_filter($activityPhaseCounts)) : [];
     $activityDefaultPhase = $activityTabs[0] ?? 'anytime';
     $lessonPanelId = 'course-version-lesson-'.$lesson->id.'-activities';
+    // Only a class's programme can be reordered, and what has already happened stays in place (ADR-0023 §4).
+    $lessonReorderable = isset($sessionTree) && $sessionTree['canReorder'] && $loop->count > 1;
+    $lessonLockReason = $lessonReorderable ? $sessionTree['lockReasonsByLesson']->get((int) $lesson->id) : null;
+    $lessonMovable = $lessonReorderable && ! $lessonLockReason;
+    $activitiesReorderable = isset($sessionTree) && $sessionTree['canReorder'] && $lessonActivities->count() > 1;
 @endphp
 
 <article class="course-template-lesson-item"
          data-version-lesson-id="{{ $lesson->id }}"
+         @isset($sessionTree) data-order-id="{{ $lesson->id }}" @endisset
+         @if ($lessonMovable) x-sort:item="{{ $lesson->id }}" @endif
          x-data="courseTemplateLessonCollapse(@js($template->customer_id), @js($foldScope), @js($lesson->id), @js($loop->first))"
          x-bind:class="{ 'is-expanded': expanded }">
     <div class="course-template-lesson-summary"
          x-on:click="if (! $event.target.closest('button, a')) toggle()">
-        <span class="course-template-lesson-number" aria-hidden="true">{{ str_pad((string) $loop->iteration, 2, '0', STR_PAD_LEFT) }}</span>
+        <div class="course-template-lesson-rail">
+            <span class="course-template-lesson-number" aria-hidden="true">{{ str_pad((string) $loop->iteration, 2, '0', STR_PAD_LEFT) }}</span>
+            @if ($lessonMovable)
+                @include('course-cohorts.partials.tabs.session-tree-order-handle', [
+                    'handleLabel' => __('lf.LF_course_template_lesson_reorder_handle', ['title' => $lesson->title_snapshot]),
+                    'handleShow' => "query.trim() === ''",
+                ])
+            @elseif ($lessonLockReason)
+                @include('course-cohorts.partials.tabs.session-tree-order-lock', ['lockReason' => $lessonLockReason])
+            @endif
+        </div>
         <div class="course-template-lesson-copy">
             <strong>{{ $lesson->title_snapshot }}</strong>
             @if ($lessonDescription !== null)
@@ -58,8 +75,14 @@
                         {{ __($sessionActivityCount > 0 ? 'lf.LF_course_template_activity_learning_mode_session' : 'lf.LF_course_template_activity_learning_mode_anytime') }}
                     </span>
                 @endif
+                @isset($sessionTree)
+                    @include('course-cohorts.partials.tabs.session-tree-lesson-date')
+                @endisset
             </span>
         </div>
+        @isset($sessionTree)
+            @include('course-cohorts.partials.tabs.session-tree-lesson-action')
+        @endisset
         <button type="button"
                 class="admin-link-button admin-text-action ui-row-action course-template-lesson-toggle"
                 aria-controls="{{ $lessonPanelId }}"
@@ -95,7 +118,18 @@
         @endif
 
         <div class="course-template-activity-list" id="course-version-lesson-{{ $lesson->id }}-activity-list"
-             @if ($activityTabs !== []) role="tabpanel" x-bind:aria-labelledby="'course-version-lesson-{{ $lesson->id }}-tab-' + phase" @endif>
+             @if ($activityTabs !== []) role="tabpanel" x-bind:aria-labelledby="'course-version-lesson-{{ $lesson->id }}-tab-' + phase" @endif
+             @if ($activitiesReorderable)
+                 data-reorder-url="{{ route('admin.course-cohorts.content.activities.reorder', [$cohort->id, $lesson->id]) }}"
+                 data-reorder-field="activity_ids"
+                 data-reorder-reload
+                 data-msg-saved="{{ __('lf.LF_course_template_activity_reorder_saved') }}"
+                 data-msg-error="{{ __('lf.LF_course_template_activity_reorder_error') }}"
+                 data-msg-outside="{{ __('lf.LF_course_template_activity_reorder_outside') }}"
+                 x-init="courseTemplateOrder($el)"
+                 x-sort:config="courseTemplateOrder($el).sortable"
+                 x-sort.ghost="courseTemplateOrder($el).dropped()"
+             @endif>
             @forelse ($lessonActivities as $activity)
                 @php
                     $activityView = $presentedActivities[$activity->id];
@@ -110,13 +144,29 @@
                     };
                     $activitySeconds = $activity->estimated_duration_seconds_snapshot ?? $activity->duration_seconds ?? null;
                     $previewLabel = __('lf.LF_common_button_view').': '.$activity->title_snapshot;
+                    $activityLockReason = $activitiesReorderable ? $sessionTree['lockReasonsByActivity']->get((int) $activity->id) : null;
+                    $activityMovable = $activitiesReorderable && ! $activityLockReason;
+                    $activitySlots = isset($sessionTree) && $activity->activity_type === 'live_class'
+                        ? \App\Services\CourseCohortContentTree::slotsOf($sessionTree, $activity)
+                        : null;
                 @endphp
 
                 <div class="course-template-activity-item"
                      data-version-activity-id="{{ $activity->id }}"
+                     @if ($activitiesReorderable) data-order-id="{{ $activity->id }}" @endif
+                     @if ($activityMovable) x-sort:item="{{ $activity->id }}" @endif
                      @if ($activityTabs !== [])
                          x-show="@js(array_keys(array_filter(array_map(static fn (string $column): bool => (bool) ($activity->{$column} ?? false), $activityPhases)))).includes(phase)"
                      @endif>
+                    @if ($activityMovable)
+                        {{-- A phase tab with one activity has nothing to swap with. --}}
+                        @include('course-cohorts.partials.tabs.session-tree-order-handle', [
+                            'handleLabel' => __('lf.LF_course_template_activity_reorder_handle', ['title' => $activity->title_snapshot]),
+                            'handleShow' => "query.trim() === ''".($activityTabs !== [] ? ' && '.\Illuminate\Support\Js::from($activityPhaseCounts).'[phase] > 1' : ''),
+                        ])
+                    @elseif ($activityLockReason)
+                        @include('course-cohorts.partials.tabs.session-tree-order-lock', ['lockReason' => $activityLockReason])
+                    @endif
                     <div class="course-template-activity-identity">
                         <span class="course-template-activity-icon course-template-activity-icon--{{ $activityTypeGroup($activity->activity_type) }}" aria-hidden="true">
                             <x-backend-icon :name="$activityIcon" class="course-template-activity-type-icon" />
@@ -130,12 +180,19 @@
                                 @if ($activitySeconds)
                                     · {{ __('lf.LF_course_template_activity_common_duration_minutes', ['minutes' => (int) ceil($activitySeconds / 60)]) }}
                                 @endif
+                                {{-- The lesson line shows one date; a lesson with several live activities needs each one's. --}}
+                                @if ($activitySlots && $activitySlots['session'] && $lessonActivities->where('activity_type', 'live_class')->count() > 1)
+                                    · @include('course-cohorts.partials.tabs.session-tree-date-range', ['rangeStart' => $activitySlots['session']->scheduled_start_at, 'rangeEnd' => $activitySlots['session']->scheduled_end_at])
+                                @endif
                             </span>
                         </div>
                     </div>
                     {{-- One UI Kit eye per row: a document opens in a new tab, media and embeds in the preview popup; the rest has nothing stored to preview. --}}
-                    <div class="admin-table-actions">
-                        @if ($activityView['mediaUrl'] && $activity->activity_type === 'document')
+                    <div class="admin-table-actions"
+                         @if ($activitySlots && $activitySlots['session']?->id) data-session-id="{{ $activitySlots['session']->id }}" @elseif ($activitySlots && $activitySlots['proposal']) data-proposed-activity="{{ $activity->id }}" @endif>
+                        @if ($activitySlots)
+                            @include('course-cohorts.partials.tabs.session-tree-activity-actions')
+                        @elseif ($activityView['mediaUrl'] && $activity->activity_type === 'document')
                             <a class="ux-row-edit cursor-interaction" data-version-activity-view
                                href="{{ $activityView['mediaUrl'] }}" target="_blank" rel="noopener noreferrer"
                                aria-label="{{ $previewLabel }}" data-tooltip="{{ __('lf.LF_common_button_view') }}">
@@ -164,6 +221,9 @@
                             </span>
                         @endif
                     </div>
+                    @if ($activitySlots)
+                        @include('course-cohorts.partials.tabs.session-tree-activity')
+                    @endif
                 </div>
             @empty
                 <p class="course-template-activity-empty">{{ __('lf.LF_course_template_activity_common_empty') }}</p>

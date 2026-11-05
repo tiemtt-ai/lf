@@ -328,7 +328,7 @@ class CourseTemplatePublishingTest extends TestCase
             'views/course-template-lessons/partials/list.blade.php'
         ));
         $version = file_get_contents(resource_path(
-            'views/course-template-versions/show.blade.php'
+            'views/course-template-versions/partials/content-structure.blade.php'
         ));
         $versionSections = file_get_contents(resource_path(
             'views/course-template-versions/partials/section-node.blade.php'

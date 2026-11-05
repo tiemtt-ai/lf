@@ -19,10 +19,7 @@
     $assignHasErrors = old('form_context') === 'assign_teachers' && $errors->any();
     $assignOldSession = $assignHasErrors ? $sessions->firstWhere('id', (int) old('assign_session_id')) : null;
     // Lỗi của ô đang hiện nằm ngay dưới ô đó; đầu popup chỉ còn lỗi không có chỗ hiện (khi sửa, ô thời gian bị ẩn).
-    $formInlineKeys = ['title', 'version_lesson_id', 'version_activity_id', 'delivery_mode', 'teacher_ids', 'meeting_url', 'online_provider', 'room_name', 'address'];
-    if (! $formOldSession) {
-        array_push($formInlineKeys, 'scheduled_start_at', 'scheduled_end_at');
-    }
+    $formInlineKeys = ['title', 'version_lesson_id', 'version_activity_id', 'delivery_mode', 'teacher_ids', 'meeting_url', 'online_provider', 'room_name', 'address', 'scheduled_start_at', 'scheduled_end_at', 'reason'];
     $formSummaryErrors = $formHasErrors
         ? collect($errors->messages())->reject(fn ($messages, $key) => in_array($key, $formInlineKeys, true) || str_starts_with($key, 'teacher_ids.'))->flatten()
         : collect();
@@ -61,12 +58,60 @@
         ? __('lf.LF_course_cohort_session_teacher_role_cohort_primary')
         : __('lf.LF_course_cohort_teacher_role_'.$teacher->role);
     $lifecycleActions = ['start', 'complete', 'cancel', 'no-show'];
+    // What the session form shows from the Template. Read only on the class: the Version is immutable.
+    $yesNo = fn ($value): string => __($value ? 'lf.LF_course_template_lesson_common_yes' : 'lf.LF_course_template_lesson_common_no');
+    $programmeContent = $versionActivities->mapWithKeys(fn (object $item): array => [$item->id => [
+        'lesson' => (string) $versionLessons->firstWhere('id', $item->version_lesson_id)?->title_snapshot,
+        'title' => $item->title_snapshot,
+        'rows' => collect([
+            ['label' => __('lf.LF_course_template_activity_common_type'), 'value' => __('lf.LF_course_template_activity_common_type_live_class')],
+            $item->description_snapshot ? ['label' => __('lf.LF_course_template_activity_common_description'), 'value' => $item->description_snapshot, 'wide' => true] : null,
+            ['label' => __('lf.LF_course_template_activity_learning_availability'), 'value' => collect(['anytime', 'before_session', 'during_session', 'after_session'])
+                ->filter(fn (string $phase): bool => (bool) $item->{'available_'.$phase})
+                ->map(fn (string $phase): string => __('lf.LF_course_template_activity_learning_availability_'.$phase))->implode(', ')],
+            ['label' => __('lf.LF_course_template_activity_common_completion_rule'), 'value' => __('lf.LF_course_template_activity_common_completion_'.$item->completion_rule)],
+            $item->estimated_duration_seconds_snapshot ? ['label' => __('lf.LF_course_template_activity_common_estimated_duration_minutes'), 'value' => __('lf.LF_course_template_activity_common_duration_minutes', ['minutes' => (int) ceil($item->estimated_duration_seconds_snapshot / 60)])] : null,
+            ['label' => __('lf.LF_course_template_activity_common_preview'), 'value' => $yesNo($item->is_preview)],
+            ['label' => __('lf.LF_course_template_activity_common_required'), 'value' => $yesNo($item->is_required)],
+            ['label' => __('lf.LF_course_template_activity_common_unlock_rule'), 'value' => __('lf.LF_course_template_activity_common_unlock_'.($item->unlock_rule_snapshot ?: 'none'))],
+            $item->unlock_after_version_activity_id && $versionActivities->firstWhere('id', $item->unlock_after_version_activity_id) ? ['label' => __('lf.LF_course_template_activity_common_unlock_after_activity'), 'value' => $versionActivities->firstWhere('id', $item->unlock_after_version_activity_id)->title_snapshot] : null,
+        ])->filter()->values(),
+    ]]);
+    // The fields of the Template's lesson form, for the edit opened on a lesson row.
+    $programmeLessons = $versionLessons->mapWithKeys(fn (object $item): array => [$item->id => collect([
+        ['label' => __('lf.LF_course_template_lesson_common_name'), 'value' => $item->title_snapshot, 'wide' => true],
+        ['label' => __('lf.LF_course_template_lesson_common_short_description'), 'value' => $item->short_description_snapshot ?: '—', 'wide' => true],
+        ['label' => __('lf.LF_course_template_lesson_common_description'), 'value' => $item->description_snapshot ?: '—', 'wide' => true],
+        ['label' => __('lf.LF_course_template_lesson_common_type'), 'value' => __('lf.LF_course_template_lesson_common_role_'.($item->lesson_type ?: 'regular'))],
+        ['label' => __('lf.LF_course_template_lesson_common_preview'), 'value' => $yesNo($item->is_preview)],
+        ['label' => __('lf.LF_course_template_lesson_common_unlock_rule'), 'value' => __('lf.LF_course_template_lesson_common_unlock_'.($item->unlock_rule_snapshot ?: 'none'))],
+        $item->unlock_at_snapshot ? ['label' => __('lf.LF_course_template_lesson_common_unlock_at'), 'value' => \Illuminate\Support\Carbon::parse($item->unlock_at_snapshot)->format('d/m/Y H:i')] : null,
+        $item->prerequisite_titles !== [] ? ['label' => __('lf.LF_course_template_lesson_common_unlock_after_lessons'), 'value' => implode(', ', $item->prerequisite_titles), 'wide' => true] : null,
+    ])->filter()->values()]);
 @endphp
 <section class="mk-section course-cohort-sessions" aria-labelledby="cohort-sessions-title"
      x-data="{
          editingId: @js($formOldSession?->id), editingSession: @js($formOldSession), submitting: false, syncing: false, batchMessage: '', batchSubmitting: false,
          detailSession: null, detailActions: [], lifecycle: null, lifecycleReason: '', lifecycleSubmitting: false,
-         showFormErrors: true, showRescheduleErrors: true, meetingLinkCopied: false,
+         showFormErrors: true, showRescheduleErrors: true, meetingLinkCopied: false, defaultTeachersPending: false, editingProgramme: @js($formHasErrors && (old('schedule_id') || old('opened_version_activity_id'))),
+         programmeContentByActivity: @js($programmeContent),
+         programmeLessonRows: @js($programmeLessons),
+         formScope: @js($formHasErrors && old('opened_scope') === 'lesson' ? 'lesson' : 'activity'),
+         lessonScope() { return this.formScope === 'lesson' && this.programmeForm() },
+         meetingBeforeEdit: null,
+         openMeetingEdit() {
+             this.meetingBeforeEdit = this.meetingUrl
+             this.meetingEditing = true
+             this.$nextTick(() => this.$refs.programmeMeetingUrl?.focus())
+         },
+         closeMeetingEdit() {
+             // A form reopened on a refused link has no earlier value here: go back to the saved one.
+             this.meetingUrl = this.meetingBeforeEdit ?? (this.editingSession?.meeting_url_snapshot || this.curriculumMeetingUrl())
+             this.meetingBeforeEdit = null
+             this.meetingEditing = false
+         },
+         programmeForm() { return this.editingProgramme || this.editingSession?.session_type === 'curriculum' },
+         programmeContent() { return this.programmeContentByActivity[this.activityId] || null },
          rescheduleSession: @js($rescheduleOldSession),
          rescheduleStart: @js($rescheduleHasErrors ? old('scheduled_start_at', '') : ''),
          rescheduleEnd: @js($rescheduleHasErrors ? old('scheduled_end_at', '') : ''),
@@ -77,6 +122,7 @@
          assignUrl: @js(route('admin.course-cohorts.sessions.teachers', [$cohort->id, '__SESSION__'])),
          sessionType: @js($formHasErrors ? old('session_type', 'curriculum') : 'curriculum'),
          lessonId: @js($formHasErrors ? (string) old('version_lesson_id', '') : ''),
+         openedActivityId: @js($formHasErrors ? (string) old('opened_version_activity_id', '') : ''),
          activityId: @js($formHasErrors ? (string) old('version_activity_id', '') : ''),
          title: @js($formHasErrors ? old('title', '') : ''), titleDirty: @js($formHasErrors && old('title') !== null),
          mode: @js($formHasErrors ? old('delivery_mode', 'online') : 'online'),
@@ -84,7 +130,7 @@
          startsAt: @js($formHasErrors ? old('scheduled_start_at', '') : ''), endsAt: @js($formHasErrors ? old('scheduled_end_at', '') : ''),
          scheduleMin: @js($sessionWindow ? $sessionWindow['min']->format('Y-m-d\TH:i') : ''),
          scheduleMax: @js($sessionWindow ? $sessionWindow['max']->format('Y-m-d\TH:i') : ''),
-         provider: @js($formHasErrors ? old('online_provider', '') : ''), meetingUrl: @js($formHasErrors ? old('meeting_url', '') : ''), meetingDefault: '',
+         provider: @js($formHasErrors ? old('online_provider', '') : ''), meetingUrl: @js($formHasErrors ? old('meeting_url', '') : ''), meetingDefault: '', meetingEditing: @js($errors->has('meeting_url')),
          roomName: @js($formHasErrors ? old('room_name', '') : ''), address: @js($formHasErrors ? old('address', '') : ''),
          batchRoom: @js($batchHasErrors ? old('room_name', '') : ''), batchAddress: @js($batchHasErrors ? old('address', '') : ''),
          statusLabels: @js(collect(['scheduled', 'live', 'completed', 'cancelled', 'no_show'])->mapWithKeys(fn ($status) => [$status => __('lf.LF_course_cohort_session_status_'.$status)])),
@@ -99,11 +145,18 @@
              'danger' => in_array($action, ['cancel', 'no-show'], true),
          ]])),
          lessons: @js($versionLessons), activities: @js($versionActivities),
-         batchRows: @js($batchRows),
+         batchRows: @js($batchRows), batchMapped: 0,
+         proposals: @js(array_values($contentTree['proposals'])),
+         previewOpen: false, preview: { name: '', url: '', type: '', mimeType: '' },
+         openVersionPreview(name, url, type, mimeType = '') { this.preview = { name, url, type, mimeType }; this.previewOpen = true },
+         closeVersionPreview() { this.previewOpen = false; this.preview = { name: '', url: '', type: '', mimeType: '' } },
+         scheduleOrigin: @js($formHasErrors && old('schedule_id') ? ['schedule_id' => old('schedule_id'), 'schedule_slot_id' => old('schedule_slot_id'), 'source_local_date' => old('source_local_date')] : null),
+         originalStart: @js($formHasErrors ? old('original_start_at', '') : ''), originalEnd: @js($formHasErrors ? old('original_end_at', '') : ''),
+         scheduleReason: @js($formHasErrors ? old('reason', '') : ''),
          teachers: @js($availableTeachers->map(fn ($teacher) => [
              'id' => (string) $teacher->id,
              'assigned_from' => $teacher->assigned_from,
-             'assigned_to' => $teacher->assigned_to,
+             'assigned_to' => $teacher->assigned_to, 'name' => $teacher->name, 'phone' => $teacher->phone, 'email' => $teacher->email,
          ])->values()),
          storeUrl: @js(route('admin.course-cohorts.sessions.store', $cohort->id)),
          updateUrl: @js(route('admin.course-cohorts.sessions.update', [$cohort->id, '__SESSION__'])),
@@ -130,8 +183,12 @@
              return this.teachers.filter(teacher => this.teacherFits(teacher, this.startsAt.slice(0, 10), this.endsAt.slice(0, 10)))
          },
          teacherSelectable(id) { return this.selectableTeachers().some(teacher => teacher.id === String(id)) },
+         selectedTeacherContacts() { return this.teachers.filter(teacher => this.teacherIds.map(String).includes(teacher.id)) },
+         detailTeacherContacts() { const ids = (this.detailSession?.teacher_ids || []).map(String); return this.teachers.filter(teacher => ids.includes(teacher.id)) },
          syncTeacherAvailability() {
              const eligibleIds = this.selectableTeachers().map(teacher => teacher.id)
+             // A new session starts with the class's teachers, once its date says who is available.
+             if (this.defaultTeachersPending && this.startsAt && this.endsAt) { this.teacherIds = [...eligibleIds]; this.defaultTeachersPending = false }
              this.teacherIds = this.teacherIds.filter(id => eligibleIds.includes(String(id)))
              this.syncSelects(this.$refs.sessionTeacherField)
          },
@@ -259,6 +316,25 @@
              this.syncSelects(this.$refs.batchDialog)
              this.$nextTick(() => this.$refs.batchDialog?.showModal())
          },
+         // The dates shown on the tree, ready to confirm together. Nothing is saved until the admin confirms the batch.
+         mapBatch() {
+             const taken = new Set(this.batchRows.filter(row => row.activityId).map(row => String(row.activityId)))
+             const rowKey = row => [row.schedule_id, row.schedule_slot_id, row.source_local_date || row.date].join('|')
+             this.batchMapped = 0
+             this.proposals.filter(item => item.occurrence_key && !taken.has(item.activity_id)).forEach(item => {
+                 const row = this.batchRows.find(candidate => rowKey(candidate) === item.occurrence_key && !candidate.consumed && !this.batchRowHasDraft(candidate))
+                 if (!row) return
+                 row.lessonId = item.lesson_id; row.activityId = item.activity_id; row.title = item.lesson_title; row.mode = 'online'
+                 this.batchActivityChanged(row)
+                 row.teacherIds = this.teachers.filter(teacher => this.batchTeacherSelectable(row, teacher.id)).map(teacher => teacher.id)
+                 row.selected = true; row.expanded = false
+                 this.batchMapped++
+             })
+         },
+         openBatchMapped() {
+             this.mapBatch()
+             this.openBatch()
+         },
          closeBatch() { if (this.$refs.batchDialog?.open) this.$refs.batchDialog.close() },
          submitBatch(event) {
              if (this.batchSubmitting) { event.preventDefault(); return }
@@ -313,10 +389,11 @@
              })
          },
          resetForm() {
-             this.editingId = null; this.editingSession = null; this.sessionType = 'curriculum'; this.lessonId = ''; this.activityId = ''
+             this.editingId = null; this.editingSession = null; this.sessionType = 'curriculum'; this.lessonId = ''; this.activityId = ''; this.openedActivityId = ''
              this.title = ''; this.titleDirty = false; this.mode = 'online'; this.teacherIds = []
-             this.startsAt = ''; this.endsAt = ''; this.previousStart = ''; this.provider = ''; this.meetingUrl = ''; this.meetingDefault = ''
+             this.startsAt = ''; this.endsAt = ''; this.previousStart = ''; this.provider = ''; this.meetingUrl = ''; this.meetingDefault = ''; this.meetingEditing = false; this.meetingBeforeEdit = null; this.formScope = 'activity'
              this.roomName = ''; this.address = ''; this.submitting = false; this.meetingLinkCopied = false
+             this.scheduleOrigin = null; this.originalStart = ''; this.originalEnd = ''; this.scheduleReason = ''; this.defaultTeachersPending = false; this.editingProgramme = false
              this.clearTimeError(this.$refs.sessionStart)
              this.clearTimeError(this.$refs.sessionEnd)
          },
@@ -328,23 +405,47 @@
          openCreate() {
              this.showFormErrors = false
              this.resetForm()
+             this.defaultTeachersPending = true
              this.showSessionDialog()
          },
-         editSession(item) {
+         editSession(item, scope = 'activity') {
              this.showFormErrors = false
              this.resetForm()
+             this.formScope = scope
              this.editingId = item.id; this.editingSession = item; this.sessionType = item.session_type
              this.lessonId = item.version_lesson_id ? String(item.version_lesson_id) : ''
              this.activityId = item.version_activity_id ? String(item.version_activity_id) : ''
+             this.openedActivityId = this.activityId
              this.title = item.title; this.titleDirty = true; this.mode = item.delivery_mode
              this.teacherIds = [...new Set((item.teacher_ids || []).map(String))]
              this.startsAt = item.scheduled_start_at.slice(0, 16).replace(' ', 'T')
              this.endsAt = item.scheduled_end_at.slice(0, 16).replace(' ', 'T')
+             this.originalStart = this.startsAt; this.originalEnd = this.endsAt
              this.provider = item.online_provider || ''; this.meetingUrl = item.meeting_url_snapshot || ''
              this.meetingDefault = this.curriculumMeetingUrl()
              this.roomName = item.room_name_snapshot || ''; this.address = item.address_snapshot || ''
              this.showSessionDialog()
          },
+         // Opens the lesson's session with its date from the Schedule. Changing the date keeps the occurrence and audits the move.
+         openProposal(item, scope = 'activity') {
+             this.showFormErrors = false
+             this.resetForm()
+             this.formScope = scope
+             this.editingProgramme = true
+             this.lessonId = item.lesson_id; this.activityId = item.activity_id; this.title = item.lesson_title
+             this.openedActivityId = item.activity_id
+             if (item.occurrence) {
+                 const at = time => `${item.occurrence.date}T${String(time).slice(0, 5)}`
+                 this.startsAt = this.originalStart = at(item.occurrence.start_time)
+                 this.endsAt = this.originalEnd = at(item.occurrence.end_time)
+                 this.scheduleOrigin = { schedule_id: item.occurrence.schedule_id, schedule_slot_id: item.occurrence.schedule_slot_id, source_local_date: item.occurrence.date }
+             }
+             this.activityChanged()
+             this.defaultTeachersPending = true
+             this.syncTeacherAvailability()
+             this.showSessionDialog()
+         },
+         scheduleMoved() { return Boolean(this.originalStart) && (this.startsAt !== this.originalStart || this.endsAt !== this.originalEnd) },
          closeForm() { if (this.$refs.sessionDialog?.open) this.$refs.sessionDialog.close() },
          sessionDialogClosed() { this.showFormErrors = false; this.resetForm() },
          switchType(type) {
@@ -373,7 +474,7 @@
          },
          submitForm(event) {
              if (this.submitting) { event.preventDefault(); return }
-             if (!this.editingId && this.timesInvalid(this.$refs.sessionStart, this.$refs.sessionEnd, this.startsAt, this.endsAt)) {
+             if (this.timesInvalid(this.$refs.sessionStart, this.$refs.sessionEnd, this.startsAt, this.endsAt)) {
                  event.preventDefault()
                  return
              }
@@ -458,9 +559,9 @@
                     <p class="ui-caption">{{ __('lf.LF_course_cohort_session_help') }}</p>
                 </div>
                 <div class="mk-table-top__actions">
-                    <span class="ui-caption ui-enroll-nowrap">{{ __('lf.LF_course_cohort_session_count', ['count' => $sessions->count()]) }}</span>
+                    <span class="ui-caption ui-enroll-nowrap">{{ __('lf.LF_course_cohort_session_count', ['count' => $sessions->count() + collect($contentTree['proposals'])->whereNotNull('occurrence')->count()]) }}</span>
                     @if ($canBatchCreate)
-                        <button type="button" class="ui-button ui-button--outline cursor-interaction" aria-haspopup="dialog" x-on:click="openBatch()">{{ __('lf.LF_course_cohort_session_batch_open') }}</button>
+                        <button type="button" class="ui-button ui-button--outline cursor-interaction" aria-haspopup="dialog" x-on:click="openBatchMapped()">{{ __('lf.LF_course_cohort_session_batch_open') }}</button>
                     @endif
                     @if ($canCreateSession)
                         <button type="button" class="ui-button ui-button--outline cursor-interaction" aria-haspopup="dialog" x-on:click="openCreate()">{{ __('lf.LF_course_cohort_session_manual_open') }}</button>
@@ -495,120 +596,7 @@
                 @include('course-cohorts.partials.tabs.session-form')
             @endif
 
-            <div class="mk-table-scroll" role="region" aria-labelledby="cohort-sessions-title" tabindex="0">
-                <table class="ui-cohort-session-table">
-                    <colgroup>
-                        <col class="mk-col-sequence">
-                        <col>
-                        <col class="ui-cohort-col-session-time">
-                        <col class="ui-cohort-col-role">
-                        <col class="mk-col-status">
-                        <col class="mk-col-action-wide">
-                    </colgroup>
-                    <thead><tr>
-                        <th scope="col" class="mk-sequence">{{ __('lf.table_no') }}</th>
-                        <th scope="col" class="mk-text-cell">{{ __('lf.LF_course_cohort_session_table_session') }}</th>
-                        <th scope="col" class="mk-text-cell">{{ __('lf.LF_course_cohort_session_table_date_time') }}</th>
-                        <th scope="col" class="mk-text-cell">{{ __('lf.LF_course_cohort_session_table_teachers') }}</th>
-                        <th scope="col" class="ux-action-cell">{{ __('lf.LF_course_cohort_common_status') }}</th>
-                        <th scope="col" class="ux-action-cell">{{ __('lf.table_actions') }}</th>
-                    </tr></thead>
-                    <tbody>
-                    @forelse ($sessions as $session)
-                        @php
-                            $sessionStartsAt = \Illuminate\Support\Carbon::parse($session->scheduled_start_at);
-                            $sessionEndsAt = \Illuminate\Support\Carbon::parse($session->scheduled_end_at);
-                            $sessionContentDetails = collect($session->session_type === 'curriculum'
-                                ? [$session->lesson_title, $session->activity_title]
-                                : [])
-                                ->filter()
-                                ->reject(fn ($value) => \Illuminate\Support\Str::lower(\Illuminate\Support\Str::squish($value)) === \Illuminate\Support\Str::lower(\Illuminate\Support\Str::squish($session->title)))
-                                ->unique(fn ($value) => \Illuminate\Support\Str::lower(\Illuminate\Support\Str::squish($value)));
-                            $sessionTone = match ($session->status) { 'live' => 'active', 'completed' => 'completed', 'cancelled' => 'danger', 'no_show' => 'archived', default => 'draft' };
-                            $sessionTeacherNames = $session->teacher_team->isNotEmpty() ? $session->teacher_team->pluck('name')->join(', ') : $session->primary_teacher_name;
-                            $sessionEndsLifecycleOpen = in_array($session->status, ['scheduled', 'live'], true);
-                            // Session status là thao tác vận hành nên chỉ mở khi lớp đang hoạt động.
-                            $sessionLifecycle = $cohort->status !== 'active' ? [] : array_filter([
-                                'start' => $session->status === 'scheduled',
-                                'complete' => $session->status === 'live',
-                                'cancel' => $sessionEndsLifecycleOpen,
-                                'no-show' => $sessionEndsLifecycleOpen,
-                            ]);
-                        @endphp
-                        <tr>
-                            <td class="mk-sequence" data-label="{{ __('lf.table_no') }}">{{ $loop->iteration }}</td>
-                            <td class="mk-text-cell" data-label="{{ __('lf.LF_course_cohort_session_table_session') }}">
-                                <span class="mk-name-text">{{ $session->title }}</span>
-                                @foreach ($sessionContentDetails as $contentDetail)
-                                    <span class="ui-caption ui-framework-description">{{ $contentDetail }}</span>
-                                @endforeach
-                                <span class="ui-caption ui-framework-description">{{ __('lf.LF_course_cohort_session_table_type_'.$session->session_type) }} · {{ __('lf.LF_course_cohort_session_mode_'.$session->delivery_mode) }} · {{ __('lf.LF_course_cohort_session_relation_'.$session->schedule_relation) }}</span>
-                            </td>
-                            <td class="mk-text-cell" data-label="{{ __('lf.LF_course_cohort_session_table_date_time') }}">
-                                @if ($sessionStartsAt->isSameDay($sessionEndsAt))
-                                    <span class="ui-cohort-line ui-enroll-nowrap">{{ $sessionStartsAt->format('d/m/Y') }} · {{ $sessionStartsAt->format('H:i') }}–{{ $sessionEndsAt->format('H:i') }}</span>
-                                @else
-                                    <span class="ui-cohort-line ui-enroll-nowrap">{{ $sessionStartsAt->format('d/m/Y H:i') }}</span>
-                                    <span class="ui-cohort-line ui-enroll-nowrap">→ {{ $sessionEndsAt->format('d/m/Y H:i') }}</span>
-                                @endif
-                                <span class="ui-caption ui-framework-description">{{ \Illuminate\Support\Str::ucfirst($sessionStartsAt->translatedFormat('l')) }}@if ($session->timezone && $session->timezone !== config('app.timezone')) · {{ $session->timezone }}@endif</span>
-                            </td>
-                            <td class="mk-text-cell" data-label="{{ __('lf.LF_course_cohort_session_table_teachers') }}">
-                                @if ($sessionTeacherNames)
-                                    {{ $sessionTeacherNames }}
-                                @else
-                                    <span @class(['ui-caption', 'ui-cohort-session-unassigned' => $sessionEndsLifecycleOpen])>{{ __('lf.LF_course_cohort_session_batch_no_teacher') }}</span>
-                                @endif
-                            </td>
-                            <td class="ux-action-cell" data-label="{{ __('lf.LF_course_cohort_common_status') }}">
-                                <span class="ui-status ui-status--{{ $sessionTone }}">{{ __('lf.LF_course_cohort_session_status_'.$session->status) }}</span>
-                                @if ($session->is_past_due)
-                                    <span class="ui-caption ui-framework-description ui-cohort-session-overdue">{{ __('lf.LF_course_cohort_session_past_due') }}</span>
-                                @endif
-                            </td>
-                            <td class="ux-action-cell" data-label="{{ __('lf.table_actions') }}">
-                                <button type="button" class="ux-row-edit cursor-interaction" aria-haspopup="dialog"
-                                        aria-label="{{ __('lf.LF_course_cohort_session_details') }}: {{ $session->title }}" data-tooltip="{{ __('lf.LF_course_cohort_session_details') }}"
-                                        @foreach (array_keys($sessionLifecycle) as $action) data-lifecycle-{{ $action }}="{{ route('admin.course-cohorts.sessions.'.$action, [$cohort->id, $session->id]) }}" @endforeach
-                                        x-on:click="openDetail(@js($session), $el)">
-                                    <x-backend-icon name="eye" class="ui-icon" />
-                                </button>
-                                @if ($session->can_edit && $cohort->is_mutable)
-                                    <button type="button" class="ux-row-edit cursor-interaction" aria-haspopup="dialog"
-                                            aria-label="{{ __('lf.LF_course_cohort_session_edit') }}: {{ $session->title }}" data-tooltip="{{ __('lf.LF_course_cohort_session_edit') }}"
-                                            x-on:click="editSession(@js($session))">
-                                        <x-backend-icon name="square-pen" class="ui-icon" />
-                                    </button>
-                                @endif
-                                @if ($session->can_assign_teachers)
-                                    <button type="button" class="ux-row-edit cursor-interaction" aria-haspopup="dialog"
-                                            aria-label="{{ __('lf.LF_course_cohort_session_assign_teachers') }}: {{ $session->title }}" data-tooltip="{{ __('lf.LF_course_cohort_session_assign_teachers') }}"
-                                            x-on:click="openAssign(@js($session))">
-                                        <x-backend-icon name="users" class="ui-icon" />
-                                    </button>
-                                @endif
-                                @if ($session->status === 'scheduled' && $cohort->is_mutable)
-                                    <button type="button" class="ux-row-edit cursor-interaction" aria-haspopup="dialog"
-                                            aria-label="{{ __('lf.LF_course_cohort_session_change_schedule') }}: {{ $session->title }}" data-tooltip="{{ __('lf.LF_course_cohort_session_change_schedule') }}"
-                                            x-on:click="openReschedule(@js($session))">
-                                        <x-backend-icon name="calendar" class="ui-icon" />
-                                    </button>
-                                @endif
-                            </td>
-                        </tr>
-                    @empty
-                        <tr class="mk-empty-row">
-                            <td class="mk-empty" colspan="6">
-                                <div role="status">
-                                    <strong>{{ __('lf.LF_course_cohort_session_empty') }}</strong>
-                                    <p class="ui-caption">{{ __('lf.LF_course_cohort_session_empty_help') }}</p>
-                                </div>
-                            </td>
-                        </tr>
-                    @endforelse
-                    </tbody>
-                </table>
-            </div>
+            @include('course-cohorts.partials.tabs.session-tree')
 
             @include('course-cohorts.partials.tabs.session-detail')
             @if ($cohort->is_mutable)

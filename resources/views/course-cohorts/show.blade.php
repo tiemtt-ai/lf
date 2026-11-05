@@ -15,7 +15,9 @@
 @endsection
 
 @section('content')
-<div class="lf-admin-ui lf-admin-ui--list ui-cohort">
+<div class="lf-admin-ui lf-admin-ui--list ui-cohort"
+     data-csrf="{{ csrf_token() }}"
+     data-msg-session-expired="{{ __('lf.LF_course_template_session_expired') }}">
     <x-ui-list-toasts />
 
     @if ($errors->has('lifecycle'))

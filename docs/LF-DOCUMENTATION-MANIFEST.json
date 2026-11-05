@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
-  "generated_or_updated_at": "2026-11-04",
+  "generated_or_updated_at": "2026-11-05",
   "root": "docs",
   "default_locale": "vi",
   "fallback_locale": "en",
   "source_of_truth": "docs/LF-INDEX.md",
-  "document_count": 315,
+  "document_count": 322,
   "documents": [
     {
       "path": "LF-Core-Overview.md",
@@ -1246,6 +1246,86 @@
         "database/course/core_course_templates.md",
         "database/course/core_course_products.md",
         "database/course/core_course_cohorts.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "adr/ADR-0023-Cohort-Content-Order.md",
+      "title": "ADR-0023 — Cohort Content Order",
+      "area": "adr",
+      "document_type": "adr",
+      "document_status": "Approved",
+      "implementation_status": "Partial",
+      "metadata_complete": true,
+      "authority": "architecture_decision",
+      "canonical_for": [],
+      "topics": [
+        "course",
+        "cohort",
+        "live-class"
+      ],
+      "keywords": {
+        "vi": [
+          "thứ tự của lớp",
+          "kéo thả",
+          "ngày dự kiến"
+        ],
+        "en": [
+          "cohort order",
+          "drag and drop",
+          "proposed date"
+        ]
+      },
+      "identifiers": [
+        "core_course_cohort_lesson_orders",
+        "core_course_cohort_activity_orders"
+      ],
+      "related_documents": [
+        "adr/ADR-0012-Course-Template-Published-Version-Snapshot.md",
+        "adr/ADR-0015-Course-Lesson-Multiple-Prerequisites.md",
+        "database/course/core_course_cohort_lesson_orders.md",
+        "database/course/core_course_cohort_activity_orders.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "adr/ADR-0024-Cohort-Owned-Content.md",
+      "title": "ADR-0024 — Cohort Owned Content",
+      "area": "adr",
+      "document_type": "adr",
+      "document_status": "Archived",
+      "implementation_status": "Not Applicable",
+      "metadata_complete": true,
+      "authority": "architecture_decision",
+      "canonical_for": [],
+      "topics": [
+        "course",
+        "cohort",
+        "live-class"
+      ],
+      "keywords": {
+        "vi": [
+          "nội dung của lớp",
+          "bản sao nội dung",
+          "thêm mới trên lớp"
+        ],
+        "en": [
+          "cohort content",
+          "class content copy",
+          "cohort version"
+        ]
+      },
+      "identifiers": [
+        "content_version_id",
+        "owner_cohort_id"
+      ],
+      "related_documents": [
+        "adr/ADR-0012-Course-Template-Published-Version-Snapshot.md",
+        "adr/ADR-0015-Course-Lesson-Multiple-Prerequisites.md",
+        "adr/ADR-0022-Course-Type-On-Template.md",
+        "adr/ADR-0023-Cohort-Content-Order.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"
@@ -3611,6 +3691,78 @@
         "core_course_categories"
       ],
       "related_documents": [
+        "database/course/README.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "database/course/core_course_cohort_activity_orders.md",
+      "title": "Table: core_course_cohort_activity_orders",
+      "area": "database",
+      "document_type": "table_schema",
+      "document_status": "Frozen",
+      "implementation_status": "Implemented",
+      "metadata_complete": true,
+      "authority": "database",
+      "canonical_for": [],
+      "topics": [
+        "course",
+        "cohort"
+      ],
+      "keywords": {
+        "vi": [
+          "thứ tự của lớp",
+          "kéo thả",
+          "ngày dự kiến"
+        ],
+        "en": [
+          "cohort order",
+          "drag and drop",
+          "proposed date"
+        ]
+      },
+      "identifiers": [
+        "core_course_cohort_activity_orders"
+      ],
+      "related_documents": [
+        "adr/ADR-0023-Cohort-Content-Order.md",
+        "database/course/README.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "database/course/core_course_cohort_lesson_orders.md",
+      "title": "Table: core_course_cohort_lesson_orders",
+      "area": "database",
+      "document_type": "table_schema",
+      "document_status": "Frozen",
+      "implementation_status": "Implemented",
+      "metadata_complete": true,
+      "authority": "database",
+      "canonical_for": [],
+      "topics": [
+        "course",
+        "cohort"
+      ],
+      "keywords": {
+        "vi": [
+          "thứ tự của lớp",
+          "kéo thả",
+          "ngày dự kiến"
+        ],
+        "en": [
+          "cohort order",
+          "drag and drop",
+          "proposed date"
+        ]
+      },
+      "identifiers": [
+        "core_course_cohort_lesson_orders"
+      ],
+      "related_documents": [
+        "adr/ADR-0023-Cohort-Content-Order.md",
         "database/course/README.md"
       ],
       "superseded_by": null,
@@ -10332,6 +10484,76 @@
       "routing_source": "LF-INDEX.md"
     },
     {
+      "path": "quality/LF-Cohort-Content-Order-Architecture-Review.md",
+      "title": "Cohort Content Order Architecture Review",
+      "area": "quality",
+      "document_type": "architecture_review",
+      "document_status": "Draft",
+      "implementation_status": "Not Applicable",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": [
+        "course",
+        "cohort",
+        "live-class"
+      ],
+      "keywords": {
+        "vi": [
+          "rà soát kiến trúc",
+          "thứ tự của lớp"
+        ],
+        "en": [
+          "architecture review",
+          "cohort order"
+        ]
+      },
+      "identifiers": [
+        "core_course_cohort_lesson_orders",
+        "core_course_cohort_activity_orders"
+      ],
+      "related_documents": [
+        "adr/ADR-0023-Cohort-Content-Order.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "quality/LF-Cohort-Owned-Content-Architecture-Review.md",
+      "title": "Cohort Owned Content Architecture Review",
+      "area": "quality",
+      "document_type": "architecture_review",
+      "document_status": "Draft",
+      "implementation_status": "Not Applicable",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": [
+        "course",
+        "cohort",
+        "live-class"
+      ],
+      "keywords": {
+        "vi": [
+          "rà soát kiến trúc",
+          "nội dung riêng của lớp"
+        ],
+        "en": [
+          "architecture review",
+          "cohort owned content"
+        ]
+      },
+      "identifiers": [
+        "owner_cohort_id",
+        "content_version_id"
+      ],
+      "related_documents": [
+        "adr/ADR-0024-Cohort-Owned-Content.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
       "path": "quality/LF-Course-Cohort-Architecture-Review.md",
       "title": "Course Cohort Architecture Review",
       "area": "quality",
@@ -12803,6 +13025,42 @@
       "related_documents": [
         "tech/LF-Tech-CSS.md",
         "ui-demo/ui-kit-developer/README.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "ui-demo/course-cohort-sessions-design/README.md",
+      "title": "Course Cohort — Buổi học (thiết kế tĩnh)",
+      "area": "ui-demo",
+      "document_type": "directory_guide",
+      "document_status": "Review",
+      "implementation_status": "Not Applicable",
+      "metadata_complete": true,
+      "authority": "engineering",
+      "canonical_for": [],
+      "topics": [
+        "static-design",
+        "course-cohort",
+        "liveclass-session"
+      ],
+      "keywords": {
+        "vi": [
+          "thiết kế tĩnh",
+          "buổi học của lớp",
+          "trước trong sau buổi học"
+        ],
+        "en": [
+          "static design",
+          "cohort sessions",
+          "before during after session"
+        ]
+      },
+      "identifiers": [],
+      "related_documents": [
+        "tech/LF-Tech-CSS.md",
+        "core/LF-Core-LiveClass.md",
+        "core/LF-Core-Course.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"

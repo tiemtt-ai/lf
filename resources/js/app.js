@@ -364,6 +364,11 @@ window.courseTemplateStructure = (initialTab, storageKey) => ({
     storageKey,
 
     init() {
+        // No key: the page has no switch, so a tab saved earlier must not hide the content.
+        if (!this.storageKey) {
+            return;
+        }
+
         let savedTab = null;
 
         try {

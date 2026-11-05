@@ -96,6 +96,8 @@ criteria hay không.
 * [LF-Media-Structured-Extraction-Architecture-Review.md](LF-Media-Structured-Extraction-Architecture-Review.md)
   — owner-context, revision, citation, signed-delivery and append-only audit
   self-assessment packet; independent architecture review pending.
+* [LF-Cohort-Content-Order-Architecture-Review.md](LF-Cohort-Content-Order-Architecture-Review.md) — rà soát ADR-0023 và hai bảng thứ tự của lớp; Pass with changes, chưa Freeze.
+* [LF-Cohort-Owned-Content-Architecture-Review.md](LF-Cohort-Owned-Content-Architecture-Review.md) — rà soát ADR-0024, đã rút.
 * [LF-Version-Activity-Media-Snapshot-Architecture-Review.md](LF-Version-Activity-Media-Snapshot-Architecture-Review.md)
   — approved Version Activity media snapshot architecture review.
 * [LF-Course-Product-Architecture-Review.md](LF-Course-Product-Architecture-Review.md)

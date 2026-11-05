@@ -16,6 +16,8 @@
  *     a row never changes group, and the position it last passed on the way out is not a choice the user made.
  *  8. A drag called off over the list (Esc, or a touch the system took back) goes back the same way, saves nothing
  *     and says nothing: the user asked for exactly that.
+ *  9. A list marked `data-reorder-reload` shows what the server derives from the order (the class's dates): the page
+ *     reloads once the last move is saved.
  */
 import { showUiToast, hideUiToast } from './admin-ui-kit-controls.js';
 
@@ -123,6 +125,10 @@ export function courseTemplateOrder(list, deps = {}) {
         confirmed = order;
         if (!sameOrder(ids(), confirmed)) {
             save();
+            return;
+        }
+        if (list.hasAttribute('data-reorder-reload')) {
+            win.location.reload();
             return;
         }
         hideUiToast(toast('page-error'), win);

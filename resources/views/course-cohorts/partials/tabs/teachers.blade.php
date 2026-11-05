@@ -6,13 +6,15 @@
         'from' => $cohort->start_date ? \Illuminate\Support\Carbon::parse($cohort->start_date)->format('d/m/Y') : '—',
         'to' => $cohort->end_date ? \Illuminate\Support\Carbon::parse($cohort->end_date)->format('d/m/Y') : '—',
     ];
+    // A failed edit flashes the same field names; they belong to its own popup, not to the assign form.
+    $assignOld = fn (string $field, mixed $default = null): mixed => str_starts_with((string) old('_form'), 'teacher_edit_') ? $default : old($field, $default);
 @endphp
 <section class="mk-section course-cohort-teachers" aria-labelledby="cohort-teachers-title"
      x-data="{
          open: @js($errors->hasAny(['teacher_id', 'role', 'assigned_from', 'assigned_to'])),
          showErrors: true,
          defaultRole: @js($defaultRole),
-         role: @js(old('role', $defaultRole)),
+         role: @js($assignOld('role', $defaultRole)),
          submitting: false,
          discard() {
              const form = this.$refs.assignForm
@@ -82,12 +84,12 @@
                                 </div>
                                 <div class="ui-field" x-show="role !== 'primary_teacher'">
                                     <label class="ui-field__label" for="assigned_from">{{ __('lf.LF_course_cohort_teacher_from') }}</label>
-                                    <x-ui-date-input id="assigned_from" name="assigned_from" :value="old('assigned_from')" :min="$cohort->start_date" :max="$cohort->end_date" />
+                                    <x-ui-date-input id="assigned_from" name="assigned_from" :value="$assignOld('assigned_from')" :min="$cohort->start_date" :max="$cohort->end_date" />
                                     @error('assigned_from')<p class="ui-field__error" role="alert" x-show="showErrors">{{ $message }}</p>@enderror
                                 </div>
                                 <div class="ui-field" x-show="role !== 'primary_teacher'">
                                     <label class="ui-field__label" for="assigned_to">{{ __('lf.LF_course_cohort_teacher_to') }}</label>
-                                    <x-ui-date-input id="assigned_to" name="assigned_to" :value="old('assigned_to')" :min="$cohort->start_date" :max="$cohort->end_date" />
+                                    <x-ui-date-input id="assigned_to" name="assigned_to" :value="$assignOld('assigned_to')" :min="$cohort->start_date" :max="$cohort->end_date" />
                                     @error('assigned_to')<p class="ui-field__error" role="alert" x-show="showErrors">{{ $message }}</p>@enderror
                                 </div>
                                 <p class="ui-caption ui-field--full" x-show="role !== 'primary_teacher'">{{ __('lf.LF_course_cohort_teacher_operating_period', $classPeriod) }}</p>
@@ -139,6 +141,12 @@
                             </td>
                             <td class="ux-action-cell" data-label="{{ __('lf.table_actions') }}">
                                 @if ($cohort->is_mutable)
+                                    <button type="button" class="ux-row-edit cursor-interaction" aria-haspopup="dialog"
+                                            aria-label="{{ __('lf.LF_common_button_edit') }}: {{ $teacher->teacher_name }}"
+                                            data-tooltip="{{ __('lf.LF_common_button_edit') }}"
+                                            x-on:click="document.getElementById('cohort-teacher-edit-{{ $teacher->id }}').showModal()">
+                                        <x-backend-icon name="square-pen" class="ui-icon" />
+                                    </button>
                                     <form method="POST" class="ui-cohort-row-form"
                                           action="{{ route('admin.course-cohorts.teachers.destroy', [$cohort->id, $teacher->id]) }}"
                                           data-lf-confirm="{{ __('lf.LF_course_cohort_teacher_remove_confirm', ['name' => $teacher->teacher_name]) }}"
@@ -205,4 +213,10 @@
                     </tbody>
                 </table>
             </div>
+
+            @if ($cohort->is_mutable)
+                @foreach ($teachers as $assignment)
+                    @include('course-cohorts.partials.tabs.teacher-edit-dialog')
+                @endforeach
+            @endif
 </section>

@@ -79,6 +79,8 @@ if ($registerCourseProductRoutes ?? false) {
 
     Route::post('/course-cohorts/{cohort}/teachers', [CourseCohortOperationController::class, 'storeTeacher'])
         ->name('course-cohorts.teachers.store');
+    Route::put('/course-cohorts/{cohort}/teachers/{assignment}', [CourseCohortOperationController::class, 'updateTeacher'])
+        ->name('course-cohorts.teachers.update');
     Route::delete('/course-cohorts/{cohort}/teachers/{assignment}', [CourseCohortOperationController::class, 'removeTeacher'])
         ->name('course-cohorts.teachers.destroy');
     Route::get('/course-cohorts/{cohort}/schedules/create', [LiveClassScheduleController::class, 'create'])
@@ -93,6 +95,10 @@ if ($registerCourseProductRoutes ?? false) {
         ->name('course-cohorts.schedules.edit');
     Route::put('/course-cohorts/{cohort}/schedules/{schedule}', [LiveClassScheduleController::class, 'update'])
         ->name('course-cohorts.schedules.update');
+    Route::patch('/course-cohorts/{cohort}/content/lessons/order', [CourseCohortOperationController::class, 'reorderLessons'])
+        ->name('course-cohorts.content.lessons.reorder');
+    Route::patch('/course-cohorts/{cohort}/content/lessons/{lesson}/activities/order', [CourseCohortOperationController::class, 'reorderActivities'])
+        ->name('course-cohorts.content.activities.reorder');
     Route::post('/course-cohorts/{cohort}/sessions', [CourseCohortOperationController::class, 'storeSession'])
         ->name('course-cohorts.sessions.store');
     Route::post('/course-cohorts/{cohort}/sessions/batch', [CourseCohortOperationController::class, 'storeSessionBatch'])
