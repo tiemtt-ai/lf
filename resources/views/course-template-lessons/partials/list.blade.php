@@ -145,21 +145,23 @@
                      x-bind:class="{ 'is-expanded': expanded }">
                 <div class="course-template-lesson-summary"
                      x-on:click="if (! $event.target.closest('button, a, form, input')) toggle()">
-                    @if ($canReorderLessons)
-                        {{-- Hidden while searching: the visible rows are then only part of the list. --}}
-                        <button type="button"
-                                class="admin-link-button admin-text-action ui-row-action course-template-order-handle"
-                                x-sort:handle
-                                x-show="query.trim() === ''"
-                                aria-label="{{ __('lf.LF_course_template_lesson_reorder_handle', ['title' => $lesson->title]) }}"
-                                aria-keyshortcuts="ArrowUp ArrowDown"
-                                data-tooltip="{{ __('lf.LF_course_template_lesson_reorder_hint') }}"
-                                x-on:keydown.up.prevent="courseTemplateOrder($el.closest('[data-reorder-url]')).move($el, -1)"
-                                x-on:keydown.down.prevent="courseTemplateOrder($el.closest('[data-reorder-url]')).move($el, 1)">
-                            <x-backend-icon name="grip-vertical" class="ui-icon" />
-                        </button>
-                    @endif
-                    <span class="course-template-lesson-number" aria-hidden="true">{{ str_pad((string) $loop->iteration, 2, '0', STR_PAD_LEFT) }}</span>
+                    <div class="course-template-lesson-rail">
+                        <span class="course-template-lesson-number" aria-hidden="true">{{ str_pad((string) $loop->iteration, 2, '0', STR_PAD_LEFT) }}</span>
+                        @if ($canReorderLessons)
+                            {{-- Hidden while searching: the visible rows are then only part of the list. --}}
+                            <button type="button"
+                                    class="admin-link-button admin-text-action ui-row-action course-template-order-handle"
+                                    x-sort:handle
+                                    x-show="query.trim() === ''"
+                                    aria-label="{{ __('lf.LF_course_template_lesson_reorder_handle', ['title' => $lesson->title]) }}"
+                                    aria-keyshortcuts="ArrowUp ArrowDown"
+                                    data-tooltip="{{ __('lf.LF_course_template_lesson_reorder_hint') }}"
+                                    x-on:keydown.up.prevent="courseTemplateOrder($el.closest('[data-reorder-url]')).move($el, -1)"
+                                    x-on:keydown.down.prevent="courseTemplateOrder($el.closest('[data-reorder-url]')).move($el, 1)">
+                                <x-backend-icon name="grip-vertical" class="ui-icon" />
+                            </button>
+                        @endif
+                    </div>
                     <div class="course-template-lesson-copy">
                         <strong>{{ $lesson->title }}</strong>
                         @if ($lesson->short_description || $lesson->description)

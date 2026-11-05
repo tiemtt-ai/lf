@@ -2062,7 +2062,9 @@
 .lf-admin-ui.ui-structure .course-template-lesson-summary { display: flex; align-items: flex-start; justify-content: flex-start; gap: 12px; padding: 16px; cursor: pointer; }
 /* Drag handle of a lesson (course-template-lesson-order.js); its tooltip opens to the right, the handle being the first thing in the row. */
 .lf-admin-ui.ui-structure .course-template-order-handle { flex: none; margin: 0 -6px; color: var(--ct-text-3); cursor: grab; touch-action: none; }
-.lf-admin-ui.ui-structure .course-template-lesson-summary > .course-template-order-handle { height: 40px; }
+/* Lesson number with the drag handle under it. */
+.lf-admin-ui.ui-structure .course-template-lesson-rail { display: flex; flex: none; flex-direction: column; align-items: center; gap: 4px; }
+.lf-admin-ui.ui-structure .course-template-lesson-rail > .course-template-order-handle { width: 100%; height: 24px; min-height: 24px; margin: 0; }
 .lf-admin-ui.ui-structure .course-template-order-handle:active { cursor: grabbing; }
 .lf-admin-ui.ui-structure .course-template-order-handle[data-tooltip]::after { right: auto; left: 0; }
 /* From the press to the drop the hint would only cover the row beside it. */
@@ -2177,7 +2179,6 @@ body.sorting .lf-admin-ui.ui-structure .course-template-order-handle[data-toolti
 .lf-admin-ui.ui-structure .course-template-outline-section .course-template-lesson-item { box-shadow: none; }
 .lf-admin-ui.ui-structure .course-template-outline-section .course-template-lesson-summary { padding: 12px 12px 12px 12px; }
 .lf-admin-ui.ui-structure .course-template-outline-section .course-template-lesson-number { width: 34px; height: 34px; border-radius: 8px; font-size: 13px; }
-.lf-admin-ui.ui-structure .course-template-outline-section .course-template-lesson-summary > .course-template-order-handle { height: 34px; }
 .lf-admin-ui.ui-structure .course-template-outline-section .course-template-lesson-copy strong { font-size: 14px; }
 .lf-admin-ui.ui-structure .course-template-outline-section .course-template-activity-panel { padding: 10px 12px 12px 52px; }
 .lf-admin-ui.ui-structure .course-template-lesson-empty,
