@@ -3157,23 +3157,6 @@ class CourseCohortManagementTest extends TestCase
         $this->actingAs($admin)->get($tab)->assertOk()->assertDontSee('ui-structure--one-kind', false);
     }
 
-    public function test_schedule_preview_says_how_many_live_lessons_the_dates_serve(): void
-    {
-        [$customerId, $admin, $cohortId, $versionId] = $this->reorderCohort();
-        $this->programme($customerId, $versionId, ['Lesson A', 'Lesson B']);
-        $lesson = DB::table('core_course_template_version_lessons')->where('template_version_id', $versionId)->first();
-        DB::table('core_course_template_version_activities')->insert([
-            'customer_id' => $customerId, 'template_version_id' => $versionId, 'version_lesson_id' => $lesson->id,
-            'source_template_activity_id' => 59997, 'title_snapshot' => 'Second live of a lesson', 'activity_type' => 'live_class',
-            'sort_order' => 2, 'completion_rule' => 'manual', 'created_at' => now(), 'updated_at' => now(),
-        ]);
-
-        $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=schedules&schedule_form=create")->assertOk()
-            ->assertSee((string) \Illuminate\Support\Js::from(__('lf.LF_course_cohort_schedule_preview_lessons', ['lessons' => 2])), false)
-            ->assertSeeText(__('lf.LF_course_cohort_schedule_preview_lessons_link'))
-            ->assertSee(route('admin.course-cohorts.show', [$cohortId, 'tab' => 'sessions'], false), false);
-    }
-
     public function test_every_past_session_locks_its_place_whatever_its_outcome(): void
     {
         [$customerId, $admin, $cohortId, $versionId] = $this->reorderCohort();
@@ -3563,10 +3546,52 @@ class CourseCohortManagementTest extends TestCase
             ->assertDontSee('data-session-id', false);
     }
 
+    public function test_saving_a_schedule_opens_a_popup_leading_to_the_sessions_it_created(): void
+    {
+        [$customerId, $admin, $cohortId, $versionId] = $this->reorderCohort();
+        [$a, $b, $c] = $this->programme($customerId, $versionId, ['Lesson A', 'Lesson B', 'Lesson C']);
+        $url = "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/schedules";
+        $payload = $this->validScheduleData([
+            'starts_on' => '2026-08-10', 'ends_on' => '2026-08-31',
+            'slots' => [['weekday' => 1, 'start_time' => '09:00', 'end_time' => '10:00']],
+        ]);
+
+        $response = $this->actingAs($admin)->post($url, $payload)->assertSessionHasNoErrors()->assertSessionMissing('success');
+        $ids = DB::table('core_liveclass_sessions')->where('cohort_id', $cohortId)->orderBy('id')->pluck('id')->map(fn ($id): int => (int) $id)->all();
+        $this->assertCount(3, $ids);
+        $response->assertSessionHas('schedule_applied.session_ids', $ids);
+
+        $link = route('admin.course-cohorts.show', [$cohortId, 'tab' => 'sessions', 'applied' => implode(',', $ids)], false);
+        $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=schedules")->assertOk()
+            ->assertSee('cohort-schedule-applied-title', false)
+            ->assertSeeText(__('lf.LF_course_cohort_schedule_applied_message'))
+            ->assertSee(e($link), false);
+
+        // The popup is once only.
+        $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=schedules&schedule_form=create")->assertOk()
+            ->assertDontSee('cohort-schedule-applied-title', false);
+
+        // Only the sessions named stand out, and only the earliest is brought into view.
+        $page = $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=sessions&applied={$ids[1]},{$ids[2]},999999")->assertOk()->getContent();
+        $this->assertSame(2, substr_count($page, 'course-template-lesson-item is-applied'));
+        $this->assertSame(1, substr_count($page, 'data-pager-focus'));
+        $this->assertStringContainsString('data-pager-focus', $this->lessonMarkup($page, $b['lesson']));
+
+        $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=sessions")->assertOk()
+            ->assertDontSee('is-applied', false)->assertDontSee('data-pager-focus', false);
+    }
+
+    private function lessonMarkup(string $page, int $lessonId): string
+    {
+        $start = strpos($page, 'data-version-lesson-id="'.$lessonId.'"');
+
+        return substr($page, (int) $start, 200);
+    }
+
     /** A date without a Session still exists, for example after a cancellation: these tests start from one. */
     private function keepDatesUnsaved(): void
     {
-        $this->mock(\App\Services\LiveClassScheduleSessionGenerator::class, fn ($mock) => $mock->shouldReceive('generate')->andReturn(0));
+        $this->mock(\App\Services\LiveClassScheduleSessionGenerator::class, fn ($mock) => $mock->shouldReceive('generate')->andReturn([]));
     }
 
     public function test_saving_a_schedule_creates_sessions_in_programme_order_with_the_class_teachers(): void
@@ -3597,7 +3622,7 @@ class CourseCohortManagementTest extends TestCase
         $this->actingAs($admin)->postJson("{$url}/preview", $weekly('2026-08-31'))->assertOk()->assertJsonPath('missing', 0);
         $this->actingAs($admin)->post($url, $weekly('2026-08-31'))
             ->assertSessionHasNoErrors()
-            ->assertSessionHas('success', __('lf.LF_course_cohort_schedule_created_with_sessions', ['count' => 3]));
+            ->assertSessionHas('schedule_applied.message', __('lf.LF_course_cohort_schedule_applied_message'));
 
         $sessions = DB::table('core_liveclass_sessions')->where('cohort_id', $cohortId)->orderBy('scheduled_start_at')->get();
         $this->assertSame([$a['activity'], $b['activity'], $c['activity']], $sessions->map(fn ($row): int => (int) $row->version_activity_id)->all());
@@ -3614,7 +3639,9 @@ class CourseCohortManagementTest extends TestCase
         $this->actingAs($admin)->postJson("{$url}/preview", $weekly('2026-08-31', ['editing_schedule_id' => $scheduleId]))->assertOk()->assertJsonPath('missing', 0);
         $this->actingAs($admin)->put("{$url}/{$scheduleId}", $weekly('2026-08-31'))
             ->assertSessionHasNoErrors()
-            ->assertSessionHas('success', __('lf.LF_course_cohort_schedule_updated'));
+            ->assertSessionMissing('success')
+            ->assertSessionHas('schedule_applied.message', __('lf.LF_course_cohort_schedule_applied_message'))
+            ->assertSessionHas('schedule_applied.session_ids', $sessions->pluck('id')->map(fn ($id): int => (int) $id)->sort()->values()->all());
         $this->assertSame(3, DB::table('core_liveclass_sessions')->where('cohort_id', $cohortId)->count());
         $this->assertSame('Kept', DB::table('core_liveclass_sessions')->where('id', $sessions[0]->id)->value('title'));
     }

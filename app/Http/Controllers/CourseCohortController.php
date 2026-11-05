@@ -202,7 +202,7 @@ class CourseCohortController extends Controller
             'students' => $this->studentTabData($request, $customerId, $id, $cohort),
             'teachers' => $this->teacherTabData($customerId, $id),
             'schedules' => $this->scheduleTabData($request, $customerId, $id, $cohort),
-            'sessions' => $this->sessionTabData($customerId, $cohort, $cohortSessions),
+            'sessions' => $this->sessionTabData($customerId, $cohort, $cohortSessions) + $this->appliedLessons($request, $cohortSessions),
             'attendance' => $this->attendanceTabData($request, $customerId, $id, $eligibleAttendanceSessions),
             'recordings' => $this->recordingTabData($customerId, $id, $cohortSessions),
             default => [],
@@ -397,14 +397,24 @@ class CourseCohortController extends Controller
             'scheduleFormMode' => $formMode,
             'scheduleAcceptsNew' => ! $cohort->version_id || $this->versionResolver->runsInClass($customerId, (int) $cohort->version_id),
             'scheduleTimezones' => timezone_identifiers_list(),
-            'liveLessonCount' => $cohort->version_id
-                ? DB::table('core_course_template_version_activities')
-                    ->where('customer_id', $customerId)->where('template_version_id', $cohort->version_id)
-                    ->where('activity_type', 'live_class')->distinct()->count('version_lesson_id')
-                : 0,
         ], $this->scheduleReadModel->formState(
             $customerId, $cohortId, $formMode, $request->integer('schedule_id')
         ));
+    }
+
+    /**
+     * The lessons of the Sessions a Schedule just created (?applied=, from the popup after saving it).
+     * Only this Cohort's Sessions count, whatever the link says.
+     */
+    private function appliedLessons(Request $request, Collection $sessions): array
+    {
+        $ids = array_map('intval', explode(',', (string) $request->query('applied')));
+        $applied = $sessions->whereIn('id', $ids)->whereNotNull('version_lesson_id')->sortBy('scheduled_start_at')->values();
+
+        return [
+            'appliedLessonIds' => $applied->pluck('version_lesson_id')->map(fn ($id): int => (int) $id)->unique()->values()->all(),
+            'firstAppliedLessonId' => $applied->isEmpty() ? null : (int) $applied->first()->version_lesson_id,
+        ];
     }
 
     private function sessionTabData(int $customerId, object $cohort, Collection $sessions): array

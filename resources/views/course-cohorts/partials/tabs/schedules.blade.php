@@ -3,6 +3,24 @@
     $canAddSchedule = $cohort->is_mutable && $hasOperatingPeriod && $scheduleAcceptsNew;
 @endphp
 <section class="mk-section course-cohort-schedules" aria-labelledby="cohort-schedules-title">
+            @if (session('schedule_applied'))
+                <dialog class="ui-modal" data-columns="1" aria-labelledby="cohort-schedule-applied-title" aria-describedby="cohort-schedule-applied-body"
+                        x-data x-init="$nextTick(() => $el.showModal())">
+                    <header class="ui-modal__header">
+                        <div><h3 id="cohort-schedule-applied-title">{{ __('lf.LF_course_cohort_schedule_applied_title') }}</h3></div>
+                        <button type="button" class="ui-modal__close cursor-interaction" x-on:click="$root.close()" aria-label="{{ __('lf.LF_common_button_close') }}">×</button>
+                    </header>
+                    <div class="ui-modal__body">
+                        <p id="cohort-schedule-applied-body" class="ui-enroll-dialog-text">{{ session('schedule_applied')['message'] }}</p>
+                    </div>
+                    <footer class="ui-modal__footer">
+                        <span></span>
+                        <button type="button" class="ui-button cursor-interaction" x-on:click="$root.close()">{{ __('lf.LF_common_button_close') }}</button>
+                        <a class="ui-button ui-button--primary cursor-interaction"
+                           href="{{ route('admin.course-cohorts.show', [$cohort->id, 'tab' => 'sessions', 'applied' => implode(',', session('schedule_applied')['session_ids'])]) }}">{{ __('lf.LF_course_cohort_schedule_applied_view') }}</a>
+                    </footer>
+                </dialog>
+            @endif
             <div class="ui-summary-head">
                 <div>
                     <h2 id="cohort-schedules-title">{{ __('lf.LF_course_cohort_schedule_list_title') }}</h2>

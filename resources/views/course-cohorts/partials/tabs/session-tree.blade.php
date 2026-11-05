@@ -2,7 +2,11 @@
 @if ($contentTree['hasContent'])
     <div class="ui-cohort-session-tree">
         @include('course-template-versions.partials.content-structure', $contentTree['structure'] + [
-            'sessionTree' => $contentTree + ['canReorder' => $cohort->is_mutable && $sessionAcceptsNew],
+            'sessionTree' => $contentTree + [
+                'canReorder' => $cohort->is_mutable && $sessionAcceptsNew,
+                'appliedLessonIds' => $appliedLessonIds,
+                'firstAppliedLessonId' => $firstAppliedLessonId,
+            ],
             'foldScope' => 'cohort-'.$cohort->id,
             'contentKey' => 'lf-course-cohort-'.$cohort->id,
             'structureHelp' => __('lf.LF_course_cohort_session_tree_help'),

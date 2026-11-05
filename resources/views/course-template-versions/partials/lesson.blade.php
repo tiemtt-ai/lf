@@ -30,10 +30,14 @@
     $lessonLockReason = $lessonReorderable ? $sessionTree['lockReasonsByLesson']->get((int) $lesson->id) : null;
     $lessonMovable = $lessonReorderable && ! $lessonLockReason;
     $activitiesReorderable = isset($sessionTree) && $sessionTree['canReorder'] && $lessonActivities->count() > 1;
+    // Reached from the popup after saving a Schedule: its lessons stand out and the first comes into view.
+    $lessonApplied = isset($sessionTree) && in_array((int) $lesson->id, $sessionTree['appliedLessonIds'], true);
+    $lessonRevealed = $lessonApplied && (int) $lesson->id === $sessionTree['firstAppliedLessonId'];
 @endphp
 
-<article class="course-template-lesson-item"
+<article @class(['course-template-lesson-item', 'is-applied' => $lessonApplied])
          data-version-lesson-id="{{ $lesson->id }}"
+         @if ($lessonRevealed) data-pager-focus x-init="courseTemplateRevealLesson($el)" @endif
          @isset($sessionTree) data-order-id="{{ $lesson->id }}" @endisset
          @if ($lessonMovable) x-sort:item="{{ $lesson->id }}" @endif
          x-data="courseTemplateLessonCollapse(@js($template->customer_id), @js($foldScope), @js($lesson->id), @js($loop->first))"

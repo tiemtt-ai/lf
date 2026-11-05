@@ -25,21 +25,21 @@ class LiveClassScheduleSessionGenerator
         private readonly CourseCohortVersionResolver $versionResolver
     ) {}
 
-    /** @return int how many Sessions were created */
-    public function generate(int $customerId, int $cohortId, int $actorId): int
+    /** @return list<int> the Sessions created */
+    public function generate(int $customerId, int $cohortId, int $actorId): array
     {
         $cohort = DB::table('core_course_cohorts')->where('customer_id', $customerId)
             ->where('id', $cohortId)->lockForUpdate()->firstOrFail();
         if (! $cohort->version_id || ! $this->versionResolver->runsInClass($customerId, (int) $cohort->version_id)) {
-            return 0;
+            return [];
         }
 
         // Two Schedules of a Cohort may share a time. A date overlapping one just
         // created ends the pass: the next one no longer offers it.
-        $created = 0;
+        $created = [];
         do {
-            [$count, $interrupted] = $this->pass($customerId, $cohort, $actorId);
-            $created += $count;
+            [$ids, $interrupted] = $this->pass($customerId, $cohort, $actorId);
+            $created = [...$created, ...$ids];
         } while ($interrupted);
 
         // Every live Activity must get a date: refused here, the Schedule is not saved either.
@@ -93,7 +93,7 @@ class LiveClassScheduleSessionGenerator
         );
     }
 
-    /** @return array{0: int, 1: bool} */
+    /** @return array{0: list<int>, 1: bool} */
     private function pass(int $customerId, object $cohort, int $actorId): array
     {
         $proposals = $this->proposals($customerId, $cohort);
@@ -101,6 +101,7 @@ class LiveClassScheduleSessionGenerator
             ->where('customer_id', $customerId)->where('cohort_id', $cohort->id)
             ->lockForUpdate()->max('session_no') + 1;
         $placed = [];
+        $ids = [];
 
         foreach ($proposals as $proposal) {
             $occurrence = $proposal['occurrence'];
@@ -124,15 +125,15 @@ class LiveClassScheduleSessionGenerator
             }
             foreach ($placed as [$placedStart, $placedEnd]) {
                 if (LiveClassSessionTime::overlaps($placedStart, $placedEnd, $start, $end)) {
-                    return [count($placed), true];
+                    return [$ids, true];
                 }
             }
 
-            $this->store($customerId, $cohort, $proposal, $origin, $nextSessionNo++, $actorId);
+            $ids[] = $this->store($customerId, $cohort, $proposal, $origin, $nextSessionNo++, $actorId);
             $placed[] = [$start, $end];
         }
 
-        return [count($placed), false];
+        return [$ids, false];
     }
 
     /**
@@ -142,7 +143,7 @@ class LiveClassScheduleSessionGenerator
      * @param  array<string, mixed>  $proposal
      * @param  array<string, mixed>  $origin
      */
-    private function store(int $customerId, object $cohort, array $proposal, array $origin, int $sessionNo, int $actorId): void
+    private function store(int $customerId, object $cohort, array $proposal, array $origin, int $sessionNo, int $actorId): int
     {
         $now = now();
         $sessionId = DB::table('core_liveclass_sessions')->insertGetId([
@@ -199,5 +200,7 @@ class LiveClassScheduleSessionGenerator
                 'updated_at' => $now,
             ])->all());
         }
+
+        return $sessionId;
     }
 }

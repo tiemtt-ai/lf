@@ -40,21 +40,18 @@ class LiveClassScheduleController extends Controller
 
     public function store(LiveClassScheduleRequest $request, int $cohort): RedirectResponse
     {
-        $created = DB::transaction(function () use ($request, $cohort): int {
-            $this->scheduleService->create(
+        [$schedule, $created] = DB::transaction(function () use ($request, $cohort): array {
+            $schedule = $this->scheduleService->create(
                 $this->customerId(),
                 $cohort,
                 (int) $request->user()->id,
                 $request->validated()
             );
 
-            return $this->sessionGenerator->generate($this->customerId(), $cohort, (int) $request->user()->id);
+            return [$schedule, $this->sessionGenerator->generate($this->customerId(), $cohort, (int) $request->user()->id)];
         }, 3);
 
-        return redirect()->route('admin.course-cohorts.show', ['id' => $cohort, 'tab' => 'schedules'])
-            ->with('success', $created > 0
-                ? __('lf.LF_course_cohort_schedule_created_with_sessions', ['count' => $created])
-                : __('lf.LF_course_cohort_schedule_created'));
+        return $this->saved($cohort, $schedule, $created, 'lf.LF_course_cohort_schedule_created');
     }
 
     public function show(Request $request, int $cohort, int $schedule): RedirectResponse
@@ -91,7 +88,7 @@ class LiveClassScheduleController extends Controller
         int $cohort,
         int $schedule
     ): RedirectResponse {
-        $created = DB::transaction(function () use ($request, $cohort, $schedule): int {
+        $created = DB::transaction(function () use ($request, $cohort, $schedule): array {
             $this->scheduleService->update(
                 $this->customerId(),
                 $cohort,
@@ -103,10 +100,7 @@ class LiveClassScheduleController extends Controller
             return $this->sessionGenerator->generate($this->customerId(), $cohort, (int) $request->user()->id);
         }, 3);
 
-        return redirect()->route('admin.course-cohorts.show', ['id' => $cohort, 'tab' => 'schedules'])
-            ->with('success', $created > 0
-                ? __('lf.LF_course_cohort_schedule_updated_with_sessions', ['count' => $created])
-                : __('lf.LF_course_cohort_schedule_updated'));
+        return $this->saved($cohort, $schedule, $created, 'lf.LF_course_cohort_schedule_updated');
     }
 
     public function preview(LiveClassScheduleRequest $request, int $cohort): JsonResponse
@@ -128,6 +122,27 @@ class LiveClassScheduleController extends Controller
             ),
             'notice' => __('lf.LF_course_cohort_schedule_preview_notice'),
         ]);
+    }
+
+    /**
+     * A Schedule with Sessions gets a popup that leads to them: the ones just created, otherwise the ones
+     * already following it, which saving leaves as they are. A Schedule without any gets the usual toast.
+     *
+     * @param  list<int>  $created
+     */
+    private function saved(int $cohort, int $schedule, array $created, string $message): RedirectResponse
+    {
+        $sessionIds = $created !== [] ? $created : DB::table('core_liveclass_session_schedule_origins')
+            ->where('customer_id', $this->customerId())->where('schedule_id', $schedule)
+            ->orderBy('session_id')->pluck('session_id')->map(fn ($id): int => (int) $id)->all();
+        $redirect = redirect()->route('admin.course-cohorts.show', ['id' => $cohort, 'tab' => 'schedules']);
+
+        return $sessionIds === []
+            ? $redirect->with('success', __($message))
+            : $redirect->with('schedule_applied', [
+                'message' => __('lf.LF_course_cohort_schedule_applied_message'),
+                'session_ids' => $sessionIds,
+            ]);
     }
 
     private function cohort(int $customerId, int $cohortId): object

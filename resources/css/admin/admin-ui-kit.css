@@ -1524,7 +1524,8 @@
     border-color: var(--ui-primary);
     box-shadow: 0 0 0 2px var(--ui-focus-ring)
 }
-.lf-admin-ui :is(.ui-input-group,.ui-search,.ux-combo__control) input:focus-visible {
+/* As specific as the field ring above: the box draws the ring, the input inside must not. */
+.lf-admin-ui :is(.ui-input-group,.ui-search,.ux-combo__control) input:not([type=checkbox]):not([type=radio]):not([type=file]):focus-visible {
     outline: none;
     box-shadow: none
 }
@@ -1532,8 +1533,8 @@
 .lf-admin-ui .ui-search:has([data-modal-tag-add]):focus-within {
     box-shadow: none
 }
-.lf-admin-ui .ui-search:has(:is(#catalog-tags,[data-ui-tags])) input:focus-visible,
-.lf-admin-ui .ui-search:has([data-modal-tag-add]) input:focus-visible {
+.lf-admin-ui .ui-search:has(:is(#catalog-tags,[data-ui-tags])) input:not([type=checkbox]):not([type=radio]):not([type=file]):focus-visible,
+.lf-admin-ui .ui-search:has([data-modal-tag-add]) input:not([type=checkbox]):not([type=radio]):not([type=file]):focus-visible {
     border-color: var(--ui-primary)!important;
     box-shadow: 0 0 0 2px var(--ui-focus-ring)
 }
@@ -2169,6 +2170,7 @@ body.sorting .lf-admin-ui.ui-structure .course-template-order-handle[data-toolti
 .lf-admin-ui.ui-structure .course-template-outline-section[data-section-depth="0"] > .course-template-outline-section-header { padding: 14px 12px; border-radius: 12px; box-shadow: var(--ct-shadow); }
 .lf-admin-ui.ui-structure .course-template-outline-section.is-flash > .course-template-outline-section-header { border-color: var(--ui-primary); box-shadow: 0 0 0 3px var(--ct-primary-tint); }
 .lf-admin-ui.ui-structure .course-template-lesson-item.is-flash { border-color: var(--ui-primary); box-shadow: 0 0 0 3px var(--ct-primary-tint); }
+.lf-admin-ui.ui-structure .course-template-lesson-item.is-applied { border-color: var(--ui-primary); box-shadow: 0 0 0 2px var(--ui-focus-ring); }
 .lf-admin-ui.ui-structure .course-template-outline-section-header > .course-template-section-toggle { flex: none; margin-left: -6px; border: 0; }
 .lf-admin-ui.ui-structure .course-template-section-toggle[aria-expanded="true"] .ui-icon { transform: rotate(180deg); }
 .lf-admin-ui.ui-structure .course-template-outline-section-number { display: grid; place-items: center; flex: none; min-width: 30px; height: 24px; padding: 0 6px; border-radius: 6px; background: var(--ct-surface-2); color: var(--ui-muted); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }

@@ -4,6 +4,9 @@ import Alpine from 'alpinejs';
 import sort from '@alpinejs/sort';
 import { courseTemplateOrder, courseTemplateRefreshOutline } from './course-template-order';
 import './ai-authoring';
+import { installDialogInitialFocus } from './dialog-initial-focus';
+
+installDialogInitialFocus(window.HTMLDialogElement);
 
 window.Alpine = Alpine;
 
