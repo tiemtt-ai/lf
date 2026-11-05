@@ -3454,6 +3454,39 @@ class CourseCohortManagementTest extends TestCase
         );
     }
 
+    public function test_saving_from_a_programme_popup_says_what_was_edited(): void
+    {
+        [$customerId, $admin, $cohortId, $versionId] = $this->reorderCohort();
+        [$a] = $this->programme($customerId, $versionId, ['Lesson A']);
+        $session = $this->programmeSession($admin, $cohortId, $a, 'Lesson A', '2026-08-10');
+        $url = "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions/{$session}";
+        $fields = ['session_type' => 'curriculum', 'title' => 'Lesson A', 'delivery_mode' => 'online', 'version_lesson_id' => $a['lesson'], 'version_activity_id' => $a['activity'], 'opened_version_activity_id' => $a['activity'], 'scheduled_start_at' => '2026-08-10 09:00:00', 'scheduled_end_at' => '2026-08-10 10:00:00'];
+
+        $this->actingAs($admin)->put($url, $fields + ['opened_scope' => 'activity'])->assertSessionHasNoErrors()
+            ->assertSessionHas('success', __('lf.LF_course_cohort_session_saved_activity'));
+        $this->actingAs($admin)->put($url, $fields + ['opened_scope' => 'lesson'])
+            ->assertSessionHas('success', __('lf.LF_course_cohort_session_saved_lesson'));
+    }
+
+    public function test_the_activity_popup_shows_errors_of_the_fields_it_hides(): void
+    {
+        [$customerId, $admin, $cohortId, $versionId] = $this->reorderCohort();
+        [$a] = $this->programme($customerId, $versionId, ['Lesson A']);
+        $session = $this->programmeSession($admin, $cohortId, $a, 'Lesson A', '2026-08-10');
+        $page = "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=sessions";
+        $summary = '<div class="ui-field__error ui-cohort-manage-error" role="alert"';
+
+        foreach (['activity' => true, 'lesson' => false] as $scope => $summarised) {
+            $response = $this->actingAs($admin)->from($page)->followingRedirects()
+                ->put("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions/{$session}", [
+                    'form_context' => 'session', 'opened_scope' => $scope, 'editing_session_id' => $session,
+                    'opened_version_activity_id' => $a['activity'], 'original_start_at' => '2026-08-10T09:00',
+                    'session_type' => 'curriculum', 'title' => 'Lesson A', 'delivery_mode' => 'offline', 'room_name' => '', 'address' => '',
+                ])->assertOk();
+            $summarised ? $response->assertSee($summary, false) : $response->assertDontSee($summary, false);
+        }
+    }
+
     public function test_the_session_form_edits_schedule_and_teachers_but_only_shows_template_fields(): void
     {
         [$customerId, $admin, $cohortId, $versionId] = $this->reorderCohort();

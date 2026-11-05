@@ -328,6 +328,21 @@ class CourseCohortOperationController extends Controller
             ->values();
     }
 
+    /**
+     * The Programme popups edit an activity or a lesson: saving one is an edit for
+     * the admin, even when its date from the Schedule creates the Session only now.
+     */
+    private function sessionSavedMessage(Request $request, string $default): string
+    {
+        if (! $request->filled('opened_version_activity_id')) {
+            return __($default);
+        }
+
+        return __($request->input('opened_scope') === 'lesson'
+            ? 'lf.LF_course_cohort_session_saved_lesson'
+            : 'lf.LF_course_cohort_session_saved_activity');
+    }
+
     public function storeSession(Request $request, int $cohort): RedirectResponse
     {
         $customerId = $this->authorizeAdmin($request);
@@ -451,7 +466,7 @@ class CourseCohortOperationController extends Controller
         });
 
         return $this->tab($cohort, 'sessions')
-            ->with('success', __('lf.LF_course_cohort_session_created'));
+            ->with('success', $this->sessionSavedMessage($request, 'lf.LF_course_cohort_session_created'));
     }
 
     public function storeSessionBatch(Request $request, int $cohort): RedirectResponse
@@ -703,7 +718,7 @@ class CourseCohortOperationController extends Controller
         });
 
         return $this->tab($cohort, 'sessions')
-            ->with('success', __('lf.LF_course_cohort_session_updated'));
+            ->with('success', $this->sessionSavedMessage($request, 'lf.LF_course_cohort_session_updated'));
     }
 
     public function updateSchedule(Request $request, int $cohort, int $session): RedirectResponse

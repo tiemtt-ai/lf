@@ -20,8 +20,12 @@
     $assignOldSession = $assignHasErrors ? $sessions->firstWhere('id', (int) old('assign_session_id')) : null;
     // Lỗi của ô đang hiện nằm ngay dưới ô đó; đầu popup chỉ còn lỗi không có chỗ hiện (khi sửa, ô thời gian bị ẩn).
     $formInlineKeys = ['title', 'version_lesson_id', 'version_activity_id', 'delivery_mode', 'teacher_ids', 'meeting_url', 'online_provider', 'room_name', 'address', 'scheduled_start_at', 'scheduled_end_at', 'reason'];
+    // Popup của hoạt động chỉ hiện link (và ngày giờ khi chưa có ngày): lỗi của các ô đã ẩn phải lên đầu popup, không thì bấm Lưu mà không thấy gì.
+    if ($formHasErrors && old('opened_version_activity_id') && old('opened_scope') !== 'lesson') {
+        $formInlineKeys = old('original_start_at') ? ['meeting_url'] : ['meeting_url', 'scheduled_start_at', 'scheduled_end_at'];
+    }
     $formSummaryErrors = $formHasErrors
-        ? collect($errors->messages())->reject(fn ($messages, $key) => in_array($key, $formInlineKeys, true) || str_starts_with($key, 'teacher_ids.'))->flatten()
+        ? collect($errors->messages())->reject(fn ($messages, $key) => in_array($key, $formInlineKeys, true) || (in_array('teacher_ids', $formInlineKeys, true) && str_starts_with($key, 'teacher_ids.')))->flatten()
         : collect();
     $occurrenceKey = fn (array $item): string => implode('|', [
         $item['schedule_id'] ?? '', $item['schedule_slot_id'] ?? '', $item['source_local_date'] ?? $item['date'] ?? '',
@@ -64,7 +68,6 @@
         'lesson' => (string) $versionLessons->firstWhere('id', $item->version_lesson_id)?->title_snapshot,
         'title' => $item->title_snapshot,
         'rows' => collect([
-            ['label' => __('lf.LF_course_template_activity_common_type'), 'value' => __('lf.LF_course_template_activity_common_type_live_class')],
             $item->description_snapshot ? ['label' => __('lf.LF_course_template_activity_common_description'), 'value' => $item->description_snapshot, 'wide' => true] : null,
             ['label' => __('lf.LF_course_template_activity_learning_availability'), 'value' => collect(['anytime', 'before_session', 'during_session', 'after_session'])
                 ->filter(fn (string $phase): bool => (bool) $item->{'available_'.$phase})
@@ -72,9 +75,9 @@
             ['label' => __('lf.LF_course_template_activity_common_completion_rule'), 'value' => __('lf.LF_course_template_activity_common_completion_'.$item->completion_rule)],
             $item->estimated_duration_seconds_snapshot ? ['label' => __('lf.LF_course_template_activity_common_estimated_duration_minutes'), 'value' => __('lf.LF_course_template_activity_common_duration_minutes', ['minutes' => (int) ceil($item->estimated_duration_seconds_snapshot / 60)])] : null,
             ['label' => __('lf.LF_course_template_activity_common_preview'), 'value' => $yesNo($item->is_preview)],
-            ['label' => __('lf.LF_course_template_activity_common_required'), 'value' => $yesNo($item->is_required)],
             ['label' => __('lf.LF_course_template_activity_common_unlock_rule'), 'value' => __('lf.LF_course_template_activity_common_unlock_'.($item->unlock_rule_snapshot ?: 'none'))],
             $item->unlock_after_version_activity_id && $versionActivities->firstWhere('id', $item->unlock_after_version_activity_id) ? ['label' => __('lf.LF_course_template_activity_common_unlock_after_activity'), 'value' => $versionActivities->firstWhere('id', $item->unlock_after_version_activity_id)->title_snapshot] : null,
+            ['label' => __('lf.LF_course_template_activity_common_required'), 'value' => $yesNo($item->is_required)],
         ])->filter()->values(),
     ]]);
     // The fields of the Template's lesson form, for the edit opened on a lesson row.
@@ -98,6 +101,7 @@
          programmeLessonRows: @js($programmeLessons),
          formScope: @js($formHasErrors && old('opened_scope') === 'lesson' ? 'lesson' : 'activity'),
          lessonScope() { return this.formScope === 'lesson' && this.programmeForm() },
+         activityScope() { return this.formScope !== 'lesson' && this.programmeForm() },
          meetingBeforeEdit: null,
          openMeetingEdit() {
              this.meetingBeforeEdit = this.meetingUrl
