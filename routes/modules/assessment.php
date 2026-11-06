@@ -3,10 +3,12 @@
 use App\Http\Controllers\Assessment\AssessmentCategoryController;
 use App\Http\Controllers\Assessment\AssessmentPassageController;
 use App\Http\Controllers\Assessment\AssessmentQuestionController;
+use App\Http\Controllers\Assessment\AssessmentQuestionImportController;
 use App\Http\Controllers\Assessment\AssessmentQuizBuilderController;
 use App\Http\Controllers\Assessment\AssessmentQuizController;
 use App\Http\Controllers\Assessment\AssessmentRegistrationController;
 use App\Http\Controllers\Assessment\AssessmentResultController;
+use App\Http\Controllers\Assessment\AssessmentRubricController;
 use App\Http\Controllers\Assessment\AssessmentWorkspaceController;
 use Illuminate\Support\Facades\Route;
 
@@ -22,7 +24,7 @@ use Illuminate\Support\Facades\Route;
 $assessmentCategoryManagement = $registerAssessmentCategoryManagement ?? true;
 $assessmentPlaceholders = array_diff(
     AssessmentWorkspaceController::sectionsFor($assessmentCategoryManagement),
-    ['categories', 'questions', 'passages', 'quizzes', 'registrations', 'results'],
+    ['categories', 'questions', 'passages', 'rubrics', 'quizzes', 'registrations', 'results'],
 );
 
 Route::prefix('assessments')->name('assessments.')->group(function () use ($assessmentCategoryManagement, $assessmentPlaceholders): void {
@@ -43,6 +45,11 @@ Route::prefix('assessments')->name('assessments.')->group(function () use ($asse
     Route::get('/questions/create', [AssessmentQuestionController::class, 'create'])->name('questions.create');
     Route::post('/questions', [AssessmentQuestionController::class, 'store'])->name('questions.store');
     Route::delete('/questions', [AssessmentQuestionController::class, 'bulkDestroy'])->name('questions.bulk-destroy');
+    // Nhập / Xuất Excel câu hỏi: popup, import (all rows or none), the template file and export in the same columns.
+    Route::get('/questions/import', [AssessmentQuestionImportController::class, 'create'])->name('questions.import.create');
+    Route::post('/questions/import', [AssessmentQuestionImportController::class, 'store'])->name('questions.import.store');
+    Route::get('/questions/import/template', [AssessmentQuestionImportController::class, 'template'])->name('questions.import.template');
+    Route::get('/questions/export', [AssessmentQuestionImportController::class, 'export'])->name('questions.export');
     Route::get('/questions/{id}/edit', [AssessmentQuestionController::class, 'edit'])->whereNumber('id')->name('questions.edit');
     Route::put('/questions/{id}', [AssessmentQuestionController::class, 'update'])->whereNumber('id')->name('questions.update');
 
@@ -55,6 +62,15 @@ Route::prefix('assessments')->name('assessments.')->group(function () use ($asse
     Route::put('/passages/{id}', [AssessmentPassageController::class, 'update'])->whereNumber('id')->name('passages.update');
     Route::post('/passages/{id}/questions/{questionId}/move', [AssessmentPassageController::class, 'moveQuestion'])
         ->whereNumber(['id', 'questionId'])->name('passages.questions.move');
+
+    // Tiêu chí chấm (ADR-0026): admins manage every rubric, teachers their own and use the admins' too.
+    Route::get('/rubrics', [AssessmentRubricController::class, 'index'])->name('rubrics.index');
+    Route::get('/rubrics/create', [AssessmentRubricController::class, 'create'])->name('rubrics.create');
+    Route::post('/rubrics', [AssessmentRubricController::class, 'store'])->name('rubrics.store');
+    Route::delete('/rubrics', [AssessmentRubricController::class, 'bulkDestroy'])->name('rubrics.bulk-destroy');
+    Route::get('/rubrics/{id}/edit', [AssessmentRubricController::class, 'edit'])->whereNumber('id')->name('rubrics.edit');
+    Route::put('/rubrics/{id}', [AssessmentRubricController::class, 'update'])->whereNumber('id')->name('rubrics.update');
+    Route::post('/rubrics/{id}/toggle-status', [AssessmentRubricController::class, 'toggleStatus'])->whereNumber('id')->name('rubrics.toggle-status');
 
     Route::get('/quizzes', [AssessmentQuizController::class, 'index'])->name('quizzes.index');
     Route::get('/quizzes/create', [AssessmentQuizController::class, 'create'])->name('quizzes.create');
@@ -93,6 +109,7 @@ Route::prefix('assessments')->name('assessments.')->group(function () use ($asse
 
     // Kết quả & Chấm bài: attempts read from their frozen version; essay / speaking graded by hand.
     Route::get('/results', [AssessmentResultController::class, 'index'])->name('results.index');
+    Route::get('/results/statistics', [AssessmentResultController::class, 'statistics'])->name('results.statistics');
     Route::get('/results/{id}', [AssessmentResultController::class, 'show'])->whereNumber('id')->name('results.show');
     Route::post('/results/{id}/answers/{answerId}/grade', [AssessmentResultController::class, 'grade'])
         ->whereNumber(['id', 'answerId'])->name('results.grade');

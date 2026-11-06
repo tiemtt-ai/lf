@@ -1,6 +1,6 @@
 # Table: core_assessment_quiz_version_questions
 
-Version: 1.0
+Version: 1.1
 
 Document Status: Approved
 
@@ -15,7 +15,9 @@ Document Path: database/assessment/core_assessment_quiz_version_questions.md
 Câu hỏi đã đóng băng trong một phiên bản đề: thứ tự, điểm, nội dung, lựa chọn
 và đáp án tại lúc xuất bản, theo
 [ADR-0025](../../adr/ADR-0025-Assessment-Simple-Administration.md) D6. Đây là
-nguồn duy nhất để hiển thị đề cho học viên, chấm và xem lại bài.
+nguồn duy nhất để hiển thị đề cho học viên, chấm và xem lại bài. Cột
+`rubric_snapshot` theo [ADR-0026](../../adr/ADR-0026-Assessment-Rubric.md) D4
+(Approved 2026-11-06).
 
 ## Relationships
 
@@ -36,6 +38,10 @@ nguồn duy nhất để hiển thị đề cho học viên, chấm và xem lạ
 * `requires_manual_grading = true` khi `question_type` là `essay` hoặc
   `speaking`.
 * Thứ tự lựa chọn hiển thị theo `options_snapshot`; không trộn ở giai đoạn 1.
+* `rubric_snapshot` chụp rubric của câu nguồn trong transaction xuất bản (kể cả
+  rubric đã lưu trữ); NULL khi câu không gắn rubric. Chỉ có ở câu chấm tay.
+  `key` của tiêu chí là thứ tự 1..n trong snapshot. Gửi cho học viên được
+  (không chứa đáp án).
 
 ## Fields
 
@@ -54,6 +60,7 @@ nguồn duy nhất để hiển thị đề cho học viên, chấm và xem lạ
 | requires_manual_grading | BOOLEAN NOT NULL DEFAULT false | Câu cần giáo viên chấm. |
 | question_snapshot | JSON NOT NULL | `{"title":...,"prompt":...,"explanation":...,"reference_answer":...,"media":[{"media_file_id":..,"media_role":..}]}`. |
 | options_snapshot | JSON NULL | `[{"key":1,"label":"A","text":"..."}]`; NULL với essay/speaking/short_answer. |
+| rubric_snapshot | JSON NULL | `{"rubric_id":4000,"title":"...","total_points":50,"items":[{"key":1,"title":"Nội dung","description":"...","max_points":12}]}`. |
 | correct_answer_snapshot | JSON NULL | Lựa chọn: `{"option_keys":[1]}`; short_answer: `{"accepted":["seoul"]}`; NULL với essay/speaking. |
 | created_at | TIMESTAMP NULL | Thời điểm tạo. |
 | updated_at | TIMESTAMP NULL | Thời điểm cập nhật (không đổi sau tạo). |
@@ -64,6 +71,7 @@ nguồn duy nhất để hiển thị đề cho học viên, chấm và xem lạ
 CHECK (question_type IN ('single_choice','multiple_choice','true_false','short_answer','essay','speaking'));
 CHECK (points >= 0);
 CHECK (requires_manual_grading = (question_type IN ('essay','speaking')));
+CHECK (rubric_snapshot IS NULL OR requires_manual_grading = 1);
 ```
 
 ## Indexes

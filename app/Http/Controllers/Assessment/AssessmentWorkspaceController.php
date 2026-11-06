@@ -14,7 +14,7 @@ use Illuminate\View\View;
 final class AssessmentWorkspaceController extends Controller
 {
     /** Menu order: foundation first, grading last. */
-    public const SECTIONS = ['categories', 'questions', 'passages', 'quizzes', 'registrations', 'results'];
+    public const SECTIONS = ['categories', 'questions', 'passages', 'rubrics', 'quizzes', 'registrations', 'results'];
 
     /** @return list<string> */
     public static function sectionsFor(bool $withCategories): array

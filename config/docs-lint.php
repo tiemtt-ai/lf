@@ -37,8 +37,6 @@ return [
         'database/assessment/core_assessment_quiz_questions.md' => 'Legacy schema/spec format has no historical Version/Last Updated; migrate after owner/date evidence is available.',
         'database/assessment/core_assessment_quiz_sections.md' => 'Legacy schema/spec format has no historical Version/Last Updated; migrate after owner/date evidence is available.',
         'database/assessment/core_assessment_quizzes.md' => 'Legacy schema/spec format has no historical Version/Last Updated; migrate after owner/date evidence is available.',
-        'database/assessment/core_assessment_rubric_items.md' => 'Legacy schema/spec format has no historical Version/Last Updated; migrate after owner/date evidence is available.',
-        'database/assessment/core_assessment_rubrics.md' => 'Legacy schema/spec format has no historical Version/Last Updated; migrate after owner/date evidence is available.',
         'database/assessment/core_assessment_topics.md' => 'Legacy schema/spec format has no historical Version/Last Updated; migrate after owner/date evidence is available.',
         'database/course/README.md' => 'Legacy schema/spec format has no historical Version/Last Updated; migrate after owner/date evidence is available.',
         'database/course/core_certificate_download_logs.md' => 'Legacy schema/spec format has no historical Version/Last Updated; migrate after owner/date evidence is available.',

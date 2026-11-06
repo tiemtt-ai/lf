@@ -5,7 +5,7 @@
   "default_locale": "vi",
   "fallback_locale": "en",
   "source_of_truth": "docs/LF-INDEX.md",
-  "document_count": 329,
+  "document_count": 332,
   "documents": [
     {
       "path": "LF-Core-Overview.md",
@@ -1380,6 +1380,50 @@
         "core/LF-Core-Assessment.md",
         "database/assessment/README.md",
         "quality/LF-Assessment-Simple-Admin-Proposal.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "adr/ADR-0026-Assessment-Rubric.md",
+      "title": "ADR-0026 — Assessment Rubric",
+      "area": "adr",
+      "document_type": "adr",
+      "document_status": "Approved",
+      "implementation_status": "Implemented",
+      "metadata_complete": true,
+      "authority": "architecture_decision",
+      "canonical_for": [],
+      "topics": [
+        "assessment",
+        "rubric",
+        "grading"
+      ],
+      "keywords": {
+        "vi": [
+          "tiêu chí chấm",
+          "rubric",
+          "chấm theo tiêu chí",
+          "quy đổi điểm"
+        ],
+        "en": [
+          "assessment rubric",
+          "rubric snapshot",
+          "criteria grading"
+        ]
+      },
+      "identifiers": [
+        "core_assessment_rubrics",
+        "core_assessment_rubric_items",
+        "rubric_snapshot",
+        "rubric_result"
+      ],
+      "related_documents": [
+        "adr/ADR-0003-Assessment-Foundation.md",
+        "adr/ADR-0025-Assessment-Simple-Administration.md",
+        "core/LF-Core-Assessment.md",
+        "database/assessment/README.md",
+        "quality/LF-Assessment-Rubric-Proposal.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"
@@ -3452,9 +3496,9 @@
       "title": "Table: core_assessment_rubric_items",
       "area": "database",
       "document_type": "table_schema",
-      "document_status": "Unknown",
-      "implementation_status": "Unknown",
-      "metadata_complete": false,
+      "document_status": "Approved",
+      "implementation_status": "Implemented",
+      "metadata_complete": true,
       "authority": "database",
       "canonical_for": [],
       "topics": [
@@ -3492,9 +3536,9 @@
       "title": "Table: core_assessment_rubrics",
       "area": "database",
       "document_type": "table_schema",
-      "document_status": "Unknown",
-      "implementation_status": "Unknown",
-      "metadata_complete": false,
+      "document_status": "Approved",
+      "implementation_status": "Implemented",
+      "metadata_complete": true,
       "authority": "database",
       "canonical_for": [],
       "topics": [
@@ -10677,6 +10721,85 @@
         "core/LF-Core-Assessment.md",
         "quality/LF-Regression-Audit.md",
         "platform/LF-Media.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "quality/LF-Assessment-Rubric-Architecture-Review.md",
+      "title": "LF Assessment Rubric Architecture Review",
+      "area": "quality",
+      "document_type": "architecture_review",
+      "document_status": "Approved",
+      "implementation_status": "Not Applicable",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": [
+        "assessment",
+        "rubric",
+        "grading"
+      ],
+      "keywords": {
+        "vi": [
+          "rà soát tiêu chí chấm",
+          "review rubric"
+        ],
+        "en": [
+          "rubric architecture review"
+        ]
+      },
+      "identifiers": [
+        "core_assessment_rubrics",
+        "core_assessment_rubric_items"
+      ],
+      "related_documents": [
+        "adr/ADR-0026-Assessment-Rubric.md",
+        "database/assessment/README.md",
+        "quality/LF-Assessment-Rubric-Proposal.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "quality/LF-Assessment-Rubric-Proposal.md",
+      "title": "LF Assessment Rubric Proposal",
+      "area": "quality",
+      "document_type": "architecture_review",
+      "document_status": "Approved",
+      "implementation_status": "Not Applicable",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": [
+        "assessment",
+        "rubric",
+        "grading"
+      ],
+      "keywords": {
+        "vi": [
+          "tiêu chí chấm",
+          "rubric",
+          "chấm tự luận",
+          "chấm bài nói"
+        ],
+        "en": [
+          "assessment rubric",
+          "rubric grading",
+          "criteria scoring"
+        ]
+      },
+      "identifiers": [
+        "core_assessment_rubrics",
+        "core_assessment_rubric_items",
+        "rubric_snapshot",
+        "rubric_result"
+      ],
+      "related_documents": [
+        "adr/ADR-0003-Assessment-Foundation.md",
+        "adr/ADR-0025-Assessment-Simple-Administration.md",
+        "core/LF-Core-Assessment.md",
+        "database/assessment/README.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"

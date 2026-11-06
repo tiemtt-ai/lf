@@ -183,6 +183,18 @@
             </div>
 
             <div class="ui-field ui-field--full" x-show="type === 'essay' || type === 'speaking'">
+                <label class="ui-field__label" for="assessment-question-form-rubric">{{ __('lf.LF_assessment_question_rubric') }}</label>
+                <select id="assessment-question-form-rubric" name="rubric_id" data-ui-kit-select {!! $selectLabels !!}
+                        :disabled="type !== 'essay' && type !== 'speaking'">
+                    <option value="">{{ __('lf.LF_assessment_question_rubric_none') }}</option>
+                    @foreach ($rubrics as $rubric)
+                        <option value="{{ $rubric->id }}" @selected((string) $question?->rubric_id === (string) $rubric->id)>{{ $rubric->title }} · {{ __('lf.LF_assessment_rubric_points', ['points' => \App\Services\Assessment\AssessmentRubricService::points((float) $rubric->total_points)]) }}@if ($rubric->status === 'archived') ({{ __('lf.LF_assessment_rubric_status_label_archived') }})@endif</option>
+                    @endforeach
+                </select>
+                <p class="ui-caption">{{ __('lf.LF_assessment_question_rubric_help') }}</p>
+            </div>
+
+            <div class="ui-field ui-field--full" x-show="type === 'essay' || type === 'speaking'">
                 <label class="ui-field__label" for="assessment-question-form-reference">{{ __('lf.LF_assessment_question_reference_answer') }}</label>
                 <textarea id="assessment-question-form-reference" name="reference_answer" rows="3" maxlength="20000"
                           :disabled="type !== 'essay' && type !== 'speaking'"

@@ -112,6 +112,9 @@
                 $chosen = collect(json_decode((string) ($answer?->selected_option_keys ?? '[]'), true) ?: [])->map(fn ($k) => (int) $k);
                 $correctKeys = collect($correct['option_keys'] ?? [])->map(fn ($k) => (int) $k);
                 $manual = (bool) $question->requires_manual_grading;
+                $rubric = json_decode((string) $question->rubric_snapshot, true);
+                $currentGrading = $answer ? $history->get($answer->id)?->firstWhere('is_current', true) : null;
+                $rubricScores = collect(json_decode((string) ($currentGrading?->rubric_result ?? '[]'), true) ?: [])->pluck('score', 'key');
             @endphp
 
             @if ($multiSection && $question->section_key !== $lastSection)
@@ -220,13 +223,45 @@
                 @endif
 
                 @if ($manual && $answer && $attempt->status !== 'in_progress')
-                    <form class="ui-result-grade" method="POST" action="{{ route($routePrefix.'.grade', [$attempt->id, $answer->id]) }}">
+                    <form @class(['ui-result-grade', 'ui-result-grade--rubric' => is_array($rubric)]) method="POST" action="{{ route($routePrefix.'.grade', [$attempt->id, $answer->id]) }}"
+                          @if (is_array($rubric))
+                              x-data="{ scores: @js($rubricScores->map(fn ($v) => $trim($v))->all()), total: {{ (float) $rubric['total_points'] }}, points: {{ (float) $question->points }},
+                                  get sum() { return Object.values(this.scores).reduce((a, v) => a + (parseFloat(v) || 0), 0); },
+                                  get converted() { return this.total > 0 ? Math.round(this.sum / this.total * this.points * 100) / 100 : 0; } }"
+                          @endif>
                         @csrf
+                        @if (is_array($rubric))
+                        <fieldset class="ui-field ui-result-rubric">
+                            <legend class="ui-field__label">{{ __('lf.LF_assessment_result_rubric', ['title' => $rubric['title']]) }}</legend>
+                            @foreach ($rubric['items'] as $item)
+                                <div class="ui-result-rubric__row">
+                                    <label for="grade-criterion-{{ $answer->id }}-{{ $item['key'] }}">
+                                        <span class="ui-result-rubric__name"><span class="ui-field__required" aria-hidden="true">*</span>{{ $item['title'] }}</span>
+                                        @if (filled($item['description'] ?? null))
+                                            <span class="ui-caption">{{ $item['description'] }}</span>
+                                        @endif
+                                    </label>
+                                    <span class="ui-result-rubric__input">
+                                        <input id="grade-criterion-{{ $answer->id }}-{{ $item['key'] }}" type="number" name="criteria[{{ $item['key'] }}]"
+                                               min="0" max="{{ $trim($item['max_points']) }}" step="0.01" inputmode="decimal" required
+                                               x-model="scores[{{ $item['key'] }}]">
+                                        <span class="ui-caption">/ {{ $trim($item['max_points']) }}</span>
+                                    </span>
+                                </div>
+                            @endforeach
+                            <p class="ui-result-rubric__total" aria-live="polite">
+                                {{ __('lf.LF_assessment_result_rubric_total') }}
+                                <strong><span x-text="sum.toLocaleString()"></span> / {{ $trim($rubric['total_points']) }}</strong>
+                                → <strong><span x-text="converted.toLocaleString()"></span> / {{ $trim($question->points) }}</strong>
+                            </p>
+                        </fieldset>
+                        @else
                         <div class="ui-field">
                             <label class="ui-field__label" for="grade-score-{{ $answer->id }}"><span class="ui-field__required" aria-hidden="true">*</span>{{ __('lf.LF_assessment_result_score_label', ['max' => $trim($question->points)]) }}</label>
                             <input id="grade-score-{{ $answer->id }}" type="number" name="score" min="0" max="{{ $trim($question->points) }}" step="0.01" inputmode="decimal" required
                                    value="{{ $answer->score !== null ? $trim($answer->score) : '' }}">
                         </div>
+                        @endif
                         <div class="ui-field ui-result-grade__feedback">
                             <label class="ui-field__label" for="grade-feedback-{{ $answer->id }}">{{ __('lf.LF_assessment_result_feedback') }}</label>
                             <textarea id="grade-feedback-{{ $answer->id }}" name="feedback" rows="2" maxlength="5000"
@@ -241,7 +276,8 @@
                         <details class="ui-details">
                             <summary>{{ __('lf.LF_assessment_result_history', ['count' => $history[$answer->id]->count()]) }}</summary>
                             @foreach ($history[$answer->id] as $entry)
-                                <p>{{ $date($entry->graded_at) }} · {{ $entry->grader_name }} · {{ $trim($entry->score) }}@if ($entry->feedback) · {{ $entry->feedback }}@endif @if ($entry->is_current) ({{ __('lf.LF_assessment_quiz_version_current') }}) @endif</p>
+                                @php $entryScores = collect(json_decode((string) $entry->rubric_result, true) ?: [])->pluck('score', 'key'); @endphp
+                                <p>{{ $date($entry->graded_at) }} · {{ $entry->grader_name }} · {{ $trim($entry->score) }}@if (is_array($rubric) && $entryScores->isNotEmpty()) ({{ collect($rubric['items'])->map(fn ($item) => $item['title'].' '.$trim($entryScores[$item['key']] ?? 0))->implode(', ') }})@endif @if ($entry->feedback) · {{ $entry->feedback }}@endif @if ($entry->is_current) ({{ __('lf.LF_assessment_quiz_version_current') }}) @endif</p>
                             @endforeach
                         </details>
                     @endif

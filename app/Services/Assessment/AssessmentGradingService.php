@@ -46,10 +46,15 @@ final class AssessmentGradingService
         return $attempt;
     }
 
-    /** Grades one essay / speaking answer of a submitted attempt. */
-    public function grade(int $customerId, User $user, int $attemptId, int $answerId, string $score, ?string $feedback): void
+    /**
+     * Grades one essay / speaking answer of a submitted attempt. A question with a frozen rubric takes one score per
+     * criterion and its question score is worked out from them (ADR-0026 D5); `$score` is then ignored.
+     *
+     * @param  array<int|string, mixed>|null  $criteria  criterion key => score
+     */
+    public function grade(int $customerId, User $user, int $attemptId, int $answerId, ?string $score, ?string $feedback, ?array $criteria = null): void
     {
-        DB::transaction(function () use ($customerId, $user, $attemptId, $answerId, $score, $feedback): void {
+        DB::transaction(function () use ($customerId, $user, $attemptId, $answerId, $score, $feedback, $criteria): void {
             $attempt = $this->find($customerId, $user, $attemptId, true);
             if ($attempt->status === 'in_progress') {
                 throw ValidationException::withMessages(['score' => __('lf.LF_assessment_result_error_in_progress')]);
@@ -61,6 +66,14 @@ final class AssessmentGradingService
             $question = DB::table(AssessmentQuizPublishService::VERSION_QUESTIONS_TABLE)->where('id', $answer->quiz_version_question_id)->first();
             if (! $question->requires_manual_grading) {
                 throw ValidationException::withMessages(['score' => __('lf.LF_assessment_result_error_auto')]);
+            }
+            $rubric = json_decode((string) $question->rubric_snapshot, true);
+            $rubricResult = null;
+            if (is_array($rubric)) {
+                ['score' => $value, 'result' => $rubricResult] = AssessmentRubricService::score($rubric, $criteria ?? [], (float) $answer->max_score);
+                $score = number_format($value, 2, '.', '');
+            } elseif ($score === null || $score === '') {
+                throw ValidationException::withMessages(['score' => __('validation.required', ['attribute' => __('lf.LF_assessment_result_score')])]);
             }
             if ((float) $score > (float) $answer->max_score) {
                 throw ValidationException::withMessages(['score' => __('lf.LF_assessment_result_error_max', [
@@ -79,6 +92,7 @@ final class AssessmentGradingService
                 'grading_type' => 'teacher',
                 'score' => $score,
                 'feedback' => $feedback,
+                'rubric_result' => $rubricResult === null ? null : json_encode($rubricResult),
                 'is_current' => true,
                 'graded_at' => $now,
                 'created_at' => $now,

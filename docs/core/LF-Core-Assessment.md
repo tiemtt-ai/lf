@@ -1,6 +1,6 @@
 # LF-Core-Assessment.md
 
-Version: 1.2
+Version: 1.3
 
 Document Status: Approved
 
@@ -48,10 +48,29 @@ Có:
 * Ghi danh: học viên tự đăng ký miễn phí đề *Mở đăng ký*, hoặc admin / giáo
   viên cấp.
 * "Đề thi của tôi", làm bài, tự chấm, giáo viên chấm điểm và nhận xét, kết quả.
+* Bổ sung theo yêu cầu Owner 2026-11-06 (không đổi schema):
+  * Nhập câu hỏi từ Excel (.xlsx) hoặc CSV trên trang Câu hỏi: mỗi dòng một
+    câu, cột cố định theo file mẫu; kiểm hết rồi lưu trong một transaction, có
+    dòng lỗi thì không lưu câu nào; mỗi dòng đi qua đúng quy tắc của form; câu
+    thuộc người nhập. Chỉ văn bản thuần, không nhập ngữ liệu và media. Đọc file
+    bằng `App\Support\SimpleXlsx` (ZipArchive + XMLReader), không thêm thư viện.
+  * Xuất Excel trên trang Câu hỏi: các câu đang thấy theo bộ lọc hiện tại
+    (cùng phạm vi danh sách: admin cả tenant, giáo viên câu của mình), đúng các
+    cột của file mẫu nên nhập lại được; tối đa 5.000 câu. Nút theo UI Kit:
+    Nhập Excel (`file-input`), Xuất Excel (`file-output`).
+  * Tab Thống kê trong Kết quả & Chấm bài: theo một đề, gộp mọi phiên bản và
+    ghi danh; chỉ tính bài đã nộp mà người xem được thấy (cùng phạm vi danh sách
+    bài làm). Tổng quan (số bài, điểm trung bình, thấp nhất – cao nhất, tỉ lệ
+    đạt) và từng câu nguồn: tỉ lệ làm đúng (câu tự chấm) hoặc điểm trung bình
+    của bài đã chấm (tự luận, nói); Dễ từ 85%, Khó từ 30% trở xuống. Chỉ đọc.
+* Tiêu chí chấm (rubric) theo [ADR-0026](../adr/ADR-0026-Assessment-Rubric.md)
+  (Owner duyệt 2026-11-06): bộ tiêu chí dùng lại gắn vào câu tự luận / nói,
+  chụp vào phiên bản đề khi xuất bản, giáo viên chấm từng tiêu chí, điểm quy đổi
+  về điểm của câu; học viên thấy điểm từng tiêu chí.
 
 Không có (làm sau hoặc bỏ): đề động, gói đề, gắn vào Course Template, giao
-theo lớp, thanh toán / bán đề, chia sẻ giữa giáo viên, Excel, thống kê theo câu,
-xếp loại, rubric, phân công chấm, mọi tính năng AI, đề tổ hợp HSA.
+theo lớp, thanh toán / bán đề, chia sẻ giữa giáo viên, xuất Excel kết quả, xếp loại,
+phân công chấm, mọi tính năng AI, đề tổ hợp HSA.
 
 ---
 
@@ -197,8 +216,9 @@ Tổng điểm, đạt / không đạt
 * Điểm chấm tay trong `0..điểm tối đa của câu`, kiểm ở server.
 * Người chấm: admin của tenant, người tạo đề, người đã cấp ghi danh.
 
-Khi có AI hoặc rubric (sau này), quy tắc của ADR-0003 áp dụng: AI chỉ là đề
-xuất, giáo viên quyết; rubric được snapshot khi bắt đầu chấm.
+Khi có AI (sau này), quy tắc của ADR-0003 áp dụng: AI chỉ là đề xuất, giáo viên
+quyết. Rubric chụp vào phiên bản đề khi xuất bản (ADR-0026 D4, sửa ADR-0003);
+câu có rubric: điểm câu = tổng điểm tiêu chí ÷ tổng rubric × điểm của câu.
 
 ---
 
@@ -206,14 +226,14 @@ xuất, giáo viên quyết; rubric được snapshot khi bắt đầu chấm.
 
 | Vai trò | Quyền |
 |---|---|
-| `customer_admin` | Quản lý danh mục; xem, sửa mọi câu hỏi, ngữ liệu, đề, ghi danh, kết quả của tenant; chấm mọi bài |
-| `teacher` | Xem, sửa câu hỏi, ngữ liệu, đề do mình tạo (không đổi người tạo); chọn danh mục; cấp đề của mình cho học viên; chấm bài thuộc đề mình tạo hoặc ghi danh mình cấp |
+| `customer_admin` | Quản lý danh mục; xem, sửa mọi câu hỏi, ngữ liệu, tiêu chí chấm, đề, ghi danh, kết quả của tenant; chấm mọi bài |
+| `teacher` | Xem, sửa câu hỏi, ngữ liệu, tiêu chí chấm, đề do mình tạo (không đổi người tạo); dùng thêm tiêu chí chấm do admin tạo; chọn danh mục; cấp đề của mình cho học viên; chấm bài thuộc đề mình tạo hoặc ghi danh mình cấp |
 | `student` | Xem danh sách đề *Mở đăng ký*, tự đăng ký, làm bài, xem "Đề thi của tôi" và kết quả của chính mình |
 | Khách | Xem danh sách đề *Mở đăng ký* (chỉ thông tin giới thiệu) |
 
 Khu quản trị: mục **Kiểm tra** trên left menu ở `/admin/assessments` và
-`/teacher/assessments`, gồm Danh mục, Câu hỏi, Ngữ liệu, Đề / Bài tập, Ghi danh,
-Kết quả & Chấm bài. Học viên dùng mục **Assessments** trên website tenant; không
+`/teacher/assessments`, gồm Danh mục, Câu hỏi, Ngữ liệu, Tiêu chí chấm, Đề / Bài
+tập, Ghi danh, Kết quả & Chấm bài. Học viên dùng mục **Assessments** trên website tenant; không
 có portal học viên riêng.
 
 "Đề thi của tôi" là **tab** trong trang Assessments (`/assessments/my`), không
@@ -300,7 +320,8 @@ Bảng giai đoạn 1 và bảng hoãn: xem
 8. Chấm, giờ làm bài, số lượt do server quyết; không tin dữ liệu chấm từ client.
 9. Đáp án đúng không gửi cho học viên trước khi lần làm bài kết thúc.
 10. File thật thuộc Media Domain.
-11. AI (khi có) chỉ là đề xuất; rubric (khi có) phải snapshot khi chấm.
+11. AI (khi có) chỉ là đề xuất; rubric chấm và xem lại chỉ đọc snapshot trong
+    phiên bản đề.
 12. Bằng chứng Assessment không tự quyết Course completion / certificate.
 13. Course Activity Progress là source of truth cho activity completion.
 14. Cross-domain effect dùng Evidence / Event / Request; Domain đích tự quyết.
@@ -323,6 +344,8 @@ Cập nhật 2026-11-06.
 | Hết giờ: trình duyệt tự nộp; server đóng lần làm bài quá hạn khi đọc (`submit_reason = timeout`, ân hạn `assessment.deadline_grace_seconds`) | Đã làm |
 | Kiểm chứng trình duyệt phía giáo viên | Đã làm (trừ nghe bài nói thuộc đề giáo viên) |
 | Micro thật, Safari / iOS | Chưa |
+| Nhập / Xuất Excel câu hỏi, tab Thống kê | Đã làm |
+| Tiêu chí chấm (ADR-0026): trang quản lý, chọn trong câu hỏi, chụp khi xuất bản, chấm từng tiêu chí, học viên xem điểm tiêu chí | Đã làm |
 | Mọi mục "Không có" ở Phạm vi giai đoạn 1 | Chưa làm |
 
 Kiểm chứng: [LF-Assessment-Learner-Regression-Audit](../quality/LF-Assessment-Learner-Regression-Audit.md).

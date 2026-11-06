@@ -7,6 +7,7 @@ use App\Services\Assessment\AssessmentAttemptService as Attempts;
 use App\Services\Assessment\AssessmentGradingService as Grading;
 use App\Services\Assessment\AssessmentQuizPublishService;
 use App\Services\Assessment\AssessmentQuizService as Quizzes;
+use App\Services\Assessment\AssessmentStatisticsService;
 use App\Services\MediaService;
 use App\Support\TenantContext;
 use Illuminate\Http\RedirectResponse;
@@ -26,6 +27,7 @@ final class AssessmentResultController extends Controller
         private readonly Attempts $attempts,
         private readonly Quizzes $quizzes,
         private readonly MediaService $media,
+        private readonly AssessmentStatisticsService $statistics,
     ) {}
 
     public function index(Request $request): View
@@ -71,6 +73,29 @@ final class AssessmentResultController extends Controller
         ]);
     }
 
+    /** Thống kê of one quiz: totals and per-question correct rates of the attempts this user may see. */
+    public function statistics(Request $request): View
+    {
+        $customerId = $this->customerId();
+        $user = $request->user();
+        $validated = $request->validate(['quiz_id' => ['nullable', 'integer']]);
+
+        // Quizzes that have at least one submitted attempt this user may see; the newest submission comes first.
+        $quizzes = $this->grading->scoped($customerId, $user)->whereIn('a.status', ['submitted', 'graded'])
+            ->groupBy('z.id', 'z.title')->orderByRaw('max(a.submitted_at) desc')->get(['z.id', 'z.title']);
+        $quizId = isset($validated['quiz_id']) && $quizzes->contains('id', (int) $validated['quiz_id'])
+            ? (int) $validated['quiz_id']
+            : (int) ($quizzes->first()->id ?? 0);
+
+        return view('assessments.results.statistics', [
+            'quizzes' => $quizzes,
+            'quizId' => $quizId,
+            'stats' => $quizId > 0 ? $this->statistics->forQuiz($customerId, $user, $quizId) : null,
+            'pendingCount' => $this->grading->scoped($customerId, $user)->where('a.grading_status', 'pending')->count(),
+            'routePrefix' => $this->routePrefix($request),
+        ]);
+    }
+
     public function show(Request $request, int $id): View
     {
         $customerId = $this->customerId();
@@ -80,7 +105,7 @@ final class AssessmentResultController extends Controller
             ->get()->keyBy('quiz_version_question_id');
         $history = DB::table(Attempts::GRADINGS_TABLE.' as g')->leftJoin('users as u', 'u.id', '=', 'g.grader_user_id')
             ->where('g.customer_id', $customerId)->where('g.attempt_id', $id)->orderByDesc('g.id')
-            ->get(['g.answer_id', 'g.score', 'g.feedback', 'g.is_current', 'g.graded_at', 'u.name as grader_name'])->groupBy('answer_id');
+            ->get(['g.answer_id', 'g.score', 'g.feedback', 'g.rubric_result', 'g.is_current', 'g.graded_at', 'u.name as grader_name'])->groupBy('answer_id');
         // Speaking recordings that are ready to play.
         $files = DB::table(Attempts::FILES_TABLE.' as f')->join('media_files as m', 'm.id', '=', 'f.media_file_id')
             ->where('f.customer_id', $customerId)->whereIn('f.answer_id', $answers->pluck('id'))->where('m.status', 'ready')
@@ -103,11 +128,19 @@ final class AssessmentResultController extends Controller
     public function grade(Request $request, int $id, int $answerId): RedirectResponse
     {
         $validated = $request->validate([
-            'score' => ['required', 'numeric', 'decimal:0,2', 'min:0'],
+            // A question with a rubric sends one score per criterion instead (the service decides which applies).
+            'score' => ['nullable', 'numeric', 'decimal:0,2', 'min:0'],
+            'criteria' => ['nullable', 'array', 'max:50'],
+            'criteria.*' => ['nullable', 'numeric', 'decimal:0,2', 'min:0'],
             'feedback' => ['nullable', 'string', 'max:5000'],
         ]);
         $feedback = trim((string) ($validated['feedback'] ?? ''));
-        $this->grading->grade($this->customerId(), $request->user(), $id, $answerId, (string) $validated['score'], $feedback === '' ? null : $feedback);
+        $this->grading->grade(
+            $this->customerId(), $request->user(), $id, $answerId,
+            isset($validated['score']) ? (string) $validated['score'] : null,
+            $feedback === '' ? null : $feedback,
+            $validated['criteria'] ?? null,
+        );
 
         return redirect()->to(route($this->routePrefix($request).'.show', $id).'#answer-'.$answerId)
             ->with('success', __('lf.LF_assessment_result_graded'));

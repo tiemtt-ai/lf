@@ -27,6 +27,7 @@ final class AssessmentQuizPublishService
         private readonly AssessmentQuizDraftService $drafts,
         private readonly AssessmentQuestionService $questions,
         private readonly MediaService $media,
+        private readonly AssessmentRubricService $rubrics,
     ) {}
 
     /** @return int the new version id */
@@ -51,6 +52,10 @@ final class AssessmentQuizPublishService
                 ->whereIn('question_id', $questionIds)->where('locale', $locale)->orderBy('sort_order')->get()->groupBy('question_id');
             $questions = DB::table(AssessmentQuestionService::TABLE)->where('customer_id', $customerId)
                 ->whereIn('id', $questionIds)->get()->keyBy('id');
+            // Tiêu chí chấm frozen with the question (ADR-0026 D4), archived rubrics included.
+            $rubrics = $questions->filter(fn (object $question) => $question->rubric_id !== null
+                && in_array($question->question_type, AssessmentQuestionService::GRADER_TYPES, true))
+                ->mapWithKeys(fn (object $question) => [(int) $question->id => $this->rubrics->snapshot($customerId, (int) $question->rubric_id)]);
             $passageIds = $items->pluck('passage_id')->filter()->map(fn ($id) => (int) $id)->unique()->values()->all();
             $media = DB::table(AssessmentPromptMediaService::TABLE)->where('customer_id', $customerId)
                 ->where(fn ($query) => $query->whereIn('question_id', $questionIds)->orWhereIn('passage_id', $passageIds))
@@ -94,7 +99,7 @@ final class AssessmentQuizPublishService
             ]);
 
             DB::table(self::VERSION_QUESTIONS_TABLE)->insert($items->values()->map(function (object $item, int $i) use (
-                $customerId, $versionId, $sectionKeys, $questions, $contents, $options, $media, $now
+                $customerId, $versionId, $sectionKeys, $questions, $contents, $options, $media, $rubrics, $now
             ): array {
                 $question = $questions->get($item->question_id);
                 $content = $contents->get($item->question_id);
@@ -125,6 +130,8 @@ final class AssessmentQuizPublishService
                         'label' => $option->option_label ?: chr(65 + $n),
                         'text' => $option->option_text,
                     ])->all(), JSON_UNESCAPED_UNICODE) : null,
+                    'rubric_snapshot' => $rubrics->has((int) $question->id)
+                        ? json_encode($rubrics->get((int) $question->id), JSON_UNESCAPED_UNICODE) : null,
                     'correct_answer_snapshot' => match (true) {
                         $choice => json_encode(['option_keys' => $rows->where('is_correct', true)->pluck('sort_order')->map(fn ($k) => (int) $k)->values()->all()]),
                         $type === 'short_answer' => json_encode(['accepted' => $rows->pluck('option_text')->values()->all()], JSON_UNESCAPED_UNICODE),

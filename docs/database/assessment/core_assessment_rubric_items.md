@@ -1,28 +1,33 @@
 # Table: core_assessment_rubric_items
 
-Document Path: database/assessment/core_assessment_rubric_items.md
+Version: 2.0
 
-> ⏸ **Hoãn theo [ADR-0025](../../adr/ADR-0025-Assessment-Simple-Administration.md)**
-> (Approved 2026-11-06): bảng này không nằm trong giai đoạn 1 của module Kiểm
-> tra và không có migration. Nội dung dưới đây là thiết kế đích của ADR-0003,
-> phải review lại trước khi triển khai.
+Document Status: Approved
+
+Implementation Status: Implemented
+
+Last Updated: 2026-11-06
+
+Document Path: database/assessment/core_assessment_rubric_items.md
 
 ## Purpose
 
-Tiêu chí chấm điểm thuộc Rubric template.
+Tiêu chí của một rubric: tên, mô tả cách cho điểm, điểm tối đa, theo
+[ADR-0026](../../adr/ADR-0026-Assessment-Rubric.md) D1.
 
 ## Relationships
 
-`Rubric 1 → N Rubric Items`; mỗi Item thuộc Customer.
+`Rubric 1 → N Rubric Items`.
 
 ## Business Rules
 
-* Item và Rubric phải cùng tenant; `max_points >= 0`.
-* `sort_order` duy nhất trong Rubric.
-* Tổng `max_points` của Items phải khớp Rubric `total_points` khi activate.
-* Khi grading bắt đầu, phải snapshot Rubric và toàn bộ Rubric Items.
-* Item thay đổi sau đó không ảnh hưởng bài đã chấm; historical grading luôn đọc
-  Rubric Snapshot.
+* Item và Rubric cùng tenant.
+* `max_points > 0`; `sort_order` duy nhất trong rubric, bắt đầu từ 1.
+* Item chỉ được sửa qua form rubric: service ghi lại toàn bộ tiêu chí và
+  `total_points` trong một transaction. Không bảng nào khác tham chiếu Item, nên
+  xoá / thêm tiêu chí an toàn.
+* Snapshot và kết quả chấm dùng `key` = vị trí trong snapshot, không dùng `id`
+  của bảng này.
 
 ## Fields
 
@@ -31,27 +36,42 @@ Tiêu chí chấm điểm thuộc Rubric template.
 | id | BIGINT UNSIGNED PK AUTO_INCREMENT | Khóa chính. |
 | customer_id | BIGINT UNSIGNED NOT NULL | Tenant sở hữu. |
 | rubric_id | BIGINT UNSIGNED NOT NULL | Rubric cha. |
-| title | VARCHAR(255) NOT NULL | Tên criterion. |
-| description | TEXT NULL | Mô tả criterion. |
-| max_points | DECIMAL(8,2) NOT NULL DEFAULT 0.00 | Điểm tối đa. |
-| sort_order | INT UNSIGNED NOT NULL DEFAULT 1 | Thứ tự. |
-| metadata | JSON NULL | Levels/weights mở rộng. |
+| title | VARCHAR(255) NOT NULL | Tên tiêu chí. |
+| description | TEXT NULL | Mô tả cách cho điểm. |
+| max_points | DECIMAL(8,2) NOT NULL | Điểm tối đa. |
+| sort_order | INT UNSIGNED NOT NULL | Thứ tự. |
 | created_at | TIMESTAMP NULL | Thời điểm tạo. |
 | updated_at | TIMESTAMP NULL | Thời điểm cập nhật. |
+
+## Constraints
+
+```sql
+CHECK (max_points > 0);
+CHECK (sort_order >= 1);
+```
 
 ## Indexes
 
 ```sql
-INDEX (customer_id);
-INDEX (customer_id, rubric_id);
 UNIQUE (customer_id, rubric_id, sort_order);
 ```
 
+## Foreign Keys
+
+```sql
+FOREIGN KEY (customer_id) REFERENCES saas_customers(id);
+FOREIGN KEY (rubric_id, customer_id) REFERENCES core_assessment_rubrics(id, customer_id) ON DELETE CASCADE;
+```
+
+`CASCADE` theo nguyên tắc miền: tiêu chí là phần con của nguồn soạn thảo.
+
 ## Sample Data
 
-`id=4100, customer_id=1, rubric_id=4000, title=Grammar, max_points=5.00, sort_order=1`
+`id=4100, customer_id=1, rubric_id=4000, title=Nội dung, max_points=12.00, sort_order=1`
+`id=4101, customer_id=1, rubric_id=4000, title=Bố cục, max_points=12.00, sort_order=2`
+`id=4102, customer_id=1, rubric_id=4000, title=Ngôn ngữ, max_points=26.00, sort_order=3`
 
 ## Design Notes
 
-Rubric Item authoring không phải historical grading source. Rubric levels có
-thể ở metadata trong Foundation; nếu cần analytics sâu, tách table ở phase sau.
+So với ADR-0003: bỏ `metadata` (mức điểm trong tiêu chí làm sau); `max_points`
+phải dương vì tiêu chí 0 điểm không có nghĩa khi quy đổi.

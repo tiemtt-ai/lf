@@ -5444,6 +5444,15 @@
           "generated": null
         },
         {
+          "name": "rubric_result",
+          "type": "json",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
           "name": "is_current",
           "type": "tinyint",
           "nullable": false,
@@ -5596,6 +5605,9 @@
         }
       ],
       "checks": [
+        {
+          "expression": "json_valid(`rubric_result`)"
+        },
         {
           "expression": "`grading_type` in ('teacher','system_auto')"
         },
@@ -6547,6 +6559,15 @@
           "generated": null
         },
         {
+          "name": "rubric_id",
+          "type": "bigint",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
           "name": "status",
           "type": "varchar",
           "nullable": false,
@@ -6612,6 +6633,14 @@
         },
         {
           "columns": [
+            "rubric_id",
+            "customer_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
             "updated_by"
           ],
           "unique": false,
@@ -6629,6 +6658,14 @@
           "columns": [
             "customer_id",
             "created_by"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "rubric_id"
           ],
           "unique": false,
           "type": "btree"
@@ -6727,6 +6764,19 @@
         },
         {
           "columns": [
+            "rubric_id",
+            "customer_id"
+          ],
+          "foreign_table": "core_assessment_rubrics",
+          "foreign_columns": [
+            "id",
+            "customer_id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
             "updated_by"
           ],
           "foreign_table": "users",
@@ -6758,6 +6808,9 @@
         },
         {
           "expression": "`passage_id` is null = (`passage_sort_order` is null)"
+        },
+        {
+          "expression": "`rubric_id` is null or `question_type` in ('essay','speaking')"
         }
       ],
       "triggers": [],
@@ -7549,6 +7602,15 @@
           "generated": null
         },
         {
+          "name": "rubric_snapshot",
+          "type": "json",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
           "name": "correct_answer_snapshot",
           "type": "json",
           "nullable": true,
@@ -7707,6 +7769,9 @@
           "expression": "json_valid(`options_snapshot`)"
         },
         {
+          "expression": "json_valid(`rubric_snapshot`)"
+        },
+        {
           "expression": "json_valid(`correct_answer_snapshot`)"
         },
         {
@@ -7717,6 +7782,9 @@
         },
         {
           "expression": "`requires_manual_grading` = `question_type` in ('essay','speaking')"
+        },
+        {
+          "expression": "`rubric_snapshot` is null or `requires_manual_grading` = 1"
         }
       ],
       "triggers": [],
@@ -8354,24 +8422,343 @@
     {
       "name": "core_assessment_rubric_items",
       "documentation": "database/assessment/core_assessment_rubric_items.md",
-      "implementation_status": "not_implemented",
-      "columns": [],
-      "primary_key": [],
-      "indexes": [],
-      "foreign_keys": [],
-      "checks": [],
+      "implementation_status": "implemented",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": true,
+          "generated": null
+        },
+        {
+          "name": "customer_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "rubric_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "title",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "max_points",
+          "type": "decimal",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "sort_order",
+          "type": "int",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "rubric_id",
+            "customer_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "rubric_id",
+            "sort_order"
+          ],
+          "unique": true,
+          "type": "btree"
+        }
+      ],
+      "foreign_keys": [
+        {
+          "columns": [
+            "customer_id"
+          ],
+          "foreign_table": "saas_customers",
+          "foreign_columns": [
+            "id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "rubric_id",
+            "customer_id"
+          ],
+          "foreign_table": "core_assessment_rubrics",
+          "foreign_columns": [
+            "id",
+            "customer_id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "cascade"
+        }
+      ],
+      "checks": [
+        {
+          "expression": "`max_points` > 0"
+        },
+        {
+          "expression": "`sort_order` >= 1"
+        }
+      ],
       "triggers": [],
       "views": []
     },
     {
       "name": "core_assessment_rubrics",
       "documentation": "database/assessment/core_assessment_rubrics.md",
-      "implementation_status": "not_implemented",
-      "columns": [],
-      "primary_key": [],
-      "indexes": [],
-      "foreign_keys": [],
-      "checks": [],
+      "implementation_status": "implemented",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": true,
+          "generated": null
+        },
+        {
+          "name": "customer_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "created_by",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "updated_by",
+          "type": "bigint",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "title",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "skill_type",
+          "type": "varchar",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "total_points",
+          "type": "decimal",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "status",
+          "type": "varchar",
+          "nullable": false,
+          "default": "'active'",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "created_by"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "updated_by"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "created_by"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "status"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "id",
+            "customer_id"
+          ],
+          "unique": true,
+          "type": "btree"
+        }
+      ],
+      "foreign_keys": [
+        {
+          "columns": [
+            "created_by"
+          ],
+          "foreign_table": "users",
+          "foreign_columns": [
+            "id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "customer_id"
+          ],
+          "foreign_table": "saas_customers",
+          "foreign_columns": [
+            "id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "updated_by"
+          ],
+          "foreign_table": "users",
+          "foreign_columns": [
+            "id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        }
+      ],
+      "checks": [
+        {
+          "expression": "`status` in ('active','archived')"
+        },
+        {
+          "expression": "`skill_type` is null or `skill_type` in ('reading','listening','writing','speaking','other')"
+        },
+        {
+          "expression": "`total_points` > 0"
+        }
+      ],
       "triggers": [],
       "views": []
     },

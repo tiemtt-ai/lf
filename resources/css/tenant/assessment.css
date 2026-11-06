@@ -647,6 +647,31 @@ li.lf-exam-option {
     background: var(--student-blue-soft);
 }
 
+/* Điểm từng tiêu chí (ADR-0026 D6). */
+.lf-exam-rubric {
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid var(--student-border, rgba(15, 23, 42, 0.08));
+}
+
+.lf-exam-rubric__list {
+    display: grid;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.lf-exam-rubric__list li {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.lf-exam-rubric__list strong {
+    white-space: nowrap;
+}
+
 .lf-exam-answer__label {
     margin: 0 0 4px;
     color: var(--student-text-soft);

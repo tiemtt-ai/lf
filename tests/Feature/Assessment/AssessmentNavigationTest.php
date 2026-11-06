@@ -16,9 +16,9 @@ class AssessmentNavigationTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const ADMIN_SECTIONS = ['categories', 'questions', 'passages', 'quizzes', 'registrations', 'results'];
+    private const ADMIN_SECTIONS = ['categories', 'questions', 'passages', 'rubrics', 'quizzes', 'registrations', 'results'];
 
-    private const TEACHER_SECTIONS = ['questions', 'passages', 'quizzes', 'registrations', 'results'];
+    private const TEACHER_SECTIONS = ['questions', 'passages', 'rubrics', 'quizzes', 'registrations', 'results'];
 
     protected function setUp(): void
     {
@@ -31,7 +31,7 @@ class AssessmentNavigationTest extends TestCase
         ]);
     }
 
-    public function test_admin_sidebar_has_assessment_group_with_six_items_in_order(): void
+    public function test_admin_sidebar_has_assessment_group_with_seven_items_in_order(): void
     {
         $admin = $this->createUser($this->createTenant(), 'customer_admin');
 

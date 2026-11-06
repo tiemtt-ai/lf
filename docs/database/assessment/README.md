@@ -1,6 +1,6 @@
 # MIỀN NGHIỆP VỤ ASSESSMENT
 
-Version: 2.0
+Version: 2.1
 
 Document Status: Approved
 
@@ -17,6 +17,13 @@ Document Path: database/assessment/README.md
 > ADR-0021). Migration giai đoạn 1 đã có
 > (`2026_11_06_000100`–`000300`), kiểm trên MariaDB 11.4; service, route và giao
 > diện chưa có, nên Implementation Status là `Partial`.
+>
+> **Rubric ([ADR-0026](../../adr/ADR-0026-Assessment-Rubric.md), Approved
+> 2026-11-06):** bỏ hoãn `rubrics`, `rubric_items`; thêm cột `questions.rubric_id`,
+> `quiz_version_questions.rubric_snapshot`, `gradings.rubric_result`. Owner duyệt
+> ADR-0026 và các tài liệu bảng này ngày 2026-11-06. Migration
+> `2026_11_06_000400` đã có, kiểm trên MariaDB 11.4; service, trang Tiêu chí
+> chấm, chấm theo tiêu chí đã làm.
 
 Miền Assessment quản lý module **Kiểm tra**: danh mục, câu hỏi, ngữ liệu, đề /
 bài tập, phiên bản xuất bản, ghi danh, lần làm bài, câu trả lời và chấm điểm.
@@ -49,6 +56,8 @@ Miền này tạo bằng chứng đánh giá; không tự đổi trạng thái c
 | [core_assessment_question_contents](core_assessment_question_contents.md) | Đề bài, giải thích, đáp án mẫu |
 | [core_assessment_question_options](core_assessment_question_options.md) | Lựa chọn và đáp án chấp nhận |
 | [core_assessment_question_media](core_assessment_question_media.md) | Media của câu hỏi hoặc ngữ liệu |
+| [core_assessment_rubrics](core_assessment_rubrics.md) | Tiêu chí chấm dùng lại (ADR-0026) |
+| [core_assessment_rubric_items](core_assessment_rubric_items.md) | Từng tiêu chí của rubric (ADR-0026) |
 
 ### 2. Đề và phiên bản
 
@@ -77,8 +86,6 @@ Miền này tạo bằng chứng đánh giá; không tự đổi trạng thái c
 | [core_assessment_question_banks](core_assessment_question_banks.md) | Câu hỏi thuộc người tạo, phân loại bằng danh mục |
 | [core_assessment_topics](core_assessment_topics.md) | Danh mục đủ cho giai đoạn 1 |
 | [core_assessment_question_topics](core_assessment_question_topics.md) | Như trên |
-| [core_assessment_rubrics](core_assessment_rubrics.md) | Chấm điểm + nhận xét là đủ |
-| [core_assessment_rubric_items](core_assessment_rubric_items.md) | Như trên |
 | [core_assessment_grading_assignments](core_assessment_grading_assignments.md) | Người chấm suy ra từ người tạo / người cấp |
 
 ---
@@ -95,6 +102,8 @@ erDiagram
     QUESTION ||--o{ QUESTION_OPTION : offers
     QUESTION ||--o{ QUESTION_MEDIA : uses
     PASSAGE ||--o{ QUESTION_MEDIA : uses
+    RUBRIC ||--o{ RUBRIC_ITEM : lists
+    RUBRIC ||--o{ QUESTION : scores
 
     QUIZ ||--o{ QUIZ_SECTION : drafts
     QUIZ_SECTION ||--o{ QUIZ_QUESTION : drafts
@@ -124,7 +133,7 @@ flowchart LR
     C --> E
     E --> F[Câu trả lời]
     F -->|tự chấm| G[Kết quả]
-    F -->|essay / speaking| H[Chấm tay] --> G
+    F -->|essay / speaking| H[Chấm tay, theo tiêu chí nếu có] --> G
 ```
 
 ---

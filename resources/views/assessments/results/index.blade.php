@@ -22,15 +22,7 @@
 
     <x-ui-list-head :title="__('lf.LF_navigation_menu_assessment_results')" :text="__('lf.LF_assessment_results_help')" />
 
-    <nav class="ui-result-tabs" aria-label="{{ __('lf.LF_navigation_menu_assessment_results') }}">
-        <a href="{{ route($routePrefix.'.index') }}" @class(['ui-result-tab', 'is-active' => $filters['tab'] === 'all']) @if ($filters['tab'] === 'all') aria-current="page" @endif>
-            {{ __('lf.LF_assessment_result_tab_all') }}
-        </a>
-        <a href="{{ route($routePrefix.'.index', ['tab' => 'pending']) }}" @class(['ui-result-tab', 'is-active' => $filters['tab'] === 'pending']) @if ($filters['tab'] === 'pending') aria-current="page" @endif>
-            {{ __('lf.LF_assessment_result_tab_pending') }}
-            <span class="ui-result-tab__count">{{ $pendingCount }}</span>
-        </a>
-    </nav>
+    @include('assessments.results.partials.tabs', ['activeTab' => $filters['tab']])
 
     <section class="mk-section" aria-labelledby="admin-page-title">
         <div class="mk-tablebar mk-tablebar--filters">

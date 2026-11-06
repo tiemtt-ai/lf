@@ -34,18 +34,23 @@ final class AssessmentQuestionService
     public function __construct(
         private readonly AssessmentPromptMediaService $media,
         private readonly AssessmentPassageService $passages,
+        private readonly AssessmentRubricService $rubrics,
     ) {}
 
     /**
      * @param  array{question_type: string, category_id: int|null, skill_type: string|null, difficulty_level: string|null,
      *     default_points: string, status: string, prompt: string, explanation: string|null, reference_answer: string|null,
-     *     options: list<array{text: string, correct: bool}>, accepted_answers: list<string>, true_false_answer: string|null}  $data
+     *     options: list<array{text: string, correct: bool}>, accepted_answers: list<string>, true_false_answer: string|null,
+     *     rubric_id?: int|null}  $data
      */
     public function save(int $customerId, User $user, ?int $questionId, array $data): int
     {
         return DB::transaction(function () use ($customerId, $user, $questionId, $data): int {
             $existing = $questionId === null ? null : $this->findForUpdate($customerId, $user, $questionId);
             $this->assertCategory($customerId, $data['category_id'], $existing?->category_id);
+            // Only essay / speaking are graded with a rubric (ADR-0026 D3); other types drop it.
+            $rubricId = in_array($data['question_type'], self::GRADER_TYPES, true) ? ($data['rubric_id'] ?? null) : null;
+            $this->rubrics->assertChoosable($customerId, $user, $rubricId, $existing?->rubric_id);
             $options = $this->optionsFor($data);
 
             if ($data['status'] === 'published') {
@@ -59,6 +64,7 @@ final class AssessmentQuestionService
                 'skill_type' => $data['skill_type'],
                 'difficulty_level' => $data['difficulty_level'],
                 'default_points' => $data['default_points'],
+                'rubric_id' => $rubricId,
                 'status' => $data['status'],
                 'updated_by' => $user->id,
                 'updated_at' => $now,

@@ -140,6 +140,20 @@
                         @endif
                     @endif
 
+                    @if ($question->rubric && $answer && $rubricScores->has($answer->id))
+                        @php $criterionScores = $rubricScores->get($answer->id); @endphp
+                        <div class="lf-exam-rubric">
+                            <p class="lf-exam-answer__label">{{ __('lf.LF_assessment_learner_rubric', ['title' => $question->rubric['title']]) }}</p>
+                            <ul class="lf-exam-rubric__list">
+                                @foreach ($question->rubric['items'] as $item)
+                                    <li>
+                                        <span>{{ $item['title'] }}</span>
+                                        <strong>{{ $trim($criterionScores[$item['key']] ?? 0) }} / {{ $trim($item['max_points']) }}</strong>
+                                    </li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
                     @if ($visible['feedback'] && filled($answer?->feedback))
                         <div class="lf-exam-feedback">
                             <p class="lf-exam-answer__label">{{ __('lf.LF_assessment_learner_teacher_feedback') }}</p>

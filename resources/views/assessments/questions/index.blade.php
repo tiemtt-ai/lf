@@ -107,6 +107,20 @@
                         {{ __('lf.LF_assessment_question_create') }}
                     </button>
                 </x-slot:create>
+                <button type="button" class="ui-button ui-button--outline cursor-interaction"
+                        data-ui-dialog-form-open data-ui-dialog-form-for="assessment-question-list"
+                        data-url="{{ route($routePrefix.'.import.create') }}" aria-haspopup="dialog">
+                    <x-backend-icon name="file-input" class="ui-icon" />
+                    {{ __('lf.LF_assessment_question_import') }}
+                </button>
+                {{-- Live slot: the export follows the current filters after a live search. --}}
+                <span class="ui-live-slot" data-ui-live-region="export">
+                    <a class="ui-button ui-button--outline cursor-interaction" download
+                       href="{{ route($routePrefix.'.export', array_filter($filters, fn ($value) => $value !== null && $value !== '')) }}">
+                        <x-backend-icon name="file-output" class="ui-icon" />
+                        {{ __('lf.LF_assessment_question_export') }}
+                    </a>
+                </span>
             </x-ui-list-toolbar>
         </div>
 

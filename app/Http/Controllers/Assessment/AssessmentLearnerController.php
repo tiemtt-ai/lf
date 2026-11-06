@@ -250,6 +250,10 @@ final class AssessmentLearnerController extends Controller
             'answers' => $answers,
             'fileUrls' => $files->map(fn (object $file) => $this->media->generateSignedUrl((int) $file->media_file_id)),
             'canRetry' => $registration && $registration->status === 'active',
+            // Điểm từng tiêu chí of the current grading (ADR-0026 D6), shown with the teacher's feedback.
+            'rubricScores' => $visible['feedback'] ? DB::table(Attempts::GRADINGS_TABLE)->where('customer_id', $customerId)
+                ->where('attempt_id', $id)->where('is_current', true)->whereNotNull('rubric_result')->pluck('rubric_result', 'answer_id')
+                ->map(fn ($json) => collect(json_decode((string) $json, true) ?: [])->pluck('score', 'key')) : collect(),
         ]);
     }
 
@@ -272,6 +276,7 @@ final class AssessmentLearnerController extends Controller
                 'passage_id' => $question->passage_id,
                 'points' => $question->points,
                 'manual' => (bool) $question->requires_manual_grading,
+                'rubric' => json_decode((string) $question->rubric_snapshot, true),
                 'prompt' => (string) ($snapshot['prompt'] ?? ''),
                 'media' => $snapshot['media'] ?? [],
                 'explanation' => $reveal ? ($snapshot['explanation'] ?? null) : null,

@@ -7,6 +7,7 @@ use App\Services\Assessment\AssessmentCategoryService;
 use App\Services\Assessment\AssessmentPassageService;
 use App\Services\Assessment\AssessmentPromptMediaService;
 use App\Services\Assessment\AssessmentQuestionService as Questions;
+use App\Services\Assessment\AssessmentRubricService;
 use App\Services\MediaService;
 use App\Services\MediaThumbnailPresenter;
 use App\Support\TenantContext;
@@ -33,6 +34,7 @@ final class AssessmentQuestionController extends Controller
         private readonly AssessmentPassageService $passages,
         private readonly MediaService $mediaService,
         private readonly MediaThumbnailPresenter $thumbnails,
+        private readonly AssessmentRubricService $rubrics,
     ) {}
 
     public function index(Request $request): View
@@ -208,6 +210,7 @@ final class AssessmentQuestionController extends Controller
                 default => '',
             },
             'categories' => $this->categoryOptions($this->customerId(), $question?->category_id),
+            'rubrics' => $this->rubrics->options($this->customerId(), $request->user(), $question?->rubric_id),
             'promptMedia' => $this->mediaSlots($question),
             'passage' => $passage,
             'routePrefix' => $this->routePrefix($request),
@@ -234,6 +237,7 @@ final class AssessmentQuestionController extends Controller
             'accepted_answers.*' => ['nullable', 'string', 'max:500'],
             'true_false_answer' => ['nullable', 'string', Rule::in(['true', 'false'])],
             'passage_id' => ['nullable', 'integer', 'min:1'],
+            'rubric_id' => ['nullable', 'integer', 'min:1'],
             'prompt_image_file' => ['nullable', 'file', 'image', 'max:'.UploadLimit::effectiveKilobytes()],
             'prompt_audio_file' => ['nullable', 'file', 'mimes:mp3,wav,m4a,aac,ogg', 'max:'.UploadLimit::effectiveKilobytes()],
             'remove_prompt_image' => ['nullable', 'boolean'],
@@ -272,6 +276,7 @@ final class AssessmentQuestionController extends Controller
             'accepted_answers' => $accepted,
             'true_false_answer' => $validated['true_false_answer'] ?? null,
             'passage_id' => isset($validated['passage_id']) ? (int) $validated['passage_id'] : null,
+            'rubric_id' => isset($validated['rubric_id']) ? (int) $validated['rubric_id'] : null,
         ];
     }
 

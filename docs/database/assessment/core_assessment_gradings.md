@@ -1,6 +1,6 @@
 # Table: core_assessment_gradings
 
-Version: 2.0
+Version: 2.1
 
 Document Status: Approved
 
@@ -14,7 +14,9 @@ Document Path: database/assessment/core_assessment_gradings.md
 
 Lịch sử chấm tay theo từng câu trả lời, theo
 [ADR-0025](../../adr/ADR-0025-Assessment-Simple-Administration.md) D11. Mỗi lần
-chấm hoặc chấm lại là một dòng.
+chấm hoặc chấm lại là một dòng. Cột `rubric_result` theo
+[ADR-0026](../../adr/ADR-0026-Assessment-Rubric.md) D5 (Review, chưa có
+migration).
 
 ## Relationships
 
@@ -34,7 +36,11 @@ chấm hoặc chấm lại là một dòng.
   `feedback` sang Answer (`grading_status = graded`), tính lại tổng của Attempt
   (xem `core_assessment_attempts`). Không update / delete dòng cũ.
 * Một Answer có tối đa một grading hiện hành.
-* Không có AI, rubric hay phân công chấm ở giai đoạn 1.
+* Câu có `quiz_version_questions.rubric_snapshot`: `rubric_result` bắt buộc, đủ
+  mọi `key` của snapshot, mỗi điểm `0 ≤ score ≤ max_points` của tiêu chí; `score`
+  = round(tổng điểm tiêu chí ÷ `total_points` × `answers.max_score`, 2). Câu
+  không có snapshot: `rubric_result` NULL. Kiểm ở server.
+* Không có AI hay phân công chấm.
 
 ## Fields
 
@@ -48,6 +54,7 @@ chấm hoặc chấm lại là một dòng.
 | grading_type | VARCHAR(20) NOT NULL | `teacher`, `system_auto`. |
 | score | DECIMAL(10,2) NOT NULL | Điểm. |
 | feedback | TEXT NULL | Nhận xét. |
+| rubric_result | JSON NULL | Điểm từng tiêu chí: `[{"key":1,"score":10}]`. |
 | is_current | BOOLEAN NOT NULL DEFAULT true | Grading hiện hành của Answer. |
 | graded_at | TIMESTAMP NOT NULL | Thời điểm chấm. |
 | created_at | TIMESTAMP NULL | Thời điểm tạo. |
@@ -61,6 +68,9 @@ CHECK (grading_type IN ('teacher','system_auto'));
 CHECK ((grading_type = 'teacher') = (grader_user_id IS NOT NULL));
 CHECK (score >= 0);
 ```
+
+Cột JSON trên MariaDB tự có `CHECK (json_valid(rubric_result))`; nội dung
+(đủ `key`, điểm trong khoảng) do service kiểm.
 
 ## Indexes
 
@@ -87,8 +97,13 @@ FOREIGN KEY (grader_user_id) REFERENCES users(id);
 ## Design Notes
 
 So với ADR-0003: bỏ `grading_assignment_id`, `rubric_id`, `rubric_snapshot`,
-`rubric_result`, `confidence_score`, `ai_suggestion`, `final_decision`,
-`score_percentage`, `metadata` vì rubric, phân công chấm và AI hoãn (ADR-0025).
-Khi làm các phần đó, thêm cột bằng migration mới và giữ quy tắc snapshot rubric
-và AI chỉ đề xuất của ADR-0003. `answer_id` bắt buộc vì chấm theo từng câu;
-"bảng lịch sử, một dòng hiện hành" thay cho chấm lại ghi đè của question_bank.
+`confidence_score`, `ai_suggestion`, `final_decision`, `score_percentage`,
+`metadata` vì phân công chấm và AI hoãn (ADR-0025), còn rubric đã chụp ở phiên
+bản đề nên chỉ cần `rubric_result` (ADR-0026 D4–D5). Khi làm phân công chấm hay
+AI, thêm cột bằng migration mới và giữ quy tắc AI chỉ đề xuất của ADR-0003.
+`answer_id` bắt buộc vì chấm theo từng câu; "bảng lịch sử, một dòng hiện hành"
+thay cho chấm lại ghi đè của question_bank.
+
+Sample có rubric:
+`id=3402, customer_id=1, attempt_id=3001, answer_id=3201, grader_user_id=20, grading_type=teacher, score=8.00, rubric_result=[{"key":1,"score":10},{"key":2,"score":10},{"key":3,"score":20}]`
+(40/50 điểm tiêu chí, câu 10 điểm trong đề → 8,00).
