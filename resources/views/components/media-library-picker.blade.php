@@ -1,20 +1,22 @@
 {{--
     The library view of the activity dialog (ADR-0021): choose a Media that already exists in the library instead of uploading
     a file. It covers the form inside the same dialog (no second popup): the file slot of a type asks for it with the
-    `open-media-library` window event, and the choice goes back with `library-media` { type, chosen }. Lists the ready Media
+    `open-media-library` window event, and the choice goes back with `library-media` { type, chosen, target }. Only the
+    picker in the asking form answers; `target` is the asking element, so a form with several slots of a type (or a page
+    with several such dialogs) fills the right one. The asker may give a `caption` for the header. Lists the ready Media
     of that type the user may use (an admin: the tenant's; a teacher: their own and what was shared with them), with where
     each one comes from, how it is shared and where it is used. Escape and Back return to the form; the search box has no
     name, so nothing here is submitted with the form.
 --}}
 @php
     $pickerUrl = route((auth()->user()?->role === 'teacher' ? 'teacher' : 'admin').'.media.picker');
-    $titles = collect(['video', 'audio', 'document'])->mapWithKeys(fn (string $type) => [$type => __('lf.LF_media_pick_title_'.$type)])->all();
+    $titles = collect(['image', 'video', 'audio', 'document'])->mapWithKeys(fn (string $type) => [$type => __('lf.LF_media_pick_title_'.$type)])->all();
 @endphp
 <section class="ui-library-view" role="region" aria-labelledby="ui-library-view-title" x-cloak
          x-data="{
              open: false, type: 'video', titles: @js($titles),
              loading: false, keyword: '', items: [], pending: null, timer: null, seq: 0,
-             scope: 'all', sort: 'suggested', usageOpen: null, activityName: '', phase: '',
+             scope: 'all', sort: 'suggested', usageOpen: null, activityName: '', phase: '', caption: '', requester: null,
              get rows() {
                  const rows = this.items.filter(item => this.scope === 'all' || (this.scope === 'mine' ? item.mine : item.shared && ! item.mine));
                  const collator = new Intl.Collator(document.documentElement.lang || 'vi');
@@ -26,8 +28,10 @@
              scopeCount(scope) { return this.items.filter(item => scope === 'all' || (scope === 'mine' ? item.mine : item.shared && ! item.mine)).length; },
              get pendingItem() { return this.items.find(item => item.id === this.pending) ?? null; },
              initials(name) { return String(name).split(' ').filter(Boolean).map(word => word[0]).join('').slice(0, 2).toUpperCase(); },
-             show(detail) {
+             show(detail, requester) {
                  this.type = detail.type;
+                 this.caption = detail.caption ?? '';
+                 this.requester = requester ?? null;
                  this.pending = detail.chosenId ?? null;
                  this.usageOpen = null;
                  this.keyword = '';
@@ -42,7 +46,9 @@
              back() {
                  this.open = false;
                  this.usageOpen = null;
-                 this.$nextTick(() => this.$root.closest('form')?.querySelector('[name=activity_' + this.type + '_file]')?.closest('.ui-field')?.querySelector('button')?.focus());
+                 const requester = this.requester;
+                 this.$nextTick(() => (requester?.querySelector?.('[data-ui-media-library]')
+                     ?? this.$root.closest('form')?.querySelector('[name=activity_' + this.type + '_file]')?.closest('.ui-field')?.querySelector('button'))?.focus());
              },
              async load() {
                  const mine = ++this.seq;
@@ -68,12 +74,12 @@
              confirm() {
                  const item = this.pendingItem;
                  if (! item) return;
-                 this.$dispatch('library-media', { type: this.type, chosen: item });
+                 this.$dispatch('library-media', { type: this.type, chosen: item, target: this.requester });
                  this.back();
              },
          }"
          x-show="open"
-         x-on:open-media-library.window="show($event.detail)"
+         x-on:open-media-library.window="if ($event.target?.closest?.('form') === $root.closest('form')) show($event.detail, $event.target)"
          x-on:keydown.escape.prevent.stop="usageOpen ? (usageOpen = null) : back()">
     <header class="ui-modal__header ui-library-view__header">
         <button type="button" class="ui-modal__close cursor-interaction" x-on:click="back()" aria-label="{{ __('lf.LF_media_pick_back') }}">
@@ -82,7 +88,7 @@
         <div>
             <h3 id="ui-library-view-title" x-text="titles[type]"></h3>
             <p class="ui-caption">
-                <span x-text="@js(__('lf.LF_media_pick_for_activity', ['name' => '__NAME__'])).replace('__NAME__', activityName || @js(__('lf.LF_media_pick_unnamed_activity')))"></span>
+                <span x-text="caption || @js(__('lf.LF_media_pick_for_activity', ['name' => '__NAME__'])).replace('__NAME__', activityName || @js(__('lf.LF_media_pick_unnamed_activity')))"></span>
                 <span class="ui-context-chip" x-show="phase" x-text="phase"></span>
             </p>
         </div>
@@ -142,6 +148,8 @@
                      x-on:keydown.arrow-down.prevent="step($event, 1)" x-on:keydown.arrow-up.prevent="step($event, -1)">
                     <span class="ui-library-pick__radio" aria-hidden="true"></span>
                     <span class="ui-library-pick__thumb" aria-hidden="true">
+                        <img class="ui-library-pick__image" x-show="type === 'image' && item.preview" x-bind:src="type === 'image' ? item.preview : ''" alt="" loading="lazy">
+                        <span x-show="type === 'image' && ! item.preview"><x-backend-icon name="image" class="ui-icon" /></span>
                         <span x-show="type === 'video'"><x-backend-icon name="video" class="ui-icon" /></span>
                         <span x-show="type === 'audio'"><x-backend-icon name="audio" class="ui-icon" /></span>
                         <span x-show="type === 'document'"><x-backend-icon name="file-text" class="ui-icon" /></span>

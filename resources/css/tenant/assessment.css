@@ -1,0 +1,783 @@
+/* Kiểm tra on the tenant website: open quizzes, "Đề thi của tôi", taking an attempt and its result. */
+
+.lf-exam-tabs {
+    margin: -8px 0 22px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.lf-exam-tab {
+    padding: 9px 16px;
+    border: 1px solid var(--student-border);
+    border-radius: 999px;
+    color: var(--student-text-soft);
+    background: var(--student-surface);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.lf-exam-tab:hover {
+    color: var(--student-primary-dark);
+}
+
+.lf-exam-tab.is-active {
+    border-color: var(--student-primary);
+    color: var(--student-primary-dark);
+    background: var(--student-primary-soft);
+}
+
+.lf-exam-filters {
+    margin-bottom: 22px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+}
+
+.lf-exam-filters .student-form-control {
+    width: auto;
+    min-width: 220px;
+    flex: 1 1 220px;
+    max-width: 360px;
+    min-height: 42px;
+    padding-block: 8px;
+}
+
+.lf-exam-empty {
+    padding: 28px;
+    display: grid;
+    justify-items: start;
+    gap: 12px;
+}
+
+.lf-exam-card__top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.lf-exam-card__category {
+    color: var(--student-text-soft);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.lf-exam-card__title {
+    margin: 12px 0 8px;
+    font-size: 18px;
+    font-weight: 800;
+    line-height: 1.35;
+    letter-spacing: -.02em;
+}
+
+.lf-exam-facts {
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 28px;
+    list-style: none;
+    color: var(--student-text-soft);
+    font-size: 12px;
+    /* The dot sits in the gap before each fact; the one starting a line falls outside the box and is clipped, so a
+       wrapped line never begins with a dot. */
+    overflow: hidden;
+}
+
+.lf-exam-facts li {
+    position: relative;
+}
+
+.lf-exam-facts li::before {
+    content: "·";
+    position: absolute;
+    left: -17px;
+    color: var(--student-text-muted);
+}
+
+.lf-exam-card__description {
+    margin-top: 12px;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    font-size: 13px;
+}
+
+.lf-exam-pages {
+    margin-top: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    color: var(--student-text-soft);
+    font-size: 13px;
+}
+
+/* ---- Đề thi của tôi ---- */
+
+.lf-exam-list {
+    display: grid;
+    gap: 16px;
+}
+
+.lf-exam-row {
+    padding: 22px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 20px;
+    align-items: start;
+}
+
+.lf-exam-row__actions {
+    display: grid;
+    justify-items: end;
+    gap: 8px;
+    max-width: 240px;
+    text-align: right;
+}
+
+.lf-exam-state {
+    padding: 4px 9px;
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    color: var(--student-text-soft);
+    background: var(--student-surface-soft);
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.lf-exam-state.is-active {
+    color: var(--student-green-text);
+    background: var(--student-green-soft);
+}
+
+.lf-exam-state.is-pending,
+.lf-exam-state.is-exhausted {
+    color: var(--student-orange-dark);
+    background: var(--student-orange-soft);
+}
+
+.lf-exam-state.is-wrong,
+.lf-exam-state.is-cancelled {
+    color: var(--student-danger-text);
+    background: var(--student-danger-soft);
+}
+
+.lf-exam-attempts {
+    margin: 16px 0 0;
+    padding: 0;
+    display: grid;
+    gap: 6px;
+    list-style: none;
+}
+
+.lf-exam-attempts li {
+    padding: 9px 12px;
+    display: grid;
+    grid-template-columns: 70px minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 12px;
+    border-radius: 10px;
+    background: var(--student-surface-soft);
+    font-size: 13px;
+}
+
+.lf-exam-attempts__no {
+    font-weight: 700;
+}
+
+.lf-exam-attempts__date {
+    color: var(--student-text-soft);
+    font-size: 12px;
+}
+
+/* A comfortable touch target without making the row taller. */
+.lf-exam-attempts a {
+    display: inline-flex;
+    align-items: center;
+    padding: 12px 6px;
+    margin: -12px -6px;
+}
+
+/* ---- Taking an attempt ---- */
+
+.lf-exam-take__head {
+    margin-bottom: 20px;
+}
+
+.lf-exam-take__head h1 {
+    margin: 4px 0 6px;
+    font-size: clamp(24px, 3.4vw, 34px);
+    letter-spacing: -.03em;
+}
+
+.lf-exam-take__layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 280px;
+    gap: 24px;
+    align-items: start;
+}
+
+.lf-exam-paper {
+    display: grid;
+    gap: 16px;
+    min-width: 0;
+}
+
+.lf-exam-section {
+    margin-top: 10px;
+}
+
+.lf-exam-section h2 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 800;
+}
+
+.lf-exam-section p {
+    margin: 4px 0 0;
+    color: var(--student-text-soft);
+    font-size: 13px;
+}
+
+.lf-exam-passage {
+    padding: 20px 22px;
+    border-left: 4px solid var(--student-primary);
+    border-radius: var(--student-radius-sm);
+    background: var(--student-surface-tint);
+}
+
+.lf-exam-passage__title {
+    margin: 0 0 10px;
+    font-weight: 800;
+}
+
+.lf-exam-text {
+    margin: 0;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+    line-height: 1.7;
+}
+
+.lf-exam-question {
+    min-width: 0;
+    margin: 0;
+    padding: 20px 22px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+    scroll-margin-top: 90px;
+}
+
+.lf-exam-question__head {
+    width: 100%;
+    padding: 0;
+    float: left;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.lf-exam-question__head + * {
+    clear: both;
+}
+
+.lf-exam-question__number {
+    margin: 0;
+    color: var(--student-primary-dark);
+    font-size: 14px;
+    font-weight: 800;
+}
+
+.lf-exam-question__meta {
+    color: var(--student-text-soft);
+    font-size: 12px;
+}
+
+.lf-exam-question__prompt {
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.lf-exam-media {
+    width: 100%;
+    max-width: 560px;
+    border-radius: 12px;
+}
+
+img.lf-exam-media {
+    height: auto;
+    max-height: 420px;
+    object-fit: contain;
+}
+
+.lf-exam-options {
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 8px;
+    list-style: none;
+}
+
+.lf-exam-option {
+    padding: 11px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border: 1px solid var(--student-border);
+    border-radius: 12px;
+    background: var(--student-surface);
+    cursor: pointer;
+    transition: border-color .15s ease, background .15s ease;
+}
+
+label.lf-exam-option:hover {
+    border-color: var(--student-purple-soft);
+}
+
+.lf-exam-option input {
+    width: 18px;
+    height: 18px;
+    flex: 0 0 auto;
+    accent-color: var(--student-primary);
+}
+
+label.lf-exam-option:has(input:checked) {
+    border-color: var(--student-primary);
+    background: var(--student-primary-soft);
+}
+
+label.lf-exam-option:has(input:focus-visible) {
+    outline: 2px solid var(--student-primary);
+    outline-offset: 2px;
+}
+
+.lf-exam-option__label {
+    width: 28px;
+    height: 28px;
+    display: grid;
+    flex: 0 0 auto;
+    place-items: center;
+    border-radius: 8px;
+    color: var(--student-primary-dark);
+    background: var(--student-surface-soft);
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.lf-exam-option__text {
+    flex: 1 1 auto;
+    overflow-wrap: anywhere;
+}
+
+.lf-exam-option__note {
+    color: var(--student-text-soft);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+li.lf-exam-option {
+    cursor: default;
+}
+
+.lf-exam-option.is-right {
+    border-color: var(--student-green-start);
+    background: var(--student-green-soft);
+}
+
+.lf-exam-option.is-wrong {
+    border-color: var(--student-danger);
+    background: var(--student-danger-soft);
+}
+
+.lf-exam-essay {
+    min-height: 160px;
+    resize: vertical;
+    line-height: 1.6;
+}
+
+.lf-exam-recorder {
+    padding: 14px;
+    display: grid;
+    gap: 10px;
+    border: 1px dashed var(--student-border);
+    border-radius: 12px;
+    background: var(--student-surface-soft);
+}
+
+.lf-exam-recorder__controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.lf-exam-recorder__time {
+    color: var(--student-danger-text);
+    font-variant-numeric: tabular-nums;
+    font-weight: 800;
+}
+
+.lf-exam-recorder__time::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    margin-right: 6px;
+    display: inline-block;
+    border-radius: 50%;
+    background: var(--student-danger);
+}
+
+.lf-exam-recorder__file {
+    display: grid;
+    gap: 4px;
+    color: var(--student-text-soft);
+    font-size: 12px;
+}
+
+.lf-exam-recorder,
+.lf-exam-recorder__file {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.lf-exam-recorder__file input {
+    max-width: 100%;
+}
+
+.lf-exam-panel {
+    position: sticky;
+    top: 92px;
+}
+
+.lf-exam-panel__card {
+    padding: 18px;
+    display: grid;
+    gap: 12px;
+}
+
+.lf-exam-panel__label {
+    margin: 0;
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    color: var(--student-text-soft);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.lf-exam-panel__label strong {
+    color: var(--student-text);
+}
+
+.lf-exam-timer {
+    margin: -6px 0 0;
+    font-size: 32px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -.02em;
+}
+
+.lf-exam-timer.is-warning {
+    color: var(--student-danger-text);
+}
+
+.lf-exam-nav {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(34px, 1fr));
+    gap: 6px;
+}
+
+.lf-exam-nav__item {
+    height: 34px;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--student-border);
+    border-radius: 9px;
+    color: var(--student-text-soft);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.lf-exam-nav__item.is-answered {
+    border-color: var(--student-primary);
+    color: var(--student-surface);
+    background: var(--student-primary);
+}
+
+.lf-exam-save {
+    min-height: 18px;
+    margin: 0;
+    color: var(--student-text-soft);
+    font-size: 12px;
+}
+
+.lf-exam-save.is-error {
+    color: var(--student-danger-text);
+}
+
+.lf-exam-submit {
+    width: 100%;
+}
+
+.lf-exam-dialog {
+    width: min(440px, calc(100vw - 32px));
+    padding: 24px;
+    border: 0;
+    border-radius: var(--student-radius-md);
+    color: var(--student-text);
+    box-shadow: 0 24px 60px rgba(23, 32, 51, .25);
+}
+
+.lf-exam-dialog::backdrop {
+    background: rgba(23, 32, 51, .45);
+}
+
+.lf-exam-dialog h2 {
+    margin: 0 0 8px;
+    font-size: 20px;
+}
+
+.lf-exam-dialog p {
+    margin: 0;
+    color: var(--student-text-soft);
+    line-height: 1.6;
+}
+
+.lf-exam-dialog__actions {
+    margin-top: 20px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+/* ---- Result ---- */
+
+.lf-exam-back {
+    padding: 10px 0;
+    margin: -10px 0 4px;
+    display: inline-block;
+    color: var(--student-primary-dark);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.lf-exam-result {
+    padding: 26px;
+}
+
+.lf-exam-result__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.lf-exam-result__head h1 {
+    margin: 4px 0 0;
+    font-size: clamp(24px, 3.4vw, 32px);
+    letter-spacing: -.03em;
+}
+
+.lf-exam-score {
+    margin-top: 20px;
+}
+
+.lf-exam-score__value {
+    margin: 0;
+    font-size: 44px;
+    font-weight: 800;
+    letter-spacing: -.03em;
+}
+
+.lf-exam-score__value span {
+    color: var(--student-text-soft);
+    font-size: 22px;
+    font-weight: 700;
+}
+
+.lf-exam-score__meta,
+.lf-exam-score__hidden {
+    margin: 4px 0 0;
+    color: var(--student-text-soft);
+}
+
+.lf-exam-score__meta .is-pass {
+    color: var(--student-green-text);
+}
+
+.lf-exam-score__meta .is-fail {
+    color: var(--student-danger-text);
+}
+
+.lf-exam-result__facts {
+    margin: 22px 0 0;
+}
+
+.lf-exam-result__facts dt {
+    color: var(--student-text-soft);
+    font-size: 12px;
+}
+
+.lf-exam-result__facts dd {
+    margin: 0;
+    font-weight: 700;
+}
+
+.lf-exam-review {
+    margin-top: 28px;
+    display: grid;
+    gap: 16px;
+}
+
+.lf-exam-answer,
+.lf-exam-feedback {
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: var(--student-surface-soft);
+}
+
+.lf-exam-feedback {
+    background: var(--student-blue-soft);
+}
+
+.lf-exam-answer__label {
+    margin: 0 0 4px;
+    color: var(--student-text-soft);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.lf-exam-details summary {
+    /* Taller than its text so a finger finds it; the row stays the same size. */
+    padding: 10px 0;
+    margin: -10px 0;
+    color: var(--student-primary-dark);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.lf-exam-details p {
+    margin-top: 8px;
+}
+
+@media (max-width: 992px) {
+    .lf-exam-take__layout {
+        /* minmax: a wide control (a file input) must not push the column past a small screen. */
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    /* The panel (timer, progress, submit) stays reachable above the paper. */
+    .lf-exam-panel {
+        order: -1;
+        top: 72px;
+        z-index: 5;
+    }
+
+    /* One bar: the time left, how many are answered with the save state under it, and Submit. */
+    .lf-exam-panel__card {
+        padding: 12px 16px;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        grid-template-areas:
+            "timer progress submit"
+            "timer save submit";
+        align-items: center;
+        gap: 2px 16px;
+    }
+
+    .lf-exam-panel .lf-exam-nav,
+    .lf-exam-panel .lf-exam-panel__label:not(.lf-exam-panel__progress) {
+        display: none;
+    }
+
+    .lf-exam-timer {
+        grid-area: timer;
+    }
+
+    .lf-exam-panel__progress {
+        grid-area: progress;
+        display: block;
+        align-self: end;
+    }
+
+    .lf-exam-panel__progress strong {
+        white-space: nowrap;
+    }
+
+    .lf-exam-save {
+        grid-area: save;
+        min-height: 0;
+        align-self: start;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .lf-exam-submit {
+        grid-area: submit;
+    }
+
+    .lf-exam-timer {
+        margin: 0;
+        font-size: 22px;
+    }
+
+    .lf-exam-submit {
+        width: auto;
+    }
+
+    /* A question or field brought into view (focus, the browser's own scroll) lands below the header and the panel. */
+    .lf-exam-take__layout :is(fieldset, input, textarea, [id]) {
+        scroll-margin-top: 170px;
+    }
+}
+
+@media (max-width: 640px) {
+    .lf-exam-row {
+        grid-template-columns: 1fr;
+    }
+
+    .lf-exam-row__actions {
+        justify-items: start;
+        max-width: none;
+        text-align: left;
+    }
+
+    .lf-exam-attempts li {
+        grid-template-columns: 1fr auto;
+    }
+
+    .lf-exam-attempts li > :nth-child(2n) {
+        justify-self: end;
+        text-align: right;
+    }
+
+    /* "Your choice · Correct answer" goes under the option instead of squeezing its text. */
+    li.lf-exam-option {
+        flex-wrap: wrap;
+    }
+
+    li.lf-exam-option .lf-exam-option__text {
+        flex-basis: calc(100% - 40px);
+    }
+
+    .lf-exam-option__note {
+        flex-basis: 100%;
+        padding-left: 40px;
+    }
+
+    .lf-exam-option__note:empty {
+        display: none;
+    }
+
+    .lf-exam-filters .student-form-control {
+        max-width: none;
+    }
+}

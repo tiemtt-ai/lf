@@ -1,30 +1,40 @@
 # Table: core_assessment_gradings
 
+Version: 2.0
+
+Document Status: Approved
+
+Implementation Status: Partial
+
+Last Updated: 2026-11-06
+
 Document Path: database/assessment/core_assessment_gradings.md
 
 ## Purpose
 
-Lưu grading evidence cho Attempt hoặc Answer, gồm AI suggestion và final grading.
+Lịch sử chấm tay theo từng câu trả lời, theo
+[ADR-0025](../../adr/ADR-0025-Assessment-Simple-Administration.md) D11. Mỗi lần
+chấm hoặc chấm lại là một dòng.
 
 ## Relationships
 
-`Attempt 1 → N Gradings`; `Answer 1 → N Gradings`; `Assignment 1 → N Gradings`; `Rubric 1 → N Gradings`.
+`Attempt 1 → N Gradings`; `Answer 1 → N Gradings`; `User 1 → N Gradings`.
 
 ## Business Rules
 
-* Attempt, optional Answer/Assignment/Rubric và grader phải cùng tenant.
-* Answer phải thuộc Attempt; Assignment phải đúng scope.
-* Allowed `grading_type`: `teacher`, `ai_suggestion`, `system_auto`.
-* AI output chỉ là suggestion; không được tự trở thành final grade.
-* Teacher/final grader quyết định `final_decision`; objective auto-grading theo approved rules có thể dùng `system_auto`.
-* Khi bắt đầu grading, phải snapshot Rubric và toàn bộ Rubric Items.
-* Rubric thay đổi sau đó không được ảnh hưởng bài đã chấm; historical grading
-  luôn đọc `rubric_snapshot`, không đọc Rubric authoring hiện tại.
-* `confidence_score` chỉ áp dụng khi `grading_type = ai_suggestion`, phải từ
-  `0.00` đến `100.00`; các grading type khác để `NULL`.
-* Teacher không bắt buộc theo AI; `confidence_score` không phải final score và
-  không thay đổi quyền quyết định final grade.
-* Final Assessment result được cập nhật qua Assessment service; không update Course Progress trực tiếp.
+* Grading, Attempt, Answer cùng tenant; Answer thuộc Attempt.
+* Giai đoạn 1 chỉ ghi `grading_type = teacher` cho câu `essay`, `speaking` của
+  Attempt đã nộp. Câu tự chấm lưu điểm thẳng trên Answer, không tạo grading.
+  `system_auto` dành cho sau này (ví dụ giáo viên sửa điểm câu tự chấm).
+* Người chấm được: `customer_admin`; người tạo đề; người đã cấp ghi danh của
+  Attempt (khi `source = granted`). Kiểm ở server.
+* `0 ≤ score ≤ answers.max_score`, kiểm ở server.
+* Ghi một grading mới trong transaction: đặt grading cũ của Answer
+  `is_current = false`, thêm dòng mới `is_current = true`, chép `score`,
+  `feedback` sang Answer (`grading_status = graded`), tính lại tổng của Attempt
+  (xem `core_assessment_attempts`). Không update / delete dòng cũ.
+* Một Answer có tối đa một grading hiện hành.
+* Không có AI, rubric hay phân công chấm ở giai đoạn 1.
 
 ## Fields
 
@@ -32,42 +42,53 @@ Lưu grading evidence cho Attempt hoặc Answer, gồm AI suggestion và final g
 |---|---|---|
 | id | BIGINT UNSIGNED PK AUTO_INCREMENT | Khóa chính. |
 | customer_id | BIGINT UNSIGNED NOT NULL | Tenant sở hữu. |
-| attempt_id | BIGINT UNSIGNED NOT NULL | Attempt được chấm. |
-| answer_id | BIGINT UNSIGNED NULL | Answer scope. |
-| grading_assignment_id | BIGINT UNSIGNED NULL | Assignment nguồn. |
-| grader_user_id | BIGINT UNSIGNED NULL | Human grader; NULL cho system/AI. |
-| grading_type | VARCHAR(50) NOT NULL | Teacher/AI/system type. |
-| rubric_id | BIGINT UNSIGNED NULL | Rubric lineage. |
-| rubric_snapshot | JSON NULL | Criteria/weights snapshot. |
-| rubric_result | JSON NULL | Điểm/nhận xét từng criterion. |
-| score | DECIMAL(10,2) NULL | Điểm đề xuất/final. |
-| score_percentage | DECIMAL(5,2) NULL | Phần trăm 0–100. |
-| confidence_score | DECIMAL(5,2) NULL | Mức độ tự tin của AI grading, 0–100. |
-| feedback | TEXT NULL | Feedback. |
-| ai_suggestion | JSON NULL | AI score/feedback/audit suggestion. |
-| final_decision | VARCHAR(50) NOT NULL DEFAULT 'pending' | `pending`, `accepted`, `overridden`, `rejected`. |
-| graded_at | TIMESTAMP NULL | Thời điểm chấm. |
-| metadata | JSON NULL | Provider/model/audit metadata. |
+| attempt_id | BIGINT UNSIGNED NOT NULL | Lần làm bài. |
+| answer_id | BIGINT UNSIGNED NOT NULL | Câu trả lời được chấm. |
+| grader_user_id | BIGINT UNSIGNED NULL | Người chấm; NULL cho `system_auto`. |
+| grading_type | VARCHAR(20) NOT NULL | `teacher`, `system_auto`. |
+| score | DECIMAL(10,2) NOT NULL | Điểm. |
+| feedback | TEXT NULL | Nhận xét. |
+| is_current | BOOLEAN NOT NULL DEFAULT true | Grading hiện hành của Answer. |
+| graded_at | TIMESTAMP NOT NULL | Thời điểm chấm. |
 | created_at | TIMESTAMP NULL | Thời điểm tạo. |
 | updated_at | TIMESTAMP NULL | Thời điểm cập nhật. |
+| current_flag | TINYINT STORED GENERATED | `1` khi `is_current`, ngược lại NULL. |
+
+## Constraints
+
+```sql
+CHECK (grading_type IN ('teacher','system_auto'));
+CHECK ((grading_type = 'teacher') = (grader_user_id IS NOT NULL));
+CHECK (score >= 0);
+```
 
 ## Indexes
 
 ```sql
-INDEX (customer_id);
 INDEX (customer_id, attempt_id);
-INDEX (customer_id, answer_id);
-INDEX (customer_id, grading_assignment_id);
 INDEX (customer_id, grader_user_id);
-INDEX (customer_id, grading_type);
-INDEX (customer_id, rubric_id);
-INDEX (customer_id, final_decision);
+UNIQUE (customer_id, answer_id, current_flag);
+```
+
+## Foreign Keys
+
+```sql
+FOREIGN KEY (customer_id) REFERENCES saas_customers(id);
+FOREIGN KEY (attempt_id, customer_id) REFERENCES core_assessment_attempts(id, customer_id);
+FOREIGN KEY (answer_id, customer_id) REFERENCES core_assessment_answers(id, customer_id);
+FOREIGN KEY (grader_user_id) REFERENCES users(id);
 ```
 
 ## Sample Data
 
-`id=3400, customer_id=1, attempt_id=3000, answer_id=3101, grading_assignment_id=3300, grader_user_id=201, grading_type=teacher, rubric_id=4000, rubric_snapshot={"items":[...]}, rubric_result={"total":18}, score=18.00, score_percentage=90.00, confidence_score=NULL, final_decision=accepted, graded_at=2026-07-02T08:00:00Z`
+`id=3400, customer_id=1, attempt_id=3000, answer_id=3101, grader_user_id=20, grading_type=teacher, score=8.00, feedback=Bố cục tốt, sai chính tả 3 chỗ., is_current=false`
+`id=3401, customer_id=1, attempt_id=3000, answer_id=3101, grader_user_id=20, grading_type=teacher, score=8.50, feedback=Chấm lại sau khi học viên phản hồi., is_current=true`
 
 ## Design Notes
 
-AI audit should retain provider/model/prompt-version provenance; canonical final-selection rule needs implementation review.
+So với ADR-0003: bỏ `grading_assignment_id`, `rubric_id`, `rubric_snapshot`,
+`rubric_result`, `confidence_score`, `ai_suggestion`, `final_decision`,
+`score_percentage`, `metadata` vì rubric, phân công chấm và AI hoãn (ADR-0025).
+Khi làm các phần đó, thêm cột bằng migration mới và giữ quy tắc snapshot rubric
+và AI chỉ đề xuất của ADR-0003. `answer_id` bắt buộc vì chấm theo từng câu;
+"bảng lịch sử, một dòng hiện hành" thay cho chấm lại ghi đè của question_bank.

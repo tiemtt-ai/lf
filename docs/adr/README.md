@@ -72,6 +72,7 @@ Số ADR không được tái sử dụng hoặc đổi để lấp khoảng tr�
 | [ADR-0022](ADR-0022-Course-Type-On-Template.md) | Loại khóa học (Tự học / Theo lịch / Kết hợp) chuyển từ Product sang Course Template; thay phần offering của ADR-0014 | Approved |
 | [ADR-0023](ADR-0023-Cohort-Content-Order.md) | Thứ tự Lesson và Activity riêng của từng lớp, ngày thuộc về vị trí, khóa lịch đã qua, học viên thấy thứ tự của lớp | Approved |
 | [ADR-0024](ADR-0024-Cohort-Owned-Content.md) | Mỗi lớp có bản nội dung riêng, tab Buổi học giống hoàn toàn tab Nội dung của Template | Archived: Owner rút 2026-11-05 |
+| [ADR-0025](ADR-0025-Assessment-Simple-Administration.md) | Module Kiểm tra riêng: đề nháp + phiên bản bất biến, ngữ liệu, ghi danh từng đề thay Enrollment, chấm tay; không AI/HSA; sửa một phần ADR-0003 | Approved |
 
 ---
 

@@ -84,7 +84,10 @@
 
 .student-page {
     min-height: 100vh;
+    /* `clip` cuts the wide background glows like `hidden` but is not a scroll container, so the sticky header (and the
+       timer bar of a test) stay on screen. `hidden` remains for browsers without `clip`. */
     overflow-x: hidden;
+    overflow-x: clip;
     background:
         radial-gradient(circle at 8% 8%, var(--student-primary-wash), transparent 24rem),
         radial-gradient(circle at 92% 34%, var(--student-secondary-wash), transparent 22rem),

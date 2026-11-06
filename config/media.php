@@ -254,6 +254,8 @@ return [
         'course_version_activity',
         'course_cohort',
         'assessment_question',
+        'assessment_passage',
+        'assessment_quiz_version',
         'assessment_answer',
         'liveclass_recording',
         'certificate',
@@ -276,5 +278,6 @@ return [
         'certificate_pdf',
         'avatar_image',
         'source_material',
+        'image',
     ],
 ];

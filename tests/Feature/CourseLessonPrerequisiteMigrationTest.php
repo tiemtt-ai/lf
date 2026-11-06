@@ -264,7 +264,7 @@ class CourseLessonPrerequisiteMigrationTest extends TestCase
             'role' => 'customer_admin',
             'status' => 'active',
         ]);
-        $templateId = DB::table('core_course_templates')->insertGetId(['course_type' => 'blended', 
+        $templateId = DB::table('core_course_templates')->insertGetId(['course_type' => 'blended',
             'customer_id' => $customerId,
             'category_id' => null,
             'title' => 'Migration course',
@@ -287,7 +287,7 @@ class CourseLessonPrerequisiteMigrationTest extends TestCase
             'created_at' => now(),
             'updated_at' => now(),
         ]);
-        $versionId = DB::table('core_course_template_versions')->insertGetId(['course_type_snapshot' => 'blended', 
+        $versionId = DB::table('core_course_template_versions')->insertGetId(['course_type_snapshot' => 'blended',
             'customer_id' => $customerId,
             'template_id' => $templateId,
             'version_number' => 1,

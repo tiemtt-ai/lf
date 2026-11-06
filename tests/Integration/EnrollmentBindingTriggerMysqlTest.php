@@ -82,14 +82,14 @@ class EnrollmentBindingTriggerMysqlTest extends TestCase
 
     private function version(int $customerId, int $adminId, string $code): int
     {
-        $templateId = DB::table('core_course_templates')->insertGetId(['course_type' => 'self_paced', 
+        $templateId = DB::table('core_course_templates')->insertGetId(['course_type' => 'self_paced',
             'customer_id' => $customerId, 'title' => $code,
             'working_revision' => 1, 'status' => 'active',
             'created_by' => $adminId,
             'created_at' => now(), 'updated_at' => now(),
         ]);
 
-        return DB::table('core_course_template_versions')->insertGetId(['course_type_snapshot' => 'self_paced', 
+        return DB::table('core_course_template_versions')->insertGetId(['course_type_snapshot' => 'self_paced',
             'customer_id' => $customerId, 'template_id' => $templateId,
             'version_number' => 1, 'version_code' => $code, 'title_snapshot' => $code,
             'source_working_revision' => 1, 'status' => 'published',

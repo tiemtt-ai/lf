@@ -1,12 +1,12 @@
 # LF-Core-Assessment.md
 
-Version: 1.0
+Version: 1.2
 
 Document Status: Approved
 
-Implementation Status: Unknown
+Implementation Status: Partial
 
-Last Updated: 2026-08-09
+Last Updated: 2026-11-06
 
 Document Path: core/LF-Core-Assessment.md
 
@@ -14,62 +14,63 @@ Document Path: core/LF-Core-Assessment.md
 
 # LF-Core Assessment Architecture
 
-Assessment là Evaluation Domain của LearnForge.
+Assessment là Evaluation Domain của LearnForge, xuất hiện với người dùng là
+module **Kiểm tra**.
 
-Assessment quản lý authoring và evaluation evidence:
+Assessment quản lý nguồn soạn thảo và bằng chứng đánh giá:
 
-* Question Banks, Questions, Topics
-* Quizzes, Exams, Assignments
-* Attempts and Answers
-* Grading and Rubrics
-* Score, pass/fail, feedback and rubric results
+* Danh mục, câu hỏi, ngữ liệu
+* Đề / bài tập và phiên bản xuất bản
+* Ghi danh vào đề
+* Lần làm bài và câu trả lời
+* Chấm điểm, điểm số, đạt / không đạt, nhận xét
 
 Assessment không phải Course Domain và không sở hữu Course Progress, Course
-Completion hoặc Certificate Eligibility.
+Completion, Certificate Eligibility hay thanh toán.
 
-## Current Course Integration Boundary
+Quyết định nguồn:
 
-The immutable Assessment binding described below is the approved target
-architecture, not a completed Course publish integration. Current Course
-authoring uses `activity_type = quiz` with a provisional numeric reference, and
-`LF-Core-Course.md` is the source of truth for publish readiness. Templates
-containing Quiz Activities remain blocked from publish until Assessment Phase
-2 implements and reconciles the immutable Version Activity/Quiz contract.
+* [ADR-0003 — Assessment Foundation](../adr/ADR-0003-Assessment-Foundation.md):
+  ranh giới miền, snapshot, AI chỉ đề xuất, Media sở hữu file.
+* [ADR-0025 — Assessment Simple Administration](../adr/ADR-0025-Assessment-Simple-Administration.md)
+  (Approved 2026-11-06): đề là tài sản độc lập có phiên bản, ghi danh thay
+  Enrollment ở giai đoạn 1, ngữ liệu, phạm vi giai đoạn 1. ADR-0025 thay các
+  điểm tương ứng của ADR-0003.
+
+---
+
+# Phạm vi giai đoạn 1
+
+Có:
+
+* Danh mục, câu hỏi, ngữ liệu nhập bằng form.
+* Đề / bài tập ghép thủ công; xuất bản phiên bản.
+* Ghi danh: học viên tự đăng ký miễn phí đề *Mở đăng ký*, hoặc admin / giáo
+  viên cấp.
+* "Đề thi của tôi", làm bài, tự chấm, giáo viên chấm điểm và nhận xét, kết quả.
+
+Không có (làm sau hoặc bỏ): đề động, gói đề, gắn vào Course Template, giao
+theo lớp, thanh toán / bán đề, chia sẻ giữa giáo viên, Excel, thống kê theo câu,
+xếp loại, rubric, phân công chấm, mọi tính năng AI, đề tổ hợp HSA.
 
 ---
 
 # Architecture Flow
 
 ```text
-Course Template
-
+Danh mục
 ↓
-
-Template Activity (`activity_type = assessment`)
-
-↓ publish
-
-Template Version
-
+Câu hỏi / Ngữ liệu (nguồn soạn thảo, sửa được)
+↓ chọn tay
+Bản nháp đề (phần, câu, điểm, cài đặt)
+↓ Xuất bản
+Phiên bản đề (bất biến, snapshot)
 ↓
-
-Version Activity (immutable)
-
+Ghi danh (tự đăng ký / được cấp) ── nguồn quyền
 ↓
-
-Assessment Quiz / Assignment / Exam
-
+Lần làm bài (khoá phiên bản) → Câu trả lời → Chấm
 ↓
-
-Attempt / Answer / Grading
-
-↓ evaluation evidence
-
-Course Activity Progress
-
-↓
-
-Certificate Eligibility
+Bằng chứng đánh giá (điểm, đạt / không đạt, nhận xét)
 ```
 
 ---
@@ -80,296 +81,197 @@ Assessment chỉ sinh:
 
 ```text
 Attempt
-
 Answer
-
 Score
-
 Pass / Fail
-
-Grading Result
-
-Rubric Result
-
+Grading
 Feedback
-
-Rubric Result
-
-Evaluation Evidence
 ```
 
 Assessment không sở hữu:
 
 ```text
 Course Progress
-
 Course Completion
-
 Certificate Eligibility
-
 Promotion
-
 Learning State
+Payment
 ```
 
-Course Domain đọc Evaluation Evidence và tự quyết định Activity
-Progress/Completion. Certificate Domain đọc Evaluation Evidence theo policy
-của mình và tự quyết định Certificate Eligibility/issuance.
-
-Assessment không được cập nhật trực tiếp business state của Domain khác.
-
----
-
-# Course Version Binding
-
-Working Template chỉ định nghĩa:
-
-```text
-activity_type = assessment
-```
-
-Student không làm bài qua working Template Activity.
-
-Course-linked Quiz phải lưu:
-
-```text
-customer_id
-
-product_id
-
-template_version_id
-
-version_activity_id
-```
-
-Version Activity đóng băng assessment learning context và completion rule.
-`version_activity_id` là link chính giữa Assessment và Course Domain.
+Domain khác đọc bằng chứng đánh giá và tự quyết định. Assessment không cập nhật
+trực tiếp business state của Domain khác.
 
 ---
 
 # Authoring And Snapshot Model
 
-Authoring sources:
+Nguồn soạn thảo:
 
 ```text
-Question Bank
-
-↓
-
-Question
-
-↓
-
-Content / Media / Options / Topics
+Category
+Passage ── Questions
+Question ── Content / Options / Media
 ```
 
-Question authoring data có thể thay đổi. Khi publish Quiz:
+Câu hỏi và ngữ liệu có lifecycle `draft` → `published` → `archived`; sửa được ở
+mọi trạng thái trừ khi đã lưu trữ. Chỉ nguồn `published` được thêm vào đề.
+
+Đề có bản nháp sửa được. Khi xuất bản:
 
 ```text
-Question
-
+Bản nháp đề + câu hỏi / ngữ liệu hiện tại
 ↓ snapshot
-
-Quiz Question
+Quiz Version + Quiz Version Questions
 ```
 
-Quiz Question đóng băng:
+Phiên bản đóng băng: chính sách (thời gian, số lượt, điểm đạt, cách hiện kết
+quả), phần, thứ tự, điểm, nội dung câu, ngữ liệu, Media reference, lựa chọn và
+đáp án đúng. Phiên bản không bao giờ thay đổi. Sửa câu hỏi hay bản nháp sau đó
+chỉ có hiệu lực khi xuất bản lại.
 
-* Prompt/content/media context
-* Options label/text
-* Correct answer
-* Scoring
-* Required/order
-
-Published Quiz và snapshots immutable cho existing Attempts.
+Nguồn soạn thảo đã vào một phiên bản chỉ được lưu trữ, không xoá cứng.
 
 ---
 
 # Quiz Structure
 
 ```text
-Quiz
-
+Quiz (bản nháp)
 ↓
-
-Quiz Sections
-
+Sections
 ↓
-
-Quiz Questions (snapshots)
+Quiz Questions (câu lẻ hoặc câu con của ngữ liệu, liền nhau)
 ```
 
-Foundation supports:
+Đề và bài tập là cùng một thực thể; `assessment_type` (`exercise`, `exam`) chỉ
+là nhãn. Khác biệt nằm ở cài đặt: giới hạn thời gian (NULL = không giới hạn), số
+lượt, điểm đạt, `show_result_mode`.
 
-```text
-quiz
-
-exam
-
-assignment
-
-homework
-
-placement_test
-
-mock_test
-```
-
-Grading modes:
-
-```text
-automatic
-
-manual
-
-hybrid
-```
+Dạng câu: `single_choice`, `multiple_choice`, `true_false`, `short_answer`,
+`essay`, `speaking`. Kỹ năng: `reading`, `listening`, `writing`, `speaking`,
+`other`. Độ khó: `easy`, `medium`, `hard`.
 
 ---
 
-# Attempt And Answer
+# Registration, Attempt And Answer
 
 ```text
-Enrollment
-
+Quiz Registration
 ↓
-
-Attempt
-
+Attempt (khoá Quiz Version)
 ↓
-
 Answers
-
 ↓
-
-Answer Files
+Answer Files (ghi âm)
 ```
 
-Attempt phải tham chiếu `enrollment_id`; Enrollment phải active khi Attempt bắt
-đầu. `user_id`, Product, Template Version và Version Activity phải khớp
-Enrollment/Quiz.
-
-Attempt khóa Quiz policy/structure snapshot tại start. Answer tham chiếu frozen
-Quiz Question và snapshot option label/text đã chọn để bảo toàn audit.
-
-Attempt score/pass/fail chỉ là evaluation evidence.
+* Mỗi lần làm bài có đúng một nguồn quyền. Giai đoạn 1 là ghi danh vào đề.
+* Mỗi học viên có tối đa một ghi danh đang hiệu lực cho mỗi đề. Mỗi ghi danh có
+  đủ `max_attempts` lượt; hết lượt thì đăng ký lại hoặc được cấp lại.
+* Bắt đầu, đếm lượt, giờ làm bài và nộp đều do server quyết trong transaction.
+* Câu trả lời lưu theo từng câu trong lúc làm; mở lại thì làm tiếp.
+* Câu trả lời thuộc đúng phiên bản của lần làm bài và giữ nhãn / nội dung lựa
+  chọn đã chọn.
+* Đáp án đúng và giải thích không gửi cho học viên trước khi lần làm bài kết
+  thúc; sau đó theo `show_result_mode`.
 
 ---
 
 # Grading Architecture
 
 ```text
-Attempt / Answer
-
+Nộp bài
 ↓
-
-Grading Assignment
-
+Tự chấm câu khách quan (server, từ snapshot)
 ↓
-
-Teacher / System / AI Suggestion
-
+Câu essay / speaking → Chờ chấm → Giáo viên chấm điểm + nhận xét
 ↓
-
-Final Assessment Result
+Tổng điểm, đạt / không đạt
 ```
 
-Automatic grading dùng cho objective questions theo approved rules.
+* Trắc nghiệm nhiều đáp án đúng khi chọn đúng y tập đáp án; không có điểm từng
+  phần ở giai đoạn 1.
+* Mỗi lần chấm hoặc chấm lại là một bản ghi; một bản ghi hiện hành mỗi câu; tổng
+  điểm tính lại từ điểm hiện hành của các câu.
+* Điểm chấm tay trong `0..điểm tối đa của câu`, kiểm ở server.
+* Người chấm: admin của tenant, người tạo đề, người đã cấp ghi danh.
 
-Manual grading dùng cho essay, writing, speaking và các response cần judgment.
-
-Hybrid grading:
-
-```text
-AI Suggestion
-
-↓
-
-Teacher Review
-
-↓
-
-Final Decision
-```
-
-AI grading không phải final grade. Teacher/final grader quyết định kết quả cuối.
-Assessment service tổng hợp Answer/Attempt result nhưng không update Course
-Progress trực tiếp.
-
-`confidence_score` chỉ mô tả độ tự tin của AI suggestion, không phải final
-score và không bắt buộc Teacher chấp nhận.
+Khi có AI hoặc rubric (sau này), quy tắc của ADR-0003 áp dụng: AI chỉ là đề
+xuất, giáo viên quyết; rubric được snapshot khi bắt đầu chấm.
 
 ---
 
-# Rubric Architecture
+# Roles And Experience
 
-```text
-Rubric Template
+| Vai trò | Quyền |
+|---|---|
+| `customer_admin` | Quản lý danh mục; xem, sửa mọi câu hỏi, ngữ liệu, đề, ghi danh, kết quả của tenant; chấm mọi bài |
+| `teacher` | Xem, sửa câu hỏi, ngữ liệu, đề do mình tạo (không đổi người tạo); chọn danh mục; cấp đề của mình cho học viên; chấm bài thuộc đề mình tạo hoặc ghi danh mình cấp |
+| `student` | Xem danh sách đề *Mở đăng ký*, tự đăng ký, làm bài, xem "Đề thi của tôi" và kết quả của chính mình |
+| Khách | Xem danh sách đề *Mở đăng ký* (chỉ thông tin giới thiệu) |
 
-↓
+Khu quản trị: mục **Kiểm tra** trên left menu ở `/admin/assessments` và
+`/teacher/assessments`, gồm Danh mục, Câu hỏi, Ngữ liệu, Đề / Bài tập, Ghi danh,
+Kết quả & Chấm bài. Học viên dùng mục **Assessments** trên website tenant; không
+có portal học viên riêng.
 
-Rubric Items
-
-↓ snapshot at grading
-
-Rubric Result
-```
-
-Rubric có thể tái sử dụng và thay đổi ở authoring layer. Mỗi Grading phải
-snapshot criteria/weights và result để lịch sử không drift.
-
-Khi grading bắt đầu, Rubric và toàn bộ Rubric Items được snapshot. Historical
-grading luôn đọc snapshot; Rubric authoring không phải historical grading
-source.
+"Đề thi của tôi" là **tab** trong trang Assessments (`/assessments/my`), không
+phải mục menu: menu học viên giữ nguyên 8 mục theo Guardrails. Hai tab "Tất cả
+đề" và "Đề thi của tôi" chỉ hiện với học viên đã đăng nhập. Trang làm bài và kết
+quả nằm dưới `/assessments/attempts/{id}`; mục Assessments trên menu vẫn được
+đánh dấu đang chọn.
 
 ---
 
 # Media Integration
 
-Media Domain sở hữu file thật cho:
+Media Domain sở hữu file thật của câu hỏi, ngữ liệu và ghi âm Speaking.
+Assessment chỉ lưu `media_file_id` và ghi `media_file_usages`
+(`assessment_question`, `assessment_passage`, `assessment_quiz_version`,
+`assessment_answer`). Phiên bản đề giữ usage riêng để file không bị xoá khi tác
+giả gỡ khỏi câu hỏi.
 
-* Question images/audio/video/attachments
-* Uploaded answers
-* Speaking recordings
-* Essay attachments
-* Evidence files
-
-Assessment chỉ lưu `media_file_id`. Binary, storage, processing, signed
-delivery, transcript và retention thuộc Media Domain.
+Ảnh, audio của câu hỏi và ảnh, audio, video của ngữ liệu được tải lên trong form
+hoặc chọn từ Thư viện Media (bộ chọn chung của ADR-0021: admin chọn mọi file của
+tenant, giáo viên chỉ file của mình hoặc được chia sẻ). Server kiểm file chọn
+(cùng tenant, đúng loại, `ready`, quyền dùng) trước khi lưu; chọn file khác thì
+chỉ gỡ usage, không xoá file của thư viện.
 
 ---
 
-# AI Integration
+# Course Integration (làm sau)
 
-AI có thể hỗ trợ:
+Gắn đề hoặc gói đề vào Course Template chưa làm. Hoạt động `quiz` và
+`assessment_quiz_id` ở Course giữ nguyên; template có hoạt động quiz vẫn bị chặn
+xuất bản theo [LF-Core-Course](LF-Core-Course.md).
 
-* Question generation
-* Quiz assembly
-* Rubric suggestion
-* Score suggestion
-* Feedback suggestion
+Khi làm, kiến trúc đích của ADR-0003 áp dụng cho lần làm bài có nguồn quyền là
+khoá học:
 
-AI suggestion phải audit được và không được ghi đè final human decision.
-Provider/model/prompt-version provenance cần được lưu trong grading metadata.
+* Version Activity bất biến đóng băng phiên bản đề (hoặc gói) được dùng.
+* Lần làm bài tham chiếu `enrollment_id` và `version_activity_id`; Enrollment
+  phải active.
+* Course đọc bằng chứng đánh giá và tự quyết Activity Progress / Completion;
+  Certificate tự quyết eligibility.
+
+Thanh toán / bán đề (sau này) dùng chung luồng đơn hàng và thanh toán với khoá
+học; Assessment không có cổng thanh toán riêng.
+
+---
+
+# AI Integration (ngoài phạm vi hiện tại)
+
+Không có tính năng AI trong module Kiểm tra ở đợt này. Khi làm, AI chỉ tạo đề
+xuất (câu hỏi, gợi ý chấm, nhận xét), giáo viên duyệt và quyết định cuối; lưu
+provider / model / prompt version (ADR-0003, ADR-0017).
 
 ---
 
 # Track Integration
 
-Track Domain có thể ghi raw events:
-
-```text
-Quiz Started
-
-Question Viewed
-
-Answer Submitted
-
-Quiz Finished
-```
-
-Assessment giữ evaluation business records. Track không thay thế Attempt,
-Answer hoặc Grading source data.
+Track Domain có thể ghi raw events (bắt đầu, nộp, chấm xong). Assessment giữ
+business records; Track không thay Attempt, Answer hoặc Grading.
 
 ---
 
@@ -379,73 +281,63 @@ Answer hoặc Grading source data.
 core_assessment_*
 ```
 
-Foundation tables:
-
-```text
-core_assessment_categories
-core_assessment_question_banks
-core_assessment_questions
-core_assessment_question_contents
-core_assessment_question_media
-core_assessment_question_options
-core_assessment_topics
-core_assessment_question_topics
-core_assessment_quizzes
-core_assessment_quiz_sections
-core_assessment_quiz_questions
-core_assessment_attempts
-core_assessment_answers
-core_assessment_answer_files
-core_assessment_grading_assignments
-core_assessment_gradings
-core_assessment_rubrics
-core_assessment_rubric_items
-```
+Bảng giai đoạn 1 và bảng hoãn: xem
+[database/assessment/README.md](../database/assessment/README.md).
 
 ---
 
 # Design Rules
 
-1. Mọi Assessment business data phải có `customer_id`.
-2. Cross-domain references phải cùng tenant.
+1. Mọi Assessment business data có `customer_id`; khoá ngoại nội bộ dùng khoá kép
+   `(id, customer_id)`.
+2. Cross-domain references cùng tenant.
 3. Assessment là Evaluation Domain, không phải Course Domain.
-4. Student không làm bài qua working Template Activity.
-5. Course integration dùng immutable Version Activity.
-6. Published Quiz/Quiz Question snapshots không được mutate cho existing Attempts.
-7. Attempt thuộc một Enrollment learning cycle.
-8. Answer thuộc Attempt và frozen Quiz Question.
-9. File thật thuộc Media Domain.
-10. AI grading chỉ là suggestion.
-11. Rubric criteria/result phải snapshot khi grading.
-12. Assessment evidence không tự quyết định Course completion/certificate.
+4. Học viên chỉ làm bài trên phiên bản đề đã xuất bản, không bao giờ trên bản
+   nháp.
+5. Phiên bản đề và câu đã đóng băng không bao giờ thay đổi.
+6. Mỗi lần làm bài có đúng một nguồn quyền (giai đoạn 1: ghi danh).
+7. Câu trả lời thuộc lần làm bài và câu của đúng phiên bản.
+8. Chấm, giờ làm bài, số lượt do server quyết; không tin dữ liệu chấm từ client.
+9. Đáp án đúng không gửi cho học viên trước khi lần làm bài kết thúc.
+10. File thật thuộc Media Domain.
+11. AI (khi có) chỉ là đề xuất; rubric (khi có) phải snapshot khi chấm.
+12. Bằng chứng Assessment không tự quyết Course completion / certificate.
 13. Course Activity Progress là source of truth cho activity completion.
-14. Cross-domain effect dùng Evidence/Event/Request; Domain đích tự quyết định.
+14. Cross-domain effect dùng Evidence / Event / Request; Domain đích tự quyết.
 
 ---
 
-# Architecture Decision
+# Implementation Status
 
-Assessment Foundation được phê duyệt và freeze tại:
+Cập nhật 2026-11-06.
 
-[ADR-0003 — Assessment Foundation](../adr/ADR-0003-Assessment-Foundation.md)
+| Phần | Trạng thái |
+|---|---|
+| Danh mục, câu hỏi (mọi dạng), ngữ liệu, media câu hỏi | Đã làm |
+| Đề / bài tập: nháp, ghép câu, phần, xuất bản phiên bản | Đã làm |
+| Ghi danh: admin / giáo viên cấp, học viên tự đăng ký | Đã làm |
+| Học viên: danh sách đề, "Đề thi của tôi", làm bài có đồng hồ, tự lưu, ghi âm Speaking, nộp, kết quả theo `show_result_mode` | Đã làm |
+| Tự chấm câu khách quan; giáo viên chấm essay / speaking, chấm lại | Đã làm |
+| Media Library: tên và liên kết cho bản ghi âm, phiên bản đề | Đã làm |
+| Chọn ảnh / audio / video từ Thư viện Media cho câu hỏi và ngữ liệu | Đã làm |
+| Hết giờ: trình duyệt tự nộp; server đóng lần làm bài quá hạn khi đọc (`submit_reason = timeout`, ân hạn `assessment.deadline_grace_seconds`) | Đã làm |
+| Kiểm chứng trình duyệt phía giáo viên | Đã làm (trừ nghe bài nói thuộc đề giáo viên) |
+| Micro thật, Safari / iOS | Chưa |
+| Mọi mục "Không có" ở Phạm vi giai đoạn 1 | Chưa làm |
 
-ADR này là source quyết định cho Evaluation Domain ownership, Question/Quiz
-snapshot strategy, Rubric snapshots, AI grading boundaries và Course/Media
-integration.
+Kiểm chứng: [LF-Assessment-Learner-Regression-Audit](../quality/LF-Assessment-Learner-Regression-Audit.md).
 
 ---
 
 # Final Statement
 
-Assessment đo lường learning outcome và sinh evaluation evidence.
+Assessment đo lường kết quả học tập và sinh bằng chứng đánh giá. Giai đoạn 1 là
+module Kiểm tra độc lập: soạn câu hỏi, ghép đề thủ công, xuất bản phiên bản,
+ghi danh, làm bài, chấm. Phiên bản đề giữ lịch sử bất biến; Media giữ file;
+Course và Certificate tự quyết trạng thái của mình khi được tích hợp.
 
-Assessment Foundation Version 1.0 đã được phê duyệt. Mọi thay đổi kiến trúc sau
-freeze phải được review bằng ADR mới hoặc amendment được owner chấp thuận.
-
-Course Version Activity giữ learning context bất biến. Enrollment giữ learning
-cycle. Assessment giữ Attempt, Answer, Score và Grading. Media giữ file. Track
-giữ behavior events. Course Domain giữ Progress/Completion, và Certificate
-Domain tự quyết định eligibility.
+Mọi thay đổi kiến trúc tiếp theo phải qua ADR mới hoặc amendment được Owner chấp
+thuận.
 
 ---
 

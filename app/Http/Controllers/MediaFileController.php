@@ -334,7 +334,7 @@ class MediaFileController extends Controller
     public function picker(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'type' => ['required', 'string', 'in:video,audio,document'],
+            'type' => ['required', 'string', 'in:image,video,audio,document'],
             'keyword' => ['nullable', 'string', 'max:100'],
         ]);
         $customerId = $this->customerId();
@@ -394,6 +394,10 @@ class MediaFileController extends Controller
                 'duration' => $row->duration_seconds ? sprintf('%02d:%02d', intdiv((int) $row->duration_seconds, 60), (int) $row->duration_seconds % 60) : '',
                 'date' => (string) ($row->created_at ?? ''),
                 'duration_seconds' => $row->duration_seconds ? (int) $row->duration_seconds : null,
+                // An image is chosen by sight (its thumbnail in the list and in the form tile it fills); audio and video
+                // can be played from the tile before saving.
+                'preview' => in_array($row->file_type, ['image', 'audio', 'video'], true) ? (string) $this->mediaService->generateSignedUrl((int) $row->id) : '',
+                'mime' => (string) ($row->mime_type ?? ''),
                 'usage_count' => $usages->count(),
                 'usages_all' => $places->take(10)->all(),
                 'used' => $usages->isNotEmpty(),
@@ -718,6 +722,8 @@ class MediaFileController extends Controller
                 'course_cohort' => $prefix === 'admin' ? route('admin.course-cohorts.show', ['id' => $id]) : null,
                 'course_product' => $prefix === 'admin' ? route('admin.course-products.edit', ['id' => $id]) : null,
                 'course_category' => route($prefix.'.course-categories.index'),
+                'assessment_question' => route($prefix.'.assessments.questions.index'),
+                'assessment_passage' => route($prefix.'.assessments.passages.show', ['id' => $id]),
                 default => null,
             };
 
@@ -762,6 +768,25 @@ class MediaFileController extends Controller
             }
         }
 
+        // Kiểm tra: a recording opens its attempt for grading, a published version opens its quiz.
+        $answerIds = $usages->where('owner_type', 'assessment_answer')->pluck('owner_id')->map(fn ($id): int => (int) $id)->unique()->all();
+
+        if ($answerIds !== []) {
+            DB::table('core_assessment_answers')->where('customer_id', $customerId)->whereIn('id', $answerIds)->get(['id', 'attempt_id'])
+                ->each(function (object $answer) use (&$urls): void {
+                    $urls['assessment_answer:'.$answer->id] = route($this->routePrefix().'.assessments.results.show', ['id' => $answer->attempt_id]);
+                });
+        }
+
+        $versionIds = $usages->where('owner_type', 'assessment_quiz_version')->pluck('owner_id')->map(fn ($id): int => (int) $id)->unique()->all();
+
+        if ($versionIds !== []) {
+            DB::table('core_assessment_quiz_versions')->where('customer_id', $customerId)->whereIn('id', $versionIds)->get(['id', 'quiz_id'])
+                ->each(function (object $version) use (&$urls): void {
+                    $urls['assessment_quiz_version:'.$version->id] = route($this->routePrefix().'.assessments.quizzes.show', ['id' => $version->quiz_id]);
+                });
+        }
+
         return $urls;
     }
 
@@ -779,6 +804,7 @@ class MediaFileController extends Controller
             ],
             'course_template_version' => ['core_course_template_versions', 'title_snapshot'],
             'course_cohort' => ['core_course_cohorts', 'name'],
+            'assessment_passage' => ['core_assessment_passages', 'title'],
         ];
 
         foreach ($sources as $ownerType => [$table, $labelColumn]) {
@@ -801,6 +827,47 @@ class MediaFileController extends Controller
                 ->get()
                 ->each(function (object $owner) use (&$names, $ownerType, $labelColumn): void {
                     $names[$ownerType.':'.$owner->id] = $owner->{$labelColumn};
+                });
+        }
+
+        // A question has no title of its own: it is named by the start of its prompt (Kiểm tra, ADR-0025).
+        $questionIds = $usages->where('owner_type', 'assessment_question')->pluck('owner_id')->map(fn ($id): int => (int) $id)->unique()->all();
+
+        if ($questionIds !== []) {
+            DB::table('core_assessment_question_contents')
+                ->where('customer_id', $customerId)->whereIn('question_id', $questionIds)
+                ->orderBy('id')->get(['question_id', 'prompt'])
+                ->each(function (object $content) use (&$names): void {
+                    $names['assessment_question:'.$content->question_id] ??= Str::limit((string) $content->prompt, 60);
+                });
+        }
+
+        // A speaking recording: the student and the quiz of the attempt, with the question number.
+        $answerIds = $usages->where('owner_type', 'assessment_answer')->pluck('owner_id')->map(fn ($id): int => (int) $id)->unique()->all();
+
+        if ($answerIds !== []) {
+            DB::table('core_assessment_answers as ans')
+                ->join('core_assessment_attempts as a', 'a.id', '=', 'ans.attempt_id')
+                ->join('core_assessment_quiz_versions as v', 'v.id', '=', 'a.quiz_version_id')
+                ->join('core_assessment_quiz_version_questions as vq', 'vq.id', '=', 'ans.quiz_version_question_id')
+                ->join('users as s', 's.id', '=', 'a.user_id')
+                ->where('ans.customer_id', $customerId)->whereIn('ans.id', $answerIds)
+                ->get(['ans.id', 'v.title', 'vq.sort_order', 's.name'])
+                ->each(function (object $answer) use (&$names): void {
+                    $names['assessment_answer:'.$answer->id] = __('lf.LF_media_usage_owner_assessment_answer', [
+                        'student' => $answer->name, 'quiz' => $answer->title, 'number' => $answer->sort_order,
+                    ]);
+                });
+        }
+
+        $versionIds = $usages->where('owner_type', 'assessment_quiz_version')->pluck('owner_id')->map(fn ($id): int => (int) $id)->unique()->all();
+
+        if ($versionIds !== []) {
+            DB::table('core_assessment_quiz_versions')
+                ->where('customer_id', $customerId)->whereIn('id', $versionIds)->get(['id', 'title', 'version_no'])
+                ->each(function (object $version) use (&$names): void {
+                    $names['assessment_quiz_version:'.$version->id] = $version->title.' · '
+                        .__('lf.LF_assessment_quiz_version_number', ['number' => $version->version_no]);
                 });
         }
 

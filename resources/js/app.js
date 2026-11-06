@@ -792,3 +792,8 @@ document.addEventListener('submit', async (event) => {
         form.removeAttribute('aria-busy');
     }
 });
+
+// Taking a Kiểm tra attempt on the tenant website: loaded only on that page.
+if (document.querySelector('[data-exam-attempt]')) {
+    import('./tenant-assessment-take.js');
+}

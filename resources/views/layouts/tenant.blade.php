@@ -16,7 +16,7 @@
             ? [
                 ['label' => __('lf.LF_navigation_menu_public_home'), 'route' => 'public.home', 'active' => 'public.home'],
                 ['label' => __('lf.LF_navigation_menu_public_courses'), 'route' => 'tenant.courses.index', 'active' => 'tenant.courses.*'],
-                ['label' => __('lf.LF_navigation_menu_public_assessments'), 'route' => 'tenant.assessments', 'active' => 'tenant.assessments'],
+                ['label' => __('lf.LF_navigation_menu_public_assessments'), 'route' => 'tenant.assessments', 'active' => ['tenant.assessments', 'student.assessments.*']],
                 ['label' => __('lf.LF_navigation_menu_public_services'), 'route' => 'public.services', 'active' => 'public.services'],
                 ['label' => __('lf.LF_navigation_menu_student_my_courses'), 'route' => 'student.courses.index', 'active' => 'student.courses.*'],
                 ['label' => __('lf.LF_navigation_menu_student_learning_history'), 'route' => 'student.learning-history', 'active' => 'student.learning-history'],

@@ -2,6 +2,7 @@
 @import './lf/components.css';
 @import './public/public.css';
 @import './tenant/tenant.css';
+@import './tenant/assessment.css';
 @import './tenant/theme-default.css';
 
 @tailwind base;

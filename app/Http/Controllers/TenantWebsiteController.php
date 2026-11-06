@@ -36,11 +36,6 @@ class TenantWebsiteController extends Controller
         return view('tenant.courses.show', [...$data, 'course' => $course]);
     }
 
-    public function assessments(): View
-    {
-        return $this->tenantPage('Assessments', 'Explore placement tests, quizzes and course assessments.');
-    }
-
     public function services(): View
     {
         if (TenantContext::customerId() === null) {

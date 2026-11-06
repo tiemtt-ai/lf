@@ -13,13 +13,17 @@
     'uploadLabel' => null,
     'viewLabel' => null,
     'removeLabel' => null,
+    'libraryName' => null,
+    'libraryCaption' => null,
 ])
 
 {{--
     UI Kit media slot: one tile per file. Empty = upload tile; filled (saved or just chosen) = content
     inside the tile with View/Remove on hover or focus. Behaviour: initUiKitMediaSlot() in
     resources/js/admin-ui-kit-controls.js. Remove only marks the saved usage for removal; the server detaches
-    it on a successful save and a new file chosen in the same submit replaces it.
+    it on a successful save and a new file chosen in the same submit replaces it. With `libraryName`, "Choose from
+    library" asks the form's <x-media-library-picker> (which must sit in the same form) for an existing Media; its id
+    goes in that hidden field, and an upload chosen afterwards takes its place.
 --}}
 @php
     $isSaved = is_array($presentation) && ($presentation['state'] ?? 'empty') !== 'empty';
@@ -50,7 +54,8 @@
      data-saved-preview-url="{{ $previewUrl }}"
      data-saved-mime="{{ $mime }}"
      data-status-selected="{{ __('lf.LF_media_slot_selected', ['name' => ':name']) }}"
-     data-status-removed="{{ __('lf.LF_media_slot_removed') }}">
+     data-status-removed="{{ __('lf.LF_media_slot_removed') }}"
+     @if ($libraryName) data-library-caption="{{ $libraryCaption }}" @endif>
     <div class="ui-media-tile" data-ui-media-tile>
         <div class="ui-media-tile__filled" data-ui-media-filled @unless ($isSaved) hidden @endunless>
             <img class="ui-media-tile__image" data-ui-media-image alt="{{ $displayName }}"
@@ -84,6 +89,12 @@
     </div>
     @if ($removeName)
         <input type="hidden" name="{{ $removeName }}" value="0" data-ui-media-remove-flag>
+    @endif
+    @if ($libraryName)
+        <input type="hidden" name="{{ $libraryName }}" value="" data-ui-media-library-value>
+        <button type="button" class="ui-button ui-button--sm ui-media-slot__library cursor-interaction" data-ui-media-library aria-haspopup="dialog">
+            <x-backend-icon name="folder" class="ui-icon" />{{ __('lf.LF_media_pick_button') }}
+        </button>
     @endif
     <span class="ui-sr-only" role="status" aria-live="polite" data-ui-media-status></span>
     @error($name)<span class="ui-field__error" id="{{ $id }}-error" role="alert">{{ $message }}</span>@enderror

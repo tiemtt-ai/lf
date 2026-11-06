@@ -1428,7 +1428,7 @@ class MediaLibraryManagementTest extends TestCase
     ): int {
         $now = now();
 
-        return DB::table('core_course_templates')->insertGetId(['course_type' => 'blended', 
+        return DB::table('core_course_templates')->insertGetId(['course_type' => 'blended',
             'customer_id' => $customerId,
             'category_id' => null,
             'title' => $title,
@@ -1466,7 +1466,7 @@ class MediaLibraryManagementTest extends TestCase
         $now = now();
         $templateId ??= $this->createTemplate($customerId, $userId, $title);
 
-        return DB::table('core_course_template_versions')->insertGetId(['course_type_snapshot' => 'blended', 
+        return DB::table('core_course_template_versions')->insertGetId(['course_type_snapshot' => 'blended',
             'customer_id' => $customerId,
             'template_id' => $templateId,
             'version_number' => $versionNumber,

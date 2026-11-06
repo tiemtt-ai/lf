@@ -3,8 +3,10 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Services\CourseCohortContentTree;
 use App\Services\CourseCohortLifecycleService;
 use App\Services\LiveClassCohortSessionReadModel;
+use App\Services\LiveClassScheduleSessionGenerator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -2812,8 +2814,8 @@ class CourseCohortManagementTest extends TestCase
         $cancelledDirect = (int) DB::table('core_liveclass_sessions')->where('title', 'Direct to cancel')->value('id');
         DB::table('core_liveclass_sessions')->where('id', $cancelledDirect)->update(['status' => 'cancelled']);
 
-        $sessions = app(\App\Services\LiveClassCohortSessionReadModel::class)->forCohort($customerId, $cohortId);
-        $tree = app(\App\Services\CourseCohortContentTree::class)->build($customerId, $cohortId, $versionId, $sessions, collect([
+        $sessions = app(LiveClassCohortSessionReadModel::class)->forCohort($customerId, $cohortId);
+        $tree = app(CourseCohortContentTree::class)->build($customerId, $cohortId, $versionId, $sessions, collect([
             ['schedule_id' => 9, 'schedule_slot_id' => 1, 'date' => now()->subDay()->toDateString(), 'start_time' => '09:00', 'end_time' => '10:00', 'timezone' => 'UTC', 'consumed' => false],
             ['schedule_id' => 9, 'schedule_slot_id' => 1, 'date' => now()->addDays(10)->toDateString(), 'start_time' => '09:00', 'end_time' => '10:00', 'timezone' => 'UTC', 'consumed' => true],
             ['schedule_id' => 9, 'schedule_slot_id' => 1, 'date' => now()->addDays(11)->toDateString(), 'start_time' => '09:00', 'end_time' => '10:00', 'timezone' => 'UTC', 'consumed' => false],
@@ -2841,7 +2843,7 @@ class CourseCohortManagementTest extends TestCase
         $movedOnto = now()->addDays(12)->setTime(9, 30);
         $occupying = (object) ['id' => 0, 'version_activity_id' => null, 'version_lesson_id' => null, 'position_lock_reason' => null, 'status' => 'scheduled', 'timezone' => 'UTC',
             'scheduled_start_at' => $movedOnto->format('Y-m-d H:i:s'), 'scheduled_end_at' => $movedOnto->copy()->addHour()->format('Y-m-d H:i:s')];
-        $occupied = app(\App\Services\CourseCohortContentTree::class)->build($customerId, $cohortId, $versionId, $sessions->concat([$occupying]), collect([
+        $occupied = app(CourseCohortContentTree::class)->build($customerId, $cohortId, $versionId, $sessions->concat([$occupying]), collect([
             $free + ['date' => now()->addDays(12)->toDateString()],
             $free + ['date' => now()->addDays(13)->toDateString()],
         ]));
@@ -2877,7 +2879,7 @@ class CourseCohortManagementTest extends TestCase
         ]);
         $otherCustomerId = $this->createTenant('tenant-b');
 
-        $tree = app(\App\Services\CourseCohortContentTree::class);
+        $tree = app(CourseCohortContentTree::class);
 
         $this->assertTrue($tree->build($customerId, 1, $versionId, collect())['hasContent']);
         $this->assertFalse($tree->build($otherCustomerId, 1, $versionId, collect())['hasContent']);
@@ -3059,7 +3061,7 @@ class CourseCohortManagementTest extends TestCase
         // Another class on the same Version keeps the Version's order.
         $otherCohort = $this->createCohort($customerId, 'Other class');
         DB::table('core_course_cohorts')->where('id', $otherCohort)->update(['version_id' => $versionId]);
-        $tree = app(\App\Services\CourseCohortContentTree::class);
+        $tree = app(CourseCohortContentTree::class);
         $this->assertSame(
             [$a['activity'], $b['activity'], $c['activity']],
             $tree->liveActivities($customerId, $otherCohort, $versionId)->pluck('id')->map(fn ($id): int => (int) $id)->all()
@@ -3195,7 +3197,7 @@ class CourseCohortManagementTest extends TestCase
         [$customerId, $admin, $cohortId, $versionId] = $this->reorderCohort();
         [$a, $b] = $this->programme($customerId, $versionId, ['Lesson A', 'Lesson B']);
         $session = $this->programmeSession($admin, $cohortId, $a, 'Lesson A', '2026-08-10');
-        $this->mock(\App\Services\LiveClassCohortSessionReadModel::class, function ($mock) use ($session): void {
+        $this->mock(LiveClassCohortSessionReadModel::class, function ($mock) use ($session): void {
             $mock->shouldReceive('sessionIdsWithEvidence')->andReturn(collect([$session]));
         });
 
@@ -3288,7 +3290,7 @@ class CourseCohortManagementTest extends TestCase
 
         $this->assertSame(
             [$direct['activity'], $b['activity'], $a['activity']],
-            app(\App\Services\CourseCohortContentTree::class)->liveActivities($customerId, $cohortId, $versionId)->pluck('id')->map(fn ($id): int => (int) $id)->all()
+            app(CourseCohortContentTree::class)->liveActivities($customerId, $cohortId, $versionId)->pluck('id')->map(fn ($id): int => (int) $id)->all()
         );
     }
 
@@ -3331,7 +3333,7 @@ class CourseCohortManagementTest extends TestCase
         [$a, $b] = $this->programme($customerId, $versionId, ['Lesson A', 'Lesson B']);
         DB::table('core_course_template_version_activities')->where('id', $a['activity'])->update(['description_snapshot' => 'From the template']);
         DB::table('core_course_template_version_lessons')->where('id', $a['lesson'])->update(['short_description_snapshot' => 'Lesson summary from the template']);
-        $link =(string) DB::table('core_course_template_version_activities')->where('id', $a['activity'])->value('live_class_url_snapshot');
+        $link = (string) DB::table('core_course_template_version_activities')->where('id', $a['activity'])->value('live_class_url_snapshot');
         $session = $this->programmeSession($admin, $cohortId, $a, 'Lesson A', '2026-08-10');
         $url = "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions";
 
@@ -3409,9 +3411,9 @@ class CourseCohortManagementTest extends TestCase
             'customer_id' => $customerId, 'cohort_id' => $cohortId, 'teacher_id' => $teacher->id,
             'role' => 'teacher', 'status' => 'active', 'created_at' => now(), 'updated_at' => now(),
         ]);
-        $tree = fn (): array => app(\App\Services\CourseCohortContentTree::class)->build(
+        $tree = fn (): array => app(CourseCohortContentTree::class)->build(
             $customerId, $cohortId, $versionId,
-            app(\App\Services\LiveClassCohortSessionReadModel::class)->forCohort($customerId, $cohortId),
+            app(LiveClassCohortSessionReadModel::class)->forCohort($customerId, $cohortId),
             collect(),
             DB::table('core_course_cohort_teachers as a')->join('users as t', 't.id', '=', 'a.teacher_id')->where('a.cohort_id', $cohortId)
                 ->get(['t.id', 't.name', 'a.assigned_from', 'a.assigned_to'])
@@ -3591,7 +3593,7 @@ class CourseCohortManagementTest extends TestCase
     /** A date without a Session still exists, for example after a cancellation: these tests start from one. */
     private function keepDatesUnsaved(): void
     {
-        $this->mock(\App\Services\LiveClassScheduleSessionGenerator::class, fn ($mock) => $mock->shouldReceive('generate')->andReturn([]));
+        $this->mock(LiveClassScheduleSessionGenerator::class, fn ($mock) => $mock->shouldReceive('generate')->andReturn([]));
     }
 
     public function test_saving_a_schedule_creates_sessions_in_programme_order_with_the_class_teachers(): void

@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
-  "generated_or_updated_at": "2026-11-05",
+  "generated_or_updated_at": "2026-11-06",
   "root": "docs",
   "default_locale": "vi",
   "fallback_locale": "en",
   "source_of_truth": "docs/LF-INDEX.md",
-  "document_count": 322,
+  "document_count": 329,
   "documents": [
     {
       "path": "LF-Core-Overview.md",
@@ -1331,6 +1331,60 @@
       "routing_source": "LF-INDEX.md"
     },
     {
+      "path": "adr/ADR-0025-Assessment-Simple-Administration.md",
+      "title": "ADR-0025 — Assessment Simple Administration",
+      "area": "adr",
+      "document_type": "adr",
+      "document_status": "Approved",
+      "implementation_status": "Partial",
+      "metadata_complete": true,
+      "authority": "architecture_decision",
+      "canonical_for": [],
+      "topics": [
+        "assessment",
+        "quiz",
+        "question-bank",
+        "grading"
+      ],
+      "keywords": {
+        "vi": [
+          "kiểm tra",
+          "câu hỏi",
+          "ngữ liệu",
+          "đề thi",
+          "bài tập",
+          "phiên bản đề",
+          "ghi danh đề",
+          "chấm bài",
+          "đề thi của tôi"
+        ],
+        "en": [
+          "assessment module",
+          "question",
+          "passage",
+          "quiz version",
+          "quiz registration",
+          "grading"
+        ]
+      },
+      "identifiers": [
+        "core_assessment_quiz_versions",
+        "core_assessment_quiz_version_questions",
+        "core_assessment_passages",
+        "core_assessment_quiz_registrations"
+      ],
+      "related_documents": [
+        "adr/ADR-0003-Assessment-Foundation.md",
+        "adr/ADR-0004-Media-Foundation.md",
+        "adr/ADR-0021-Media-Sharing-Within-Tenant.md",
+        "core/LF-Core-Assessment.md",
+        "database/assessment/README.md",
+        "quality/LF-Assessment-Simple-Admin-Proposal.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
       "path": "adr/README.md",
       "title": "LearnForge Architecture Decision Records",
       "area": "adr",
@@ -1486,7 +1540,7 @@
       "area": "core",
       "document_type": "domain_policy",
       "document_status": "Approved",
-      "implementation_status": "Unknown",
+      "implementation_status": "Partial",
       "metadata_complete": true,
       "authority": "domain",
       "canonical_for": [],
@@ -2585,9 +2639,9 @@
       "title": "MIỀN NGHIỆP VỤ ASSESSMENT",
       "area": "database",
       "document_type": "database_overview",
-      "document_status": "Unknown",
-      "implementation_status": "Unknown",
-      "metadata_complete": false,
+      "document_status": "Approved",
+      "implementation_status": "Partial",
+      "metadata_complete": true,
       "authority": "database",
       "canonical_for": [],
       "topics": [
@@ -2608,7 +2662,9 @@
         ]
       },
       "identifiers": [],
-      "related_documents": [],
+      "related_documents": [
+        "adr/ADR-0025-Assessment-Simple-Administration.md"
+      ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"
     },
@@ -2617,9 +2673,9 @@
       "title": "Table: core_assessment_answer_files",
       "area": "database",
       "document_type": "table_schema",
-      "document_status": "Unknown",
-      "implementation_status": "Unknown",
-      "metadata_complete": false,
+      "document_status": "Approved",
+      "implementation_status": "Partial",
+      "metadata_complete": true,
       "authority": "database",
       "canonical_for": [],
       "topics": [
@@ -2649,6 +2705,7 @@
         "core_assessment_answer_files"
       ],
       "related_documents": [
+        "adr/ADR-0025-Assessment-Simple-Administration.md",
         "database/assessment/README.md"
       ],
       "superseded_by": null,
@@ -2659,9 +2716,9 @@
       "title": "Table: core_assessment_answers",
       "area": "database",
       "document_type": "table_schema",
-      "document_status": "Unknown",
-      "implementation_status": "Unknown",
-      "metadata_complete": false,
+      "document_status": "Approved",
+      "implementation_status": "Partial",
+      "metadata_complete": true,
       "authority": "database",
       "canonical_for": [],
       "topics": [
@@ -2688,6 +2745,7 @@
         "core_assessment_answers"
       ],
       "related_documents": [
+        "adr/ADR-0025-Assessment-Simple-Administration.md",
         "database/assessment/README.md"
       ],
       "superseded_by": null,
@@ -2698,9 +2756,9 @@
       "title": "Table: core_assessment_attempts",
       "area": "database",
       "document_type": "table_schema",
-      "document_status": "Unknown",
-      "implementation_status": "Unknown",
-      "metadata_complete": false,
+      "document_status": "Approved",
+      "implementation_status": "Partial",
+      "metadata_complete": true,
       "authority": "database",
       "canonical_for": [],
       "topics": [
@@ -2727,6 +2785,7 @@
         "core_assessment_attempts"
       ],
       "related_documents": [
+        "adr/ADR-0025-Assessment-Simple-Administration.md",
         "database/assessment/README.md"
       ],
       "superseded_by": null,
@@ -2737,9 +2796,9 @@
       "title": "Table: core_assessment_categories",
       "area": "database",
       "document_type": "table_schema",
-      "document_status": "Unknown",
-      "implementation_status": "Unknown",
-      "metadata_complete": false,
+      "document_status": "Approved",
+      "implementation_status": "Partial",
+      "metadata_complete": true,
       "authority": "database",
       "canonical_for": [],
       "topics": [
@@ -2766,6 +2825,7 @@
         "core_assessment_categories"
       ],
       "related_documents": [
+        "adr/ADR-0025-Assessment-Simple-Administration.md",
         "database/assessment/README.md"
       ],
       "superseded_by": null,
@@ -2805,6 +2865,7 @@
         "core_assessment_grading_assignments"
       ],
       "related_documents": [
+        "adr/ADR-0025-Assessment-Simple-Administration.md",
         "database/assessment/README.md"
       ],
       "superseded_by": null,
@@ -2815,9 +2876,9 @@
       "title": "Table: core_assessment_gradings",
       "area": "database",
       "document_type": "table_schema",
-      "document_status": "Unknown",
-      "implementation_status": "Unknown",
-      "metadata_complete": false,
+      "document_status": "Approved",
+      "implementation_status": "Partial",
+      "metadata_complete": true,
       "authority": "database",
       "canonical_for": [],
       "topics": [
@@ -2844,6 +2905,50 @@
         "core_assessment_gradings"
       ],
       "related_documents": [
+        "adr/ADR-0025-Assessment-Simple-Administration.md",
+        "database/assessment/README.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "database/assessment/core_assessment_passages.md",
+      "title": "Table: core_assessment_passages",
+      "area": "database",
+      "document_type": "table_schema",
+      "document_status": "Approved",
+      "implementation_status": "Partial",
+      "metadata_complete": true,
+      "authority": "database",
+      "canonical_for": [],
+      "topics": [
+        "assessment",
+        "passage",
+        "question"
+      ],
+      "keywords": {
+        "vi": [
+          "lược đồ bảng",
+          "tài liệu cơ sở dữ liệu",
+          "bài kiểm tra",
+          "ngữ liệu",
+          "đoạn đọc",
+          "bài nghe"
+        ],
+        "en": [
+          "table schema",
+          "database documentation",
+          "assessment",
+          "passage",
+          "reading passage",
+          "listening script"
+        ]
+      },
+      "identifiers": [
+        "core_assessment_passages"
+      ],
+      "related_documents": [
+        "adr/ADR-0025-Assessment-Simple-Administration.md",
         "database/assessment/README.md"
       ],
       "superseded_by": null,
@@ -2883,6 +2988,7 @@
         "core_assessment_question_banks"
       ],
       "related_documents": [
+        "adr/ADR-0025-Assessment-Simple-Administration.md",
         "database/assessment/README.md"
       ],
       "superseded_by": null,
@@ -2893,9 +2999,9 @@
       "title": "Table: core_assessment_question_contents",
       "area": "database",
       "document_type": "table_schema",
-      "document_status": "Unknown",
-      "implementation_status": "Unknown",
-      "metadata_complete": false,
+      "document_status": "Approved",
+      "implementation_status": "Partial",
+      "metadata_complete": true,
       "authority": "database",
       "canonical_for": [],
       "topics": [
@@ -2922,6 +3028,7 @@
         "core_assessment_question_contents"
       ],
       "related_documents": [
+        "adr/ADR-0025-Assessment-Simple-Administration.md",
         "database/assessment/README.md"
       ],
       "superseded_by": null,
@@ -2932,9 +3039,9 @@
       "title": "Table: core_assessment_question_media",
       "area": "database",
       "document_type": "table_schema",
-      "document_status": "Unknown",
-      "implementation_status": "Unknown",
-      "metadata_complete": false,
+      "document_status": "Approved",
+      "implementation_status": "Partial",
+      "metadata_complete": true,
       "authority": "database",
       "canonical_for": [],
       "topics": [
@@ -2966,6 +3073,7 @@
         "core_assessment_question_media"
       ],
       "related_documents": [
+        "adr/ADR-0025-Assessment-Simple-Administration.md",
         "database/assessment/README.md"
       ],
       "superseded_by": null,
@@ -2976,9 +3084,9 @@
       "title": "Table: core_assessment_question_options",
       "area": "database",
       "document_type": "table_schema",
-      "document_status": "Unknown",
-      "implementation_status": "Unknown",
-      "metadata_complete": false,
+      "document_status": "Approved",
+      "implementation_status": "Partial",
+      "metadata_complete": true,
       "authority": "database",
       "canonical_for": [],
       "topics": [
@@ -3005,6 +3113,7 @@
         "core_assessment_question_options"
       ],
       "related_documents": [
+        "adr/ADR-0025-Assessment-Simple-Administration.md",
         "database/assessment/README.md"
       ],
       "superseded_by": null,
@@ -3047,6 +3156,7 @@
         "core_assessment_question_topics"
       ],
       "related_documents": [
+        "adr/ADR-0025-Assessment-Simple-Administration.md",
         "database/assessment/README.md"
       ],
       "superseded_by": null,
@@ -3057,9 +3167,9 @@
       "title": "Table: core_assessment_questions",
       "area": "database",
       "document_type": "table_schema",
-      "document_status": "Unknown",
-      "implementation_status": "Unknown",
-      "metadata_complete": false,
+      "document_status": "Approved",
+      "implementation_status": "Partial",
+      "metadata_complete": true,
       "authority": "database",
       "canonical_for": [],
       "topics": [
@@ -3086,6 +3196,7 @@
         "core_assessment_questions"
       ],
       "related_documents": [
+        "adr/ADR-0025-Assessment-Simple-Administration.md",
         "database/assessment/README.md"
       ],
       "superseded_by": null,
@@ -3096,9 +3207,9 @@
       "title": "Table: core_assessment_quiz_questions",
       "area": "database",
       "document_type": "table_schema",
-      "document_status": "Unknown",
-      "implementation_status": "Unknown",
-      "metadata_complete": false,
+      "document_status": "Approved",
+      "implementation_status": "Partial",
+      "metadata_complete": true,
       "authority": "database",
       "canonical_for": [],
       "topics": [
@@ -3125,6 +3236,51 @@
         "core_assessment_quiz_questions"
       ],
       "related_documents": [
+        "adr/ADR-0025-Assessment-Simple-Administration.md",
+        "database/assessment/README.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "database/assessment/core_assessment_quiz_registrations.md",
+      "title": "Table: core_assessment_quiz_registrations",
+      "area": "database",
+      "document_type": "table_schema",
+      "document_status": "Approved",
+      "implementation_status": "Partial",
+      "metadata_complete": true,
+      "authority": "database",
+      "canonical_for": [],
+      "topics": [
+        "assessment",
+        "quiz",
+        "registration",
+        "attempt"
+      ],
+      "keywords": {
+        "vi": [
+          "lược đồ bảng",
+          "tài liệu cơ sở dữ liệu",
+          "bài kiểm tra",
+          "ghi danh đề",
+          "đề thi của tôi",
+          "số lượt làm bài"
+        ],
+        "en": [
+          "table schema",
+          "database documentation",
+          "assessment",
+          "quiz registration",
+          "my exams",
+          "attempt limit"
+        ]
+      },
+      "identifiers": [
+        "core_assessment_quiz_registrations"
+      ],
+      "related_documents": [
+        "adr/ADR-0025-Assessment-Simple-Administration.md",
         "database/assessment/README.md"
       ],
       "superseded_by": null,
@@ -3135,9 +3291,9 @@
       "title": "Table: core_assessment_quiz_sections",
       "area": "database",
       "document_type": "table_schema",
-      "document_status": "Unknown",
-      "implementation_status": "Unknown",
-      "metadata_complete": false,
+      "document_status": "Approved",
+      "implementation_status": "Partial",
+      "metadata_complete": true,
       "authority": "database",
       "canonical_for": [],
       "topics": [
@@ -3164,6 +3320,91 @@
         "core_assessment_quiz_sections"
       ],
       "related_documents": [
+        "adr/ADR-0025-Assessment-Simple-Administration.md",
+        "database/assessment/README.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "database/assessment/core_assessment_quiz_version_questions.md",
+      "title": "Table: core_assessment_quiz_version_questions",
+      "area": "database",
+      "document_type": "table_schema",
+      "document_status": "Approved",
+      "implementation_status": "Partial",
+      "metadata_complete": true,
+      "authority": "database",
+      "canonical_for": [],
+      "topics": [
+        "assessment",
+        "quiz",
+        "snapshot",
+        "question"
+      ],
+      "keywords": {
+        "vi": [
+          "lược đồ bảng",
+          "tài liệu cơ sở dữ liệu",
+          "bài kiểm tra",
+          "câu đã đóng băng",
+          "snapshot câu hỏi"
+        ],
+        "en": [
+          "table schema",
+          "database documentation",
+          "assessment",
+          "frozen question",
+          "question snapshot"
+        ]
+      },
+      "identifiers": [
+        "core_assessment_quiz_version_questions"
+      ],
+      "related_documents": [
+        "adr/ADR-0025-Assessment-Simple-Administration.md",
+        "database/assessment/README.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "database/assessment/core_assessment_quiz_versions.md",
+      "title": "Table: core_assessment_quiz_versions",
+      "area": "database",
+      "document_type": "table_schema",
+      "document_status": "Approved",
+      "implementation_status": "Partial",
+      "metadata_complete": true,
+      "authority": "database",
+      "canonical_for": [],
+      "topics": [
+        "assessment",
+        "quiz",
+        "version",
+        "snapshot"
+      ],
+      "keywords": {
+        "vi": [
+          "lược đồ bảng",
+          "tài liệu cơ sở dữ liệu",
+          "bài kiểm tra",
+          "phiên bản đề",
+          "xuất bản đề"
+        ],
+        "en": [
+          "table schema",
+          "database documentation",
+          "assessment",
+          "quiz version",
+          "published quiz"
+        ]
+      },
+      "identifiers": [
+        "core_assessment_quiz_versions"
+      ],
+      "related_documents": [
+        "adr/ADR-0025-Assessment-Simple-Administration.md",
         "database/assessment/README.md"
       ],
       "superseded_by": null,
@@ -3174,9 +3415,9 @@
       "title": "Table: core_assessment_quizzes",
       "area": "database",
       "document_type": "table_schema",
-      "document_status": "Unknown",
-      "implementation_status": "Unknown",
-      "metadata_complete": false,
+      "document_status": "Approved",
+      "implementation_status": "Partial",
+      "metadata_complete": true,
       "authority": "database",
       "canonical_for": [],
       "topics": [
@@ -3200,6 +3441,7 @@
         "core_assessment_quizzes"
       ],
       "related_documents": [
+        "adr/ADR-0025-Assessment-Simple-Administration.md",
         "database/assessment/README.md"
       ],
       "superseded_by": null,
@@ -3239,6 +3481,7 @@
         "core_assessment_rubric_items"
       ],
       "related_documents": [
+        "adr/ADR-0025-Assessment-Simple-Administration.md",
         "database/assessment/README.md"
       ],
       "superseded_by": null,
@@ -3278,6 +3521,7 @@
         "core_assessment_rubrics"
       ],
       "related_documents": [
+        "adr/ADR-0025-Assessment-Simple-Administration.md",
         "database/assessment/README.md"
       ],
       "superseded_by": null,
@@ -3317,6 +3561,7 @@
         "core_assessment_topics"
       ],
       "related_documents": [
+        "adr/ADR-0025-Assessment-Simple-Administration.md",
         "database/assessment/README.md"
       ],
       "superseded_by": null,
@@ -10388,6 +10633,94 @@
       "related_documents": [
         "tech/LF-Tech-CSS.md",
         "tech/LF-Admin-Form-Design-Standard.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "quality/LF-Assessment-Learner-Regression-Audit.md",
+      "title": "Kiểm tra (Assessment) — Regression Audit phía học viên, chấm bài và Media",
+      "area": "quality",
+      "document_type": "quality_standard",
+      "document_status": "Review",
+      "implementation_status": "Partial",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": [
+        "assessment",
+        "regression audit",
+        "student experience",
+        "speaking recording"
+      ],
+      "keywords": {
+        "vi": [
+          "làm bài",
+          "đề thi của tôi",
+          "ghi âm bài nói",
+          "kết quả học viên"
+        ],
+        "en": [
+          "take exam",
+          "my assessments",
+          "speaking recording",
+          "learner result"
+        ]
+      },
+      "identifiers": [
+        "student.assessments",
+        "AssessmentLearnerController",
+        "assessment_answer"
+      ],
+      "related_documents": [
+        "adr/ADR-0025-Assessment-Simple-Administration.md",
+        "core/LF-Core-Assessment.md",
+        "quality/LF-Regression-Audit.md",
+        "platform/LF-Media.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "quality/LF-Assessment-Simple-Admin-Proposal.md",
+      "title": "LF Assessment Simple Admin Proposal",
+      "area": "quality",
+      "document_type": "architecture_review",
+      "document_status": "Approved",
+      "implementation_status": "Not Applicable",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": [
+        "assessment",
+        "quiz",
+        "question-bank",
+        "grading"
+      ],
+      "keywords": {
+        "vi": [
+          "question_bank",
+          "ngân hàng đề",
+          "chấm bài",
+          "đề thi"
+        ],
+        "en": [
+          "question bank migration",
+          "assessment admin",
+          "exam builder",
+          "grading"
+        ]
+      },
+      "identifiers": [
+        "core_assessment_quizzes",
+        "core_assessment_questions",
+        "assessment_quiz_id"
+      ],
+      "related_documents": [
+        "adr/ADR-0003-Assessment-Foundation.md",
+        "adr/ADR-0025-Assessment-Simple-Administration.md",
+        "core/LF-Core-Assessment.md",
+        "database/assessment/README.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"

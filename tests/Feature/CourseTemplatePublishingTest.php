@@ -3328,7 +3328,7 @@ class CourseTemplatePublishingTest extends TestCase
                 'General '.$customerId
             );
 
-        return DB::table('core_course_templates')->insertGetId(['course_type' => 'blended', 
+        return DB::table('core_course_templates')->insertGetId(['course_type' => 'blended',
             'customer_id' => $customerId,
             'category_id' => $categoryId,
             'title' => $title,

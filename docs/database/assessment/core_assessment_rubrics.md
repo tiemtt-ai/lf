@@ -2,6 +2,11 @@
 
 Document Path: database/assessment/core_assessment_rubrics.md
 
+> ⏸ **Hoãn theo [ADR-0025](../../adr/ADR-0025-Assessment-Simple-Administration.md)**
+> (Approved 2026-11-06): bảng này không nằm trong giai đoạn 1 của module Kiểm
+> tra và không có migration. Nội dung dưới đây là thiết kế đích của ADR-0003,
+> phải review lại trước khi triển khai.
+
 ## Purpose
 
 Rubric template tái sử dụng cho grading.

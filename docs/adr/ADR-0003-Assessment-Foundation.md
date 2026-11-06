@@ -22,11 +22,20 @@ Document Path: adr/ADR-0003-Assessment-Foundation.md
 
 * [ADR-0001 — Course Foundation](ADR-0001-Course-Foundation.md)
 * [ADR-0002 — LiveClass Foundation](ADR-0002-LiveClass-Foundation.md)
+* [ADR-0025 — Assessment Simple Administration](ADR-0025-Assessment-Simple-Administration.md) — sửa một phần ADR này
 
 Implementation note: this ADR approves the target Assessment architecture.
 Course Templates containing Quiz Activities remain blocked from publish under
 the canonical `LF-Core-Course.md` Content Readiness policy until Assessment
 Phase 2 implements the immutable Version Activity/Quiz binding.
+
+Amendment note — 2026-11-06: [ADR-0025](ADR-0025-Assessment-Simple-Administration.md)
+(Approved) thay một phần quyết định dưới đây: Quiz là bản nháp độc lập có phiên
+bản bất biến (thay cho Quiz gắn 1-1 với Version Activity); lần làm bài có đúng
+một nguồn quyền và giai đoạn 1 là ghi danh vào đề (Enrollment chỉ bắt buộc khi
+nguồn quyền là khoá học); Question Bank, Topic, Rubric, Grading Assignment và AI
+hoãn. Nội dung gốc dưới đây giữ nguyên làm lịch sử; khi xung đột, ADR-0025 có hiệu
+lực.
 
 ---
 

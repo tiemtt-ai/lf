@@ -18,6 +18,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -327,7 +328,7 @@ class CourseCohortOperationController extends Controller
             ->values()->all();
     }
 
-    private function upcomingSessionRowsForTeacher(int $customerId, int $cohortId, int $teacherId): \Illuminate\Support\Collection
+    private function upcomingSessionRowsForTeacher(int $customerId, int $cohortId, int $teacherId): Collection
     {
         $sessions = DB::table('core_liveclass_sessions as sessions')
             ->join('core_liveclass_session_teachers as assignments', function ($join) use ($customerId, $teacherId): void {

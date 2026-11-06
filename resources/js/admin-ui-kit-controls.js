@@ -346,6 +346,8 @@ export const UI_EMBED_CLEAR_EVENT = 'ui-embed-clear';
  * returns to the base state (saved, or empty when the saved file was already removed). A file chosen while the
  * flag is set replaces the saved one on the server. View asks the form to open its preview through a bubbling
  * `ui-media-preview` event, so saved and pending files share one path.
+ * "Choose from library" (when the slot has one) asks the form's library picker through `open-media-library`; the
+ * Media it answers with (`library-media`, addressed to this slot) is pending like a file, its id in a hidden field.
  */
 export function initUiKitMediaSlot(slot, deps = {}) {
     if (instances.has(slot)) return instances.get(slot);
@@ -361,6 +363,9 @@ export function initUiKitMediaSlot(slot, deps = {}) {
     const removeButton = part('remove');
     const flag = part('remove-flag');
     const statusNode = part('status');
+    const libraryButton = part('library');
+    const libraryValue = part('library-value');
+    const win = deps.window ?? globalThis;
     const urlApi = deps.url ?? globalThis.URL;
     const createEvent = deps.createEvent ?? ((type, detail) => new CustomEvent(type, { bubbles: true, detail }));
     const defer = deps.setTimeout ?? ((fn) => globalThis.setTimeout(fn, 0));
@@ -379,9 +384,11 @@ export function initUiKitMediaSlot(slot, deps = {}) {
 
     const announce = text => { if (statusNode) statusNode.textContent = text; };
     const discardPending = () => {
-        if (pending?.url) urlApi.revokeObjectURL(pending.url);
+        if (pending?.url && pending.file) urlApi.revokeObjectURL(pending.url);
         pending = null;
+        if (libraryValue) libraryValue.value = '';
     };
+    const pendingName = () => (pending?.file ? pending.file.name : pending?.library?.name ?? '');
     const render = () => {
         const isFilled = pending !== null || (saved && !removed);
         const src = pending ? (pending.isImage ? pending.url : '') : savedImage;
@@ -407,12 +414,33 @@ export function initUiKitMediaSlot(slot, deps = {}) {
     };
     const onChange = () => {
         syncFromInput();
-        if (pending) announce(selectedText.replace(':name', pending.file.name));
+        if (pending) announce(selectedText.replace(':name', pendingName()));
+        render();
+    };
+    const onLibrary = () => {
+        slot.dispatchEvent(createEvent('open-media-library', {
+            type: kind,
+            chosenId: pending?.library ? pending.library.id : null,
+            caption: slot.getAttribute('data-library-caption') || '',
+        }));
+    };
+    const onLibraryChosen = event => {
+        const item = event.detail?.chosen;
+        if (event.detail?.target !== slot || !item) return;
+        if (input.value) input.value = '';
+        discardPending();
+        imageBroken = false;
+        const preview = String(item.preview || '');
+        pending = { library: item, isImage: kind === 'image' && preview !== '', url: preview };
+        libraryValue.value = String(item.id);
+        announce(selectedText.replace(':name', pendingName()));
         render();
     };
     // Empties the tile: a chosen file is discarded, a saved one is marked for removal. Returns whether anything changed.
     const clear = () => {
-        if (pending) {
+        if (pending?.library) {
+            discardPending();
+        } else if (pending) {
             discardPending();
             input.value = '';
             // Anything that mirrors "a file is chosen" (e.g. a form's own state) hears that it is not any more.
@@ -436,10 +464,10 @@ export function initUiKitMediaSlot(slot, deps = {}) {
         const url = pending ? pending.url : savedPreview;
         if (!url) return;
         slot.dispatchEvent(createEvent(UI_MEDIA_PREVIEW_EVENT, {
-            name: pending ? pending.file.name : savedName,
+            name: pending ? pendingName() : savedName,
             url,
             kind,
-            mimeType: pending ? String(pending.file.type || '') : savedMime,
+            mimeType: pending ? String(pending.file?.type || pending.library?.mime || '') : savedMime,
         }));
     };
     const onImageError = () => { imageBroken = true; render(); };
@@ -452,6 +480,10 @@ export function initUiKitMediaSlot(slot, deps = {}) {
     });
 
     input.addEventListener('change', onChange);
+    if (libraryButton && libraryValue) {
+        libraryButton.addEventListener('click', onLibrary);
+        win.addEventListener?.('library-media', onLibraryChosen);
+    }
     removeButton.addEventListener('click', onRemove);
     viewButton.addEventListener('click', onView);
     image.addEventListener('error', onImageError);
@@ -462,6 +494,8 @@ export function initUiKitMediaSlot(slot, deps = {}) {
     const instance = { destroy() {
         discardPending();
         input.removeEventListener('change', onChange);
+        libraryButton?.removeEventListener('click', onLibrary);
+        win.removeEventListener?.('library-media', onLibraryChosen);
         removeButton.removeEventListener('click', onRemove);
         viewButton.removeEventListener('click', onView);
         image.removeEventListener('error', onImageError);

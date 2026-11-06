@@ -525,7 +525,7 @@ class CourseTemplateTeacherManagementTest extends TestCase
         string $title,
         ?int $createdBy = null
     ): int {
-        return DB::table('core_course_templates')->insertGetId(['course_type' => 'blended', 
+        return DB::table('core_course_templates')->insertGetId(['course_type' => 'blended',
             'customer_id' => $customerId,
             'category_id' => null,
             'title' => $title,

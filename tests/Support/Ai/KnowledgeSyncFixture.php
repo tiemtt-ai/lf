@@ -45,12 +45,12 @@ trait KnowledgeSyncFixture
                 'created_at' => $now, 'updated_at' => $now,
             ]);
         }
-        $templateId = DB::table('core_course_templates')->insertGetId(['course_type' => 'blended', 
+        $templateId = DB::table('core_course_templates')->insertGetId(['course_type' => 'blended',
             'customer_id' => $customerId, 'title' => "Template {$slug}", 'estimated_minutes_per_lesson' => 0,
             'lesson_count' => 0, 'working_revision' => 1, 'status' => 'active', 'created_by' => $users['admin'],
             'created_at' => $now, 'updated_at' => $now,
         ]);
-        $versionId = DB::table('core_course_template_versions')->insertGetId(['course_type_snapshot' => 'blended', 
+        $versionId = DB::table('core_course_template_versions')->insertGetId(['course_type_snapshot' => 'blended',
             'customer_id' => $customerId, 'template_id' => $templateId, 'version_number' => 1,
             'version_code' => "V-{$slug}", 'is_current' => true, 'title_snapshot' => "Template {$slug}",
             'estimated_minutes_per_lesson_snapshot' => 0, 'lesson_count_snapshot' => 0,

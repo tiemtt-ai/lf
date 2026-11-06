@@ -3,12 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\AuthorizesCourseCohortAdmin;
+use App\Services\CourseCohortContentOrder;
+use App\Services\CourseCohortContentTree;
 use App\Services\CourseCohortLifecycleService;
 use App\Services\CourseCohortMutationPolicy;
 use App\Services\CourseCohortSessionWindow;
 use App\Services\CourseCohortVersionResolver;
-use App\Services\CourseCohortContentOrder;
-use App\Services\CourseCohortContentTree;
 use App\Services\LiveClassCohortScheduleReadModel;
 use App\Services\LiveClassCohortSessionReadModel;
 use App\Services\LiveClassSessionPolicy;

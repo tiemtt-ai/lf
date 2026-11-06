@@ -75,6 +75,7 @@
         'search' => '<circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path>',
         'chevrons-up-down' => '<path d="m7 15 5 5 5-5"></path><path d="m7 9 5-5 5 5"></path>',
         'clock' => '<circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path>',
+        'file-check' => '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="m9 15 2 2 4-4"></path>',
         'layers' => '<path d="m12 3 9 5-9 5-9-5Z"></path><path d="m3 13 9 5 9-5"></path>',
     ];
 @endphp

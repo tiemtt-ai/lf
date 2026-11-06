@@ -927,6 +927,11 @@ class MediaService
             return true;
         }
 
+        // libmagic reports every WebM as video/webm, including audio-only recordings made by browser MediaRecorder.
+        if ($fileType === 'audio' && $extension === 'webm' && $mimeType === 'video/webm') {
+            return true;
+        }
+
         $rules = $this->fileContentRules()[$fileType] ?? null;
 
         return $rules !== null

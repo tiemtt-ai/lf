@@ -683,13 +683,13 @@ class LearningFrameworkAuthoringMariaDbTest extends TestCase
         $teacherId = $this->user($customerId, "teacher-{$suffix}@example.test", 'teacher');
         $studentId = $this->user($customerId, "student-{$suffix}@example.test", 'student');
 
-        $templateId = DB::table('core_course_templates')->insertGetId(['course_type' => 'blended', 
+        $templateId = DB::table('core_course_templates')->insertGetId(['course_type' => 'blended',
             'customer_id' => $customerId, 'title' => "Template {$suffix}",
             'lesson_count' => 0, 'sort_order' => 1, 'working_revision' => 1,
             'status' => 'published', 'created_by' => $adminId,
             'created_at' => $now, 'updated_at' => $now,
         ]);
-        $versionId = DB::table('core_course_template_versions')->insertGetId(['course_type_snapshot' => 'blended', 
+        $versionId = DB::table('core_course_template_versions')->insertGetId(['course_type_snapshot' => 'blended',
             'customer_id' => $customerId, 'template_id' => $templateId,
             'version_number' => 1, 'version_code' => "v1-{$suffix}", 'is_current' => true,
             'title_snapshot' => "Template {$suffix}", 'lesson_count_snapshot' => 0,

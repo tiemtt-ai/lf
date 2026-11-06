@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use App\Support\CourseProductVersionSummaryPresenter;
+use App\Support\CourseType;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
@@ -132,17 +133,17 @@ class CourseProductManagementTest extends TestCase
         DB::table('core_course_templates')->where('id', $templateId)->update(['course_type' => 'self_paced']);
         DB::table('core_course_template_versions')->where('template_id', $templateId)->update(['course_type_snapshot' => 'blended']);
 
-        $row = collect(app(\App\Support\CourseProductVersionSummaryPresenter::class)->pickerTemplates($customerId))
+        $row = collect(app(CourseProductVersionSummaryPresenter::class)->pickerTemplates($customerId))
             ->firstWhere('id', $templateId);
 
         $this->assertSame('blended', $row['course_type']);
         $this->assertSame(
-            __('lf.LF_product_template_picker_working_type', ['type' => __(\App\Support\CourseType::labelKey('self_paced'))]),
+            __('lf.LF_product_template_picker_working_type', ['type' => __(CourseType::labelKey('self_paced'))]),
             $row['working_type_note']
         );
 
         DB::table('core_course_template_versions')->where('template_id', $templateId)->update(['course_type_snapshot' => 'self_paced']);
-        $row = collect(app(\App\Support\CourseProductVersionSummaryPresenter::class)->pickerTemplates($customerId))
+        $row = collect(app(CourseProductVersionSummaryPresenter::class)->pickerTemplates($customerId))
             ->firstWhere('id', $templateId);
 
         $this->assertSame('self_paced', $row['course_type']);
@@ -1206,7 +1207,7 @@ class CourseProductManagementTest extends TestCase
         $admin = $this->createUser($customerId, 'customer_admin');
         [$categoryId, $templateId] = $this->createProductV2CategoryAndTemplate($customerId, $admin->id);
         $this->createVersion($customerId, $admin->id, 'Published', 'published', $templateId);
-        $presenter = app(\App\Support\CourseProductVersionSummaryPresenter::class);
+        $presenter = app(CourseProductVersionSummaryPresenter::class);
         $row = fn (int $id): array => collect($presenter->pickerTemplates($customerId))->firstWhere('id', $id);
 
         $this->assertTrue($row($templateId)['eligible']);
@@ -2210,7 +2211,7 @@ class CourseProductManagementTest extends TestCase
     ): int {
         $now = now();
 
-        return DB::table('core_course_templates')->insertGetId(['course_type' => 'blended', 
+        return DB::table('core_course_templates')->insertGetId(['course_type' => 'blended',
             'customer_id' => $customerId,
             'category_id' => null,
             'title' => $title,
@@ -2249,7 +2250,7 @@ class CourseProductManagementTest extends TestCase
         $templateId ??= $this->createTemplate($customerId, $userId, $title);
 
         // ADR-0022: the Product course type is read from this Version; only a self-paced one has learning days.
-        return DB::table('core_course_template_versions')->insertGetId(['course_type_snapshot' => 'blended', 
+        return DB::table('core_course_template_versions')->insertGetId(['course_type_snapshot' => 'blended',
             'customer_id' => $customerId,
             'template_id' => $templateId,
             'version_number' => $versionNumber,

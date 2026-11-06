@@ -2081,8 +2081,8 @@
 .lf-admin-ui.ui-structure .course-template-lesson-rail > .course-template-order-handle { width: 100%; height: 24px; min-height: 24px; margin: 0; }
 .lf-admin-ui.ui-structure .course-template-order-handle:active { cursor: grabbing; }
 .lf-admin-ui.ui-structure .course-template-order-handle[data-tooltip]::after { right: auto; left: 0; }
-/* From the press to the drop the hint would only cover the row beside it. */
-body.sorting .lf-admin-ui.ui-structure .course-template-order-handle[data-tooltip]:is(:hover, :focus-visible)::after,
+/* From the press to the drop the hint would only cover the row beside it (Alpine's sort plugin marks the body `.sorting`). */
+.lf-admin-ui.ui-structure:is(.sorting *) .course-template-order-handle[data-tooltip]:is(:hover, :focus-visible)::after,
 .lf-admin-ui.ui-structure .sortable-chosen .course-template-order-handle[data-tooltip]:is(:hover, :focus-visible)::after { display: none; }
 .lf-admin-ui.ui-structure .course-template-lesson-item.sortable-ghost { border-style: dashed; border-color: var(--ui-primary); background: var(--ct-primary-soft); box-shadow: none; }
 .lf-admin-ui.ui-structure .course-template-lesson-item.sortable-ghost > * { opacity: .35; }
@@ -2360,6 +2360,7 @@ body.sorting .lf-admin-ui.ui-structure .course-template-order-handle[data-toolti
 .lf-admin-ui .ui-library-pick__radio { flex: none; width: 18px; height: 18px; margin-top: 21px; border: 1.5px solid var(--ui-border); border-radius: 50%; background: var(--ui-white); }
 .lf-admin-ui .ui-library-pick__item[aria-checked=true] .ui-library-pick__radio { border-color: var(--ui-primary); border-width: 5px; }
 .lf-admin-ui .ui-library-pick__thumb { position: relative; flex: none; display: grid; place-items: center; width: 96px; aspect-ratio: 16 / 9; border-radius: 8px; overflow: hidden; color: var(--ui-white); background: linear-gradient(135deg, var(--ui-thumb-video-from), var(--ui-thumb-video-to)); }
+.lf-admin-ui .ui-library-pick__image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background: var(--ui-white); }
 .lf-admin-ui .ui-library-pick__thumb--audio { background: linear-gradient(135deg, var(--ui-thumb-audio-from), var(--ui-thumb-audio-to)); }
 .lf-admin-ui .ui-library-pick__thumb--document { background: linear-gradient(135deg, var(--ui-thumb-document-from), var(--ui-orange)); }
 .lf-admin-ui .ui-library-pick__thumb .ui-icon { width: 24px; height: 24px; opacity: .92; }
@@ -3652,3 +3653,57 @@ body.sorting .lf-admin-ui.ui-structure .course-template-order-handle[data-toolti
 .lf-admin-ui .enr-pairs .mk-table-scroll { margin-top: 14px; }
 .lf-admin-ui.enr .mk-section { margin-top: 16px; }
 .lf-admin-ui.enr .enr-head h2 { font-size: 20px; font-weight: 600; line-height: 28px; }
+/* Kiểm tra — answer rows of the question form: [correct mark + letter] [text] [remove]; accepted answers drop the mark. */
+.lf-admin-ui .ui-question-answers { display: grid; gap: 8px; }
+.lf-admin-ui .ui-question-answers__row { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; align-items: center; gap: 10px; }
+.lf-admin-ui .ui-question-answers__row--text { grid-template-columns: minmax(0, 1fr) auto; }
+.lf-admin-ui .ui-question-answers__correct { min-height: 0; font-weight: 500; }
+.lf-admin-ui .ui-question-passage-note { margin: 0 0 14px; }
+.lf-admin-ui .ui-passage-content { white-space: pre-line; font-weight: 400; }
+.lf-admin-ui .ui-passage-media { display: block; max-width: min(100%, 560px); border-radius: 8px; }
+.lf-admin-ui audio.ui-passage-media { width: 100%; }
+.lf-admin-ui .ui-passage-section-title { margin: 0; font-size: 18px; font-weight: 500; }
+.lf-admin-ui .ui-passage-prompt { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; }
+.lf-admin-ui .ui-passage-move { display: inline-flex; }
+.lf-admin-ui .ui-passage-move form { display: contents; }
+.lf-admin-ui .ui-passage-move button:disabled { opacity: .35; cursor: not-allowed; }
+.lf-admin-ui .ui-icon--flip { transform: rotate(180deg); }
+.lf-admin-ui .ui-inline-form { display: contents; }
+.lf-admin-ui .ui-quiz-notice { display: flex; align-items: center; gap: 8px; margin: 16px 20px 0; padding: 10px 14px; border-radius: 8px; background: var(--ui-warning-soft); color: var(--ui-warning); font-size: 14px; }
+.lf-admin-ui .ui-quiz-section-row th, .lf-admin-ui .ui-quiz-section-row td { background: var(--ui-color-eef0f5); }
+.lf-admin-ui .ui-quiz-section-row th { font-weight: 400; }
+.lf-admin-ui .ui-quiz-section-title { display: block; font-weight: 600; color: var(--ui-text); }
+.lf-admin-ui .ui-pick-list { display: grid; max-height: min(48vh, 420px); overflow-y: auto; border: 1px solid var(--ui-border); border-radius: 8px; }
+.lf-admin-ui .ui-pick-row { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: 10px; align-items: start; padding: 10px 14px; border-bottom: 1px solid var(--ui-color-e6e8ee); }
+.lf-admin-ui .ui-pick-row:last-child { border-bottom: 0; }
+.lf-admin-ui .ui-pick-row:hover { background: var(--ui-color-eef0fb); }
+.lf-admin-ui .ui-pick-row > span:nth-child(2) { display: grid; gap: 2px; }
+.lf-admin-ui .ui-pick-empty { margin: 0; padding: 16px; }
+.lf-admin-ui .ui-result-tabs { display: flex; gap: 8px; margin: 0 0 16px; }
+.lf-admin-ui .ui-result-tab { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px; border: 1px solid var(--ui-border); border-radius: 999px; background: var(--ui-white); color: var(--ui-muted); font-size: 14px; text-decoration: none; }
+.lf-admin-ui .ui-result-tab:hover { color: var(--ui-text); border-color: var(--ui-muted); }
+.lf-admin-ui .ui-result-tab.is-active { border-color: var(--ui-primary); background: var(--ui-color-eef0fb); color: var(--ui-primary); font-weight: 500; }
+.lf-admin-ui .ui-result-tab__count { min-width: 22px; padding: 0 6px; border-radius: 999px; background: var(--ui-warning-soft); color: var(--ui-warning); font-size: 12px; line-height: 20px; text-align: center; }
+.lf-admin-ui .ui-result-questions { padding-bottom: 8px; }
+.lf-admin-ui .ui-result-section-title { margin: 22px 22px 4px; font-size: 16px; font-weight: 600; }
+.lf-admin-ui .ui-result-section-title + .ui-caption { margin: 0 22px 8px; }
+.lf-admin-ui .ui-result-passage { display: grid; gap: 10px; margin: 16px 22px 0; padding: 14px 16px; border-left: 3px solid var(--ui-primary); border-radius: 8px; background: var(--ui-color-eef0fb); }
+.lf-admin-ui .ui-result-passage__title { margin: 0; font-weight: 600; }
+.lf-admin-ui .ui-result-question { display: grid; gap: 10px; margin: 16px 22px 0; padding: 16px 18px; border: 1px solid var(--ui-color-e6e8ee); border-radius: 10px; scroll-margin-top: 80px; }
+.lf-admin-ui .ui-result-question__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.lf-admin-ui .ui-result-question__head h3 { margin: 0; font-size: 15px; font-weight: 600; }
+.lf-admin-ui .ui-result-question__prompt { margin: 0; font-size: 15px; color: var(--ui-text); }
+.lf-admin-ui .ui-result-media { margin: 0; }
+.lf-admin-ui .ui-result-options { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.lf-admin-ui .ui-result-option { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 12px; border: 1px solid var(--ui-color-e6e8ee); border-radius: 8px; }
+.lf-admin-ui .ui-result-option__label { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--ui-color-eef0f5); font-size: 13px; font-weight: 600; }
+.lf-admin-ui .ui-result-option.is-right { border-color: var(--ui-success); background: var(--ui-success-soft); }
+.lf-admin-ui .ui-result-option.is-wrong { border-color: var(--ui-danger); background: var(--ui-danger-soft); }
+.lf-admin-ui .ui-result-answer { padding: 10px 12px; border-radius: 8px; background: var(--ui-color-eef0f5); }
+.lf-admin-ui .ui-result-answer__label { margin: 0 0 4px; font-size: 12.5px; font-weight: 500; color: var(--ui-muted); }
+.lf-admin-ui .ui-result-answer p:last-child { margin-bottom: 0; }
+.lf-admin-ui .ui-result-grade { display: grid; grid-template-columns: 160px minmax(0, 1fr) auto; gap: 12px; align-items: start; padding-top: 12px; border-top: 1px dashed var(--ui-color-e6e8ee); }
+.lf-admin-ui .ui-result-grade > .ui-button { align-self: end; }
+@media (max-width: 720px) {
+    .lf-admin-ui .ui-result-grade { grid-template-columns: 1fr; }
+}

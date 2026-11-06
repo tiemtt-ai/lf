@@ -1,26 +1,45 @@
 # Table: core_assessment_questions
 
+Version: 2.0
+
+Document Status: Approved
+
+Implementation Status: Partial
+
+Last Updated: 2026-11-06
+
 Document Path: database/assessment/core_assessment_questions.md
 
 ## Purpose
 
-Đơn vị câu hỏi gốc trong Question Bank.
+Câu hỏi nguồn do giáo viên hoặc admin soạn bằng form. Câu có thể đứng lẻ hoặc
+thuộc một ngữ liệu, theo
+[ADR-0025](../../adr/ADR-0025-Assessment-Simple-Administration.md) D3–D5.
 
 ## Relationships
 
-`Bank 1 → N Questions`; `Question 1 → N Contents / Media / Options`; `Question N ↔ N Topics`.
+`Category 1 → N Questions`; `Passage 1 → N Questions`;
+`Question 1 → 1 Content` (giai đoạn 1); `Question 1 → N Options / Media`;
+`Question 1 → N Quiz Questions / Quiz Version Questions` (lineage).
 
 ## Business Rules
 
-* Question, Bank và creator phải cùng tenant.
-* Allowed `question_type`: `single_choice`, `multiple_choice`, `true_false`, `short_answer`, `essay`, `speaking`, `listening`, `file_upload`.
-* `default_points >= 0`. Allowed `status`: `draft`, `published`, `archived`.
-* `draft` cho phép Teacher chỉnh sửa; chỉ `published` Question được phép dùng
-  cho Quiz mới.
-* `archived` Question không được dùng cho Quiz mới.
-* Published Question vẫn là mutable authoring source và không cần Question
-  Version.
-* Question là mutable authoring source; thay đổi không được làm đổi Quiz/Attempt lịch sử.
+* Question, Category, Passage và người tạo phải cùng tenant.
+* Allowed `question_type`: `single_choice`, `multiple_choice`, `true_false`,
+  `short_answer`, `essay`, `speaking`.
+* Allowed `skill_type`: `reading`, `listening`, `writing`, `speaking`, `other`.
+* Allowed `difficulty_level`: `easy`, `medium`, `hard`.
+* Allowed `status`: `draft`, `published`, `archived`. `draft` có thể chưa đầy
+  đủ; chuyển `published` phải hợp lệ theo dạng câu (xem
+  `core_assessment_question_options`). Chỉ câu `published` được thêm vào đề và
+  được xuất bản; `archived` không thêm vào đề mới.
+* `passage_id` và `passage_sort_order` cùng có hoặc cùng NULL; thứ tự duy nhất
+  trong ngữ liệu.
+* Giáo viên chỉ xem và sửa câu do mình tạo; `customer_admin` xem và sửa mọi câu
+  của tenant. Sửa không đổi `created_by`.
+* Câu đã nằm trong bất kỳ phiên bản đề nào chỉ được lưu trữ, không xoá cứng.
+  Câu chưa từng được xuất bản có thể xoá cứng nếu không nằm trong bản nháp đề nào.
+* Câu là nguồn soạn thảo sửa được; sửa không làm đổi phiên bản đề hay bài đã làm.
 
 ## Fields
 
@@ -28,34 +47,61 @@ Document Path: database/assessment/core_assessment_questions.md
 |---|---|---|
 | id | BIGINT UNSIGNED PK AUTO_INCREMENT | Khóa chính. |
 | customer_id | BIGINT UNSIGNED NOT NULL | Tenant sở hữu. |
-| question_bank_id | BIGINT UNSIGNED NOT NULL | Bank chứa Question. |
-| created_by | BIGINT UNSIGNED NOT NULL | User tạo. |
-| question_type | VARCHAR(50) NOT NULL | Loại câu hỏi. |
-| skill_type | VARCHAR(50) NULL | Listening/speaking/reading/writing hoặc skill khác. |
-| difficulty_level | VARCHAR(50) NULL | Mức độ khó. |
-| default_points | DECIMAL(8,2) NOT NULL DEFAULT 0.00 | Điểm mặc định. |
-| status | VARCHAR(50) NOT NULL DEFAULT 'draft' | Lifecycle `draft`, `published`, `archived`. |
+| category_id | BIGINT UNSIGNED NULL | Danh mục. |
+| passage_id | BIGINT UNSIGNED NULL | Ngữ liệu chứa câu; NULL = câu lẻ. |
+| passage_sort_order | INT UNSIGNED NULL | Thứ tự trong ngữ liệu. |
+| created_by | BIGINT UNSIGNED NOT NULL | Người tạo, quyết định quyền sửa của giáo viên. |
+| updated_by | BIGINT UNSIGNED NULL | Người sửa gần nhất. |
+| question_type | VARCHAR(30) NOT NULL | Dạng câu. |
+| skill_type | VARCHAR(50) NULL | Kỹ năng. |
+| difficulty_level | VARCHAR(20) NULL | Độ khó. |
+| default_points | DECIMAL(8,2) NOT NULL DEFAULT 1.00 | Điểm mặc định khi thêm vào đề. |
+| status | VARCHAR(20) NOT NULL DEFAULT 'draft' | Lifecycle. |
 | metadata | JSON NULL | Thuộc tính mở rộng. |
 | created_at | TIMESTAMP NULL | Thời điểm tạo. |
 | updated_at | TIMESTAMP NULL | Thời điểm cập nhật. |
 
+## Constraints
+
+```sql
+CHECK (question_type IN ('single_choice','multiple_choice','true_false','short_answer','essay','speaking'));
+CHECK (skill_type IS NULL OR skill_type IN ('reading','listening','writing','speaking','other'));
+CHECK (difficulty_level IS NULL OR difficulty_level IN ('easy','medium','hard'));
+CHECK (status IN ('draft','published','archived'));
+CHECK (default_points >= 0);
+CHECK ((passage_id IS NULL) = (passage_sort_order IS NULL));
+```
+
 ## Indexes
 
 ```sql
-INDEX (customer_id);
-INDEX (customer_id, question_bank_id);
+INDEX (customer_id, category_id);
 INDEX (customer_id, created_by);
-INDEX (customer_id, question_type);
-INDEX (customer_id, skill_type);
 INDEX (customer_id, status);
+INDEX (customer_id, question_type);
+INDEX (customer_id, skill_type, difficulty_level);
+UNIQUE (customer_id, passage_id, passage_sort_order);
+UNIQUE (id, customer_id);
+```
+
+## Foreign Keys
+
+```sql
+FOREIGN KEY (customer_id) REFERENCES saas_customers(id);
+FOREIGN KEY (category_id, customer_id) REFERENCES core_assessment_categories(id, customer_id);
+FOREIGN KEY (passage_id, customer_id) REFERENCES core_assessment_passages(id, customer_id);
+FOREIGN KEY (created_by) REFERENCES users(id);
+FOREIGN KEY (updated_by) REFERENCES users(id);
 ```
 
 ## Sample Data
 
-`id=100, customer_id=1, question_bank_id=10, created_by=200, question_type=single_choice, skill_type=reading, difficulty_level=beginner, default_points=1.00, status=published`
+`id=100, customer_id=1, category_id=3, passage_id=50, passage_sort_order=1, created_by=20, question_type=single_choice, skill_type=reading, difficulty_level=medium, default_points=2.50, status=published`
+`id=101, customer_id=1, category_id=3, passage_id=NULL, created_by=20, question_type=essay, skill_type=writing, difficulty_level=hard, default_points=10.00, status=published`
 
 ## Design Notes
 
-Không cần Question Version. `core_assessment_quiz_questions` snapshot
-Question/options/correct answer; vì vậy thay đổi Published Question không ảnh
-hưởng Quiz hoặc Attempt lịch sử.
+So với ADR-0003: bỏ `question_bank_id` (Question Bank hoãn); thêm danh mục,
+ngữ liệu, `updated_by`; `listening` chuyển hẳn sang `skill_type`; độ khó cố định
+3 mức để lọc và đề động sau này không phải so chuỗi. Không cần Question Version:
+`core_assessment_quiz_version_questions` giữ snapshot.

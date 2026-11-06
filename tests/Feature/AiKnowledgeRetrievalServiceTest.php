@@ -564,7 +564,7 @@ class AiKnowledgeRetrievalServiceTest extends TestCase
         ]);
         TenantContext::set((object) ['id' => $customerId]);
 
-        $templateId = DB::table('core_course_templates')->insertGetId(['course_type' => 'blended', 
+        $templateId = DB::table('core_course_templates')->insertGetId(['course_type' => 'blended',
             'customer_id' => $customerId, 'title' => $slug, 'status' => 'active',
             'created_by' => $userId, 'created_at' => now(), 'updated_at' => now(),
         ]);

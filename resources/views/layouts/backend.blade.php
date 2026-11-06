@@ -61,6 +61,13 @@
                     ['label' => __('lf.LF_navigation_menu_admin_media'), 'route' => 'teacher.media.index', 'active' => 'teacher.media.*', 'visible' => true],
                 ]],
                 ['label' => __('lf.LF_navigation_menu_teacher_cohorts'), 'route' => 'teacher.cohorts.index', 'active' => 'teacher.cohorts.*', 'visible' => true, 'icon' => 'users'],
+                ['label' => __('lf.LF_navigation_group_assessment'), 'route' => null, 'active' => null, 'visible' => true, 'icon' => 'file-check', 'children' => [
+                    ['label' => __('lf.LF_navigation_menu_assessment_questions'), 'route' => 'teacher.assessments.questions.index', 'active' => 'teacher.assessments.questions.*', 'visible' => true],
+                    ['label' => __('lf.LF_navigation_menu_assessment_passages'), 'route' => 'teacher.assessments.passages.index', 'active' => 'teacher.assessments.passages.*', 'visible' => true],
+                    ['label' => __('lf.LF_navigation_menu_assessment_quizzes'), 'route' => 'teacher.assessments.quizzes.index', 'active' => 'teacher.assessments.quizzes.*', 'visible' => true],
+                    ['label' => __('lf.LF_navigation_menu_assessment_registrations'), 'route' => 'teacher.assessments.registrations.index', 'active' => 'teacher.assessments.registrations.*', 'visible' => true],
+                    ['label' => __('lf.LF_navigation_menu_assessment_results'), 'route' => 'teacher.assessments.results.index', 'active' => 'teacher.assessments.results.*', 'visible' => true],
+                ]],
             ]
             : [
                 ['label' => __('lf.LF_navigation_menu_admin_dashboard'), 'route' => 'admin.dashboard', 'active' => 'admin.dashboard', 'visible' => true, 'icon' => 'home'],
@@ -72,6 +79,14 @@
                 ]],
                 ['label' => __('lf.LF_navigation_menu_admin_course_enrollments'), 'route' => 'admin.course-enrollments.index', 'active' => 'admin.course-enrollments.*', 'visible' => true, 'icon' => 'clipboard-check'],
                 ['label' => __('lf.LF_navigation_menu_admin_course_cohorts'), 'route' => 'admin.course-cohorts.index', 'active' => 'admin.course-cohorts.*', 'visible' => true, 'icon' => 'users'],
+                ['label' => __('lf.LF_navigation_group_assessment'), 'route' => null, 'active' => null, 'visible' => true, 'icon' => 'file-check', 'children' => [
+                    ['label' => __('lf.LF_navigation_menu_assessment_categories'), 'route' => 'admin.assessments.categories.index', 'active' => 'admin.assessments.categories.*', 'visible' => true],
+                    ['label' => __('lf.LF_navigation_menu_assessment_questions'), 'route' => 'admin.assessments.questions.index', 'active' => 'admin.assessments.questions.*', 'visible' => true],
+                    ['label' => __('lf.LF_navigation_menu_assessment_passages'), 'route' => 'admin.assessments.passages.index', 'active' => 'admin.assessments.passages.*', 'visible' => true],
+                    ['label' => __('lf.LF_navigation_menu_assessment_quizzes'), 'route' => 'admin.assessments.quizzes.index', 'active' => 'admin.assessments.quizzes.*', 'visible' => true],
+                    ['label' => __('lf.LF_navigation_menu_assessment_registrations'), 'route' => 'admin.assessments.registrations.index', 'active' => 'admin.assessments.registrations.*', 'visible' => true],
+                    ['label' => __('lf.LF_navigation_menu_assessment_results'), 'route' => 'admin.assessments.results.index', 'active' => 'admin.assessments.results.*', 'visible' => true],
+                ]],
                 ['label' => __('lf.LF_learning_frameworks'), 'route' => 'admin.learning-frameworks.index', 'active' => 'admin.learning-frameworks.*', 'visible' => true, 'icon' => 'book-marked'],
             ];
         $dashboardLabel = $isTeacher

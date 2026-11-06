@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\OrganizationController;
 use App\Http\Controllers\Admin\ProfileController as AdminProfileController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Assessment\AssessmentLearnerController;
 use App\Http\Controllers\CustomerRegisterController;
 use App\Http\Controllers\MediaFileController;
 use App\Http\Controllers\MediaFileDeliveryController;
@@ -68,7 +69,8 @@ Route::middleware(['tenant'])->group(function () {
     Route::get('/courses/{slug}', [TenantWebsiteController::class, 'course'])
         ->name('tenant.courses.show');
 
-    Route::get('/assessments', [TenantWebsiteController::class, 'assessments'])
+    // Kiểm tra (ADR-0025 D2): quizzes open for registration; introductions only, no questions or answers.
+    Route::get('/assessments', [AssessmentLearnerController::class, 'index'])
         ->name('tenant.assessments');
 
     Route::get('/services', [TenantWebsiteController::class, 'services'])
@@ -175,6 +177,7 @@ Route::middleware([
     require __DIR__.'/modules/course.php';
     require __DIR__.'/modules/media.php';
     require __DIR__.'/modules/learning.php';
+    require __DIR__.'/modules/assessment.php';
 });
 
 /*
@@ -222,6 +225,9 @@ Route::middleware([
     $registerCategoryManagement = false;
     $registerTemplateTeacherManagement = false;
     require __DIR__.'/modules/course.php';
+
+    $registerAssessmentCategoryManagement = false;
+    require __DIR__.'/modules/assessment.php';
 });
 
 /*
@@ -245,6 +251,19 @@ Route::middleware([
 
     Route::get('/ai-tutor', [TenantWebsiteController::class, 'aiTutor'])
         ->name('student.ai-tutor');
+
+    // Kiểm tra for students: "Đề thi của tôi", self-registration, taking an attempt and its result (ADR-0025).
+    Route::controller(AssessmentLearnerController::class)->prefix('/assessments')->name('student.assessments.')
+        ->whereNumber(['id', 'registrationId', 'questionId'])->group(function () {
+            Route::get('/my', 'mine')->name('mine');
+            Route::post('/{id}/register', 'register')->name('register');
+            Route::post('/registrations/{registrationId}/start', 'start')->name('start');
+            Route::get('/attempts/{id}', 'show')->name('attempts.show');
+            Route::post('/attempts/{id}/answers', 'save')->name('attempts.save');
+            Route::post('/attempts/{id}/recordings/{questionId}', 'record')->name('attempts.record');
+            Route::post('/attempts/{id}/submit', 'submit')->name('attempts.submit');
+            Route::get('/attempts/{id}/result', 'result')->name('attempts.result');
+        });
 
     Route::get('/profile', [RoleProfileController::class, 'editStudent'])
         ->name('student.profile.edit');

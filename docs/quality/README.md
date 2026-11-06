@@ -40,6 +40,8 @@ criteria hay không.
   và độ sâu kiểm chứng theo mức cao nhất áp dụng.
 * [LF-UI-Async-State-Engineering-Practice.md](LF-UI-Async-State-Engineering-Practice.md) — nguyên tắc và danh sách kiểm cho giao diện có nhiều luồng bất đồng bộ dùng chung trạng thái (2026-09-30).
 * [LF-Media-Sharing-Proposal.md](LF-Media-Sharing-Proposal.md) — đề xuất chia sẻ Media trong tenant, chờ Owner quyết trước khi viết ADR (2026-10-21).
+* [LF-Assessment-Simple-Admin-Proposal.md](LF-Assessment-Simple-Admin-Proposal.md) — phân tích question_bank và đề xuất quản trị Assessment đơn giản, nguồn của ADR-0025; Owner đã duyệt (2026-11-06).
+* [LF-Assessment-Learner-Regression-Audit.md](LF-Assessment-Learner-Regression-Audit.md) — regression audit HIGH phía học viên module Kiểm tra, ghi âm và Media Library; PASS WITH DOCUMENTED RISKS (2026-11-06).
 * [LF-Documentation-Conflicts.md](LF-Documentation-Conflicts.md) — canonical
   register cho inconsistency đã xác minh; kiểm tra register và dừng affected
   concern khi hai official sources không thể đồng thời được thỏa mãn.

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -128,7 +129,7 @@ class LiveClassCohortSessionReadModel
 
     private function localFromUtc(string $utc, string $timezone): string
     {
-        return \Carbon\CarbonImmutable::parse($utc, 'UTC')->setTimezone($timezone)->format('Y-m-d\TH:i');
+        return CarbonImmutable::parse($utc, 'UTC')->setTimezone($timezone)->format('Y-m-d\TH:i');
     }
 
     /**

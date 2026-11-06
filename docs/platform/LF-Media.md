@@ -1,12 +1,12 @@
 # LF-Media.md
 
-Version: 1.12
+Version: 1.13
 
 Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-09-06
+Last Updated: 2026-11-06
 
 Document Path: platform/LF-Media.md
 
@@ -535,6 +535,14 @@ Hai điểm phải nói rõ vì chúng dễ gây hiểu nhầm:
   Legacy đi qua đường LibreOffice; `.txt` đọc thẳng. Vì phạm vi structured
   extraction khoá theo `file_type = 'document'`, `.txt` nằm trong phạm vi trên
   giấy — không thành vấn đề vì nó ở nhóm optional nên không ai yêu cầu.
+* **Ngoại lệ WebM ghi âm (2026-11-06).** libmagic nhận mọi file WebM là
+  `video/webm`, kể cả file chỉ có tiếng do `MediaRecorder` của trình duyệt ghi.
+  Vì vậy upload được nhận khi **đồng thời** `file_type = 'audio'`, extension
+  `webm` và MIME `video/webm`. Mọi tổ hợp khác giữ luật trong bảng. Bản ghi lưu
+  nguyên `mime_type = video/webm`; luồng speech-to-text (chỉ nhận MIME `audio/*`)
+  sẽ phải chuẩn hoá MIME trước khi dùng cho bản ghi này. Nguồn: bài nói Speaking
+  của module Kiểm tra; xem
+  [LF-Assessment-Learner-Regression-Audit](../quality/LF-Assessment-Learner-Regression-Audit.md).
 
 Giới hạn dung lượng là `MEDIA_MAX_UPLOAD_KILOBYTES`, không theo từng `file_type`.
 Xem [LF-Tech-Runtime-Requirements § 10](../tech/LF-Tech-Runtime-Requirements.md)

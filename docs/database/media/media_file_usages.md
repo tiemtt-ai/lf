@@ -1,12 +1,12 @@
 # Table: media_file_usages
 
-Version: 1.2
+Version: 1.3
 
 Document Status: Approved
 
 Implementation Status: Implemented
 
-Last Updated: 2026-08-23
+Last Updated: 2026-11-06
 
 Document Path: database/media/media_file_usages.md
 
@@ -32,12 +32,16 @@ hay S3.
 * `owner_type + owner_id` là generic reference; Media không diễn giải business state của owner.
 * Allowed `owner_type`: `course_template`, `course_template_version`,
   `course_product`, `course_activity`, `course_version_activity`,
-  `course_cohort`, `assessment_question`, `assessment_answer`,
+  `course_cohort`, `assessment_question`, `assessment_passage`,
+  `assessment_quiz_version`, `assessment_answer`,
   `liveclass_recording`, `certificate`, `avatar`, `ai_knowledge`, `marketing`.
   `course_version_activity` is the published Version Activity owner required by
   [ADR-0012](../../adr/ADR-0012-Course-Template-Published-Version-Snapshot.md)
   and [ADR-0013](../../adr/ADR-0013-Course-Template-Version-Duplicate-to-Draft.md);
   it was ratified there and is recorded here under DOC-CONFLICT-0013.
+  `assessment_passage` (Media của ngữ liệu) và `assessment_quiz_version` (Media
+  được snapshot khi xuất bản đề, giữ cho đề đã xuất bản không mất file) được
+  thêm theo [ADR-0025](../../adr/ADR-0025-Assessment-Simple-Administration.md).
 * `course_category` occurs in the development database but is named by no
   approved document. It is registered as DOC-CONFLICT-0014 and is deliberately
   absent from the list above until the Media Domain Owner ratifies it. Do not
@@ -46,7 +50,8 @@ hay S3.
 * The list above has no physical backing: `owner_type` carries no CHECK
   constraint, so nothing rejects a value that was never documented. This is the
   reason the list drifted twice, and it is tracked as DOC-CONFLICT-0015.
-* Allowed `usage_type`: `intro_image`, `intro_video`, `intro_document`, `cover_image`, `thumbnail`, `video`, `audio`, `document`, `attachment`, `recording`, `certificate_pdf`, `avatar_image`, `source_material`.
+* Allowed `usage_type`: `intro_image`, `intro_video`, `intro_document`, `cover_image`, `thumbnail`, `video`, `audio`, `document`, `attachment`, `recording`, `certificate_pdf`, `avatar_image`, `source_material`, `image`.
+  `image` (ảnh trong nội dung Assessment) thêm theo ADR-0025.
 * Course Template and immutable Course Template Version introduction usages use
   only `intro_image`, `intro_video`, and `intro_document`. Embedded video URLs
   create no Media usage.

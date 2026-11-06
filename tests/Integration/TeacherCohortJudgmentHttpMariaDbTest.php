@@ -231,11 +231,11 @@ class TeacherCohortJudgmentHttpMariaDbTest extends TestCase
     {
         $now = now();
         $key = substr(md5($name.microtime()), 0, 8);
-        $templateId = DB::table('core_course_templates')->insertGetId(['course_type' => 'blended', 
+        $templateId = DB::table('core_course_templates')->insertGetId(['course_type' => 'blended',
             'customer_id' => $f['customer_id'], 'title' => "Template {$name}", 'lesson_count' => 0, 'sort_order' => 1,
             'working_revision' => 1, 'status' => 'published', 'created_by' => $f['admin_id'], 'created_at' => $now, 'updated_at' => $now,
         ]);
-        $versionId = DB::table('core_course_template_versions')->insertGetId(['course_type_snapshot' => 'blended', 
+        $versionId = DB::table('core_course_template_versions')->insertGetId(['course_type_snapshot' => 'blended',
             'customer_id' => $f['customer_id'], 'template_id' => $templateId, 'version_number' => 1, 'version_code' => "v1-{$key}",
             'is_current' => true, 'title_snapshot' => "Template {$name}", 'lesson_count_snapshot' => 0, 'source_working_revision' => 1,
             'status' => 'published', 'published_at' => $now, 'published_by' => $f['admin_id'], 'source_template_updated_at' => $now,

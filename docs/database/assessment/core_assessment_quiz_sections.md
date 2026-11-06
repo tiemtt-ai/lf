@@ -1,10 +1,19 @@
 # Table: core_assessment_quiz_sections
 
+Version: 2.0
+
+Document Status: Approved
+
+Implementation Status: Partial
+
+Last Updated: 2026-11-06
+
 Document Path: database/assessment/core_assessment_quiz_sections.md
 
 ## Purpose
 
-Phân phần trong Quiz như Listening, Reading hoặc Writing.
+Các phần của bản nháp đề, ví dụ Nghe, Đọc, Viết, theo
+[ADR-0025](../../adr/ADR-0025-Assessment-Simple-Administration.md) D6.
 
 ## Relationships
 
@@ -13,8 +22,12 @@ Phân phần trong Quiz như Listening, Reading hoặc Writing.
 ## Business Rules
 
 * Section và Quiz phải cùng tenant.
-* `sort_order` duy nhất trong Quiz; duration/points không âm.
-* Section của published Quiz là immutable.
+* Mỗi đề có ít nhất một phần. Đề mới tạo kèm một phần mặc định; khi đề chỉ có
+  một phần, giao diện ẩn khái niệm phần.
+* `sort_order` duy nhất trong đề.
+* Đây là cấu trúc soạn thảo, sửa được. Khi xuất bản, phần được chép vào
+  `core_assessment_quiz_versions.sections_snapshot`.
+* Xoá phần chỉ khi phần không còn câu.
 
 ## Fields
 
@@ -22,30 +35,41 @@ Phân phần trong Quiz như Listening, Reading hoặc Writing.
 |---|---|---|
 | id | BIGINT UNSIGNED PK AUTO_INCREMENT | Khóa chính. |
 | customer_id | BIGINT UNSIGNED NOT NULL | Tenant sở hữu. |
-| quiz_id | BIGINT UNSIGNED NOT NULL | Quiz cha. |
+| quiz_id | BIGINT UNSIGNED NOT NULL | Đề. |
 | title | VARCHAR(255) NOT NULL | Tên phần. |
-| description | TEXT NULL | Mô tả. |
-| skill_type | VARCHAR(50) NULL | Skill đánh giá. |
+| description | TEXT NULL | Hướng dẫn của phần. |
+| skill_type | VARCHAR(50) NULL | Kỹ năng của phần. |
 | sort_order | INT UNSIGNED NOT NULL DEFAULT 1 | Thứ tự. |
-| duration_minutes | INT UNSIGNED NULL | Giới hạn phần. |
-| total_points | DECIMAL(10,2) NOT NULL DEFAULT 0.00 | Tổng điểm phần. |
 | metadata | JSON NULL | Cấu hình mở rộng. |
 | created_at | TIMESTAMP NULL | Thời điểm tạo. |
 | updated_at | TIMESTAMP NULL | Thời điểm cập nhật. |
 
+## Constraints
+
+```sql
+CHECK (skill_type IS NULL OR skill_type IN ('reading','listening','writing','speaking','other'));
+```
+
 ## Indexes
 
 ```sql
-INDEX (customer_id);
 INDEX (customer_id, quiz_id);
-INDEX (customer_id, skill_type);
 UNIQUE (customer_id, quiz_id, sort_order);
+UNIQUE (id, customer_id);
+```
+
+## Foreign Keys
+
+```sql
+FOREIGN KEY (customer_id) REFERENCES saas_customers(id);
+FOREIGN KEY (quiz_id, customer_id) REFERENCES core_assessment_quizzes(id, customer_id) ON DELETE CASCADE;
 ```
 
 ## Sample Data
 
-`id=2100, customer_id=1, quiz_id=2000, title=Listening, skill_type=listening, sort_order=1, duration_minutes=20, total_points=30.00`
+`id=2100, customer_id=1, quiz_id=2000, title=Đọc hiểu, skill_type=reading, sort_order=1`
 
 ## Design Notes
 
-Section total is validated against Quiz totals during publish; it is not Course Progress.
+So với ADR-0003: phần không còn bất biến; bỏ `duration_minutes` (giới hạn theo
+từng phần để sau) và `total_points` (tính từ câu).

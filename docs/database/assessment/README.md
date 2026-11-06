@@ -1,112 +1,115 @@
 # MIỀN NGHIỆP VỤ ASSESSMENT
 
+Version: 2.0
+
+Document Status: Approved
+
+Implementation Status: Partial
+
+Last Updated: 2026-11-06
+
 Document Path: database/assessment/README.md
 
-> ⚠️ **Chưa triển khai**: Đây là spec kiến trúc đã duyệt (ADR-0003, Approved)
-> nhưng hiện chưa có migration/model thực tế trong codebase — xem
-> `database/migrations/` để biết trạng thái triển khai thật.
+> Thiết kế theo [ADR-0003](../../adr/ADR-0003-Assessment-Foundation.md) và
+> [ADR-0025](../../adr/ADR-0025-Assessment-Simple-Administration.md) (Approved
+> 2026-11-06). Owner duyệt tài liệu bảng giai đoạn 1 trong hội thoại ngày
+> 2026-11-06 (không lập tài liệu Architecture Review riêng, như tiền lệ
+> ADR-0021). Migration giai đoạn 1 đã có
+> (`2026_11_06_000100`–`000300`), kiểm trên MariaDB 11.4; service, route và giao
+> diện chưa có, nên Implementation Status là `Partial`.
 
-Miền nghiệp vụ Assessment quản lý việc biên soạn câu hỏi và toàn bộ chu trình
-đánh giá, từ bài kiểm tra đã phát hành đến lần làm bài, câu trả lời, chấm điểm
-và phản hồi. Miền nghiệp vụ này tạo ra bằng chứng đánh giá, đồng thời để các
-quyết định về Progress, Hoàn thành khóa học và Certificate cho các miền
-nghiệp vụ sở hữu tương ứng.
-
----
-
-## Tổng quan Miền nghiệp vụ
-
-- **Trách nhiệm nghiệp vụ:** Đo lường kết quả học tập và lưu giữ bằng chứng đánh
-  giá đáng tin cậy.
-- **Phạm vi:** Thư viện câu hỏi, Snapshot bài kiểm tra, lần làm bài,
-  câu trả lời, chấm điểm, rubric, điểm số, kết quả đạt/không đạt và phản hồi.
-- **Sở hữu:** Nguồn biên soạn Assessment, Snapshot Assessment đã phát hành,
-  bài làm của học viên và kết quả chấm điểm.
-- **Không sở hữu:** Progress hoặc Hoàn thành khóa học, điều kiện cấp
-  Certificate, tệp Media, hành vi Track hoặc quyết định cuối cùng thuộc miền
-  nghiệp vụ khác.
-- **Miền nghiệp vụ liên quan:** Course, Certificate, Media, Track, AI, Người
-  dùng và Tenant.
+Miền Assessment quản lý module **Kiểm tra**: danh mục, câu hỏi, ngữ liệu, đề /
+bài tập, phiên bản xuất bản, ghi danh, lần làm bài, câu trả lời và chấm điểm.
+Miền này tạo bằng chứng đánh giá; không tự đổi trạng thái của miền khác.
 
 ---
 
-## Các nhóm cơ sở dữ liệu
+## Tổng quan
 
-## 1. Thư viện câu hỏi và hệ thống phân loại
+- **Trách nhiệm:** soạn câu hỏi, ghép đề, xuất bản đề, cho học viên làm bài,
+  chấm và lưu kết quả đáng tin cậy.
+- **Sở hữu:** nguồn soạn thảo, phiên bản đề đã xuất bản, ghi danh vào đề, bài
+  làm và kết quả chấm.
+- **Không sở hữu:** file (Media), thanh toán, Course Progress / Completion,
+  Certificate.
+- **Miền liên quan:** Media, Người dùng và Tenant; sau này Course (gắn đề / gói
+  vào khoá học) và Product (bán đề).
+
+---
+
+## Bảng giai đoạn 1
+
+### 1. Nguồn soạn thảo
 
 | Bảng | Mô tả |
 |------|------|
-| **core_assessment_categories** | Cây phân cấp danh mục Assessment |
-| **core_assessment_question_banks** | Các ngân hàng câu hỏi có thể tái sử dụng |
-| **core_assessment_questions** | Nguồn biên soạn câu hỏi |
-| **core_assessment_question_contents** | Nội dung câu hỏi được bản địa hóa |
-| **core_assessment_question_media** | Media đính kèm câu hỏi |
-| **core_assessment_question_options** | Các lựa chọn và phương án đúng/sai |
-| **core_assessment_topics** | Cây phân cấp chủ đề của câu hỏi |
-| **core_assessment_question_topics** | Quan hệ gán câu hỏi với chủ đề |
+| [core_assessment_categories](core_assessment_categories.md) | Cây danh mục ("nhóm câu hỏi") |
+| [core_assessment_passages](core_assessment_passages.md) | Ngữ liệu: đoạn đọc / bài nghe có nhiều câu con |
+| [core_assessment_questions](core_assessment_questions.md) | Câu hỏi |
+| [core_assessment_question_contents](core_assessment_question_contents.md) | Đề bài, giải thích, đáp án mẫu |
+| [core_assessment_question_options](core_assessment_question_options.md) | Lựa chọn và đáp án chấp nhận |
+| [core_assessment_question_media](core_assessment_question_media.md) | Media của câu hỏi hoặc ngữ liệu |
 
----
-
-## 2. Cấu trúc bài kiểm tra đã phát hành
+### 2. Đề và phiên bản
 
 | Bảng | Mô tả |
 |------|------|
-| **core_assessment_quizzes** | Các đối tượng Assessment đã phát hành |
-| **core_assessment_quiz_sections** | Các phần của bài kiểm tra |
-| **core_assessment_quiz_questions** | Snapshot câu hỏi trong bài kiểm tra đã được đóng băng |
+| [core_assessment_quizzes](core_assessment_quizzes.md) | Bản nháp đề / bài tập, dùng lại được |
+| [core_assessment_quiz_sections](core_assessment_quiz_sections.md) | Phần của bản nháp |
+| [core_assessment_quiz_questions](core_assessment_quiz_questions.md) | Câu trong bản nháp |
+| [core_assessment_quiz_versions](core_assessment_quiz_versions.md) | Phiên bản xuất bản bất biến |
+| [core_assessment_quiz_version_questions](core_assessment_quiz_version_questions.md) | Câu đã đóng băng trong phiên bản |
 
----
-
-## 3. Lần làm bài và câu trả lời
-
-| Bảng | Mô tả |
-|------|------|
-| **core_assessment_attempts** | Các lần học viên thực hiện bài kiểm tra |
-| **core_assessment_answers** | Các câu trả lời trong một lần làm bài |
-| **core_assessment_answer_files** | Media đính kèm câu trả lời |
-
----
-
-## 4. Vận hành chấm điểm
+### 3. Ghi danh, làm bài, chấm
 
 | Bảng | Mô tả |
 |------|------|
-| **core_assessment_grading_assignments** | Phân công công việc chấm điểm |
-| **core_assessment_gradings** | Bằng chứng chấm điểm và kết quả cuối cùng |
+| [core_assessment_quiz_registrations](core_assessment_quiz_registrations.md) | Ghi danh học viên vào đề, đếm lượt |
+| [core_assessment_attempts](core_assessment_attempts.md) | Lần làm bài |
+| [core_assessment_answers](core_assessment_answers.md) | Câu trả lời |
+| [core_assessment_answer_files](core_assessment_answer_files.md) | File ghi âm Speaking |
+| [core_assessment_gradings](core_assessment_gradings.md) | Lịch sử chấm tay theo câu |
 
----
+## Bảng hoãn (không có migration ở giai đoạn 1)
 
-## 5. Rubric
-
-| Bảng | Mô tả |
+| Bảng | Lý do |
 |------|------|
-| **core_assessment_rubrics** | Các Rubric chấm điểm có thể tái sử dụng |
-| **core_assessment_rubric_items** | Các tiêu chí trong Rubric |
+| [core_assessment_question_banks](core_assessment_question_banks.md) | Câu hỏi thuộc người tạo, phân loại bằng danh mục |
+| [core_assessment_topics](core_assessment_topics.md) | Danh mục đủ cho giai đoạn 1 |
+| [core_assessment_question_topics](core_assessment_question_topics.md) | Như trên |
+| [core_assessment_rubrics](core_assessment_rubrics.md) | Chấm điểm + nhận xét là đủ |
+| [core_assessment_rubric_items](core_assessment_rubric_items.md) | Như trên |
+| [core_assessment_grading_assignments](core_assessment_grading_assignments.md) | Người chấm suy ra từ người tạo / người cấp |
 
 ---
 
-## Sơ đồ quan hệ Miền nghiệp vụ
+## Sơ đồ quan hệ
 
 ```mermaid
 erDiagram
-    CATEGORY ||--o{ QUESTION_BANK : organizes
-    QUESTION_BANK ||--o{ QUESTION : contains
-    QUESTION ||--o{ QUESTION_CONTENT : localizes
-    QUESTION ||--o{ QUESTION_MEDIA : uses
+    CATEGORY ||--o{ QUESTION : groups
+    CATEGORY ||--o{ PASSAGE : groups
+    CATEGORY ||--o{ QUIZ : groups
+    PASSAGE ||--o{ QUESTION : contains
+    QUESTION ||--o{ QUESTION_CONTENT : has
     QUESTION ||--o{ QUESTION_OPTION : offers
-    QUESTION }o--o{ TOPIC : classifies
+    QUESTION ||--o{ QUESTION_MEDIA : uses
+    PASSAGE ||--o{ QUESTION_MEDIA : uses
 
-    QUIZ ||--o{ QUIZ_SECTION : contains
-    QUIZ_SECTION ||--o{ QUIZ_QUESTION : contains
-    QUESTION ||--o{ QUIZ_QUESTION : snapshots
+    QUIZ ||--o{ QUIZ_SECTION : drafts
+    QUIZ_SECTION ||--o{ QUIZ_QUESTION : drafts
+    QUESTION ||--o{ QUIZ_QUESTION : selected
 
-    QUIZ ||--o{ ATTEMPT : receives
+    QUIZ ||--o{ QUIZ_VERSION : publishes
+    QUIZ_VERSION ||--o{ QUIZ_VERSION_QUESTION : freezes
+
+    QUIZ ||--o{ QUIZ_REGISTRATION : registers
+    QUIZ_REGISTRATION ||--o{ ATTEMPT : grants
+    QUIZ_VERSION ||--o{ ATTEMPT : locks
     ATTEMPT ||--o{ ANSWER : contains
+    QUIZ_VERSION_QUESTION ||--o{ ANSWER : answers
     ANSWER ||--o{ ANSWER_FILE : attaches
-    ATTEMPT ||--o{ GRADING_ASSIGNMENT : assigns
-    ANSWER ||--o{ GRADING : evaluates
-    RUBRIC ||--o{ RUBRIC_ITEM : defines
-    RUBRIC ||--o{ GRADING : guides
+    ANSWER ||--o{ GRADING : graded_by
 ```
 
 ---
@@ -115,40 +118,31 @@ erDiagram
 
 ```mermaid
 flowchart LR
-    A[Question Library] --> B[Quiz Structure]
-    B --> C[Published Quiz Snapshot]
-    C --> D[Attempt]
-    D --> E[Answers]
-    E --> F[Grading]
-    F --> G[Evaluation Evidence]
-    G --> H[Owner Domain Decision]
+    A[Câu hỏi / Ngữ liệu] --> B[Bản nháp đề]
+    B -->|Xuất bản| C[Phiên bản đề]
+    D[Ghi danh: tự đăng ký / được cấp] --> E[Lần làm bài]
+    C --> E
+    E --> F[Câu trả lời]
+    F -->|tự chấm| G[Kết quả]
+    F -->|essay / speaking| H[Chấm tay] --> G
 ```
-
----
-
-## Quan hệ liên Miền nghiệp vụ
-
-Assessment → Tenant để bảo đảm cô lập  
-Assessment → User cho tác giả, học viên và người chấm  
-Assessment → Course để lấy Version Activity bất biến và ngữ cảnh Enrollment  
-Assessment → Media để sử dụng tài sản số của câu hỏi và câu trả lời  
-Assessment → AI để nhận đề xuất chấm điểm tùy chọn  
-Assessment → Track để phát sinh Event hành vi  
-Assessment → Certificate để cung cấp bằng chứng đánh giá
 
 ---
 
 ## Nguyên tắc thiết kế
 
-- Assessment là nơi có thẩm quyền đối với bằng chứng đánh giá.
-- Quá trình biên soạn câu hỏi và Snapshot bài kiểm tra đã phát hành có
-  vòng đời riêng.
-- Lần làm bài hiện có luôn giữ nguyên ngữ cảnh bài kiểm tra đã được đóng băng.
-- Mỗi lần làm bài thuộc một chu trình Enrollment.
-- Câu trả lời thuộc lần làm bài và câu hỏi trong bài kiểm tra đã được đóng băng.
-- Tệp Media vẫn thuộc quyền sở hữu dữ liệu của Miền nghiệp vụ Media.
-- Chấm điểm bằng AI chỉ là đề xuất, không bao giờ tự trở thành thẩm quyền cuối cùng.
-- Tiêu chí và kết quả Rubric bảo toàn lịch sử chấm điểm.
-- Bằng chứng Assessment không bao giờ trực tiếp thay đổi trạng thái Course hoặc
-  Certificate.
-- Mọi dữ liệu nghiệp vụ Assessment đều được cô lập theo tenant.
+- Mọi bảng có `customer_id`; khoá ngoại nội bộ dùng khoá kép
+  `(id, customer_id)` để chặn tham chiếu chéo tenant ở database.
+- Khoá ngoại mặc định `RESTRICT`; `CASCADE` chỉ cho phần con của nguồn soạn
+  thảo (nội dung, lựa chọn, media của câu / ngữ liệu; phần và câu của bản nháp
+  đề).
+- Nguồn soạn thảo sửa được; phiên bản đề bất biến; lần làm bài khoá phiên bản và
+  chỉ đọc snapshot.
+- Đáp án đúng và giải thích không gửi cho học viên trước khi lần làm bài kết
+  thúc.
+- Chấm, giờ làm bài và số lượt đều do server quyết.
+- Câu hỏi, ngữ liệu, đề đã vào một phiên bản chỉ được lưu trữ, không xoá cứng.
+- Mọi điểm là `DECIMAL`.
+- File thuộc Media; Assessment chỉ lưu `media_file_id` và ghi `media_file_usages`.
+- Giáo viên thấy và sửa nguồn soạn thảo của mình; admin thấy mọi thứ trong
+  tenant.

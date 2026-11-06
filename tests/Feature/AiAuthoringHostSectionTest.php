@@ -316,7 +316,7 @@ class AiAuthoringHostSectionTest extends TestCase
 
     private function template(): int
     {
-        return DB::table('core_course_templates')->insertGetId(['course_type' => 'blended', 
+        return DB::table('core_course_templates')->insertGetId(['course_type' => 'blended',
             'customer_id' => $this->customerId, 'category_id' => null, 'title' => 'Khoá học mẫu',
             'estimated_minutes_per_lesson' => 0, 'lesson_count' => 0, 'working_revision' => 1,
             'status' => 'draft', 'created_by' => null, 'created_at' => now(), 'updated_at' => now(),

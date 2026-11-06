@@ -519,7 +519,7 @@ class AiAuthoringProposalServiceMariaDbTest extends TestCase
             'is_featured' => false, 'meta_title' => null, 'meta_description' => null, 'meta_keywords' => null,
             'status' => 'active', 'created_by' => $admin->id, 'created_at' => $now, 'updated_at' => $now,
         ]);
-        $templateId = DB::table('core_course_templates')->insertGetId(['course_type' => 'blended', 
+        $templateId = DB::table('core_course_templates')->insertGetId(['course_type' => 'blended',
             'customer_id' => $customerId, 'category_id' => $categoryId, 'title' => 'Template '.$slug,
             'short_description' => 'Course', 'description' => 'Course description.', 'publisher_name' => 'LearnForge',
             'intro_video_source' => null, 'intro_image_media_file_id' => null, 'intro_video_media_file_id' => null,

@@ -274,12 +274,12 @@ class LiveClassSchemaConstraintMysqlTest extends TestCase
             'status' => 'active', 'visibility' => 'public',
             'created_at' => $now, 'updated_at' => $now,
         ]);
-        $templateId = DB::table('core_course_templates')->insertGetId(['course_type' => 'scheduled', 
+        $templateId = DB::table('core_course_templates')->insertGetId(['course_type' => 'scheduled',
             'customer_id' => $customerId, 'title' => 'Constraint Template',
             'working_revision' => 1, 'status' => 'active', 'created_by' => $adminId,
             'created_at' => $now, 'updated_at' => $now,
         ]);
-        $versionId = DB::table('core_course_template_versions')->insertGetId(['course_type_snapshot' => 'scheduled', 
+        $versionId = DB::table('core_course_template_versions')->insertGetId(['course_type_snapshot' => 'scheduled',
             'customer_id' => $customerId, 'template_id' => $templateId,
             'version_number' => 1, 'version_code' => 'CONSTRAINT-V1',
             'title_snapshot' => 'Constraint Version', 'source_working_revision' => 1,

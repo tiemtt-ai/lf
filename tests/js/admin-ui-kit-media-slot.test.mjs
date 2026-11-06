@@ -9,6 +9,8 @@ import { initUiKitMediaSlot, UI_MEDIA_PREVIEW_EVENT } from '../../resources/js/a
 // 4. A file chosen while the flag is set keeps the flag (the server lets the replacement win).
 // 5. A cancelled picker (no files) returns to the base state. A form reset clears flag and pending file.
 // 6. View announces exactly the URL of what the tile shows; nothing when there is nothing viewable.
+// 7. A library pick addressed to this slot is pending like a file (its id in the hidden field); an upload, Remove or a
+//    form reset drops it; picks addressed to another slot are ignored.
 
 class El {
     constructor(attrs = {}) {
@@ -29,14 +31,16 @@ class El {
     focus() { this.focused += 1; }
 }
 
-function setup({ saved = true, removable = true, kind = 'image', previewable = true, savedImage = '/thumb.png' } = {}) {
+function setup({ saved = true, removable = true, kind = 'image', previewable = true, savedImage = '/thumb.png', library = false } = {}) {
     const parts = {
         input: new El(), filled: new El(), empty: new El(), image: new El(savedImage ? { src: savedImage } : {}),
         fallback: new El(), view: new El(), remove: new El(), status: new El(),
     };
     const flag = removable ? new El() : null;
     if (flag) flag.value = '0';
-    const map = { ...parts, 'remove-flag': flag };
+    const map = { ...parts, 'remove-flag': flag, ...(library ? { library: new El(), 'library-value': new El() } : {}) };
+    const winListeners = new Map();
+    const win = { addEventListener: (type, fn) => winListeners.set(type, fn), removeEventListener: type => winListeners.delete(type) };
     const events = [];
     const slotListeners = new Map();
     const urls = { created: [], revoked: [] };
@@ -46,6 +50,7 @@ function setup({ saved = true, removable = true, kind = 'image', previewable = t
         'data-saved': String(saved), 'data-saved-name': 'saved.png', 'data-saved-preview-url': saved ? '/saved-full.png' : '',
         'data-pending-previewable': String(previewable), 'data-kind': kind, 'data-saved-mime': 'image/png',
         'data-status-selected': 'Selected: :name', 'data-status-removed': 'Removed',
+        ...(library ? { 'data-library-caption': 'Prompt image' } : {}),
     });
     slot.querySelector = selector => map[selector.match(/data-ui-media-([a-z-]+)/)[1]] ?? null;
     slot.closest = () => ({
@@ -62,6 +67,7 @@ function setup({ saved = true, removable = true, kind = 'image', previewable = t
         },
         createEvent: (type, detail) => ({ type, detail }),
         setTimeout: fn => timers.push(fn),
+        window: win,
     });
     const changes = [];
     parts.input.dispatchEvent = event => changes.push(event.type);
@@ -73,7 +79,8 @@ function setup({ saved = true, removable = true, kind = 'image', previewable = t
     const click = (el) => el.listeners.get('click')();
     const state = () => slot.getAttribute('data-state');
     const alive = () => urls.created.filter(url => !urls.revoked.includes(url));
-    return { slot, parts, flag, events, urls, instance, choose, click, state, alive, formListeners, timers, changes, slotListeners };
+    const pick = (item, target = slot) => winListeners.get('library-media')?.({ detail: { type: kind, chosen: item, target } });
+    return { slot, parts, flag, events, urls, instance, choose, click, state, alive, formListeners, timers, changes, slotListeners, map, pick, winListeners };
 }
 
 test('saved image fills the tile with View and Remove, no upload tile', () => {
@@ -252,4 +259,46 @@ test('an external clear (the embed alternative was chosen) empties a saved or ch
     assert.deepEqual(chosen.changes, ['change']);
     chosen.slotListeners.get('ui-media-clear')();
     assert.deepEqual(chosen.changes, ['change'], 'clearing an empty tile does nothing');
+});
+
+test('choose from library asks the picker, and the answer for this slot fills the tile with its id', () => {
+    const t = setup({ saved: false, savedImage: '', library: true });
+    t.click(t.map.library);
+    assert.deepEqual(t.events.at(-1), { type: 'open-media-library', detail: { type: 'image', chosenId: null, caption: 'Prompt image' } });
+    t.pick({ id: 7, name: 'Thu vien', preview: '/media/7.png', mime: 'image/png' }, {});
+    assert.equal(t.state(), 'empty', 'a pick addressed to another slot is ignored');
+    t.pick({ id: 7, name: 'Thu vien', preview: '/media/7.png', mime: 'image/png' });
+    assert.equal(t.state(), 'filled');
+    assert.equal(t.map['library-value'].value, '7');
+    assert.equal(t.parts.image.getAttribute('src'), '/media/7.png');
+    assert.equal(t.parts.status.textContent, 'Selected: Thu vien');
+    t.click(t.parts.view);
+    assert.deepEqual(t.events.at(-1).detail, { name: 'Thu vien', url: '/media/7.png', kind: 'image', mimeType: 'image/png' });
+    t.click(t.map.library);
+    assert.equal(t.events.at(-1).detail.chosenId, 7, 'the picker opens on the current pick');
+    assert.deepEqual(t.urls.created, [], 'a library pick never makes an object URL');
+});
+
+test('an upload, Remove or a reset drops the library pick', () => {
+    const t = setup({ library: true });
+    t.pick({ id: 7, name: 'Thu vien', preview: '/media/7.png' });
+    t.choose('new.png');
+    assert.equal(t.map['library-value'].value, '', 'an upload replaces the pick');
+    assert.equal(t.parts.image.getAttribute('src'), 'blob:new.png:0');
+
+    t.pick({ id: 8, name: 'Khac', preview: '' });
+    assert.equal(t.parts.input.value, '', 'a pick replaces the upload');
+    assert.deepEqual(t.alive(), []);
+    assert.equal(t.parts.fallback.hidden, false, 'no preview shows the icon');
+    t.click(t.parts.remove);
+    assert.equal(t.map['library-value'].value, '');
+    assert.equal(t.flag.value, '0', 'removing a pick does not mark the saved file');
+    assert.equal(t.parts.image.getAttribute('src'), '/thumb.png', 'the saved file shows again');
+
+    t.pick({ id: 9, name: 'Ba', preview: '/media/9.png' });
+    t.formListeners.get('reset')();
+    t.timers.forEach(fn => fn());
+    assert.equal(t.map['library-value'].value, '');
+    t.instance.destroy();
+    assert.equal(t.winListeners.size, 0, 'destroy stops listening for picks');
 });

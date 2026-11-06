@@ -67,7 +67,9 @@ class MediaLibraryPickerTest extends TestCase
         $this->assertSame(['Shared doc'], $names($teachers[0], 'https://tenant-a.localhost/teacher/media/picker?type=document&keyword=Shared'));
         $this->assertSame([], $names($teachers[2], 'https://tenant-a.localhost/teacher/media/picker?type=document'));
 
-        $this->actingAs($teachers[0])->getJson('https://tenant-a.localhost/teacher/media/picker?type=image')->assertStatus(422);
+        // Images are picked too (Assessment prompt media); a type the forms never pick is refused.
+        $this->actingAs($teachers[0])->getJson('https://tenant-a.localhost/teacher/media/picker?type=image')->assertOk();
+        $this->actingAs($teachers[0])->getJson('https://tenant-a.localhost/teacher/media/picker?type=archive')->assertStatus(422);
         $this->assertNotEmpty($own);
     }
 
@@ -196,7 +198,7 @@ class MediaLibraryPickerTest extends TestCase
      */
     private function hierarchy(int $customerId, int $teacherId): array
     {
-        $templateId = DB::table('core_course_templates')->insertGetId(['course_type' => 'blended', 
+        $templateId = DB::table('core_course_templates')->insertGetId(['course_type' => 'blended',
             'customer_id' => $customerId, 'category_id' => null, 'title' => 'Template', 'short_description' => null, 'description' => null,
             'publisher_name' => null, 'intro_video_source' => null, 'intro_image_media_file_id' => null, 'intro_video_media_file_id' => null,
             'difficulty_level' => null, 'estimated_minutes_per_lesson' => 0, 'estimated_lesson_count' => null, 'lesson_count' => 0,
