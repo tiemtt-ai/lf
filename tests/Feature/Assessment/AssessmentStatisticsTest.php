@@ -74,18 +74,53 @@ class AssessmentStatisticsTest extends TestCase
             ->getContent();
 
         $stats = app(AssessmentStatisticsService::class)->forQuiz($this->customerId, $this->admin, $quiz);
-        // Scores 70%, 0% and 20%.
-        $this->assertSame(['submitted' => 3, 'pending' => 2, 'average' => 30.0, 'highest' => 70.0, 'lowest' => 0.0, 'pass_rate' => 100.0], $stats['summary']);
+        // Provisional scores (0% and 20%, essay / speaking not graded yet) stay out: only student 1's 70% counts.
+        $this->assertSame(['submitted' => 3, 'pending' => 2, 'graded' => 1, 'average' => 70.0, 'highest' => 70.0, 'lowest' => 70.0, 'pass_rate' => 100.0], $stats['summary']);
         $rows = $stats['questions']->keyBy('question_id');
         $this->assertSame(['single_choice', 'multiple_choice', 'true_false', 'short_answer', 'essay', 'speaking'], $stats['questions']->pluck('type')->all());
-        $this->assertSame([3, 66.7, 'medium'], [$rows[$q['single']]['answered'], $rows[$q['single']]['rate'], $rows[$q['single']]['level']]);
-        $this->assertSame([0.0, 'hard'], [$rows[$q['multiple']]['rate'], $rows[$q['multiple']]['level']]);
+        // Three answers are too few for Dễ / Vừa / Khó.
+        $this->assertSame([3, 66.7, null], [$rows[$q['single']]['answered'], $rows[$q['single']]['rate'], $rows[$q['single']]['level']]);
+        $this->assertSame([0.0, null], [$rows[$q['multiple']]['rate'], $rows[$q['multiple']]['level']]);
         // Essay: only the graded answer counts (4 / 4), two still pending.
-        $this->assertSame([1, 100.0, 'easy', 2], [$rows[$q['essay']]['counted'], $rows[$q['essay']]['rate'], $rows[$q['essay']]['level'], $rows[$q['essay']]['pending']]);
+        $this->assertSame([1, 3, 100.0, null, 2], [$rows[$q['essay']]['counted'], $rows[$q['essay']]['answered'], $rows[$q['essay']]['rate'], $rows[$q['essay']]['level'], $rows[$q['essay']]['pending']]);
 
         $this->assertStringContainsString('66.7%', $html);
-        $this->assertStringContainsString('30%', $html);
+        $this->assertStringContainsString('70%', $html);
+        $this->assertStringContainsString(trans_choice('lf.LF_assessment_statistics_based_on', 1, ['count' => 1]), $html);
+        $this->assertStringContainsString('1 / 3', $html);
+        $this->assertStringContainsString(__('lf.LF_assessment_statistics_level_too_few'), $html);
+        $this->assertStringContainsString(__('lf.LF_assessment_statistics_rate_heading'), $html);
         $this->assertStringContainsString('Chọn đáp án đúng', $html);
+    }
+
+    public function test_levels_need_enough_answers_and_scores_wait_for_grading(): void
+    {
+        [$quiz, $q] = $this->quizWithAllTypes($this->admin);
+        $url = self::ADMIN.'/results/statistics?quiz_id='.$quiz;
+        $student = fn () => $this->createUser($this->customerId, 'student');
+
+        // One submission still waiting for grading: no score figures yet.
+        $this->submittedAttempt($this->grant($quiz, $this->admin, $student()));
+        $summary = app(AssessmentStatisticsService::class)->forQuiz($this->customerId, $this->admin, $quiz)['summary'];
+        $this->assertSame([1, 1, 0, null, null], [$summary['submitted'], $summary['pending'], $summary['graded'], $summary['average'], $summary['pass_rate']]);
+        $this->actingAs($this->admin)->get($url)->assertOk()->assertSeeText(__('lf.LF_assessment_statistics_none_graded'));
+
+        // Five answers: single choice all right (Dễ, green), multiple choice all wrong (Khó, red), true / false 3 of 5 (Vừa, neutral).
+        for ($i = 0; $i < 4; $i++) {
+            $attempt = $this->startAttempt($this->grant($quiz, $this->admin, $student()));
+            $vq = DB::table('core_assessment_quiz_version_questions')->where('quiz_version_id', $attempt->quiz_version_id)->get()->keyBy('question_id');
+            $this->attempts->saveAnswer($this->customerId, $attempt->id, $vq[$q['single']]->id, ['option_keys' => [2]]);
+            $this->attempts->saveAnswer($this->customerId, $attempt->id, $vq[$q['true_false']]->id, ['option_keys' => [$i < 3 ? 1 : 2]]);
+            $this->attempts->submit($this->customerId, $attempt->id);
+        }
+        DB::table('core_assessment_answers')->where('question_id', $q['single'])->update(['is_correct' => 1]);
+
+        $rows = app(AssessmentStatisticsService::class)->forQuiz($this->customerId, $this->admin, $quiz)['questions']->keyBy('question_id');
+        $this->assertSame(['easy', 'hard', 'medium'], [$rows[$q['single']]['level'], $rows[$q['multiple']]['level'], $rows[$q['true_false']]['level']]);
+        $this->actingAs($this->admin)->get($url)->assertOk()
+            ->assertSee('class="ui-status ui-status--active">'.__('lf.LF_assessment_statistics_level_easy'), false)
+            ->assertSee('class="ui-status ui-status--danger">'.__('lf.LF_assessment_statistics_level_hard'), false)
+            ->assertSee('class="ui-status">'.__('lf.LF_assessment_statistics_level_medium'), false);
     }
 
     public function test_teachers_see_only_their_quizzes_and_other_tenants_nothing(): void

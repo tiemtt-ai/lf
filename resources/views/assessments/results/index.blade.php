@@ -22,7 +22,17 @@
 
     <x-ui-list-head :title="__('lf.LF_navigation_menu_assessment_results')" :text="__('lf.LF_assessment_results_help')" />
 
-    @include('assessments.results.partials.tabs', ['activeTab' => $filters['tab']])
+    <div class="ui-result-tabbar">
+        @include('assessments.results.partials.tabs', ['activeTab' => $filters['tab']])
+        {{-- Live slot: the export follows the current tab and filters after a live search. --}}
+        <span class="ui-live-slot" data-ui-live-region="export">
+            <a class="ui-button ui-button--outline cursor-interaction" download
+               href="{{ route($routePrefix.'.export', array_filter($filters, fn ($value, $key) => $key === 'tab' ? $value === 'pending' : $value !== null && $value !== '', ARRAY_FILTER_USE_BOTH)) }}">
+                <x-backend-icon name="file-output" class="ui-icon" />
+                {{ __('lf.LF_export_excel') }}
+            </a>
+        </span>
+    </div>
 
     <section class="mk-section" aria-labelledby="admin-page-title">
         <div class="mk-tablebar mk-tablebar--filters">
@@ -66,29 +76,18 @@
                     @endif
                 </span>
             </form>
-
-            <div class="mk-table-top__actions">
-                {{-- Live slot: the export follows the current tab and filters after a live search. --}}
-                <span class="ui-live-slot" data-ui-live-region="export">
-                    <a class="ui-button ui-button--outline cursor-interaction" download
-                       href="{{ route($routePrefix.'.export', array_filter($filters, fn ($value, $key) => $key === 'tab' ? $value === 'pending' : $value !== null && $value !== '', ARRAY_FILTER_USE_BOTH)) }}">
-                        <x-backend-icon name="file-output" class="ui-icon" />
-                        {{ __('lf.LF_export_excel') }}
-                    </a>
-                </span>
-            </div>
         </div>
 
         <div class="mk-table-scroll" data-ui-live-region="table" role="region" aria-label="{{ __('lf.LF_navigation_menu_assessment_results') }}" tabindex="0">
-            <table class="ui-asm-table ui-asm-table--wide" aria-labelledby="admin-page-title">
+            <table class="ui-asm-table ui-asm-table--wide ui-result-table" aria-labelledby="admin-page-title">
                 <colgroup>
-                    <col class="mk-col-sequence">
-                    <col>
+                    <col class="ui-result-col-sequence">
+                    <col class="ui-result-col-student">
                     <col>
                     <col class="ui-asm-col-date">
                     <col class="ui-asm-col-score">
-                    <col class="ui-asm-col-status">
-                    <col class="mk-col-action">
+                    <col class="ui-result-col-status">
+                    <col class="ui-result-col-action">
                 </colgroup>
                 <thead>
                     <tr>
@@ -107,7 +106,7 @@
                             <td class="mk-sequence" data-label="{{ __('lf.table_no') }}">{{ $attempts->firstItem() + $loop->index }}</td>
                             <td class="mk-text-cell" data-label="{{ __('lf.LF_assessment_registration_student') }}">
                                 <span class="mk-name-line"><span class="mk-name-text">{{ $attempt->student_name }}</span></span>
-                                <p class="ui-caption">{{ $attempt->student_email }}</p>
+                                <p class="ui-caption ui-result-email" title="{{ $attempt->student_email }}">{{ $attempt->student_email }}</p>
                             </td>
                             <td class="mk-text-cell" data-label="{{ __('lf.LF_assessment_registration_quiz') }}">
                                 {{ $attempt->quiz_title }}
@@ -118,11 +117,15 @@
                             </td>
                             <td class="mk-count-cell" data-label="{{ __('lf.LF_assessment_result_score') }}">
                                 @if ($attempt->score !== null)
-                                    {{ $trim($attempt->score) }} / {{ $trim($attempt->max_score) }}
-                                    <p class="ui-caption">
-                                        {{ $trim($attempt->score_percentage) }}%
-                                        @if ($attempt->passed !== null) · {{ $attempt->passed ? __('lf.LF_assessment_result_passed') : __('lf.LF_assessment_result_failed') }} @endif
-                                    </p>
+                                    <strong class="ui-result-score">{{ $trim($attempt->score) }} / {{ $trim($attempt->max_score) }}</strong>
+                                    <span class="ui-result-score-meta">
+                                        <span class="ui-caption">{{ $trim($attempt->score_percentage) }}%</span>
+                                        @if ($attempt->passed !== null)
+                                            <span @class(['ui-status', 'ui-result-verdict', 'ui-status--active' => $attempt->passed, 'ui-status--danger' => ! $attempt->passed])>{{ $attempt->passed ? __('lf.LF_assessment_result_passed') : __('lf.LF_assessment_result_failed') }}</span>
+                                        @elseif ($attempt->grading_status === 'pending')
+                                            <span class="ui-caption ui-result-provisional" title="{{ __('lf.LF_assessment_result_score_provisional') }}">{{ __('lf.LF_assessment_result_provisional_short') }}</span>
+                                        @endif
+                                    </span>
                                 @else
                                     —
                                 @endif
@@ -135,11 +138,19 @@
                                 @endif
                             </td>
                             <td class="ux-action-cell" data-label="{{ __('lf.table_actions') }}">
-                                <a class="ux-row-edit cursor-interaction" href="{{ route($routePrefix.'.show', $attempt->id) }}"
-                                   aria-label="{{ $attempt->grading_status === 'pending' ? __('lf.LF_assessment_result_grade') : __('lf.LF_assessment_result_view') }}: {{ $attempt->student_name }}"
-                                   data-tooltip="{{ $attempt->grading_status === 'pending' ? __('lf.LF_assessment_result_grade') : __('lf.LF_assessment_result_view') }}">
-                                    <x-backend-icon name="sliders" class="ui-icon" />
-                                </a>
+                                @if ($attempt->grading_status === 'pending' && $attempt->status !== 'in_progress')
+                                    <a class="ux-row-edit cursor-interaction" href="{{ route($routePrefix.'.show', $attempt->id) }}"
+                                       aria-label="{{ __('lf.LF_assessment_result_grade') }}: {{ $attempt->student_name }}"
+                                       data-tooltip="{{ __('lf.LF_assessment_result_grade') }}">
+                                        <x-backend-icon name="pencil" class="ui-icon" />
+                                    </a>
+                                @else
+                                    <a class="ux-row-edit cursor-interaction" href="{{ route($routePrefix.'.show', $attempt->id) }}"
+                                       aria-label="{{ __('lf.LF_assessment_result_view') }}: {{ $attempt->student_name }}"
+                                       data-tooltip="{{ __('lf.LF_assessment_result_view') }}">
+                                        <x-backend-icon name="eye" class="ui-icon" />
+                                    </a>
+                                @endif
                             </td>
                         </tr>
                     @empty

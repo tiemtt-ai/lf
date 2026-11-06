@@ -938,6 +938,9 @@ class CourseEnrollmentManagementTest extends TestCase
         $this->assertStringContainsString('course-enrollment-bulk-action--suspend', $html);
         $this->assertStringContainsString('course-enrollment-bulk-action--reactivate', $html);
         $this->assertStringContainsString('course-enrollment-bulk-action--cancel', $html);
+        // The bulk actions sit in the list toolbar (create → bulk actions → export), not in a separate bar.
+        $this->assertMatchesRegularExpression('/mk-table-top__actions">.*course-enrollments\/create.*bulk-action--suspend.*bulk-action--reactivate.*bulk-action--cancel.*course-enrollments\/export/s', $html);
+        $this->assertStringNotContainsString('ui-enroll-bulkbar', $html);
         $this->assertStringContainsString('role="dialog" aria-modal="true" aria-labelledby="bulk-lifecycle-title" aria-describedby="bulk-lifecycle-body"', $html);
         $this->assertStringContainsString('name="advanced_filters" :value="advancedFiltersOpen ? \'1\' : \'0\'"', $html);
         $this->assertStringContainsString('aria-controls="course-enrollment-advanced-filters"', $html);

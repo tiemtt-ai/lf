@@ -215,6 +215,23 @@ class AssessmentResultGradingTest extends TestCase
         $this->actingAs($this->student)->get(self::TEACHER.'/results/export')->assertForbidden();
     }
 
+    public function test_results_page_marks_pending_grading_and_the_verdict(): void
+    {
+        [$quiz] = $this->quizWithAllTypes($this->admin, 2);
+        $registration = $this->grant($quiz, $this->admin);
+        $this->submittedAttempt($registration);
+        $newer = $this->submittedAttempt($registration);
+        DB::table('core_assessment_attempts')->where('id', $newer->id)->update(['grading_status' => 'completed', 'status' => 'graded', 'passed' => false]);
+
+        $page = $this->actingAs($this->admin)->get(self::ADMIN.'/results')->assertOk();
+        $page->assertDontSee('ui-banner', false)
+            ->assertSee('aria-label="'.__('lf.LF_assessment_result_grade').': Học viên Lan"', false)
+            ->assertSee('aria-label="'.__('lf.LF_assessment_result_view').': Học viên Lan"', false)
+            ->assertSee('ui-status--danger">'.__('lf.LF_assessment_result_failed'), false)
+            ->assertSeeText(__('lf.LF_assessment_result_provisional_short'));
+        $this->assertMatchesRegularExpression('/ui-result-tabbar.*ui-result-tabs.*results\/export.*mk-section/s', $page->getContent());
+    }
+
     // ---- fixtures ----
 
     /** @return array{0: int, 1: array<string, int>} a published quiz with one question of each type (10 points) */

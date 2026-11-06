@@ -13,7 +13,7 @@
 @section('content')
 @php
     $percent = fn ($value) => $value === null ? '—' : rtrim(rtrim(number_format((float) $value, 1, '.', ''), '0'), '.').'%';
-    $levelClass = ['easy' => 'ui-status--active', 'medium' => 'ui-status--draft', 'hard' => 'ui-status--danger'];
+    $levelClass = ['easy' => 'ui-status--active', 'medium' => '', 'hard' => 'ui-status--danger'];
     $summary = $stats['summary'] ?? null;
 @endphp
 <div id="assessment-result-statistics" class="lf-admin-ui lf-admin-ui--list" data-assessment-section="results">
@@ -58,7 +58,14 @@
                     </div>
                     <div class="ui-summary__item">
                         <dt>{{ __('lf.LF_assessment_statistics_average') }}</dt>
-                        <dd>{{ $percent($summary['average']) }}</dd>
+                        <dd>
+                            {{ $percent($summary['average']) }}
+                            @if ($summary['graded'] === 0)
+                                <span class="ui-caption">{{ __('lf.LF_assessment_statistics_none_graded') }}</span>
+                            @elseif ($summary['pending'] > 0)
+                                <span class="ui-caption">{{ trans_choice('lf.LF_assessment_statistics_based_on', $summary['graded'], ['count' => $summary['graded']]) }}</span>
+                            @endif
+                        </dd>
                     </div>
                     <div class="ui-summary__item">
                         <dt>{{ __('lf.LF_assessment_statistics_range') }}</dt>
@@ -81,7 +88,7 @@
             <div class="ui-summary-head">
                 <div>
                     <h2 id="assessment-statistics-questions-title">{{ __('lf.LF_assessment_statistics_questions') }}</h2>
-                    <p class="ui-caption">{{ __('lf.LF_assessment_statistics_questions_help', ['easy' => (int) \App\Services\Assessment\AssessmentStatisticsService::EASY_AT, 'hard' => (int) \App\Services\Assessment\AssessmentStatisticsService::HARD_AT]) }}</p>
+                    <p class="ui-caption">{{ __('lf.LF_assessment_statistics_questions_help', ['easy' => (int) \App\Services\Assessment\AssessmentStatisticsService::EASY_AT, 'hard' => (int) \App\Services\Assessment\AssessmentStatisticsService::HARD_AT, 'min' => \App\Services\Assessment\AssessmentStatisticsService::MIN_FOR_LEVEL]) }}</p>
                 </div>
             </div>
             <div class="mk-table-scroll" data-ui-live-region="table" role="region" aria-label="{{ __('lf.LF_assessment_statistics_questions') }}" tabindex="0">
@@ -98,7 +105,7 @@
                             <th scope="col" class="mk-sequence">{{ __('lf.table_no') }}</th>
                             <th scope="col" class="mk-text-cell">{{ __('lf.LF_assessment_question_prompt') }}</th>
                             <th scope="col" class="mk-count-cell">{{ __('lf.LF_assessment_statistics_answered') }}</th>
-                            <th scope="col" class="mk-count-cell">{{ __('lf.LF_assessment_statistics_rate') }}</th>
+                            <th scope="col" class="mk-count-cell">{{ __('lf.LF_assessment_statistics_rate_heading') }}</th>
                             <th scope="col" class="ux-action-cell">{{ __('lf.LF_assessment_statistics_level') }}</th>
                         </tr>
                     </thead>
@@ -113,20 +120,26 @@
                                         @unless ($row['in_current']) · {{ __('lf.LF_assessment_statistics_old_version') }} @endunless
                                     </p>
                                 </td>
-                                <td class="mk-count-cell" data-label="{{ __('lf.LF_assessment_statistics_answered') }}">{{ $row['answered'] }}</td>
-                                <td class="mk-count-cell" data-label="{{ __('lf.LF_assessment_statistics_rate') }}">
+                                <td class="mk-count-cell" data-label="{{ __('lf.LF_assessment_statistics_answered') }}">
+                                    @if ($row['manual'])
+                                        {{ $row['counted'] }} / {{ $row['answered'] }}
+                                        <p class="ui-caption">{{ __('lf.LF_assessment_statistics_graded_short') }}</p>
+                                    @else
+                                        {{ $row['answered'] }}
+                                    @endif
+                                </td>
+                                <td class="mk-count-cell" data-label="{{ __('lf.LF_assessment_statistics_rate_heading') }}">
                                     {{ $percent($row['rate']) }}
-                                    <p class="ui-caption">
-                                        @if ($row['manual'])
-                                            {{ __('lf.LF_assessment_statistics_rate_manual') }}@if ($row['pending'] > 0) · {{ trans_choice('lf.LF_assessment_statistics_pending', $row['pending'], ['count' => $row['pending']]) }}@endif
-                                        @else
-                                            {{ __('lf.LF_assessment_statistics_rate_correct') }}
-                                        @endif
-                                    </p>
+                                    @if ($row['pending'] > 0)
+                                        <p class="ui-caption">{{ trans_choice('lf.LF_assessment_statistics_pending', $row['pending'], ['count' => $row['pending']]) }}</p>
+                                    @endif
                                 </td>
                                 <td class="ux-action-cell" data-label="{{ __('lf.LF_assessment_statistics_level') }}">
                                     @if ($row['level'])
-                                        <span class="ui-status {{ $levelClass[$row['level']] }}">{{ __('lf.LF_assessment_statistics_level_'.$row['level']) }}</span>
+                                        <span @class(array_filter(['ui-status', $levelClass[$row['level']]]))>{{ __('lf.LF_assessment_statistics_level_'.$row['level']) }}</span>
+                                    @elseif ($row['rate'] !== null)
+                                        <span class="mk-na">—</span>
+                                        <p class="ui-caption">{{ __('lf.LF_assessment_statistics_level_too_few') }}</p>
                                     @else
                                         <span class="mk-na">—</span>
                                     @endif

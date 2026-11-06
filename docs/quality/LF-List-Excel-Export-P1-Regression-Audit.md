@@ -47,7 +47,19 @@ Các test bao phủ: đúng cột tiêu đề; dữ liệu theo bộ lọc; dữ
 
 ## Full suite
 
-_(cập nhật sau khi chạy xong)_
+`php artisan test` (SQLite in-memory, chạy sau phần xuất Excel): **1783 passed, 23 skipped, 0 failed** (270 giây).
+
+## Bổ sung: UI trang Kết quả & Chấm bài (Owner duyệt "Sửa cả 5")
+
+1. Nút Xuất Excel chuyển lên cùng hàng với các tab (`ui-result-tabbar`), vẫn là live region nên link đổi theo bộ lọc.
+2. Độ rộng cột: STT 56, Học viên 176 (email dài bị cắt bằng dấu …), Điểm 164, Trạng thái 116, Thao tác 88; cột Đề dùng phần còn lại.
+3. Cột Điểm: điểm in đậm; nhãn màu Đạt (xanh) hoặc Chưa đạt (đỏ); bài còn câu chờ chấm ghi "Tạm tính".
+4. Thao tác: dùng icon theo UI Kit (Owner chọn sau khi đã thử nút chữ "Chấm"): `pencil` cho bài chờ chấm (tooltip "Chấm bài"), `eye` cho bài khác, thay cho `sliders`.
+5. ~~Banner "Có N bài chờ chấm"~~: đã làm rồi bỏ theo Owner ("quá thừa"; tab Chờ chấm đã có số đếm). Đã xóa view, khóa ngôn ngữ, CSS và truy vấn `oldestPendingId`.
+
+Kiểm chứng: `tests/Feature/Assessment` cùng test Người dùng và Ghi danh đạt 163 passed. Test mới `test_results_page_puts_pending_grading_first_and_marks_the_verdict` (nay là `test_results_page_marks_pending_grading_and_the_verdict`) kiểm tra không còn banner, có thao tác Chấm bài, nhãn Chưa đạt và Tạm tính. Các test đọc CSS UI Kit (PHP 82 passed, `node --test tests/js/admin-ui-kit-css.test.mjs` 6/6) và Pint đều đạt. Đã xem trên trình duyệt ở khổ hẹp và khổ 1440px, tab Chờ chấm và tìm kiếm trực tiếp.
+Sau khi sửa UI chưa chạy lại full suite.
+Lỗi đã gặp và đã sửa: tên class `ui-result-grade` trùng với form chấm ở trang chi tiết, nên đổi thành `ui-result-grade-link`.
 
 ## Chưa kiểm chứng / rủi ro còn lại
 
@@ -55,3 +67,21 @@ _(cập nhật sau khi chạy xong)_
 - **Chưa thử trên Excel thật / MariaDB:** chưa mở file bằng Excel hay Numbers; nội dung được đọc lại bằng `SimpleXlsx::read()`. Query chưa chạy trên MariaDB với dữ liệu lớn.
 - **Tải toàn bộ vào bộ nhớ:** tối đa 5000 dòng mỗi file. Tenant lớn hơn sẽ bị cắt mà không có thông báo; nên lọc trước khi xuất.
 - **Không ghi log:** chưa ghi lại ai xuất file. File Người dùng và Ghi danh có email, số điện thoại và ngày sinh.
+
+## Bổ sung: thao tác hàng loạt của trang Ghi danh khóa học
+
+Ba nút Tạm dừng, Kích hoạt lại và Hủy ghi danh chuyển từ thanh nổi `ui-enroll-bulkbar` lên thanh công cụ của danh sách, theo thứ tự Tạo ghi danh → thao tác hàng loạt → Xuất Excel, giống nút Xóa của các danh sách khác. Các nút luôn hiển thị nhưng bị mờ cho đến khi các dòng đã chọn cho phép thao tác; nút đang dùng được có kèm số dòng, ví dụ "Tạm dừng (1)". Đã bỏ nút "Bỏ chọn" (checkbox ở tiêu đề bảng đã làm việc này) và xóa CSS `ui-enroll-bulkbar`. Phần logic Alpine và popup xác nhận giữ nguyên.
+Kiểm chứng: `CourseEnrollmentManagementTest` 53 passed (thêm assertion về thứ tự nút trên thanh công cụ); Node 338 pass. Trên trình duyệt: chọn 1 ghi danh đang hoạt động thì Tạm dừng và Hủy bật, Kích hoạt lại vẫn mờ; mở popup Tạm dừng rồi bấm Hủy (không gửi), focus quay lại nút.
+
+## Bổ sung: trang Thống kê (Owner duyệt "Làm theo đề xuất")
+
+Logic (`AssessmentStatisticsService`):
+- Điểm trung bình, Thấp nhất – Cao nhất và Tỉ lệ đạt chỉ tính các bài đã chấm xong (`grading_status` khác `pending`). Trước đây có tính cả điểm tạm của bài còn chờ chấm, trong đó câu chưa chấm bị tính 0 nên làm điểm thấp đi. Trên dev, điểm trung bình đổi từ 42.8% thành 49.9%, tính trên 4 bài đã chấm xong.
+- Summary thêm `graded`; `pending` = số bài nộp trừ số bài đã chấm xong.
+- Câu tự luận và câu nói: cột Số bài ghi "đã chấm / đã nộp" (ví dụ 4 / 7), khớp với cơ số dùng để tính tỉ lệ.
+- Mức Dễ / Vừa / Khó chỉ hiện khi câu có ít nhất `MIN_FOR_LEVEL = 5` bài được tính; ít hơn thì hiện "— Chưa đủ dữ liệu".
+
+UI: số trong ô tổng quan dùng cỡ chữ 20/28, đậm 600, giống `ui-summary__item--title dd` của UI Kit. Cột tỉ lệ đổi tiêu đề thành "Tỉ lệ đúng / Điểm TB" và bỏ dòng "làm đúng" lặp ở mỗi dòng (đã xóa 3 khóa ngôn ngữ không còn dùng). Nhãn Vừa chuyển sang màu trung tính; Dễ xanh và Khó đỏ giữ như cũ. Lời giới thiệu trang và chú thích bảng nói rõ cách tính mới.
+
+Kiểm chứng: `tests/Feature/Assessment` 104 passed. Test thống kê cũ được sửa theo logic mới; test mới `test_levels_need_enough_answers_and_scores_wait_for_grading` kiểm tra trường hợp chưa có bài chấm xong, ngưỡng 5 bài và màu Dễ/Khó/Vừa. Test CSS bằng Node đạt, Pint đạt. Đã xem trên trình duyệt ở khổ 1440px với đề TOPIK demo. Chưa chạy lại full suite.
+Có một lỗi gặp trong lúc làm và đã sửa: `@class` với chuỗi rỗng sinh ra `class="ui-status "`, nên đã thêm `array_filter`.

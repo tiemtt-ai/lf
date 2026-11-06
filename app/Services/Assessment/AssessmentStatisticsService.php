@@ -20,6 +20,9 @@ final class AssessmentStatisticsService
     /** At or below: most students get it wrong. */
     public const HARD_AT = 30.0;
 
+    /** Below this many counted answers a question gets no Dễ / Vừa / Khó: too few to say. */
+    public const MIN_FOR_LEVEL = 5;
+
     public function __construct(private readonly AssessmentGradingService $grading) {}
 
     /**
@@ -30,17 +33,21 @@ final class AssessmentStatisticsService
         $attempts = $this->grading->scoped($customerId, $user)
             ->where('a.quiz_id', $quizId)
             ->whereIn('a.status', ['submitted', 'graded'])
-            ->get(['a.id', 'a.status', 'a.score_percentage', 'a.passed']);
+            ->get(['a.id', 'a.status', 'a.grading_status', 'a.score_percentage', 'a.passed']);
 
-        $percentages = $attempts->pluck('score_percentage')->map(fn ($value) => (float) $value);
-        $judged = $attempts->filter(fn ($attempt) => $attempt->passed !== null);
+        // An attempt with answers still waiting for grading has a provisional score (ungraded answers count 0), so
+        // the score figures use only attempts whose grading is done.
+        $final = $attempts->filter(fn ($attempt) => $attempt->grading_status !== 'pending');
+        $percentages = $final->pluck('score_percentage')->map(fn ($value) => (float) $value);
+        $judged = $final->filter(fn ($attempt) => $attempt->passed !== null);
 
         $summary = [
             'submitted' => $attempts->count(),
-            'pending' => $attempts->where('status', 'submitted')->count(),
-            'average' => $attempts->isEmpty() ? null : round($percentages->avg(), 1),
-            'highest' => $attempts->isEmpty() ? null : round($percentages->max(), 1),
-            'lowest' => $attempts->isEmpty() ? null : round($percentages->min(), 1),
+            'pending' => $attempts->count() - $final->count(),
+            'graded' => $final->count(),
+            'average' => $final->isEmpty() ? null : round($percentages->avg(), 1),
+            'highest' => $final->isEmpty() ? null : round($percentages->max(), 1),
+            'lowest' => $final->isEmpty() ? null : round($percentages->min(), 1),
             'pass_rate' => $judged->isEmpty() ? null : round($judged->filter(fn ($a) => (bool) $a->passed)->count() / $judged->count() * 100, 1),
         ];
 
@@ -96,7 +103,9 @@ final class AssessmentStatisticsService
                     'counted' => $counted,
                     'pending' => $manual ? $given->where('grading_status', 'pending')->count() : 0,
                     'rate' => $rate,
-                    'level' => $rate === null ? null : ($rate >= self::EASY_AT ? 'easy' : ($rate <= self::HARD_AT ? 'hard' : 'medium')),
+                    'level' => $rate === null || $counted < self::MIN_FOR_LEVEL
+                        ? null
+                        : ($rate >= self::EASY_AT ? 'easy' : ($rate <= self::HARD_AT ? 'hard' : 'medium')),
                     'in_current' => (int) $latest->version_no === (int) $newestVersion,
                 ];
             })

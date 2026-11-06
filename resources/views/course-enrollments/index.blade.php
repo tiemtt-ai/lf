@@ -146,6 +146,24 @@
                     <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
                     {{ __('lf.LF_course_enrollment_common_create') }}
                 </a>
+                {{-- Bulk lifecycle actions, in the list toolbar like the bulk delete of other lists: always shown, disabled
+                     until the checked rows allow the action; an enabled label carries the number of checked rows. --}}
+                <button type="button" class="ui-button ui-button--outline cursor-interaction course-enrollment-bulk-action--suspend" x-on:click="openLifecycle('suspend', $event.currentTarget)" :disabled="submitting || !canSuspend" :aria-describedby="selectedIds.length && !canSuspend ? 'bulk-suspend-reason' : null">
+                    <x-backend-icon name="clock" class="ui-icon" />
+                    {{ __('lf.LF_course_enrollment_lifecycle_suspend') }}<span x-text="canSuspend ? ` (${selectedIds.length})` : ''"></span>
+                </button>
+                <button type="button" class="ui-button ui-button--outline cursor-interaction course-enrollment-bulk-action--reactivate" x-on:click="openLifecycle('reactivate', $event.currentTarget)" :disabled="submitting || !canReactivate" :aria-describedby="selectedIds.length && !canReactivate ? 'bulk-reactivate-reason' : null">
+                    <x-backend-icon name="rotate-ccw" class="ui-icon" />
+                    {{ __('lf.LF_course_enrollment_lifecycle_reactivate') }}<span x-text="canReactivate ? ` (${selectedIds.length})` : ''"></span>
+                </button>
+                <button type="button" class="ui-button ui-button--danger-outline cursor-interaction course-enrollment-bulk-action--cancel" x-on:click="openLifecycle('cancel', $event.currentTarget)" :disabled="submitting || !canCancel" :aria-describedby="selectedIds.length && !canCancel ? 'bulk-cancel-reason' : null">
+                    <x-backend-icon name="x" class="ui-icon" />
+                    {{ __('lf.LF_course_enrollment_lifecycle_cancel') }}<span x-text="canCancel ? ` (${selectedIds.length})` : ''"></span>
+                </button>
+                <span class="sr-only" aria-live="polite" x-text="selectedIds.length ? selectedLabel : ''"></span>
+                <span id="bulk-suspend-reason" class="sr-only">{{ __('lf.LF_course_enrollment_bulk_suspend_disabled') }}</span>
+                <span id="bulk-reactivate-reason" class="sr-only">{{ __('lf.LF_course_enrollment_bulk_reactivate_disabled') }}</span>
+                <span id="bulk-cancel-reason" class="sr-only">{{ __('lf.LF_course_enrollment_bulk_cancel_disabled') }}</span>
                 {{-- Live slot: the export follows the current filters after a live search. --}}
                 <span class="ui-live-slot" data-ui-live-region="export">
                     <a class="ui-button ui-button--outline cursor-interaction" download
@@ -155,19 +173,6 @@
                     </a>
                 </span>
             </div>
-        </div>
-
-        <div x-cloak x-show="selectedIds.length > 0" class="ui-enroll-bulkbar" aria-live="polite">
-            <strong x-text="selectedLabel"></strong>
-            <div class="course-enrollment-bulk-actions">
-            <button type="button" class="ui-button ui-button--outline cursor-interaction course-enrollment-bulk-action--suspend" x-on:click="openLifecycle('suspend', $event.currentTarget)" :disabled="submitting || !canSuspend" :aria-describedby="!canSuspend ? 'bulk-suspend-reason' : null">{{ __('lf.LF_course_enrollment_lifecycle_suspend') }}</button>
-            <button type="button" class="ui-button ui-button--outline cursor-interaction course-enrollment-bulk-action--reactivate" x-on:click="openLifecycle('reactivate', $event.currentTarget)" :disabled="submitting || !canReactivate" :aria-describedby="!canReactivate ? 'bulk-reactivate-reason' : null">{{ __('lf.LF_course_enrollment_lifecycle_reactivate') }}</button>
-            <button type="button" class="ui-button ui-button--danger-outline cursor-interaction course-enrollment-bulk-action--cancel" x-on:click="openLifecycle('cancel', $event.currentTarget)" :disabled="submitting || !canCancel" :aria-describedby="!canCancel ? 'bulk-cancel-reason' : null">{{ __('lf.LF_course_enrollment_lifecycle_cancel') }}</button>
-            <button type="button" class="ui-button cursor-interaction" x-on:click="clearSelection" :disabled="submitting">{{ __('lf.LF_course_enrollment_bulk_clear') }}</button>
-            <span id="bulk-suspend-reason" class="sr-only">{{ __('lf.LF_course_enrollment_bulk_suspend_disabled') }}</span>
-            <span id="bulk-reactivate-reason" class="sr-only">{{ __('lf.LF_course_enrollment_bulk_reactivate_disabled') }}</span>
-            <span id="bulk-cancel-reason" class="sr-only">{{ __('lf.LF_course_enrollment_bulk_cancel_disabled') }}</span>
-        </div>
         </div>
 
         <div class="mk-table-scroll" data-ui-live-region="table" role="region" aria-label="{{ __('lf.LF_course_enrollment_common_title') }}" tabindex="0">

@@ -3092,8 +3092,6 @@
 .lf-admin-ui .ui-enroll-col-source { width: 110px; }
 .lf-admin-ui .ui-enroll-col-date { width: 136px; }
 .lf-admin-ui .ui-enroll-nowrap { white-space: nowrap; }
-.lf-admin-ui .ui-enroll-bulkbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; padding: 10px 20px; border-top: 1px solid var(--ui-color-e6e8ee); background: var(--ui-color-eef0fb); font-size: 14px; }
-.lf-admin-ui .ui-enroll-bulkbar .course-enrollment-bulk-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .lf-admin-ui .mk-filter-form .course-enrollment-advanced-filter-grid { display: grid; flex: 1 1 100%; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; order: 10; margin: 0; padding: 12px 0 0; border-top: 1px solid var(--ui-color-e6e8ee); }
 @media (min-width: 900px) {
     .lf-admin-ui .ui-enroll-filterbar { flex-wrap: wrap; align-items: center; }
@@ -3421,7 +3419,7 @@
 .lf-admin-ui .ui-enroll-impact dt { margin: 0 0 2px; color: var(--ui-muted); font-size: 12.5px; }
 .lf-admin-ui .ui-enroll-impact dd { margin: 0; font-weight: 600; }
 .lf-admin-ui .ui-enroll-readonly { min-height: var(--ui-control-height); padding: 8px 12px; border-radius: 8px; background: var(--ui-color-eef0f5); font-size: 14px; }
-@media (max-width: 640px) { .lf-admin-ui .ui-enroll-bulkbar { padding: 10px 16px; } .lf-admin-ui .ui-enroll-summary { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 640px) { .lf-admin-ui .ui-enroll-summary { grid-template-columns: minmax(0, 1fr); } }
 
 /* Course enrollment · create wizard — docs/ui-demo/course-enrollment-create-design v1.3. */
 .lf-admin-ui.enr { --enr-c-5b6371: #5b6371; --enr-c-8a92a0: #8a92a0; --enr-c-d9dde5: #d9dde5; --enr-c-cfd4df: #cfd4df; --enr-c-30343d: #30343d; --enr-c-b9c1ea: #b9c1ea; --enr-c-f1f2f5: #f1f2f5; --enr-c-6e7787: #6e7787; --enr-c-e6e8ee: #e6e8ee; --enr-c-eef0f5: #eef0f5; --enr-c-f0f2f6: #f0f2f6; --enr-c-f8f9fd: #f8f9fd; --enr-c-f5f6fd: #f5f6fd; --enr-c-fcfcfd: #fcfcfd; --enr-c-f7f8fb: #f7f8fb; --enr-c-fafbfd: #fafbfd; --enr-c-c9d0f0: #c9d0f0; --enr-c-e3e7fa: #e3e7fa; --enr-c-17233b0d: #17233b0d; --enr-c-a0a6b1: #a0a6b1; --enr-c-eceef4: #eceef4; --enr-c-e2a33b: #e2a33b; --enr-c-8b2c35: #8b2c35; --enr-c-f1c9cd: #f1c9cd; --enr-c-7a4a0e: #7a4a0e; --enr-c-f1dcb5: #f1dcb5; --enr-c-1b5e40: #1b5e40; --enr-c-bfe3cf: #bfe3cf; --enr-c-ffffff1c: #ffffff1c; --enr-c-ecedf3: #ecedf3; --enr-c-fffcf5: #fffcf5; --enr-c-2c6b4c: #2c6b4c; --enr-c-4f7f66: #4f7f66; --enr-c-fffafa: #fffafa; --enr-c-f5f6fb: #f5f6fb; --enr-c-e3e6ef: #e3e6ef; --enr-c-4a5160: #4a5160; }
@@ -3685,7 +3683,8 @@
 .lf-admin-ui .ui-asm-nowrap { white-space: nowrap; }
 .lf-admin-ui .ui-asm-import .ui-field__error { white-space: pre-line; }
 .lf-admin-ui .ui-asm-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-.lf-admin-ui .ui-asm-stats dd .ui-caption { display: block; font-weight: 400; }
+.lf-admin-ui .ui-asm-stats dd { font-size: 20px; line-height: 28px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.lf-admin-ui .ui-asm-stats dd .ui-caption { display: block; font-size: 12.5px; line-height: 18px; font-weight: 400; }
 .lf-admin-ui .mk-tablebar--filters .ui-asm-stats-quiz { flex: 0 1 380px; max-width: 100%; }
 @media (max-width: 720px) { .lf-admin-ui .ui-asm-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .lf-admin-ui .ui-quiz-notice { display: flex; align-items: center; gap: 8px; margin: 16px 20px 0; padding: 10px 14px; border-radius: 8px; background: var(--ui-warning-soft); color: var(--ui-warning); font-size: 14px; }
@@ -3703,6 +3702,22 @@
 .lf-admin-ui .ui-result-tab:hover { color: var(--ui-text); border-color: var(--ui-muted); }
 .lf-admin-ui .ui-result-tab.is-active { border-color: var(--ui-primary); background: var(--ui-color-eef0fb); color: var(--ui-primary); font-weight: 500; }
 .lf-admin-ui .ui-result-tab__count { min-width: 22px; padding: 0 6px; border-radius: 999px; background: var(--ui-warning-soft); color: var(--ui-warning); font-size: 12px; line-height: 20px; text-align: center; }
+/* Kết quả & Chấm bài (Owner 2026-11-07): export beside the tabs, a wider quiz column,
+   a coloured pass / fail verdict; row icons: pencil = grade, eye = view. */
+.lf-admin-ui .ui-result-tabbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 16px; }
+.lf-admin-ui .ui-result-tabbar .ui-result-tabs { margin: 0; }
+.lf-admin-ui .ui-result-col-sequence { width: 56px; }
+.lf-admin-ui .ui-result-col-student { width: 176px; }
+.lf-admin-ui .ui-result-col-status { width: 116px; }
+.lf-admin-ui .ui-result-col-action { width: 88px; }
+.lf-admin-ui .ui-result-table .ui-asm-col-score { width: 164px; }
+.lf-admin-ui .ui-result-table .ui-asm-col-date { width: 132px; }
+.lf-admin-ui .ui-result-email { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lf-admin-ui .ui-result-score { display: block; font-weight: 600; }
+.lf-admin-ui .ui-result-score-meta { display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 6px; margin-top: 4px; }
+.lf-admin-ui .ui-result-score-meta .ui-caption { margin: 0; }
+.lf-admin-ui .ui-result-verdict { min-height: 0; padding: 1px 8px; font-size: 12px; }
+.lf-admin-ui .ui-result-provisional { font-style: italic; }
 .lf-admin-ui .ui-result-questions { padding-bottom: 8px; }
 .lf-admin-ui .ui-result-section-title { margin: 22px 22px 4px; font-size: 16px; font-weight: 600; }
 .lf-admin-ui .ui-result-section-title + .ui-caption { margin: 0 22px 8px; }
