@@ -79,6 +79,7 @@
                 ]],
                 ['label' => __('lf.LF_navigation_menu_admin_course_enrollments'), 'route' => 'admin.course-enrollments.index', 'active' => 'admin.course-enrollments.*', 'visible' => true, 'icon' => 'clipboard-check'],
                 ['label' => __('lf.LF_navigation_menu_admin_course_cohorts'), 'route' => 'admin.course-cohorts.index', 'active' => 'admin.course-cohorts.*', 'visible' => true, 'icon' => 'users'],
+                ['label' => __('lf.LF_learning_frameworks'), 'route' => 'admin.learning-frameworks.index', 'active' => 'admin.learning-frameworks.*', 'visible' => true, 'icon' => 'book-marked'],
                 ['label' => __('lf.LF_navigation_group_assessment'), 'route' => null, 'active' => null, 'visible' => true, 'icon' => 'file-check', 'children' => [
                     ['label' => __('lf.LF_navigation_menu_assessment_categories'), 'route' => 'admin.assessments.categories.index', 'active' => 'admin.assessments.categories.*', 'visible' => true],
                     ['label' => __('lf.LF_navigation_menu_assessment_questions'), 'route' => 'admin.assessments.questions.index', 'active' => 'admin.assessments.questions.*', 'visible' => true],
@@ -87,7 +88,6 @@
                     ['label' => __('lf.LF_navigation_menu_assessment_registrations'), 'route' => 'admin.assessments.registrations.index', 'active' => 'admin.assessments.registrations.*', 'visible' => true],
                     ['label' => __('lf.LF_navigation_menu_assessment_results'), 'route' => 'admin.assessments.results.index', 'active' => 'admin.assessments.results.*', 'visible' => true],
                 ]],
-                ['label' => __('lf.LF_learning_frameworks'), 'route' => 'admin.learning-frameworks.index', 'active' => 'admin.learning-frameworks.*', 'visible' => true, 'icon' => 'book-marked'],
             ];
         $dashboardLabel = $isTeacher
             ? __('lf.LF_navigation_menu_teacher_dashboard')

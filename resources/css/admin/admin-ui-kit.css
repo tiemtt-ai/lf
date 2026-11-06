@@ -3669,6 +3669,20 @@
 .lf-admin-ui .ui-passage-move button:disabled { opacity: .35; cursor: not-allowed; }
 .lf-admin-ui .ui-icon--flip { transform: rotate(180deg); }
 .lf-admin-ui .ui-inline-form { display: contents; }
+/* Kiểm tra list tables (Owner 2026-11-06 "cân đối"): fixed layout; short value columns have fixed widths and are
+   centred, the text columns (name / title / student / quiz) share the rest. Narrow screens scroll instead of squeezing. */
+.lf-admin-ui .ui-asm-table { table-layout: fixed; min-width: 760px; }
+.lf-admin-ui .ui-asm-table--wide { min-width: 880px; }
+.lf-admin-ui .ui-asm-col-category { width: 140px; }
+.lf-admin-ui .ui-asm-col-author { width: 120px; }
+.lf-admin-ui .ui-asm-col-source { width: 124px; }
+.lf-admin-ui .ui-asm-col-count { width: 84px; }
+.lf-admin-ui .ui-asm-col-attempts { width: 112px; }
+.lf-admin-ui .ui-asm-col-score { width: 148px; }
+.lf-admin-ui .ui-asm-col-date { width: 140px; }
+.lf-admin-ui .ui-asm-col-status { width: 132px; }
+.lf-admin-ui .ui-asm-table :is(th, td).mk-count-cell { text-align: center; }
+.lf-admin-ui .ui-asm-nowrap { white-space: nowrap; }
 .lf-admin-ui .ui-quiz-notice { display: flex; align-items: center; gap: 8px; margin: 16px 20px 0; padding: 10px 14px; border-radius: 8px; background: var(--ui-warning-soft); color: var(--ui-warning); font-size: 14px; }
 .lf-admin-ui .ui-quiz-section-row th, .lf-admin-ui .ui-quiz-section-row td { background: var(--ui-color-eef0f5); }
 .lf-admin-ui .ui-quiz-section-row th { font-weight: 400; }

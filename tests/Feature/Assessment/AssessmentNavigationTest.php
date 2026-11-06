@@ -43,9 +43,9 @@ class AssessmentNavigationTest extends TestCase
             self::ADMIN_SECTIONS,
             $this->childSections($sidebar, 'admin'),
         );
-        // A standalone product: placed after the course groups, before learning frameworks.
+        // A standalone product: the last group of the sidebar, after learning frameworks (Owner 2026-11-06).
         $this->assertLessThan(strpos($sidebar, '/admin/assessments/'), strpos($sidebar, '/admin/course-cohorts'));
-        $this->assertLessThan(strpos($sidebar, '/admin/learning-frameworks'), strpos($sidebar, '/admin/assessments/'));
+        $this->assertLessThan(strpos($sidebar, '/admin/assessments/'), strpos($sidebar, '/admin/learning-frameworks'));
     }
 
     public function test_teacher_sidebar_has_assessment_group_without_categories(): void
@@ -82,6 +82,27 @@ class AssessmentNavigationTest extends TestCase
                     $html,
                 );
             }
+        }
+    }
+
+    public function test_create_buttons_say_what_they_add(): void
+    {
+        $admin = $this->createUser($this->createTenant(), 'customer_admin');
+        $labels = [
+            'categories' => 'lf.LF_assessment_category_create',
+            'questions' => 'lf.LF_assessment_question_create',
+            'passages' => 'lf.LF_assessment_passage_create',
+            'quizzes' => 'lf.LF_assessment_quiz_create',
+        ];
+
+        foreach ($labels as $section => $key) {
+            $html = $this->actingAs($admin)->get("https://tenant-a.localhost/admin/assessments/{$section}")->assertOk()->getContent();
+
+            $this->assertMatchesRegularExpression(
+                '/<button[^>]*data-ui-dialog-form-open[^>]*>\s*<svg.*?<\/svg>\s*'.preg_quote(e(__($key)), '/').'\s*<\/button>/s',
+                $html,
+                $section,
+            );
         }
     }
 

@@ -99,22 +99,22 @@
                             data-ui-dialog-form-open data-ui-dialog-form-for="assessment-passage-list"
                             data-url="{{ route($routePrefix.'.create') }}" aria-haspopup="dialog">
                         <x-backend-icon name="plus" class="ui-icon" />
-                        {{ __('lf.LF_assessment_category_create_short') }}
+                        {{ __('lf.LF_assessment_passage_create') }}
                     </button>
                 </x-slot:create>
             </x-ui-list-toolbar>
         </div>
 
         <div class="mk-table-scroll" data-ui-live-region="table" role="region" aria-label="{{ __('lf.LF_navigation_menu_assessment_passages') }}" tabindex="0">
-            <table aria-labelledby="admin-page-title">
+            <table class="ui-asm-table" aria-labelledby="admin-page-title">
                 <colgroup>
                     <col class="ui-col-check">
                     <col class="mk-col-sequence">
                     <col>
-                    <col class="mk-col-secondary">
-                    @if ($showAuthor)<col class="mk-col-count">@endif
-                    <col class="mk-col-count">
-                    <col class="mk-col-status">
+                    <col class="ui-asm-col-category">
+                    @if ($showAuthor)<col class="ui-asm-col-author">@endif
+                    <col class="ui-asm-col-count">
+                    <col class="ui-asm-col-status">
                     <col class="mk-col-action-wide">
                 </colgroup>
                 <thead>
@@ -175,7 +175,7 @@
                             <td class="ux-action-cell" data-label="{{ __('lf.table_actions') }}">
                                 <a class="ux-row-edit cursor-interaction" href="{{ route($routePrefix.'.show', $passage->id) }}"
                                    aria-label="{{ __('lf.LF_assessment_passage_manage') }}: {{ $passage->title }}" data-tooltip="{{ __('lf.LF_assessment_passage_manage') }}">
-                                    <x-backend-icon name="list" class="ui-icon" />
+                                    <x-backend-icon name="sliders" class="ui-icon" />
                                 </a>
                                 <button type="button" class="ux-row-edit cursor-interaction" data-ui-dialog-form-open
                                         data-url="{{ route($routePrefix.'.edit', $passage->id) }}" aria-haspopup="dialog"

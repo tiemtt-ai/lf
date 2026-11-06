@@ -77,14 +77,14 @@
         </div>
 
         <div class="mk-table-scroll" data-ui-live-region="table" role="region" aria-label="{{ __('lf.LF_navigation_menu_assessment_results') }}" tabindex="0">
-            <table aria-labelledby="admin-page-title">
+            <table class="ui-asm-table ui-asm-table--wide" aria-labelledby="admin-page-title">
                 <colgroup>
                     <col class="mk-col-sequence">
                     <col>
                     <col>
-                    <col class="mk-col-secondary">
-                    <col class="mk-col-count">
-                    <col class="mk-col-status">
+                    <col class="ui-asm-col-date">
+                    <col class="ui-asm-col-score">
+                    <col class="ui-asm-col-status">
                     <col class="mk-col-action">
                 </colgroup>
                 <thead>
@@ -110,7 +110,7 @@
                                 {{ $attempt->quiz_title }}
                                 <p class="ui-caption">{{ __('lf.LF_assessment_quiz_version_number', ['number' => $attempt->version_no]) }} · {{ __('lf.LF_assessment_result_attempt_no', ['number' => $attempt->attempt_no]) }}</p>
                             </td>
-                            <td class="mk-text-cell" data-label="{{ __('lf.LF_assessment_result_submitted_at') }}">
+                            <td class="mk-text-cell ui-asm-nowrap" data-label="{{ __('lf.LF_assessment_result_submitted_at') }}">
                                 {{ $attempt->submitted_at ? \Illuminate\Support\Carbon::parse($attempt->submitted_at)->format('d/m/Y H:i') : '—' }}
                             </td>
                             <td class="mk-count-cell" data-label="{{ __('lf.LF_assessment_result_score') }}">
@@ -135,7 +135,7 @@
                                 <a class="ux-row-edit cursor-interaction" href="{{ route($routePrefix.'.show', $attempt->id) }}"
                                    aria-label="{{ $attempt->grading_status === 'pending' ? __('lf.LF_assessment_result_grade') : __('lf.LF_assessment_result_view') }}: {{ $attempt->student_name }}"
                                    data-tooltip="{{ $attempt->grading_status === 'pending' ? __('lf.LF_assessment_result_grade') : __('lf.LF_assessment_result_view') }}">
-                                    <x-backend-icon :name="$attempt->grading_status === 'pending' ? 'square-pen' : 'list'" class="ui-icon" />
+                                    <x-backend-icon name="sliders" class="ui-icon" />
                                 </a>
                             </td>
                         </tr>

@@ -105,16 +105,16 @@
         </div>
 
         <div class="mk-table-scroll" data-ui-live-region="table" role="region" aria-label="{{ __('lf.LF_navigation_menu_assessment_registrations') }}" tabindex="0">
-            <table aria-labelledby="admin-page-title">
+            <table class="ui-asm-table ui-asm-table--wide" aria-labelledby="admin-page-title">
                 <colgroup>
                     <col class="ui-col-check">
                     <col class="mk-col-sequence">
                     <col>
                     <col>
-                    <col class="mk-col-secondary">
-                    <col class="mk-col-count">
-                    <col class="mk-col-secondary">
-                    <col class="mk-col-status">
+                    <col class="ui-asm-col-source">
+                    <col class="ui-asm-col-attempts">
+                    <col class="ui-asm-col-date">
+                    <col class="ui-asm-col-status">
                 </colgroup>
                 <thead>
                     <tr>
@@ -163,7 +163,7 @@
                             <td class="mk-count-cell" data-label="{{ __('lf.LF_assessment_registration_attempts') }}">
                                 {{ $registration->attempts_used }}@if ($registration->max_attempts) / {{ $registration->max_attempts }}@endif
                             </td>
-                            <td class="mk-text-cell" data-label="{{ __('lf.LF_assessment_registration_registered_at') }}">
+                            <td class="mk-text-cell ui-asm-nowrap" data-label="{{ __('lf.LF_assessment_registration_registered_at') }}">
                                 {{ \Illuminate\Support\Carbon::parse($registration->registered_at)->format('d/m/Y H:i') }}
                             </td>
                             <td class="ux-action-cell" data-label="{{ __('lf.LF_assessment_category_status') }}">

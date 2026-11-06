@@ -3864,7 +3864,6 @@ return [
     'LF_assessment_category_bulk_delete_title' => 'Delete categories',
     'LF_assessment_category_bulk_delete_confirm' => ':count categories will be permanently deleted. This cannot be undone.',
     'LF_assessment_category_bulk_deleted' => '{1} 1 category deleted.|[2,*] :count categories deleted.',
-    'LF_assessment_category_create_short' => 'Add',
     'LF_assessment_category_create' => 'Add category',
     'LF_assessment_category_edit' => 'Edit category',
     'LF_assessment_category_select_all' => 'Select all categories',

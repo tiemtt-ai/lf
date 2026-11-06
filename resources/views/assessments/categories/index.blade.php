@@ -79,21 +79,21 @@
                             data-ui-dialog-form-open data-ui-dialog-form-for="assessment-category-list"
                             data-url="{{ route($routePrefix.'.create') }}" aria-haspopup="dialog">
                         <x-backend-icon name="plus" class="ui-icon" />
-                        {{ __('lf.LF_assessment_category_create_short') }}
+                        {{ __('lf.LF_assessment_category_create') }}
                     </button>
                 </x-slot:create>
             </x-ui-list-toolbar>
         </div>
 
         <div class="mk-table-scroll" data-ui-live-region="table" role="region" aria-label="{{ __('lf.LF_navigation_menu_assessment_categories') }}" tabindex="0">
-            <table aria-labelledby="admin-page-title">
+            <table class="ui-asm-table" aria-labelledby="admin-page-title">
                 <colgroup>
                     <col class="ui-col-check">
                     <col class="mk-col-sequence">
                     <col>
-                    <col class="mk-col-parent">
-                    <col class="mk-col-count">
-                    <col class="mk-col-status">
+                    <col>
+                    <col class="ui-asm-col-count">
+                    <col class="ui-asm-col-status">
                     <col class="mk-col-action">
                 </colgroup>
                 <thead>

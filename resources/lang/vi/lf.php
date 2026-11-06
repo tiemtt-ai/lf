@@ -3864,7 +3864,6 @@ return [
     'LF_assessment_category_bulk_delete_title' => 'Xóa danh mục',
     'LF_assessment_category_bulk_delete_confirm' => ':count danh mục sẽ bị xóa vĩnh viễn và không thể hoàn tác.',
     'LF_assessment_category_bulk_deleted' => '{1} Đã xóa 1 danh mục.|[2,*] Đã xóa :count danh mục.',
-    'LF_assessment_category_create_short' => 'Thêm',
     'LF_assessment_category_create' => 'Thêm danh mục',
     'LF_assessment_category_edit' => 'Sửa danh mục',
     'LF_assessment_category_select_all' => 'Chọn tất cả danh mục',
