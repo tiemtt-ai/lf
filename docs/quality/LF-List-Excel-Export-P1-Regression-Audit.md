@@ -54,7 +54,7 @@ Các test bao phủ: đúng cột tiêu đề; dữ liệu theo bộ lọc; dữ
 1. Nút Xuất Excel chuyển lên cùng hàng với các tab (`ui-result-tabbar`), vẫn là live region nên link đổi theo bộ lọc.
 2. Độ rộng cột: STT 56, Học viên 176 (email dài bị cắt bằng dấu …), Điểm 164, Trạng thái 116, Thao tác 88; cột Đề dùng phần còn lại.
 3. Cột Điểm: điểm in đậm; nhãn màu Đạt (xanh) hoặc Chưa đạt (đỏ); bài còn câu chờ chấm ghi "Tạm tính".
-4. Thao tác: dùng icon theo UI Kit (Owner chọn sau khi đã thử nút chữ "Chấm"): `pencil` cho bài chờ chấm (tooltip "Chấm bài"), `eye` cho bài khác, thay cho `sliders`.
+4. Thao tác: dùng icon theo UI Kit (Owner chọn sau khi đã thử nút chữ "Chấm"): `square-pen` cho bài chờ chấm (tooltip "Chấm bài"; `pencil` bị test UI Kit cấm), `eye` cho bài khác, thay cho `sliders`.
 5. ~~Banner "Có N bài chờ chấm"~~: đã làm rồi bỏ theo Owner ("quá thừa"; tab Chờ chấm đã có số đếm). Đã xóa view, khóa ngôn ngữ, CSS và truy vấn `oldestPendingId`.
 
 Kiểm chứng: `tests/Feature/Assessment` cùng test Người dùng và Ghi danh đạt 163 passed. Test mới `test_results_page_puts_pending_grading_first_and_marks_the_verdict` (nay là `test_results_page_marks_pending_grading_and_the_verdict`) kiểm tra không còn banner, có thao tác Chấm bài, nhãn Chưa đạt và Tạm tính. Các test đọc CSS UI Kit (PHP 82 passed, `node --test tests/js/admin-ui-kit-css.test.mjs` 6/6) và Pint đều đạt. Đã xem trên trình duyệt ở khổ hẹp và khổ 1440px, tab Chờ chấm và tìm kiếm trực tiếp.
@@ -83,5 +83,7 @@ Logic (`AssessmentStatisticsService`):
 
 UI: số trong ô tổng quan dùng cỡ chữ 20/28, đậm 600, giống `ui-summary__item--title dd` của UI Kit. Cột tỉ lệ đổi tiêu đề thành "Tỉ lệ đúng / Điểm TB" và bỏ dòng "làm đúng" lặp ở mỗi dòng (đã xóa 3 khóa ngôn ngữ không còn dùng). Nhãn Vừa chuyển sang màu trung tính; Dễ xanh và Khó đỏ giữ như cũ. Lời giới thiệu trang và chú thích bảng nói rõ cách tính mới.
 
-Kiểm chứng: `tests/Feature/Assessment` 104 passed. Test thống kê cũ được sửa theo logic mới; test mới `test_levels_need_enough_answers_and_scores_wait_for_grading` kiểm tra trường hợp chưa có bài chấm xong, ngưỡng 5 bài và màu Dễ/Khó/Vừa. Test CSS bằng Node đạt, Pint đạt. Đã xem trên trình duyệt ở khổ 1440px với đề TOPIK demo. Chưa chạy lại full suite.
+Kiểm chứng: `tests/Feature/Assessment` 104 passed. Test thống kê cũ được sửa theo logic mới; test mới `test_levels_need_enough_answers_and_scores_wait_for_grading` kiểm tra trường hợp chưa có bài chấm xong, ngưỡng 5 bài và màu Dễ/Khó/Vừa. Test CSS bằng Node đạt, Pint đạt. Đã xem trên trình duyệt ở khổ 1440px với đề TOPIK demo. Full suite sau mọi thay đổi trong ngày: xem dòng dưới.
 Có một lỗi gặp trong lúc làm và đã sửa: `@class` với chuỗi rỗng sinh ra `class="ui-status "`, nên đã thêm `array_filter`.
+
+Full suite sau mọi thay đổi trong ngày: 1784 passed, 23 skipped, 1 failed. Test lỗi là `BackendLayoutNavigationTest::test_every_edit_action_uses_the_square_pen_icon`, vì UI Kit cấm icon `pencil`. Đã đổi sang `square-pen`; chạy lại `BackendLayoutNavigationTest` và `tests/Feature/Assessment` được 131 passed.

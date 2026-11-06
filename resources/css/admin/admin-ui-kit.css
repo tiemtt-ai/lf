@@ -3703,7 +3703,7 @@
 .lf-admin-ui .ui-result-tab.is-active { border-color: var(--ui-primary); background: var(--ui-color-eef0fb); color: var(--ui-primary); font-weight: 500; }
 .lf-admin-ui .ui-result-tab__count { min-width: 22px; padding: 0 6px; border-radius: 999px; background: var(--ui-warning-soft); color: var(--ui-warning); font-size: 12px; line-height: 20px; text-align: center; }
 /* Kết quả & Chấm bài (Owner 2026-11-07): export beside the tabs, a wider quiz column,
-   a coloured pass / fail verdict; row icons: pencil = grade, eye = view. */
+   a coloured pass / fail verdict; row icons: square-pen = grade, eye = view. */
 .lf-admin-ui .ui-result-tabbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 16px; }
 .lf-admin-ui .ui-result-tabbar .ui-result-tabs { margin: 0; }
 .lf-admin-ui .ui-result-col-sequence { width: 56px; }

@@ -142,7 +142,7 @@
                                     <a class="ux-row-edit cursor-interaction" href="{{ route($routePrefix.'.show', $attempt->id) }}"
                                        aria-label="{{ __('lf.LF_assessment_result_grade') }}: {{ $attempt->student_name }}"
                                        data-tooltip="{{ __('lf.LF_assessment_result_grade') }}">
-                                        <x-backend-icon name="pencil" class="ui-icon" />
+                                        <x-backend-icon name="square-pen" class="ui-icon" />
                                     </a>
                                 @else
                                     <a class="ux-row-edit cursor-interaction" href="{{ route($routePrefix.'.show', $attempt->id) }}"
