@@ -38,7 +38,7 @@
 
     <x-ui-list-head :title="$attempt->student_name.' · '.$version->title" :text="__('lf.LF_assessment_result_detail_help')" />
 
-    <section class="mk-section" aria-labelledby="assessment-result-summary-title">
+    <section class="mk-section ui-result-summary-section" aria-labelledby="assessment-result-summary-title">
         <div class="ui-summary-head">
             <div>
                 <h2 id="assessment-result-summary-title">{{ __('lf.LF_assessment_result_summary') }}</h2>
@@ -53,16 +53,16 @@
                 </span>
             @endif
         </div>
-        <dl class="ui-summary ui-quiz-summary">
+        <dl class="ui-summary ui-quiz-summary ui-result-summary">
             <div class="ui-summary__item">
                 <dt>{{ __('lf.LF_assessment_registration_student') }}</dt>
-                <dd>{{ $attempt->student_name }} <span class="ui-caption ui-framework-description">{{ $attempt->student_email }}</span></dd>
+                <dd>{{ $attempt->student_name }} <span class="ui-caption ui-framework-description" title="{{ $attempt->student_email }}">{{ $attempt->student_email }}</span></dd>
             </div>
             <div class="ui-summary__item">
                 <dt>{{ __('lf.LF_assessment_result_score') }}</dt>
                 <dd>
                     @if ($attempt->score !== null)
-                        {{ $trim($attempt->score) }} / {{ $trim($attempt->max_score) }} ({{ $trim($attempt->score_percentage) }}%)
+                        <span class="ui-result-summary__score">{{ $trim($attempt->score) }} / {{ $trim($attempt->max_score) }}</span> ({{ $trim($attempt->score_percentage) }}%)
                         <span class="ui-caption ui-framework-description">
                             @if ($attempt->passed !== null)
                                 {{ $attempt->passed ? __('lf.LF_assessment_result_passed') : __('lf.LF_assessment_result_failed') }}

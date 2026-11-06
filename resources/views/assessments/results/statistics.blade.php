@@ -29,7 +29,7 @@
             </div>
         </section>
     @else
-        <section class="mk-section" aria-labelledby="assessment-statistics-summary-title">
+        <section class="mk-section ui-asm-stats-summary" aria-labelledby="assessment-statistics-summary-title">
             <div class="mk-tablebar mk-tablebar--filters">
                 <form class="mk-filter-form" method="GET" action="{{ route($routePrefix.'.statistics') }}" data-ui-live-filter>
                     <div class="ui-field mk-search ui-asm-stats-quiz">
@@ -92,7 +92,7 @@
                 </div>
             </div>
             <div class="mk-table-scroll" data-ui-live-region="table" role="region" aria-label="{{ __('lf.LF_assessment_statistics_questions') }}" tabindex="0">
-                <table class="ui-asm-table">
+                <table class="ui-asm-table ui-asm-table--stats">
                     <colgroup>
                         <col class="mk-col-sequence">
                         <col>

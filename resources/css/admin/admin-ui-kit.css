@@ -3675,14 +3675,24 @@
 .lf-admin-ui .ui-asm-col-author { width: 120px; }
 .lf-admin-ui .ui-asm-col-source { width: 124px; }
 .lf-admin-ui .ui-asm-col-count { width: 84px; }
-.lf-admin-ui .ui-asm-col-attempts { width: 112px; }
+.lf-admin-ui .ui-asm-col-attempts { width: 120px; }
 .lf-admin-ui .ui-asm-col-score { width: 148px; }
+.lf-admin-ui .ui-asm-table--stats .ui-asm-col-score { width: 176px; }
+.lf-admin-ui .ui-asm-table--stats .ui-asm-col-status { width: 152px; }
 .lf-admin-ui .ui-asm-col-date { width: 140px; }
 .lf-admin-ui .ui-asm-col-status { width: 132px; }
 .lf-admin-ui .ui-asm-table :is(th, td).mk-count-cell { text-align: center; }
 .lf-admin-ui .ui-asm-nowrap { white-space: nowrap; }
 .lf-admin-ui .ui-asm-import .ui-field__error { white-space: pre-line; }
-.lf-admin-ui .ui-asm-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.lf-admin-ui .ui-asm-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; padding: 0 20px 20px; } /* stat tiles sit right under the quiz picker */
+.lf-admin-ui .ui-asm-stats .ui-summary__item { padding: 12px 14px; border: 1px solid var(--ui-color-eceef3); border-radius: 6px; }
+.lf-admin-ui--list > :is(.ui-asm-stats-summary, .ui-result-summary-section) + .mk-section { margin-top: 16px; } /* the block under a summary is its own card, not glued to it */
+.lf-admin-ui .ui-result-summary { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.lf-admin-ui .ui-result-summary .ui-summary__item { padding: 12px 14px; border: 1px solid var(--ui-color-eceef3); border-radius: 6px; }
+.lf-admin-ui .ui-result-summary .ui-framework-description { font-size: 12.5px; line-height: 18px; font-weight: 400; }
+.lf-admin-ui .ui-result-summary__score { font-size: 20px; line-height: 28px; font-weight: 600; font-variant-numeric: tabular-nums; }
+@media (max-width: 960px) { .lf-admin-ui .ui-result-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .lf-admin-ui .ui-result-summary { grid-template-columns: 1fr; } }
 .lf-admin-ui .ui-asm-stats dd { font-size: 20px; line-height: 28px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .lf-admin-ui .ui-asm-stats dd .ui-caption { display: block; font-size: 12.5px; line-height: 18px; font-weight: 400; }
 .lf-admin-ui .mk-tablebar--filters .ui-asm-stats-quiz { flex: 0 1 380px; max-width: 100%; }

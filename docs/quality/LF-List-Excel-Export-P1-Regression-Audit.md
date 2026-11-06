@@ -87,3 +87,13 @@ Kiểm chứng: `tests/Feature/Assessment` 104 passed. Test thống kê cũ đư
 Có một lỗi gặp trong lúc làm và đã sửa: `@class` với chuỗi rỗng sinh ra `class="ui-status "`, nên đã thêm `array_filter`.
 
 Full suite sau mọi thay đổi trong ngày: 1784 passed, 23 skipped, 1 failed. Test lỗi là `BackendLayoutNavigationTest::test_every_edit_action_uses_the_square_pen_icon`, vì UI Kit cấm icon `pencil`. Đã đổi sang `square-pen`; chạy lại `BackendLayoutNavigationTest` và `tests/Feature/Assessment` được 131 passed.
+
+## Bổ sung: cân lại bố cục trang Thống kê
+
+Bốn số tổng quan chuyển thành ô có viền, cách nhau 12px, nằm ngay dưới ô chọn đề. Phần "Theo từng câu" tách khỏi khối tổng quan một khoảng 16px. Quy tắc này chỉ áp dụng cho trang này (`.ui-asm-stats-summary + .mk-section`), danh sách khác không đổi. Cột của bảng thống kê (`ui-asm-table--stats`) đổi độ rộng: Số bài 120, Tỉ lệ đúng / Điểm TB 176, Mức độ 152.
+Kiểm chứng: `tests/Feature/Assessment` cùng `BackendLayoutNavigationTest` đạt 131 passed; test CSS bằng Node đạt 6/6. Đã xem trên trình duyệt ở khổ 1440px.
+
+## Bổ sung: cân lại bố cục trang chi tiết bài làm
+
+Phần Tóm tắt của trang chi tiết bài làm (`results/{id}`) đổi từ 2 cột thưa thành 4 ô có viền (Học viên, Điểm, Bắt đầu, Nộp lúc), giống trang Thống kê. Điểm in đậm cỡ 20. Khổ ≤960px còn 2 cột, khổ ≤640px còn 1 cột. Khối "Câu trả lời" cách khối Tóm tắt 16px. Quy tắc khoảng cách dùng chung một selector cho 2 trang này.
+Kiểm chứng: `tests/Feature/Assessment` cùng `BackendLayoutNavigationTest` đạt 131 passed; test CSS bằng Node đạt 6/6. Đã xem bài số 8 ở khổ 1440px.
