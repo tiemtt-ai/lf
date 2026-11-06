@@ -49,11 +49,19 @@
 .lf-login-submit:hover { background: #3e50b4; }
 .lf-login-page :is(button, input[type=checkbox]):focus-visible { outline: 2px solid #9aaaff; outline-offset: 3px; }
 .lf-login-error { margin: 6px 0 0; padding: 0; list-style: none; color: #b42318; font-size: 13px; overflow-wrap: anywhere; }
+.lf-login-notice { display: flex; gap: 12px; margin: 0 0 24px; padding: 16px; border: 1px solid #cfd6f5; border-radius: 10px; background: #f1f3fd; color: #27326b; }
+.lf-login-notice-icon { flex: none; width: 20px; height: 20px; margin-top: 2px; color: var(--lf-login-primary); }
+.lf-login-notice-body { min-width: 0; }
+.lf-login-notice-title { margin: 0; font-weight: 700; }
+.lf-login-notice-text { margin: 4px 0 12px; color: #4a5578; font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+.lf-login-notice-action { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 6px 14px; border-radius: 8px; background: var(--lf-login-primary); color: white; font-size: 14px; font-weight: 600; text-decoration: none; }
+.lf-login-notice-action:hover { background: #3e50b4; }
+.lf-login-notice-action:focus-visible { outline: 2px solid #9aaaff; outline-offset: 3px; }
 .lf-login-status { margin-bottom: 16px; color: #24643b; }
 .lf-login-footer { flex: none; padding: 22px 24px; border-top: 1px solid #e1e7f0; color: #73839b; text-align: center; font-size: 12px; overflow-wrap: anywhere; }
 .lf-login-page [x-cloak] { display: none !important; }
 @media (pointer: coarse) {
-    .lf-login-language-trigger, .lf-login-language-option { min-height: 44px; }
+    .lf-login-language-trigger, .lf-login-language-option, .lf-login-notice-action { min-height: 44px; }
     .lf-login-page .lf-login-input { height: 44px; padding-top: 10px; padding-bottom: 10px; }
 }
 @media (max-width: 600px) {

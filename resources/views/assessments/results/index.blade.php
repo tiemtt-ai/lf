@@ -66,6 +66,17 @@
                     @endif
                 </span>
             </form>
+
+            <div class="mk-table-top__actions">
+                {{-- Live slot: the export follows the current tab and filters after a live search. --}}
+                <span class="ui-live-slot" data-ui-live-region="export">
+                    <a class="ui-button ui-button--outline cursor-interaction" download
+                       href="{{ route($routePrefix.'.export', array_filter($filters, fn ($value, $key) => $key === 'tab' ? $value === 'pending' : $value !== null && $value !== '', ARRAY_FILTER_USE_BOTH)) }}">
+                        <x-backend-icon name="file-output" class="ui-icon" />
+                        {{ __('lf.LF_export_excel') }}
+                    </a>
+                </span>
+            </div>
         </div>
 
         <div class="mk-table-scroll" data-ui-live-region="table" role="region" aria-label="{{ __('lf.LF_navigation_menu_assessment_results') }}" tabindex="0">

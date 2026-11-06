@@ -85,7 +85,7 @@ class TenantWebsiteUiTest extends TestCase
 
         foreach ($paths as $path) {
             $this->get('https://tenant-a.localhost'.$path)
-                ->assertRedirect('https://tenant-a.localhost/login');
+                ->assertRedirect('https://tenant-a.localhost/login?experience=student');
         }
 
         foreach ($paths as $path) {

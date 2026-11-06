@@ -109,6 +109,7 @@ Route::prefix('assessments')->name('assessments.')->group(function () use ($asse
 
     // Kết quả & Chấm bài: attempts read from their frozen version; essay / speaking graded by hand.
     Route::get('/results', [AssessmentResultController::class, 'index'])->name('results.index');
+    Route::get('/results/export', [AssessmentResultController::class, 'export'])->name('results.export');
     Route::get('/results/statistics', [AssessmentResultController::class, 'statistics'])->name('results.statistics');
     Route::get('/results/{id}', [AssessmentResultController::class, 'show'])->whereNumber('id')->name('results.show');
     Route::post('/results/{id}/answers/{answerId}/grade', [AssessmentResultController::class, 'grade'])

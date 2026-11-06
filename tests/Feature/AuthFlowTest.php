@@ -42,7 +42,11 @@ class AuthFlowTest extends TestCase
                 ? 'https://tenant-a.localhost'
                 : 'https://tenant-a.localhost'.$destination;
 
-            $this->post('https://tenant-a.localhost/login', [
+            $loginUrl = $role === 'student'
+                ? 'https://tenant-a.localhost/login?experience=student'
+                : 'https://tenant-a.localhost/login';
+
+            $this->post($loginUrl, [
                 'email' => $user->email,
                 'password' => 'password123',
             ])->assertRedirect($destinationUrl);
@@ -51,7 +55,7 @@ class AuthFlowTest extends TestCase
                 ->assertRedirect($destinationUrl);
 
             $this->post('https://tenant-a.localhost/logout')
-                ->assertRedirect('https://tenant-a.localhost/login');
+                ->assertRedirect($loginUrl);
         }
     }
 

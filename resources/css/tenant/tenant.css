@@ -2003,6 +2003,31 @@
     border-radius: 4px;
 }
 
+.student-login-notice {
+    margin-bottom: 22px;
+    padding: 16px 18px;
+    border: 1px solid var(--student-border);
+    border-left: 4px solid var(--student-primary);
+    border-radius: 12px;
+    background: var(--student-primary-soft);
+}
+
+.student-login-notice-title {
+    margin: 0;
+    font-weight: 700;
+}
+
+.student-login-notice-text {
+    margin: 4px 0 14px;
+    font-size: 14px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+.student-login-notice-action {
+    gap: 6px;
+}
+
 .student-login-submit {
     width: 100%;
 }

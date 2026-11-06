@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Services\CourseEnrollmentLifecycleService;
 use App\Services\EnrollmentCreationAction;
+use App\Support\SimpleXlsx;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -2087,6 +2088,44 @@ class CourseEnrollmentManagementTest extends TestCase
         $this->actingAs($admin)->postJson('https://tenant-a.localhost/admin/course-enrollments/bulk/preflight', [
             'student_ids' => range(1, 11), 'product_ids' => range(1, 10), 'configuration' => [],
         ])->assertUnprocessable()->assertJsonValidationErrors('pair_count');
+    }
+
+    public function test_export_follows_the_filters_and_stays_inside_the_tenant(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $teacher = $this->createUser($customerId, 'teacher');
+        $productId = $this->createProduct($customerId, 'Export Product', 'export-product');
+        $versionId = $this->createVersion($customerId, $admin->id);
+        $active = $this->createUser($customerId, 'student');
+        $cancelled = $this->createUser($customerId, 'student');
+        DB::table('users')->where('id', $active->id)->update(['phone' => '0912']);
+        $activeId = $this->createEnrollment($customerId, $active->id, $productId, $versionId);
+        $this->createEnrollment($customerId, $cancelled->id, $productId, $versionId, 'cancelled');
+        $otherTenant = $this->createTenant('tenant-b');
+        $outsider = $this->createUser($otherTenant, 'student');
+        $this->createEnrollment($otherTenant, $outsider->id, $this->createProduct($otherTenant, 'Other', 'other'), $this->createVersion($otherTenant, $this->createUser($otherTenant, 'customer_admin')->id));
+
+        $this->actingAs($admin)->get('https://tenant-a.localhost/admin/course-enrollments?status=active')->assertOk()
+            ->assertSee('href="https://tenant-a.localhost/admin/course-enrollments/export?status=active"', false);
+
+        $read = function (string $query) use ($admin): array {
+            $response = $this->actingAs($admin)->get('https://tenant-a.localhost/admin/course-enrollments/export'.$query)->assertOk();
+            $this->assertStringContainsString('attachment; filename="ghi-danh-', $response->headers->get('Content-Disposition'));
+            $path = tempnam(sys_get_temp_dir(), 'exp');
+            file_put_contents($path, $response->getContent());
+
+            return SimpleXlsx::read($path);
+        };
+        $all = $read('');
+        $this->assertSame(__('lf.LF_export_col_enrollment_id'), $all[0][1]);
+        $this->assertEqualsCanonicalizing([$active->email, $cancelled->email], array_column(array_slice($all, 1), 3));
+        $only = $read('?status=active');
+        $this->assertCount(2, $only);
+        $this->assertSame(['1', (string) $activeId, $active->name, $active->email, '0912', 'Export Product'], array_slice($only[1], 0, 6));
+        $this->assertSame([__('lf.LF_course_enrollment_common_source_admin'), __('lf.LF_course_enrollment_common_active')], [$only[1][8], $only[1][12]]);
+
+        $this->actingAs($teacher)->get('https://tenant-a.localhost/admin/course-enrollments/export')->assertForbidden();
     }
 
     private function prepareBulkSubmission(object $admin, array $studentIds, array $productIds, array $confirmations, array $configuration): string

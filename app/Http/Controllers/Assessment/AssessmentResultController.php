@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Assessment;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use App\Services\Assessment\AssessmentAttemptService as Attempts;
 use App\Services\Assessment\AssessmentGradingService as Grading;
 use App\Services\Assessment\AssessmentQuizPublishService;
@@ -10,10 +11,12 @@ use App\Services\Assessment\AssessmentQuizService as Quizzes;
 use App\Services\Assessment\AssessmentStatisticsService;
 use App\Services\MediaService;
 use App\Support\TenantContext;
+use App\Support\XlsxDownload;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Kết quả & Chấm bài of the Kiểm tra module: the attempts list (with the "Chờ chấm" view), one attempt read from its
@@ -34,21 +37,75 @@ final class AssessmentResultController extends Controller
     {
         $customerId = $this->customerId();
         $user = $request->user();
+        $filters = $this->listFilters($request);
+        $base = fn () => $this->grading->scoped($customerId, $user);
+
+        $attempts = $this->listQuery($customerId, $user, $filters)
+            ->paginate(10)
+            ->withQueryString();
+
+        return view('assessments.results.index', [
+            'attempts' => $attempts,
+            'filters' => $filters,
+            'pendingCount' => $base()->where('a.grading_status', 'pending')->count(),
+            'quizzes' => $this->quizzes->scoped($customerId, $user)->whereNotNull('current_version_id')->orderBy('title')->get(['id', 'title']),
+            'routePrefix' => $this->routePrefix($request),
+        ]);
+    }
+
+    /** The list as .xlsx: the tab and filters on screen, every page, only the attempts this user may see. */
+    public function export(Request $request): Response
+    {
+        $this->routePrefix($request);
+        $attempts = $this->listQuery($this->customerId(), $request->user(), $this->listFilters($request))
+            ->limit(XlsxDownload::MAX_ROWS)
+            ->get();
+
+        return XlsxDownload::response(
+            [
+                __('lf.table_no'), __('lf.LF_assessment_registration_student'), __('lf.LF_common_label_email'),
+                __('lf.LF_assessment_registration_quiz'), __('lf.LF_export_col_version'), __('lf.LF_export_col_attempt_no'),
+                __('lf.LF_assessment_result_started_at'), __('lf.LF_assessment_result_submitted_at'),
+                __('lf.LF_assessment_result_score'), __('lf.LF_export_col_max_score'), __('lf.LF_export_col_score_percentage'),
+                __('lf.LF_export_col_result'), __('lf.LF_assessment_category_status'),
+            ],
+            $attempts->values()->map(fn (object $attempt, int $index) => [
+                $index + 1, $attempt->student_name, $attempt->student_email, $attempt->quiz_title, $attempt->version_no,
+                $attempt->attempt_no, XlsxDownload::dateTime($attempt->started_at), XlsxDownload::dateTime($attempt->submitted_at),
+                XlsxDownload::number($attempt->score), XlsxDownload::number($attempt->max_score),
+                $attempt->score_percentage === null ? '' : XlsxDownload::number($attempt->score_percentage).'%',
+                $attempt->passed === null ? '' : __($attempt->passed ? 'lf.LF_assessment_result_passed' : 'lf.LF_assessment_result_failed'),
+                $attempt->status === 'in_progress'
+                    ? __('lf.LF_assessment_result_status_in_progress')
+                    : __('lf.LF_assessment_result_grading_'.$attempt->grading_status),
+            ]),
+            __('lf.LF_export_file_results'),
+            __('lf.LF_navigation_menu_assessment_results'),
+        );
+    }
+
+    /** @return array{keyword: string, quiz_id: ?int, status: ?string, tab: string} */
+    private function listFilters(Request $request): array
+    {
         $validated = $request->validate([
             'keyword' => ['nullable', 'string', 'max:255'],
             'quiz_id' => ['nullable', 'integer'],
             'status' => ['nullable', 'string'],
             'tab' => ['nullable', 'string'],
         ]);
-        $filters = [
+
+        return [
             'keyword' => trim($validated['keyword'] ?? ''),
             'quiz_id' => isset($validated['quiz_id']) ? (int) $validated['quiz_id'] : null,
             'status' => in_array($validated['status'] ?? null, ['in_progress', 'submitted', 'graded'], true) ? $validated['status'] : null,
             'tab' => ($validated['tab'] ?? null) === 'pending' ? 'pending' : 'all',
         ];
-        $base = fn () => $this->grading->scoped($customerId, $user);
+    }
 
-        $attempts = $base()
+    /** @param  array{keyword: string, quiz_id: ?int, status: ?string, tab: string}  $filters */
+    private function listQuery(int $customerId, User $user, array $filters)
+    {
+        return $this->grading->scoped($customerId, $user)
             ->leftJoin(Quizzes::VERSIONS_TABLE.' as v', 'v.id', '=', 'a.quiz_version_id')
             ->when($filters['tab'] === 'pending', fn ($query) => $query->where('a.grading_status', 'pending'))
             ->when($filters['keyword'] !== '', fn ($query) => $query->where(fn ($query) => $query
@@ -60,17 +117,7 @@ final class AssessmentResultController extends Controller
                 'v.version_no', 'v.pass_score_percentage')
             ->orderByRaw("CASE WHEN a.grading_status = 'pending' THEN 0 ELSE 1 END")
             ->orderByDesc('a.submitted_at')
-            ->orderByDesc('a.id')
-            ->paginate(10)
-            ->withQueryString();
-
-        return view('assessments.results.index', [
-            'attempts' => $attempts,
-            'filters' => $filters,
-            'pendingCount' => $base()->where('a.grading_status', 'pending')->count(),
-            'quizzes' => $this->quizzes->scoped($customerId, $user)->whereNotNull('current_version_id')->orderBy('title')->get(['id', 'title']),
-            'routePrefix' => $this->routePrefix($request),
-        ]);
+            ->orderByDesc('a.id');
     }
 
     /** Thống kê of one quiz: totals and per-question correct rates of the attempts this user may see. */

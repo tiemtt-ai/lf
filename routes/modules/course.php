@@ -3,6 +3,7 @@
 use App\Http\Controllers\CourseActivityMediaPreviewController;
 use App\Http\Controllers\CourseCategoryController;
 use App\Http\Controllers\CourseCohortController;
+use App\Http\Controllers\CourseCohortExportController;
 use App\Http\Controllers\CourseCohortOperationController;
 use App\Http\Controllers\CourseCohortStudentController;
 use App\Http\Controllers\CourseEnrollmentController;
@@ -58,6 +59,13 @@ if ($registerCourseProductRoutes ?? false) {
 
     Route::get('/course-cohorts/{id}', [CourseCohortController::class, 'show'])
         ->name('course-cohorts.show');
+
+    // Excel downloads of one Cohort: the Học viên tab roster and the Điểm danh grid.
+    Route::get('/course-cohorts/{id}/students/export', [CourseCohortExportController::class, 'students'])
+        ->whereNumber('id')->name('course-cohorts.students.export');
+
+    Route::get('/course-cohorts/{id}/attendance/export', [CourseCohortExportController::class, 'attendance'])
+        ->whereNumber('id')->name('course-cohorts.attendance.export');
 
     Route::get('/course-cohorts/{id}/edit', [CourseCohortController::class, 'edit'])
         ->name('course-cohorts.edit');
@@ -155,6 +163,9 @@ if ($registerCourseProductRoutes ?? false) {
 
     Route::get('/course-enrollments', [CourseEnrollmentController::class, 'index'])
         ->name('course-enrollments.index');
+
+    Route::get('/course-enrollments/export', [CourseEnrollmentController::class, 'export'])
+        ->name('course-enrollments.export');
 
     Route::get('/course-enrollments/create', [CourseEnrollmentController::class, 'create'])
         ->name('course-enrollments.create');

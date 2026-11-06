@@ -165,7 +165,7 @@ class LocaleSwitcherTest extends TestCase
             ->assertRedirect('https://tenant-a.localhost/');
 
         $this->get('https://tenant-a.localhost/my-courses')
-            ->assertRedirect('https://tenant-a.localhost/login');
+            ->assertRedirect('https://tenant-a.localhost/login?experience=student');
     }
 
     private function createTenant(): int

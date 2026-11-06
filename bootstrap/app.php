@@ -5,6 +5,7 @@ use App\Http\Middleware\RequireTenantUser;
 use App\Http\Middleware\ResolveTenant;
 use App\Http\Middleware\RoleMiddleware;
 use App\Http\Middleware\SetLocale;
+use App\Support\LoginExperience;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -23,6 +24,11 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->appendToGroup('web', SetLocale::class);
+
+        // Guests hitting student pages land on the student variant of the single /login screen.
+        $middleware->redirectGuestsTo(fn (Request $request) => str_starts_with((string) $request->route()?->getName(), 'student.')
+            ? LoginExperience::studentUrl()
+            : route('login'));
 
         $middleware->alias([
             'root.domain' => RequireRootDomain::class,

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Support\LoginExperience;
 use App\Support\TenantContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,7 +19,7 @@ class AuthenticatedSessionController extends Controller
             abort(404);
         }
 
-        return view($request->query('experience') === 'student' ? 'auth.student-login' : 'auth.login');
+        return view(LoginExperience::isStudent($request) ? 'auth.student-login' : 'auth.login');
     }
 
     public function store(LoginRequest $request): RedirectResponse
@@ -60,6 +61,24 @@ class AuthenticatedSessionController extends Controller
             abort(403, 'You do not have permission to access this application.');
         }
 
+        if (! LoginExperience::acceptsRole($request, $user->role)) {
+            $studentExperience = LoginExperience::isStudent($request);
+
+            Auth::logout();
+
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            // Credentials were valid, so this is guidance rather than a field error.
+            return redirect()
+                ->to($studentExperience ? LoginExperience::studentUrl() : route('login'))
+                ->withInput($request->only('email'))
+                ->with('login_role_notice', [
+                    'account' => $user->role === 'student' ? 'student' : 'backoffice',
+                    'url' => LoginExperience::urlForRole($user->role),
+                ]);
+        }
+
         return match ($user->role) {
             'customer_admin' => redirect()->route('admin.dashboard'),
             'teacher' => redirect()->route('teacher.dashboard'),
@@ -69,13 +88,15 @@ class AuthenticatedSessionController extends Controller
 
     public function destroy(Request $request): RedirectResponse
     {
+        $role = $request->user()?->role;
+
         Auth::guard('web')->logout();
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
         if (TenantContext::customerId() !== null) {
-            return redirect()->route('login');
+            return redirect()->to(LoginExperience::urlForRole($role));
         }
 
         return redirect()->route('public.home');

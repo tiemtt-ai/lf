@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Support\SimpleXlsx;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -108,6 +109,42 @@ class AdminUserPopupTest extends TestCase
         $this->actingAs($admin)->withHeaders(self::AJAX)->get('https://tenant-a.localhost/admin/users/'.$outsider->id.'/edit')->assertNotFound();
         $this->actingAs($admin)->withHeaders(self::AJAX)->get('https://tenant-a.localhost/admin/users/'.$outsider->id.'/password')->assertNotFound();
         $this->actingAs($admin)->putJson('https://tenant-a.localhost/admin/users/'.$outsider->id, ['name' => 'X', 'email' => 'outsider@example.test', 'role' => 'teacher'])->assertNotFound();
+    }
+
+    public function test_export_follows_the_role_tab_and_filters_and_stays_inside_the_tenant(): void
+    {
+        [$admin, $users] = $this->setup3();
+        DB::table('users')->where('id', $users['student']->id)->update(['phone' => '0911', 'date_of_birth' => '2005-01-02']);
+        $quiet = $this->make($admin->customer_id, 'student', 'quiet@example.test');
+        DB::table('users')->where('id', $quiet->id)->update(['status' => 'inactive']);
+        $otherTenant = DB::table('saas_customers')->insertGetId(['name' => 'B', 'slug' => 'tenant-b', 'subdomain' => 'tenant-b', 'status' => 'active', 'created_at' => now(), 'updated_at' => now()]);
+        $this->make($otherTenant, 'student', 'outsider@example.test');
+
+        $this->actingAs($admin)->get('https://tenant-a.localhost/admin/users?role=student&status=active')->assertOk()
+            ->assertSee('href="https://tenant-a.localhost/admin/users/export?role=student&amp;status=active"', false);
+
+        $rows = $this->exportRows($admin, 'role=student');
+        $this->assertSame([__('lf.table_no'), __('lf.LF_common_label_name'), __('lf.LF_common_label_email'), __('lf.LF_common_label_phone'),
+            __('lf.LF_export_col_date_of_birth'), __('lf.LF_common_label_role'), __('lf.LF_common_label_common_status'), __('lf.LF_export_col_created_at')], $rows[0]);
+        $this->assertEqualsCanonicalizing(['student@example.test', 'quiet@example.test'], array_column(array_slice($rows, 1), 2));
+        $active = $this->exportRows($admin, 'role=student&status=active');
+        $this->assertSame(['1', 'Student', 'student@example.test', '0911', '02/01/2005', __('lf.LF_common_role_student_student'), __('lf.LF_common_status_common_active')], array_slice($active[1], 0, 7));
+        $this->assertCount(2, $active);
+        $this->assertSame(['teacher@example.test'], array_column(array_slice($this->exportRows($admin, 'role=teacher'), 1), 2));
+        $this->assertSame([], array_slice($this->exportRows($admin, 'role=student&keyword=outsider'), 1));
+
+        $this->actingAs($users['teacher'])->get('https://tenant-a.localhost/admin/users/export')->assertForbidden();
+    }
+
+    /** @return list<list<string>> */
+    private function exportRows(User $admin, string $query): array
+    {
+        $response = $this->actingAs($admin)->get('https://tenant-a.localhost/admin/users/export?'.$query)->assertOk();
+        $this->assertStringContainsString('attachment; filename="nguoi-dung-', $response->headers->get('Content-Disposition'));
+        $path = tempnam(sys_get_temp_dir(), 'exp');
+        file_put_contents($path, $response->getContent());
+
+        return SimpleXlsx::read($path);
     }
 
     /** @return array{0: User, 1: array<string, User>} */

@@ -192,20 +192,20 @@ class RoleProfileTest extends TestCase
                 'password' => 'student-password-456',
                 'password_confirmation' => 'student-password-456',
             ])
-            ->assertRedirect('https://tenant-a.localhost/login')
+            ->assertRedirect('https://tenant-a.localhost/login?experience=student')
             ->assertSessionHas('status', __('lf.LF_auth_message_password_changed_login_again'));
 
         $this->assertGuest();
         $this->assertTrue(Hash::check('student-password-456', $student->fresh()->password));
         $this->assertTrue(Hash::check('password123', $crossTenantStudent->fresh()->password));
 
-        $this->post('https://tenant-a.localhost/login', [
+        $this->post('https://tenant-a.localhost/login?experience=student', [
             'email' => $student->email,
             'password' => 'password123',
         ])->assertSessionHasErrors('email');
         $this->assertGuest();
 
-        $this->post('https://tenant-a.localhost/login', [
+        $this->post('https://tenant-a.localhost/login?experience=student', [
             'email' => $student->email,
             'password' => 'student-password-456',
         ])->assertRedirect('https://tenant-a.localhost');

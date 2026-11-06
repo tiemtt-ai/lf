@@ -87,6 +87,11 @@
                     <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
                     {{ __('lf.LF_admin_user_create_'.$role) }}
                 </button>
+                <a class="ui-button ui-button--outline cursor-interaction" download
+                   href="{{ route('admin.users.export', array_filter(['role' => $role, 'keyword' => $keyword, 'status' => $status])) }}">
+                    <x-backend-icon name="file-output" class="ui-icon" />
+                    {{ __('lf.LF_export_excel') }}
+                </a>
             </div>
         </div>
 

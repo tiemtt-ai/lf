@@ -5,6 +5,15 @@
                 <h2 class="admin-form-section-title">{{ __('lf.LF_course_cohort_attendance_title') }}</h2>
                 <p class="admin-form-section-help">{{ __('lf.LF_course_cohort_attendance_help') }}</p>
             </header>
+            @if ($sessions->isNotEmpty())
+                <div class="mk-table-top__actions">
+                    <a class="ui-button ui-button--outline cursor-interaction" download
+                       href="{{ route('admin.course-cohorts.attendance.export', $cohort->id) }}">
+                        <x-backend-icon name="file-output" class="ui-icon" />
+                        {{ __('lf.LF_export_attendance_excel') }}
+                    </a>
+                </div>
+            @endif
             <form method="GET" action="{{ route($routePrefix.'.show', $cohort->id) }}" class="admin-form-field-grid">
                 <input type="hidden" name="tab" value="attendance">
                 <div class="lf-form-group">

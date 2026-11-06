@@ -146,6 +146,14 @@
                     <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
                     {{ __('lf.LF_course_enrollment_common_create') }}
                 </a>
+                {{-- Live slot: the export follows the current filters after a live search. --}}
+                <span class="ui-live-slot" data-ui-live-region="export">
+                    <a class="ui-button ui-button--outline cursor-interaction" download
+                       href="{{ route($routePrefix.'.export', array_filter(request()->only(['keyword', 'status', 'source', 'product_id', 'course_type', 'enrolled_by', 'enrolled_from', 'enrolled_to']), fn ($value) => is_string($value) && $value !== '')) }}">
+                        <x-backend-icon name="file-output" class="ui-icon" />
+                        {{ __('lf.LF_export_excel') }}
+                    </a>
+                </span>
             </div>
         </div>
 

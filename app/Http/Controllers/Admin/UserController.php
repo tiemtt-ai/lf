@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Support\AuditLog;
 use App\Support\TenantContext;
+use App\Support\XlsxDownload;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -16,37 +17,77 @@ use Illuminate\Validation\Rules\Password;
 
 class UserController extends Controller
 {
+    private const ROLES = ['customer_admin', 'teacher', 'student'];
+
     public function index(Request $request)
     {
-        $role = $request->role ?? 'customer_admin';
-        $keyword = trim((string) $request->query('keyword', ''));
-        $status = $request->query('status');
-
-        $validRoles = [
-            'customer_admin',
-            'teacher',
-            'student',
-        ];
-
-        if (! in_array($role, $validRoles)) {
-            $role = 'customer_admin';
-        }
-
-        if (! in_array($status, ['active', 'inactive'], true)) {
-            $status = null;
-        }
-
+        [$role, $keyword, $status] = $this->listFilters($request);
         $customerId = TenantContext::customerId();
-        $baseQuery = DB::table('users')
-            ->where('customer_id', $customerId);
 
-        $roleCounts = (clone $baseQuery)
-            ->whereIn('role', $validRoles)
+        $roleCounts = DB::table('users')
+            ->where('customer_id', $customerId)
+            ->whereIn('role', self::ROLES)
             ->select('role', DB::raw('COUNT(*) as aggregate'))
             ->groupBy('role')
             ->pluck('aggregate', 'role');
 
-        $users = (clone $baseQuery)
+        $users = $this->listQuery($customerId, $role, $keyword, $status)
+            ->paginate(10)
+            ->withQueryString();
+
+        return view('admin.users.index', [
+            'users' => $users,
+            'role' => $role,
+            'roleCounts' => $roleCounts,
+            'keyword' => $keyword,
+            'status' => $status,
+        ]);
+    }
+
+    /** The list as .xlsx: the role tab and filters on screen, every page, this tenant only. */
+    public function export(Request $request)
+    {
+        [$role, $keyword, $status] = $this->listFilters($request);
+        $roleLabels = [
+            'customer_admin' => __('lf.LF_common_role_admin_customer_admin'),
+            'teacher' => __('lf.LF_common_role_teacher_teacher'),
+            'student' => __('lf.LF_common_role_student_student'),
+        ];
+
+        $users = $this->listQuery(TenantContext::customerId(), $role, $keyword, $status)
+            ->limit(XlsxDownload::MAX_ROWS)
+            ->get(['name', 'email', 'phone', 'date_of_birth', 'role', 'status', 'created_at']);
+
+        return XlsxDownload::response(
+            [
+                __('lf.table_no'), __('lf.LF_common_label_name'), __('lf.LF_common_label_email'),
+                __('lf.LF_common_label_phone'), __('lf.LF_export_col_date_of_birth'), __('lf.LF_common_label_role'),
+                __('lf.LF_common_label_common_status'), __('lf.LF_export_col_created_at'),
+            ],
+            $users->values()->map(fn (object $user, int $index) => [
+                $index + 1, $user->name, $user->email, $user->phone, XlsxDownload::date($user->date_of_birth),
+                $roleLabels[$user->role] ?? $user->role,
+                __('lf.LF_common_status_common_'.($user->status === 'active' ? 'active' : 'inactive')),
+                XlsxDownload::dateTime($user->created_at),
+            ]),
+            __('lf.LF_export_file_users').'-'.$role,
+            $roleLabels[$role],
+        );
+    }
+
+    /** @return array{0: string, 1: string, 2: ?string} role, keyword, status */
+    private function listFilters(Request $request): array
+    {
+        $role = in_array($request->query('role'), self::ROLES, true) ? $request->query('role') : 'customer_admin';
+        $status = in_array($request->query('status'), ['active', 'inactive'], true) ? $request->query('status') : null;
+
+        return [$role, trim((string) $request->query('keyword', '')), $status];
+    }
+
+    private function listQuery(?int $customerId, string $role, string $keyword, ?string $status)
+    {
+        return DB::table('users')
+            ->where('customer_id', $customerId)
             ->where('role', $role)
             ->when($keyword !== '', function ($query) use ($keyword): void {
                 $query->where(function ($query) use ($keyword): void {
@@ -58,17 +99,7 @@ class UserController extends Controller
             })
             ->when($status, fn ($query) => $query->where('status', $status))
             ->orderByDesc('created_at')
-            ->orderByDesc('id')
-            ->paginate(10)
-            ->withQueryString();
-
-        return view('admin.users.index', [
-            'users' => $users,
-            'role' => $role,
-            'roleCounts' => $roleCounts,
-            'keyword' => $keyword,
-            'status' => $status,
-        ]);
+            ->orderByDesc('id');
     }
 
     public function create(Request $request)

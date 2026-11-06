@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\LoginExperience;
 use App\Support\TenantContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -186,11 +187,11 @@ class RoleProfileController extends Controller
             $message = __('lf.LF_auth_message_password_changed_login_again');
             session()->flash('status', $message);
 
-            return response()->json(['message' => $message, 'redirect' => route('login')]);
+            return response()->json(['message' => $message, 'redirect' => LoginExperience::urlForRole($role)]);
         }
 
         return redirect()
-            ->route('login')
+            ->to(LoginExperience::urlForRole($role))
             ->with('status', __('lf.LF_auth_message_password_changed_login_again'));
     }
 }

@@ -4,6 +4,7 @@ namespace Tests\Feature\Assessment;
 
 use App\Models\User;
 use App\Services\Assessment\AssessmentAttemptService;
+use App\Support\SimpleXlsx;
 use App\Support\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
@@ -174,6 +175,44 @@ class AssessmentResultGradingTest extends TestCase
         $this->actingAs($otherAdmin)->get('https://tenant-b.localhost/admin/assessments/results')->assertOk()->assertDontSeeText('Học viên Lan');
         $this->actingAs($this->student)->get(self::ADMIN.'/results')->assertForbidden();
         $this->actingAs($this->student)->get(self::TEACHER.'/results/'.$attempt->id)->assertForbidden();
+    }
+
+    public function test_export_follows_the_list_scope_tab_and_filters(): void
+    {
+        $other = $this->createUser($this->customerId, 'teacher');
+        [$theirQuiz] = $this->quizWithAllTypes($other);
+        $this->submittedAttempt($this->grant($theirQuiz, $other));
+        [$myQuiz] = $this->quizWithAllTypes($this->teacher);
+        $mine = $this->submittedAttempt($this->grant($myQuiz, $this->teacher));
+        $myTitle = DB::table('core_assessment_quizzes')->where('id', $myQuiz)->value('title');
+        $read = function (User $user, string $url): array {
+            $response = $this->actingAs($user)->get($url)->assertOk();
+            $this->assertStringContainsString('attachment; filename="ket-qua-kiem-tra-', $response->headers->get('Content-Disposition'));
+            $path = tempnam(sys_get_temp_dir(), 'exp');
+            file_put_contents($path, $response->getContent());
+
+            return SimpleXlsx::read($path);
+        };
+
+        $this->actingAs($this->teacher)->get(self::TEACHER.'/results?tab=pending')->assertOk()
+            ->assertSee('href="'.self::TEACHER.'/results/export?tab=pending"', false);
+
+        // A teacher gets only the attempts the list shows them.
+        $teacherRows = $read($this->teacher, self::TEACHER.'/results/export');
+        $this->assertSame(__('lf.LF_export_col_attempt_no'), $teacherRows[0][5]);
+        $this->assertCount(2, $teacherRows);
+        $this->assertSame(['1', 'Học viên Lan', $this->student->email, $myTitle, '1', '1'], array_slice($teacherRows[1], 0, 6));
+        $this->assertSame([__('lf.LF_assessment_result_score'), __('lf.LF_export_col_max_score')], [$teacherRows[0][8], $teacherRows[0][9]]);
+        $this->assertSame([number_format((float) $mine->max_score, 0), __('lf.LF_assessment_result_grading_pending')], [$teacherRows[1][9], $teacherRows[1][12]]);
+
+        $this->assertCount(3, $read($this->admin, self::ADMIN.'/results/export'));
+        $this->assertCount(3, $read($this->admin, self::ADMIN.'/results/export?tab=pending'));
+        $this->assertSame([$myTitle], array_column(array_slice($read($this->admin, self::ADMIN.'/results/export?quiz_id='.$myQuiz), 1), 3));
+        $this->assertCount(1, $read($this->admin, self::ADMIN.'/results/export?status=in_progress'));
+
+        $otherAdmin = $this->createUser($this->createTenant('tenant-b'), 'customer_admin');
+        $this->assertCount(1, $read($otherAdmin, 'https://tenant-b.localhost/admin/assessments/results/export'));
+        $this->actingAs($this->student)->get(self::TEACHER.'/results/export')->assertForbidden();
     }
 
     // ---- fixtures ----

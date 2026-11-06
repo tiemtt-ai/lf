@@ -154,6 +154,9 @@ Route::middleware([
     Route::get('/users', [UserController::class, 'index'])
         ->name('users.index');
 
+    Route::get('/users/export', [UserController::class, 'export'])
+        ->name('users.export');
+
     Route::get('/users/create', [UserController::class, 'create'])
         ->name('users.create');
 

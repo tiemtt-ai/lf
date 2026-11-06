@@ -117,14 +117,19 @@
                 <h2 id="cohort-show-students">{{ __('lf.LF_course_cohort_student_view_title') }}</h2>
                 <p class="ui-caption">{{ __('lf.LF_course_cohort_tab_students_detail_note') }}</p>
             </div>
-            @if ($cohort->is_mutable)
-                <div class="mk-table-top__actions">
+            <div class="mk-table-top__actions">
+                @if ($cohort->is_mutable)
                     <button type="button" class="ui-button ui-button--outline cursor-interaction"
                             aria-haspopup="dialog" x-on:click="formOpen = true">
                         {{ __('lf.LF_course_cohort_student_manage_heading') }}
                     </button>
-                </div>
-            @endif
+                @endif
+                <a class="ui-button ui-button--outline cursor-interaction" download
+                   href="{{ route('admin.course-cohorts.students.export', array_filter(['id' => $cohort->id, 'student_keyword' => $studentKeyword])) }}">
+                    <x-backend-icon name="file-output" class="ui-icon" />
+                    {{ __('lf.LF_export_excel') }}
+                </a>
+            </div>
         </div>
 
         @if ($cohort->is_mutable)

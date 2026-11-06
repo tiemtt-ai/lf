@@ -45,6 +45,22 @@
             <h1 id="login-title">{{ __('lf.LF_auth_login_system_title') }}</h1>
             <p class="lf-login-description">{{ __('lf.LF_auth_login_system_description') }}</p>
             <x-auth-session-status class="lf-login-status" :status="session('status')" />
+            @if ($roleNotice = session('login_role_notice'))
+                <div class="lf-login-notice" role="alert" aria-labelledby="login-role-notice-title">
+                    <svg class="lf-login-notice-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>
+                        <path d="M12 11v5M12 8h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                    <div class="lf-login-notice-body">
+                        <p id="login-role-notice-title" class="lf-login-notice-title">{{ __('lf.LF_auth_login_student_account_wrong_page_title') }}</p>
+                        <p class="lf-login-notice-text">{{ __('lf.LF_auth_login_student_account_wrong_page') }}</p>
+                        <a class="lf-login-notice-action" href="{{ $roleNotice['url'] }}" autofocus>
+                            {{ __('lf.LF_auth_login_go_student_login') }}
+                            <span aria-hidden="true">&rarr;</span>
+                        </a>
+                    </div>
+                </div>
+            @endif
             <form method="POST" action="{{ route('login') }}">
                 @csrf
 
@@ -58,7 +74,7 @@
                                value="{{ old('email') }}"
                                placeholder="{{ __('lf.LF_auth_login_username_placeholder') }}"
                                required
-                               autofocus
+                               @unless (session('login_role_notice')) autofocus @endunless
                                autocomplete="username"
                                aria-invalid="{{ $errors->has('email') ? 'true' : 'false' }}"
                                @if ($errors->has('email')) aria-describedby="login-email-error" @endif>

@@ -14,6 +14,7 @@ use App\Services\EnrollmentCreationAction;
 use App\Services\EnrollmentEligibilityPolicy;
 use App\Support\CourseType;
 use App\Support\TenantContext;
+use App\Support\XlsxDownload;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -22,6 +23,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\Response;
 
 class CourseEnrollmentController extends Controller
 {
@@ -49,6 +51,71 @@ class CourseEnrollmentController extends Controller
         $this->authorizeAdmin($request);
 
         $customerId = $this->customerId();
+        $filters = $this->listFilters($request, $customerId);
+        ['keyword' => $keyword, 'status' => $status, 'source' => $source, 'productId' => $productId,
+            'courseType' => $courseType, 'enrolledBy' => $enrolledBy, 'enrolledFrom' => $enrolledFrom,
+            'enrolledTo' => $enrolledTo] = $filters;
+
+        $enrollments = $this->listQuery($customerId, $filters)
+            ->paginate(10)
+            ->withQueryString();
+
+        $enrollments->setCollection($enrollments->getCollection()->map(function (object $enrollment): object {
+            $enrollment->learning_ended = $this->learningEnded($enrollment);
+            $enrollment->reactivation_eligible = $enrollment->status === 'suspended'
+                && $enrollment->version_status === 'published'
+                && ! $enrollment->learning_ended;
+
+            return $enrollment;
+        }));
+
+        return view('course-enrollments.index', [
+            'enrollments' => $enrollments,
+            'keyword' => $keyword,
+            'status' => $status,
+            'source' => $source,
+            'courseType' => $courseType,
+            'productId' => $productId, 'enrolledBy' => $enrolledBy,
+            'enrolledFrom' => $enrolledFrom, 'enrolledTo' => $enrolledTo,
+            'filterProducts' => DB::table('core_course_products')->where('customer_id', $customerId)->orderBy('title')->get(['id', 'title', 'product_code']),
+            'filterCreators' => DB::table('users')->where('customer_id', $customerId)->whereIn('role', ['customer_admin', 'teacher'])->orderBy('name')->get(['id', 'name']),
+            'routePrefix' => $this->routePrefix($request),
+        ]);
+    }
+
+    /** The list as .xlsx: the filters on screen, every page, this tenant only. */
+    public function export(Request $request): Response
+    {
+        $this->authorizeAdmin($request);
+
+        $customerId = $this->customerId();
+        $enrollments = $this->listQuery($customerId, $this->listFilters($request, $customerId))
+            ->limit(XlsxDownload::MAX_ROWS)
+            ->get();
+
+        return XlsxDownload::response(
+            [
+                __('lf.table_no'), __('lf.LF_export_col_enrollment_id'), __('lf.LF_course_enrollment_common_student'),
+                __('lf.LF_common_label_email'), __('lf.LF_common_label_phone'), __('lf.LF_course_enrollment_common_product'),
+                __('lf.LF_export_col_product_code'), __('lf.LF_export_col_version'), __('lf.LF_course_enrollment_information_source'),
+                __('lf.LF_course_enrollment_common_enrolled_at'), __('lf.LF_course_enrollment_common_access_starts_at'),
+                __('lf.LF_course_enrollment_common_access_ends_at'), __('lf.LF_course_enrollment_common_status'),
+            ],
+            $enrollments->values()->map(fn (object $enrollment, int $index) => [
+                $index + 1, $enrollment->id, $enrollment->student_name, $enrollment->student_email, $enrollment->student_phone,
+                $enrollment->product_title, $enrollment->product_code, $enrollment->version_code,
+                __('lf.LF_course_enrollment_common_source_'.$enrollment->source),
+                XlsxDownload::dateTime($enrollment->enrolled_at), XlsxDownload::dateTime($enrollment->access_starts_at),
+                XlsxDownload::dateTime($enrollment->access_ends_at), __('lf.LF_course_enrollment_common_'.$enrollment->status),
+            ]),
+            __('lf.LF_export_file_enrollments'),
+            __('lf.LF_course_enrollment_common_title'),
+        );
+    }
+
+    /** @return array<string, mixed> */
+    private function listFilters(Request $request, int $customerId): array
+    {
         $keyword = trim((string) $request->query('keyword', ''));
         $status = $request->query('status');
         $source = $request->query('source');
@@ -75,7 +142,17 @@ class CourseEnrollmentController extends Controller
             $enrolledBy = null;
         }
 
-        $enrollments = DB::table('core_course_enrollments as enrollments')
+        return compact('keyword', 'status', 'source', 'productId', 'courseType', 'enrolledBy', 'enrolledFrom', 'enrolledTo');
+    }
+
+    /** @param  array<string, mixed>  $filters */
+    private function listQuery(int $customerId, array $filters)
+    {
+        ['keyword' => $keyword, 'status' => $status, 'source' => $source, 'productId' => $productId,
+            'courseType' => $courseType, 'enrolledBy' => $enrolledBy, 'enrolledFrom' => $enrolledFrom,
+            'enrolledTo' => $enrolledTo] = $filters;
+
+        return DB::table('core_course_enrollments as enrollments')
             ->join('users as students', function ($join) use ($customerId): void {
                 $join->on('students.id', '=', 'enrollments.student_id')
                     ->where('students.customer_id', '=', $customerId);
@@ -118,37 +195,14 @@ class CourseEnrollmentController extends Controller
                 'enrollments.*',
                 'students.name as student_name',
                 'students.email as student_email',
+                'students.phone as student_phone',
                 'products.title as product_title',
                 'products.product_code',
                 'versions.title_snapshot as version_title',
                 'versions.version_number',
                 'versions.version_code',
                 'versions.status as version_status'
-            )
-            ->paginate(10)
-            ->withQueryString();
-
-        $enrollments->setCollection($enrollments->getCollection()->map(function (object $enrollment): object {
-            $enrollment->learning_ended = $this->learningEnded($enrollment);
-            $enrollment->reactivation_eligible = $enrollment->status === 'suspended'
-                && $enrollment->version_status === 'published'
-                && ! $enrollment->learning_ended;
-
-            return $enrollment;
-        }));
-
-        return view('course-enrollments.index', [
-            'enrollments' => $enrollments,
-            'keyword' => $keyword,
-            'status' => $status,
-            'source' => $source,
-            'courseType' => $courseType,
-            'productId' => $productId, 'enrolledBy' => $enrolledBy,
-            'enrolledFrom' => $enrolledFrom, 'enrolledTo' => $enrolledTo,
-            'filterProducts' => DB::table('core_course_products')->where('customer_id', $customerId)->orderBy('title')->get(['id', 'title', 'product_code']),
-            'filterCreators' => DB::table('users')->where('customer_id', $customerId)->whereIn('role', ['customer_admin', 'teacher'])->orderBy('name')->get(['id', 'name']),
-            'routePrefix' => $this->routePrefix($request),
-        ]);
+            );
     }
 
     public function bulkLifecycle(BulkEnrollmentLifecycleRequest $request, CourseEnrollmentLifecycleService $service)

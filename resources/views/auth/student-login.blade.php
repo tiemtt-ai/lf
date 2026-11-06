@@ -14,6 +14,17 @@
 
         <x-auth-session-status class="student-alert is-success" :status="session('status')" />
 
+        @if ($roleNotice = session('login_role_notice'))
+            <div class="student-login-notice" role="alert" aria-labelledby="student-login-role-notice-title">
+                <p id="student-login-role-notice-title" class="student-login-notice-title">{{ __('lf.LF_auth_login_backoffice_account_wrong_page_title') }}</p>
+                <p class="student-login-notice-text">{{ __('lf.LF_auth_login_backoffice_account_wrong_page') }}</p>
+                <a class="student-button student-login-notice-action" href="{{ $roleNotice['url'] }}" autofocus>
+                    {{ __('lf.LF_auth_login_go_backoffice_login') }}
+                    <span aria-hidden="true">&rarr;</span>
+                </a>
+            </div>
+        @endif
+
         <form method="POST" action="{{ route('login', ['experience' => 'student']) }}">
             @csrf
             <div class="student-form-grid">
@@ -21,7 +32,7 @@
                 <label class="student-form-label" for="email">{{ __('lf.LF_common_label_email') }}</label>
                 <input class="student-form-control" id="email" type="email" name="email" value="{{ old('email') }}"
                        placeholder="{{ __('lf.LF_auth_forgot_email_placeholder') }}"
-                       required autofocus autocomplete="username"
+                       required @unless (session('login_role_notice')) autofocus @endunless autocomplete="username"
                        aria-invalid="{{ $errors->has('email') ? 'true' : 'false' }}"
                        @if ($errors->has('email')) aria-describedby="student-login-email-error" @endif>
                 <x-input-error id="student-login-email-error" :messages="$errors->get('email')" class="student-alert is-danger" />

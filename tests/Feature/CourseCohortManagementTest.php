@@ -7,12 +7,14 @@ use App\Services\CourseCohortContentTree;
 use App\Services\CourseCohortLifecycleService;
 use App\Services\LiveClassCohortSessionReadModel;
 use App\Services\LiveClassScheduleSessionGenerator;
+use App\Support\SimpleXlsx;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
 class CourseCohortManagementTest extends TestCase
@@ -4392,6 +4394,110 @@ class CourseCohortManagementTest extends TestCase
             ])
         )->assertSessionHasNoErrors();
         $this->assertDatabaseHas('core_liveclass_sessions', ['title' => 'Boundary Hanoi session']);
+    }
+
+    public function test_cohort_roster_and_attendance_export_stay_inside_the_tenant_and_the_tab(): void
+    {
+        config(['liveclass.attendance_enabled' => true]);
+        Carbon::setTestNow('2026-08-12 12:00:00');
+
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $teacher = $this->createUser($customerId, 'teacher');
+        $productId = $this->createProduct($customerId, 'Export Product', 'export-product');
+        $versionId = $this->createVersion($customerId, $admin->id, 'Export Version');
+        $cohortId = $this->createCohortWithOperatingPeriod($customerId);
+        DB::table('core_course_cohorts')->where('id', $cohortId)->update(['product_id' => $productId, 'version_id' => $versionId]);
+        $enrol = function (string $name, string $phone, string $membershipStatus = 'active') use ($customerId, $cohortId, $productId, $versionId): array {
+            $student = $this->createUser($customerId, 'student');
+            DB::table('users')->where('id', $student->id)->update(['name' => $name, 'phone' => $phone]);
+            $enrollmentId = $this->createEnrollment($customerId, $student->id, $productId, $versionId);
+            $membershipId = $this->createMembership($customerId, $cohortId, $enrollmentId, $productId, $student->id);
+            DB::table('core_course_cohort_students')->where('id', $membershipId)->update(['status' => $membershipStatus]);
+
+            return [$student, $enrollmentId];
+        };
+        [$an, $anEnrollment] = $enrol('An Nguyễn', '0901');
+        [$binh, $binhEnrollment] = $enrol('Bình Trần', '0902');
+        $enrol('Cũ Đã Rời', '0903', 'removed');
+
+        $lessonId = DB::table('core_course_template_version_lessons')->insertGetId([
+            'customer_id' => $customerId, 'template_version_id' => $versionId, 'source_template_lesson_id' => 9901,
+            'title_snapshot' => 'Export Lesson', 'sort_order' => 1, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $activityId = DB::table('core_course_template_version_activities')->insertGetId([
+            'customer_id' => $customerId, 'template_version_id' => $versionId, 'version_lesson_id' => $lessonId,
+            'source_template_activity_id' => 9902, 'title_snapshot' => 'Export Live', 'activity_type' => 'live_class',
+            'completion_rule' => 'attendance', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $session = fn (int $no, string $start, string $status) => DB::table('core_liveclass_sessions')->insertGetId([
+            'customer_id' => $customerId, 'cohort_id' => $cohortId, 'template_version_id' => $versionId,
+            'session_type' => 'curriculum', 'version_lesson_id' => $lessonId, 'version_activity_id' => $activityId,
+            'title' => 'Buổi '.$no, 'session_no' => $no, 'delivery_mode' => 'online',
+            'scheduled_start_at' => $start, 'scheduled_end_at' => substr($start, 0, 11).'21:00:00',
+            'timezone' => 'Asia/Ho_Chi_Minh', 'status' => $status, 'created_by' => $admin->id,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $first = $session(1, '2026-08-05 19:00:00', 'completed');
+        $second = $session(2, '2026-08-10 19:00:00', 'scheduled');
+        $session(3, '2026-08-20 19:00:00', 'scheduled'); // not started: not on the Điểm danh tab, not in the file
+        $mark = fn (int $sessionId, int $enrollmentId, int $userId, string $status) => DB::table('core_liveclass_attendances')->insert([
+            'customer_id' => $customerId, 'session_id' => $sessionId, 'enrollment_id' => $enrollmentId, 'user_id' => $userId,
+            'version_activity_id' => $activityId, 'status' => $status, 'attendance_mode' => 'online', 'duration_seconds' => 0,
+            'attendance_percentage' => 0, 'attendance_source' => 'manual', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $mark($first, $anEnrollment, $an->id, 'present');
+        $mark($second, $anEnrollment, $an->id, 'late');
+        $mark($first, $binhEnrollment, $binh->id, 'absent');
+
+        $otherTenant = $this->createTenant('tenant-b');
+        $otherCohort = $this->createCohort($otherTenant, 'Other Cohort');
+        $base = 'https://tenant-a.localhost/admin/course-cohorts';
+
+        $this->actingAs($admin)->get("{$base}/{$cohortId}?tab=students")->assertOk()
+            ->assertSee('href="'.$base.'/'.$cohortId.'/students/export"', false);
+        $this->actingAs($admin)->get("{$base}/{$cohortId}?tab=attendance")->assertOk()
+            ->assertSee('href="'.$base.'/'.$cohortId.'/attendance/export"', false);
+
+        $roster = $this->readXlsx($this->actingAs($admin)->get("{$base}/{$cohortId}/students/export"), 'hoc-vien-lop-coh-existing-');
+        $this->assertSame(__('lf.LF_course_cohort_student_common_student'), $roster[0][1]);
+        $this->assertCount(3, $roster);
+        $this->assertEqualsCanonicalizing(['An Nguyễn', 'Bình Trần'], array_column(array_slice($roster, 1), 1));
+        $this->assertContains('0901', array_column($roster, 3));
+        $filtered = $this->readXlsx($this->actingAs($admin)->get("{$base}/{$cohortId}/students/export?student_keyword=Bình"), 'hoc-vien-lop-');
+        $this->assertSame(['Bình Trần'], array_column(array_slice($filtered, 1), 1));
+
+        $grid = $this->readXlsx($this->actingAs($admin)->get("{$base}/{$cohortId}/attendance/export"), 'diem-danh-coh-existing-');
+        $this->assertSame([
+            __('lf.table_no'), __('lf.LF_course_cohort_student_common_student'), __('lf.LF_common_label_email'),
+            '#1 · 05/08/2026', '#2 · 10/08/2026',
+            __('lf.LF_course_cohort_attendance_status_present'), __('lf.LF_course_cohort_attendance_status_late'),
+            __('lf.LF_course_cohort_attendance_status_absent'), __('lf.LF_course_cohort_attendance_status_excused'),
+            __('lf.LF_export_col_attendance_rate'),
+        ], $grid[0]);
+        $label = fn (string $status) => __('lf.LF_course_cohort_attendance_status_'.$status);
+        $this->assertSame(['1', 'An Nguyễn', $an->email, $label('present'), $label('late'), '1', '1', '0', '0', '100%'], $grid[1]);
+        $this->assertSame(['2', 'Bình Trần', $binh->email, $label('absent'), $label('registered'), '0', '0', '1', '0', '0%'], $grid[2]);
+        $this->assertCount(3, $grid);
+
+        // Another tenant's Cohort is not found; non-admins are kept out; the grid is off while attendance is off.
+        $this->actingAs($admin)->get("{$base}/{$otherCohort}/students/export")->assertNotFound();
+        $this->actingAs($admin)->get("{$base}/{$otherCohort}/attendance/export")->assertNotFound();
+        $this->actingAs($teacher)->get("{$base}/{$cohortId}/students/export")->assertForbidden();
+        $this->actingAs($teacher)->get("{$base}/{$cohortId}/attendance/export")->assertForbidden();
+        config(['liveclass.attendance_enabled' => false]);
+        $this->actingAs($admin)->get("{$base}/{$cohortId}/attendance/export")->assertNotFound();
+    }
+
+    /** @return list<list<string>> */
+    private function readXlsx(TestResponse $response, string $filePrefix): array
+    {
+        $response->assertOk()->assertHeader('Cache-Control', 'no-store, private');
+        $this->assertStringContainsString('attachment; filename="'.$filePrefix, $response->headers->get('Content-Disposition'));
+        $path = tempnam(sys_get_temp_dir(), 'exp');
+        file_put_contents($path, $response->getContent());
+
+        return SimpleXlsx::read($path);
     }
 
     private function createCohortWithOperatingPeriod(
