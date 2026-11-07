@@ -17,6 +17,14 @@
 @section('content')
 @php
     $statusClass = ['draft' => 'ui-status--draft', 'published' => 'ui-status--active', 'archived' => 'ui-status--archived'];
+    // Tabs as on the Course Template page; every panel is rendered so a dialog save can refresh its live region.
+    $tabs = [
+        'info' => __('lf.LF_assessment_quiz_tab_info'),
+        'questions' => __('lf.LF_assessment_quiz_tab_questions'),
+        'graders' => __('lf.LF_assessment_quiz_tab_graders'),
+        'publish' => __('lf.LF_assessment_quiz_tab_publish'),
+    ];
+    $activeTab = array_key_exists((string) request()->query('tab'), $tabs) ? (string) request()->query('tab') : 'info';
     $trim = fn ($value) => rtrim(rtrim(number_format((float) $value, 2, '.', ''), '0'), '.');
     $multiSection = $sections->count() > 1;
     $position = 0;
@@ -39,36 +47,33 @@
     @endif
 
     {{-- Saving a dialog refetches this page and swaps the live regions below. --}}
-    <form method="GET" action="{{ route($routePrefix.'.show', $quiz->id) }}" data-ui-live-filter hidden></form>
+    <form method="GET" action="{{ route($routePrefix.'.show', $quiz->id) }}" data-ui-live-filter hidden>
+        {{-- The refetched page must render the same tab, or the swapped panels would come back hidden. --}}
+        <input type="hidden" name="tab" value="{{ $activeTab }}">
+    </form>
 
-    <x-ui-list-head :title="$quiz->title" :text="__('lf.LF_assessment_quiz_show_help')" />
-
-    {{-- Settings, state and the lifecycle buttons. --}}
-    <section class="mk-section" aria-labelledby="assessment-quiz-info-title" data-ui-live-region="info">
-        <div class="ui-summary-head">
-            <div>
-                <h2 id="assessment-quiz-info-title">{{ __('lf.LF_assessment_quiz_info') }}</h2>
-                <p class="ui-caption">
-                    @if ($currentVersion)
-                        {{ __('lf.LF_assessment_quiz_current_version', ['number' => $currentVersion->version_no, 'date' => \Illuminate\Support\Carbon::parse($currentVersion->published_at)->format('d/m/Y H:i')]) }}
-                    @else
-                        {{ __('lf.LF_assessment_quiz_never_published') }}
-                    @endif
-                </p>
+    {{-- The whole quiz: name, state, and the buttons that change the state of the whole quiz. --}}
+    <section class="mk-section ui-framework__identity ui-quiz-identity" aria-labelledby="assessment-quiz-identity-title" data-ui-live-region="identity">
+        <div class="ui-version__identity">
+            <p class="ui-version__eyebrow">
+                {{ __('lf.LF_assessment_quiz_type_'.$quiz->assessment_type) }} ·
+                @if ($currentVersion)
+                    {{ __('lf.LF_assessment_quiz_current_version', ['number' => $currentVersion->version_no, 'date' => \Illuminate\Support\Carbon::parse($currentVersion->published_at)->format('d/m/Y H:i')]) }}
+                @else
+                    {{ __('lf.LF_assessment_quiz_never_published') }}
+                @endif
+            </p>
+            <h2 id="assessment-quiz-identity-title">{{ $quiz->title }}</h2>
+            <div class="ui-version__chips">
+                <span class="ui-status {{ $statusClass[$quiz->status] ?? '' }}">{{ __('lf.LF_assessment_quiz_status_'.$quiz->status) }}</span>
+                <span @class(['ui-status', 'ui-status--active' => $quiz->registration_open, 'ui-status--archived' => ! $quiz->registration_open])>
+                    {{ $quiz->registration_open ? __('lf.LF_assessment_quiz_registration_open') : __('lf.LF_assessment_quiz_registration_closed_state') }}
+                </span>
+                <span class="ui-caption">{{ trans_choice('lf.LF_assessment_registration_active_count', $activeRegistrations, ['count' => $activeRegistrations]) }}</span>
             </div>
-            <div class="mk-table-top__actions">
-                <button type="button" class="ui-button ui-button--outline cursor-interaction" data-ui-dialog-form-open
-                        data-ui-dialog-form-for="assessment-quiz-page"
-                        data-url="{{ route($routePrefix.'.edit', $quiz->id) }}" aria-haspopup="dialog">
-                    <x-backend-icon name="square-pen" class="ui-icon" />
-                    {{ __('lf.LF_assessment_quiz_edit') }}
-                </button>
-                <button type="button" class="ui-button ui-button--outline cursor-interaction" data-ui-dialog-form-open
-                        data-ui-dialog-form-for="assessment-quiz-page"
-                        data-url="{{ route($routePrefix.'.graders.edit', $quiz->id) }}" aria-haspopup="dialog">
-                    <x-backend-icon name="user-cog" class="ui-icon" />
-                    {{ __('lf.LF_assessment_grader_quiz_button') }}
-                </button>
+        </div>
+        @if ($quiz->status !== 'draft')
+            <div class="ui-enroll-head__actions">
                 @if ($quiz->status === 'published')
                     <button type="button" class="ui-button ui-button--outline cursor-interaction" data-ui-dialog-form-open
                             data-ui-dialog-form-for="assessment-quiz-page"
@@ -87,42 +92,61 @@
                         @csrf
                         <button type="submit" class="ui-button ui-button--outline cursor-interaction">{{ __('lf.LF_assessment_quiz_archive') }}</button>
                     </form>
-                @elseif ($quiz->status === 'archived')
+                @else
                     <form method="POST" action="{{ route($routePrefix.'.restore', $quiz->id) }}" class="ui-inline-form">
                         @csrf
                         <button type="submit" class="ui-button ui-button--outline cursor-interaction">{{ __('lf.LF_assessment_quiz_restore') }}</button>
                     </form>
                 @endif
-                @unless ($quiz->status === 'archived')
-                    <form method="POST" action="{{ route($routePrefix.'.publish', $quiz->id) }}" class="ui-inline-form">
-                        @csrf
-                        <button type="submit" class="ui-button ui-button--primary cursor-interaction" @disabled($itemCount === 0)
-                                @if ($itemCount === 0) data-tooltip="{{ __('lf.LF_assessment_quiz_publish_error_empty') }}" @endif>
-                            <x-backend-icon name="check" class="ui-icon" />
-                            {{ $currentVersion ? __('lf.LF_assessment_quiz_publish_again') : __('lf.LF_assessment_quiz_publish') }}
-                        </button>
-                    </form>
-                @endunless
             </div>
-        </div>
+        @endif
+    </section>
+
+    {{-- Always present, so a dialog save can show or hide the notice. --}}
+    <div data-ui-live-region="changes">
         @if ($hasChanges && $quiz->status !== 'archived')
             <div class="ui-quiz-notice" role="status">
                 <x-backend-icon name="circle-alert" class="ui-icon" />
-                {{ __('lf.LF_assessment_quiz_unpublished_changes') }}
+                <span>
+                    {{ __('lf.LF_assessment_quiz_unpublished_changes') }}
+                    @if ($activeTab !== 'publish')
+                        <a href="{{ route($routePrefix.'.show', ['id' => $quiz->id, 'tab' => 'publish']) }}">{{ __('lf.LF_assessment_quiz_go_publish') }}</a>
+                    @endif
+                </span>
             </div>
         @endif
+    </div>
+
+    <nav class="course-template-tabs ui-quiz-tabs" aria-label="{{ __('lf.LF_assessment_quiz_tabs_label') }}">
+        @foreach ($tabs as $tab => $label)
+            <a href="{{ route($routePrefix.'.show', ['id' => $quiz->id, 'tab' => $tab]) }}"
+               @class(['course-template-tab', 'is-active' => $activeTab === $tab])
+               @if ($activeTab === $tab) aria-current="page" @endif>
+                {{ $label }}
+                @if ($tab === 'questions')<span class="ui-tab-count" data-ui-live-region="tab-questions">{{ $itemCount }}</span>@endif
+                @if ($tab === 'publish' && $versions->isNotEmpty())<span class="ui-tab-count">{{ $versions->count() }}</span>@endif
+            </a>
+        @endforeach
+    </nav>
+
+    {{-- Thông tin: the settings a new version will carry. --}}
+    <section id="assessment-quiz-tab-info" class="mk-section" aria-labelledby="assessment-quiz-info-title" data-ui-live-region="info"
+             @if ($activeTab !== 'info') hidden @endif>
+        <div class="ui-summary-head">
+            <div>
+                <h2 id="assessment-quiz-info-title">{{ __('lf.LF_assessment_quiz_info') }}</h2>
+                <p class="ui-caption">{{ __('lf.LF_assessment_quiz_info_help') }}</p>
+            </div>
+            <div class="mk-table-top__actions">
+                <button type="button" class="ui-button ui-button--outline cursor-interaction" data-ui-dialog-form-open
+                        data-ui-dialog-form-for="assessment-quiz-page"
+                        data-url="{{ route($routePrefix.'.edit', $quiz->id) }}" aria-haspopup="dialog">
+                    <x-backend-icon name="square-pen" class="ui-icon" />
+                    {{ __('lf.LF_assessment_quiz_edit') }}
+                </button>
+            </div>
+        </div>
         <dl class="ui-summary ui-quiz-summary">
-            <div class="ui-summary__item">
-                <dt>{{ __('lf.LF_assessment_category_status') }}</dt>
-                <dd><span class="ui-status {{ $statusClass[$quiz->status] ?? '' }}">{{ __('lf.LF_assessment_quiz_status_'.$quiz->status) }}</span></dd>
-            </div>
-            <div class="ui-summary__item">
-                <dt>{{ __('lf.LF_assessment_quiz_registration') }}</dt>
-                <dd>
-                    {{ $quiz->registration_open ? __('lf.LF_assessment_quiz_registration_open') : __('lf.LF_assessment_quiz_registration_closed_state') }}
-                    <span class="ui-caption ui-framework-description">{{ trans_choice('lf.LF_assessment_registration_active_count', $activeRegistrations, ['count' => $activeRegistrations]) }}</span>
-                </dd>
-            </div>
             <div class="ui-summary__item">
                 <dt>{{ __('lf.LF_assessment_quiz_type') }}</dt>
                 <dd>{{ __('lf.LF_assessment_quiz_type_'.$quiz->assessment_type) }}</dd>
@@ -147,19 +171,6 @@
                 <dt>{{ __('lf.LF_assessment_quiz_show_result') }}</dt>
                 <dd>{{ __('lf.LF_assessment_quiz_result_'.$quiz->show_result_mode) }}</dd>
             </div>
-            <div class="ui-summary__item ui-summary__item--wide" data-assessment-quiz-graders>
-                <dt>{{ __('lf.LF_assessment_grader_graders') }}</dt>
-                <dd>
-                    @if ($quizGraders->isEmpty() && $inheritedGraders->isEmpty())
-                        {{ __('lf.LF_assessment_grader_none') }}
-                    @else
-                        {{ $quizGraders->pluck('name')->implode(', ') }}
-                        @foreach ($inheritedGraders->whereNotIn('id', $quizGraders->pluck('id'))->groupBy('category_name') as $categoryName => $teachers)
-                            <span class="ui-caption ui-framework-description">{{ __('lf.LF_assessment_grader_from_category', ['category' => $categoryName, 'names' => $teachers->pluck('name')->implode(', ')]) }}</span>
-                        @endforeach
-                    @endif
-                </dd>
-            </div>
             @if (filled($quiz->description))
                 <div class="ui-summary__item ui-summary__item--wide">
                     <dt>{{ __('lf.LF_assessment_quiz_description') }}</dt>
@@ -169,8 +180,9 @@
         </dl>
     </section>
 
-    {{-- The draft: sections and chosen questions. --}}
-    <section class="mk-section" aria-labelledby="assessment-quiz-questions-title">
+    {{-- Câu hỏi: the draft, its sections and chosen questions. --}}
+    <section id="assessment-quiz-tab-questions" class="mk-section" aria-labelledby="assessment-quiz-questions-title"
+             @if ($activeTab !== 'questions') hidden @endif>
         <div class="mk-tablebar">
             <div>
                 <h2 id="assessment-quiz-questions-title" class="ui-passage-section-title">{{ __('lf.LF_assessment_quiz_questions') }}</h2>
@@ -336,13 +348,85 @@
         </div>
     </section>
 
-    {{-- Published versions: frozen, never changed. --}}
-    <section class="mk-section" aria-labelledby="assessment-quiz-versions-title" data-ui-live-region="versions">
+    {{-- Người chấm (ADR-0027 D2): teachers who grade this quiz, besides admins and the quiz creator. --}}
+    <section id="assessment-quiz-tab-graders" class="mk-section" aria-labelledby="assessment-quiz-graders-title" data-ui-live-region="graders"
+             data-assessment-quiz-graders @if ($activeTab !== 'graders') hidden @endif>
+        @php
+            $graderRows = $quizGraders->map(fn ($teacher) => ['name' => $teacher->name, 'from' => __('lf.LF_assessment_quiz_grader_from_quiz')])
+                ->concat($inheritedGraders->whereNotIn('id', $quizGraders->pluck('id'))
+                    ->map(fn ($teacher) => ['name' => $teacher->name, 'from' => __('lf.LF_assessment_quiz_grader_from_category', ['category' => $teacher->category_name])]))
+                ->values();
+        @endphp
+        <div class="ui-summary-head">
+            <div>
+                <h2 id="assessment-quiz-graders-title">{{ __('lf.LF_assessment_grader_graders') }}</h2>
+                <p class="ui-caption">{{ __('lf.LF_assessment_quiz_graders_help') }}</p>
+            </div>
+            <div class="mk-table-top__actions">
+                <button type="button" class="ui-button ui-button--outline cursor-interaction" data-ui-dialog-form-open
+                        data-ui-dialog-form-for="assessment-quiz-page"
+                        data-url="{{ route($routePrefix.'.graders.edit', $quiz->id) }}" aria-haspopup="dialog">
+                    <x-backend-icon name="user-cog" class="ui-icon" />
+                    {{ __('lf.LF_assessment_grader_quiz_button') }}
+                </button>
+            </div>
+        </div>
+        <div class="mk-table-scroll" role="region" aria-label="{{ __('lf.LF_assessment_grader_graders') }}" tabindex="0">
+            <table aria-labelledby="assessment-quiz-graders-title">
+                <colgroup>
+                    <col class="mk-col-sequence">
+                    <col>
+                    <col>
+                </colgroup>
+                <thead>
+                    <tr>
+                        <th scope="col" class="mk-sequence">{{ __('lf.table_no') }}</th>
+                        <th scope="col" class="mk-text-cell">{{ __('lf.LF_assessment_grader_teachers') }}</th>
+                        <th scope="col" class="mk-text-cell">{{ __('lf.LF_assessment_quiz_grader_from') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse ($graderRows as $row)
+                        <tr>
+                            <td class="mk-sequence" data-label="{{ __('lf.table_no') }}">{{ $loop->iteration }}</td>
+                            <td class="mk-text-cell" data-label="{{ __('lf.LF_assessment_grader_teachers') }}">{{ $row['name'] }}</td>
+                            <td class="mk-text-cell" data-label="{{ __('lf.LF_assessment_quiz_grader_from') }}">{{ $row['from'] }}</td>
+                        </tr>
+                    @empty
+                        <tr class="mk-empty-row">
+                            <td class="mk-empty" colspan="3">
+                                <div role="status">
+                                    <strong>{{ __('lf.LF_assessment_quiz_graders_empty') }}</strong>
+                                    <p class="ui-caption">{{ __('lf.LF_assessment_quiz_graders_empty_help') }}</p>
+                                </div>
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    {{-- Xuất bản: publish the draft as a new frozen version; versions are never changed. --}}
+    <section id="assessment-quiz-tab-publish" class="mk-section" aria-labelledby="assessment-quiz-versions-title" data-ui-live-region="versions"
+             @if ($activeTab !== 'publish') hidden @endif>
         <div class="ui-summary-head">
             <div>
                 <h2 id="assessment-quiz-versions-title">{{ __('lf.LF_assessment_quiz_versions') }}</h2>
                 <p class="ui-caption">{{ __('lf.LF_assessment_quiz_versions_help') }}</p>
             </div>
+            @unless ($quiz->status === 'archived')
+                <div class="mk-table-top__actions">
+                    <form method="POST" action="{{ route($routePrefix.'.publish', $quiz->id) }}" class="ui-inline-form">
+                        @csrf
+                        <button type="submit" class="ui-button ui-button--primary cursor-interaction" @disabled($itemCount === 0)
+                                @if ($itemCount === 0) data-tooltip="{{ __('lf.LF_assessment_quiz_publish_error_empty') }}" @endif>
+                            <x-backend-icon name="check" class="ui-icon" />
+                            {{ $currentVersion ? __('lf.LF_assessment_quiz_publish_again') : __('lf.LF_assessment_quiz_publish') }}
+                        </button>
+                    </form>
+                </div>
+            @endunless
         </div>
         <div class="mk-table-scroll" role="region" aria-label="{{ __('lf.LF_assessment_quiz_versions') }}" tabindex="0">
             <table aria-labelledby="assessment-quiz-versions-title">
@@ -381,6 +465,6 @@
         </div>
     </section>
 
-    @include('assessments.passages.partials.dialog-host', ['dialogTitleId' => 'assessment-quiz-dialog-title assessment-quiz-section-dialog-title assessment-quiz-item-dialog-title assessment-quiz-picker-title assessment-registration-dialog-title assessment-grader-dialog-title'])
+    @include('assessments.passages.partials.dialog-host', ['dialogTitleId' => 'assessment-quiz-dialog-title assessment-quiz-section-dialog-title assessment-quiz-item-dialog-title assessment-quiz-picker-title assessment-quiz-auto-title assessment-registration-dialog-title assessment-grader-dialog-title'])
 </div>
 @endsection

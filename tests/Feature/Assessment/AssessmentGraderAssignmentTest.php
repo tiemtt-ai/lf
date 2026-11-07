@@ -107,7 +107,9 @@ class AssessmentGraderAssignmentTest extends TestCase
         $this->actingAs($helper)->putJson(self::TEACHER.'/quizzes/'.$quiz.'/graders', ['user_ids' => [$helper->id, $outsider->id]], self::AJAX)->assertNotFound();
 
         $this->actingAs($creator)->get(self::TEACHER.'/quizzes/'.$quiz)->assertOk()
-            ->assertSeeText('Thầy Nam')->assertSeeText(__('lf.LF_assessment_grader_from_category', ['category' => 'Sơ cấp', 'names' => 'Thầy Khoa']));
+            // Tab Người chấm: one row per teacher with where the right comes from.
+            ->assertSeeTextInOrder(['Thầy Nam', __('lf.LF_assessment_quiz_grader_from_quiz'),
+                'Thầy Khoa', __('lf.LF_assessment_quiz_grader_from_category', ['category' => 'Sơ cấp'])]);
         $this->actingAs($this->admin)->putJson(self::ADMIN.'/quizzes/'.$quiz.'/graders', ['user_ids' => []], self::AJAX)->assertOk();
         $this->actingAs($helper)->get(self::TEACHER.'/results/'.$attempt->id)->assertNotFound();
     }

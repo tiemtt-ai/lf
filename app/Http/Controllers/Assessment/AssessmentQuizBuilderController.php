@@ -349,7 +349,7 @@ final class AssessmentQuizBuilderController extends Controller
 
         return $request->expectsJson()
             ? response()->json(['message' => __('lf.LF_assessment_grader_saved')])
-            : redirect()->route($this->routePrefix($request).'.show', $id)->with('success', __('lf.LF_assessment_grader_saved'));
+            : redirect()->route($this->routePrefix($request).'.show', ['id' => $id, 'tab' => 'graders'])->with('success', __('lf.LF_assessment_grader_saved'));
     }
 
     /** @return array{title: string, description: string|null, skill_type: string|null} */

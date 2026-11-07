@@ -3697,6 +3697,10 @@
 .lf-admin-ui .ui-asm-stats dd .ui-caption { display: block; font-size: 12.5px; line-height: 18px; font-weight: 400; }
 .lf-admin-ui .mk-tablebar--filters .ui-asm-stats-quiz { flex: 0 1 380px; max-width: 100%; }
 @media (max-width: 720px) { .lf-admin-ui .ui-asm-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* Quiz page tabs (as on the Course Template page): the notice sits between the identity card and the tabs. */
+.lf-admin-ui .ui-quiz-tabs { margin-top: 16px; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
+.lf-admin-ui [data-ui-live-region="changes"] > .ui-quiz-notice { margin: 12px 0 0; }
+.lf-admin-ui .ui-quiz-notice a { color: inherit; font-weight: 600; text-decoration: underline; }
 .lf-admin-ui .ui-quiz-notice { display: flex; align-items: center; gap: 8px; margin: 16px 20px 0; padding: 10px 14px; border-radius: 8px; background: var(--ui-warning-soft); color: var(--ui-warning); font-size: 14px; }
 .lf-admin-ui .ui-quiz-section-row th, .lf-admin-ui .ui-quiz-section-row td { background: var(--ui-color-eef0f5); }
 .lf-admin-ui .ui-quiz-section-row th { font-weight: 400; }

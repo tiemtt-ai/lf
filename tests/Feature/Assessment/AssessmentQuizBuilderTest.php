@@ -59,7 +59,20 @@ class AssessmentQuizBuilderTest extends TestCase
             ->assertSeeText(__('lf.LF_assessment_quiz_never_published'))
             ->assertSeeText(__('lf.LF_assessment_quiz_questions_empty'))
             // One section: no section header row.
-            ->assertDontSee('ui-quiz-section-row', false);
+            ->assertDontSee('ui-quiz-section-row', false)
+            // Tabs as on the Course Template page; Thông tin opens first, the others are rendered but hidden.
+            ->assertSeeInOrder([__('lf.LF_assessment_quiz_tab_info'), __('lf.LF_assessment_quiz_tab_questions'),
+                __('lf.LF_assessment_quiz_tab_graders'), __('lf.LF_assessment_quiz_tab_publish')])
+            ->assertSee('<input type="hidden" name="tab" value="info">', false);
+
+        // ?tab= opens that tab and keeps it for live refreshes; an unknown tab falls back to Thông tin.
+        $page = $this->actingAs($this->admin)->get(self::ADMIN.'/quizzes/'.$quiz.'?tab=publish')->assertOk()
+            ->assertSee('<input type="hidden" name="tab" value="publish">', false);
+        $this->assertMatchesRegularExpression('/\?tab=publish"\s+class="course-template-tab is-active"\s+aria-current="page"/', $page->getContent());
+        $this->assertMatchesRegularExpression('/id="assessment-quiz-tab-info"[^>]*\shidden\s*>/', $page->getContent());
+        $this->assertDoesNotMatchRegularExpression('/id="assessment-quiz-tab-publish"[^>]*\shidden\s*>/', $page->getContent());
+        $this->actingAs($this->admin)->get(self::ADMIN.'/quizzes/'.$quiz.'?tab=nope')->assertOk()
+            ->assertSee('<input type="hidden" name="tab" value="info">', false);
     }
 
     public function test_questions_and_passages_are_added_in_order_with_their_default_points(): void
