@@ -5,7 +5,7 @@
   "default_locale": "vi",
   "fallback_locale": "en",
   "source_of_truth": "docs/LF-INDEX.md",
-  "document_count": 335,
+  "document_count": 336,
   "documents": [
     {
       "path": "LF-Core-Overview.md",
@@ -10763,6 +10763,45 @@
       "related_documents": [
         "tech/LF-Tech-CSS.md",
         "tech/LF-Admin-Form-Design-Standard.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "quality/LF-Assessment-Dynamic-Quiz-Proposal.md",
+      "title": "LF Assessment Dynamic Quiz Proposal",
+      "area": "quality",
+      "document_type": "architecture_review",
+      "document_status": "Approved",
+      "implementation_status": "Not Applicable",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": [
+        "assessment",
+        "quiz",
+        "dynamic-quiz"
+      ],
+      "keywords": {
+        "vi": [
+          "đề động",
+          "ghép tự động",
+          "bốc ngẫu nhiên",
+          "kỹ năng độ khó"
+        ],
+        "en": [
+          "dynamic quiz",
+          "auto assemble quiz",
+          "random questions"
+        ]
+      },
+      "identifiers": [
+        "AssessmentQuizDraftService"
+      ],
+      "related_documents": [
+        "adr/ADR-0025-Assessment-Simple-Administration.md",
+        "core/LF-Core-Assessment.md",
+        "database/assessment/README.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"

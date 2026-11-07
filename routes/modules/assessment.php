@@ -94,6 +94,9 @@ Route::prefix('assessments')->name('assessments.')->group(function () use ($asse
             Route::post('/sections/{sectionId}/move', 'moveSection')->name('sections.move');
             Route::get('/questions/pick', 'pickQuestions')->name('questions.pick');
             Route::post('/questions', 'addQuestions')->name('questions.add');
+            // Ghép tự động (ADR-0025 D6a): the popup, and a preview that saves nothing (confirmed through questions.add).
+            Route::get('/questions/auto', 'autoQuestions')->name('questions.auto');
+            Route::post('/questions/auto/preview', 'autoPreview')->name('questions.auto-preview');
             Route::delete('/questions', 'removeItems')->name('questions.remove');
             Route::get('/questions/{itemId}/edit', 'editItem')->name('questions.edit');
             Route::put('/questions/{itemId}', 'updateItem')->name('questions.update');

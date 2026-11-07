@@ -44,7 +44,8 @@ Quyết định nguồn:
 Có:
 
 * Danh mục, câu hỏi, ngữ liệu nhập bằng form.
-* Đề / bài tập ghép thủ công; xuất bản phiên bản.
+* Đề / bài tập ghép thủ công, hoặc "Ghép tự động" khi soạn (ADR-0025 D6a);
+  xuất bản phiên bản.
 * Ghi danh: học viên tự đăng ký miễn phí đề *Mở đăng ký*, hoặc admin / giáo
   viên cấp.
 * "Đề thi của tôi", làm bài, tự chấm, giáo viên chấm điểm và nhận xét, kết quả.
@@ -70,8 +71,16 @@ Có:
 * Phân công chấm và nộp tệp cho câu tự luận theo
   [ADR-0027](../adr/ADR-0027-Assessment-Grader-Assignment-And-Essay-Files.md)
   (Owner duyệt 2026-11-07): xem Grading Architecture và Media Integration.
+* Ghép tự động khi soạn theo ADR-0025 Amendment 1.2 (D6a, Owner duyệt
+  2026-11-07): nút "Ghép tự động" cạnh "Thêm câu hỏi" trên trang đề. Người soạn
+  chọn danh mục (mặc định tính cả danh mục con) và số câu theo kỹ năng × độ khó;
+  `AssessmentQuizDraftService::autoPick` bốc ngẫu nhiên từng ô trong đúng tập
+  câu của "Thêm câu hỏi" (câu lẻ `published`, trong phạm vi người soạn, chưa có
+  trong đề), trả bản xem trước (`questions.auto-preview`, không lưu gì) và nói ô
+  nào thiếu. Xác nhận đi qua `questions.add`, thêm theo thứ tự bản xem trước
+  với điểm mặc định. Tối đa 200 câu một lần. Không có bảng mới.
 
-Không có (làm sau hoặc bỏ): đề động, gói đề, gắn vào Course Template, giao
+Không có (làm sau hoặc bỏ): đề mà mỗi lượt làm một bộ câu khác, gói đề, gắn vào Course Template, giao
 theo lớp, thanh toán / bán đề, chia sẻ giữa giáo viên, xếp loại,
 mọi tính năng AI, đề tổ hợp HSA.
 
@@ -288,6 +297,15 @@ essay_attachment` và usage `assessment_answer` / `attachment`. Người chấm 
 của mình trên trang kết quả. Không OCR, trích xuất hay AI trên tệp này
 (ADR-0018).
 
+Tệp chỉ có link khi Media `ready` (quét virus xong). Quét chạy sau khi tải lên,
+nên trang làm bài hiện "đang kiểm tra an toàn" rồi tự hỏi lại danh sách tệp của
+câu (`GET /assessments/attempts/{id}/files/{questionId}`, 2 giây một lần, tối đa
+30 lần) cho tới khi tệp có link. Đường này chỉ trả tệp của chính học viên, chỉ
+cho câu được nộp tệp và chỉ khi bài còn mở (đã đóng thì 409 như lưu câu trả lời).
+
+Trang kết quả của học viên và trang chấm chỉ hiện chú thích màu (xanh = đáp án
+đúng, đỏ = chọn sai) khi đề có câu lựa chọn; đề chỉ có tự luận / nói thì không.
+
 ---
 
 # Course Integration (làm sau)
@@ -378,6 +396,7 @@ Cập nhật 2026-11-07.
 | Tiêu chí chấm (ADR-0026): trang quản lý, chọn trong câu hỏi, chụp khi xuất bản, chấm từng tiêu chí, học viên xem điểm tiêu chí | Đã làm |
 | Phân công chấm (ADR-0027 D1–D4): giáo viên chấm của danh mục / đề, Giao chấm, Nhận chấm, Trả lại, cột và bộ lọc Người chấm | Đã làm |
 | Nộp tệp cho câu tự luận (ADR-0027 D5): "Cho nộp tệp" trong form và Excel, tải / xoá tệp khi làm bài, xem tệp khi chấm và ở kết quả | Đã làm |
+| Ghép tự động khi soạn (ADR-0025 D6a): bảng kỹ năng × độ khó, bản xem trước, báo ô thiếu | Đã làm |
 | Mọi mục "Không có" ở Phạm vi giai đoạn 1 | Chưa làm |
 
 Kiểm chứng: [LF-Assessment-Learner-Regression-Audit](../quality/LF-Assessment-Learner-Regression-Audit.md).
@@ -387,7 +406,7 @@ Kiểm chứng: [LF-Assessment-Learner-Regression-Audit](../quality/LF-Assessmen
 # Final Statement
 
 Assessment đo lường kết quả học tập và sinh bằng chứng đánh giá. Giai đoạn 1 là
-module Kiểm tra độc lập: soạn câu hỏi, ghép đề thủ công, xuất bản phiên bản,
+module Kiểm tra độc lập: soạn câu hỏi, ghép đề thủ công hoặc tự động, xuất bản phiên bản,
 ghi danh, làm bài, chấm. Phiên bản đề giữ lịch sử bất biến; Media giữ file;
 Course và Certificate tự quyết trạng thái của mình khi được tích hợp.
 

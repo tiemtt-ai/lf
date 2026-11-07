@@ -17,10 +17,18 @@ use Illuminate\Validation\ValidationException;
  */
 final class AssessmentQuizDraftService
 {
+    /** Ghép tự động (ADR-0025 D6a): the table rows and columns, in the order the preview lists them. */
+    public const AUTO_SKILLS = ['reading', 'listening', 'writing', 'speaking', 'other'];
+
+    public const AUTO_LEVELS = ['easy', 'medium', 'hard'];
+
+    public const AUTO_MAX = 200;
+
     public function __construct(
         private readonly AssessmentQuizService $quizzes,
         private readonly AssessmentQuestionService $questions,
         private readonly AssessmentPassageService $passages,
+        private readonly AssessmentCategoryService $categories,
     ) {}
 
     /** @return Collection<int, object> sections in order */
@@ -134,7 +142,9 @@ final class AssessmentQuizDraftService
             $passages = $passageIds === [] ? collect() : $this->passages->scoped($customerId, $user)->whereIn('id', $passageIds)->pluck('id');
             abort_if($passages->count() !== count($passageIds), 404);
             $picked = $questionIds === [] ? collect() : $this->questions->scoped($customerId, $user, 'q')->whereIn('q.id', $questionIds)
-                ->get(['q.id', 'q.status', 'q.default_points']);
+                ->get(['q.id', 'q.status', 'q.default_points'])
+                // In the order given (the picker list, or the Ghép tự động preview).
+                ->sortBy(fn (object $question) => array_search((int) $question->id, $questionIds, true))->values();
             abort_if($picked->count() !== count($questionIds), 404);
 
             if ($picked->contains(fn (object $question) => $question->status !== 'published')) {
@@ -250,6 +260,62 @@ final class AssessmentQuizDraftService
             ->orderByDesc('q.created_at')->orderByDesc('q.id')
             ->limit($limit)
             ->get(['q.id', 'q.question_type', 'q.default_points', 'c.prompt', 'cat.name as category_name']);
+    }
+
+    /**
+     * Ghép tự động (ADR-0025 D6a): picks at random, for each skill × level cell, up to the wanted number of the questions
+     * the picker would list (single, published, in this user's reach, not yet in the quiz), optionally within a
+     * category and its children. Nothing is saved: the preview is confirmed through addQuestions.
+     *
+     * @param  array<string, array<string, int>>  $counts  skill => level => wanted
+     * @return array{questions: Collection<int, object>, cells: list<array{skill: string, level: string, wanted: int, found: int}>}
+     */
+    public function autoPick(int $customerId, User $user, int $quizId, ?int $categoryId, bool $withChildren, array $counts, string $locale): array
+    {
+        $this->quizzes->find($customerId, $user, $quizId);
+        $categoryIds = null;
+        if ($categoryId !== null) {
+            $this->categories->find($customerId, $categoryId);
+            $categoryIds = $withChildren ? [$categoryId, ...$this->categories->descendantIds($customerId, $categoryId)] : [$categoryId];
+        }
+
+        $ids = [];
+        $cells = [];
+        foreach (self::AUTO_SKILLS as $skill) {
+            foreach (self::AUTO_LEVELS as $level) {
+                $wanted = (int) ($counts[$skill][$level] ?? 0);
+                if ($wanted <= 0) {
+                    continue;
+                }
+                $found = $this->questions->scoped($customerId, $user, 'q')
+                    ->where('q.status', 'published')
+                    ->whereNull('q.passage_id')
+                    ->where('q.skill_type', $skill)
+                    ->where('q.difficulty_level', $level)
+                    ->when($categoryIds !== null, fn ($query) => $query->whereIn('q.category_id', $categoryIds))
+                    ->whereNotIn('q.id', $this->chosenQuestionIds($customerId, $quizId))
+                    ->inRandomOrder()->limit($wanted)
+                    ->pluck('q.id')->map(fn ($id) => (int) $id)->all();
+                array_push($ids, ...$found);
+                $cells[] = ['skill' => $skill, 'level' => $level, 'wanted' => $wanted, 'found' => count($found)];
+            }
+        }
+
+        $rows = $ids === [] ? collect() : DB::table(AssessmentQuestionService::TABLE.' as q')
+            ->leftJoin('core_assessment_question_contents as c', function ($join) use ($locale): void {
+                $join->on('c.question_id', '=', 'q.id')->on('c.customer_id', '=', 'q.customer_id')->where('c.locale', '=', $locale);
+            })
+            ->leftJoin(AssessmentCategoryService::TABLE.' as cat', function ($join): void {
+                $join->on('cat.id', '=', 'q.category_id')->on('cat.customer_id', '=', 'q.customer_id');
+            })
+            ->where('q.customer_id', $customerId)->whereIn('q.id', $ids)
+            ->get(['q.id', 'q.question_type', 'q.skill_type', 'q.difficulty_level', 'q.default_points', 'c.prompt', 'cat.name as category_name'])
+            ->keyBy('id');
+
+        return [
+            'questions' => collect($ids)->map(fn (int $id) => $rows->get($id))->filter()->values(),
+            'cells' => $cells,
+        ];
     }
 
     /** Published passages this user may add that still have a ready child outside the quiz. */

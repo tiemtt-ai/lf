@@ -42,6 +42,7 @@ criteria hay không.
 * [LF-Media-Sharing-Proposal.md](LF-Media-Sharing-Proposal.md) — đề xuất chia sẻ Media trong tenant, chờ Owner quyết trước khi viết ADR (2026-10-21).
 * [LF-Assessment-Grader-Assignment-Architecture-Review.md](LF-Assessment-Grader-Assignment-Architecture-Review.md) — rà ADR-0027 và database docs phân công chấm, tệp bài tự luận trước migration; PASS, Owner duyệt 2026-11-07.
 * [LF-Assessment-Rubric-Architecture-Review.md](LF-Assessment-Rubric-Architecture-Review.md) — rà ADR-0026 và database docs rubric trước migration; PASS, Owner duyệt 2026-11-06.
+* [LF-Assessment-Dynamic-Quiz-Proposal.md](LF-Assessment-Dynamic-Quiz-Proposal.md) — đề động "ghép khi soạn": tham khảo question_bank, nguồn của ADR-0025 Amendment 1.2 (D6a); Owner duyệt 2026-11-07.
 * [LF-Assessment-Rubric-Proposal.md](LF-Assessment-Rubric-Proposal.md) — đề xuất Rubric (tiêu chí chấm) cho câu tự luận / nói; Owner duyệt, nguồn của ADR-0026.
 * [LF-Assessment-Simple-Admin-Proposal.md](LF-Assessment-Simple-Admin-Proposal.md) — phân tích question_bank và đề xuất quản trị Assessment đơn giản, nguồn của ADR-0025; Owner đã duyệt (2026-11-06).
 * [LF-Assessment-Learner-Regression-Audit.md](LF-Assessment-Learner-Regression-Audit.md) — regression audit HIGH phía học viên module Kiểm tra, ghi âm và Media Library; PASS WITH DOCUMENTED RISKS (2026-11-06).

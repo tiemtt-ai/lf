@@ -3701,6 +3701,13 @@
 .lf-admin-ui .ui-quiz-section-row th, .lf-admin-ui .ui-quiz-section-row td { background: var(--ui-color-eef0f5); }
 .lf-admin-ui .ui-quiz-section-row th { font-weight: 400; }
 .lf-admin-ui .ui-quiz-section-title { display: block; font-weight: 600; color: var(--ui-text); }
+/* Ghép tự động (ADR-0025 D6a): the skill × level table and the cells it could not fill. */
+.lf-admin-ui .ui-auto-table tbody th { background: transparent; color: inherit; font-weight: 500; white-space: nowrap; padding: 6px 14px; border-bottom: 1px solid var(--ui-color-ecedf3); }
+.lf-admin-ui .ui-auto-table td { padding: 6px 14px; }
+.lf-admin-ui .ui-auto-table td input { width: 96px; max-width: 100%; }
+.lf-admin-ui .ui-auto-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; }
+.lf-admin-ui .ui-auto-short { margin-bottom: 10px; padding: 10px 14px; border-radius: 8px; background: var(--ui-warning-soft); color: var(--ui-warning); font-size: 13px; }
+.lf-admin-ui .ui-auto-short ul { margin: 4px 0 0; padding-left: 18px; }
 .lf-admin-ui .ui-pick-list { display: grid; max-height: min(48vh, 420px); overflow-y: auto; border: 1px solid var(--ui-border); border-radius: 8px; }
 .lf-admin-ui .ui-pick-row { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: 10px; align-items: start; padding: 10px 14px; border-bottom: 1px solid var(--ui-color-e6e8ee); }
 .lf-admin-ui .ui-pick-row:last-child { border-bottom: 0; }

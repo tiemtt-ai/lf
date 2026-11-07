@@ -1,6 +1,6 @@
 # ADR-0025 — Assessment Simple Administration
 
-Version: 1.1
+Version: 1.2
 
 Status: Approved
 
@@ -65,7 +65,8 @@ chấm; giáo viên chấm điểm và nhận xét; màn kết quả.
 * Đề tổ hợp kiểu HSA: bỏ.
 * Mọi tính năng AI (tạo câu hỏi, tách câu từ file đề, gợi ý chấm): bỏ khỏi đợt
   này.
-* Đề động (chọn danh mục + số câu, hệ thống tự ghép): làm sau.
+* Đề động (chọn danh mục + số câu, hệ thống tự ghép): làm sau. *Cập nhật
+  2026-11-07: cách "ghép khi soạn" đã duyệt ở Amendment 1.2 (D6a).*
 * Gói đề (một hoặc nhiều đề, có thời gian mở/đóng): làm sau.
 * Gắn đề hoặc gói vào Course Template: làm sau.
 * Thanh toán, bán đề hoặc gói: làm sau, dùng chung luồng đơn hàng và thanh
@@ -308,6 +309,47 @@ quyết hoàn thành áp dụng cho lần làm bài có nguồn quyền là kho�
 
 * Câu tự luận / nói bỏ trống tự được 0 điểm khi nộp, không bắt giáo viên chấm
   ô trống (bổ sung D11).
+* Đề động làm theo cách "ghép khi soạn" (Amendment 1.2, D6a); Owner duyệt
+  "Duyệt, làm luôn". Không có migration. Đã làm cùng ngày
+  (`AssessmentQuizDraftService::autoPick`, test `AssessmentQuizAutoTest`).
+
+---
+
+# Amendment 1.2 — Ghép tự động khi soạn (Approved 2026-11-07)
+
+Owner chọn cách "ghép khi soạn" cho đề động (2026-11-07), tham khảo màn "tạo đề
+tự động" của question_bank: ở đó người soạn điền bảng kỹ năng × độ khó, server
+bốc ngẫu nhiên, người soạn xem lại rồi lưu thành đề cố định. Phân tích ở
+[LF-Assessment-Dynamic-Quiz-Proposal](../quality/LF-Assessment-Dynamic-Quiz-Proposal.md).
+
+## D6a — Ghép tự động là cách thêm câu vào bản nháp
+
+* Trang ghép đề có thêm nút **"Ghép tự động"** cạnh "Thêm câu hỏi"; phần nhận
+  câu chọn trong popup như "Thêm câu hỏi". Đây chỉ là một cách khác để thêm câu
+  vào bản nháp; D6 giữ nguyên: đề vẫn là
+  danh sách câu cố định, xuất bản thành phiên bản, mọi học viên làm cùng bộ câu
+  của phiên bản đó (D10 không đổi).
+* Người soạn chọn **danh mục** (mặc định tính cả danh mục con; để trống là mọi
+  danh mục) và điền **bảng kỹ năng × độ khó**: mỗi ô là số câu cần lấy (5 kỹ
+  năng × 3 độ khó theo D5). Câu chưa ghi kỹ năng hoặc độ khó không được bốc.
+* Nguồn câu giống hệt danh sách "Thêm câu hỏi" hiện có: câu lẻ đang "Sẵn sàng"
+  (`published`), trong phạm vi quyền của người soạn (D9: admin mọi câu của
+  tenant, giáo viên câu mình tạo), chưa có trong đề. **Ngữ liệu không bốc tự
+  động**; vẫn chọn tay.
+* Server bốc ngẫu nhiên theo từng ô và trả về **bản xem trước**, chưa lưu gì.
+  Bản xem trước ghi rõ ô nào thiếu ("cần 5, có 3"). Người soạn có thể bốc lại,
+  bỏ bớt câu, rồi xác nhận; xác nhận đi qua đúng đường thêm câu hiện có (kiểm
+  lại quyền, trạng thái, chưa có trong đề; điểm lấy điểm mặc định của câu). Ô
+  thiếu thì thêm số câu đang có, không chặn.
+* Tối đa 200 câu một lần ghép.
+* **Không có bảng, cột hay migration mới.** Không lưu "luật ghép": muốn ghép
+  lại thì điền bảng lại.
+
+## Vẫn làm sau
+
+* Đề mà mỗi lượt làm một bộ câu khác (luật ghép lưu trong đề, bốc lúc học viên
+  bắt đầu): cần bảng mới và đổi cách snapshot, thống kê; phải có ADR riêng.
+* Bốc ngẫu nhiên ngữ liệu; lọc theo chủ đề (tag) — `topics` vẫn hoãn (D3).
 
 ---
 

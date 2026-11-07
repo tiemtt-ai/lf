@@ -135,6 +135,82 @@ final class AssessmentQuizBuilderController extends Controller
         ]);
     }
 
+    /** Ghép tự động (ADR-0025 D6a): category and the skill × level table; the preview fills the list to confirm. */
+    public function autoQuestions(Request $request, int $id): View
+    {
+        abort_unless($request->ajax(), 404);
+        $customerId = $this->customerId();
+        $this->quizzes->find($customerId, $request->user(), $id);
+
+        return view('assessments.quizzes.auto', [
+            'quizId' => $id,
+            'sections' => $this->drafts->sections($customerId, $id),
+            'sectionId' => (int) $request->query('section_id'),
+            'categories' => DB::table(AssessmentCategoryService::TABLE)->where('customer_id', $customerId)
+                ->where('status', 'active')->orderBy('name')->get(['id', 'name']),
+            'skills' => Drafts::AUTO_SKILLS,
+            'levels' => Drafts::AUTO_LEVELS,
+            'max' => Drafts::AUTO_MAX,
+            'routePrefix' => $this->routePrefix($request),
+        ]);
+    }
+
+    public function autoPreview(Request $request, int $id): JsonResponse
+    {
+        $rules = [
+            'category_id' => ['nullable', 'integer', 'min:1'],
+            'with_children' => ['nullable', 'boolean'],
+            'counts' => ['nullable', 'array'],
+        ];
+        foreach (Drafts::AUTO_SKILLS as $skill) {
+            foreach (Drafts::AUTO_LEVELS as $level) {
+                $rules['counts.'.$skill.'.'.$level] = ['nullable', 'integer', 'min:0', 'max:'.Drafts::AUTO_MAX];
+            }
+        }
+        $validated = $request->validate($rules);
+        $counts = [];
+        foreach (Drafts::AUTO_SKILLS as $skill) {
+            foreach (Drafts::AUTO_LEVELS as $level) {
+                $counts[$skill][$level] = (int) ($validated['counts'][$skill][$level] ?? 0);
+            }
+        }
+        $total = array_sum(array_map('array_sum', $counts));
+        if ($total === 0 || $total > Drafts::AUTO_MAX) {
+            $message = $total === 0
+                ? __('lf.LF_assessment_quiz_auto_error_none')
+                : __('lf.LF_assessment_quiz_auto_error_max', ['max' => Drafts::AUTO_MAX]);
+
+            return response()->json(['message' => $message, 'errors' => ['counts' => [$message]]], 422);
+        }
+
+        $result = $this->drafts->autoPick($this->customerId(), $request->user(), $id,
+            isset($validated['category_id']) ? (int) $validated['category_id'] : null,
+            $request->boolean('with_children'), $counts, $this->questions->locale());
+        $trim = fn ($points) => rtrim(rtrim(number_format((float) $points, 2, '.', ''), '0'), '.');
+
+        return response()->json([
+            'questions' => $result['questions']->map(fn (object $question) => [
+                'id' => (int) $question->id,
+                'prompt' => (string) $question->prompt,
+                'meta' => implode(' · ', [
+                    __('lf.LF_assessment_question_type_'.$question->question_type),
+                    __('lf.LF_assessment_question_skill_'.$question->skill_type),
+                    __('lf.LF_assessment_question_level_'.$question->difficulty_level),
+                    $question->category_name ?? __('lf.LF_assessment_question_no_category'),
+                ]),
+                'points' => __('lf.LF_assessment_quiz_points_value', ['points' => $trim($question->default_points)]),
+            ])->values(),
+            // Cells that could not be filled, said in words: "Đọc · Dễ: cần 5, có 3".
+            'short' => collect($result['cells'])->filter(fn (array $cell) => $cell['found'] < $cell['wanted'])
+                ->map(fn (array $cell) => __('lf.LF_assessment_quiz_auto_short', [
+                    'cell' => __('lf.LF_assessment_question_skill_'.$cell['skill']).' · '.__('lf.LF_assessment_question_level_'.$cell['level']),
+                    'wanted' => $cell['wanted'],
+                    'found' => $cell['found'],
+                ]))->values(),
+            'wanted' => $total,
+        ]);
+    }
+
     public function addQuestions(Request $request, int $id): JsonResponse
     {
         $validated = $request->validate([

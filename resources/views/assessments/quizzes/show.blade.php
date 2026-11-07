@@ -190,6 +190,12 @@
                     </button>
                     <button type="button" class="ui-button ui-button--outline cursor-interaction"
                             data-ui-dialog-form-open data-ui-dialog-form-for="assessment-quiz-page"
+                            data-url="{{ route($routePrefix.'.questions.auto', $quiz->id) }}" aria-haspopup="dialog">
+                        <x-backend-icon name="shuffle" class="ui-icon" />
+                        {{ __('lf.LF_assessment_quiz_auto') }}
+                    </button>
+                    <button type="button" class="ui-button ui-button--outline cursor-interaction"
+                            data-ui-dialog-form-open data-ui-dialog-form-for="assessment-quiz-page"
                             data-url="{{ route($routePrefix.'.sections.create', $quiz->id) }}" aria-haspopup="dialog">
                         <x-backend-icon name="plus" class="ui-icon" />
                         {{ __('lf.LF_assessment_quiz_section_create') }}
