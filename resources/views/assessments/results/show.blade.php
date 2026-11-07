@@ -277,7 +277,7 @@
                             <summary>{{ __('lf.LF_assessment_result_history', ['count' => $history[$answer->id]->count()]) }}</summary>
                             @foreach ($history[$answer->id] as $entry)
                                 @php $entryScores = collect(json_decode((string) $entry->rubric_result, true) ?: [])->pluck('score', 'key'); @endphp
-                                <p>{{ $date($entry->graded_at) }} · {{ $entry->grader_name }} · {{ $trim($entry->score) }}@if (is_array($rubric) && $entryScores->isNotEmpty()) ({{ collect($rubric['items'])->map(fn ($item) => $item['title'].' '.$trim($entryScores[$item['key']] ?? 0))->implode(', ') }})@endif @if ($entry->feedback) · {{ $entry->feedback }}@endif @if ($entry->is_current) ({{ __('lf.LF_assessment_quiz_version_current') }}) @endif</p>
+                                <p>{{ $date($entry->graded_at) }} · {{ $entry->grading_type === 'system_auto' ? __('lf.LF_assessment_result_graded_blank') : $entry->grader_name }} · {{ $trim($entry->score) }}@if (is_array($rubric) && $entryScores->isNotEmpty()) ({{ collect($rubric['items'])->map(fn ($item) => $item['title'].' '.$trim($entryScores[$item['key']] ?? 0))->implode(', ') }})@endif @if ($entry->feedback) · {{ $entry->feedback }}@endif @if ($entry->is_current) ({{ __('lf.LF_assessment_quiz_version_current') }}) @endif</p>
                             @endforeach
                         </details>
                     @endif

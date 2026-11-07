@@ -74,7 +74,10 @@ class AssessmentResultGradingTest extends TestCase
         $this->assertSame([0, 0.0, 'not_required'], $state($q['true_false']));
         $this->assertSame([1, 1.0, 'not_required'], $state($q['short']));
         $this->assertSame(['pending', null], [$answers[$q['essay']]->grading_status, $answers[$q['essay']]->score]);
-        $this->assertSame(['pending', 'audio'], [$answers[$q['speaking']]->grading_status, $answers[$q['speaking']]->answer_type]);
+        // No recording: the system grades the speaking answer 0 at once (ADR-0025 D11); the essay still waits.
+        $this->assertSame(['graded', 'audio', 0.0], [$answers[$q['speaking']]->grading_status, $answers[$q['speaking']]->answer_type, (float) $answers[$q['speaking']]->score]);
+        $this->assertSame([['system_auto', null, 0.0, 1]], DB::table('core_assessment_gradings')->where('attempt_id', $attempt->id)->get()
+            ->map(fn ($g) => [$g->grading_type, $g->grader_user_id, (float) $g->score, (int) $g->is_current])->all());
         $this->assertSame(['3.00', '30.00', null], [
             number_format((float) $submitted->score, 2, '.', ''), number_format((float) $submitted->score_percentage, 2, '.', ''), $submitted->passed,
         ]);
@@ -116,7 +119,10 @@ class AssessmentResultGradingTest extends TestCase
 
         $this->actingAs($this->admin)->post($page.'/answers/'.$answer($q['essay'])->id.'/grade', ['score' => '3.5', 'feedback' => 'Tốt'])
             ->assertRedirect($page.'#answer-'.$answer($q['essay'])->id);
-        $this->assertSame('submitted', DB::table('core_assessment_attempts')->value('status'));
+        // The blank speaking answer was graded 0 by the system, so grading the essay completes the attempt.
+        $this->assertSame('graded', DB::table('core_assessment_attempts')->value('status'));
+        $this->actingAs($this->admin)->get($page)->assertOk()->assertSeeText(__('lf.LF_assessment_result_graded_blank'));
+        // ...and a grader may still regrade it.
         $this->actingAs($this->admin)->post($page.'/answers/'.$answer($q['speaking'])->id.'/grade', ['score' => '1'])->assertSessionHasNoErrors();
 
         $row = DB::table('core_assessment_attempts')->find($attempt->id);
@@ -280,9 +286,13 @@ class AssessmentResultGradingTest extends TestCase
         return $this->attempts->start($this->customerId, $registrationId);
     }
 
+    /** Submitted with only the essay written, so the attempt waits for grading (a blank one is graded 0 at once). */
     private function submittedAttempt(int $registrationId): object
     {
         $attempt = $this->startAttempt($registrationId);
+        $essay = DB::table('core_assessment_quiz_version_questions')->where('quiz_version_id', $attempt->quiz_version_id)
+            ->where('question_type', 'essay')->value('id');
+        $this->attempts->saveAnswer($this->customerId, $attempt->id, (int) $essay, ['text' => 'Bài viết']);
 
         return $this->attempts->submit($this->customerId, $attempt->id);
     }

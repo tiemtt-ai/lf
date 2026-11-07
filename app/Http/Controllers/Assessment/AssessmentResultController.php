@@ -152,7 +152,7 @@ final class AssessmentResultController extends Controller
             ->get()->keyBy('quiz_version_question_id');
         $history = DB::table(Attempts::GRADINGS_TABLE.' as g')->leftJoin('users as u', 'u.id', '=', 'g.grader_user_id')
             ->where('g.customer_id', $customerId)->where('g.attempt_id', $id)->orderByDesc('g.id')
-            ->get(['g.answer_id', 'g.score', 'g.feedback', 'g.rubric_result', 'g.is_current', 'g.graded_at', 'u.name as grader_name'])->groupBy('answer_id');
+            ->get(['g.answer_id', 'g.score', 'g.feedback', 'g.rubric_result', 'g.is_current', 'g.graded_at', 'g.grading_type', 'u.name as grader_name'])->groupBy('answer_id');
         // Speaking recordings that are ready to play.
         $files = DB::table(Attempts::FILES_TABLE.' as f')->join('media_files as m', 'm.id', '=', 'f.media_file_id')
             ->where('f.customer_id', $customerId)->whereIn('f.answer_id', $answers->pluck('id'))->where('m.status', 'ready')

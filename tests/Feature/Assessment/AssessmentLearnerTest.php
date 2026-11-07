@@ -176,7 +176,8 @@ class AssessmentLearnerTest extends TestCase
             $this->actingAs($this->admin)->post(self::ADMIN.'/results/'.$attempt.'/answers/'.$answerId.'/grade', ['score' => '1', 'feedback' => 'Cố gắng thêm']);
         }
         $this->actingAs($this->student)->get($result)->assertOk()
-            ->assertSeeText('4 / 10')->assertSeeText('Giải thích bí mật')->assertSeeText('Cố gắng thêm')->assertSeeText(__('lf.LF_assessment_result_failed'));
+            // single 2 + essay 1; the speaking answer was left blank, so the system gave it 0.
+            ->assertSeeText('3 / 10')->assertSeeText('Giải thích bí mật')->assertSeeText('Cố gắng thêm')->assertSeeText(__('lf.LF_assessment_result_failed'));
 
         [$hidden] = $this->quiz(['title' => 'Đề ẩn điểm', 'show_result_mode' => 'hidden']);
         $hiddenAttempt = $this->finishedAttempt($this->register($hidden));
@@ -196,8 +197,8 @@ class AssessmentLearnerTest extends TestCase
         $this->travel(11)->minutes();
         $this->actingAs($this->student)->postJson(self::SITE.'/assessments/attempts/'.$attempt.'/answers',
             ['question' => $vq[$q['single']]->id, 'option_keys' => [2]], self::AJAX)->assertStatus(409);
-        // Essay and speaking still need a teacher, so the attempt waits for grading.
-        $this->assertSame(['submitted', 'timeout'], [
+        // Essay and speaking were left blank, so the system graded them 0 and nothing waits for a teacher.
+        $this->assertSame(['graded', 'timeout'], [
             DB::table('core_assessment_attempts')->value('status'), DB::table('core_assessment_attempts')->value('submit_reason'),
         ]);
         $this->actingAs($this->student)->get(self::SITE.'/assessments/my')->assertOk()->assertSeeText(__('lf.LF_assessment_learner_retry'));
@@ -252,8 +253,12 @@ class AssessmentLearnerTest extends TestCase
         $single = DB::table('core_assessment_quiz_version_questions as vq')
             ->join('core_assessment_attempts as a', 'a.quiz_version_id', '=', 'vq.quiz_version_id')
             ->where('a.id', $attempt)->where('vq.question_type', 'single_choice')->value('vq.id');
+        $essay = DB::table('core_assessment_quiz_version_questions as vq')
+            ->join('core_assessment_attempts as a', 'a.quiz_version_id', '=', 'vq.quiz_version_id')
+            ->where('a.id', $attempt)->where('vq.question_type', 'essay')->value('vq.id');
         $this->actingAs($this->student)->post(self::SITE.'/assessments/attempts/'.$attempt.'/submit', ['answers' => [
             $single => ['present' => '1', 'option_keys' => ['2']],
+            $essay => ['present' => '1', 'text' => 'Bài viết'],
         ]]);
 
         return $attempt;

@@ -1,12 +1,12 @@
 # ADR-0025 — Assessment Simple Administration
 
-Version: 1.0
+Version: 1.1
 
 Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-11-06
+Last Updated: 2026-11-07
 
 Proposal Date: 2026-11-06
 
@@ -216,6 +216,11 @@ bắt đầu lần làm bài.
 * Người chấm được: admin của tenant; người tạo đề; người đã cấp đề cho học
   viên đó (với ghi danh `granted`).
 * File ghi âm và bài nộp gắn theo câu trả lời (`answer_id`) qua Media.
+* Câu essay / speaking bỏ trống (essay không có chữ, speaking không có bản ghi
+  âm) được hệ thống chấm 0 điểm ngay khi nộp: một bản ghi
+  `core_assessment_gradings` loại `system_auto`, không có người chấm; câu đó
+  không vào Chờ chấm. Người chấm vẫn chấm lại được như mọi câu đã chấm
+  (Owner, 2026-11-07).
 
 ## D12 — Kết quả hiển thị cho học viên
 
@@ -298,6 +303,11 @@ quyết hoàn thành áp dụng cho lần làm bài có nguồn quyền là kho�
 * Đề động là "chọn danh mục + số câu, hệ thống tự ghép"; làm sau.
 * Người chấm: admin, người tạo đề, người cấp đề.
 * Thang xếp loại: làm sau. Bán đề: ngoài phạm vi.
+
+# Owner Decisions (2026-11-07)
+
+* Câu tự luận / nói bỏ trống tự được 0 điểm khi nộp, không bắt giáo viên chấm
+  ô trống (bổ sung D11).
 
 ---
 

@@ -155,7 +155,10 @@ final class AssessmentAttemptService
         });
     }
 
-    /** Ends the attempt: every question gets an answer row, objective ones are graded, totals computed. */
+    /**
+     * Ends the attempt: every question gets an answer row, objective ones are graded, totals computed. A blank essay /
+     * speaking answer is graded 0 by the system (ADR-0025 D11) so it never waits in Chờ chấm; graders may still regrade it.
+     */
     public function submit(int $customerId, int $attemptId, string $reason = 'student'): object
     {
         return DB::transaction(function () use ($customerId, $attemptId, $reason): object {
@@ -166,13 +169,28 @@ final class AssessmentAttemptService
             $answers = DB::table(self::ANSWERS_TABLE)->where('customer_id', $customerId)->where('attempt_id', $attemptId)
                 ->get()->keyBy('quiz_version_question_id');
 
+            $recorded = DB::table(self::FILES_TABLE)->where('customer_id', $customerId)
+                ->whereIn('answer_id', $answers->pluck('id'))->where('file_role', 'speaking_recording')->pluck('answer_id')
+                ->map(fn ($id) => (int) $id);
+            $blank = [];
+            $pending = false;
+
             foreach ($questions as $question) {
                 $answer = $answers->get($question->id);
                 $manual = (bool) $question->requires_manual_grading;
                 $values = ['updated_at' => $now];
 
                 if ($manual) {
-                    $values += ['grading_status' => 'pending', 'score' => null, 'is_correct' => null];
+                    $empty = $question->question_type === 'speaking'
+                        ? ! $answer || ! $recorded->contains((int) $answer->id)
+                        : trim((string) $answer?->answer_text) === '';
+                    if ($empty) {
+                        $blank[] = $question->id;
+                        $values += ['grading_status' => 'graded', 'score' => 0, 'is_correct' => null];
+                    } else {
+                        $pending = true;
+                        $values += ['grading_status' => 'pending', 'score' => null, 'is_correct' => null];
+                    }
                 } else {
                     $correct = $this->isCorrect($question, $answer);
                     $values += ['grading_status' => 'not_required', 'is_correct' => $correct, 'score' => $correct ? $question->points : 0];
@@ -186,7 +204,7 @@ final class AssessmentAttemptService
                 $this->upsertAnswer($customerId, $attempt, $question, $values + ['answer_type' => $this->answerType($question->question_type)]);
             }
 
-            $pending = $questions->contains(fn (object $question) => (bool) $question->requires_manual_grading);
+            $this->gradeBlank($customerId, $attemptId, $blank, $now);
             DB::table(self::TABLE)->where('customer_id', $customerId)->where('id', $attemptId)->update([
                 'status' => $pending ? 'submitted' : 'graded',
                 'grading_status' => $pending ? 'pending' : 'not_required',
@@ -238,6 +256,37 @@ final class AssessmentAttemptService
         $expected = collect($correct['option_keys'] ?? [])->map(fn ($k) => (int) $k)->sort()->values()->all();
 
         return $chosen !== [] && $chosen === $expected;
+    }
+
+    /**
+     * The system grading (0, no grader) of blank essay / speaking answers, so their history reads like any other grade.
+     *
+     * @param  list<int>  $versionQuestionIds
+     */
+    private function gradeBlank(int $customerId, int $attemptId, array $versionQuestionIds, mixed $now): void
+    {
+        if ($versionQuestionIds === []) {
+            return;
+        }
+
+        $answerIds = DB::table(self::ANSWERS_TABLE)->where('customer_id', $customerId)->where('attempt_id', $attemptId)
+            ->whereIn('quiz_version_question_id', $versionQuestionIds)->pluck('id');
+        DB::table(self::GRADINGS_TABLE)->where('customer_id', $customerId)->whereIn('answer_id', $answerIds)
+            ->where('is_current', true)->update(['is_current' => false, 'updated_at' => $now]);
+        DB::table(self::GRADINGS_TABLE)->insert($answerIds->map(fn ($answerId) => [
+            'customer_id' => $customerId,
+            'attempt_id' => $attemptId,
+            'answer_id' => $answerId,
+            'grader_user_id' => null,
+            'grading_type' => 'system_auto',
+            'score' => 0,
+            'feedback' => null,
+            'rubric_result' => null,
+            'is_current' => true,
+            'graded_at' => $now,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ])->all());
     }
 
     private function lockOpen(int $customerId, int $attemptId, bool $checkDeadline = true): object

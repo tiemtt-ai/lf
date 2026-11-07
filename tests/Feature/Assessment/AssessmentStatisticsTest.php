@@ -199,9 +199,13 @@ class AssessmentStatisticsTest extends TestCase
         return $this->attempts->start($this->customerId, $registrationId);
     }
 
+    /** Submitted with only the essay written, so the attempt waits for grading (a blank one is graded 0 at once). */
     private function submittedAttempt(int $registrationId): object
     {
         $attempt = $this->startAttempt($registrationId);
+        $essay = DB::table('core_assessment_quiz_version_questions')->where('quiz_version_id', $attempt->quiz_version_id)
+            ->where('question_type', 'essay')->value('id');
+        $this->attempts->saveAnswer($this->customerId, $attempt->id, (int) $essay, ['text' => 'Bài viết']);
 
         return $this->attempts->submit($this->customerId, $attempt->id);
     }

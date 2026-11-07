@@ -4337,6 +4337,7 @@ return [
     'LF_assessment_result_save_grade' => 'Lưu điểm',
     'LF_assessment_result_regrade' => 'Chấm lại',
     'LF_assessment_result_history' => 'Lịch sử chấm (:count)',
+    'LF_assessment_result_graded_blank' => 'Hệ thống (bỏ trống)',
     'LF_assessment_result_graded' => 'Đã lưu điểm.',
     'LF_assessment_result_error_in_progress' => 'Bài đang làm, chưa chấm được.',
     'LF_assessment_result_error_auto' => 'Câu này chấm tự động.',

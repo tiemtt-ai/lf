@@ -1,12 +1,12 @@
 # LF-Core-Assessment.md
 
-Version: 1.3
+Version: 1.4
 
 Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-11-06
+Last Updated: 2026-11-07
 
 Document Path: core/LF-Core-Assessment.md
 
@@ -69,7 +69,7 @@ Có:
   về điểm của câu; học viên thấy điểm từng tiêu chí.
 
 Không có (làm sau hoặc bỏ): đề động, gói đề, gắn vào Course Template, giao
-theo lớp, thanh toán / bán đề, chia sẻ giữa giáo viên, xuất Excel kết quả, xếp loại,
+theo lớp, thanh toán / bán đề, chia sẻ giữa giáo viên, xếp loại,
 phân công chấm, mọi tính năng AI, đề tổ hợp HSA.
 
 ---
@@ -214,6 +214,9 @@ Tổng điểm, đạt / không đạt
 * Mỗi lần chấm hoặc chấm lại là một bản ghi; một bản ghi hiện hành mỗi câu; tổng
   điểm tính lại từ điểm hiện hành của các câu.
 * Điểm chấm tay trong `0..điểm tối đa của câu`, kiểm ở server.
+* Câu essay / speaking bỏ trống được hệ thống chấm 0 điểm khi nộp (bản ghi
+  chấm `system_auto`), không vào Chờ chấm; người chấm vẫn chấm lại được
+  (ADR-0025 D11).
 * Người chấm: admin của tenant, người tạo đề, người đã cấp ghi danh.
 
 Khi có AI (sau này), quy tắc của ADR-0003 áp dụng: AI chỉ là đề xuất, giáo viên

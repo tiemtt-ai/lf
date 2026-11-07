@@ -4337,6 +4337,7 @@ return [
     'LF_assessment_result_save_grade' => 'Save score',
     'LF_assessment_result_regrade' => 'Regrade',
     'LF_assessment_result_history' => 'Grading history (:count)',
+    'LF_assessment_result_graded_blank' => 'System (left blank)',
     'LF_assessment_result_graded' => 'Score saved.',
     'LF_assessment_result_error_in_progress' => 'The attempt is still in progress.',
     'LF_assessment_result_error_auto' => 'This question is graded automatically.',

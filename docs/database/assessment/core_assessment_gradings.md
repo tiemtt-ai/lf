@@ -1,12 +1,12 @@
 # Table: core_assessment_gradings
 
-Version: 2.1
+Version: 2.2
 
 Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-11-06
+Last Updated: 2026-11-07
 
 Document Path: database/assessment/core_assessment_gradings.md
 
@@ -25,9 +25,10 @@ migration).
 ## Business Rules
 
 * Grading, Attempt, Answer cùng tenant; Answer thuộc Attempt.
-* Giai đoạn 1 chỉ ghi `grading_type = teacher` cho câu `essay`, `speaking` của
-  Attempt đã nộp. Câu tự chấm lưu điểm thẳng trên Answer, không tạo grading.
-  `system_auto` dành cho sau này (ví dụ giáo viên sửa điểm câu tự chấm).
+* Giáo viên chấm câu `essay`, `speaking` của Attempt đã nộp ghi
+  `grading_type = teacher`. Câu `essay` / `speaking` bỏ trống được ghi
+  `system_auto`, điểm 0, không có người chấm, ngay khi nộp (ADR-0025 D11,
+  2026-11-07). Câu tự chấm lưu điểm thẳng trên Answer, không tạo grading.
 * Người chấm được: `customer_admin`; người tạo đề; người đã cấp ghi danh của
   Attempt (khi `source = granted`). Kiểm ở server.
 * `0 ≤ score ≤ answers.max_score`, kiểm ở server.
