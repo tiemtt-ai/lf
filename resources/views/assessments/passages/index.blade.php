@@ -34,7 +34,10 @@
         </div>
     @endif
 
-    <x-ui-list-head :title="__('lf.LF_navigation_menu_assessment_passages')" :text="__('lf.LF_assessment_passages_help')" />
+    <x-ui-list-head :title="__('lf.LF_navigation_menu_assessment_passages')" :text="__('lf.LF_assessment_passages_help')"
+                    :tip="__('lf.LF_assessment_passages_tip')">
+        @include('assessments.passages.partials.demo')
+    </x-ui-list-head>
 
     <section class="mk-section" aria-labelledby="admin-page-title">
         <div class="mk-tablebar mk-tablebar--filters">

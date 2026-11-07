@@ -11,9 +11,10 @@ use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
 /**
- * Phân công chấm (ADR-0027 D1–D4): graders named on a category (inherited by sub-categories) or a quiz, Giao chấm by an
- * admin or the quiz creator, Nhận chấm / Trả lại by teachers, and the rule that while a teacher holds an attempt the
- * other graders only view it.
+ * Phân công chấm (ADR-0027, Amendment 1.1 and 1.2): graders are named on quizzes from the quiz list (one or many at once,
+ * add or replace) or the quiz page; category graders and Giao chấm per attempt are gone, the old category rows are copied
+ * to quizzes once. Teachers share the attempts by Nhận chấm, Trả lại and by saving a first score; while a teacher holds
+ * an attempt the other graders only view it.
  */
 class AssessmentGraderAssignmentTest extends TestCase
 {
@@ -45,131 +46,180 @@ class AssessmentGraderAssignmentTest extends TestCase
         $this->attempts = app(AssessmentAttemptService::class);
     }
 
-    public function test_category_graders_are_inherited_by_sub_categories_and_only_admins_name_them(): void
+    public function test_graders_are_named_on_many_quizzes_at_once_from_the_quiz_list(): void
     {
         $lan = $this->createUser($this->customerId, 'teacher', 'Cô Lan');
         $minh = $this->createUser($this->customerId, 'teacher', 'Thầy Minh');
-        $topik = $this->category('TOPIK');
-        $topikOne = $this->category('TOPIK I', $topik);
-        $quiz = $this->quiz($this->admin, $topikOne);
-        $attempt = $this->submittedAttempt($this->grant($quiz));
+        $first = $this->quiz($this->admin, $this->category('TOPIK'));
+        $second = $this->quiz($this->admin);
+        $attempt = $this->submittedAttempt($this->grant($first));
 
-        // Not named anywhere yet: the attempt of the admin's quiz is out of reach.
-        $this->actingAs($lan)->get(self::TEACHER.'/results/'.$attempt->id)->assertNotFound();
+        // The list: every quiz can be chosen (a published one for Giao chấm only), and each shows how many graders it has.
+        $list = $this->actingAs($this->admin)->get(self::ADMIN.'/quizzes')->assertOk()
+            ->assertSee('data-url-base="'.self::ADMIN.'/quizzes/graders"', false)
+            ->assertSeeText(__('lf.LF_assessment_grader_none_quiz'));
+        $this->assertMatchesRegularExpression('/data-ui-bulk-item\s+data-ui-bulk-no-delete\s+value="'.$first.'"/', $list->getContent());
+        $this->assertSame(2, substr_count($list->getContent(), __('lf.LF_assessment_grader_none_tip')));
 
-        $this->actingAs($this->admin)->get(self::ADMIN.'/categories/'.$topik.'/graders', self::AJAX)->assertOk()
-            ->assertSee('id="assessment-grader-dialog-title"', false)->assertSeeText('Cô Lan')->assertDontSeeText('Học viên Lan');
-        $this->actingAs($this->admin)->putJson(self::ADMIN.'/categories/'.$topik.'/graders', ['user_ids' => [$lan->id]], self::AJAX)->assertOk();
-        $this->assertSame([[$topik, null, $lan->id, $this->admin->id]], DB::table('core_assessment_grader_scopes')->get()
-            ->map(fn ($row) => [(int) $row->category_id, $row->quiz_id, (int) $row->user_id, (int) $row->created_by])->all());
-
-        // Named on the parent: grades the sub-category's quiz.
-        $this->actingAs($lan)->get(self::TEACHER.'/results')->assertOk()->assertSeeText('Học viên Lan');
+        // Several quizzes: nobody ticked, "Thêm vào" by default.
+        $this->actingAs($this->admin)->get(self::ADMIN.'/quizzes/graders?ids[]='.$first.'&ids[]='.$second, self::AJAX)->assertOk()
+            ->assertSee('id="assessment-quiz-graders-dialog-title"', false)->assertSee("mode: 'add'", false)
+            ->assertSeeText('Cô Lan')->assertDontSee('name="user_ids[]" value="'.$lan->id.'" checked', false);
+        $this->save($this->admin, [$first, $second], [$lan->id], 'add')->assertOk()
+            ->assertJson(['message' => trans_choice('lf.LF_assessment_grader_quizzes_saved', 2, ['count' => 2])]);
+        $this->save($this->admin, [$first], [$minh->id], 'add')->assertOk();
+        $this->assertSame([$lan->id, $minh->id], $this->graders($first));
+        $this->assertSame([$lan->id], $this->graders($second));
         $this->actingAs($lan)->get(self::TEACHER.'/results/'.$attempt->id)->assertOk();
-        $this->grade($lan, $attempt)->assertSessionHasNoErrors();
-        $this->actingAs($minh)->get(self::TEACHER.'/results/'.$attempt->id)->assertNotFound();
+        $this->actingAs($this->admin)->get(self::ADMIN.'/quizzes')->assertOk()
+            ->assertSeeText(trans_choice('lf.LF_assessment_grader_count', 2, ['count' => 2]))
+            ->assertSeeText(trans_choice('lf.LF_assessment_grader_count', 1, ['count' => 1]));
 
-        // The list shows who is named directly and what the child inherits.
-        $this->actingAs($this->admin)->get(self::ADMIN.'/categories')->assertOk()
-            ->assertSeeText('Cô Lan')->assertSeeText(__('lf.LF_assessment_grader_inherited_from', ['category' => 'TOPIK', 'count' => 1]));
+        // The dialog says who already grades the chosen quizzes.
+        $this->actingAs($this->admin)->get(self::ADMIN.'/quizzes/graders?ids[]='.$first.'&ids[]='.$second, self::AJAX)->assertOk()
+            ->assertSeeText(__('lf.LF_assessment_grader_covers_all_quizzes'))
+            ->assertSeeText(__('lf.LF_assessment_grader_covers_some', ['count' => 1, 'total' => 2]));
 
-        // Only active teachers of the tenant can be named; teachers have no category routes.
-        $other = $this->createUser($this->createTenant('tenant-b'), 'teacher');
-        foreach ([$this->student->id, $other->id, $this->admin->id] as $wrong) {
-            $this->actingAs($this->admin)->putJson(self::ADMIN.'/categories/'.$topik.'/graders', ['user_ids' => [$lan->id, $wrong]], self::AJAX)
-                ->assertStatus(422)->assertJsonValidationErrors('user_ids');
-        }
-        $this->actingAs($lan)->get(self::TEACHER.'/categories/'.$topik.'/graders', self::AJAX)->assertNotFound();
-
-        // Clearing the list removes the right.
-        $this->actingAs($this->admin)->putJson(self::ADMIN.'/categories/'.$topik.'/graders', ['user_ids' => []], self::AJAX)->assertOk();
+        // "Thay thế" leaves exactly the chosen teachers; nobody removes them all. "Thêm vào" needs someone.
+        $this->save($this->admin, [$first, $second], [$minh->id], 'replace')->assertOk();
+        $this->assertSame([$minh->id], $this->graders($first));
+        $this->assertSame([$minh->id], $this->graders($second));
         $this->actingAs($lan)->get(self::TEACHER.'/results/'.$attempt->id)->assertNotFound();
+        $this->save($this->admin, [$second], [], 'replace')->assertOk();
+        $this->assertSame([], $this->graders($second));
+        $this->save($this->admin, [$second], [], 'add')->assertStatus(422)->assertJsonValidationErrors('user_ids');
+
+        // Only active teachers of the tenant can be named; other tenants cannot touch these quizzes.
+        $other = $this->createTenant('tenant-b');
+        foreach ([$this->student->id, $this->createUser($other, 'teacher')->id, $this->admin->id] as $wrong) {
+            $this->save($this->admin, [$first], [$lan->id, $wrong], 'add')->assertStatus(422)->assertJsonValidationErrors('user_ids');
+        }
+        $stranger = $this->createUser($other, 'customer_admin');
+        $this->actingAs($stranger)->get('https://tenant-b.localhost/admin/assessments/quizzes/graders?ids[]='.$first, self::AJAX)->assertNotFound();
+        $this->actingAs($stranger)->putJson('https://tenant-b.localhost/admin/assessments/quizzes/graders', ['ids' => [$first], 'user_ids' => [], 'mode' => 'replace'], self::AJAX)
+            ->assertOk()->assertJson(['message' => trans_choice('lf.LF_assessment_grader_quizzes_saved', 0, ['count' => 0]).' '
+                .trans_choice('lf.LF_assessment_grader_quizzes_skipped', 1, ['count' => 1])]);
+        $this->assertSame([$minh->id], $this->graders($first));
+        // Only as a popup.
+        $this->actingAs($this->admin)->get(self::ADMIN.'/quizzes/graders?ids[]='.$first)->assertNotFound();
     }
 
-    public function test_quiz_graders_are_named_by_the_admin_or_the_quiz_creator(): void
+    public function test_only_quizzes_with_something_to_grade_by_hand_take_graders_and_the_list_filters_by_question_type(): void
+    {
+        $lan = $this->createUser($this->customerId, 'teacher', 'Cô Lan');
+        $written = $this->quiz($this->admin);
+        $this->actingAs($this->admin)->postJson(self::ADMIN.'/quizzes', [
+            'title' => 'Đề trắc nghiệm', 'assessment_type' => 'exam', 'max_attempts' => '1', 'show_result_mode' => 'after_grading',
+        ], self::AJAX)->assertCreated();
+        $choice = (int) DB::table('core_assessment_quizzes')->max('id');
+        $this->actingAs($this->admin)->postJson(self::ADMIN.'/questions', ['question_type' => 'single_choice', 'default_points' => '1', 'prompt' => 'Chọn một',
+            'status' => 'published', 'options' => [['text' => 'A', 'correct' => 1], ['text' => 'B', 'correct' => 0]]], self::AJAX)->assertCreated();
+        $section = (int) DB::table('core_assessment_quiz_sections')->where('quiz_id', $choice)->value('id');
+        $this->actingAs($this->admin)->postJson(self::ADMIN.'/quizzes/'.$choice.'/questions', ['quiz_section_id' => $section,
+            'question_ids' => [(int) DB::table('core_assessment_questions')->max('id')]], self::AJAX)->assertCreated();
+
+        // The auto-graded quiz says it needs no grader; its checkbox serves Xoá only.
+        $page = $this->actingAs($this->admin)->get(self::ADMIN.'/quizzes')->assertOk()
+            ->assertSeeText(__('lf.LF_assessment_grader_not_needed'))->getContent();
+        $this->assertMatchesRegularExpression('/data-ui-bulk-item\s+data-ui-bulk-no-open\s+value="'.$choice.'"/', $page);
+        $this->assertMatchesRegularExpression('/data-ui-bulk-item(\s+data-ui-bulk-no-delete)?\s+value="'.$written.'"/', $page);
+
+        // The list explains why Xoá is off on a published pick; the auto-graded quiz has no Người chấm tab.
+        $this->assertStringContainsString('data-text-blocked="'.e(__('lf.LF_assessment_quiz_bulk_delete_blocked')).'"', $page);
+        $this->actingAs($this->admin)->get(self::ADMIN.'/quizzes/'.$choice.'?tab=graders')->assertOk()
+            ->assertDontSee('id="assessment-quiz-tab-graders"', false)->assertDontSeeText(__('lf.LF_assessment_quiz_tab_graders'))
+            ->assertSee('id="assessment-quiz-tab-info"', false);
+        $this->actingAs($this->admin)->get(self::ADMIN.'/quizzes/'.$written.'?tab=graders')->assertOk()
+            ->assertSee('id="assessment-quiz-tab-graders"', false)->assertSeeText(__('lf.LF_assessment_quiz_tab_graders'));
+
+        // Choosing both names graders on the written quiz only; the other alone opens nothing.
+        $this->save($this->admin, [$written, $choice], [$lan->id], 'add')->assertOk()
+            ->assertJson(['message' => trans_choice('lf.LF_assessment_grader_quizzes_saved', 1, ['count' => 1]).' '
+                .trans_choice('lf.LF_assessment_grader_quizzes_skipped', 1, ['count' => 1])]);
+        $this->assertSame([$lan->id], $this->graders($written));
+        $this->assertSame([], $this->graders($choice));
+        $this->actingAs($this->admin)->get(self::ADMIN.'/quizzes/graders?ids[]='.$choice, self::AJAX)->assertNotFound();
+
+        // Filter by question type in the draft, or "graded by hand".
+        $this->actingAs($this->admin)->get(self::ADMIN.'/quizzes?question_type=manual')->assertOk()
+            ->assertSee('value="'.$written.'"', false)->assertDontSee('value="'.$choice.'"', false);
+        $this->actingAs($this->admin)->get(self::ADMIN.'/quizzes?question_type=single_choice')->assertOk()
+            ->assertSee('value="'.$choice.'"', false)->assertDontSee('value="'.$written.'"', false);
+        $this->actingAs($this->admin)->get(self::ADMIN.'/quizzes?question_type=speaking')->assertOk()
+            ->assertSee('value="'.$written.'"', false)->assertDontSee('value="'.$choice.'"', false);
+        $this->actingAs($this->admin)->get(self::ADMIN.'/quizzes?question_type=nonsense')->assertOk()
+            ->assertSee('value="'.$written.'"', false)->assertSee('value="'.$choice.'"', false);
+    }
+
+    public function test_quiz_creators_name_graders_only_on_their_own_quizzes(): void
     {
         $creator = $this->createUser($this->customerId, 'teacher', 'Cô Hoa');
         $helper = $this->createUser($this->customerId, 'teacher', 'Thầy Nam');
-        $outsider = $this->createUser($this->customerId, 'teacher', 'Thầy Khoa');
-        $category = $this->category('Sơ cấp');
-        $quiz = $this->quiz($creator, $category);
-        $attempt = $this->submittedAttempt($this->grant($quiz, $creator));
-        $this->actingAs($this->admin)->putJson(self::ADMIN.'/categories/'.$category.'/graders', ['user_ids' => [$outsider->id]], self::AJAX)->assertOk();
+        $mine = $this->quiz($creator);
+        $adminQuiz = $this->quiz($this->admin);
 
-        $this->actingAs($creator)->get(self::TEACHER.'/quizzes/'.$quiz.'/graders', self::AJAX)->assertOk()
-            ->assertSeeText(__('lf.LF_assessment_grader_inherited'))->assertSeeText('Thầy Khoa');
-        $this->actingAs($creator)->putJson(self::TEACHER.'/quizzes/'.$quiz.'/graders', ['user_ids' => [$helper->id]], self::AJAX)->assertOk();
-        $this->actingAs($helper)->get(self::TEACHER.'/results/'.$attempt->id)->assertOk();
-        $this->grade($helper, $attempt)->assertSessionHasNoErrors();
+        $this->actingAs($creator)->putJson(self::TEACHER.'/quizzes/graders', ['ids' => [$mine, $adminQuiz], 'user_ids' => [$helper->id], 'mode' => 'add'], self::AJAX)
+            ->assertOk()->assertJson(['message' => trans_choice('lf.LF_assessment_grader_quizzes_saved', 1, ['count' => 1]).' '
+                .trans_choice('lf.LF_assessment_grader_quizzes_skipped', 1, ['count' => 1])]);
+        $this->assertSame([$helper->id], $this->graders($mine));
+        $this->assertSame([], $this->graders($adminQuiz));
+        $this->actingAs($creator)->get(self::TEACHER.'/quizzes/graders?ids[]='.$adminQuiz, self::AJAX)->assertNotFound();
+        $this->actingAs($helper)->get(self::TEACHER.'/quizzes/graders?ids[]='.$mine, self::AJAX)->assertNotFound();
 
-        // Another teacher cannot open or change the quiz's graders.
-        $this->actingAs($helper)->get(self::TEACHER.'/quizzes/'.$quiz.'/graders', self::AJAX)->assertNotFound();
-        $this->actingAs($helper)->putJson(self::TEACHER.'/quizzes/'.$quiz.'/graders', ['user_ids' => [$helper->id, $outsider->id]], self::AJAX)->assertNotFound();
-
-        $this->actingAs($creator)->get(self::TEACHER.'/quizzes/'.$quiz)->assertOk()
-            // Tab Người chấm: one row per teacher with where the right comes from.
-            ->assertSeeTextInOrder(['Thầy Nam', __('lf.LF_assessment_quiz_grader_from_quiz'),
-                'Thầy Khoa', __('lf.LF_assessment_quiz_grader_from_category', ['category' => 'Sơ cấp'])]);
-        $this->actingAs($this->admin)->putJson(self::ADMIN.'/quizzes/'.$quiz.'/graders', ['user_ids' => []], self::AJAX)->assertOk();
-        $this->actingAs($helper)->get(self::TEACHER.'/results/'.$attempt->id)->assertNotFound();
+        // The quiz page opens the same dialog for one quiz: its teachers ticked, "Thay thế", back to the Người chấm tab.
+        $this->actingAs($creator)->get(self::TEACHER.'/quizzes/'.$mine.'?tab=graders')->assertOk()
+            ->assertSee(e(self::TEACHER.'/quizzes/graders?ids%5B0%5D='.$mine.'&from_quiz=1'), false)
+            ->assertSeeTextInOrder([__('lf.LF_assessment_grader_teachers'), 'Thầy Nam'])
+            ->assertSee('data-tooltip="'.e(__('lf.LF_assessment_quiz_grader_role_granter_tip')).'"', false);
+        $this->actingAs($creator)->get(self::TEACHER.'/quizzes/graders?ids[]='.$mine.'&from_quiz=1', self::AJAX)->assertOk()
+            ->assertSee('name="user_ids[]" value="'.$helper->id.'" checked', false)->assertSee("mode: 'replace'", false)
+            ->assertSee('name="return_to" value="'.$mine.'"', false);
+        $this->actingAs($creator)->putJson(self::TEACHER.'/quizzes/graders', ['ids' => [$mine], 'user_ids' => [], 'mode' => 'replace', 'return_to' => $mine], self::AJAX)
+            ->assertOk()->assertJsonPath('redirect', self::TEACHER.'/quizzes/'.$mine.'?tab=graders');
+        $this->assertSame([], $this->graders($mine));
     }
 
-    public function test_an_assigned_teacher_holds_the_attempt_and_the_other_graders_only_view_it(): void
+    public function test_category_graders_are_copied_to_the_quizzes_once_and_no_longer_count(): void
     {
         $lan = $this->createUser($this->customerId, 'teacher', 'Cô Lan');
-        $minh = $this->createUser($this->customerId, 'teacher', 'Thầy Minh');
-        $guest = $this->createUser($this->customerId, 'teacher', 'Cô Mai');
-        $category = $this->category('TOPIK');
-        $quiz = $this->quiz($this->admin, $category);
-        $attempt = $this->submittedAttempt($this->grant($quiz));
-        $this->actingAs($this->admin)->putJson(self::ADMIN.'/categories/'.$category.'/graders', ['user_ids' => [$lan->id, $minh->id]], self::AJAX)->assertOk();
+        $topik = $this->category('TOPIK');
+        $topikOne = $this->category('TOPIK I', $topik);
+        $inChild = $this->quiz($this->admin, $topikOne);
+        $inParent = $this->quiz($this->admin, $topik);
+        $elsewhere = $this->quiz($this->admin, $this->category('Tiếng Anh'));
+        $attempt = $this->submittedAttempt($this->grant($inChild));
+        // A category row written before Amendment 1.2.
+        DB::table('core_assessment_grader_scopes')->insert(['customer_id' => $this->customerId, 'category_id' => $topik, 'user_id' => $lan->id,
+            'created_by' => $this->admin->id, 'created_at' => now(), 'updated_at' => now()]);
 
-        // The dialog ranks the category's teachers first; anyone active can be chosen.
-        $dialog = $this->actingAs($this->admin)->get(self::ADMIN.'/results/assign?ids[]='.$attempt->id, self::AJAX)->assertOk()
-            ->assertSee('id="assessment-assign-dialog-title"', false)->assertSeeText(__('lf.LF_assessment_grader_covers_all'));
-        $this->assertLessThan(strpos($dialog->getContent(), 'Cô Mai'), strpos($dialog->getContent(), 'Cô Lan'));
+        // The category row alone gives no right any more.
+        $this->actingAs($lan)->get(self::TEACHER.'/results/'.$attempt->id)->assertNotFound();
 
-        // Giao chấm to a teacher outside the category: they now see and grade it.
-        $this->actingAs($guest)->get(self::TEACHER.'/results/'.$attempt->id)->assertNotFound();
-        $this->actingAs($this->admin)->postJson(self::ADMIN.'/results/assign', ['ids' => [$attempt->id], 'teacher_id' => $guest->id], self::AJAX)
-            ->assertOk()->assertJson(['message' => trans_choice('lf.LF_assessment_grader_assigned', 1, ['count' => 1])]);
-        $this->actingAs($guest)->get(self::TEACHER.'/results?tab=pending')->assertOk()->assertSeeText('Học viên Lan')->assertSeeText(__('lf.LF_assessment_grader_you'));
+        $this->artisan('assessment:copy-category-graders', ['--dry-run' => true])->expectsOutputToContain('sẽ thêm 2')->assertSuccessful();
+        $this->assertSame([], $this->graders($inChild));
+        $this->artisan('assessment:copy-category-graders')->expectsOutputToContain('đã thêm 2')->assertSuccessful();
+        $this->assertSame([$lan->id], $this->graders($inChild));
+        $this->assertSame([$lan->id], $this->graders($inParent));
+        $this->assertSame([], $this->graders($elsewhere));
+        $this->actingAs($lan)->get(self::TEACHER.'/results/'.$attempt->id)->assertOk();
+        // Running it again adds nothing.
+        $this->artisan('assessment:copy-category-graders')->expectsOutputToContain('đã thêm 0')->assertSuccessful();
 
-        // The category's teachers see it held and cannot grade it, nor claim it.
-        $this->actingAs($lan)->get(self::TEACHER.'/results/'.$attempt->id)->assertOk()
-            ->assertSeeText(__('lf.LF_assessment_grader_view_only', ['name' => 'Cô Mai']))
-            ->assertDontSee('/answers/'.$this->essayAnswer($attempt).'/grade', false);
-        $this->grade($lan, $attempt)->assertSessionHasErrors('score');
-        $this->actingAs($lan)->post(self::TEACHER.'/results/'.$attempt->id.'/claim')->assertSessionHasErrors('assignment');
-        // ...and their default Chờ chấm view (mine + unassigned) leaves it out; "all" shows it.
-        $this->actingAs($lan)->get(self::TEACHER.'/results?tab=pending')->assertOk()->assertDontSeeText('Học viên Lan');
-        $this->actingAs($lan)->get(self::TEACHER.'/results?tab=pending&grader=all')->assertOk()->assertSeeText('Học viên Lan')->assertSeeText('Cô Mai');
-
-        // Reassigning releases the earlier holder; the admin always grades.
-        $this->actingAs($this->admin)->postJson(self::ADMIN.'/results/assign', ['ids' => [$attempt->id], 'teacher_id' => $minh->id], self::AJAX)->assertOk();
-        $this->assertSame([['released', $guest->id], ['active', $minh->id]], DB::table('core_assessment_grading_assignments')->orderBy('id')->get()
-            ->map(fn ($row) => [$row->status, (int) $row->assigned_to_user_id])->all());
-        $this->actingAs($guest)->get(self::TEACHER.'/results/'.$attempt->id)->assertNotFound();
-        $this->actingAs($this->admin)->get(self::ADMIN.'/results?grader='.$minh->id)->assertOk()->assertSeeText('Học viên Lan');
-        $this->actingAs($this->admin)->get(self::ADMIN.'/results?grader=unassigned')->assertOk()->assertDontSeeText('Học viên Lan');
-
-        // The last pending answer graded: the assignment completes, the holder still sees and regrades it.
-        $this->grade($this->admin, $attempt, '2')->assertSessionHasNoErrors();
-        $this->assertSame('graded', DB::table('core_assessment_attempts')->where('id', $attempt->id)->value('status'));
-        $this->assertSame('completed', DB::table('core_assessment_grading_assignments')->where('assigned_to_user_id', $minh->id)->value('status'));
-        $this->assertNotNull(DB::table('core_assessment_grading_assignments')->where('assigned_to_user_id', $minh->id)->value('ended_at'));
-        $this->grade($minh, $attempt, '3')->assertSessionHasNoErrors();
-        $this->grade($lan, $attempt, '1')->assertSessionHasNoErrors();
+        // Categories and results no longer name graders.
+        $this->actingAs($this->admin)->get(self::ADMIN.'/categories')->assertOk()->assertDontSee('/graders', false);
+        $this->actingAs($this->admin)->get(self::ADMIN.'/categories/'.$topik.'/graders', self::AJAX)->assertNotFound();
+        $this->actingAs($this->admin)->get(self::ADMIN.'/results/assign?ids[]='.$attempt->id, self::AJAX)->assertNotFound();
+        $this->actingAs($this->admin)->get(self::ADMIN.'/results')->assertOk()->assertDontSee('data-ui-bulk-open', false);
+        $this->actingAs($this->admin)->get(self::ADMIN.'/results/'.$attempt->id)->assertOk()->assertDontSee('/results/assign', false);
     }
 
     public function test_teachers_claim_and_release_attempts(): void
     {
         $lan = $this->createUser($this->customerId, 'teacher', 'Cô Lan');
         $minh = $this->createUser($this->customerId, 'teacher', 'Thầy Minh');
-        $category = $this->category('TOPIK');
-        $quiz = $this->quiz($this->admin, $category);
+        $quiz = $this->quiz($this->admin);
         $attempt = $this->submittedAttempt($this->grant($quiz));
-        $this->actingAs($this->admin)->putJson(self::ADMIN.'/categories/'.$category.'/graders', ['user_ids' => [$lan->id, $minh->id]], self::AJAX)->assertOk();
+        $this->save($this->admin, [$quiz], [$lan->id, $minh->id], 'add')->assertOk();
 
         $this->actingAs($lan)->get(self::TEACHER.'/results?tab=pending')->assertOk()
             ->assertSee('results/'.$attempt->id.'/claim', false)->assertSeeText(__('lf.LF_assessment_grader_unassigned'));
@@ -180,71 +230,101 @@ class AssessmentGraderAssignmentTest extends TestCase
             (int) DB::table('core_assessment_grading_assignments')->value('assigned_to_user_id'),
             (int) DB::table('core_assessment_grading_assignments')->value('assigned_by_user_id'),
         ]);
+
+        // The other grader sees it held and only views it; their default Chờ chấm view leaves it out.
         $this->actingAs($minh)->post(self::TEACHER.'/results/'.$attempt->id.'/claim')->assertSessionHasErrors('assignment');
         $this->grade($minh, $attempt)->assertSessionHasErrors('score');
+        $this->actingAs($minh)->get(self::TEACHER.'/results/'.$attempt->id)->assertOk()
+            ->assertSeeText(__('lf.LF_assessment_grader_view_only', ['name' => 'Cô Lan']))
+            ->assertDontSee('/answers/'.$this->essayAnswer($attempt).'/grade', false);
+        $this->actingAs($minh)->get(self::TEACHER.'/results?tab=pending')->assertOk()->assertDontSeeText('Học viên Lan');
+        $this->actingAs($minh)->get(self::TEACHER.'/results?tab=pending&grader=all')->assertOk()->assertSeeText('Học viên Lan')->assertSeeText('Cô Lan');
+        $this->actingAs($this->admin)->get(self::ADMIN.'/results?grader='.$lan->id)->assertOk()->assertSeeText('Học viên Lan');
+        $this->actingAs($this->admin)->get(self::ADMIN.'/results?grader=unassigned')->assertOk()->assertDontSeeText('Học viên Lan');
 
-        // Only the holder (or whoever may hand it out) releases it; then the other teacher takes it.
+        // Only the holder, or whoever manages the quiz, releases it; then the other teacher takes it.
         $this->actingAs($minh)->post(self::TEACHER.'/results/'.$attempt->id.'/release')->assertForbidden();
         $this->actingAs($lan)->get(self::TEACHER.'/results/'.$attempt->id)->assertOk()->assertSee('results/'.$attempt->id.'/release', false);
         $this->actingAs($lan)->post(self::TEACHER.'/results/'.$attempt->id.'/release')->assertSessionHas('success', __('lf.LF_assessment_grader_released'));
         $this->actingAs($minh)->post(self::TEACHER.'/results/'.$attempt->id.'/claim')->assertSessionHasNoErrors();
-        $this->grade($minh, $attempt)->assertSessionHasNoErrors();
-
-        // Admins hand attempts out instead of claiming them; a fully graded attempt cannot be claimed.
-        $this->actingAs($this->admin)->post(self::ADMIN.'/results/'.$attempt->id.'/claim')->assertForbidden();
-        $this->actingAs($this->admin)->post(self::ADMIN.'/results/'.$attempt->id.'/answers/'.$this->speakingAnswer($attempt).'/grade', ['score' => '0']);
+        // The admin frees it from a teacher who is away, so someone else can take it.
+        $this->actingAs($this->admin)->get(self::ADMIN.'/results/'.$attempt->id)->assertOk()->assertSee('results/'.$attempt->id.'/release', false);
         $this->actingAs($this->admin)->post(self::ADMIN.'/results/'.$attempt->id.'/release')->assertSessionHasNoErrors();
+        $this->assertNull(DB::table('core_assessment_grading_assignments')->where('status', 'active')->value('id'));
+        $this->actingAs($lan)->post(self::TEACHER.'/results/'.$attempt->id.'/claim')->assertSessionHasNoErrors();
+        $this->grade($lan, $attempt)->assertSessionHasNoErrors();
+
+        // Admins do not claim; a fully graded attempt cannot be claimed, and its grader keeps it after leaving the quiz.
+        $this->actingAs($this->admin)->post(self::ADMIN.'/results/'.$attempt->id.'/claim')->assertForbidden();
+        $this->actingAs($minh)->post(self::TEACHER.'/results/'.$attempt->id.'/claim')->assertSessionHasErrors('assignment');
+        $this->save($this->admin, [$quiz], [], 'replace')->assertOk();
+        $this->actingAs($lan)->get(self::TEACHER.'/results/'.$attempt->id)->assertOk();
+        $this->actingAs($minh)->get(self::TEACHER.'/results/'.$attempt->id)->assertNotFound();
     }
 
-    public function test_quiz_creators_assign_only_their_own_attempts_and_in_progress_ones_are_skipped(): void
-    {
-        $creator = $this->createUser($this->customerId, 'teacher', 'Cô Hoa');
-        $helper = $this->createUser($this->customerId, 'teacher', 'Thầy Nam');
-        $mine = $this->submittedAttempt($this->grant($this->quiz($creator), $creator));
-        $adminQuiz = $this->quiz($this->admin);
-        $theirs = $this->submittedAttempt($this->grant($adminQuiz));
-        $open = $this->startAttempt($this->grant($this->quiz($creator), $creator));
-
-        // The admin's attempt is out of the creator's reach, the open one cannot be handed out.
-        $this->actingAs($creator)->postJson(self::TEACHER.'/results/assign', ['ids' => [$mine->id, $theirs->id, $open->id], 'teacher_id' => $helper->id], self::AJAX)
-            ->assertOk()->assertJson(['message' => trans_choice('lf.LF_assessment_grader_assigned', 1, ['count' => 1]).' '
-                .trans_choice('lf.LF_assessment_grader_skipped', 2, ['count' => 2])]);
-        $this->assertSame([(int) $mine->id], DB::table('core_assessment_grading_assignments')->pluck('attempt_id')->map(fn ($id) => (int) $id)->all());
-        $this->actingAs($helper)->get(self::TEACHER.'/results/'.$mine->id)->assertOk();
-
-        // Nothing assignable: the dialog does not open; a student or another tenant's teacher is refused.
-        $this->actingAs($creator)->get(self::TEACHER.'/results/assign?ids[]='.$theirs->id, self::AJAX)->assertNotFound();
-        $other = $this->createUser($this->createTenant('tenant-b'), 'teacher');
-        foreach ([$this->student->id, $other->id] as $wrong) {
-            $this->actingAs($this->admin)->postJson(self::ADMIN.'/results/assign', ['ids' => [$theirs->id], 'teacher_id' => $wrong], self::AJAX)
-                ->assertStatus(422)->assertJsonValidationErrors('teacher_id');
-        }
-
-        // The list offers the checkbox only on rows the creator may hand out.
-        $page = $this->actingAs($creator)->get(self::TEACHER.'/results')->assertOk()->getContent();
-        $this->assertStringContainsString('data-ui-bulk-item value="'.$mine->id.'"', $page);
-        $this->assertStringNotContainsString('data-ui-bulk-item value="'.$open->id.'"', $page);
-        // A teacher who created no quiz gets no assign column.
-        $this->actingAs($helper)->get(self::TEACHER.'/results')->assertOk()->assertDontSee('data-ui-bulk-open', false);
-    }
-
-    public function test_assigning_from_the_attempt_page_returns_to_it(): void
+    /** ADR-0027 Amendment 1.1: the first score a teacher saves on a pending attempt nobody holds takes it for them. */
+    public function test_saving_a_score_takes_an_unheld_attempt_so_two_teachers_never_grade_it_at_once(): void
     {
         $lan = $this->createUser($this->customerId, 'teacher', 'Cô Lan');
-        $attempt = $this->submittedAttempt($this->grant($this->quiz($this->admin)));
-        $page = self::ADMIN.'/results/'.$attempt->id;
+        $minh = $this->createUser($this->customerId, 'teacher', 'Thầy Minh');
+        $quiz = $this->quiz($this->admin);
+        $attempt = $this->submittedAttempt($this->grant($quiz));
+        $this->save($this->admin, [$quiz], [$lan->id, $minh->id], 'add')->assertOk();
+        // The speaking answer was recorded too, so two answers wait for grading.
+        DB::table('core_assessment_answers')->where('id', $this->speakingAnswer($attempt))->update(['grading_status' => 'pending']);
+        DB::table('core_assessment_gradings')->where('answer_id', $this->speakingAnswer($attempt))->delete();
+        $speaking = fn (User $user, string $score) => $this->actingAs($user)->from(self::TEACHER.'/results/'.$attempt->id)
+            ->post(self::TEACHER.'/results/'.$attempt->id.'/answers/'.$this->speakingAnswer($attempt).'/grade', ['score' => $score]);
+        $rows = fn () => DB::table('core_assessment_grading_assignments')->where('attempt_id', $attempt->id)->orderBy('id')->get()
+            ->map(fn ($row) => [$row->assignment_type, $row->status, (int) $row->assigned_to_user_id])->all();
 
-        $this->actingAs($this->admin)->get($page)->assertOk()->assertSeeText(__('lf.LF_assessment_grader_unassigned'))
-            ->assertSee('results/assign?ids%5B0%5D='.$attempt->id.'&amp;from_attempt=1', false);
-        $this->actingAs($this->admin)->get(self::ADMIN.'/results/assign?ids[]='.$attempt->id.'&from_attempt=1', self::AJAX)->assertOk()
-            ->assertSee('name="return_to" value="'.$attempt->id.'"', false);
-        $this->actingAs($this->admin)->postJson(self::ADMIN.'/results/assign', ['ids' => [$attempt->id], 'teacher_id' => $lan->id, 'return_to' => $attempt->id], self::AJAX)
-            ->assertOk()->assertJson(['redirect' => $page]);
-        $this->actingAs($this->admin)->get($page)->assertOk()->assertSeeText('Cô Lan')
-            ->assertSeeText(__('lf.LF_assessment_grader_reassign'))->assertSee('results/'.$attempt->id.'/release', false);
+        // Both teachers see it unheld; Lan saves the essay score without pressing Nhận chấm and now holds it.
+        $this->actingAs($minh)->get(self::TEACHER.'/results/'.$attempt->id)->assertOk()
+            ->assertSee('/answers/'.$this->essayAnswer($attempt).'/grade', false);
+        $this->grade($lan, $attempt, '3')->assertSessionHasNoErrors();
+        $this->assertSame([['claimed', 'active', $lan->id]], $rows());
+        $this->assertSame('pending', DB::table('core_assessment_attempts')->where('id', $attempt->id)->value('grading_status'));
+
+        // Minh, who opened the same attempt, can no longer grade or claim it.
+        $this->grade($minh, $attempt, '1')->assertSessionHasErrors('score');
+        $speaking($minh, '1')->assertSessionHasErrors('score');
+        $this->actingAs($minh)->post(self::TEACHER.'/results/'.$attempt->id.'/claim')->assertSessionHasErrors('assignment');
+        $this->assertSame('3.00', number_format((float) DB::table('core_assessment_answers')->where('id', $this->essayAnswer($attempt))->value('score'), 2));
+
+        // The admin still grades, without taking it from Lan.
+        $this->grade($this->admin, $attempt, '2')->assertSessionHasNoErrors();
+        $this->assertSame([['claimed', 'active', $lan->id]], $rows());
+
+        // Lan finishes: the hold completes, and a later regrade by another grader takes nothing.
+        $speaking($lan, '1')->assertSessionHasNoErrors();
+        $this->assertSame([['claimed', 'completed', $lan->id]], $rows());
+        $this->assertSame('graded', DB::table('core_assessment_attempts')->where('id', $attempt->id)->value('status'));
+        $this->grade($minh, $attempt, '4')->assertSessionHasNoErrors();
+        $this->assertSame([['claimed', 'completed', $lan->id]], $rows());
     }
 
-    // ---- fixtures ----
+    public function test_the_quiz_creator_grading_takes_nothing(): void
+    {
+        $hoa = $this->createUser($this->customerId, 'teacher', 'Cô Hoa');
+        $attempt = $this->submittedAttempt($this->grant($this->quiz($hoa), $hoa));
+
+        $this->grade($hoa, $attempt)->assertSessionHasNoErrors();
+        $this->assertSame(0, DB::table('core_assessment_grading_assignments')->where('attempt_id', $attempt->id)->count());
+    }
+
+    /** @param  list<int>  $quizIds  @param  list<int>  $userIds */
+    private function save(User $user, array $quizIds, array $userIds, string $mode)
+    {
+        $base = $user->role === 'customer_admin' ? self::ADMIN : self::TEACHER;
+
+        return $this->actingAs($user)->putJson($base.'/quizzes/graders', ['ids' => $quizIds, 'user_ids' => $userIds, 'mode' => $mode], self::AJAX);
+    }
+
+    /** @return list<int> */
+    private function graders(int $quizId): array
+    {
+        return DB::table('core_assessment_grader_scopes')->where('quiz_id', $quizId)->orderBy('user_id')->pluck('user_id')->map(fn ($id) => (int) $id)->all();
+    }
 
     private function grade(User $user, object $attempt, string $score = '3')
     {

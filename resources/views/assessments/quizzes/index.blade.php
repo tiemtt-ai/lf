@@ -12,9 +12,9 @@
 
 @section('content')
 @php
-    $hasActiveFilters = $filters['keyword'] !== '' || $filters['category_id'] || $filters['assessment_type'] || $filters['status'];
+    $hasActiveFilters = $filters['keyword'] !== '' || $filters['category_id'] || $filters['assessment_type'] || $filters['status'] || $filters['question_type'];
     $statusClass = ['draft' => 'ui-status--draft', 'published' => 'ui-status--active', 'archived' => 'ui-status--archived'];
-    $columns = $showAuthor ? 8 : 7;
+    $columns = $showAuthor ? 9 : 8;
     $selectLabels = 'data-ui-empty-label="'.e(__('lf.LF_assessment_category_no_options')).'" data-ui-clear-label="'.e(__('lf.LF_assessment_category_clear_filters')).'"';
 @endphp
 <div id="assessment-quiz-list" class="lf-admin-ui lf-admin-ui--list" data-ui-dialog-form-scope data-ui-row-actions
@@ -71,6 +71,17 @@
                 </div>
 
                 <div class="ui-field mk-search">
+                    <label class="ui-field__label ui-sr-only" for="assessment-quiz-question-type">{{ __('lf.LF_assessment_quiz_filter_question_type') }}</label>
+                    <select id="assessment-quiz-question-type" name="question_type" data-ui-kit-select {!! $selectLabels !!}>
+                        <option value="">{{ __('lf.LF_assessment_quiz_all_question_types') }}</option>
+                        <option value="manual" @selected($filters['question_type'] === 'manual')>{{ __('lf.LF_assessment_quiz_question_type_manual') }}</option>
+                        @foreach (\App\Services\Assessment\AssessmentQuestionService::TYPES as $questionType)
+                            <option value="{{ $questionType }}" @selected($filters['question_type'] === $questionType)>{{ __('lf.LF_assessment_question_type_'.$questionType) }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="ui-field mk-search">
                     <label class="ui-field__label ui-sr-only" for="assessment-quiz-status">{{ __('lf.LF_assessment_category_status') }}</label>
                     <select id="assessment-quiz-status" name="status" data-ui-kit-select {!! $selectLabels !!}>
                         <option value="">{{ __('lf.LF_assessment_category_all_statuses') }}</option>
@@ -93,7 +104,8 @@
                 :label="__('lf.LF_assessment_category_bulk_delete')"
                 :confirm-title="__('lf.LF_assessment_quiz_bulk_delete_title')"
                 :confirm-message="__('lf.LF_assessment_quiz_bulk_delete_confirm', ['count' => ':count'])"
-                :confirm-label="__('lf.LF_assessment_category_bulk_delete')">
+                :confirm-label="__('lf.LF_assessment_category_bulk_delete')"
+                :blocked-hint="__('lf.LF_assessment_quiz_bulk_delete_blocked')">
                 <x-slot:create>
                     <button type="button" class="ui-button ui-button--outline cursor-interaction"
                             data-ui-dialog-form-open data-ui-dialog-form-for="assessment-quiz-list"
@@ -102,6 +114,12 @@
                         {{ __('lf.LF_assessment_quiz_create') }}
                     </button>
                 </x-slot:create>
+                <button type="button" class="ui-button ui-button--outline cursor-interaction" disabled
+                        data-ui-bulk-open data-url-base="{{ route($routePrefix.'.graders.create') }}"
+                        data-ui-dialog-form-open data-ui-dialog-form-for="assessment-quiz-list" aria-haspopup="dialog">
+                    <x-backend-icon name="user-cog" class="ui-icon" />
+                    {{ __('lf.LF_assessment_grader_assign') }}<span data-ui-bulk-open-count data-text-selected=" (:count)" aria-live="polite"></span>
+                </button>
             </x-ui-list-toolbar>
         </div>
 
@@ -114,6 +132,7 @@
                     <col class="ui-asm-col-category">
                     @if ($showAuthor)<col class="ui-asm-col-author">@endif
                     <col class="ui-asm-col-count">
+                    <col class="ui-asm-col-quiz-graders">
                     <col class="ui-asm-col-status">
                     <col class="mk-col-action-wide">
                 </colgroup>
@@ -127,6 +146,7 @@
                         <th scope="col" class="mk-text-cell">{{ __('lf.LF_assessment_question_category') }}</th>
                         @if ($showAuthor)<th scope="col" class="mk-text-cell">{{ __('lf.LF_assessment_question_author') }}</th>@endif
                         <th scope="col" class="mk-count-cell">{{ __('lf.LF_assessment_quiz_question_count') }}</th>
+                        <th scope="col" class="mk-text-cell">{{ __('lf.LF_assessment_grader_column') }}</th>
                         <th scope="col" class="ux-action-cell">{{ __('lf.LF_assessment_category_status') }}</th>
                         <th scope="col" class="ux-action-cell">{{ __('lf.table_actions') }}</th>
                     </tr>
@@ -134,18 +154,21 @@
                 <tbody>
                     @forelse ($quizzes as $quiz)
                         @php
+                            $needsGrading = in_array((int) $quiz->id, $gradable, true);
                             $deleteBlocker = (int) $quiz->version_count > 0
                                 ? trans_choice('lf.LF_assessment_quiz_delete_blocked_versions', (int) $quiz->version_count, ['count' => $quiz->version_count])
                                 : null;
                         @endphp
                         <tr>
                             <td class="ui-check-cell" data-label="{{ __('lf.LF_assessment_quiz_select') }}">
+                                {{-- A published quiz is chosen for Giao chấm only: it cannot be deleted (the delete button stays off). --}}
                                 @if ($deleteBlocker)
-                                    <span class="ui-bulk-lock" tabindex="0" data-tooltip="{{ $deleteBlocker }}" data-tooltip-align="start">
-                                        <input type="checkbox" class="ui-bulk-box" disabled aria-label="{{ $deleteBlocker }}">
+                                    <span class="ui-bulk-lock ui-bulk-hint" data-tooltip="{{ $deleteBlocker }} · {{ __('lf.LF_assessment_quiz_select_graders_only') }}" data-tooltip-align="start">
+                                        <input type="checkbox" class="ui-bulk-box" data-ui-bulk-item data-ui-bulk-no-delete @unless ($needsGrading) data-ui-bulk-no-open @endunless value="{{ $quiz->id }}"
+                                               aria-label="{{ __('lf.LF_assessment_quiz_select') }}: {{ $quiz->title }}" aria-description="{{ $deleteBlocker }}">
                                     </span>
                                 @else
-                                    <input type="checkbox" class="ui-bulk-box" data-ui-bulk-item value="{{ $quiz->id }}"
+                                    <input type="checkbox" class="ui-bulk-box" data-ui-bulk-item @unless ($needsGrading) data-ui-bulk-no-open @endunless value="{{ $quiz->id }}"
                                            aria-label="{{ __('lf.LF_assessment_quiz_select') }}: {{ $quiz->title }}">
                                 @endif
                             </td>
@@ -166,6 +189,15 @@
                                 <td class="mk-text-cell" data-label="{{ __('lf.LF_assessment_question_author') }}">{{ $quiz->author_name }}</td>
                             @endif
                             <td @class(['mk-count-cell', 'mk-na' => (int) $quiz->question_count === 0]) data-label="{{ __('lf.LF_assessment_quiz_question_count') }}">{{ number_format((int) $quiz->question_count) }}</td>
+                            <td class="mk-text-cell" data-label="{{ __('lf.LF_assessment_grader_column') }}">
+                                @if (! $needsGrading)
+                                    <span class="ui-caption" title="{{ __('lf.LF_assessment_grader_not_needed_tip') }}">{{ __('lf.LF_assessment_grader_not_needed') }}</span>
+                                @elseif ((int) $quiz->grader_count > 0)
+                                    {{ trans_choice('lf.LF_assessment_grader_count', (int) $quiz->grader_count, ['count' => $quiz->grader_count]) }}
+                                @else
+                                    <span class="ui-status ui-status--inactive" title="{{ __('lf.LF_assessment_grader_none_tip') }}">{{ __('lf.LF_assessment_grader_none_quiz') }}</span>
+                                @endif
+                            </td>
                             <td class="ux-action-cell" data-label="{{ __('lf.LF_assessment_category_status') }}">
                                 <span class="ui-status {{ $statusClass[$quiz->status] ?? '' }}">{{ __('lf.LF_assessment_quiz_status_'.$quiz->status) }}</span>
                             </td>
@@ -202,6 +234,6 @@
             :page-size-option="__('lf.LF_assessment_category_page_size_option', ['count' => $quizzes->perPage()])" />
     </section>
 
-    @include('assessments.passages.partials.dialog-host', ['dialogTitleId' => 'assessment-quiz-dialog-title'])
+    @include('assessments.passages.partials.dialog-host', ['dialogTitleId' => 'assessment-quiz-dialog-title assessment-quiz-graders-dialog-title'])
 </div>
 @endsection

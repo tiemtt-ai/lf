@@ -6,9 +6,12 @@
  *    default `ids[]`; ":count" in the confirm message is replaced), with the select-all box
  *    `[data-ui-bulk-select-all]`, the count text `[data-ui-bulk-count]` (its `data-text-selected`, empty when nothing is
  *    checked) and the delete button itself (always there, disabled until something is checked) kept in step;
+ *    A checked item with `data-ui-bulk-no-delete` (e.g. a published quiz, still chosen for "Giao chấm") keeps the delete
+ *    button disabled, and its `data-text-blocked` (if any) becomes the button's tooltip to say why;
  *  - `[data-ui-bulk-open]` (data-url-base): a dialog opener for the checked rows (e.g. "Giao chấm"); kept disabled until
  *    something is checked, its `data-url` is the base plus the checked values (`data-ui-bulk-name`, default `ids[]`) and
- *    its `[data-ui-bulk-open-count]` child shows the number like the delete button;
+ *    its `[data-ui-bulk-open-count]` child shows the number like the delete button; a checked item with
+ *    `data-ui-bulk-no-open` (e.g. a quiz with nothing to grade by hand) is left out of it;
  *  - `[data-ui-confirm-post]`: a plain POST (e.g. a clean-up that is not tied to a row). Such a button may live outside
  *    the scope (the page heading): `data-ui-row-actions-for="<scope id>"` hands it to that scope.
  * Success: a toast and `ui-dialog-form-saved` so the list refetches (or, when the server answers `redirect`, a reload
@@ -85,7 +88,7 @@ export function initUiKitRowActions(scope, deps = {}) {
     const checkedItems = () => [...scope.querySelectorAll('[data-ui-bulk-item]')].filter(box => box.checked && !box.disabled);
     function bulkRemove(trigger) {
         const items = checkedItems();
-        if (items.length === 0) return;
+        if (items.length === 0 || items.some(box => box.hasAttribute('data-ui-bulk-no-delete'))) return;
         return perform(trigger, {
             method: 'DELETE',
             confirmMessage: attr(trigger, 'data-confirm-message').replace(':count', String(items.length)),
@@ -104,16 +107,27 @@ export function initUiKitRowActions(scope, deps = {}) {
         }
         const count = scope.querySelector('[data-ui-bulk-count]');
         if (count) count.textContent = chosen === 0 ? '' : attr(count, 'data-text-selected').replace(':count', String(chosen));
-        for (const button of scope.querySelectorAll('[data-ui-bulk-delete]')) button.disabled = chosen === 0;
-        const values = items.filter(box => box.checked).map(box => box.value);
+        const undeletable = items.some(box => box.checked && box.hasAttribute('data-ui-bulk-no-delete'));
+        for (const button of scope.querySelectorAll('[data-ui-bulk-delete]')) {
+            button.disabled = chosen === 0 || undeletable;
+            const hint = attr(button, 'data-text-blocked');
+            if (undeletable && hint) {
+                button.setAttribute('data-tooltip', hint);
+                button.setAttribute('aria-description', hint);
+            } else {
+                button.removeAttribute('data-tooltip');
+                button.removeAttribute('aria-description');
+            }
+        }
+        const values = items.filter(box => box.checked && !box.hasAttribute('data-ui-bulk-no-open')).map(box => box.value);
         for (const button of scope.querySelectorAll('[data-ui-bulk-open]')) {
-            button.disabled = chosen === 0;
+            button.disabled = values.length === 0;
             const base = attr(button, 'data-url-base');
             const name = encodeURIComponent(attr(button, 'data-ui-bulk-name') || 'ids[]');
             const query = values.map(value => `${name}=${encodeURIComponent(value)}`).join('&');
             button.setAttribute('data-url', query === '' ? base : `${base}${base.includes('?') ? '&' : '?'}${query}`);
             const label = button.querySelector('[data-ui-bulk-open-count]');
-            if (label) label.textContent = chosen === 0 ? '' : attr(label, 'data-text-selected').replace(':count', String(chosen));
+            if (label) label.textContent = values.length === 0 ? '' : attr(label, 'data-text-selected').replace(':count', String(values.length));
         }
     }
     const onChange = event => {

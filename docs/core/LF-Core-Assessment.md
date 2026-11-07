@@ -230,18 +230,27 @@ Tổng điểm, đạt / không đạt
   chấm `system_auto`), không vào Chờ chấm; người chấm vẫn chấm lại được
   (ADR-0025 D11).
 * Câu essay chỉ có tệp (không gõ chữ) không tính là bỏ trống (ADR-0027 D5).
-* Người chấm (ADR-0027 D1–D3), ba tầng:
+* Giáo viên lưu điểm câu đầu tiên của bài đang chờ chấm mà chưa ai giữ thì tự
+  nhận chấm bài đó; giáo viên khác chỉ xem được (ADR-0027 Amendment 1.1). Admin
+  và người tạo đề chấm không giữ bài.
+* Người chấm (ADR-0027 D1–D3, Amendment 1.2), ba tầng:
   1. Admin của tenant, người tạo đề, người đã cấp ghi danh.
-  2. Giáo viên chấm của danh mục (admin đặt; danh mục con dùng luôn) hoặc của
-     đề ("Giao chấm đề": admin hoặc người tạo đề).
-  3. Người giữ bài: được giao ("Giao chấm": admin mọi bài, người tạo đề bài của
-     đề mình) hoặc tự "Nhận chấm".
+  2. Giáo viên chấm của đề: gán ở danh sách Đề / Bài tập (chọn một hay nhiều
+     đề, lọc danh mục rồi chọn tất cả để giao cả loạt; "Thêm vào" hoặc "Thay
+     thế") hoặc nút "Giao chấm đề" ở trang đề. Admin mọi đề, người tạo đề đề
+     của mình. Không còn gán theo danh mục; lệnh
+     `php artisan assessment:copy-category-graders` chép gán danh mục cũ sang
+     từng đề (chạy một lần trước khi phát hành).
+  3. Người giữ bài: tự "Nhận chấm" hoặc tự nhận khi lưu điểm. Không còn giao
+     từng bài; lần giao `assigned` cũ giữ tới khi xong hoặc Trả lại.
 * Mỗi bài tối đa một người giữ. Khi đã có người giữ, người chấm tầng 1–2 khác
-  chỉ xem; admin và người tạo đề vẫn chấm được. "Trả lại": người giữ hoặc người
-  có quyền giao. Bài chấm xong thì lần giao chuyển `completed`.
+  chỉ xem; admin và người tạo đề vẫn chấm được. "Trả lại": người giữ, admin,
+  người tạo đề. Bài chấm xong thì lần giao chuyển `completed`; người đó vẫn xem
+  và chấm lại được bài đó.
 * Danh sách bài làm có cột Người chấm và bộ lọc theo người chấm; giáo viên ở tab
-  Chờ chấm mặc định thấy "Của tôi và chưa giao". Popup giao chấm xếp giáo viên
-  đã chấm được đề lên trước, rồi người đang giữ ít bài.
+  Chờ chấm mặc định thấy "Của tôi và chưa ai nhận". Danh sách đề có cột Người
+  chấm (số giáo viên, "Chưa có"). Popup Giao chấm xếp giáo viên đang giữ ít bài
+  lên trước và ghi số đề đã chọn mỗi người đang chấm.
 
 Khi có AI (sau này), quy tắc của ADR-0003 áp dụng: AI chỉ là đề xuất, giáo viên
 quyết. Rubric chụp vào phiên bản đề khi xuất bản (ADR-0026 D4, sửa ADR-0003);
@@ -254,7 +263,7 @@ câu có rubric: điểm câu = tổng điểm tiêu chí ÷ tổng rubric × đ
 | Vai trò | Quyền |
 |---|---|
 | `customer_admin` | Quản lý danh mục; xem, sửa mọi câu hỏi, ngữ liệu, tiêu chí chấm, đề, ghi danh, kết quả của tenant; chấm mọi bài |
-| `teacher` | Xem, sửa câu hỏi, ngữ liệu, tiêu chí chấm, đề do mình tạo (không đổi người tạo); dùng thêm tiêu chí chấm do admin tạo; chọn danh mục; cấp đề của mình cho học viên; chấm bài thuộc đề mình tạo hoặc ghi danh mình cấp, bài của danh mục / đề mình được giao chấm, bài mình giữ; giao chấm bài của đề mình tạo; nhận chấm |
+| `teacher` | Xem, sửa câu hỏi, ngữ liệu, tiêu chí chấm, đề do mình tạo (không đổi người tạo); dùng thêm tiêu chí chấm do admin tạo; chọn danh mục; cấp đề của mình cho học viên; chấm bài thuộc đề mình tạo hoặc ghi danh mình cấp, bài của đề mình được giao chấm, bài mình giữ; giao chấm đề mình tạo; nhận chấm |
 | `student` | Xem danh sách đề *Mở đăng ký*, tự đăng ký, làm bài, xem "Đề thi của tôi" và kết quả của chính mình |
 | Khách | Xem danh sách đề *Mở đăng ký* (chỉ thông tin giới thiệu) |
 
@@ -394,7 +403,7 @@ Cập nhật 2026-11-07.
 | Micro thật, Safari / iOS | Chưa |
 | Nhập / Xuất Excel câu hỏi, tab Thống kê | Đã làm |
 | Tiêu chí chấm (ADR-0026): trang quản lý, chọn trong câu hỏi, chụp khi xuất bản, chấm từng tiêu chí, học viên xem điểm tiêu chí | Đã làm |
-| Phân công chấm (ADR-0027 D1–D4): giáo viên chấm của danh mục / đề, Giao chấm, Nhận chấm, Trả lại, cột và bộ lọc Người chấm | Đã làm |
+| Phân công chấm (ADR-0027 D1–D4, Amendment 1.1–1.2): giao chấm theo đề ở danh sách Đề / Bài tập (nhiều đề một lần), Nhận chấm, tự nhận khi lưu điểm, Trả lại, cột và bộ lọc Người chấm | Đã làm |
 | Nộp tệp cho câu tự luận (ADR-0027 D5): "Cho nộp tệp" trong form và Excel, tải / xoá tệp khi làm bài, xem tệp khi chấm và ở kết quả | Đã làm |
 | Ghép tự động khi soạn (ADR-0025 D6a): bảng kỹ năng × độ khó, bản xem trước, báo ô thiếu | Đã làm |
 | Mọi mục "Không có" ở Phạm vi giai đoạn 1 | Chưa làm |

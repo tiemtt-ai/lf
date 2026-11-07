@@ -30,6 +30,7 @@ Ai đang giữ một bài làm để chấm ("Giao chấm", "Nhận chấm") và
   dòng `active` cũ chuyển `released`.
 * `assignment_type`: `assigned` (admin hoặc người tạo đề giao, `assigned_by_user_id` = người giao),
   `claimed` (giáo viên tự nhận, `assigned_by_user_id` = chính họ).
+  Từ ADR-0027 Amendment 1.2 không ghi mới `assigned` (bỏ giao từng bài); chỉ còn `claimed`.
 * `status`: `active` (đang giữ), `released` (bị đổi người hoặc trả lại),
   `completed` (Attempt chấm xong khi đang giữ). `ended_at` có giá trị khi và
   chỉ khi `status <> active`.

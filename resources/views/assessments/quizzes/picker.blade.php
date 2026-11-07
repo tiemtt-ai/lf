@@ -31,7 +31,13 @@
                 <input type="hidden" name="quiz_section_id" value="{{ $chosenSection->id }}">
             @endif
             <div class="ui-field">
-                <span class="ui-field__label" id="assessment-quiz-picker-source">{{ __('lf.LF_assessment_quiz_picker_source') }}</span>
+                <span class="ui-field__label ui-field__label--tip">
+                    <span id="assessment-quiz-picker-source">{{ __('lf.LF_assessment_quiz_picker_source') }}</span>
+                    <span class="ui-source-icon" tabindex="0" role="img" data-tooltip-align="start" data-tooltip-placement="bottom"
+                          data-tooltip="{{ __('lf.LF_assessment_quiz_picker_passages_tip') }}" aria-label="{{ __('lf.LF_assessment_quiz_picker_passages_tip') }}">
+                        <x-backend-icon name="info" class="ui-icon" />
+                    </span>
+                </span>
                 <div class="ui-chip-list" role="radiogroup" aria-labelledby="assessment-quiz-picker-source">
                     <label class="ui-chip cursor-interaction">
                         <input type="radio" value="questions" x-model="tab">
@@ -80,6 +86,9 @@
                     @empty
                         <p class="ui-caption ui-pick-empty">{{ __('lf.LF_assessment_quiz_picker_no_passages') }}</p>
                     @endforelse
+                </div>
+                <div x-show="tab === 'passages'" x-cloak>
+                    @include('assessments.passages.partials.demo')
                 </div>
             </div>
         </div>

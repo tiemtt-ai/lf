@@ -59,7 +59,8 @@ final class AssessmentQuizBuilderController extends Controller
             'activeRegistrations' => DB::table(AssessmentRegistrationService::TABLE)
                 ->where('customer_id', $customerId)->where('quiz_id', $id)->where('status', 'active')->count(),
             'quizGraders' => $this->graders->quizGraders($customerId, $id),
-            'inheritedGraders' => $this->graders->inheritedQuizGraders($customerId, $quiz->category_id ? (int) $quiz->category_id : null),
+            // No essay / speaking question → nothing to grade by hand, so no Người chấm tab.
+            'needsGrading' => $this->graders->gradableQuizIds($customerId, [$id]) !== [],
             'routePrefix' => $this->routePrefix($request),
         ]);
     }
@@ -320,36 +321,6 @@ final class AssessmentQuizBuilderController extends Controller
             'section' => $section,
             'routePrefix' => $this->routePrefix($request),
         ]);
-    }
-
-    // ---- Giao chấm đề (ADR-0027 D2) ----
-
-    public function editGraders(Request $request, int $id): View
-    {
-        abort_unless($request->ajax(), 404);
-        $customerId = $this->customerId();
-        $quiz = $this->quizzes->find($customerId, $request->user(), $id);
-
-        return view('assessments.partials.graders-dialog', [
-            'title' => __('lf.LF_assessment_grader_quiz_title'),
-            'help' => __('lf.LF_assessment_grader_quiz_help'),
-            'action' => route($this->routePrefix($request).'.graders.update', $id),
-            'teachers' => $this->graders->teachers($customerId)->orderBy('name')->limit(1000)->get(['id', 'name', 'email']),
-            'chosen' => $this->graders->quizGraders($customerId, $id)->pluck('id')->map(fn ($v) => (int) $v)->all(),
-            'inherited' => $this->graders->inheritedQuizGraders($customerId, $quiz->category_id ? (int) $quiz->category_id : null),
-        ]);
-    }
-
-    public function updateGraders(Request $request, int $id): JsonResponse|RedirectResponse
-    {
-        $customerId = $this->customerId();
-        $this->quizzes->find($customerId, $request->user(), $id);
-        $validated = $request->validate(['user_ids' => ['nullable', 'array', 'max:200'], 'user_ids.*' => ['integer', 'distinct']]);
-        $this->graders->setQuizGraders($customerId, $request->user(), $id, $validated['user_ids'] ?? []);
-
-        return $request->expectsJson()
-            ? response()->json(['message' => __('lf.LF_assessment_grader_saved')])
-            : redirect()->route($this->routePrefix($request).'.show', ['id' => $id, 'tab' => 'graders'])->with('success', __('lf.LF_assessment_grader_saved'));
     }
 
     /** @return array{title: string, description: string|null, skill_type: string|null} */

@@ -1,6 +1,6 @@
 # ADR-0027 — Assessment Grader Assignment And Essay Files
 
-Version: 1.0
+Version: 1.2
 
 Status: Approved
 
@@ -235,6 +235,56 @@ cùng database docs và
 [LF-Assessment-Grader-Assignment-Architecture-Review](../quality/LF-Assessment-Grader-Assignment-Architecture-Review.md)
 ("Duyệt, làm luôn") cùng ngày. Migration `2026_11_07_000100` đã kiểm trên
 MariaDB 11.4.
+
+---
+
+# Amendment 1.1 — Tự nhận chấm khi lưu điểm (Approved 2026-11-07)
+
+Chỗ hở của D3: bài chưa ai giữ thì hai giáo viên tầng 1–2 cùng mở và cùng chấm
+được; điểm lưu sau thành điểm hiện hành, công chấm của người trước bị trùng.
+Owner duyệt bịt chỗ hở này ngày 2026-11-07 ("bịt chỗ hở, test lại luồng này").
+
+* Giáo viên tầng 1–2 lưu điểm một câu của bài **đang chờ chấm** mà bài **chưa
+  ai giữ** thì hệ thống ghi luôn một lần giao `claimed` cho người đó, trong cùng
+  giao dịch chấm (khoá dòng Attempt), như khi bấm "Nhận chấm". Từ đó giáo viên
+  khác chỉ xem được, như D3.
+* Không tự nhận khi người lưu là admin hoặc người tạo đề (họ luôn chấm được và
+  không giữ bài của người khác), khi bài đã chấm xong (chấm lại), hoặc khi bài
+  đã có người giữ.
+* Chấm xong mọi câu chờ chấm thì lần giao chuyển `completed` như D3; chưa xong
+  thì người đó vẫn giữ cho tới khi xong, tự Trả lại, hoặc được giao lại.
+* Như mọi lần giao `completed` (D3, tầng 3), giáo viên đã chấm bài vẫn xem và
+  chấm lại được bài đó kể cả khi sau này bị bỏ khỏi danh sách chấm của danh mục
+  hoặc đề; các bài khác thì mất quyền như cũ.
+* Không đổi schema: dùng `assignment_type = claimed` đã có.
+
+---
+
+# Amendment 1.2 — Giao chấm theo đề ở danh sách Đề / Bài tập (Approved 2026-11-07)
+
+Owner thấy quá nhiều chỗ giao chấm (Danh mục, trang đề, Kết quả) và đề nghị
+chỉ giao ở danh sách Đề / Bài tập (2026-11-07). Phân tích và rà hồi quy ở
+[LF-Assessment-Quiz-Grader-Bulk-Proposal](../quality/LF-Assessment-Quiz-Grader-Bulk-Proposal.md).
+Owner duyệt ngày 2026-11-07 ("Duyệt, có chép"): chép gán danh mục sang gán đề
+trước khi bỏ. Phần dưới thay D1–D4 ở những điểm nêu ra.
+
+* **D1 tầng 2** chỉ còn "giáo viên chấm của đề"; bỏ "của danh mục" và kế thừa
+  danh mục cha.
+* **D2**: bỏ gắn theo danh mục. Gắn theo đề làm ở danh sách Đề / Bài tập: chọn
+  một hay nhiều đề (lọc danh mục rồi chọn tất cả để giao cả loạt), popup chọn
+  nhiều giáo viên, lưu **Thêm vào** (mặc định) hoặc **Thay thế**. Admin mọi
+  đề; người tạo đề chỉ đề của mình, đề khác trong lựa chọn bị bỏ qua và báo
+  lại. Trang đề giữ nút Giao chấm đề mở cùng popup cho một đề.
+* **D3**: bỏ **Giao chấm từng bài** (`assigned`). Giữ Nhận chấm, Trả lại (người
+  giữ, admin, người tạo đề) và tự nhận khi lưu điểm (Amendment 1.1). Lần giao
+  `assigned` đang `active` giữ hiệu lực tới khi xong hoặc Trả lại.
+* **D4**: bỏ cột và popup giáo viên chấm ở Danh mục, bỏ nút / popup Giao chấm ở
+  Kết quả và trang bài làm. Danh sách đề có cột **Người chấm** (số giáo viên,
+  cảnh báo "Chưa có").
+* Dữ liệu: gán theo danh mục đang có được chép thành gán theo đề cho mọi đề
+  của danh mục và danh mục con trước khi tắt (lệnh một lần, báo số dòng). Không
+  migration; `grader_scopes.category_id` thôi ghi mới, dọn sau bằng database
+  docs riêng.
 
 ---
 

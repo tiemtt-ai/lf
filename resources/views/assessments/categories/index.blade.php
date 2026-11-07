@@ -93,9 +93,8 @@
                     <col>
                     <col>
                     <col class="ui-asm-col-count">
-                    <col class="ui-asm-col-graders">
                     <col class="ui-asm-col-status">
-                    <col class="mk-col-action-wide">
+                    <col class="mk-col-action">
                 </colgroup>
                 <thead>
                     <tr>
@@ -106,7 +105,6 @@
                         <th scope="col" class="mk-text-cell">{{ __('lf.LF_assessment_category_name') }}</th>
                         <th scope="col" class="mk-text-cell">{{ __('lf.LF_assessment_category_parent') }}</th>
                         <th scope="col" class="mk-count-cell">{{ __('lf.LF_assessment_category_question_count') }}</th>
-                        <th scope="col" class="mk-text-cell">{{ __('lf.LF_assessment_grader_graders') }}</th>
                         <th scope="col" class="ux-action-cell">{{ __('lf.LF_assessment_category_status') }}</th>
                         <th scope="col" class="ux-action-cell">{{ __('lf.table_actions') }}</th>
                     </tr>
@@ -144,21 +142,6 @@
                             <td @class(['mk-count-cell', 'mk-na' => (int) $category->question_count === 0]) data-label="{{ __('lf.LF_assessment_category_question_count') }}">
                                 {{ number_format((int) $category->question_count) }}
                             </td>
-                            @php
-                                $rowGraders = $graders[$category->id] ?? ['own' => collect(), 'inherited' => collect()];
-                                $ownNames = $rowGraders['own']->pluck('name');
-                            @endphp
-                            <td @class(['mk-text-cell', 'mk-na' => $ownNames->isEmpty() && $rowGraders['inherited']->isEmpty()]) data-label="{{ __('lf.LF_assessment_grader_graders') }}">
-                                @if ($ownNames->isNotEmpty())
-                                    <span title="{{ $ownNames->implode(', ') }}">{{ $ownNames->take(2)->implode(', ') }}@if ($ownNames->count() > 2) +{{ $ownNames->count() - 2 }}@endif</span>
-                                @endif
-                                @foreach ($rowGraders['inherited']->groupBy('from') as $from => $teachers)
-                                    <p class="ui-caption" title="{{ $teachers->pluck('name')->implode(', ') }}">{{ __('lf.LF_assessment_grader_inherited_from', ['category' => $from, 'count' => $teachers->count()]) }}</p>
-                                @endforeach
-                                @if ($ownNames->isEmpty() && $rowGraders['inherited']->isEmpty())
-                                    {{ __('lf.LF_assessment_grader_none_short') }}
-                                @endif
-                            </td>
                             <td class="ux-action-cell" data-label="{{ __('lf.LF_assessment_category_status') }}">
                                 <form method="POST" action="{{ route($routePrefix.'.toggle-status', $category->id) }}">
                                     @csrf
@@ -175,17 +158,11 @@
                                         data-tooltip="{{ __('lf.LF_assessment_category_edit') }}">
                                     <x-backend-icon name="square-pen" class="ui-icon" />
                                 </button>
-                                <button type="button" class="ux-row-edit cursor-interaction" data-ui-dialog-form-open
-                                        data-url="{{ route($routePrefix.'.graders.edit', $category->id) }}" aria-haspopup="dialog"
-                                        aria-label="{{ __('lf.LF_assessment_grader_graders') }}: {{ $category->name }}"
-                                        data-tooltip="{{ __('lf.LF_assessment_grader_graders') }}">
-                                    <x-backend-icon name="user-cog" class="ui-icon" />
-                                </button>
                             </td>
                         </tr>
                     @empty
                         <tr class="mk-empty-row">
-                            <td class="mk-empty" colspan="8">
+                            <td class="mk-empty" colspan="7">
                                 <div role="status">
                                     <strong>{{ $hasActiveFilters ? __('lf.LF_assessment_category_filter_empty') : __('lf.LF_assessment_category_empty') }}</strong>
                                     <p class="ui-caption">{{ $hasActiveFilters ? __('lf.LF_assessment_category_filter_empty_help') : __('lf.LF_assessment_category_empty_help') }}</p>
@@ -203,7 +180,7 @@
             :page-size-option="__('lf.LF_assessment_category_page_size_option', ['count' => $categories->perPage()])" />
     </section>
 
-    <dialog class="ui-modal" data-columns="2" aria-labelledby="assessment-category-dialog-title assessment-grader-dialog-title" data-ui-dialog-form
+    <dialog class="ui-modal" data-columns="2" aria-labelledby="assessment-category-dialog-title" data-ui-dialog-form
             data-msg-load-error="{{ __('lf.LF_assessment_category_dialog_load_error') }}"
             data-msg-discard-title="{{ __('lf.LF_assessment_category_dialog_discard_title') }}"
             data-msg-discard-text="{{ __('lf.LF_assessment_category_dialog_discard_text') }}"

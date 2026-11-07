@@ -3675,6 +3675,9 @@
 .lf-admin-ui .ui-asm-col-author { width: 120px; }
 .lf-admin-ui .ui-asm-col-source { width: 124px; }
 .lf-admin-ui .ui-asm-col-count { width: 84px; }
+.lf-admin-ui .ui-asm-col-quiz-graders { width: 116px; }
+.lf-admin-ui .ui-bulk-lock.ui-bulk-hint { cursor: default; }
+.lf-admin-ui .ui-grader-quiz-names { display: block; overflow: hidden; color: var(--ui-text); text-overflow: ellipsis; white-space: nowrap; }
 .lf-admin-ui .ui-asm-col-attempts { width: 120px; }
 .lf-admin-ui .ui-asm-col-score { width: 148px; }
 .lf-admin-ui .ui-asm-table--stats .ui-asm-col-score { width: 176px; }
@@ -3701,6 +3704,39 @@
 .lf-admin-ui .ui-quiz-tabs { margin-top: 16px; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
 .lf-admin-ui [data-ui-live-region="changes"] > .ui-quiz-notice { margin: 12px 0 0; }
 .lf-admin-ui .ui-quiz-notice a { color: inherit; font-weight: 600; text-decoration: underline; }
+.lf-admin-ui .ui-grader-roles { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; margin-top: 6px; }
+.lf-admin-ui .ui-grader-role { display: inline-flex; align-items: center; gap: 4px; color: var(--ui-text); }
+.lf-admin-ui .ui-grader-role .ui-source-icon { display: inline-flex; color: var(--ui-muted); cursor: help; }
+.lf-admin-ui .ui-grader-role .ui-source-icon .ui-icon { width: 14px; height: 14px; }
+.lf-admin-ui .ui-grader-role .ui-source-icon[data-tooltip]::after { max-width: 280px; }
+.lf-admin-ui .ui-page-head__title .ui-page-head__tip { vertical-align: middle; margin-left: 4px; color: var(--ui-muted); cursor: help; }
+.lf-admin-ui .ui-page-head__tip .ui-icon { width: 16px; height: 16px; }
+.lf-admin-ui :is(.ui-page-head__tip, .ui-field__label--tip .ui-source-icon)[data-tooltip]::after { max-width: 300px; font-size: 12px; }
+.lf-admin-ui .ui-field__label--tip .ui-source-icon { color: var(--ui-muted); cursor: help; }
+.lf-admin-ui .ui-passage-demo { margin-top: 10px; }
+.lf-admin-ui .ui-passage-demo > summary { display: inline-flex; align-items: center; gap: 6px; color: var(--ui-primary); font-size: 13px; font-weight: 500; list-style: none; }
+.lf-admin-ui .ui-passage-demo > summary::-webkit-details-marker { display: none; }
+.lf-admin-ui .ui-passage-demo > summary .ui-icon { width: 16px; height: 16px; }
+.lf-admin-ui .ui-passage-demo__body { display: grid; grid-template-columns: minmax(0, 420px) minmax(0, 1fr); gap: 16px; align-items: start; margin-top: 10px; padding: 14px; border: 1px solid var(--ui-border); border-radius: var(--ui-card-radius, 8px); background: var(--ui-surface-muted, #f8fafc); }
+.lf-admin-ui .ui-passage-demo__paper { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 8px 8px; padding: 12px; border-radius: var(--ui-control-radius); background: var(--ui-white); box-shadow: 0 1px 2px rgb(15 23 42 / 0.08); font-size: 12px; line-height: 1.45; color: var(--ui-text); }
+.lf-admin-ui .ui-passage-demo__group { display: grid; grid-column: 1 / -1; grid-template-columns: 20px minmax(0, 1fr); gap: 8px; padding: 8px 8px 8px 0; border-left: 3px solid var(--ui-primary); border-radius: 0 6px 6px 0; background: var(--ui-primary-soft, #eef4ff); }
+.lf-admin-ui .ui-passage-demo__group > .ui-passage-demo__question { grid-column: 2; }
+.lf-admin-ui .ui-passage-demo__group > .ui-passage-demo__question + .ui-passage-demo__question { margin-top: -2px; }
+.lf-admin-ui .ui-passage-demo__group > .ui-passage-demo__mark:nth-of-type(2) { grid-row: span 2; }
+.lf-admin-ui .ui-passage-demo__mark { display: inline-grid; place-items: center; width: 18px; height: 18px; margin-left: 2px; border-radius: 50%; background: var(--ui-primary); color: var(--ui-white); font-size: 11px; font-weight: 600; }
+.lf-admin-ui .ui-passage-demo__paper > .ui-passage-demo__mark { background: var(--ui-muted); }
+.lf-admin-ui .ui-passage-demo__passage, .lf-admin-ui .ui-passage-demo__question { display: grid; gap: 4px; padding: 8px 10px; border: 1px solid var(--ui-border); border-radius: 6px; background: var(--ui-white); }
+.lf-admin-ui .ui-passage-demo__media { display: flex; align-items: center; gap: 6px; color: var(--ui-muted); }
+.lf-admin-ui .ui-passage-demo__media .ui-icon { width: 14px; height: 14px; }
+.lf-admin-ui .ui-passage-demo__bar { flex: 0 0 60px; height: 4px; border-radius: 2px; background: linear-gradient(90deg, var(--ui-primary) 35%, var(--ui-border) 35%); }
+.lf-admin-ui .ui-passage-demo__option { display: flex; align-items: center; gap: 6px; color: var(--ui-muted); }
+.lf-admin-ui .ui-passage-demo__option i { width: 10px; height: 10px; border: 1.5px solid var(--ui-muted); border-radius: 50%; }
+.lf-admin-ui .ui-passage-demo__notes { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; color: var(--ui-text); font-size: 13px; line-height: 1.5; }
+.lf-admin-ui .ui-passage-demo__notes li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 6px; align-items: start; }
+.lf-admin-ui .ui-passage-demo__notes li:last-child .ui-passage-demo__mark { background: var(--ui-muted); }
+@media (max-width: 720px) {
+    .lf-admin-ui .ui-passage-demo__body { grid-template-columns: minmax(0, 1fr); }
+}
 .lf-admin-ui .ui-quiz-notice { display: flex; align-items: center; gap: 8px; margin: 16px 20px 0; padding: 10px 14px; border-radius: 8px; background: var(--ui-warning-soft); color: var(--ui-warning); font-size: 14px; }
 .lf-admin-ui .ui-quiz-section-row th, .lf-admin-ui .ui-quiz-section-row td { background: var(--ui-color-eef0f5); }
 .lf-admin-ui .ui-quiz-section-row th { font-weight: 400; }
@@ -3718,11 +3754,12 @@
 .lf-admin-ui .ui-pick-row:hover { background: var(--ui-color-eef0fb); }
 .lf-admin-ui .ui-pick-row > span:nth-child(2) { display: grid; gap: 2px; }
 .lf-admin-ui .ui-pick-empty { margin: 0; padding: 16px; }
-.lf-admin-ui .ui-result-tabs { display: flex; gap: 8px; margin: 0 0 16px; }
-.lf-admin-ui .ui-result-tab { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px; border: 1px solid var(--ui-border); border-radius: 999px; background: var(--ui-white); color: var(--ui-muted); font-size: 14px; text-decoration: none; }
+.lf-admin-ui .ui-result-tabs { display: flex; flex-wrap: nowrap; gap: 8px; max-width: 100%; min-width: 0; margin: 0 0 16px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+.lf-admin-ui .ui-result-tab { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px; border: 1px solid var(--ui-border); border-radius: 999px; background: var(--ui-white); color: var(--ui-muted); font-size: 14px; text-decoration: none; white-space: nowrap; flex-shrink: 0; }
 .lf-admin-ui .ui-result-tab:hover { color: var(--ui-text); border-color: var(--ui-muted); }
 .lf-admin-ui .ui-result-tab.is-active { border-color: var(--ui-primary); background: var(--ui-color-eef0fb); color: var(--ui-primary); font-weight: 500; }
 .lf-admin-ui .ui-result-tab__count { min-width: 22px; padding: 0 6px; border-radius: 999px; background: var(--ui-warning-soft); color: var(--ui-warning); font-size: 12px; line-height: 20px; text-align: center; }
+@media (max-width: 420px) { .lf-admin-ui .ui-result-tabs { gap: 6px; } .lf-admin-ui .ui-result-tab { gap: 6px; padding: 0 11px; } }
 /* Kết quả & Chấm bài (Owner 2026-11-07): export beside the tabs, a wider quiz column,
    a coloured pass / fail verdict; row icons: square-pen = grade, eye = view. */
 .lf-admin-ui .ui-result-tabbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 16px; }
@@ -3731,7 +3768,16 @@
 .lf-admin-ui .ui-result-col-student { width: 176px; }
 .lf-admin-ui .ui-result-col-status { width: 116px; }
 .lf-admin-ui .ui-result-col-action { width: 88px; }
-.lf-admin-ui .ui-result-table .ui-asm-col-score { width: 164px; }
+.lf-admin-ui .ui-result-table .ui-asm-col-score { width: 136px; }
+/* The quiz column keeps ~220px: the fixed columns take 840px, so a narrower card scrolls the table sideways. */
+.lf-admin-ui .ui-result-table.ui-asm-table--wide { min-width: 1060px; }
+/* The four filters share one row from ~900px; under 520px each takes its own row (UI Kit list rule). */
+.lf-admin-ui .ui-result-filterbar .mk-search { flex: 1 1 170px; max-width: 240px; }
+.lf-admin-ui .ui-result-filterbar .mk-search:first-child { flex: 1 1 240px; max-width: 360px; }
+@media (max-width: 520px) {
+    .lf-admin-ui .ui-result-filterbar .mk-search,
+    .lf-admin-ui .ui-result-filterbar .mk-search:first-child { flex-basis: 100%; max-width: none; }
+}
 .lf-admin-ui .ui-result-table .ui-asm-col-date { width: 132px; }
 .lf-admin-ui .ui-result-email { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lf-admin-ui .ui-result-score { display: block; font-weight: 600; }
@@ -3741,12 +3787,10 @@
 .lf-admin-ui .ui-result-provisional { font-style: italic; }
 /* Phân công chấm (ADR-0027): who holds an attempt, the Giao chấm dialog badges, Giáo viên chấm of a category. */
 .lf-admin-ui .ui-result-col-grader { width: 136px; }
-.lf-admin-ui .ui-asm-col-graders { width: 184px; }
 .lf-admin-ui .ui-result-grader.is-mine { font-weight: 600; color: var(--ui-primary); }
 .lf-admin-ui .ui-result-table .ui-check-cell + .mk-sequence { padding-left: 4px; }
 .lf-admin-ui .ui-grader-badges { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; }
 .lf-admin-ui .ui-grader-badges .ui-status { min-height: 0; padding: 1px 8px; font-size: 12px; white-space: nowrap; }
-.lf-admin-ui .ui-grader-inherited { display: grid; gap: 4px; margin: 0; padding: 10px 14px; border: 1px dashed var(--ui-border); border-radius: 8px; list-style: none; font-size: 14px; }
 .lf-admin-ui .ui-result-questions { padding-bottom: 8px; }
 .lf-admin-ui .ui-result-section-title { margin: 22px 22px 4px; font-size: 16px; font-weight: 600; }
 .lf-admin-ui .ui-result-section-title + .ui-caption { margin: 0 22px 8px; }

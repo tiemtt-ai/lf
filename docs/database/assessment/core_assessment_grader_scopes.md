@@ -26,6 +26,9 @@ D1–D2. Một dòng cho một giáo viên quyền xem và chấm mọi bài là
 * Scope, danh mục / đề, giáo viên và người gắn cùng tenant (service kiểm
   `users.customer_id`).
 * Mỗi dòng đúng một phạm vi: `category_id` hoặc `quiz_id`.
+* ADR-0027 Amendment 1.2 (2026-11-07): ứng dụng chỉ ghi và đọc dòng `quiz_id`.
+  Dòng `category_id` cũ được `assessment:copy-category-graders` chép thành dòng
+  `quiz_id` rồi giữ làm lịch sử; schema chưa đổi, dọn cột cần database docs riêng.
 * `user_id` phải là `teacher` đang hoạt động khi gắn. Đổi vai trò hoặc khoá tài
   khoản sau đó thì dòng còn nhưng không có hiệu lực (quyền xét lúc truy cập).
 * Phạm vi danh mục có hiệu lực cho đề thuộc danh mục đó và mọi danh mục con

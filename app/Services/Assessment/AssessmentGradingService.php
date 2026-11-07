@@ -13,7 +13,7 @@ use Illuminate\Validation\ValidationException;
  * current score and feedback, and the attempt totals are recalculated in the same transaction.
  *
  * Readers: customer_admin (whole tenant); a teacher for attempts of quizzes they created, of registrations they granted,
- * of a quiz or category (with its sub-categories) they are named on, or that they hold / held to completion.
+ * of a quiz they are named on (Amendment 1.2: no longer categories), or that they hold / held to completion.
  * Graders: the same people, except that while a teacher holds an attempt only that teacher, the admin and the quiz creator
  * grade it.
  */
@@ -41,8 +41,7 @@ final class AssessmentGradingService
             ->when($coverage !== null, fn ($query) => $query->where(fn ($query) => $query
                 ->where('z.created_by', $user->id)
                 ->orWhere(fn ($query) => $query->where('reg.source', 'granted')->where('reg.granted_by', $user->id))
-                ->when($coverage['categories'] !== [], fn ($query) => $query->orWhereIn('z.category_id', $coverage['categories']))
-                ->when($coverage['quizzes'] !== [], fn ($query) => $query->orWhereIn($alias.'.quiz_id', $coverage['quizzes']))
+                ->when($coverage !== [], fn ($query) => $query->orWhereIn($alias.'.quiz_id', $coverage))
                 ->orWhereExists(fn ($query) => $query->selectRaw('1')->from(AssessmentGraderService::ASSIGNMENTS_TABLE.' as ga_scope')
                     ->whereColumn('ga_scope.attempt_id', $alias.'.id')->whereColumn('ga_scope.customer_id', $alias.'.customer_id')
                     ->where('ga_scope.assigned_to_user_id', $user->id)->whereIn('ga_scope.status', ['active', 'completed']))));
@@ -88,6 +87,12 @@ final class AssessmentGradingService
             [$may, $holder] = $this->gradeRight($customerId, $user, $attempt);
             if (! $may) {
                 throw ValidationException::withMessages(['score' => __('lf.LF_assessment_grader_error_held', ['name' => $holder->name])]);
+            }
+            // ADR-0027 Amendment 1.1: a teacher grading a pending attempt nobody holds takes it, so no one else grades it
+            // at the same time. The attempt row is locked above, so a second teacher waits here and then finds a holder.
+            if (! $holder && $user->role === 'teacher' && (int) $attempt->quiz_created_by !== (int) $user->id
+                && $attempt->grading_status === 'pending') {
+                $this->graders->takeOnGrading($customerId, (int) $attemptId, (int) $user->id);
             }
 
             $answer = DB::table(AssessmentAttemptService::ANSWERS_TABLE)->where('customer_id', $customerId)

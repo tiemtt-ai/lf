@@ -63,13 +63,6 @@
                         </button>
                     </form>
                 @endif
-                @if ($canAssign)
-                    <button type="button" class="ui-button ui-button--outline cursor-interaction" data-ui-dialog-form-open
-                            data-url="{{ route($routePrefix.'.assign.create', ['ids' => [$attempt->id], 'from_attempt' => 1]) }}" aria-haspopup="dialog">
-                        <x-backend-icon name="user-cog" class="ui-icon" />
-                        {{ $activeHolder ? __('lf.LF_assessment_grader_reassign') : __('lf.LF_assessment_grader_assign') }}
-                    </button>
-                @endif
                 @if ($canRelease)
                     <form method="POST" action="{{ route($routePrefix.'.release', $attempt->id) }}" class="ui-inline-form">
                         @csrf
@@ -367,6 +360,5 @@
         @endforeach
     </section>
 
-    @include('assessments.passages.partials.dialog-host', ['dialogTitleId' => 'assessment-assign-dialog-title'])
 </div>
 @endsection

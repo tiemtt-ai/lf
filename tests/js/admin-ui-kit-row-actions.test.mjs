@@ -20,6 +20,8 @@ class El {
     focus() { this.focused += 1; }
     closest() { return this.self; }
     hasAttribute(name) { return this.attrs.has(name); }
+    setAttribute(name, value) { this.attrs.set(name, String(value)); }
+    removeAttribute(name) { this.attrs.delete(name); }
 }
 
 function setup({ confirm = async () => true, trigger = {} } = {}) {
@@ -241,7 +243,7 @@ test('the list buttons line up left under the filters when they wrap, and stay a
 test('a bulk dialog opener (Giao chấm) follows the selection: disabled when empty, its URL carries the checked values and its label the count', () => {
     const t = bulkSetup();
     const label = new El({ 'data-text-selected': ' (:count)' });
-    const opener = new El({ 'data-ui-bulk-open': '', 'data-url-base': '/admin/assessments/results/assign' });
+    const opener = new El({ 'data-ui-bulk-open': '', 'data-url-base': '/admin/assessments/quizzes/graders' });
     opener.setAttribute = (name, value) => opener.attrs.set(name, value);
     opener.querySelector = () => label;
     const baseAll = t.scope.querySelectorAll;
@@ -249,14 +251,72 @@ test('a bulk dialog opener (Giao chấm) follows the selection: disabled when em
     t.boxes[0].checked = true;
     t.change(t.boxes[0]);
     assert.equal(opener.disabled, false);
-    assert.equal(opener.getAttribute('data-url'), '/admin/assessments/results/assign?ids%5B%5D=10');
+    assert.equal(opener.getAttribute('data-url'), '/admin/assessments/quizzes/graders?ids%5B%5D=10');
     assert.equal(label.textContent, ' (1)');
     t.all.checked = true;
     t.change(t.all);
-    assert.equal(opener.getAttribute('data-url'), '/admin/assessments/results/assign?ids%5B%5D=10&ids%5B%5D=11', 'a disabled item never joins');
+    assert.equal(opener.getAttribute('data-url'), '/admin/assessments/quizzes/graders?ids%5B%5D=10&ids%5B%5D=11', 'a disabled item never joins');
     t.all.checked = false;
     t.change(t.all);
     assert.equal(opener.disabled, true);
-    assert.equal(opener.getAttribute('data-url'), '/admin/assessments/results/assign');
+    assert.equal(opener.getAttribute('data-url'), '/admin/assessments/quizzes/graders');
     assert.equal(label.textContent, '');
+});
+
+test('an item chosen for a dialog only (data-ui-bulk-no-delete, a published quiz) keeps the delete button off and is never deleted', async () => {
+    const t = bulkSetup();
+    t.boxes[1].attrs.set('data-ui-bulk-no-delete', '');
+    t.boxes[0].checked = true;
+    t.change(t.boxes[0]);
+    assert.equal(t.trigger.disabled, false);
+    t.boxes[1].checked = true;
+    t.change(t.boxes[1]);
+    assert.equal(t.trigger.disabled, true, 'one undeletable item disables delete');
+    assert.equal(t.trigger.getAttribute('data-tooltip'), null, 'no data-text-blocked: no tooltip');
+    assert.equal(t.countNode.textContent, 'Selected 2', 'it still counts as chosen');
+    t.bulkClick(); await t.tick();
+    assert.equal(t.confirms.length, 0);
+    assert.equal(t.fetches.length, 0);
+    t.boxes[1].checked = false;
+    t.change(t.boxes[1]);
+    assert.equal(t.trigger.disabled, false);
+});
+
+test('a delete button with data-text-blocked says why it is off while an undeletable item is checked', () => {
+    const t = bulkSetup();
+    t.trigger.attrs.set('data-text-blocked', 'Published quizzes cannot be deleted.');
+    t.boxes[1].attrs.set('data-ui-bulk-no-delete', '');
+    t.boxes[0].checked = true;
+    t.change(t.boxes[0]);
+    assert.equal(t.trigger.getAttribute('data-tooltip'), null, 'deletable selection: no tooltip');
+    t.boxes[1].checked = true;
+    t.change(t.boxes[1]);
+    assert.equal(t.trigger.disabled, true);
+    assert.equal(t.trigger.getAttribute('data-tooltip'), 'Published quizzes cannot be deleted.');
+    assert.equal(t.trigger.getAttribute('aria-description'), 'Published quizzes cannot be deleted.');
+    t.boxes[1].checked = false;
+    t.change(t.boxes[1]);
+    assert.equal(t.trigger.getAttribute('data-tooltip'), null, 'unchecked again: the tooltip goes');
+    assert.equal(t.trigger.getAttribute('aria-description'), null);
+});
+
+test('a bulk dialog opener leaves out items marked data-ui-bulk-no-open (a quiz with nothing to grade) and stays off with only those', () => {
+    const t = bulkSetup();
+    const label = new El({ 'data-text-selected': ' (:count)' });
+    const opener = new El({ 'data-ui-bulk-open': '', 'data-url-base': '/admin/assessments/quizzes/graders' });
+    opener.setAttribute = (name, value) => opener.attrs.set(name, value);
+    opener.querySelector = () => label;
+    const baseAll = t.scope.querySelectorAll;
+    t.scope.querySelectorAll = selector => (selector.includes('bulk-open') ? [opener] : baseAll(selector));
+    t.boxes[0].attrs.set('data-ui-bulk-no-open', '');
+    t.boxes[0].checked = true;
+    t.change(t.boxes[0]);
+    assert.equal(opener.disabled, true, 'only a no-open item: the opener stays off');
+    assert.equal(t.trigger.disabled, false, 'delete still counts it');
+    t.boxes[1].checked = true;
+    t.change(t.boxes[1]);
+    assert.equal(opener.disabled, false);
+    assert.equal(opener.getAttribute('data-url'), '/admin/assessments/quizzes/graders?ids%5B%5D=11');
+    assert.equal(label.textContent, ' (1)');
+    assert.equal(t.countNode.textContent, 'Selected 2');
 });

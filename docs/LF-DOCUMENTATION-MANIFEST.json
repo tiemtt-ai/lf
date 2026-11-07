@@ -5,7 +5,7 @@
   "default_locale": "vi",
   "fallback_locale": "en",
   "source_of_truth": "docs/LF-INDEX.md",
-  "document_count": 336,
+  "document_count": 337,
   "documents": [
     {
       "path": "LF-Core-Overview.md",
@@ -10880,6 +10880,45 @@
         "core/LF-Core-Assessment.md",
         "quality/LF-Regression-Audit.md",
         "platform/LF-Media.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "quality/LF-Assessment-Quiz-Grader-Bulk-Proposal.md",
+      "title": "LF Assessment Quiz Grader Bulk Proposal",
+      "area": "quality",
+      "document_type": "architecture_review",
+      "document_status": "Approved",
+      "implementation_status": "Not Applicable",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": [
+        "assessment",
+        "grading",
+        "grader-assignment"
+      ],
+      "keywords": {
+        "vi": [
+          "giao chấm",
+          "giáo viên chấm",
+          "giao chấm hàng loạt",
+          "danh sách đề"
+        ],
+        "en": [
+          "grader assignment",
+          "bulk assign graders",
+          "quiz graders"
+        ]
+      },
+      "identifiers": [
+        "AssessmentGraderService"
+      ],
+      "related_documents": [
+        "adr/ADR-0027-Assessment-Grader-Assignment-And-Essay-Files.md",
+        "core/LF-Core-Assessment.md",
+        "database/assessment/README.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"

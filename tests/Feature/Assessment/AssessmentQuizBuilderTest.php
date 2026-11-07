@@ -61,8 +61,10 @@ class AssessmentQuizBuilderTest extends TestCase
             // One section: no section header row.
             ->assertDontSee('ui-quiz-section-row', false)
             // Tabs as on the Course Template page; Thông tin opens first, the others are rendered but hidden.
+            // Người chấm only shows once the quiz has an essay / speaking question; this one is empty.
             ->assertSeeInOrder([__('lf.LF_assessment_quiz_tab_info'), __('lf.LF_assessment_quiz_tab_questions'),
-                __('lf.LF_assessment_quiz_tab_graders'), __('lf.LF_assessment_quiz_tab_publish')])
+                __('lf.LF_assessment_quiz_tab_publish')])
+            ->assertDontSeeText(__('lf.LF_assessment_quiz_tab_graders'))
             ->assertSee('<input type="hidden" name="tab" value="info">', false);
 
         // ?tab= opens that tab and keeps it for live refreshes; an unknown tab falls back to Thông tin.
@@ -88,7 +90,9 @@ class AssessmentQuizBuilderTest extends TestCase
 
         // The picker lists only ready single questions and passages with a ready child.
         $this->actingAs($this->admin)->get(self::ADMIN.'/quizzes/'.$quiz.'/questions/pick', self::AJAX)->assertOk()
-            ->assertSeeText('Câu lẻ')->assertDontSeeText('Câu nháp')->assertDontSeeText('Con A')->assertSeeText('Bài đọc');
+            ->assertSeeText('Câu lẻ')->assertDontSeeText('Câu nháp')->assertDontSeeText('Con A')->assertSeeText('Bài đọc')
+            // The passage source explains itself and sketches how a passage shows in the test.
+            ->assertSee(e(__('lf.LF_assessment_quiz_picker_passages_tip')), false)->assertSeeText(__('lf.LF_assessment_passage_demo_toggle'));
 
         $this->add($quiz, $section, [$single], [$passage])->assertCreated()
             ->assertJson(['message' => trans_choice('lf.LF_assessment_quiz_questions_added', 3, ['count' => 3])]);

@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Assessment;
 
 use App\Http\Controllers\Controller;
 use App\Services\Assessment\AssessmentCategoryService;
+use App\Services\Assessment\AssessmentGraderService;
+use App\Services\Assessment\AssessmentQuestionService;
 use App\Services\Assessment\AssessmentQuizService as Quizzes;
 use App\Support\TenantContext;
 use Illuminate\Http\JsonResponse;
@@ -20,7 +22,10 @@ use Illuminate\View\View;
  */
 final class AssessmentQuizController extends Controller
 {
-    public function __construct(private readonly Quizzes $quizzes) {}
+    public function __construct(
+        private readonly Quizzes $quizzes,
+        private readonly AssessmentGraderService $graders,
+    ) {}
 
     public function index(Request $request): View
     {
@@ -31,12 +36,16 @@ final class AssessmentQuizController extends Controller
             'category_id' => ['nullable', 'integer'],
             'assessment_type' => ['nullable', 'string'],
             'status' => ['nullable', 'string'],
+            'question_type' => ['nullable', 'string'],
         ]);
+        $questionType = $validated['question_type'] ?? null;
         $filters = [
             'keyword' => trim($validated['keyword'] ?? ''),
             'category_id' => isset($validated['category_id']) ? (int) $validated['category_id'] : null,
             'assessment_type' => in_array($validated['assessment_type'] ?? null, Quizzes::TYPES, true) ? $validated['assessment_type'] : null,
             'status' => in_array($validated['status'] ?? null, Quizzes::STATUSES, true) ? $validated['status'] : null,
+            // A question type in the draft, or "manual": something to grade by hand (draft or a published version).
+            'question_type' => $questionType === 'manual' || in_array($questionType, AssessmentQuestionService::TYPES, true) ? $questionType : null,
         ];
         $count = fn (string $table) => fn ($query) => $query->from($table)->selectRaw('count(*)')
             ->whereColumn($table.'.quiz_id', 'z.id')->where($table.'.customer_id', $customerId);
@@ -50,9 +59,17 @@ final class AssessmentQuizController extends Controller
             ->when($filters['category_id'], fn ($query, $id) => $query->where('z.category_id', $id))
             ->when($filters['assessment_type'], fn ($query, $type) => $query->where('z.assessment_type', $type))
             ->when($filters['status'], fn ($query, $status) => $query->where('z.status', $status))
+            ->when($filters['question_type'] === 'manual', fn ($query) => $this->graders->whereNeedsGrading($query, $customerId, 'z.id'))
+            ->when($filters['question_type'] && $filters['question_type'] !== 'manual', fn ($query) => $query->whereExists(fn ($exists) => $exists
+                ->selectRaw('1')->from(Quizzes::QUESTIONS_TABLE.' as fq')
+                ->join(AssessmentQuestionService::TABLE.' as fqq', function ($join): void {
+                    $join->on('fqq.id', '=', 'fq.question_id')->on('fqq.customer_id', '=', 'fq.customer_id');
+                })
+                ->whereColumn('fq.quiz_id', 'z.id')->where('fq.customer_id', $customerId)->where('fqq.question_type', $filters['question_type'])))
             ->select('z.*', 'cat.name as category_name', 'author.name as author_name')
             ->selectSub($count(Quizzes::QUESTIONS_TABLE), 'question_count')
             ->selectSub($count(Quizzes::VERSIONS_TABLE), 'version_count')
+            ->selectSub($count(AssessmentGraderService::SCOPES_TABLE), 'grader_count')
             ->orderByDesc('z.created_at')
             ->orderByDesc('z.id')
             ->paginate(10)
@@ -60,6 +77,7 @@ final class AssessmentQuizController extends Controller
 
         return view('assessments.quizzes.index', [
             'quizzes' => $quizzes,
+            'gradable' => $this->graders->gradableQuizIds($customerId, collect($quizzes->items())->pluck('id')->map(fn ($id) => (int) $id)->all()),
             'filters' => $filters,
             'categories' => $this->categoryOptions($customerId),
             'routePrefix' => $this->routePrefix($request),
@@ -126,6 +144,79 @@ final class AssessmentQuizController extends Controller
         return $request->expectsJson()
             ? response()->json(['message' => $message])
             : redirect()->route($this->routePrefix($request).'.index')->with('success', $message);
+    }
+
+    // ---- Giao chấm (ADR-0027 Amendment 1.2) ----
+
+    /**
+     * The Giao chấm dialog for the chosen quizzes (`ids[]`). One quiz: its teachers are ticked and saving replaces them.
+     * Several: nobody is ticked and saving adds to each quiz, unless "Thay thế" is chosen.
+     */
+    public function gradersDialog(Request $request): View
+    {
+        abort_unless($request->ajax(), 404);
+        $customerId = $this->customerId();
+        $ids = $this->manageableIds($customerId, $request, $request->query('ids', []));
+        abort_if($ids === [], 404);
+        $single = count($ids) === 1;
+
+        return view('assessments.quizzes.graders-dialog', [
+            'ids' => $ids,
+            'titles' => DB::table(Quizzes::TABLE)->where('customer_id', $customerId)->whereIn('id', $ids)->orderBy('title')->limit(3)->pluck('title'),
+            'teachers' => $this->graders->suggestions($customerId, $ids),
+            'chosen' => $single ? $this->graders->quizGraders($customerId, $ids[0])->pluck('id')->map(fn ($v) => (int) $v)->all() : [],
+            'mode' => $single ? 'replace' : 'add',
+            // Opened on the quiz page: saving returns to its Người chấm tab.
+            'returnTo' => $single && $request->boolean('from_quiz') ? $ids[0] : null,
+            'routePrefix' => $this->routePrefix($request),
+        ]);
+    }
+
+    public function saveGraders(Request $request): JsonResponse|RedirectResponse
+    {
+        $validated = $request->validate([
+            'ids' => ['required', 'array', 'min:1', 'max:100'],
+            'ids.*' => ['integer', 'distinct'],
+            'user_ids' => ['nullable', 'array', 'max:200'],
+            'user_ids.*' => ['integer', 'distinct'],
+            'mode' => ['required', Rule::in(['add', 'replace'])],
+            'return_to' => ['nullable', 'integer'],
+        ]);
+        $customerId = $this->customerId();
+        $ids = $this->manageableIds($customerId, $request, $validated['ids']);
+        $result = $this->graders->setQuizGraders($customerId, $request->user(), $ids, $validated['user_ids'] ?? [], $validated['mode']);
+        $skipped = $result['skipped'] + count(array_unique($validated['ids'])) - count($ids);
+
+        $message = trans_choice('lf.LF_assessment_grader_quizzes_saved', $result['saved'], ['count' => $result['saved']]);
+        if ($skipped > 0) {
+            $message .= ' '.trans_choice('lf.LF_assessment_grader_quizzes_skipped', $skipped, ['count' => $skipped]);
+        }
+        $returnTo = isset($validated['return_to']) && in_array((int) $validated['return_to'], $ids, true)
+            ? route($this->routePrefix($request).'.show', ['id' => (int) $validated['return_to'], 'tab' => 'graders'])
+            : null;
+        if ($returnTo !== null) {
+            session()->flash('success', $message);
+        }
+
+        return $request->expectsJson()
+            ? response()->json(array_filter(['message' => $message, 'redirect' => $returnTo]))
+            : ($returnTo ? redirect()->to($returnTo) : back())->with('success', $message);
+    }
+
+    /**
+     * The chosen quizzes this user sees in the list (admins: the tenant; teachers: their own) that have something to grade
+     * by hand; others are dropped.
+     *
+     * @return list<int>
+     */
+    private function manageableIds(int $customerId, Request $request, mixed $ids): array
+    {
+        $ids = collect(is_array($ids) ? $ids : [])->filter(fn ($id) => is_numeric($id))->map(fn ($id) => (int) $id)->unique()->take(100)->values()->all();
+
+        $mine = $ids === [] ? [] : $this->quizzes->scoped($customerId, $request->user(), 'z')->whereIn('z.id', $ids)
+            ->orderBy('z.id')->pluck('z.id')->map(fn ($id) => (int) $id)->all();
+
+        return $this->graders->gradableQuizIds($customerId, $mine);
     }
 
     private function dialog(Request $request, ?object $quiz): View

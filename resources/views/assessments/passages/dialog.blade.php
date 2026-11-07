@@ -18,6 +18,7 @@
             <h3 id="assessment-passage-dialog-title">
                 {{ $isEdit ? __('lf.LF_assessment_passage_edit') : __('lf.LF_assessment_passage_create') }}
             </h3>
+            <p class="ui-caption">{{ __('lf.LF_assessment_passages_tip') }}</p>
         </div>
         <button class="ui-modal__close cursor-interaction" type="button" data-ui-dialog-form-cancel
                 aria-label="{{ __('lf.LF_common_button_close') }}">×</button>

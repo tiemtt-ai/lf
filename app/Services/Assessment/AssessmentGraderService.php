@@ -9,9 +9,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Who grades what (ADR-0027). Teachers named on a category (inherited by its sub-categories) or on one quiz grade every
- * attempt there; one teacher at a time may hold an attempt, given by an admin or the quiz creator ("Giao chấm") or taken
- * by the teacher ("Nhận chấm"). Reading and grading rights themselves are applied by AssessmentGradingService.
+ * Who grades what (ADR-0027, Amendment 1.2). Teachers named on a quiz grade every attempt of it; they are named from the
+ * quiz list, for one or many quizzes at once ("Giao chấm"). One teacher at a time may hold an attempt, taken by the teacher
+ * ("Nhận chấm", or on saving a first score). Reading and grading rights themselves are applied by AssessmentGradingService.
+ * Category scopes are no longer read or written; copyCategoryScopes turns the old ones into quiz scopes once.
  *
  * Users are checked against the tenant here: the foreign keys to `users` carry no customer_id.
  */
@@ -27,32 +28,14 @@ final class AssessmentGraderService
         return DB::table('users')->where('customer_id', $customerId)->where('role', 'teacher')->where('status', 'active');
     }
 
-    /**
-     * What a teacher grades through scopes: the categories they are named on with all their sub-categories, and the
-     * quizzes they are named on.
-     *
-     * @return array{categories: list<int>, quizzes: list<int>}
-     */
+    /** @return list<int> the quizzes a teacher is named on */
     public function coverage(int $customerId, int $userId): array
     {
-        $rows = DB::table(self::SCOPES_TABLE)->where('customer_id', $customerId)->where('user_id', $userId)->get(['category_id', 'quiz_id']);
-        $categories = $rows->pluck('category_id')->filter()->map(fn ($id) => (int) $id)->all();
-
-        return [
-            'categories' => $categories === [] ? [] : $this->withDescendants($customerId, $categories),
-            'quizzes' => $rows->pluck('quiz_id')->filter()->map(fn ($id) => (int) $id)->values()->all(),
-        ];
+        return DB::table(self::SCOPES_TABLE)->where('customer_id', $customerId)->where('user_id', $userId)->whereNotNull('quiz_id')
+            ->pluck('quiz_id')->map(fn ($id) => (int) $id)->values()->all();
     }
 
-    // ---- Giáo viên chấm theo danh mục / theo đề ----
-
-    /** @return Collection<int, Collection<int, object>> category id => teachers named on it directly ({id, name}) */
-    public function categoryGraders(int $customerId): Collection
-    {
-        return DB::table(self::SCOPES_TABLE.' as gs')->join('users as u', 'u.id', '=', 'gs.user_id')
-            ->where('gs.customer_id', $customerId)->whereNotNull('gs.category_id')->orderBy('u.name')
-            ->get(['gs.category_id', 'u.id', 'u.name'])->groupBy('category_id');
-    }
+    // ---- Giáo viên chấm của đề ----
 
     /** @return Collection<int, object> teachers named on the quiz itself ({id, name, email}) */
     public function quizGraders(int $customerId, int $quizId): Collection
@@ -62,43 +45,124 @@ final class AssessmentGraderService
             ->get(['u.id', 'u.name', 'u.email']);
     }
 
-    /**
-     * Teachers who already grade the quiz through its category or a parent category, with the category that names them.
-     *
-     * @return Collection<int, object> {id, name, category_name}
-     */
-    public function inheritedQuizGraders(int $customerId, ?int $categoryId): Collection
+    /** @param  list<int>  $quizIds  @return array<int, int> quiz id => number of teachers named on it */
+    public function graderCounts(int $customerId, array $quizIds): array
     {
-        if (! $categoryId) {
-            return collect();
+        if ($quizIds === []) {
+            return [];
         }
-        $chain = $this->ancestorsOrSelf($customerId, $categoryId);
 
-        return DB::table(self::SCOPES_TABLE.' as gs')->join('users as u', 'u.id', '=', 'gs.user_id')
-            ->join(AssessmentCategoryService::TABLE.' as c', 'c.id', '=', 'gs.category_id')
-            ->where('gs.customer_id', $customerId)->whereIn('gs.category_id', $chain)->orderBy('u.name')
-            ->get(['u.id', 'u.name', 'c.name as category_name'])->unique('id')->values();
+        return DB::table(self::SCOPES_TABLE)->where('customer_id', $customerId)->whereIn('quiz_id', $quizIds)
+            ->groupBy('quiz_id')->selectRaw('quiz_id, count(*) as total')->pluck('total', 'quiz_id')
+            ->mapWithKeys(fn ($total, $quizId) => [(int) $quizId => (int) $total])->all();
     }
 
-    /** Replaces the teachers named on a category. Admin only (the route sits in the admin-only category group). */
-    public function setCategoryGraders(int $customerId, User $user, int $categoryId, array $userIds): void
+    /**
+     * Quizzes with something to grade by hand: an essay / speaking question in the draft or in a published version. Only
+     * these take graders; a quiz of auto-graded questions needs none.
+     */
+    public function whereNeedsGrading(Builder $query, int $customerId, string $quizColumn): Builder
     {
-        abort_unless($user->role === 'customer_admin', 403);
-        DB::transaction(function () use ($customerId, $user, $categoryId, $userIds): void {
-            $category = DB::table(AssessmentCategoryService::TABLE)->where('customer_id', $customerId)->where('id', $categoryId)->lockForUpdate()->first();
-            abort_if(! $category, 404);
-            $this->replaceScope($customerId, $user, 'category_id', $categoryId, $userIds);
+        return $query->where(fn (Builder $query) => $query
+            ->whereExists(fn (Builder $draft) => $draft->selectRaw('1')->from(AssessmentQuizService::QUESTIONS_TABLE.' as gq')
+                ->join(AssessmentQuestionService::TABLE.' as gqq', function ($join): void {
+                    $join->on('gqq.id', '=', 'gq.question_id')->on('gqq.customer_id', '=', 'gq.customer_id');
+                })
+                ->whereColumn('gq.quiz_id', $quizColumn)->where('gq.customer_id', $customerId)
+                ->whereIn('gqq.question_type', AssessmentQuestionService::GRADER_TYPES))
+            ->orWhereExists(fn (Builder $version) => $version->selectRaw('1')->from(AssessmentQuizService::VERSIONS_TABLE.' as gv')
+                ->join(AssessmentQuizPublishService::VERSION_QUESTIONS_TABLE.' as gvq', function ($join): void {
+                    $join->on('gvq.quiz_version_id', '=', 'gv.id')->on('gvq.customer_id', '=', 'gv.customer_id');
+                })
+                ->whereColumn('gv.quiz_id', $quizColumn)->where('gv.customer_id', $customerId)
+                ->where('gvq.requires_manual_grading', true)));
+    }
+
+    /**
+     * @param  list<int>  $quizIds
+     * @return list<int> those of them that need grading by hand
+     */
+    public function gradableQuizIds(int $customerId, array $quizIds): array
+    {
+        if ($quizIds === []) {
+            return [];
+        }
+
+        return $this->whereNeedsGrading(DB::table(AssessmentQuizService::TABLE.' as gz')->where('gz.customer_id', $customerId)
+            ->whereIn('gz.id', $quizIds), $customerId, 'gz.id')->orderBy('gz.id')->pluck('gz.id')->map(fn ($id) => (int) $id)->all();
+    }
+
+    /**
+     * "Giao chấm" from the quiz list: names the teachers on each chosen quiz the user manages. `add` keeps who is there
+     * already; `replace` leaves exactly these (none = nobody). Quizzes the user may not manage, or with nothing to grade
+     * by hand, are skipped and counted.
+     *
+     * @param  list<int>  $quizIds
+     * @param  list<int>  $userIds
+     * @return array{saved: int, skipped: int}
+     */
+    public function setQuizGraders(int $customerId, User $user, array $quizIds, array $userIds, string $mode): array
+    {
+        $userIds = array_values(array_unique(array_map('intval', $userIds)));
+        $valid = $userIds === [] ? collect() : $this->teachers($customerId)->whereIn('id', $userIds)->pluck('id');
+        if ($valid->count() !== count($userIds)) {
+            throw ValidationException::withMessages(['user_ids' => __('lf.LF_assessment_grader_error_teacher')]);
+        }
+        if ($mode === 'add' && $userIds === []) {
+            throw ValidationException::withMessages(['user_ids' => __('lf.LF_assessment_grader_choose_teacher')]);
+        }
+        $quizIds = array_values(array_unique(array_map('intval', $quizIds)));
+
+        return DB::transaction(function () use ($customerId, $user, $quizIds, $userIds, $mode): array {
+            // A quiz with nothing to grade by hand is skipped like one the user does not manage.
+            $gradable = $this->gradableQuizIds($customerId, $quizIds);
+            $quizzes = DB::table(AssessmentQuizService::TABLE)->where('customer_id', $customerId)->whereIn('id', $gradable)
+                ->orderBy('id')->lockForUpdate()->get(['id', 'created_by']);
+            $saved = 0;
+            foreach ($quizzes as $quiz) {
+                if (! $this->managesQuiz($user, $quiz)) {
+                    continue;
+                }
+                $this->nameOnQuiz($customerId, (int) $user->id, (int) $quiz->id, $userIds, $mode === 'replace');
+                $saved++;
+            }
+
+            return ['saved' => $saved, 'skipped' => count($quizIds) - $saved];
         });
     }
 
-    /** Replaces the teachers named on a quiz ("Giao chấm đề"): the admin, or the teacher who created the quiz. */
-    public function setQuizGraders(int $customerId, User $user, int $quizId, array $userIds): void
+    /**
+     * Amendment 1.2: each teacher named on a category (or a parent of it) is named on every quiz of it, so nobody loses a
+     * right when category scopes stop counting. Idempotent; the category rows stay as history.
+     *
+     * @return array{categories: int, added: int}
+     */
+    public function copyCategoryScopes(?int $customerId = null, bool $dryRun = false): array
     {
-        DB::transaction(function () use ($customerId, $user, $quizId, $userIds): void {
-            $quiz = DB::table(AssessmentQuizService::TABLE)->where('customer_id', $customerId)->where('id', $quizId)->lockForUpdate()->first();
-            abort_if(! $quiz || ! $this->managesQuiz($user, $quiz), 404);
-            $this->replaceScope($customerId, $user, 'quiz_id', $quizId, $userIds);
-        });
+        $rows = DB::table(self::SCOPES_TABLE)->whereNotNull('category_id')
+            ->when($customerId !== null, fn ($query) => $query->where('customer_id', $customerId))
+            ->orderBy('id')->get(['customer_id', 'category_id', 'user_id', 'created_by']);
+        $added = 0;
+        foreach ($rows->groupBy('customer_id') as $tenant => $scopes) {
+            $tree = $this->tree((int) $tenant);
+            foreach ($scopes as $scope) {
+                $categories = $this->withDescendants((int) $tenant, [(int) $scope->category_id], $tree);
+                $quizIds = DB::table(AssessmentQuizService::TABLE)->where('customer_id', $tenant)->whereIn('category_id', $categories)->pluck('id');
+                $named = DB::table(self::SCOPES_TABLE)->where('customer_id', $tenant)->where('user_id', $scope->user_id)
+                    ->whereIn('quiz_id', $quizIds)->pluck('quiz_id')->map(fn ($id) => (int) $id)->all();
+                $missing = $quizIds->map(fn ($id) => (int) $id)->diff($named)->values();
+                $added += $missing->count();
+                if (! $dryRun && $missing->isNotEmpty()) {
+                    $now = now();
+                    DB::table(self::SCOPES_TABLE)->insert($missing->map(fn (int $quizId) => [
+                        'customer_id' => (int) $tenant, 'quiz_id' => $quizId, 'user_id' => (int) $scope->user_id,
+                        'created_by' => $scope->created_by, 'created_at' => $now, 'updated_at' => $now,
+                    ])->all());
+                }
+            }
+        }
+
+        return ['categories' => $rows->count(), 'added' => $added];
     }
 
     // ---- Giao chấm / Nhận chấm / Trả lại ----
@@ -137,48 +201,6 @@ final class AssessmentGraderService
             ->first(['ga.id', 'ga.assigned_to_user_id as user_id', 'u.name']);
     }
 
-    /**
-     * Gives attempts to one teacher. Attempts this user may not hand out (another teacher's quiz, still in progress, other
-     * tenant) are skipped and counted, never an error, so a mixed selection still does what it can.
-     *
-     * @param  list<int>  $attemptIds
-     * @return array{assigned: int, skipped: int}
-     */
-    public function assign(int $customerId, User $user, array $attemptIds, int $teacherId): array
-    {
-        $teacher = $this->teachers($customerId)->where('id', $teacherId)->first(['id']);
-        if (! $teacher) {
-            throw ValidationException::withMessages(['teacher_id' => __('lf.LF_assessment_grader_error_teacher')]);
-        }
-
-        return DB::transaction(function () use ($customerId, $user, $attemptIds, $teacherId): array {
-            $attempts = DB::table(AssessmentAttemptService::TABLE.' as a')
-                ->join(AssessmentQuizService::TABLE.' as z', function ($join): void {
-                    $join->on('z.id', '=', 'a.quiz_id')->on('z.customer_id', '=', 'a.customer_id');
-                })
-                ->where('a.customer_id', $customerId)->whereIn('a.id', $attemptIds)->orderBy('a.id')->lockForUpdate()
-                ->get(['a.id', 'a.status', 'z.created_by']);
-            $assigned = 0;
-
-            foreach ($attempts as $attempt) {
-                if ($attempt->status === 'in_progress' || ! $this->managesQuiz($user, $attempt)) {
-                    continue;
-                }
-                $holder = $this->activeHolder($customerId, (int) $attempt->id);
-                if ($holder && (int) $holder->user_id === $teacherId) {
-                    $assigned++;
-
-                    continue;
-                }
-                $this->endActive($customerId, (int) $attempt->id, 'released', (int) $user->id);
-                $this->open($customerId, (int) $attempt->id, $teacherId, (int) $user->id, 'assigned');
-                $assigned++;
-            }
-
-            return ['assigned' => $assigned, 'skipped' => count(array_unique($attemptIds)) - $assigned];
-        });
-    }
-
     /** "Nhận chấm": a teacher who may see the attempt takes it while nobody holds it. The caller has checked the view right. */
     public function claim(int $customerId, User $user, int $attemptId): void
     {
@@ -197,6 +219,12 @@ final class AssessmentGraderService
             }
             $this->open($customerId, $attemptId, (int) $user->id, (int) $user->id, 'claimed');
         });
+    }
+
+    /** A teacher saved a score on a pending attempt nobody holds: it becomes theirs (call inside the grading transaction). */
+    public function takeOnGrading(int $customerId, int $attemptId, int $teacherId): void
+    {
+        $this->open($customerId, $attemptId, $teacherId, $teacherId, 'claimed');
     }
 
     /** "Trả lại": the holder, or whoever may hand the attempt out, frees it. */
@@ -220,36 +248,27 @@ final class AssessmentGraderService
     }
 
     /**
-     * Teachers offered in the Giao chấm dialog, best first: those who already grade the chosen attempts (category or quiz),
-     * then the least busy. `covers` counts the chosen attempts each one grades; `load` the attempts they hold that still
-     * wait for grading.
+     * Teachers offered in the Giao chấm dialog: the least busy first. `covers` counts the chosen quizzes each one is
+     * already named on; `load` the attempts they hold that still wait for grading.
      *
-     * @param  list<int>  $attemptIds
+     * @param  list<int>  $quizIds
      * @return Collection<int, object> {id, name, email, covers, load}
      */
-    public function suggestions(int $customerId, array $attemptIds): Collection
+    public function suggestions(int $customerId, array $quizIds): Collection
     {
         $teachers = $this->teachers($customerId)->orderBy('name')->limit(1000)->get(['id', 'name', 'email']);
-        $quizzes = DB::table(AssessmentAttemptService::TABLE.' as a')->join(AssessmentQuizService::TABLE.' as z', 'z.id', '=', 'a.quiz_id')
-            ->where('a.customer_id', $customerId)->whereIn('a.id', $attemptIds)->get(['a.quiz_id', 'z.category_id']);
-        $scopes = DB::table(self::SCOPES_TABLE)->where('customer_id', $customerId)->whereIn('user_id', $teachers->pluck('id'))
-            ->get(['user_id', 'category_id', 'quiz_id'])->groupBy('user_id');
+        $covers = DB::table(self::SCOPES_TABLE)->where('customer_id', $customerId)->whereIn('quiz_id', $quizIds)
+            ->groupBy('user_id')->selectRaw('user_id, count(*) as total')->pluck('total', 'user_id');
         $load = DB::table(self::ASSIGNMENTS_TABLE.' as ga')->join(AssessmentAttemptService::TABLE.' as a', 'a.id', '=', 'ga.attempt_id')
             ->where('ga.customer_id', $customerId)->where('ga.status', 'active')->where('a.grading_status', 'pending')
             ->groupBy('ga.assigned_to_user_id')->selectRaw('ga.assigned_to_user_id as user_id, count(*) as total')->pluck('total', 'user_id');
 
-        $tree = $this->tree($customerId);
-
-        return $teachers->map(function (object $teacher) use ($customerId, $quizzes, $scopes, $load, $tree): object {
-            $own = $scopes->get($teacher->id, collect());
-            $categories = $this->withDescendants($customerId, $own->pluck('category_id')->filter()->map(fn ($id) => (int) $id)->all(), $tree);
-            $quizIds = $own->pluck('quiz_id')->filter()->map(fn ($id) => (int) $id)->all();
-            $teacher->covers = $quizzes->filter(fn (object $row) => in_array((int) $row->quiz_id, $quizIds, true)
-                || ($row->category_id !== null && in_array((int) $row->category_id, $categories, true)))->count();
+        return $teachers->map(function (object $teacher) use ($covers, $load): object {
+            $teacher->covers = (int) ($covers[$teacher->id] ?? 0);
             $teacher->load = (int) ($load[$teacher->id] ?? 0);
 
             return $teacher;
-        })->sortBy([['covers', 'desc'], ['load', 'asc'], ['name', 'asc']])->values();
+        })->sortBy([['load', 'asc'], ['name', 'asc']])->values();
     }
 
     // ---- internals ----
@@ -288,20 +307,16 @@ final class AssessmentGraderService
         return $attempt;
     }
 
-    /** @param  list<int>  $userIds */
-    private function replaceScope(int $customerId, User $user, string $column, int $id, array $userIds): void
+    /** @param  list<int>  $userIds  checked teachers of the tenant */
+    private function nameOnQuiz(int $customerId, int $byUserId, int $quizId, array $userIds, bool $replace): void
     {
-        $userIds = array_values(array_unique(array_map('intval', $userIds)));
-        $valid = $userIds === [] ? collect() : $this->teachers($customerId)->whereIn('id', $userIds)->pluck('id')->map(fn ($v) => (int) $v);
-        if ($valid->count() !== count($userIds)) {
-            throw ValidationException::withMessages(['user_ids' => __('lf.LF_assessment_grader_error_teacher')]);
+        $current = DB::table(self::SCOPES_TABLE)->where('customer_id', $customerId)->where('quiz_id', $quizId)->pluck('user_id')->map(fn ($v) => (int) $v);
+        if ($replace) {
+            DB::table(self::SCOPES_TABLE)->where('customer_id', $customerId)->where('quiz_id', $quizId)->whereNotIn('user_id', $userIds)->delete();
         }
-
-        $current = DB::table(self::SCOPES_TABLE)->where('customer_id', $customerId)->where($column, $id)->pluck('user_id')->map(fn ($v) => (int) $v);
-        DB::table(self::SCOPES_TABLE)->where('customer_id', $customerId)->where($column, $id)->whereNotIn('user_id', $userIds)->delete();
         $now = now();
         $new = collect($userIds)->diff($current)->map(fn (int $userId) => [
-            'customer_id' => $customerId, $column => $id, 'user_id' => $userId, 'created_by' => $user->id, 'created_at' => $now, 'updated_at' => $now,
+            'customer_id' => $customerId, 'quiz_id' => $quizId, 'user_id' => $userId, 'created_by' => $byUserId, 'created_at' => $now, 'updated_at' => $now,
         ]);
         if ($new->isNotEmpty()) {
             DB::table(self::SCOPES_TABLE)->insert($new->values()->all());
@@ -331,18 +346,6 @@ final class AssessmentGraderService
         }
 
         return array_keys($found);
-    }
-
-    /** @return list<int> the category and its parents, nearest first */
-    private function ancestorsOrSelf(int $customerId, int $categoryId): array
-    {
-        $parents = DB::table(AssessmentCategoryService::TABLE)->where('customer_id', $customerId)->pluck('parent_id', 'id');
-        $chain = [];
-        for ($id = $categoryId; $id && ! in_array($id, $chain, true); $id = (int) ($parents[$id] ?? 0)) {
-            $chain[] = $id;
-        }
-
-        return $chain;
     }
 
     /** @return array<int, list<int>> parent id => child ids */

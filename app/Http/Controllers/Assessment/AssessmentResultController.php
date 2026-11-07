@@ -13,7 +13,6 @@ use App\Services\Assessment\AssessmentStatisticsService;
 use App\Services\MediaService;
 use App\Support\TenantContext;
 use App\Support\XlsxDownload;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -30,7 +29,6 @@ final class AssessmentResultController extends Controller
     public function __construct(
         private readonly Grading $grading,
         private readonly Attempts $attempts,
-        private readonly Quizzes $quizzes,
         private readonly MediaService $media,
         private readonly AssessmentStatisticsService $statistics,
         private readonly Graders $graders,
@@ -54,7 +52,6 @@ final class AssessmentResultController extends Controller
             'quizzes' => $this->grading->scoped($customerId, $user)->whereNotNull('z.current_version_id')
                 ->groupBy('z.id', 'z.title')->orderBy('z.title')->get(['z.id', 'z.title']),
             'teachers' => $user->role === 'customer_admin' ? $this->graders->teachers($customerId)->orderBy('name')->get(['id', 'name']) : collect(),
-            'canAssign' => $user->role === 'customer_admin' || $this->quizzes->scoped($customerId, $user)->exists(),
             'routePrefix' => $this->routePrefix($request),
         ]);
     }
@@ -233,62 +230,11 @@ final class AssessmentResultController extends Controller
             'canGrade' => $canGrade,
             'holder' => $this->graders->holders($customerId, [$id])->get($id),
             'activeHolder' => $holder,
-            'canAssign' => $attempt->status !== 'in_progress' && $this->graders->managesQuiz($user, (object) ['created_by' => $attempt->quiz_created_by]),
             'canClaim' => $user->role === 'teacher' && ! $holder && $attempt->grading_status === 'pending' && $attempt->status !== 'in_progress',
             'canRelease' => $holder && ((int) $holder->user_id === (int) $user->id
                 || $this->graders->managesQuiz($user, (object) ['created_by' => $attempt->quiz_created_by])),
             'routePrefix' => $this->routePrefix($request),
         ]);
-    }
-
-    /** The Giao chấm dialog for the chosen attempts (`ids[]`), with the teachers ranked by AssessmentGraderService::suggestions. */
-    public function assignDialog(Request $request): View
-    {
-        abort_unless($request->ajax(), 404);
-        $customerId = $this->customerId();
-        $ids = $this->assignableIds($customerId, $request->user(), $request->query('ids', []));
-        abort_if($ids === [], 404);
-        $holders = $this->graders->holders($customerId, $ids);
-
-        return view('assessments.results.assign-dialog', [
-            'ids' => $ids,
-            'teachers' => $this->graders->suggestions($customerId, $ids),
-            'currentId' => count($ids) === 1 && ($holders->first()?->status === 'active') ? (int) $holders->first()->user_id : null,
-            // Opened on the attempt page: after saving, that page reloads (who holds it decides who may grade).
-            'returnTo' => count($ids) === 1 && $request->boolean('from_attempt') ? $ids[0] : null,
-            'routePrefix' => $this->routePrefix($request),
-        ]);
-    }
-
-    public function assign(Request $request): JsonResponse|RedirectResponse
-    {
-        $validated = $request->validate([
-            'ids' => ['required', 'array', 'min:1', 'max:100'],
-            'ids.*' => ['integer', 'distinct'],
-            'teacher_id' => ['required', 'integer'],
-            'return_to' => ['nullable', 'integer'],
-        ], ['teacher_id.required' => __('lf.LF_assessment_grader_choose_teacher')]);
-        $customerId = $this->customerId();
-        $user = $request->user();
-        $ids = $this->assignableIds($customerId, $user, $validated['ids']);
-        $result = $this->graders->assign($customerId, $user, $ids, (int) $validated['teacher_id']);
-        $skipped = $result['skipped'] + count(array_unique($validated['ids'])) - count($ids);
-
-        $message = trans_choice('lf.LF_assessment_grader_assigned', $result['assigned'], ['count' => $result['assigned']]);
-        if ($skipped > 0) {
-            $message .= ' '.trans_choice('lf.LF_assessment_grader_skipped', $skipped, ['count' => $skipped]);
-        }
-
-        $returnTo = isset($validated['return_to']) && in_array((int) $validated['return_to'], $ids, true)
-            ? route($this->routePrefix($request).'.show', (int) $validated['return_to'])
-            : null;
-        if ($returnTo !== null) {
-            session()->flash('success', $message);
-        }
-
-        return $request->expectsJson()
-            ? response()->json(array_filter(['message' => $message, 'redirect' => $returnTo]))
-            : ($returnTo ? redirect()->to($returnTo) : back())->with('success', $message);
     }
 
     public function claim(Request $request, int $id): RedirectResponse
@@ -307,23 +253,6 @@ final class AssessmentResultController extends Controller
         $this->graders->release($customerId, $request->user(), $id);
 
         return back()->with('success', __('lf.LF_assessment_grader_released'));
-    }
-
-    /**
-     * The chosen attempts this user may see and hand out (submitted, of a quiz they manage).
-     *
-     * @return list<int>
-     */
-    private function assignableIds(int $customerId, User $user, mixed $ids): array
-    {
-        $ids = collect(is_array($ids) ? $ids : [])->filter(fn ($id) => is_numeric($id))->map(fn ($id) => (int) $id)->unique()->take(100)->values()->all();
-        if ($ids === []) {
-            return [];
-        }
-
-        return $this->grading->scoped($customerId, $user)->whereIn('a.id', $ids)->where('a.status', '!=', 'in_progress')
-            ->when($user->role !== 'customer_admin', fn ($query) => $query->where('z.created_by', $user->id))
-            ->orderBy('a.id')->pluck('a.id')->map(fn ($id) => (int) $id)->all();
     }
 
     public function grade(Request $request, int $id, int $answerId): RedirectResponse

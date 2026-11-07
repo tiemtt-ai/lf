@@ -24,6 +24,9 @@
         'graders' => __('lf.LF_assessment_quiz_tab_graders'),
         'publish' => __('lf.LF_assessment_quiz_tab_publish'),
     ];
+    if (! $needsGrading) {
+        unset($tabs['graders']);
+    }
     $activeTab = array_key_exists((string) request()->query('tab'), $tabs) ? (string) request()->query('tab') : 'info';
     $trim = fn ($value) => rtrim(rtrim(number_format((float) $value, 2, '.', ''), '0'), '.');
     $multiSection = $sections->count() > 1;
@@ -117,13 +120,14 @@
         @endif
     </div>
 
-    <nav class="course-template-tabs ui-quiz-tabs" aria-label="{{ __('lf.LF_assessment_quiz_tabs_label') }}">
+    {{-- A live region: adding the first essay / speaking question brings the Người chấm tab in without a reload. --}}
+    <nav class="course-template-tabs ui-quiz-tabs" data-ui-live-region="tabs" aria-label="{{ __('lf.LF_assessment_quiz_tabs_label') }}">
         @foreach ($tabs as $tab => $label)
             <a href="{{ route($routePrefix.'.show', ['id' => $quiz->id, 'tab' => $tab]) }}"
                @class(['course-template-tab', 'is-active' => $activeTab === $tab])
                @if ($activeTab === $tab) aria-current="page" @endif>
                 {{ $label }}
-                @if ($tab === 'questions')<span class="ui-tab-count" data-ui-live-region="tab-questions">{{ $itemCount }}</span>@endif
+                @if ($tab === 'questions')<span class="ui-tab-count">{{ $itemCount }}</span>@endif
                 @if ($tab === 'publish' && $versions->isNotEmpty())<span class="ui-tab-count">{{ $versions->count() }}</span>@endif
             </a>
         @endforeach
@@ -348,24 +352,33 @@
         </div>
     </section>
 
-    {{-- Người chấm (ADR-0027 D2): teachers who grade this quiz, besides admins and the quiz creator. --}}
+    {{-- Người chấm (ADR-0027 Amendment 1.2): teachers named on this quiz, besides admins, the creator and granters. --}}
+    @if ($needsGrading)
     <section id="assessment-quiz-tab-graders" class="mk-section" aria-labelledby="assessment-quiz-graders-title" data-ui-live-region="graders"
              data-assessment-quiz-graders @if ($activeTab !== 'graders') hidden @endif>
-        @php
-            $graderRows = $quizGraders->map(fn ($teacher) => ['name' => $teacher->name, 'from' => __('lf.LF_assessment_quiz_grader_from_quiz')])
-                ->concat($inheritedGraders->whereNotIn('id', $quizGraders->pluck('id'))
-                    ->map(fn ($teacher) => ['name' => $teacher->name, 'from' => __('lf.LF_assessment_quiz_grader_from_category', ['category' => $teacher->category_name])]))
-                ->values();
-        @endphp
         <div class="ui-summary-head">
             <div>
                 <h2 id="assessment-quiz-graders-title">{{ __('lf.LF_assessment_grader_graders') }}</h2>
                 <p class="ui-caption">{{ __('lf.LF_assessment_quiz_graders_help') }}</p>
+                {{-- Who may grade (ADR-0025 D11, ADR-0027 D1): each role explains itself in a tooltip. --}}
+                <p class="ui-caption ui-grader-roles">
+                    <span>{{ __('lf.LF_assessment_quiz_graders_who') }}</span>
+                    @foreach (['admin', 'creator', 'granter', 'assigned'] as $role)
+                        <span class="ui-grader-role">
+                            {{ __('lf.LF_assessment_quiz_grader_role_'.$role) }}
+                            <span class="ui-source-icon" tabindex="0" role="img" data-tooltip-align="start" data-tooltip-placement="bottom"
+                                  data-tooltip="{{ __('lf.LF_assessment_quiz_grader_role_'.$role.'_tip') }}"
+                                  aria-label="{{ __('lf.LF_assessment_quiz_grader_role_'.$role) }}: {{ __('lf.LF_assessment_quiz_grader_role_'.$role.'_tip') }}">
+                                <x-backend-icon name="info" class="ui-icon" />
+                            </span>
+                        </span>
+                    @endforeach
+                </p>
             </div>
             <div class="mk-table-top__actions">
                 <button type="button" class="ui-button ui-button--outline cursor-interaction" data-ui-dialog-form-open
                         data-ui-dialog-form-for="assessment-quiz-page"
-                        data-url="{{ route($routePrefix.'.graders.edit', $quiz->id) }}" aria-haspopup="dialog">
+                        data-url="{{ route($routePrefix.'.graders.create', ['ids' => [$quiz->id], 'from_quiz' => 1]) }}" aria-haspopup="dialog">
                     <x-backend-icon name="user-cog" class="ui-icon" />
                     {{ __('lf.LF_assessment_grader_quiz_button') }}
                 </button>
@@ -382,15 +395,15 @@
                     <tr>
                         <th scope="col" class="mk-sequence">{{ __('lf.table_no') }}</th>
                         <th scope="col" class="mk-text-cell">{{ __('lf.LF_assessment_grader_teachers') }}</th>
-                        <th scope="col" class="mk-text-cell">{{ __('lf.LF_assessment_quiz_grader_from') }}</th>
+                        <th scope="col" class="mk-text-cell">{{ __('lf.LF_assessment_quiz_grader_email') }}</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @forelse ($graderRows as $row)
+                    @forelse ($quizGraders as $teacher)
                         <tr>
                             <td class="mk-sequence" data-label="{{ __('lf.table_no') }}">{{ $loop->iteration }}</td>
-                            <td class="mk-text-cell" data-label="{{ __('lf.LF_assessment_grader_teachers') }}">{{ $row['name'] }}</td>
-                            <td class="mk-text-cell" data-label="{{ __('lf.LF_assessment_quiz_grader_from') }}">{{ $row['from'] }}</td>
+                            <td class="mk-text-cell" data-label="{{ __('lf.LF_assessment_grader_teachers') }}">{{ $teacher->name }}</td>
+                            <td class="mk-text-cell" data-label="{{ __('lf.LF_assessment_quiz_grader_email') }}">{{ $teacher->email }}</td>
                         </tr>
                     @empty
                         <tr class="mk-empty-row">
@@ -406,6 +419,7 @@
             </table>
         </div>
     </section>
+    @endif
 
     {{-- Xuất bản: publish the draft as a new frozen version; versions are never changed. --}}
     <section id="assessment-quiz-tab-publish" class="mk-section" aria-labelledby="assessment-quiz-versions-title" data-ui-live-region="versions"
@@ -465,6 +479,6 @@
         </div>
     </section>
 
-    @include('assessments.passages.partials.dialog-host', ['dialogTitleId' => 'assessment-quiz-dialog-title assessment-quiz-section-dialog-title assessment-quiz-item-dialog-title assessment-quiz-picker-title assessment-quiz-auto-title assessment-registration-dialog-title assessment-grader-dialog-title'])
+    @include('assessments.passages.partials.dialog-host', ['dialogTitleId' => 'assessment-quiz-dialog-title assessment-quiz-section-dialog-title assessment-quiz-item-dialog-title assessment-quiz-picker-title assessment-quiz-auto-title assessment-registration-dialog-title assessment-quiz-graders-dialog-title'])
 </div>
 @endsection
