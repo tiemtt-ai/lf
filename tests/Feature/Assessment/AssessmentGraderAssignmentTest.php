@@ -130,7 +130,8 @@ class AssessmentGraderAssignmentTest extends TestCase
             ->assertDontSee('id="assessment-quiz-tab-graders"', false)->assertDontSeeText(__('lf.LF_assessment_quiz_tab_graders'))
             ->assertSee('id="assessment-quiz-tab-info"', false);
         $this->actingAs($this->admin)->get(self::ADMIN.'/quizzes/'.$written.'?tab=graders')->assertOk()
-            ->assertSee('id="assessment-quiz-tab-graders"', false)->assertSeeText(__('lf.LF_assessment_quiz_tab_graders'));
+            ->assertSee('id="assessment-quiz-tab-graders"', false)->assertSeeText(__('lf.LF_assessment_quiz_tab_graders'))
+            ->assertSee('<span class="ui-tab-count">0</span>', false);
 
         // Choosing both names graders on the written quiz only; the other alone opens nothing.
         $this->save($this->admin, [$written, $choice], [$lan->id], 'add')->assertOk()
@@ -138,6 +139,9 @@ class AssessmentGraderAssignmentTest extends TestCase
                 .trans_choice('lf.LF_assessment_grader_quizzes_skipped', 1, ['count' => 1])]);
         $this->assertSame([$lan->id], $this->graders($written));
         $this->assertSame([], $this->graders($choice));
+        // The Người chấm tab counts the teachers named on the quiz.
+        $tabs = $this->actingAs($this->admin)->get(self::ADMIN.'/quizzes/'.$written)->assertOk()->getContent();
+        $this->assertMatchesRegularExpression('/'.preg_quote(__('lf.LF_assessment_quiz_tab_graders'), '/').'\s*<span class="ui-tab-count">1<\/span>/u', $tabs);
         $this->actingAs($this->admin)->get(self::ADMIN.'/quizzes/graders?ids[]='.$choice, self::AJAX)->assertNotFound();
 
         // Filter by question type in the draft, or "graded by hand".

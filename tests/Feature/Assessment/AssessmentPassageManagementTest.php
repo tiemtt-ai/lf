@@ -96,11 +96,10 @@ class AssessmentPassageManagementTest extends TestCase
             ->assertSeeText('Bài đọc số một')->assertDontSeeText('Bài nghe số hai');
         $this->actingAs($this->admin)->get(self::ADMIN.'?skill_type=listening')->assertOk()
             ->assertSeeText('Bài nghe số hai')->assertDontSeeText('Bài đọc số một');
-        // The page explains a passage and sketches the test: passage first, then its questions, then a separate one.
+        // The page explains a passage in a tooltip; no sample sketch.
         $this->actingAs($this->admin)->get(self::ADMIN)->assertOk()
             ->assertSee('data-tooltip="'.e(__('lf.LF_assessment_passages_tip')).'"', false)
-            ->assertSeeTextInOrder([__('lf.LF_assessment_passage_demo_title'), __('lf.LF_assessment_passage_demo_q1'),
-                __('lf.LF_assessment_passage_demo_q2'), __('lf.LF_assessment_passage_demo_q3')]);
+            ->assertDontSee('ui-passage-demo', false);
         $this->actingAs($this->admin)->get(self::ADMIN.'?status=draft')->assertOk()
             ->assertSeeText('Bài đọc số một')->assertDontSeeText('Bài nghe số hai');
     }

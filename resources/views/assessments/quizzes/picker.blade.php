@@ -87,9 +87,6 @@
                         <p class="ui-caption ui-pick-empty">{{ __('lf.LF_assessment_quiz_picker_no_passages') }}</p>
                     @endforelse
                 </div>
-                <div x-show="tab === 'passages'" x-cloak>
-                    @include('assessments.passages.partials.demo')
-                </div>
             </div>
         </div>
     </div>

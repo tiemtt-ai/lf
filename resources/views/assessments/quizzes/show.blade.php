@@ -128,6 +128,7 @@
                @if ($activeTab === $tab) aria-current="page" @endif>
                 {{ $label }}
                 @if ($tab === 'questions')<span class="ui-tab-count">{{ $itemCount }}</span>@endif
+                @if ($tab === 'graders')<span class="ui-tab-count">{{ $quizGraders->count() }}</span>@endif
                 @if ($tab === 'publish' && $versions->isNotEmpty())<span class="ui-tab-count">{{ $versions->count() }}</span>@endif
             </a>
         @endforeach

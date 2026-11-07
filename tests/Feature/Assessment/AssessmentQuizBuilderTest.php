@@ -92,7 +92,7 @@ class AssessmentQuizBuilderTest extends TestCase
         $this->actingAs($this->admin)->get(self::ADMIN.'/quizzes/'.$quiz.'/questions/pick', self::AJAX)->assertOk()
             ->assertSeeText('Câu lẻ')->assertDontSeeText('Câu nháp')->assertDontSeeText('Con A')->assertSeeText('Bài đọc')
             // The passage source explains itself and sketches how a passage shows in the test.
-            ->assertSee(e(__('lf.LF_assessment_quiz_picker_passages_tip')), false)->assertSeeText(__('lf.LF_assessment_passage_demo_toggle'));
+            ->assertSee(e(__('lf.LF_assessment_quiz_picker_passages_tip')), false)->assertDontSee('ui-passage-demo', false);
 
         $this->add($quiz, $section, [$single], [$passage])->assertCreated()
             ->assertJson(['message' => trans_choice('lf.LF_assessment_quiz_questions_added', 3, ['count' => 3])]);
