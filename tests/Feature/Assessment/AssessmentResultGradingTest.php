@@ -109,7 +109,7 @@ class AssessmentResultGradingTest extends TestCase
             ->assertSeeText('Học viên Lan')->assertSeeText(__('lf.LF_assessment_result_grading_pending'));
         $page = self::ADMIN.'/results/'.$attempt->id;
         $this->actingAs($this->admin)->get($page)->assertOk()
-            ->assertSeeText('Bài viết của em')->assertSeeText('Chọn đáp án đúng')
+            ->assertSeeText('Bài viết của em')->assertSeeText('Chọn đáp án đúng')->assertSeeText(__('lf.LF_assessment_result_answers_help'))
             ->assertSeeText(__('lf.LF_assessment_result_accepted', ['answers' => 'Seoul / 서울']))
             ->assertSee('results/'.$attempt->id.'/answers/'.$answer($q['essay'])->id.'/grade', false);
 

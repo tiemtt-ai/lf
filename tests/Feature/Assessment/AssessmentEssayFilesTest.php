@@ -96,6 +96,16 @@ class AssessmentEssayFilesTest extends TestCase
         $this->assertSame(3, DB::table('media_file_usages')->where('owner_type', 'assessment_answer')->where('usage_type', 'attachment')
             ->where('status', 'active')->count());
 
+        // The page asks for the list again while a file waits for its scan: no link until it is ready.
+        $scanning = (int) $rows->first()->media_file_id;
+        DB::table('media_files')->where('id', $scanning)->update(['status' => 'processing']);
+        $this->actingAs($this->student)->getJson($files, self::AJAX)->assertOk()->assertJsonCount(3, 'files')
+            ->assertJsonPath('files.0.id', $scanning)->assertJsonPath('files.0.url', null);
+        DB::table('media_files')->where('id', $scanning)->update(['status' => 'ready']);
+        $this->assertNotNull($this->actingAs($this->student)->getJson($files, self::AJAX)->assertOk()->json('files.0.url'));
+        $this->actingAs($this->student)->getJson(self::SITE.'/assessments/attempts/'.$attempt.'/files/'.$vq[$q['plain']]->id, self::AJAX)
+            ->assertNotFound();
+
         // Removing frees a place and deletes the file nothing else uses.
         $first = (int) $rows->first()->media_file_id;
         $this->actingAs($this->student)->deleteJson($files.'/'.$first, [], self::AJAX)->assertOk()->assertJsonCount(2, 'files');
@@ -111,6 +121,7 @@ class AssessmentEssayFilesTest extends TestCase
         $other = $this->createUser($this->customerId, 'student');
         $this->actingAs($other)->post($files, ['file' => UploadedFile::fake()->image('x.jpg')], self::AJAX)->assertNotFound();
         $this->actingAs($other)->deleteJson($files.'/'.$rows->get(1)->media_file_id, [], self::AJAX)->assertNotFound();
+        $this->actingAs($other)->getJson($files, self::AJAX)->assertNotFound();
 
         // Files only: the essay is answered, not blank, and waits for a grader.
         $this->actingAs($this->student)->post(self::SITE.'/assessments/attempts/'.$attempt.'/submit', ['answers' => [
@@ -127,13 +138,17 @@ class AssessmentEssayFilesTest extends TestCase
         // Closed: nothing more goes in or out.
         $this->actingAs($this->student)->post($files, ['file' => UploadedFile::fake()->image('muon.jpg')], self::AJAX)->assertStatus(409);
         $this->actingAs($this->student)->deleteJson($files.'/'.$rows->get(1)->media_file_id, [], self::AJAX)->assertStatus(409);
+        $this->actingAs($this->student)->getJson($files, self::AJAX)->assertStatus(409);
         $this->assertSame(2, DB::table('core_assessment_answer_files')->where('answer_id', $answer->id)->count());
 
         // Grader and student both see the files.
         $this->actingAs($this->admin)->get(self::ADMIN.'/results/'.$attempt)->assertOk()
-            ->assertSeeText(__('lf.LF_assessment_result_files'))->assertSeeText('bai.pdf')->assertSeeText('trang-2.png');
+            ->assertSeeText(__('lf.LF_assessment_result_files'))->assertSeeText('bai.pdf')->assertSeeText('trang-2.png')
+            // Essays only: no choices to colour, so no colour key.
+            ->assertDontSeeText(__('lf.LF_assessment_result_answers_help'));
         $this->actingAs($this->student)->get(self::SITE.'/assessments/attempts/'.$attempt.'/result')->assertOk()
-            ->assertSeeText('bai.pdf')->assertSeeText('trang-2.png')->assertDontSeeText('trang-1.jpg');
+            ->assertSeeText('bai.pdf')->assertSeeText('trang-2.png')->assertDontSeeText('trang-1.jpg')
+            ->assertDontSeeText(__('lf.LF_assessment_learner_review_help'));
     }
 
     public function test_import_reads_the_column_in_either_language(): void

@@ -198,6 +198,22 @@ final class AssessmentLearnerController extends Controller
     }
 
     /**
+     * The answer's essay files again: the page asks while a new upload still waits for its virus scan,
+     * so the file gets its link without a reload.
+     */
+    public function files(Request $request, int $id, int $questionId): JsonResponse
+    {
+        $customerId = $this->customerId();
+        $attempt = $this->learner->attempt($customerId, (int) $request->user()->id, $id);
+        if ($attempt->status !== 'in_progress') {
+            return $this->closed($id);
+        }
+        $this->fileQuestion($customerId, $attempt, $questionId);
+
+        return $this->fileList($customerId, $id, $questionId);
+    }
+
+    /**
      * Uploads one file to an essay answer that allows files (ADR-0027 D5): images or PDF / DOCX, at most
      * Attempts::MAX_ATTACHMENTS. Answers with the answer's file list.
      */

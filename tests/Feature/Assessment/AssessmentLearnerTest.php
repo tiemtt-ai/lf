@@ -156,7 +156,8 @@ class AssessmentLearnerTest extends TestCase
         // Immediately: score and answers, explanation, but never the reference answer.
         $this->actingAs($this->student)->get(self::SITE.'/assessments/attempts/'.$attempt.'/result')->assertOk()
             ->assertSeeText('4 / 10')->assertSeeText(__('lf.LF_assessment_learner_score_provisional'))
-            ->assertSeeText('Giải thích bí mật')->assertSeeText('Seoul / 서울')->assertDontSeeText('Đáp án mẫu bí mật');
+            ->assertSeeText('Giải thích bí mật')->assertSeeText('Seoul / 서울')->assertDontSeeText('Đáp án mẫu bí mật')
+            ->assertSeeText(__('lf.LF_assessment_learner_review_help'));
         $this->actingAs($this->student)->get(self::SITE.'/assessments/attempts/'.$attempt)
             ->assertRedirect(self::SITE.'/assessments/attempts/'.$attempt.'/result');
         $this->actingAs($this->student)->postJson($save, ['question' => $vq[$q['single']]->id, 'option_keys' => [1]], self::AJAX)->assertStatus(409);

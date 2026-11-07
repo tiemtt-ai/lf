@@ -69,7 +69,10 @@
     @if ($visible['answers'])
         <section class="lf-exam-review" aria-labelledby="exam-review-title">
             <h2 id="exam-review-title" class="student-section-title">{{ __('lf.LF_assessment_learner_review') }}</h2>
-            <p class="student-section-copy">{{ __('lf.LF_assessment_learner_review_help') }}</p>
+            {{-- The colour key only means something when a question shows choices to colour. --}}
+            @if ($questions->contains(fn ($question) => $question->options !== []))
+                <p class="student-section-copy">{{ __('lf.LF_assessment_learner_review_help') }}</p>
+            @endif
 
             @foreach ($questions as $question)
                 @include('tenant.assessments.partials.passage-and-section')

@@ -149,7 +149,10 @@
         <div class="ui-summary-head">
             <div>
                 <h2 id="assessment-result-answers-title">{{ __('lf.LF_assessment_result_answers') }}</h2>
-                <p class="ui-caption">{{ __('lf.LF_assessment_result_answers_help') }}</p>
+                {{-- The colour key only means something when a question shows choices to colour. --}}
+                @if ($questions->contains(fn ($question) => (json_decode((string) $question->options_snapshot, true) ?: []) !== []))
+                    <p class="ui-caption">{{ __('lf.LF_assessment_result_answers_help') }}</p>
+                @endif
             </div>
         </div>
 

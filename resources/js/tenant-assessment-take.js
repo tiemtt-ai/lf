@@ -212,6 +212,8 @@ root.querySelectorAll('[data-recorder]').forEach((recorder) => {
 // ---- Essay files (ADR-0027 D5): each picked file is uploaded at once; the server's list is what the page shows. ----
 
 const FILE_TYPES = /\.(jpe?g|png|webp|heic|heif|pdf|docx)$/i;
+const CHECK_DELAY_MS = 2000;
+const CHECK_TRIES = 30;
 
 root.querySelectorAll('[data-files]').forEach((box) => {
     const question = box.closest('[data-question]');
@@ -279,6 +281,30 @@ root.querySelectorAll('[data-files]').forEach((box) => {
         pick.classList.toggle('is-disabled', full);
         question.dataset.fileCount = String(files.length);
         markAnswered(question, payload(question).answered);
+        watchChecking();
+    };
+
+    // A new upload has no link until its virus scan is done: ask for the list again for a while.
+    let checkTimer = null;
+    let checkTries = 0;
+    const watchChecking = () => {
+        clearTimeout(checkTimer);
+        if (! files.some((file) => ! file.url)) {
+            checkTries = 0;
+            return;
+        }
+        if (checkTries >= CHECK_TRIES) return;
+        checkTries += 1;
+        checkTimer = setTimeout(async () => {
+            try {
+                const result = await request(url, 'GET');
+                if (! result) return;
+                files = result.files || [];
+                render();
+            } catch {
+                // Leave the note; a reload shows the file once it is ready.
+            }
+        }, CHECK_DELAY_MS);
     };
 
     const request = async (target, method, body) => {
