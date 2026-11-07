@@ -5,7 +5,7 @@
   "default_locale": "vi",
   "fallback_locale": "en",
   "source_of_truth": "docs/LF-INDEX.md",
-  "document_count": 332,
+  "document_count": 335,
   "documents": [
     {
       "path": "LF-Core-Overview.md",
@@ -1424,6 +1424,51 @@
         "core/LF-Core-Assessment.md",
         "database/assessment/README.md",
         "quality/LF-Assessment-Rubric-Proposal.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "adr/ADR-0027-Assessment-Grader-Assignment-And-Essay-Files.md",
+      "title": "ADR-0027 — Assessment Grader Assignment And Essay Files",
+      "area": "adr",
+      "document_type": "adr",
+      "document_status": "Approved",
+      "implementation_status": "Implemented",
+      "metadata_complete": true,
+      "authority": "architecture_decision",
+      "canonical_for": [],
+      "topics": [
+        "assessment",
+        "grading",
+        "grader-assignment",
+        "media"
+      ],
+      "keywords": {
+        "vi": [
+          "phân công chấm",
+          "giao chấm",
+          "nhận chấm",
+          "giáo viên chấm",
+          "nộp tệp bài viết"
+        ],
+        "en": [
+          "grader assignment",
+          "claim grading",
+          "essay attachment"
+        ]
+      },
+      "identifiers": [
+        "core_assessment_grader_scopes",
+        "core_assessment_grading_assignments",
+        "allow_file_answer",
+        "essay_attachment"
+      ],
+      "related_documents": [
+        "adr/ADR-0025-Assessment-Simple-Administration.md",
+        "core/LF-Core-Assessment.md",
+        "database/assessment/README.md",
+        "quality/LF-Assessment-Grader-Assignment-Architecture-Review.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"
@@ -2876,13 +2921,54 @@
       "routing_source": "LF-INDEX.md"
     },
     {
+      "path": "database/assessment/core_assessment_grader_scopes.md",
+      "title": "Table: core_assessment_grader_scopes",
+      "area": "database",
+      "document_type": "table_schema",
+      "document_status": "Approved",
+      "implementation_status": "Implemented",
+      "metadata_complete": true,
+      "authority": "database",
+      "canonical_for": [],
+      "topics": [
+        "assessment",
+        "grading",
+        "grader-assignment"
+      ],
+      "keywords": {
+        "vi": [
+          "lược đồ bảng",
+          "tài liệu cơ sở dữ liệu",
+          "đánh giá năng lực",
+          "bài kiểm tra",
+          "tiêu chí chấm điểm"
+        ],
+        "en": [
+          "table schema",
+          "database documentation",
+          "assessment",
+          "quiz",
+          "rubric"
+        ]
+      },
+      "identifiers": [
+        "core_assessment_grader_scopes"
+      ],
+      "related_documents": [
+        "adr/ADR-0027-Assessment-Grader-Assignment-And-Essay-Files.md",
+        "database/assessment/README.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
       "path": "database/assessment/core_assessment_grading_assignments.md",
       "title": "Table: core_assessment_grading_assignments",
       "area": "database",
       "document_type": "table_schema",
-      "document_status": "Unknown",
-      "implementation_status": "Unknown",
-      "metadata_complete": false,
+      "document_status": "Approved",
+      "implementation_status": "Implemented",
+      "metadata_complete": true,
       "authority": "database",
       "canonical_for": [],
       "topics": [
@@ -10677,6 +10763,40 @@
       "related_documents": [
         "tech/LF-Tech-CSS.md",
         "tech/LF-Admin-Form-Design-Standard.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "quality/LF-Assessment-Grader-Assignment-Architecture-Review.md",
+      "title": "LF Assessment Grader Assignment Architecture Review",
+      "area": "quality",
+      "document_type": "architecture_review",
+      "document_status": "Approved",
+      "implementation_status": "Not Applicable",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": [
+        "assessment",
+        "grading",
+        "grader-assignment"
+      ],
+      "keywords": {
+        "vi": [
+          "rà soát phân công chấm"
+        ],
+        "en": [
+          "grader assignment architecture review"
+        ]
+      },
+      "identifiers": [
+        "core_assessment_grader_scopes",
+        "core_assessment_grading_assignments"
+      ],
+      "related_documents": [
+        "adr/ADR-0027-Assessment-Grader-Assignment-And-Essay-Files.md",
+        "database/assessment/README.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"

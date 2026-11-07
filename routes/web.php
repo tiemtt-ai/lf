@@ -257,13 +257,15 @@ Route::middleware([
 
     // Kiểm tra for students: "Đề thi của tôi", self-registration, taking an attempt and its result (ADR-0025).
     Route::controller(AssessmentLearnerController::class)->prefix('/assessments')->name('student.assessments.')
-        ->whereNumber(['id', 'registrationId', 'questionId'])->group(function () {
+        ->whereNumber(['id', 'registrationId', 'questionId', 'mediaId'])->group(function () {
             Route::get('/my', 'mine')->name('mine');
             Route::post('/{id}/register', 'register')->name('register');
             Route::post('/registrations/{registrationId}/start', 'start')->name('start');
             Route::get('/attempts/{id}', 'show')->name('attempts.show');
             Route::post('/attempts/{id}/answers', 'save')->name('attempts.save');
             Route::post('/attempts/{id}/recordings/{questionId}', 'record')->name('attempts.record');
+            Route::post('/attempts/{id}/files/{questionId}', 'attach')->name('attempts.files.store');
+            Route::delete('/attempts/{id}/files/{questionId}/{mediaId}', 'detach')->name('attempts.files.destroy');
             Route::post('/attempts/{id}/submit', 'submit')->name('attempts.submit');
             Route::get('/attempts/{id}/result', 'result')->name('attempts.result');
         });

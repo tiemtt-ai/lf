@@ -14,6 +14,7 @@ use App\Support\UploadLimit;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
@@ -27,6 +28,14 @@ use Throwable;
  */
 final class AssessmentLearnerController extends Controller
 {
+    /** Bài Viết nộp bằng tệp (ADR-0027 D5): images and PDF / DOCX only. */
+    public const ATTACHMENT_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif', 'pdf', 'docx'];
+
+    private const ATTACHMENT_MIMES = [
+        'image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'application/pdf',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    ];
+
     public function __construct(
         private readonly Learner $learner,
         private readonly Attempts $attempts,
@@ -103,6 +112,9 @@ final class AssessmentLearnerController extends Controller
             'version' => $version,
             ...$this->paper($customerId, $version, $answers, false),
             'answers' => $answers,
+            'attachments' => $this->attachmentsByQuestion($customerId, $answers),
+            'maxAttachments' => Attempts::MAX_ATTACHMENTS,
+            'attachmentAccept' => '.'.implode(',.', self::ATTACHMENT_EXTENSIONS),
             'remainingSeconds' => $attempt->deadline_at ? max(0, strtotime((string) $attempt->deadline_at) - now()->getTimestamp()) : null,
             'uploadLimitBytes' => UploadLimit::effectiveKilobytes() * 1024,
         ]);
@@ -185,6 +197,86 @@ final class AssessmentLearnerController extends Controller
         return response()->json(['saved_at' => now()->format('H:i:s')]);
     }
 
+    /**
+     * Uploads one file to an essay answer that allows files (ADR-0027 D5): images or PDF / DOCX, at most
+     * Attempts::MAX_ATTACHMENTS. Answers with the answer's file list.
+     */
+    public function attach(Request $request, int $id, int $questionId): JsonResponse
+    {
+        $customerId = $this->customerId();
+        $request->validate([
+            'file' => ['required', 'file', 'extensions:'.implode(',', self::ATTACHMENT_EXTENSIONS),
+                'mimetypes:'.implode(',', self::ATTACHMENT_MIMES), 'max:'.UploadLimit::effectiveKilobytes()],
+        ]);
+        $user = $request->user();
+        $attempt = $this->learner->attempt($customerId, (int) $user->id, $id);
+        if ($attempt->status !== 'in_progress') {
+            return $this->closed($id);
+        }
+
+        try {
+            $this->attempts->assertOpen($customerId, $id);
+        } catch (ValidationException) {
+            return $this->closed($id);
+        }
+        $question = $this->fileQuestion($customerId, $attempt, $questionId);
+        $this->assertRoom($customerId, $id, $questionId);
+
+        $upload = $request->file('file');
+        $mime = (string) $upload->getMimeType();
+        $file = $this->media->upload($upload, [
+            // HEIC is not an `image` the Media library shows, so it is kept as `other` (checked above).
+            'file_type' => match (true) {
+                in_array($mime, ['image/jpeg', 'image/png', 'image/webp'], true) => 'image',
+                str_starts_with($mime, 'image/') => 'other',
+                default => 'document',
+            },
+            'module' => 'assessment',
+            'entity_type' => 'attempts',
+            'entity_id' => $id,
+            'purpose' => 'essay_attachment',
+            'display_name' => mb_substr((string) $upload->getClientOriginalName(), 0, 255),
+        ], (int) $user->id);
+
+        try {
+            $this->attempts->saveAttachment($customerId, $id, (int) $question->id, (int) $file->id, $this->media);
+        } catch (ValidationException $exception) {
+            $this->media->deleteMediaIfUnused((int) $file->id);
+            if (isset($exception->errors()['attempt'])) {
+                return $this->closed($id);
+            }
+
+            throw $exception;
+        }
+
+        return $this->fileList($customerId, $id, $questionId);
+    }
+
+    /** Removes one file of an essay answer while the attempt is open; the file is deleted when nothing else uses it. */
+    public function detach(Request $request, int $id, int $questionId, int $mediaId): JsonResponse
+    {
+        $customerId = $this->customerId();
+        $attempt = $this->learner->attempt($customerId, (int) $request->user()->id, $id);
+        if ($attempt->status !== 'in_progress') {
+            return $this->closed($id);
+        }
+
+        try {
+            $removed = $this->attempts->removeAttachment($customerId, $id, $questionId, $mediaId, $this->media);
+        } catch (ValidationException) {
+            return $this->closed($id);
+        }
+        if ($removed) {
+            try {
+                $this->media->deleteMediaIfUnused($mediaId);
+            } catch (Throwable $exception) {
+                Log::warning('Removed essay attachment was not deleted.', ['media_file_id' => $mediaId, 'exception' => $exception::class]);
+            }
+        }
+
+        return $this->fileList($customerId, $id, $questionId);
+    }
+
     /** Submit: saves what the form carries (works without JavaScript), then ends the attempt. */
     public function submit(Request $request, int $id): RedirectResponse
     {
@@ -237,7 +329,8 @@ final class AssessmentLearnerController extends Controller
         $answers = DB::table(Attempts::ANSWERS_TABLE)->where('customer_id', $customerId)->where('attempt_id', $id)
             ->get()->keyBy('quiz_version_question_id');
         $files = DB::table(Attempts::FILES_TABLE.' as f')->join('media_files as m', 'm.id', '=', 'f.media_file_id')
-            ->where('f.customer_id', $customerId)->whereIn('f.answer_id', $answers->pluck('id'))->where('m.status', 'ready')
+            ->where('f.customer_id', $customerId)->whereIn('f.answer_id', $answers->pluck('id'))
+            ->where('f.file_role', 'speaking_recording')->where('m.status', 'ready')
             ->get(['f.answer_id', 'f.media_file_id'])->keyBy('answer_id');
         $registration = DB::table('core_assessment_quiz_registrations')->where('id', $attempt->quiz_registration_id)->first();
 
@@ -249,6 +342,7 @@ final class AssessmentLearnerController extends Controller
             ...$this->paper($customerId, $version, $answers, $visible['answers']),
             'answers' => $answers,
             'fileUrls' => $files->map(fn (object $file) => $this->media->generateSignedUrl((int) $file->media_file_id)),
+            'attachments' => $this->attachmentsByQuestion($customerId, $answers),
             'canRetry' => $registration && $registration->status === 'active',
             // Điểm từng tiêu chí of the current grading (ADR-0026 D6), shown with the teacher's feedback.
             'rubricScores' => $visible['feedback'] ? DB::table(Attempts::GRADINGS_TABLE)->where('customer_id', $customerId)
@@ -276,6 +370,7 @@ final class AssessmentLearnerController extends Controller
                 'passage_id' => $question->passage_id,
                 'points' => $question->points,
                 'manual' => (bool) $question->requires_manual_grading,
+                'allows_files' => Attempts::allowsFiles($question),
                 'rubric' => json_decode((string) $question->rubric_snapshot, true),
                 'prompt' => (string) ($snapshot['prompt'] ?? ''),
                 'media' => $snapshot['media'] ?? [],
@@ -311,7 +406,65 @@ final class AssessmentLearnerController extends Controller
             return DB::table(Attempts::FILES_TABLE)->where('answer_id', $answer->id)->exists();
         }
 
-        return filled($answer->answer_text);
+        // An essay may be answered with files only (ADR-0027 D5).
+        return filled($answer->answer_text)
+            || ($question->question_type === 'essay' && DB::table(Attempts::FILES_TABLE)->where('answer_id', $answer->id)->exists());
+    }
+
+    /** Essay files of the attempt for the page, keyed by version question id. */
+    private function attachmentsByQuestion(int $customerId, $answers)
+    {
+        $byAnswer = $this->attempts->attachments($customerId, $answers->pluck('id'));
+
+        return $answers->mapWithKeys(fn (object $answer, $questionId) => [
+            (int) $questionId => $this->fileItems($byAnswer->get($answer->id, collect()))->values(),
+        ]);
+    }
+
+    private function fileQuestion(int $customerId, object $attempt, int $questionId): object
+    {
+        $question = DB::table(AssessmentQuizPublishService::VERSION_QUESTIONS_TABLE)->where('customer_id', $customerId)
+            ->where('quiz_version_id', $attempt->quiz_version_id)->where('id', $questionId)->first();
+        abort_if(! $question || ! Attempts::allowsFiles($question), 404);
+
+        return $question;
+    }
+
+    /** Refuses before storing the upload when the answer already holds the maximum. */
+    private function assertRoom(int $customerId, int $attemptId, int $questionId): void
+    {
+        $answerId = DB::table(Attempts::ANSWERS_TABLE)->where('customer_id', $customerId)->where('attempt_id', $attemptId)
+            ->where('quiz_version_question_id', $questionId)->value('id');
+        if ($answerId && $this->attempts->attachments($customerId, [(int) $answerId])->flatten(1)->count() >= Attempts::MAX_ATTACHMENTS) {
+            throw ValidationException::withMessages(['file' => __('lf.LF_assessment_learner_files_full', ['max' => Attempts::MAX_ATTACHMENTS])]);
+        }
+    }
+
+    private function fileList(int $customerId, int $attemptId, int $questionId): JsonResponse
+    {
+        $answerId = (int) DB::table(Attempts::ANSWERS_TABLE)->where('customer_id', $customerId)->where('attempt_id', $attemptId)
+            ->where('quiz_version_question_id', $questionId)->value('id');
+
+        return response()->json([
+            'saved_at' => now()->format('H:i:s'),
+            'files' => $this->fileItems($this->attempts->attachments($customerId, [$answerId])->get($answerId, collect()))->values(),
+        ]);
+    }
+
+    /**
+     * What a page shows of essay files: name, kind and a signed URL when the file is ready (virus scan done).
+     *
+     * @param  Collection<int, object>  $files
+     * @return Collection<int, array{id: int, name: string, kind: string, url: string|null}>
+     */
+    private function fileItems($files)
+    {
+        return $files->map(fn (object $file) => [
+            'id' => (int) $file->media_file_id,
+            'name' => (string) ($file->display_name ?: $file->original_name),
+            'kind' => Attempts::attachmentKind($file),
+            'url' => $file->status === 'ready' ? $this->media->generateSignedUrl((int) $file->media_file_id) : null,
+        ]);
     }
 
     private function version(int $customerId, object $attempt): object

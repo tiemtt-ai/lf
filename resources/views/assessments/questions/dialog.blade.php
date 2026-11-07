@@ -201,6 +201,21 @@
                           placeholder="{{ __('lf.LF_assessment_question_reference_answer_placeholder') }}">{{ $content?->reference_answer }}</textarea>
             </div>
 
+            {{-- Cho nộp tệp (ADR-0027 D5): essay only; another type sends nothing, so the flag is cleared. --}}
+            <div class="ui-field ui-field--full" x-show="type === 'essay'" x-cloak>
+                <label class="ui-switch-row" for="assessment-question-form-file-answer">
+                    <span class="ui-switch-row__text">
+                        <b>{{ __('lf.LF_assessment_question_allow_file_answer') }}</b>
+                        <small>{{ __('lf.LF_assessment_question_allow_file_answer_help') }}</small>
+                    </span>
+                    <span class="ui-switch">
+                        <input id="assessment-question-form-file-answer" type="checkbox" role="switch" name="allow_file_answer" value="1"
+                               :disabled="type !== 'essay'" @checked($question?->allow_file_answer)>
+                        <span></span>
+                    </span>
+                </label>
+            </div>
+
             <div class="ui-field ui-field--full">
                 <label class="ui-field__label" for="assessment-question-form-explanation">{{ __('lf.LF_assessment_question_explanation') }}</label>
                 <textarea id="assessment-question-form-explanation" name="explanation" rows="3" maxlength="20000"

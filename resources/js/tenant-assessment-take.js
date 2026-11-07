@@ -35,7 +35,9 @@ const payload = (question) => {
         return { body: { question: Number(question.dataset.question), option_keys: keys }, answered: keys.length > 0 };
     }
     const text = question.querySelector('input[type="text"], textarea')?.value ?? '';
-    return { body: { question: Number(question.dataset.question), text }, answered: text.trim() !== '' };
+    // An essay may be answered with files only (ADR-0027 D5).
+    const files = Number(question.dataset.fileCount || 0);
+    return { body: { question: Number(question.dataset.question), text }, answered: text.trim() !== '' || files > 0 };
 };
 
 // One save in flight per question; a newer change waits and is sent after it.
@@ -88,7 +90,7 @@ const later = (question, delay = 900) => {
 
 form.addEventListener('change', (event) => {
     const question = event.target.closest('[data-question]');
-    if (! question || event.target.matches('[data-record-file]')) return;
+    if (! question || event.target.matches('[data-record-file], [data-files-input]')) return;
     if (event.target.matches('input[type="radio"], input[type="checkbox"]')) {
         send(question);
     } else {
@@ -205,6 +207,153 @@ root.querySelectorAll('[data-recorder]').forEach((recorder) => {
         uploadRecording(question, picked, picked.name);
         file.value = '';
     });
+});
+
+// ---- Essay files (ADR-0027 D5): each picked file is uploaded at once; the server's list is what the page shows. ----
+
+const FILE_TYPES = /\.(jpe?g|png|webp|heic|heif|pdf|docx)$/i;
+
+root.querySelectorAll('[data-files]').forEach((box) => {
+    const question = box.closest('[data-question]');
+    const list = box.querySelector('[data-files-list]');
+    const input = box.querySelector('[data-files-input]');
+    const pick = box.querySelector('[data-files-pick]');
+    const count = box.querySelector('[data-files-count]');
+    const status = box.querySelector('[data-files-status]');
+    const max = Number(box.dataset.filesMax || 3);
+    const url = labels.filesUrl.replace('__QUESTION__', question.dataset.question);
+    let files = [];
+    try {
+        files = JSON.parse(box.dataset.filesInitial || '[]');
+    } catch {
+        files = [];
+    }
+
+    const say = (text, isError = false) => {
+        status.textContent = text;
+        status.classList.toggle('is-error', isError);
+    };
+
+    const render = () => {
+        list.replaceChildren(...files.map((file) => {
+            const item = document.createElement('li');
+            item.className = 'lf-exam-file';
+            const thumb = document.createElement('span');
+            thumb.className = 'lf-exam-file__thumb';
+            thumb.setAttribute('aria-hidden', 'true');
+            if (file.kind === 'image' && file.url) {
+                const image = document.createElement('img');
+                image.src = file.url;
+                image.alt = '';
+                thumb.append(image);
+            } else {
+                thumb.textContent = (file.name.split('.').pop() || '').slice(0, 4);
+            }
+            const name = document.createElement(file.url ? 'a' : 'span');
+            name.className = 'lf-exam-file__name';
+            name.textContent = file.name;
+            if (file.url) {
+                name.href = file.url;
+                name.target = '_blank';
+                name.rel = 'noopener';
+            }
+            item.append(thumb, name);
+            if (! file.url) {
+                const note = document.createElement('span');
+                note.className = 'lf-exam-file__note';
+                note.textContent = labels.labelFilesChecking;
+                item.append(note);
+            }
+            const remove = document.createElement('button');
+            remove.type = 'button';
+            remove.className = 'lf-exam-file__remove';
+            remove.textContent = labels.labelFilesRemove;
+            remove.setAttribute('aria-label', labels.labelFilesRemoveLabel.replace(':name', file.name));
+            remove.addEventListener('click', () => removeFile(file, remove));
+            item.append(remove);
+            return item;
+        }));
+        count.textContent = labels.labelFilesCount.replace(':count', String(files.length));
+        const full = files.length >= max;
+        input.disabled = full;
+        pick.classList.toggle('is-disabled', full);
+        question.dataset.fileCount = String(files.length);
+        markAnswered(question, payload(question).answered);
+    };
+
+    const request = async (target, method, body) => {
+        const response = await fetch(target, {
+            method,
+            credentials: 'same-origin',
+            headers: { Accept: 'application/json', 'X-CSRF-TOKEN': csrf, 'X-Requested-With': 'XMLHttpRequest' },
+            body,
+        });
+        const result = await response.json().catch(() => ({}));
+        if (response.status === 409 && result.redirect) {
+            leaveFor(result.redirect);
+            return null;
+        }
+        if (! response.ok) throw new Error(Object.values(result.errors || {}).flat()[0] || result.message || '');
+        return result;
+    };
+
+    const upload = async (file) => {
+        if (! FILE_TYPES.test(file.name)) {
+            say(labels.labelFilesWrongType, true);
+            return false;
+        }
+        if (Number(labels.uploadLimit) > 0 && file.size > Number(labels.uploadLimit)) {
+            say(labels.labelTooLarge, true);
+            return false;
+        }
+        say(labels.labelUploading);
+        const data = new FormData();
+        data.append('file', file, file.name);
+        const result = await request(url, 'POST', data);
+        if (! result) return false;
+        files = result.files || [];
+        render();
+        say(labels.labelFilesSaved);
+        setStatus(labels.labelSaved.replace(':time', result.saved_at || ''));
+        return true;
+    };
+
+    const removeFile = async (file, button) => {
+        button.disabled = true;
+        try {
+            const result = await request(`${url}/${file.id}`, 'DELETE');
+            if (! result) return;
+            files = result.files || [];
+            render();
+            say(labels.labelFilesRemoved);
+            input.focus();
+        } catch (error) {
+            button.disabled = false;
+            say(error.message ? `${labels.labelUploadFailed} ${error.message}` : labels.labelUploadFailed, true);
+        }
+    };
+
+    input.addEventListener('change', async () => {
+        const picked = [...(input.files || [])];
+        input.value = '';
+        const room = Math.max(0, max - files.length);
+        let ok = true;
+        for (const file of picked.slice(0, room)) {
+            try {
+                ok = await upload(file);
+            } catch (error) {
+                ok = false;
+                say(error.message ? `${labels.labelUploadFailed} ${error.message}` : labels.labelUploadFailed, true);
+            }
+            if (! ok) break;
+        }
+        // Files past the limit are not sent; say so last so the message stays.
+        if (ok && picked.length > room) {
+            say(labels.labelFilesFull, true);
+        }
+    });
+
+    render();
 });
 
 // ---- Timer: counts down to the server deadline; at zero the form is submitted with what is on the page. ----

@@ -123,6 +123,7 @@ final class AssessmentQuizPublishService
                         'prompt' => $content?->prompt,
                         'explanation' => $content?->explanation,
                         'reference_answer' => $content?->reference_answer,
+                        'allow_file_answer' => $type === 'essay' && (bool) $question->allow_file_answer,
                         'media' => $this->mediaRefs($media->where('question_id', $question->id)),
                     ], JSON_UNESCAPED_UNICODE),
                     'options_snapshot' => $choice ? json_encode($rows->map(fn (object $option, int $n) => [

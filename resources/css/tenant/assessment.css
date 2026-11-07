@@ -450,6 +450,127 @@ li.lf-exam-option {
     max-width: 100%;
 }
 
+.lf-exam-files {
+    margin-top: 12px;
+    padding: 14px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+    border: 1px dashed var(--student-border);
+    border-radius: 12px;
+    background: var(--student-surface-soft);
+}
+
+.lf-exam-files__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.lf-exam-files__title {
+    font-weight: 700;
+}
+
+.lf-exam-files__count {
+    color: var(--student-text-soft);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+}
+
+.lf-exam-files .student-section-copy {
+    margin: 0;
+}
+
+.lf-exam-files__list {
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 8px;
+    list-style: none;
+}
+
+.lf-exam-files__list:empty {
+    display: none;
+}
+
+.lf-exam-file {
+    padding: 8px 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid var(--student-border);
+    border-radius: 10px;
+    background: var(--student-surface);
+}
+
+.lf-exam-file__thumb {
+    width: 48px;
+    height: 48px;
+    flex: none;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    border-radius: 8px;
+    color: var(--student-primary-dark);
+    background: var(--student-primary-soft);
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.lf-exam-file__thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.lf-exam-file__name {
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.lf-exam-file__note {
+    color: var(--student-text-soft);
+    font-size: 12px;
+}
+
+.lf-exam-file__remove {
+    flex: none;
+    border: 0;
+    padding: 4px 8px;
+    color: var(--student-danger-text);
+    background: transparent;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.lf-exam-files__pick {
+    justify-self: start;
+    cursor: pointer;
+}
+
+.lf-exam-files__pick:focus-within {
+    outline: 2px solid var(--student-primary);
+    outline-offset: 2px;
+}
+
+.lf-exam-files__pick.is-disabled {
+    opacity: .55;
+    pointer-events: none;
+}
+
+.lf-exam-files__status:empty {
+    display: none;
+}
+
+.lf-exam-files__status.is-error {
+    color: var(--student-danger-text);
+}
+
 .lf-exam-panel {
     position: sticky;
     top: 92px;

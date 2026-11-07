@@ -38,6 +38,9 @@ Route::prefix('assessments')->name('assessments.')->group(function () use ($asse
         Route::get('/categories/{id}/edit', [AssessmentCategoryController::class, 'edit'])->whereNumber('id')->name('categories.edit');
         Route::put('/categories/{id}', [AssessmentCategoryController::class, 'update'])->whereNumber('id')->name('categories.update');
         Route::post('/categories/{id}/toggle-status', [AssessmentCategoryController::class, 'toggleStatus'])->whereNumber('id')->name('categories.toggle-status');
+        // Giáo viên chấm theo danh mục (ADR-0027 D2), inherited by sub-categories.
+        Route::get('/categories/{id}/graders', [AssessmentCategoryController::class, 'editGraders'])->whereNumber('id')->name('categories.graders.edit');
+        Route::put('/categories/{id}/graders', [AssessmentCategoryController::class, 'updateGraders'])->whereNumber('id')->name('categories.graders.update');
     }
 
     // Admins manage every question of the tenant, teachers their own (the service scopes each query).
@@ -99,6 +102,9 @@ Route::prefix('assessments')->name('assessments.')->group(function () use ($asse
             Route::post('/archive', 'archive')->name('archive');
             Route::post('/restore', 'restore')->name('restore');
             Route::post('/registration', 'registration')->name('registration');
+            // Giao chấm đề (ADR-0027 D2): the admin or the quiz creator names the teachers who grade this quiz.
+            Route::get('/graders', 'editGraders')->name('graders.edit');
+            Route::put('/graders', 'updateGraders')->name('graders.update');
         });
 
     // Ghi danh: grant a published quiz to students, cancel; never deleted.
@@ -111,6 +117,11 @@ Route::prefix('assessments')->name('assessments.')->group(function () use ($asse
     Route::get('/results', [AssessmentResultController::class, 'index'])->name('results.index');
     Route::get('/results/export', [AssessmentResultController::class, 'export'])->name('results.export');
     Route::get('/results/statistics', [AssessmentResultController::class, 'statistics'])->name('results.statistics');
+    // Giao chấm (admin, quiz creator), Nhận chấm (teacher), Trả lại (ADR-0027 D3).
+    Route::get('/results/assign', [AssessmentResultController::class, 'assignDialog'])->name('results.assign.create');
+    Route::post('/results/assign', [AssessmentResultController::class, 'assign'])->name('results.assign.store');
+    Route::post('/results/{id}/claim', [AssessmentResultController::class, 'claim'])->whereNumber('id')->name('results.claim');
+    Route::post('/results/{id}/release', [AssessmentResultController::class, 'release'])->whereNumber('id')->name('results.release');
     Route::get('/results/{id}', [AssessmentResultController::class, 'show'])->whereNumber('id')->name('results.show');
     Route::post('/results/{id}/answers/{answerId}/grade', [AssessmentResultController::class, 'grade'])
         ->whereNumber(['id', 'answerId'])->name('results.grade');

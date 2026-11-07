@@ -7,17 +7,26 @@
 
 @section('vite')
     @parent
-    @vite(['resources/css/admin/admin-ui-kit.css', 'resources/js/admin-ui-kit-controls.js'])
+    @vite(['resources/css/admin/admin-ui-kit.css', 'resources/js/admin-ui-kit-controls.js', 'resources/js/admin-ui-kit-dialog-form.js', 'resources/js/admin-ui-kit-row-actions.js'])
 @endsection
 
 @section('content')
 @php
-    $hasActiveFilters = $filters['keyword'] !== '' || $filters['quiz_id'] || $filters['status'];
+    $isAdmin = auth()->user()->role === 'customer_admin';
+    $defaultGrader = ! $isAdmin && $filters['tab'] === 'pending' ? 'mine_unassigned' : 'all';
+    $hasActiveFilters = $filters['keyword'] !== '' || $filters['quiz_id'] || $filters['status'] || $filters['grader'] !== $defaultGrader;
+    $graderOptions = $isAdmin
+        ? ['all' => __('lf.LF_assessment_grader_filter_all'), 'unassigned' => __('lf.LF_assessment_grader_filter_unassigned')] + $teachers->pluck('name', 'id')->all()
+        : ['all' => __('lf.LF_assessment_grader_filter_all'), 'mine_unassigned' => __('lf.LF_assessment_grader_filter_mine_unassigned'),
+           'mine' => __('lf.LF_assessment_grader_filter_mine'), 'unassigned' => __('lf.LF_assessment_grader_filter_unassigned')];
+    $columns = $canAssign ? 9 : 8;
     $selectLabels = 'data-ui-empty-label="'.e(__('lf.LF_assessment_category_no_options')).'" data-ui-clear-label="'.e(__('lf.LF_assessment_category_clear_filters')).'"';
     $trim = fn ($value) => rtrim(rtrim(number_format((float) $value, 2, '.', ''), '0'), '.');
     $gradingClass = ['pending' => 'ui-status--inactive', 'completed' => 'ui-status--active', 'not_required' => 'ui-status--active'];
 @endphp
-<div id="assessment-result-list" class="lf-admin-ui lf-admin-ui--list" data-assessment-section="results">
+<div id="assessment-result-list" class="lf-admin-ui lf-admin-ui--list" data-assessment-section="results" data-ui-dialog-form-scope data-ui-row-actions
+     data-csrf="{{ csrf_token() }}"
+     data-msg-session-expired="{{ __('lf.LF_assessment_category_session_expired') }}">
     <x-ui-list-toasts />
 
     <x-ui-list-head :title="__('lf.LF_navigation_menu_assessment_results')" :text="__('lf.LF_assessment_results_help')" />
@@ -27,7 +36,7 @@
         {{-- Live slot: the export follows the current tab and filters after a live search. --}}
         <span class="ui-live-slot" data-ui-live-region="export">
             <a class="ui-button ui-button--outline cursor-interaction" download
-               href="{{ route($routePrefix.'.export', array_filter($filters, fn ($value, $key) => $key === 'tab' ? $value === 'pending' : $value !== null && $value !== '', ARRAY_FILTER_USE_BOTH)) }}">
+               href="{{ route($routePrefix.'.export', array_filter($filters, fn ($value, $key) => match ($key) { 'tab' => $value === 'pending', 'grader' => $value !== $defaultGrader, default => $value !== null && $value !== '' }, ARRAY_FILTER_USE_BOTH)) }}">
                 <x-backend-icon name="file-output" class="ui-icon" />
                 {{ __('lf.LF_export_excel') }}
             </a>
@@ -68,6 +77,14 @@
                         @endforeach
                     </select>
                 </div>
+                <div class="ui-field mk-search">
+                    <label class="ui-field__label ui-sr-only" for="assessment-result-grader">{{ __('lf.LF_assessment_grader_column') }}</label>
+                    <select id="assessment-result-grader" name="grader" data-ui-kit-select {!! $selectLabels !!}>
+                        @foreach ($graderOptions as $value => $label)
+                            <option value="{{ $value }}" @selected($filters['grader'] === (string) $value)>{{ $label }}</option>
+                        @endforeach
+                    </select>
+                </div>
                 <span class="ui-live-slot" data-ui-live-region="clear-filters">
                     @if ($hasActiveFilters)
                         <a class="ui-button ui-button--outline cursor-interaction" href="{{ route($routePrefix.'.index', $filters['tab'] === 'pending' ? ['tab' => 'pending'] : []) }}">
@@ -76,33 +93,71 @@
                     @endif
                 </span>
             </form>
+
+            @if ($canAssign)
+                <div class="mk-table-top__actions" data-ui-live-region="toolbar">
+                    <button type="button" class="ui-button ui-button--outline cursor-interaction" disabled
+                            data-ui-bulk-open data-url-base="{{ route($routePrefix.'.assign.create') }}"
+                            data-ui-dialog-form-open data-ui-dialog-form-for="assessment-result-list" aria-haspopup="dialog">
+                        <x-backend-icon name="user-cog" class="ui-icon" />
+                        {{ __('lf.LF_assessment_grader_assign') }}<span data-ui-bulk-open-count data-text-selected=" (:count)" aria-live="polite"></span>
+                    </button>
+                </div>
+            @endif
         </div>
 
         <div class="mk-table-scroll" data-ui-live-region="table" role="region" aria-label="{{ __('lf.LF_navigation_menu_assessment_results') }}" tabindex="0">
             <table class="ui-asm-table ui-asm-table--wide ui-result-table" aria-labelledby="admin-page-title">
                 <colgroup>
+                    @if ($canAssign)
+                        <col class="ui-col-check">
+                    @endif
                     <col class="ui-result-col-sequence">
                     <col class="ui-result-col-student">
                     <col>
                     <col class="ui-asm-col-date">
                     <col class="ui-asm-col-score">
                     <col class="ui-result-col-status">
+                    <col class="ui-result-col-grader">
                     <col class="ui-result-col-action">
                 </colgroup>
                 <thead>
                     <tr>
+                        @if ($canAssign)
+                            <th scope="col" class="ui-check-cell">
+                                <input type="checkbox" class="ui-bulk-box" data-ui-bulk-select-all aria-label="{{ __('lf.LF_assessment_grader_select_all') }}">
+                            </th>
+                        @endif
                         <th scope="col" class="mk-sequence">{{ __('lf.table_no') }}</th>
                         <th scope="col" class="mk-text-cell">{{ __('lf.LF_assessment_registration_student') }}</th>
                         <th scope="col" class="mk-text-cell">{{ __('lf.LF_assessment_registration_quiz') }}</th>
                         <th scope="col" class="mk-text-cell">{{ __('lf.LF_assessment_result_submitted_at') }}</th>
                         <th scope="col" class="mk-count-cell">{{ __('lf.LF_assessment_result_score') }}</th>
                         <th scope="col" class="ux-action-cell">{{ __('lf.LF_assessment_category_status') }}</th>
+                        <th scope="col" class="mk-text-cell">{{ __('lf.LF_assessment_grader_column') }}</th>
                         <th scope="col" class="ux-action-cell">{{ __('lf.table_actions') }}</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse ($attempts as $attempt)
+                        @php
+                            $manages = $isAdmin || (int) $attempt->quiz_created_by === (int) auth()->id();
+                            $held = $attempt->holder_id !== null && $attempt->holder_status === 'active';
+                            $mine = $held && (int) $attempt->holder_id === (int) auth()->id();
+                        @endphp
                         <tr>
+                            @if ($canAssign)
+                                <td class="ui-check-cell" data-label="{{ __('lf.LF_assessment_grader_select') }}">
+                                    @if ($manages && $attempt->status !== 'in_progress')
+                                        <input type="checkbox" class="ui-bulk-box" data-ui-bulk-item value="{{ $attempt->id }}"
+                                               aria-label="{{ __('lf.LF_assessment_grader_select') }}: {{ $attempt->student_name }} · {{ $attempt->quiz_title }}">
+                                    @else
+                                        <span class="ui-bulk-lock" tabindex="0" data-tooltip="{{ $attempt->status === 'in_progress' ? __('lf.LF_assessment_grader_select_in_progress') : __('lf.LF_assessment_grader_select_blocked') }}" data-tooltip-align="start">
+                                            <input type="checkbox" class="ui-bulk-box" disabled aria-label="{{ __('lf.LF_assessment_grader_select_blocked') }}">
+                                        </span>
+                                    @endif
+                                </td>
+                            @endif
                             <td class="mk-sequence" data-label="{{ __('lf.table_no') }}">{{ $attempts->firstItem() + $loop->index }}</td>
                             <td class="mk-text-cell" data-label="{{ __('lf.LF_assessment_registration_student') }}">
                                 <span class="mk-name-line"><span class="mk-name-text">{{ $attempt->student_name }}</span></span>
@@ -137,7 +192,29 @@
                                     <span class="ui-status {{ $gradingClass[$attempt->grading_status] ?? '' }}">{{ __('lf.LF_assessment_result_grading_'.$attempt->grading_status) }}</span>
                                 @endif
                             </td>
+                            <td class="mk-text-cell" data-label="{{ __('lf.LF_assessment_grader_column') }}">
+                                @if ($attempt->holder_id !== null)
+                                    <span @class(['ui-result-grader', 'is-mine' => $mine])>{{ $mine ? __('lf.LF_assessment_grader_you') : $attempt->holder_name }}</span>
+                                    @if ($held && $attempt->grading_status === 'pending')
+                                        <p class="ui-caption">{{ __('lf.LF_assessment_grader_holding') }}</p>
+                                    @endif
+                                @elseif ($attempt->status !== 'in_progress' && $attempt->grading_status === 'pending')
+                                    <span class="ui-caption">{{ __('lf.LF_assessment_grader_unassigned') }}</span>
+                                @else
+                                    <span class="ui-caption">—</span>
+                                @endif
+                            </td>
                             <td class="ux-action-cell" data-label="{{ __('lf.table_actions') }}">
+                                @if (! $isAdmin && ! $held && $attempt->grading_status === 'pending' && $attempt->status !== 'in_progress')
+                                    <form method="POST" action="{{ route($routePrefix.'.claim', $attempt->id) }}" class="ui-inline-form">
+                                        @csrf
+                                        <button type="submit" class="ux-row-edit cursor-interaction"
+                                                aria-label="{{ __('lf.LF_assessment_grader_claim') }}: {{ $attempt->student_name }}"
+                                                data-tooltip="{{ __('lf.LF_assessment_grader_claim') }}">
+                                            <x-backend-icon name="clipboard-check" class="ui-icon" />
+                                        </button>
+                                    </form>
+                                @endif
                                 @if ($attempt->grading_status === 'pending' && $attempt->status !== 'in_progress')
                                     <a class="ux-row-edit cursor-interaction" href="{{ route($routePrefix.'.show', $attempt->id) }}"
                                        aria-label="{{ __('lf.LF_assessment_result_grade') }}: {{ $attempt->student_name }}"
@@ -155,7 +232,7 @@
                         </tr>
                     @empty
                         <tr class="mk-empty-row">
-                            <td class="mk-empty" colspan="7">
+                            <td class="mk-empty" colspan="{{ $columns }}">
                                 <div role="status">
                                     <strong>{{ $filters['tab'] === 'pending' ? __('lf.LF_assessment_result_pending_empty') : ($hasActiveFilters ? __('lf.LF_assessment_result_filter_empty') : __('lf.LF_assessment_result_empty')) }}</strong>
                                     <p class="ui-caption">{{ __('lf.LF_assessment_result_empty_help') }}</p>
@@ -172,5 +249,7 @@
             :page-size-label="__('lf.LF_assessment_category_page_size')"
             :page-size-option="__('lf.LF_assessment_category_page_size_option', ['count' => $attempts->perPage()])" />
     </section>
+
+    @include('assessments.passages.partials.dialog-host', ['dialogTitleId' => 'assessment-assign-dialog-title'])
 </div>
 @endsection

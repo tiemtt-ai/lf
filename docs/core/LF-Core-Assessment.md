@@ -1,6 +1,6 @@
 # LF-Core-Assessment.md
 
-Version: 1.4
+Version: 1.5
 
 Document Status: Approved
 
@@ -67,10 +67,13 @@ Có:
   (Owner duyệt 2026-11-06): bộ tiêu chí dùng lại gắn vào câu tự luận / nói,
   chụp vào phiên bản đề khi xuất bản, giáo viên chấm từng tiêu chí, điểm quy đổi
   về điểm của câu; học viên thấy điểm từng tiêu chí.
+* Phân công chấm và nộp tệp cho câu tự luận theo
+  [ADR-0027](../adr/ADR-0027-Assessment-Grader-Assignment-And-Essay-Files.md)
+  (Owner duyệt 2026-11-07): xem Grading Architecture và Media Integration.
 
 Không có (làm sau hoặc bỏ): đề động, gói đề, gắn vào Course Template, giao
 theo lớp, thanh toán / bán đề, chia sẻ giữa giáo viên, xếp loại,
-phân công chấm, mọi tính năng AI, đề tổ hợp HSA.
+mọi tính năng AI, đề tổ hợp HSA.
 
 ---
 
@@ -217,7 +220,19 @@ Tổng điểm, đạt / không đạt
 * Câu essay / speaking bỏ trống được hệ thống chấm 0 điểm khi nộp (bản ghi
   chấm `system_auto`), không vào Chờ chấm; người chấm vẫn chấm lại được
   (ADR-0025 D11).
-* Người chấm: admin của tenant, người tạo đề, người đã cấp ghi danh.
+* Câu essay chỉ có tệp (không gõ chữ) không tính là bỏ trống (ADR-0027 D5).
+* Người chấm (ADR-0027 D1–D3), ba tầng:
+  1. Admin của tenant, người tạo đề, người đã cấp ghi danh.
+  2. Giáo viên chấm của danh mục (admin đặt; danh mục con dùng luôn) hoặc của
+     đề ("Giao chấm đề": admin hoặc người tạo đề).
+  3. Người giữ bài: được giao ("Giao chấm": admin mọi bài, người tạo đề bài của
+     đề mình) hoặc tự "Nhận chấm".
+* Mỗi bài tối đa một người giữ. Khi đã có người giữ, người chấm tầng 1–2 khác
+  chỉ xem; admin và người tạo đề vẫn chấm được. "Trả lại": người giữ hoặc người
+  có quyền giao. Bài chấm xong thì lần giao chuyển `completed`.
+* Danh sách bài làm có cột Người chấm và bộ lọc theo người chấm; giáo viên ở tab
+  Chờ chấm mặc định thấy "Của tôi và chưa giao". Popup giao chấm xếp giáo viên
+  đã chấm được đề lên trước, rồi người đang giữ ít bài.
 
 Khi có AI (sau này), quy tắc của ADR-0003 áp dụng: AI chỉ là đề xuất, giáo viên
 quyết. Rubric chụp vào phiên bản đề khi xuất bản (ADR-0026 D4, sửa ADR-0003);
@@ -230,7 +245,7 @@ câu có rubric: điểm câu = tổng điểm tiêu chí ÷ tổng rubric × đ
 | Vai trò | Quyền |
 |---|---|
 | `customer_admin` | Quản lý danh mục; xem, sửa mọi câu hỏi, ngữ liệu, tiêu chí chấm, đề, ghi danh, kết quả của tenant; chấm mọi bài |
-| `teacher` | Xem, sửa câu hỏi, ngữ liệu, tiêu chí chấm, đề do mình tạo (không đổi người tạo); dùng thêm tiêu chí chấm do admin tạo; chọn danh mục; cấp đề của mình cho học viên; chấm bài thuộc đề mình tạo hoặc ghi danh mình cấp |
+| `teacher` | Xem, sửa câu hỏi, ngữ liệu, tiêu chí chấm, đề do mình tạo (không đổi người tạo); dùng thêm tiêu chí chấm do admin tạo; chọn danh mục; cấp đề của mình cho học viên; chấm bài thuộc đề mình tạo hoặc ghi danh mình cấp, bài của danh mục / đề mình được giao chấm, bài mình giữ; giao chấm bài của đề mình tạo; nhận chấm |
 | `student` | Xem danh sách đề *Mở đăng ký*, tự đăng ký, làm bài, xem "Đề thi của tôi" và kết quả của chính mình |
 | Khách | Xem danh sách đề *Mở đăng ký* (chỉ thông tin giới thiệu) |
 
@@ -260,6 +275,18 @@ hoặc chọn từ Thư viện Media (bộ chọn chung của ADR-0021: admin ch
 tenant, giáo viên chỉ file của mình hoặc được chia sẻ). Server kiểm file chọn
 (cùng tenant, đúng loại, `ready`, quyền dùng) trước khi lưu; chọn file khác thì
 chỉ gỡ usage, không xoá file của thư viện.
+
+Tệp bài tự luận (ADR-0027 D5): câu essay bật "Cho nộp tệp"
+(`allow_file_answer`, chụp vào `question_snapshot` khi xuất bản). Học viên tải
+tối đa 3 tệp mỗi câu khi bài còn mở, mỗi tệp gửi ngay khi chọn và xoá được;
+tệp không còn dùng thì bị xoá. Định dạng: JPG, PNG, WEBP (Media `image`), HEIC /
+HEIF (Media `other`, vì tập `image` của LF-Media không có HEIC và trình duyệt
+thường không hiển thị được), PDF, DOCX (Media `document`); controller kiểm cả
+extension và MIME. Gắn `core_assessment_answer_files` với `file_role =
+essay_attachment` và usage `assessment_answer` / `attachment`. Người chấm thấy
+ảnh ngay trên trang chấm, mở PDF / DOCX / HEIC qua URL ký; học viên thấy tệp
+của mình trên trang kết quả. Không OCR, trích xuất hay AI trên tệp này
+(ADR-0018).
 
 ---
 
@@ -333,7 +360,7 @@ Bảng giai đoạn 1 và bảng hoãn: xem
 
 # Implementation Status
 
-Cập nhật 2026-11-06.
+Cập nhật 2026-11-07.
 
 | Phần | Trạng thái |
 |---|---|
@@ -349,6 +376,8 @@ Cập nhật 2026-11-06.
 | Micro thật, Safari / iOS | Chưa |
 | Nhập / Xuất Excel câu hỏi, tab Thống kê | Đã làm |
 | Tiêu chí chấm (ADR-0026): trang quản lý, chọn trong câu hỏi, chụp khi xuất bản, chấm từng tiêu chí, học viên xem điểm tiêu chí | Đã làm |
+| Phân công chấm (ADR-0027 D1–D4): giáo viên chấm của danh mục / đề, Giao chấm, Nhận chấm, Trả lại, cột và bộ lọc Người chấm | Đã làm |
+| Nộp tệp cho câu tự luận (ADR-0027 D5): "Cho nộp tệp" trong form và Excel, tải / xoá tệp khi làm bài, xem tệp khi chấm và ở kết quả | Đã làm |
 | Mọi mục "Không có" ở Phạm vi giai đoạn 1 | Chưa làm |
 
 Kiểm chứng: [LF-Assessment-Learner-Regression-Audit](../quality/LF-Assessment-Learner-Regression-Audit.md).

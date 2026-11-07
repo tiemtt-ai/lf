@@ -12,6 +12,15 @@
 <div class="lf-exam-take" data-exam-attempt
      data-save-url="{{ route('student.assessments.attempts.save', $attempt->id) }}"
      data-record-url="{{ route('student.assessments.attempts.record', [$attempt->id, '__QUESTION__']) }}"
+     data-files-url="{{ route('student.assessments.attempts.files.store', [$attempt->id, '__QUESTION__']) }}"
+     data-label-files-remove="{{ __('lf.LF_assessment_learner_files_remove') }}"
+     data-label-files-remove-label="{{ __('lf.LF_assessment_learner_files_remove_label') }}"
+     data-label-files-full="{{ __('lf.LF_assessment_learner_files_full', ['max' => $maxAttachments]) }}"
+     data-label-files-wrong-type="{{ __('lf.LF_assessment_learner_files_wrong_type') }}"
+     data-label-files-checking="{{ __('lf.LF_assessment_learner_files_checking') }}"
+     data-label-files-saved="{{ __('lf.LF_assessment_learner_files_saved') }}"
+     data-label-files-removed="{{ __('lf.LF_assessment_learner_files_removed') }}"
+     data-label-files-count="{{ __('lf.LF_assessment_learner_files_count', ['max' => $maxAttachments]) }}"
      data-remaining="{{ $remainingSeconds ?? '' }}"
      data-upload-limit="{{ $uploadLimitBytes }}"
      data-label-saving="{{ __('lf.LF_assessment_learner_saving') }}"
@@ -93,6 +102,24 @@
                         <label class="sr-only" for="answer-{{ $question->id }}">{{ __('lf.LF_assessment_learner_your_answer') }}</label>
                         <textarea id="answer-{{ $question->id }}" class="student-form-control lf-exam-essay" name="{{ $name }}[text]" rows="7" maxlength="20000"
                                   placeholder="{{ __('lf.LF_assessment_learner_essay_placeholder') }}">{{ $answer?->answer_text }}</textarea>
+                        @if ($question->allows_files)
+                            {{-- Bài Viết nộp bằng tệp (ADR-0027 D5): each file is uploaded as soon as it is picked. --}}
+                            <div class="lf-exam-files" data-files data-files-max="{{ $maxAttachments }}"
+                                 data-files-initial='@json($attachments->get($question->id, collect())->values())'>
+                                <div class="lf-exam-files__head">
+                                    <span class="lf-exam-files__title">{{ __('lf.LF_assessment_learner_files_title') }}</span>
+                                    <span class="lf-exam-files__count" data-files-count></span>
+                                </div>
+                                <p class="student-section-copy" id="files-help-{{ $question->id }}">{{ __('lf.LF_assessment_learner_files_help', ['max' => $maxAttachments]) }}</p>
+                                <ul class="lf-exam-files__list" data-files-list></ul>
+                                <label class="student-button is-outline is-small lf-exam-files__pick" data-files-pick>
+                                    {{ __('lf.LF_assessment_learner_files_pick') }}
+                                    <input type="file" class="sr-only" accept="{{ $attachmentAccept }}" multiple data-files-input
+                                           aria-describedby="files-help-{{ $question->id }}">
+                                </label>
+                                <p class="student-section-copy lf-exam-files__status" data-files-status role="status"></p>
+                            </div>
+                        @endif
                     @else
                         <div class="lf-exam-recorder" data-recorder>
                             <div class="lf-exam-recorder__controls">

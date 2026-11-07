@@ -10,6 +10,19 @@ Last Updated: 2026-11-06
 
 Document Path: database/assessment/core_assessment_answer_files.md
 
+> **Thay đổi đề xuất — [ADR-0027](../../adr/ADR-0027-Assessment-Grader-Assignment-And-Essay-Files.md) D5 (Approved 2026-11-07, migration
+> `2026_11_07_000100`):**
+>
+> * `file_role` thêm `essay_attachment`:
+>   `CHECK (file_role IN ('speaking_recording','essay_attachment'))`.
+> * Bỏ `UNIQUE (customer_id, answer_id, file_role)`, thay bằng
+>   `UNIQUE (customer_id, answer_id, media_file_id)`. Service giữ: tối đa một
+>   `speaking_recording` mỗi câu nói; tối đa 3 `essay_attachment` mỗi câu tự
+>   luận, chỉ khi `question_snapshot.allow_file_answer = true`.
+> * `essay_attachment` ghi `media_file_usages` với `usage_type = attachment`;
+>   ảnh (JPG, PNG, WEBP, HEIC), PDF, DOCX; không OCR / trích xuất / AI
+>   (ADR-0018). Học viên xoá được tệp khi Attempt còn `in_progress`.
+
 ## Purpose
 
 Liên kết file bài làm của học viên (ghi âm Speaking) với câu trả lời.

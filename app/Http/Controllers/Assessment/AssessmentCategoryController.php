@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Assessment;
 
 use App\Http\Controllers\Controller;
 use App\Services\Assessment\AssessmentCategoryService;
+use App\Services\Assessment\AssessmentGraderService;
 use App\Support\TenantContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -20,7 +21,10 @@ final class AssessmentCategoryController extends Controller
 {
     private const ROUTE = 'admin.assessments.categories';
 
-    public function __construct(private readonly AssessmentCategoryService $categories) {}
+    public function __construct(
+        private readonly AssessmentCategoryService $categories,
+        private readonly AssessmentGraderService $graders,
+    ) {}
 
     public function index(Request $request): View
     {
@@ -54,8 +58,27 @@ final class AssessmentCategoryController extends Controller
             ->paginate(10)
             ->withQueryString();
 
+        $named = $this->graders->categoryGraders($customerId);
+        $parents = DB::table(AssessmentCategoryService::TABLE)->where('customer_id', $customerId)->pluck('parent_id', 'id');
+        $names = DB::table(AssessmentCategoryService::TABLE)->where('customer_id', $customerId)->pluck('name', 'id');
+        // Giáo viên chấm of each row: named on it, and inherited from its parents (nearest first), each teacher once.
+        $graders = collect($categories->items())->mapWithKeys(function (object $category) use ($named, $parents, $names): array {
+            $own = $named->get($category->id, collect());
+            $inherited = collect();
+            $seen = [(int) $category->id => true];
+            for ($id = (int) ($parents[$category->id] ?? 0); $id && ! isset($seen[$id]); $id = (int) ($parents[$id] ?? 0)) {
+                $seen[$id] = true;
+                foreach ($named->get($id, collect()) as $teacher) {
+                    $inherited->push((object) ['id' => $teacher->id, 'name' => $teacher->name, 'from' => $names[$id] ?? '']);
+                }
+            }
+
+            return [$category->id => ['own' => $own, 'inherited' => $inherited->whereNotIn('id', $own->pluck('id'))->unique('id')->values()]];
+        });
+
         return view('assessments.categories.index', [
             'categories' => $categories,
+            'graders' => $graders,
             'keyword' => $keyword,
             'status' => $status,
             'routePrefix' => self::ROUTE,
@@ -133,6 +156,32 @@ final class AssessmentCategoryController extends Controller
         return $request->expectsJson()
             ? response()->json(['message' => $message])
             : redirect()->route(self::ROUTE.'.index')->with('success', $message);
+    }
+
+    /** Giáo viên chấm of a category (ADR-0027 D2): choose teachers; the parents' teachers are shown, read only. */
+    public function editGraders(Request $request, int $id): View
+    {
+        abort_unless($request->ajax(), 404);
+        $customerId = $this->customerId($request);
+        $category = $this->categories->find($customerId, $id);
+
+        return view('assessments.partials.graders-dialog', [
+            'title' => __('lf.LF_assessment_grader_category_title', ['name' => $category->name]),
+            'help' => __('lf.LF_assessment_grader_category_help'),
+            'action' => route(self::ROUTE.'.graders.update', $id),
+            'teachers' => $this->graders->teachers($customerId)->orderBy('name')->limit(1000)->get(['id', 'name', 'email']),
+            'chosen' => DB::table(AssessmentGraderService::SCOPES_TABLE)->where('customer_id', $customerId)->where('category_id', $id)->pluck('user_id')->map(fn ($v) => (int) $v)->all(),
+            'inherited' => $category->parent_id ? $this->graders->inheritedQuizGraders($customerId, (int) $category->parent_id) : collect(),
+        ]);
+    }
+
+    public function updateGraders(Request $request, int $id): JsonResponse|RedirectResponse
+    {
+        $customerId = $this->customerId($request);
+        $validated = $request->validate(['user_ids' => ['nullable', 'array', 'max:200'], 'user_ids.*' => ['integer', 'distinct']]);
+        $this->graders->setCategoryGraders($customerId, $request->user(), $id, $validated['user_ids'] ?? []);
+
+        return $this->saved($request, __('lf.LF_assessment_grader_saved'));
     }
 
     /** @return array{name: string, parent_id: int|null, description: string|null, status: string} */

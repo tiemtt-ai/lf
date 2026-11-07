@@ -238,6 +238,7 @@ final class AssessmentQuestionController extends Controller
             'true_false_answer' => ['nullable', 'string', Rule::in(['true', 'false'])],
             'passage_id' => ['nullable', 'integer', 'min:1'],
             'rubric_id' => ['nullable', 'integer', 'min:1'],
+            'allow_file_answer' => ['nullable', 'boolean'],
             'prompt_image_file' => ['nullable', 'file', 'image', 'max:'.UploadLimit::effectiveKilobytes()],
             'prompt_audio_file' => ['nullable', 'file', 'mimes:mp3,wav,m4a,aac,ogg', 'max:'.UploadLimit::effectiveKilobytes()],
             'remove_prompt_image' => ['nullable', 'boolean'],
@@ -277,6 +278,7 @@ final class AssessmentQuestionController extends Controller
             'true_false_answer' => $validated['true_false_answer'] ?? null,
             'passage_id' => isset($validated['passage_id']) ? (int) $validated['passage_id'] : null,
             'rubric_id' => isset($validated['rubric_id']) ? (int) $validated['rubric_id'] : null,
+            'allow_file_answer' => (bool) ($validated['allow_file_answer'] ?? false),
         ];
     }
 

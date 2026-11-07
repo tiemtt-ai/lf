@@ -4358,7 +4358,7 @@
           "columns": [
             "customer_id",
             "answer_id",
-            "file_role"
+            "media_file_id"
           ],
           "unique": true,
           "type": "btree"
@@ -4408,7 +4408,7 @@
           "expression": "json_valid(`metadata`)"
         },
         {
-          "expression": "`file_role` = 'speaking_recording'"
+          "expression": "`file_role` in ('speaking_recording','essay_attachment')"
         }
       ],
       "triggers": [],
@@ -5355,14 +5355,461 @@
       "views": []
     },
     {
+      "name": "core_assessment_grader_scopes",
+      "documentation": "database/assessment/core_assessment_grader_scopes.md",
+      "implementation_status": "implemented",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": true,
+          "generated": null
+        },
+        {
+          "name": "customer_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "category_id",
+          "type": "bigint",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "quiz_id",
+          "type": "bigint",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "user_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "created_by",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "category_id",
+            "customer_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "created_by"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "quiz_id",
+            "customer_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "user_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "user_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "category_id",
+            "user_id"
+          ],
+          "unique": true,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "quiz_id",
+            "user_id"
+          ],
+          "unique": true,
+          "type": "btree"
+        }
+      ],
+      "foreign_keys": [
+        {
+          "columns": [
+            "category_id",
+            "customer_id"
+          ],
+          "foreign_table": "core_assessment_categories",
+          "foreign_columns": [
+            "id",
+            "customer_id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "cascade"
+        },
+        {
+          "columns": [
+            "created_by"
+          ],
+          "foreign_table": "users",
+          "foreign_columns": [
+            "id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "customer_id"
+          ],
+          "foreign_table": "saas_customers",
+          "foreign_columns": [
+            "id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "quiz_id",
+            "customer_id"
+          ],
+          "foreign_table": "core_assessment_quizzes",
+          "foreign_columns": [
+            "id",
+            "customer_id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "cascade"
+        },
+        {
+          "columns": [
+            "user_id"
+          ],
+          "foreign_table": "users",
+          "foreign_columns": [
+            "id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        }
+      ],
+      "checks": [
+        {
+          "expression": "`category_id` is null <> (`quiz_id` is null)"
+        }
+      ],
+      "triggers": [],
+      "views": []
+    },
+    {
       "name": "core_assessment_grading_assignments",
       "documentation": "database/assessment/core_assessment_grading_assignments.md",
-      "implementation_status": "not_implemented",
-      "columns": [],
-      "primary_key": [],
-      "indexes": [],
-      "foreign_keys": [],
-      "checks": [],
+      "implementation_status": "implemented",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": true,
+          "generated": null
+        },
+        {
+          "name": "customer_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "attempt_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "assigned_to_user_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "assigned_by_user_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "assignment_type",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "status",
+          "type": "varchar",
+          "nullable": false,
+          "default": "'active'",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "ended_at",
+          "type": "timestamp",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "ended_by_user_id",
+          "type": "bigint",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "active_flag",
+          "type": "tinyint",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": {
+            "type": "stored",
+            "expression": "case when `status` = 'active' then 1 end"
+          }
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "assigned_to_user_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "assigned_by_user_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "attempt_id",
+            "customer_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "ended_by_user_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "assigned_to_user_id",
+            "status"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "attempt_id",
+            "status"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "attempt_id",
+            "active_flag"
+          ],
+          "unique": true,
+          "type": "btree"
+        }
+      ],
+      "foreign_keys": [
+        {
+          "columns": [
+            "assigned_to_user_id"
+          ],
+          "foreign_table": "users",
+          "foreign_columns": [
+            "id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "assigned_by_user_id"
+          ],
+          "foreign_table": "users",
+          "foreign_columns": [
+            "id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "attempt_id",
+            "customer_id"
+          ],
+          "foreign_table": "core_assessment_attempts",
+          "foreign_columns": [
+            "id",
+            "customer_id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "customer_id"
+          ],
+          "foreign_table": "saas_customers",
+          "foreign_columns": [
+            "id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "ended_by_user_id"
+          ],
+          "foreign_table": "users",
+          "foreign_columns": [
+            "id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        }
+      ],
+      "checks": [
+        {
+          "expression": "`assignment_type` in ('assigned','claimed')"
+        },
+        {
+          "expression": "`status` in ('active','released','completed')"
+        },
+        {
+          "expression": "`status` = 'active' = (`ended_at` is null)"
+        }
+      ],
       "triggers": [],
       "views": []
     },
@@ -6568,6 +7015,15 @@
           "generated": null
         },
         {
+          "name": "allow_file_answer",
+          "type": "tinyint",
+          "nullable": false,
+          "default": "0",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
           "name": "status",
           "type": "varchar",
           "nullable": false,
@@ -6811,6 +7267,9 @@
         },
         {
           "expression": "`rubric_id` is null or `question_type` in ('essay','speaking')"
+        },
+        {
+          "expression": "`allow_file_answer` = 0 or `question_type` = 'essay'"
         }
       ],
       "triggers": [],

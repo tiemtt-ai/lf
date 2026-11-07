@@ -63,6 +63,12 @@
                     <x-backend-icon name="square-pen" class="ui-icon" />
                     {{ __('lf.LF_assessment_quiz_edit') }}
                 </button>
+                <button type="button" class="ui-button ui-button--outline cursor-interaction" data-ui-dialog-form-open
+                        data-ui-dialog-form-for="assessment-quiz-page"
+                        data-url="{{ route($routePrefix.'.graders.edit', $quiz->id) }}" aria-haspopup="dialog">
+                    <x-backend-icon name="user-cog" class="ui-icon" />
+                    {{ __('lf.LF_assessment_grader_quiz_button') }}
+                </button>
                 @if ($quiz->status === 'published')
                     <button type="button" class="ui-button ui-button--outline cursor-interaction" data-ui-dialog-form-open
                             data-ui-dialog-form-for="assessment-quiz-page"
@@ -140,6 +146,19 @@
             <div class="ui-summary__item">
                 <dt>{{ __('lf.LF_assessment_quiz_show_result') }}</dt>
                 <dd>{{ __('lf.LF_assessment_quiz_result_'.$quiz->show_result_mode) }}</dd>
+            </div>
+            <div class="ui-summary__item ui-summary__item--wide" data-assessment-quiz-graders>
+                <dt>{{ __('lf.LF_assessment_grader_graders') }}</dt>
+                <dd>
+                    @if ($quizGraders->isEmpty() && $inheritedGraders->isEmpty())
+                        {{ __('lf.LF_assessment_grader_none') }}
+                    @else
+                        {{ $quizGraders->pluck('name')->implode(', ') }}
+                        @foreach ($inheritedGraders->whereNotIn('id', $quizGraders->pluck('id'))->groupBy('category_name') as $categoryName => $teachers)
+                            <span class="ui-caption ui-framework-description">{{ __('lf.LF_assessment_grader_from_category', ['category' => $categoryName, 'names' => $teachers->pluck('name')->implode(', ')]) }}</span>
+                        @endforeach
+                    @endif
+                </dd>
             </div>
             @if (filled($quiz->description))
                 <div class="ui-summary__item ui-summary__item--wide">
@@ -356,6 +375,6 @@
         </div>
     </section>
 
-    @include('assessments.passages.partials.dialog-host', ['dialogTitleId' => 'assessment-quiz-dialog-title assessment-quiz-section-dialog-title assessment-quiz-item-dialog-title assessment-quiz-picker-title assessment-registration-dialog-title'])
+    @include('assessments.passages.partials.dialog-host', ['dialogTitleId' => 'assessment-quiz-dialog-title assessment-quiz-section-dialog-title assessment-quiz-item-dialog-title assessment-quiz-picker-title assessment-registration-dialog-title assessment-grader-dialog-title'])
 </div>
 @endsection

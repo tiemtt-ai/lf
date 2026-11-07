@@ -237,3 +237,26 @@ test('the list buttons line up left under the filters when they wrap, and stay a
     assert.equal(below.observed.length, 2, 'recomputed on resize and when the live filter swaps the group');
     instance.destroy();
 });
+
+test('a bulk dialog opener (Giao chấm) follows the selection: disabled when empty, its URL carries the checked values and its label the count', () => {
+    const t = bulkSetup();
+    const label = new El({ 'data-text-selected': ' (:count)' });
+    const opener = new El({ 'data-ui-bulk-open': '', 'data-url-base': '/admin/assessments/results/assign' });
+    opener.setAttribute = (name, value) => opener.attrs.set(name, value);
+    opener.querySelector = () => label;
+    const baseAll = t.scope.querySelectorAll;
+    t.scope.querySelectorAll = selector => (selector.includes('bulk-open') ? [opener] : baseAll(selector));
+    t.boxes[0].checked = true;
+    t.change(t.boxes[0]);
+    assert.equal(opener.disabled, false);
+    assert.equal(opener.getAttribute('data-url'), '/admin/assessments/results/assign?ids%5B%5D=10');
+    assert.equal(label.textContent, ' (1)');
+    t.all.checked = true;
+    t.change(t.all);
+    assert.equal(opener.getAttribute('data-url'), '/admin/assessments/results/assign?ids%5B%5D=10&ids%5B%5D=11', 'a disabled item never joins');
+    t.all.checked = false;
+    t.change(t.all);
+    assert.equal(opener.disabled, true);
+    assert.equal(opener.getAttribute('data-url'), '/admin/assessments/results/assign');
+    assert.equal(label.textContent, '');
+});

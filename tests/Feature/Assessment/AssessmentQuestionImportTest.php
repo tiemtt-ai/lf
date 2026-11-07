@@ -181,7 +181,9 @@ class AssessmentQuestionImportTest extends TestCase
 
         $this->assertCount(8, $this->exportAs($this->admin, self::ADMIN.'/export'));
         $essays = $this->exportAs($this->admin, self::ADMIN.'/export?question_type=essay&status=draft');
-        $this->assertSame([$teacherRows[0], ['Tự luận', 'Câu của admin', '', '', '', '', '', '', '', '1', '', '', '', '']], $essays);
+        // An essay carries its "Cho nộp tệp" (ADR-0027 D5); a file without the column imported it as no.
+        $this->assertSame([$teacherRows[0], ['Tự luận', 'Câu của admin', '', '', '', '', '', '', '', '1', '', '', '', '', 'Không']], $essays);
+        $this->assertSame('Có', collect($teacherRows)->firstWhere(0, 'Tự luận')[14]);
 
         // What comes out goes back in unchanged.
         $before = DB::table('core_assessment_questions')->count();

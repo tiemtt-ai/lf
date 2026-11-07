@@ -10,6 +10,10 @@ Last Updated: 2026-11-06
 
 Document Path: database/assessment/core_assessment_quizzes.md
 
+> **Liên quan — [ADR-0027](../../adr/ADR-0027-Assessment-Grader-Assignment-And-Essay-Files.md) D2 (Approved 2026-11-07):** "Giao chấm đề" nằm ở
+> [core_assessment_grader_scopes](core_assessment_grader_scopes.md). Bảng này
+> không đổi schema.
+
 ## Purpose
 
 Bản nháp đề / bài tập: tài sản độc lập của tenant, sửa được, dùng lại được, theo

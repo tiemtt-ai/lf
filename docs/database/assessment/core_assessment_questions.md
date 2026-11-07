@@ -10,6 +10,13 @@ Last Updated: 2026-11-06
 
 Document Path: database/assessment/core_assessment_questions.md
 
+> **Thay đổi đề xuất — [ADR-0027](../../adr/ADR-0027-Assessment-Grader-Assignment-And-Essay-Files.md) D5 (Approved 2026-11-07, migration
+> `2026_11_07_000100`):** thêm cột
+> `allow_file_answer BOOLEAN NOT NULL DEFAULT false` ("Cho nộp tệp") và
+> `CHECK (allow_file_answer = false OR question_type = 'essay')`. Đổi dạng câu
+> khỏi `essay` thì service đặt lại `false`. Nhập / Xuất Excel thêm cột "Cho nộp
+> tệp"; file thiếu cột coi là không.
+
 ## Purpose
 
 Câu hỏi nguồn do giáo viên hoặc admin soạn bằng form. Câu có thể đứng lẻ hoặc

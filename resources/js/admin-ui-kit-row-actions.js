@@ -6,6 +6,9 @@
  *    default `ids[]`; ":count" in the confirm message is replaced), with the select-all box
  *    `[data-ui-bulk-select-all]`, the count text `[data-ui-bulk-count]` (its `data-text-selected`, empty when nothing is
  *    checked) and the delete button itself (always there, disabled until something is checked) kept in step;
+ *  - `[data-ui-bulk-open]` (data-url-base): a dialog opener for the checked rows (e.g. "Giao chấm"); kept disabled until
+ *    something is checked, its `data-url` is the base plus the checked values (`data-ui-bulk-name`, default `ids[]`) and
+ *    its `[data-ui-bulk-open-count]` child shows the number like the delete button;
  *  - `[data-ui-confirm-post]`: a plain POST (e.g. a clean-up that is not tied to a row). Such a button may live outside
  *    the scope (the page heading): `data-ui-row-actions-for="<scope id>"` hands it to that scope.
  * Success: a toast and `ui-dialog-form-saved` so the list refetches (or, when the server answers `redirect`, a reload
@@ -102,6 +105,16 @@ export function initUiKitRowActions(scope, deps = {}) {
         const count = scope.querySelector('[data-ui-bulk-count]');
         if (count) count.textContent = chosen === 0 ? '' : attr(count, 'data-text-selected').replace(':count', String(chosen));
         for (const button of scope.querySelectorAll('[data-ui-bulk-delete]')) button.disabled = chosen === 0;
+        const values = items.filter(box => box.checked).map(box => box.value);
+        for (const button of scope.querySelectorAll('[data-ui-bulk-open]')) {
+            button.disabled = chosen === 0;
+            const base = attr(button, 'data-url-base');
+            const name = encodeURIComponent(attr(button, 'data-ui-bulk-name') || 'ids[]');
+            const query = values.map(value => `${name}=${encodeURIComponent(value)}`).join('&');
+            button.setAttribute('data-url', query === '' ? base : `${base}${base.includes('?') ? '&' : '?'}${query}`);
+            const label = button.querySelector('[data-ui-bulk-open-count]');
+            if (label) label.textContent = chosen === 0 ? '' : attr(label, 'data-text-selected').replace(':count', String(chosen));
+        }
     }
     const onChange = event => {
         const target = event.target;

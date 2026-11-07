@@ -24,6 +24,9 @@ final class AssessmentAttemptService
 
     public const FILES_TABLE = 'core_assessment_answer_files';
 
+    /** Files per essay answer when the question allows them (ADR-0027 D5). */
+    public const MAX_ATTACHMENTS = 3;
+
     /**
      * Starts (or resumes) an attempt on the quiz's current version. Locks the registration so attempts are counted once.
      */
@@ -156,8 +159,118 @@ final class AssessmentAttemptService
     }
 
     /**
+     * Adds an uploaded file to the answer of an essay question that allows files (ADR-0027 D5), at most
+     * MAX_ATTACHMENTS per answer. The same file twice is kept once. Throws on the `file` field when the answer is full.
+     */
+    public function saveAttachment(int $customerId, int $attemptId, int $versionQuestionId, int $mediaFileId, MediaService $media): void
+    {
+        DB::transaction(function () use ($customerId, $attemptId, $versionQuestionId, $mediaFileId, $media): void {
+            $attempt = $this->lockOpen($customerId, $attemptId);
+            $question = $this->fileQuestion($customerId, $attempt, $versionQuestionId);
+            $answerId = $this->answerId($customerId, $attempt, $question);
+            $files = DB::table(self::FILES_TABLE)->where('customer_id', $customerId)->where('answer_id', $answerId)
+                ->where('file_role', 'essay_attachment')->pluck('media_file_id')->map(fn ($id) => (int) $id);
+
+            if ($files->contains($mediaFileId)) {
+                return;
+            }
+            if ($files->count() >= self::MAX_ATTACHMENTS) {
+                throw ValidationException::withMessages(['file' => __('lf.LF_assessment_learner_files_full', ['max' => self::MAX_ATTACHMENTS])]);
+            }
+
+            DB::table(self::FILES_TABLE)->insert([
+                'customer_id' => $customerId,
+                'answer_id' => $answerId,
+                'media_file_id' => $mediaFileId,
+                'file_role' => 'essay_attachment',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+            $media->attachUsage($mediaFileId, 'assessment_answer', $answerId, 'attachment');
+        });
+    }
+
+    /** Removes one file from an essay answer while the attempt is open. Returns false when it was not there. */
+    public function removeAttachment(int $customerId, int $attemptId, int $versionQuestionId, int $mediaFileId, MediaService $media): bool
+    {
+        return DB::transaction(function () use ($customerId, $attemptId, $versionQuestionId, $mediaFileId, $media): bool {
+            $attempt = $this->lockOpen($customerId, $attemptId);
+            $question = $this->fileQuestion($customerId, $attempt, $versionQuestionId);
+            $answerId = (int) DB::table(self::ANSWERS_TABLE)->where('customer_id', $customerId)
+                ->where('attempt_id', $attemptId)->where('quiz_version_question_id', $question->id)->value('id');
+            $deleted = $answerId > 0 && DB::table(self::FILES_TABLE)->where('customer_id', $customerId)->where('answer_id', $answerId)
+                ->where('file_role', 'essay_attachment')->where('media_file_id', $mediaFileId)->delete() > 0;
+
+            if ($deleted) {
+                $media->detachUsage($mediaFileId, 'assessment_answer', $answerId, 'attachment');
+                DB::table(self::ANSWERS_TABLE)->where('id', $answerId)->update(['updated_at' => now()]);
+            }
+
+            return $deleted;
+        });
+    }
+
+    /**
+     * The files of essay answers, oldest first, keyed by answer id.
+     *
+     * @param  iterable<int>  $answerIds
+     * @return Collection<int, Collection<int, object>> each: media_file_id, display_name, original_name, mime_type, extension, status
+     */
+    public function attachments(int $customerId, iterable $answerIds): Collection
+    {
+        return DB::table(self::FILES_TABLE.' as f')->join('media_files as m', 'm.id', '=', 'f.media_file_id')
+            ->where('f.customer_id', $customerId)->whereIn('f.answer_id', collect($answerIds)->all())
+            ->where('f.file_role', 'essay_attachment')->where('m.status', '!=', 'deleted')
+            ->orderBy('f.id')
+            ->get(['f.answer_id', 'f.media_file_id', 'm.display_name', 'm.original_name', 'm.mime_type', 'm.extension', 'm.status'])
+            ->groupBy('answer_id');
+    }
+
+    /** How a page shows an essay file: `image` inline (JPG / PNG / WEBP), else `pdf`, `docx` or `file` (HEIC) as a link. */
+    public static function attachmentKind(object $file): string
+    {
+        return match (true) {
+            in_array($file->mime_type, ['image/jpeg', 'image/png', 'image/webp'], true) => 'image',
+            $file->mime_type === 'application/pdf' => 'pdf',
+            $file->extension === 'docx' => 'docx',
+            default => 'file',
+        };
+    }
+
+    /** A question of this attempt's version that takes files, or 404. */
+    private function fileQuestion(int $customerId, object $attempt, int $versionQuestionId): object
+    {
+        $question = DB::table(AssessmentQuizPublishService::VERSION_QUESTIONS_TABLE)
+            ->where('customer_id', $customerId)->where('quiz_version_id', $attempt->quiz_version_id)->where('id', $versionQuestionId)->first();
+        abort_if(! $question || ! self::allowsFiles($question), 404);
+
+        return $question;
+    }
+
+    /** Cho nộp tệp, as frozen in the version (a snapshot without the key means no). */
+    public static function allowsFiles(object $versionQuestion): bool
+    {
+        return $versionQuestion->question_type === 'essay'
+            && (bool) (json_decode((string) $versionQuestion->question_snapshot, true)['allow_file_answer'] ?? false);
+    }
+
+    /** The answer row of the question, created when missing (the text may come later). */
+    private function answerId(int $customerId, object $attempt, object $question): int
+    {
+        $match = ['customer_id' => $customerId, 'attempt_id' => $attempt->id, 'quiz_version_question_id' => $question->id];
+        if (! DB::table(self::ANSWERS_TABLE)->where($match)->exists()) {
+            $this->upsertAnswer($customerId, $attempt, $question, ['answer_type' => 'text', 'answered_at' => now(), 'updated_at' => now()]);
+        } else {
+            DB::table(self::ANSWERS_TABLE)->where($match)->update(['answered_at' => now(), 'updated_at' => now()]);
+        }
+
+        return (int) DB::table(self::ANSWERS_TABLE)->where($match)->value('id');
+    }
+
+    /**
      * Ends the attempt: every question gets an answer row, objective ones are graded, totals computed. A blank essay /
      * speaking answer is graded 0 by the system (ADR-0025 D11) so it never waits in Chờ chấm; graders may still regrade it.
+     * An essay with files but no text is not blank (ADR-0027 D5).
      */
     public function submit(int $customerId, int $attemptId, string $reason = 'student'): object
     {
@@ -169,8 +282,9 @@ final class AssessmentAttemptService
             $answers = DB::table(self::ANSWERS_TABLE)->where('customer_id', $customerId)->where('attempt_id', $attemptId)
                 ->get()->keyBy('quiz_version_question_id');
 
-            $recorded = DB::table(self::FILES_TABLE)->where('customer_id', $customerId)
-                ->whereIn('answer_id', $answers->pluck('id'))->where('file_role', 'speaking_recording')->pluck('answer_id')
+            // An answer counts as given with its file: a recording for speaking, an attachment for essay (ADR-0027 D5).
+            $withFile = DB::table(self::FILES_TABLE)->where('customer_id', $customerId)
+                ->whereIn('answer_id', $answers->pluck('id'))->distinct()->pluck('answer_id')
                 ->map(fn ($id) => (int) $id);
             $blank = [];
             $pending = false;
@@ -181,9 +295,10 @@ final class AssessmentAttemptService
                 $values = ['updated_at' => $now];
 
                 if ($manual) {
+                    $hasFile = $answer && $withFile->contains((int) $answer->id);
                     $empty = $question->question_type === 'speaking'
-                        ? ! $answer || ! $recorded->contains((int) $answer->id)
-                        : trim((string) $answer?->answer_text) === '';
+                        ? ! $hasFile
+                        : trim((string) $answer?->answer_text) === '' && ! $hasFile;
                     if ($empty) {
                         $blank[] = $question->id;
                         $values += ['grading_status' => 'graded', 'score' => 0, 'is_correct' => null];

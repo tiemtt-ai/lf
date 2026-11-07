@@ -25,6 +25,14 @@ Document Path: database/assessment/README.md
 > `2026_11_06_000400` đã có, kiểm trên MariaDB 11.4; service, trang Tiêu chí
 > chấm, chấm theo tiêu chí đã làm.
 
+> **Phân công chấm và tệp bài tự luận ([ADR-0027](../../adr/ADR-0027-Assessment-Grader-Assignment-And-Essay-Files.md),
+> Approved 2026-11-07):** Owner duyệt ADR-0027 và các tài liệu bảng ngày
+> 2026-11-07. Migration `2026_11_07_000100` đã có, kiểm trên MariaDB 11.4; bảng mới
+> [core_assessment_grader_scopes](core_assessment_grader_scopes.md); bỏ hoãn
+> [core_assessment_grading_assignments](core_assessment_grading_assignments.md)
+> (thu gọn); cột mới `questions.allow_file_answer`; đổi ràng buộc
+> `answer_files` (thêm `essay_attachment`).
+
 Miền Assessment quản lý module **Kiểm tra**: danh mục, câu hỏi, ngữ liệu, đề /
 bài tập, phiên bản xuất bản, ghi danh, lần làm bài, câu trả lời và chấm điểm.
 Miền này tạo bằng chứng đánh giá; không tự đổi trạng thái của miền khác.
@@ -78,6 +86,8 @@ Miền này tạo bằng chứng đánh giá; không tự đổi trạng thái c
 | [core_assessment_answers](core_assessment_answers.md) | Câu trả lời |
 | [core_assessment_answer_files](core_assessment_answer_files.md) | File ghi âm Speaking |
 | [core_assessment_gradings](core_assessment_gradings.md) | Lịch sử chấm tay theo câu |
+| [core_assessment_grader_scopes](core_assessment_grader_scopes.md) | Giáo viên chấm theo danh mục / đề (ADR-0027) |
+| [core_assessment_grading_assignments](core_assessment_grading_assignments.md) | Ai đang giữ bài để chấm (ADR-0027) |
 
 ## Bảng hoãn (không có migration ở giai đoạn 1)
 
@@ -86,7 +96,6 @@ Miền này tạo bằng chứng đánh giá; không tự đổi trạng thái c
 | [core_assessment_question_banks](core_assessment_question_banks.md) | Câu hỏi thuộc người tạo, phân loại bằng danh mục |
 | [core_assessment_topics](core_assessment_topics.md) | Danh mục đủ cho giai đoạn 1 |
 | [core_assessment_question_topics](core_assessment_question_topics.md) | Như trên |
-| [core_assessment_grading_assignments](core_assessment_grading_assignments.md) | Người chấm suy ra từ người tạo / người cấp |
 
 ---
 

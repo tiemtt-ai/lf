@@ -23,7 +23,7 @@ final class AssessmentQuestionImportService
     /** Column keys in file order. */
     public const COLUMNS = [
         'type', 'prompt', 'option_a', 'option_b', 'option_c', 'option_d', 'option_e', 'option_f',
-        'answer', 'points', 'skill', 'level', 'explanation', 'reference_answer',
+        'answer', 'points', 'skill', 'level', 'explanation', 'reference_answer', 'file_answer',
     ];
 
     private const OPTION_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F'];
@@ -35,15 +35,16 @@ final class AssessmentQuestionImportService
     {
         $header = array_map(fn (string $key) => __('lf.LF_assessment_question_import_col_'.$key), self::COLUMNS);
         $label = fn (string $group, string $value) => __('lf.LF_assessment_question_'.$group.'_'.$value);
+        $yes = __('lf.LF_assessment_question_import_yes');
 
         return [
             $header,
-            [$label('type', 'single_choice'), '"학생" nghĩa là gì?', 'Giáo viên', 'Học sinh', 'Bác sĩ', 'Nhân viên', '', '', 'B', '1', $label('skill', 'reading'), $label('level', 'easy'), '', ''],
-            [$label('type', 'multiple_choice'), 'Những từ nào là động từ?', '가다', '예쁘다', '먹다', '크다', '', '', 'A,C', '2', $label('skill', 'reading'), $label('level', 'medium'), '', ''],
-            [$label('type', 'true_false'), 'Bảng chữ cái tiếng Hàn được gọi là 한글.', '', '', '', '', '', '', __('lf.LF_assessment_question_true'), '1', '', '', '', ''],
-            [$label('type', 'short_answer'), 'Viết bằng tiếng Hàn: "Cảm ơn".', '', '', '', '', '', '', '감사합니다 | 고맙습니다', '1', $label('skill', 'writing'), '', '', ''],
-            [$label('type', 'essay'), 'Viết 3 câu về một ngày của bạn.', '', '', '', '', '', '', '', '3', $label('skill', 'writing'), '', '', 'Dùng đúng đuôi -아요/어요, đủ 3 câu.'],
-            [$label('type', 'speaking'), 'Đọc to: 저는 베트남 사람이에요.', '', '', '', '', '', '', '', '2', $label('skill', 'speaking'), '', '', ''],
+            [$label('type', 'single_choice'), '"학생" nghĩa là gì?', 'Giáo viên', 'Học sinh', 'Bác sĩ', 'Nhân viên', '', '', 'B', '1', $label('skill', 'reading'), $label('level', 'easy'), '', '', ''],
+            [$label('type', 'multiple_choice'), 'Những từ nào là động từ?', '가다', '예쁘다', '먹다', '크다', '', '', 'A,C', '2', $label('skill', 'reading'), $label('level', 'medium'), '', '', ''],
+            [$label('type', 'true_false'), 'Bảng chữ cái tiếng Hàn được gọi là 한글.', '', '', '', '', '', '', __('lf.LF_assessment_question_true'), '1', '', '', '', '', ''],
+            [$label('type', 'short_answer'), 'Viết bằng tiếng Hàn: "Cảm ơn".', '', '', '', '', '', '', '감사합니다 | 고맙습니다', '1', $label('skill', 'writing'), '', '', '', ''],
+            [$label('type', 'essay'), 'Viết 3 câu về một ngày của bạn.', '', '', '', '', '', '', '', '3', $label('skill', 'writing'), '', '', 'Dùng đúng đuôi -아요/어요, đủ 3 câu.', $yes],
+            [$label('type', 'speaking'), 'Đọc to: 저는 베트남 사람이에요.', '', '', '', '', '', '', '', '2', $label('skill', 'speaking'), '', '', '', ''],
         ];
     }
 
@@ -67,7 +68,7 @@ final class AssessmentQuestionImportService
             ->when($filters['status'], fn ($query, $status) => $query->where('q.status', $status))
             ->orderBy('q.id')
             ->limit(5000)
-            ->get(['q.id', 'q.question_type', 'q.skill_type', 'q.difficulty_level', 'q.default_points', 'c.prompt', 'c.explanation', 'c.reference_answer']);
+            ->get(['q.id', 'q.question_type', 'q.skill_type', 'q.difficulty_level', 'q.default_points', 'q.allow_file_answer', 'c.prompt', 'c.explanation', 'c.reference_answer']);
 
         $options = DB::table('core_assessment_question_options')->where('customer_id', $customerId)
             ->whereIn('question_id', $questions->pluck('id'))->orderBy('sort_order')->get()->groupBy('question_id');
@@ -97,6 +98,7 @@ final class AssessmentQuestionImportService
                 $label('type', $question->question_type), (string) $question->prompt, ...$choices, $answer,
                 $points($question->default_points), $label('skill', $question->skill_type), $label('level', $question->difficulty_level),
                 (string) $question->explanation, (string) $question->reference_answer,
+                $question->question_type === 'essay' ? __($question->allow_file_answer ? 'lf.LF_assessment_question_import_yes' : 'lf.LF_assessment_question_import_no') : '',
             ];
         }
 
@@ -279,6 +281,12 @@ final class AssessmentQuestionImportService
             }
         }
 
+        // Cho nộp tệp (ADR-0027 D5): yes / no in either language; empty or a file without the column means no.
+        $fileAnswer = $this->yesNo($item['file_answer']);
+        if ($fileAnswer === null) {
+            $fail('file_answer', ['value' => $item['file_answer']]);
+        }
+
         $nullable = fn (string $value) => $value === '' ? null : $value;
 
         return [
@@ -295,7 +303,20 @@ final class AssessmentQuestionImportService
             'accepted_answers' => $accepted,
             'true_false_answer' => $trueFalse,
             'passage_id' => null,
+            'allow_file_answer' => $type === 'essay' && $fileAnswer,
         ];
+    }
+
+    private function yesNo(string $given): ?bool
+    {
+        $needle = mb_strtolower(trim($given));
+        $words = fn (string $key, array $extra) => array_map('mb_strtolower', [...$extra, __($key, [], 'vi'), __($key, [], 'en')]);
+
+        return match (true) {
+            in_array($needle, $words('lf.LF_assessment_question_import_no', ['', 'no', 'false', '0', 'không', 'khong', 'k']), true) => false,
+            in_array($needle, $words('lf.LF_assessment_question_import_yes', ['yes', 'true', '1', 'có', 'co', 'x', 'c']), true) => true,
+            default => null,
+        };
     }
 
     /**

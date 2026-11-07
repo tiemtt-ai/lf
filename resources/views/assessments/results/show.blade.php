@@ -11,7 +11,7 @@
 
 @section('vite')
     @parent
-    @vite(['resources/css/admin/admin-ui-kit.css', 'resources/js/admin-ui-kit-controls.js'])
+    @vite(['resources/css/admin/admin-ui-kit.css', 'resources/js/admin-ui-kit-controls.js', 'resources/js/admin-ui-kit-dialog-form.js'])
 @endsection
 
 @section('content')
@@ -23,7 +23,8 @@
     $lastPassage = null;
     $pendingAnswers = $answers->where('grading_status', 'pending')->count();
 @endphp
-<div id="assessment-result-page" class="lf-admin-ui lf-admin-ui--list" data-assessment-section="results" data-assessment-attempt="{{ $attempt->id }}">
+<div id="assessment-result-page" class="lf-admin-ui lf-admin-ui--list" data-assessment-section="results" data-assessment-attempt="{{ $attempt->id }}"
+     data-ui-dialog-form-scope>
     <x-ui-list-toasts />
 
     @if ($errors->any())
@@ -44,15 +45,45 @@
                 <h2 id="assessment-result-summary-title">{{ __('lf.LF_assessment_result_summary') }}</h2>
                 <p class="ui-caption">{{ __('lf.LF_assessment_quiz_version_number', ['number' => $version->version_no]) }} · {{ __('lf.LF_assessment_result_attempt_no', ['number' => $attempt->attempt_no]) }}</p>
             </div>
-            @if ($attempt->status === 'in_progress')
-                <span class="ui-status ui-status--draft">{{ __('lf.LF_assessment_result_status_in_progress') }}</span>
-            @else
-                <span @class(['ui-status', 'ui-status--inactive' => $attempt->grading_status === 'pending', 'ui-status--active' => $attempt->grading_status !== 'pending'])>
-                    {{ __('lf.LF_assessment_result_grading_'.$attempt->grading_status) }}
-                    @if ($pendingAnswers > 0) · {{ trans_choice('lf.LF_assessment_result_pending_count', $pendingAnswers, ['count' => $pendingAnswers]) }} @endif
-                </span>
-            @endif
+            <div class="mk-table-top__actions">
+                @if ($attempt->status === 'in_progress')
+                    <span class="ui-status ui-status--draft">{{ __('lf.LF_assessment_result_status_in_progress') }}</span>
+                @else
+                    <span @class(['ui-status', 'ui-status--inactive' => $attempt->grading_status === 'pending', 'ui-status--active' => $attempt->grading_status !== 'pending'])>
+                        {{ __('lf.LF_assessment_result_grading_'.$attempt->grading_status) }}
+                        @if ($pendingAnswers > 0) · {{ trans_choice('lf.LF_assessment_result_pending_count', $pendingAnswers, ['count' => $pendingAnswers]) }} @endif
+                    </span>
+                @endif
+                @if ($canClaim)
+                    <form method="POST" action="{{ route($routePrefix.'.claim', $attempt->id) }}" class="ui-inline-form">
+                        @csrf
+                        <button type="submit" class="ui-button ui-button--primary cursor-interaction">
+                            <x-backend-icon name="clipboard-check" class="ui-icon" />
+                            {{ __('lf.LF_assessment_grader_claim') }}
+                        </button>
+                    </form>
+                @endif
+                @if ($canAssign)
+                    <button type="button" class="ui-button ui-button--outline cursor-interaction" data-ui-dialog-form-open
+                            data-url="{{ route($routePrefix.'.assign.create', ['ids' => [$attempt->id], 'from_attempt' => 1]) }}" aria-haspopup="dialog">
+                        <x-backend-icon name="user-cog" class="ui-icon" />
+                        {{ $activeHolder ? __('lf.LF_assessment_grader_reassign') : __('lf.LF_assessment_grader_assign') }}
+                    </button>
+                @endif
+                @if ($canRelease)
+                    <form method="POST" action="{{ route($routePrefix.'.release', $attempt->id) }}" class="ui-inline-form">
+                        @csrf
+                        <button type="submit" class="ui-button ui-button--outline cursor-interaction">{{ __('lf.LF_assessment_grader_release') }}</button>
+                    </form>
+                @endif
+            </div>
         </div>
+        @unless ($canGrade)
+            <div class="ui-quiz-notice" role="status">
+                <x-backend-icon name="lock" class="ui-icon" />
+                {{ __('lf.LF_assessment_grader_view_only', ['name' => $activeHolder->name]) }}
+            </div>
+        @endunless
         <dl class="ui-summary ui-quiz-summary ui-result-summary">
             <div class="ui-summary__item">
                 <dt>{{ __('lf.LF_assessment_registration_student') }}</dt>
@@ -73,6 +104,25 @@
                         </span>
                     @else
                         —
+                    @endif
+                </dd>
+            </div>
+            <div class="ui-summary__item">
+                <dt>{{ __('lf.LF_assessment_grader_column') }}</dt>
+                <dd>
+                    @if ($holder)
+                        {{ (int) $holder->user_id === (int) auth()->id() ? __('lf.LF_assessment_grader_you') : $holder->name }}
+                        <span class="ui-caption ui-framework-description">
+                            @if ($holder->status === 'completed')
+                                {{ __('lf.LF_assessment_grader_completed') }}
+                            @elseif ($holder->assignment_type === 'claimed')
+                                {{ __('lf.LF_assessment_grader_claimed_at', ['date' => $date($holder->created_at)]) }}
+                            @else
+                                {{ __('lf.LF_assessment_grader_assigned_by', ['name' => $holder->assigned_by_name, 'date' => $date($holder->created_at)]) }}
+                            @endif
+                        </span>
+                    @else
+                        {{ $attempt->status !== 'in_progress' && $attempt->grading_status === 'pending' ? __('lf.LF_assessment_grader_unassigned') : '—' }}
                     @endif
                 </dd>
             </div>
@@ -198,10 +248,36 @@
                 @else
                     <div class="ui-result-answer">
                         <p class="ui-result-answer__label">{{ __('lf.LF_assessment_result_student_answer') }}</p>
+                        @php $answerFiles = $answer ? $attachments->get($answer->id, collect()) : collect(); @endphp
                         @if (filled($answer?->answer_text))
                             <p class="ui-passage-content">{{ $answer->answer_text }}</p>
-                        @else
+                        @elseif ($answerFiles->isEmpty())
                             <p class="ui-caption">{{ __('lf.LF_assessment_result_no_answer') }}</p>
+                        @endif
+                        @if ($answerFiles->isNotEmpty())
+                            {{-- Bài Viết nộp bằng tệp (ADR-0027 D5): images inline (click opens full size), PDF / DOCX as links. --}}
+                            <p class="ui-result-answer__label">{{ __('lf.LF_assessment_result_files') }}</p>
+                            <ul class="ui-result-files">
+                                @foreach ($answerFiles as $file)
+                                    <li class="ui-result-file">
+                                        @if ($file['url'] && $file['kind'] === 'image')
+                                            <a class="ui-result-file__image cursor-interaction" href="{{ $file['url'] }}" target="_blank" rel="noopener"
+                                               aria-label="{{ __('lf.LF_assessment_result_file_open', ['name' => $file['name']]) }}">
+                                                <img src="{{ $file['url'] }}" alt="{{ $file['name'] }}" loading="lazy">
+                                            </a>
+                                        @endif
+                                        <span class="ui-result-file__row">
+                                            <span class="ui-result-file__kind">{{ strtoupper(pathinfo($file['name'], PATHINFO_EXTENSION) ?: $file['kind']) }}</span>
+                                            @if ($file['url'])
+                                                <a class="ui-result-file__name" href="{{ $file['url'] }}" target="_blank" rel="noopener">{{ $file['name'] }}</a>
+                                            @else
+                                                <span class="ui-result-file__name">{{ $file['name'] }}</span>
+                                                <span class="ui-caption">· {{ __('lf.LF_assessment_result_file_checking') }}</span>
+                                            @endif
+                                        </span>
+                                    </li>
+                                @endforeach
+                            </ul>
                         @endif
                     </div>
                     @if ($question->question_type === 'short_answer')
@@ -222,7 +298,7 @@
                     </details>
                 @endif
 
-                @if ($manual && $answer && $attempt->status !== 'in_progress')
+                @if ($manual && $answer && $attempt->status !== 'in_progress' && $canGrade)
                     <form @class(['ui-result-grade', 'ui-result-grade--rubric' => is_array($rubric)]) method="POST" action="{{ route($routePrefix.'.grade', [$attempt->id, $answer->id]) }}"
                           @if (is_array($rubric))
                               x-data="{ scores: @js($rubricScores->map(fn ($v) => $trim($v))->all()), total: {{ (float) $rubric['total_points'] }}, points: {{ (float) $question->points }},
@@ -287,5 +363,7 @@
             </article>
         @endforeach
     </section>
+
+    @include('assessments.passages.partials.dialog-host', ['dialogTitleId' => 'assessment-assign-dialog-title'])
 </div>
 @endsection

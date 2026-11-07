@@ -10,6 +10,10 @@ Last Updated: 2026-11-06
 
 Document Path: database/assessment/core_assessment_quiz_version_questions.md
 
+> **Thay đổi đề xuất — [ADR-0027](../../adr/ADR-0027-Assessment-Grader-Assignment-And-Essay-Files.md) D5 (Approved 2026-11-07):** `question_snapshot`
+> thêm khoá `allow_file_answer` (true / false) khi xuất bản; snapshot cũ không
+> có khoá coi là `false`. Không đổi schema của bảng này.
+
 ## Purpose
 
 Câu hỏi đã đóng băng trong một phiên bản đề: thứ tự, điểm, nội dung, lựa chọn

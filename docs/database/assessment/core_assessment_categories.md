@@ -10,6 +10,10 @@ Last Updated: 2026-11-06
 
 Document Path: database/assessment/core_assessment_categories.md
 
+> **Liên quan — [ADR-0027](../../adr/ADR-0027-Assessment-Grader-Assignment-And-Essay-Files.md) D2 (Approved 2026-11-07):** giáo viên chấm theo danh mục
+> nằm ở [core_assessment_grader_scopes](core_assessment_grader_scopes.md), kế
+> thừa xuống danh mục con. Bảng này không đổi schema.
+
 ## Purpose
 
 Cây danh mục của tenant, dùng làm "nhóm câu hỏi" duy nhất ở giai đoạn 1 theo

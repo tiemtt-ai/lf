@@ -41,7 +41,7 @@ final class AssessmentQuestionService
      * @param  array{question_type: string, category_id: int|null, skill_type: string|null, difficulty_level: string|null,
      *     default_points: string, status: string, prompt: string, explanation: string|null, reference_answer: string|null,
      *     options: list<array{text: string, correct: bool}>, accepted_answers: list<string>, true_false_answer: string|null,
-     *     rubric_id?: int|null}  $data
+     *     rubric_id?: int|null, allow_file_answer?: bool}  $data
      */
     public function save(int $customerId, User $user, ?int $questionId, array $data): int
     {
@@ -65,6 +65,8 @@ final class AssessmentQuestionService
                 'difficulty_level' => $data['difficulty_level'],
                 'default_points' => $data['default_points'],
                 'rubric_id' => $rubricId,
+                // Cho nộp tệp is an essay setting (ADR-0027 D5); any other type clears it.
+                'allow_file_answer' => $data['question_type'] === 'essay' && ($data['allow_file_answer'] ?? false),
                 'status' => $data['status'],
                 'updated_by' => $user->id,
                 'updated_at' => $now,

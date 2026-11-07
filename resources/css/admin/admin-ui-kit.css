@@ -3728,6 +3728,14 @@
 .lf-admin-ui .ui-result-score-meta .ui-caption { margin: 0; }
 .lf-admin-ui .ui-result-verdict { min-height: 0; padding: 1px 8px; font-size: 12px; }
 .lf-admin-ui .ui-result-provisional { font-style: italic; }
+/* Phân công chấm (ADR-0027): who holds an attempt, the Giao chấm dialog badges, Giáo viên chấm of a category. */
+.lf-admin-ui .ui-result-col-grader { width: 136px; }
+.lf-admin-ui .ui-asm-col-graders { width: 184px; }
+.lf-admin-ui .ui-result-grader.is-mine { font-weight: 600; color: var(--ui-primary); }
+.lf-admin-ui .ui-result-table .ui-check-cell + .mk-sequence { padding-left: 4px; }
+.lf-admin-ui .ui-grader-badges { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; }
+.lf-admin-ui .ui-grader-badges .ui-status { min-height: 0; padding: 1px 8px; font-size: 12px; white-space: nowrap; }
+.lf-admin-ui .ui-grader-inherited { display: grid; gap: 4px; margin: 0; padding: 10px 14px; border: 1px dashed var(--ui-border); border-radius: 8px; list-style: none; font-size: 14px; }
 .lf-admin-ui .ui-result-questions { padding-bottom: 8px; }
 .lf-admin-ui .ui-result-section-title { margin: 22px 22px 4px; font-size: 16px; font-weight: 600; }
 .lf-admin-ui .ui-result-section-title + .ui-caption { margin: 0 22px 8px; }
@@ -3746,6 +3754,16 @@
 .lf-admin-ui .ui-result-answer { padding: 10px 12px; border-radius: 8px; background: var(--ui-color-eef0f5); }
 .lf-admin-ui .ui-result-answer__label { margin: 0 0 4px; font-size: 12.5px; font-weight: 500; color: var(--ui-muted); }
 .lf-admin-ui .ui-result-answer p:last-child { margin-bottom: 0; }
+/* Bài Viết nộp bằng tệp (ADR-0027 D5) on the grading page. */
+.lf-admin-ui .ui-result-files { margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; list-style: none; }
+.lf-admin-ui .ui-result-answer__label + .ui-result-files { margin-top: 2px; }
+.lf-admin-ui .ui-passage-content + .ui-result-answer__label { margin-top: 10px; }
+.lf-admin-ui .ui-result-file { display: grid; gap: 6px; min-width: 0; padding: 8px; border: 1px solid var(--ui-border); border-radius: 8px; background: var(--ui-white); }
+.lf-admin-ui .ui-result-file__image { display: block; overflow: hidden; border-radius: 6px; aspect-ratio: 4 / 3; background: var(--ui-color-eef0f5); }
+.lf-admin-ui .ui-result-file__image img { width: 100%; height: 100%; object-fit: contain; }
+.lf-admin-ui .ui-result-file__row { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 13px; }
+.lf-admin-ui .ui-result-file__kind { flex: none; padding: 1px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; color: var(--ui-muted); background: var(--ui-color-eef0f5); }
+.lf-admin-ui .ui-result-file__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lf-admin-ui .ui-result-grade { display: grid; grid-template-columns: 160px minmax(0, 1fr) auto; gap: 12px; align-items: start; padding-top: 12px; border-top: 1px dashed var(--ui-color-e6e8ee); }
 .lf-admin-ui .ui-result-grade > .ui-button { align-self: end; }
 .lf-admin-ui .ui-result-grade--rubric { grid-template-columns: minmax(0, 1fr); }

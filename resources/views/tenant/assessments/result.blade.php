@@ -133,7 +133,31 @@
                     @else
                         <div class="lf-exam-answer">
                             <p class="lf-exam-answer__label">{{ __('lf.LF_assessment_learner_your_answer') }}</p>
-                            <p class="lf-exam-text">{{ filled($answer?->answer_text) ? $answer->answer_text : __('lf.LF_assessment_result_no_answer') }}</p>
+                            @php $answerFiles = $attachments->get($question->id, collect()); @endphp
+                            @if (filled($answer?->answer_text) || $answerFiles->isEmpty())
+                                <p class="lf-exam-text">{{ filled($answer?->answer_text) ? $answer->answer_text : __('lf.LF_assessment_result_no_answer') }}</p>
+                            @endif
+                            @if ($answerFiles->isNotEmpty())
+                                <ul class="lf-exam-files__list">
+                                    @foreach ($answerFiles as $file)
+                                        <li class="lf-exam-file">
+                                            <span class="lf-exam-file__thumb" aria-hidden="true">
+                                                @if ($file['url'] && $file['kind'] === 'image')
+                                                    <img src="{{ $file['url'] }}" alt="" loading="lazy">
+                                                @else
+                                                    {{ mb_substr(pathinfo($file['name'], PATHINFO_EXTENSION), 0, 4) }}
+                                                @endif
+                                            </span>
+                                            @if ($file['url'])
+                                                <a class="lf-exam-file__name" href="{{ $file['url'] }}" target="_blank" rel="noopener">{{ $file['name'] }}</a>
+                                            @else
+                                                <span class="lf-exam-file__name">{{ $file['name'] }}</span>
+                                                <span class="lf-exam-file__note">{{ __('lf.LF_assessment_learner_files_checking') }}</span>
+                                            @endif
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            @endif
                         </div>
                         @if ($question->type === 'short_answer')
                             <p class="student-section-copy">{{ __('lf.LF_assessment_result_accepted', ['answers' => implode(' / ', $question->correct['accepted'] ?? [])]) }}</p>

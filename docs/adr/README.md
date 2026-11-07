@@ -74,6 +74,7 @@ Số ADR không được tái sử dụng hoặc đổi để lấp khoảng tr�
 | [ADR-0024](ADR-0024-Cohort-Owned-Content.md) | Mỗi lớp có bản nội dung riêng, tab Buổi học giống hoàn toàn tab Nội dung của Template | Archived: Owner rút 2026-11-05 |
 | [ADR-0025](ADR-0025-Assessment-Simple-Administration.md) | Module Kiểm tra riêng: đề nháp + phiên bản bất biến, ngữ liệu, ghi danh từng đề thay Enrollment, chấm tay; không AI/HSA; sửa một phần ADR-0003 | Approved |
 | [ADR-0026](ADR-0026-Assessment-Rubric.md) | Tiêu chí chấm (rubric) cho câu tự luận / nói: chụp khi xuất bản đề, chấm từng tiêu chí, quy đổi điểm; mở lại phần hoãn của ADR-0025 | Approved |
+| [ADR-0027](ADR-0027-Assessment-Grader-Assignment-And-Essay-Files.md) | Phân công chấm (theo danh mục, theo đề, giao từng bài, nhận chấm) và nộp tệp cho câu tự luận; mở lại phần hoãn của ADR-0025 | Approved |
 
 ---
 
