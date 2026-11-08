@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\AuthorizesCourseCohortAdmin;
 use App\Services\CourseCohortMutationPolicy;
 use App\Services\CourseCohortVersionResolver;
+use App\Services\LiveClassWhiteboardLiveState;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -352,6 +353,8 @@ class CourseCohortStudentController extends Controller
                     ->where('customer_id', $customerId)->where('cohort_id', $cohort)
                     ->where('status', 'active')->whereIn('enrollment_id', $removeIds)
                     ->update(['status' => 'removed', 'left_at' => now(), 'updated_at' => now()]);
+                $this->closeBoardsAfterCommit($customerId, (int) $cohort, $currentMemberships->only($removeIds)
+                    ->pluck('student_id')->map(fn ($studentId): int => (int) $studentId)->all());
             }
         }, 3);
 
@@ -414,6 +417,9 @@ class CourseCohortStudentController extends Controller
                 'transfer_reason' => $validated['transfer_reason'] ?? null,
                 'note' => $validated['note'] ?? null, 'updated_at' => now(),
             ]);
+            if ((int) $target->id !== (int) $source->id) {
+                $this->closeBoardsAfterCommit($customerId, (int) $source->id, [(int) $lockedMembership->student_id]);
+            }
         }, 3);
 
         return redirect()
@@ -435,11 +441,23 @@ class CourseCohortStudentController extends Controller
             abort_if(! $cohort || ! CourseCohortMutationPolicy::canMutate($cohort) || $membership->status !== 'active', 422);
             DB::table('core_course_cohort_students')->where('customer_id', $customerId)->where('id', $id)
                 ->update(['status' => 'removed', 'left_at' => now(), 'updated_at' => now()]);
+            $this->closeBoardsAfterCommit($customerId, (int) $membership->cohort_id, [(int) $membership->student_id]);
         }, 3);
 
         return redirect()
             ->route($this->routePrefix($request).'.show', $id)
             ->with('success', __('lf.LF_course_cohort_student_common_archived_message'));
+    }
+
+    /**
+     * Learners who leave a Cohort lose its live Whiteboards at once
+     * (ADR-0002 § LiveClass Whiteboard Amendment), after the change commits.
+     *
+     * @param  array<int, int>  $studentIds
+     */
+    private function closeBoardsAfterCommit(int $customerId, int $cohortId, array $studentIds): void
+    {
+        DB::afterCommit(fn () => app(LiveClassWhiteboardLiveState::class)->revokeViewers($customerId, $cohortId, $studentIds));
     }
 
     private function validatedData(Request $request, int $customerId, ?object $membership = null): array

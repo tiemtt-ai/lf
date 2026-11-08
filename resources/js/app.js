@@ -5,8 +5,18 @@ import sort from '@alpinejs/sort';
 import { courseTemplateOrder, courseTemplateRefreshOutline } from './course-template-order';
 import './ai-authoring';
 import { installDialogInitialFocus } from './dialog-initial-focus';
+import { clearAllBoards } from './liveclass-whiteboard/board-storage';
 
 installDialogInitialFocus(window.HTMLDialogElement);
+
+// A classroom touch screen is shared: logging out clears every Whiteboard kept in
+// this browser (ADR-0002 § LiveClass Whiteboard Amendment).
+document.addEventListener('submit', (event) => {
+    const form = event.target;
+    if (form instanceof HTMLFormElement && /\/logout\/?$/.test(new URL(form.action, window.location.href).pathname)) {
+        clearAllBoards();
+    }
+}, true);
 
 window.Alpine = Alpine;
 

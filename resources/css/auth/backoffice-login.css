@@ -76,3 +76,8 @@
     .lf-login-panel h1 { font-size: 20px; }
     .lf-login-footer { padding: 16px 20px; }
 }
+
+/* iPhone/iPad Safari zoom the page into a field under 16px; only iOS matches. */
+@supports (-webkit-touch-callout: none) {
+    .lf-login-page .lf-login-input { font-size: max(16px, 1em); }
+}

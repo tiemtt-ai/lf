@@ -1,0 +1,460 @@
+/* LiveClass Whiteboard (ADR-0002 § LiveClass Whiteboard Amendment).
+   Layout and functions follow the AllVia e-board; colours, icons and
+   tooltips use the LF UI Kit tokens defined on .lf-admin-ui. */
+
+[x-cloak] { display: none !important; }
+
+html, body.lf-wb-body { height: 100%; margin: 0; overflow: hidden; background: #f7f8fb; overscroll-behavior: none; }
+
+/* The board fills the window: no UI Kit page padding around it. */
+.lf-admin-ui.lf-wb { padding: 0; box-sizing: border-box; }
+
+.lf-wb {
+    --lf-wb-top: 56px;
+    --lf-wb-tools: 64px;
+    --lf-wb-gap: 8px;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
+    color: var(--ui-text);
+    background: var(--ui-background);
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+}
+
+.lf-wb .ui-icon { width: 20px; height: 20px; flex: none; }
+
+/* Top bar */
+.lf-wb-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    height: var(--lf-wb-top);
+    padding: 0 12px;
+    background: var(--ui-white);
+    border-bottom: 1px solid var(--ui-border);
+    flex: none;
+    z-index: 4;
+}
+.lf-wb-top__group { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.lf-wb-top__group--start { flex: 1 1 0; }
+.lf-wb-top__group--end { flex: 1 1 0; justify-content: flex-end; }
+.lf-wb-sep { width: 1px; height: 24px; margin: 0 6px; background: var(--ui-border); }
+
+.lf-wb-classname input {
+    width: 180px;
+    height: 34px;
+    padding: 0 10px;
+    border: 1px solid transparent;
+    border-radius: var(--ui-control-radius);
+    background: transparent;
+    color: var(--ui-text);
+    font: 600 15px/1 var(--ui-font-family);
+    text-overflow: ellipsis;
+}
+.lf-wb-classname input:hover { border-color: var(--ui-border); }
+.lf-wb-classname input:focus-visible { outline: none; border-color: var(--ui-primary); box-shadow: 0 0 0 3px var(--ui-focus-ring); }
+.lf-wb-session { min-width: 0; overflow: hidden; color: var(--ui-muted); font-size: 13px; white-space: nowrap; text-overflow: ellipsis; }
+.lf-wb-user { display: flex; flex-direction: column; align-items: flex-end; margin-right: 8px; font-size: 12px; line-height: 16px; color: var(--ui-muted); white-space: nowrap; }
+.lf-wb-user strong { color: var(--ui-text); font-size: 13px; font-weight: 600; }
+
+/* Buttons */
+.lf-wb-btn,
+.lf-wb-tool {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-width: 40px;
+    height: 40px;
+    padding: 0 8px;
+    border: 1px solid transparent;
+    border-radius: var(--ui-control-radius);
+    background: transparent;
+    color: var(--ui-text);
+    font: 14px/1 var(--ui-font-family);
+    white-space: nowrap;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+.lf-wb-btn:hover:not(:disabled),
+.lf-wb-tool:hover { background: var(--ui-hover); }
+.lf-wb-btn:focus-visible,
+.lf-wb-tool:focus-visible,
+.lf-wb-color:focus-visible,
+.lf-wb-material:focus-visible { outline: 2px solid var(--ui-primary); outline-offset: 1px; }
+.lf-wb-btn:disabled { color: var(--ui-button-disabled-text); cursor: default; }
+.lf-wb-btn--text { padding: 0 10px; }
+.lf-wb-btn--value { min-width: 56px; font-variant-numeric: tabular-nums; color: var(--ui-muted); }
+.lf-wb-btn--primary { padding: 0 12px; background: var(--ui-primary); color: var(--ui-white); }
+.lf-wb-btn--primary:hover:not(:disabled) { background: var(--ui-primary-hover); }
+
+/* Tooltips: same dark hint as the UI Kit, at once on hover or keyboard focus,
+   on a long press for touch. */
+.lf-wb [data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    z-index: 20;
+    top: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    width: max-content;
+    max-width: 220px;
+    padding: 8px 10px;
+    border-radius: var(--ui-control-radius);
+    background: var(--ui-dark-surface);
+    color: var(--ui-white);
+    font: 400 12px/1.4 var(--ui-font-family);
+    text-align: left;
+    white-space: normal;
+    opacity: 0;
+    pointer-events: none;
+}
+.lf-wb [data-tooltip-placement="bottom-start"]::after { left: 0; transform: none; }
+.lf-wb [data-tooltip-placement="bottom-end"]::after { left: auto; right: 0; transform: none; }
+.lf-wb [data-tooltip-placement="right"]::after { top: 50%; left: calc(100% + 8px); transform: translateY(-50%); }
+.lf-wb [data-tooltip-placement="top"]::after { top: auto; bottom: calc(100% + 6px); }
+.lf-wb [data-tooltip-placement="top-end"]::after { top: auto; bottom: calc(100% + 6px); left: auto; right: 0; transform: none; }
+@media (hover: hover) {
+    .lf-wb [data-tooltip]:hover::after { opacity: 1; }
+}
+.lf-wb [data-tooltip]:focus-visible::after,
+.lf-wb [data-tooltip].is-tooltip-open::after { opacity: 1; }
+.lf-wb .lf-wb-note__bar[data-tooltip]:hover::after { opacity: 0; }
+
+/* Main area */
+.lf-wb-main { position: relative; display: flex; flex: 1 1 auto; min-height: 0; }
+
+.lf-wb-tools {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    width: var(--lf-wb-tools);
+    padding: 10px 0;
+    background: var(--ui-white);
+    border-right: 1px solid var(--ui-border);
+    flex: none;
+    overflow: visible; /* tooltips open to the right of the rail; a scroll box would clip them */
+    z-index: 3;
+}
+.lf-wb-tool { width: 44px; height: 44px; padding: 0; }
+.lf-wb-tool[aria-pressed="true"] { background: var(--ui-selected); color: var(--ui-primary); border-color: var(--ui-border-hover); }
+
+.lf-wb-colors { display: grid; grid-template-columns: repeat(2, 20px); gap: 8px; margin: 8px 0 4px; padding-top: 10px; border-top: 1px solid var(--ui-border); }
+.lf-wb-color {
+    position: relative;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: 2px solid var(--ui-white);
+    border-radius: 50%;
+    background: var(--lf-wb-swatch);
+    box-shadow: 0 0 0 1px var(--ui-border);
+    cursor: pointer;
+}
+.lf-wb-color[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--ui-primary); }
+
+.lf-wb-size { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-top: 8px; padding: 8px 4px; border-radius: 8px; background: var(--ui-background); }
+.lf-wb-size__label { color: var(--ui-muted); font-size: 11px; }
+/* The UI Kit sizes every input; the size slider keeps its own vertical track. */
+.lf-wb .lf-wb-size input[type="range"] { writing-mode: vertical-lr; direction: rtl; width: 20px; min-width: 0; height: 112px; margin: 0; padding: 0; border: 0; background: transparent; accent-color: var(--ui-primary); }
+.lf-wb-size__value { color: var(--ui-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+
+.lf-wb-stage { position: relative; flex: 1 1 auto; min-width: 0; overflow: hidden; }
+.lf-wb-canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
+.lf-wb[data-tool="move"] .lf-wb-canvas { cursor: grab; }
+.lf-wb .lf-wb-canvas[data-panning] { cursor: grabbing; }
+.lf-wb[data-tool="eraser"] .lf-wb-canvas,
+.lf-wb[data-tool="laser"] .lf-wb-canvas { cursor: none; }
+.lf-wb[data-tool="note"] .lf-wb-canvas { cursor: copy; }
+
+/* Notes live in world coordinates inside a layer that follows the view. */
+.lf-wb-notes { position: absolute; top: 0; left: 0; width: 0; height: 0; transform-origin: 0 0; z-index: 1; }
+.lf-wb-note {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    border-radius: 6px;
+    background: var(--lf-wb-note);
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.18);
+    overflow: visible;
+}
+.lf-wb-note__bar { position: relative; display: flex; justify-content: flex-end; height: 22px; flex: none; cursor: move; touch-action: none; }
+.lf-wb-note__delete {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: rgba(35, 40, 52, 0.7);
+    cursor: pointer;
+}
+.lf-wb-note__delete .ui-icon { width: 14px; height: 14px; }
+.lf-wb-note__delete:hover { background: rgba(0, 0, 0, 0.08); }
+.lf-wb-note__text {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 0 10px 10px;
+    border: 0;
+    background: transparent;
+    color: #232834;
+    font: 15px/1.4 var(--ui-font-family);
+    resize: none;
+    user-select: text;
+    -webkit-user-select: text;
+}
+.lf-wb-note__text:focus { outline: none; }
+
+.lf-wb-laser {
+    position: absolute;
+    top: 0;
+    left: 0;
+    border-radius: 50%;
+    background: #ef4444;
+    box-shadow: 0 0 10px 3px rgba(239, 68, 68, 0.55);
+    opacity: 0.75;
+    pointer-events: none;
+    z-index: 2;
+}
+.lf-wb-laser.is-active { opacity: 1; box-shadow: 0 0 16px 6px rgba(239, 68, 68, 0.6); }
+
+/* The presenter's notes and laser on a viewer: read-only, under the viewer's own notes. */
+.lf-wb-note.is-remote { pointer-events: none; box-shadow: 0 2px 8px rgba(15, 23, 42, 0.14); }
+.lf-wb-note.is-remote .lf-wb-note__bar { cursor: default; }
+.lf-wb-note.is-remote .lf-wb-note__text { overflow: hidden; white-space: pre-wrap; overflow-wrap: anywhere; }
+.lf-wb-laser.is-remote { background: #f97316; box-shadow: 0 0 10px 3px rgba(249, 115, 22, 0.55); transition: transform 60ms linear; }
+
+/* Sync status, presenter and takeover/follow, floating at the top left of the board */
+.lf-wb-syncbar {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    max-width: calc(100% - 24px);
+    padding: 4px 6px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.94);
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
+    z-index: 4;
+}
+.lf-wb-sync { display: inline-flex; flex: none; align-items: center; gap: 6px; padding: 2px 10px; border-radius: 999px; background: var(--ui-background); color: var(--ui-muted); font-size: 12px; white-space: nowrap; }
+.lf-wb-sync__dot { width: 8px; height: 8px; border-radius: 50%; background: #f59e0b; }
+.lf-wb-sync[data-status="connected"] .lf-wb-sync__dot { background: #16a34a; }
+.lf-wb-sync[data-status="disconnected"] { color: #b91c1c; background: #fef2f2; }
+.lf-wb-sync[data-status="disconnected"] .lf-wb-sync__dot { background: #dc2626; }
+.lf-wb-sync[data-status="off"] .lf-wb-sync__dot { background: var(--ui-border); }
+.lf-wb-presenter { flex: 0 1 auto; min-width: 0; max-width: 260px; padding: 0 4px; overflow: hidden; color: var(--ui-text); font-size: 13px; white-space: nowrap; text-overflow: ellipsis; }
+
+.lf-wb-notice {
+    position: absolute;
+    top: 64px;
+    left: 50%;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    max-width: min(560px, calc(100% - 32px));
+    padding: 8px 14px;
+    transform: translateX(-50%);
+    border-radius: 8px;
+    background: #eff6ff;
+    color: #1e3a8a;
+    font-size: 13px;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
+    pointer-events: none;
+    z-index: 3;
+}
+.lf-wb-notice .ui-icon { flex: none; width: 16px; height: 16px; }
+.lf-wb-pdfbar > .lf-wb-pagefield:not(label) { padding: 0 8px; font-size: 13px; color: var(--ui-text); }
+
+/* PDF toolbar */
+.lf-wb-pdfbar {
+    position: absolute;
+    left: 50%;
+    bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 4px 6px;
+    transform: translateX(-50%);
+    border: 1px solid var(--ui-border);
+    border-radius: 10px;
+    background: var(--ui-white);
+    box-shadow: 0 6px 20px rgba(15, 23, 42, 0.12);
+    z-index: 3;
+}
+.lf-wb-pagefield { display: inline-flex; flex: none; align-items: center; gap: 6px; padding: 0 4px; color: var(--ui-muted); font-size: 14px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.lf-wb .lf-wb-pagefield input {
+    width: 52px;
+    height: 32px;
+    padding: 0 6px;
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-control-radius);
+    color: var(--ui-text);
+    font: 14px/1 var(--ui-font-family);
+    text-align: center;
+    -moz-appearance: textfield;
+}
+.lf-wb-pagefield input::-webkit-inner-spin-button,
+.lf-wb-pagefield input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.lf-wb-pdfbar__zoom { min-width: 48px; color: var(--ui-muted); font-size: 13px; text-align: center; font-variant-numeric: tabular-nums; }
+
+/* Video inside the board */
+.lf-wb-media {
+    position: absolute;
+    /* Below the sync bar, so the listening mode stays reachable while media is open. */
+    inset: 64px 48px 88px;
+    display: flex;
+    flex-direction: column;
+    border-radius: 10px;
+    background: #111318;
+    box-shadow: 0 16px 40px rgba(15, 23, 42, 0.35);
+    overflow: hidden;
+    z-index: 4;
+}
+.lf-wb-media__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 12px; padding: 6px 8px 6px 16px; color: var(--ui-white); font-size: 14px; }
+.lf-wb-media__head .lf-wb-btn { color: var(--ui-white); }
+.lf-wb-media__head .lf-wb-btn:hover { background: rgba(255, 255, 255, 0.12); }
+.lf-wb-media__head strong { flex: 1 1 160px; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.lf-wb-media__actions { display: inline-flex; flex: none; align-items: center; gap: 4px; margin-left: auto; }
+.lf-wb-media__head .lf-wb-btn--primary { color: var(--ui-white); }
+.lf-wb-media__head .lf-wb-btn--primary:hover:not(:disabled) { background: var(--ui-primary-hover); }
+.lf-wb-media__badge { flex: none; padding: 2px 8px; border-radius: 999px; background: rgba(255, 255, 255, 0.16); font-size: 12px; }
+.lf-wb-media__hint { display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 6px 16px 8px; color: #cbd5e1; font-size: 12px; line-height: 1.4; }
+.lf-wb-media__hint .ui-icon { flex: none; width: 14px; height: 14px; margin-top: 1px; }
+.lf-wb-media__body { flex: 1 1 auto; min-height: 0; }
+.lf-wb-media__body video,
+.lf-wb-media__body iframe { display: block; width: 100%; height: 100%; border: 0; background: #000; object-fit: contain; }
+/* Audio is a small bar that leaves the board free: the teacher keeps writing and turning pages. */
+.lf-wb-media[data-kind="audio"] { inset: 64px 12px auto auto; width: min(420px, calc(100% - 24px)); }
+.lf-wb-media[data-kind="audio"] .lf-wb-media__body { flex: none; padding: 4px 12px 12px; }
+.lf-wb-media__body audio { display: block; width: 100%; height: 40px; }
+
+.lf-wb-loading {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(247, 248, 251, 0.7);
+    color: var(--ui-muted);
+    font-size: 15px;
+    z-index: 5;
+}
+
+/* Material drawer */
+.lf-wb-drawer {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    width: min(360px, 90vw);
+    background: var(--ui-white);
+    border-left: 1px solid var(--ui-border);
+    box-shadow: -8px 0 24px rgba(15, 23, 42, 0.12);
+    z-index: 6;
+}
+.lf-wb-drawer__head { display: flex; align-items: flex-start; gap: 4px; padding: 14px 12px 10px 16px; border-bottom: 1px solid var(--ui-border); }
+.lf-wb-drawer__head > div { flex: 1 1 auto; min-width: 0; }
+.lf-wb-drawer__head h2 { margin: 0; font-size: 16px; font-weight: 600; line-height: 22px; }
+.lf-wb-drawer__total,
+.lf-wb-drawer__status { margin: 2px 0 0; color: var(--ui-muted); font-size: 13px; }
+.lf-wb-drawer__status { padding: 8px 16px 0; }
+.lf-wb-materials { flex: 1 1 auto; margin: 0; padding: 8px; list-style: none; overflow-y: auto; }
+.lf-wb-materials > li { display: flex; align-items: center; gap: 4px; }
+.lf-wb-materials > li > .lf-wb-material { flex: 1 1 auto; min-width: 0; }
+.lf-wb-material__preview { flex: none; color: var(--ui-muted); }
+.lf-wb-material {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 10px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--ui-text);
+    font: 14px/1.35 var(--ui-font-family);
+    text-align: left;
+    cursor: pointer;
+}
+.lf-wb-material:hover { background: var(--ui-hover); }
+.lf-wb-material[aria-current="true"] { background: var(--ui-selected); border-color: var(--ui-border-hover); }
+.lf-wb-material__icon { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; flex: none; border-radius: 8px; background: var(--ui-background); color: var(--ui-primary); }
+.lf-wb-material__icon[data-kind="pdf"],
+.lf-wb-material__icon[data-kind="document"] { background: var(--ui-orange-soft); color: var(--ui-orange); }
+.lf-wb-material__icon[data-kind="video"],
+.lf-wb-material__icon[data-kind="embed"] { background: var(--ui-violet-soft); color: var(--ui-violet); }
+.lf-wb-material__icon[data-kind="audio"] { background: var(--ui-teal-soft); color: var(--ui-teal); }
+.lf-wb-material__text { display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; }
+.lf-wb-material__text strong { overflow: hidden; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.lf-wb-material__text span { color: var(--ui-muted); font-size: 12px; }
+.lf-wb-material__current { flex: none; padding: 2px 8px; border-radius: 999px; background: var(--ui-primary); color: var(--ui-white); font-size: 11px; }
+.lf-wb-material__external { color: var(--ui-muted); }
+.lf-wb-material__external .ui-icon { width: 16px; height: 16px; }
+.lf-wb-drawer__empty { display: flex; flex-direction: column; gap: 4px; margin: 0 16px 16px; padding: 16px; border-radius: 8px; background: var(--ui-background); font-size: 13px; color: var(--ui-muted); }
+.lf-wb-drawer__empty strong { color: var(--ui-text); }
+.lf-wb-drawer__foot { padding: 12px 16px; border-top: 1px solid var(--ui-border); }
+.lf-wb-drawer__foot .ui-button { width: 100%; justify-content: center; }
+
+.lf-wb-toast {
+    position: fixed;
+    left: 50%;
+    top: calc(var(--lf-wb-top) + 12px);
+    max-width: min(520px, 90vw);
+    padding: 10px 16px;
+    transform: translateX(-50%);
+    border-radius: 8px;
+    background: var(--ui-dark-surface);
+    color: var(--ui-white);
+    font-size: 14px;
+    z-index: 30;
+}
+
+.lf-wb-ended { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(15, 23, 42, 0.45); z-index: 40; }
+.lf-wb-ended__box { display: flex; flex-direction: column; align-items: center; gap: 16px; max-width: 420px; padding: 24px; border-radius: 10px; background: var(--ui-white); text-align: center; }
+.lf-wb-ended__box p { margin: 0; font-size: 15px; }
+
+@media (max-width: 900px) {
+    .lf-wb-session,
+    .lf-wb-user,
+    .lf-wb-btn--text span,
+    .lf-wb-btn--primary span { display: none; }
+    .lf-wb-classname input { width: 120px; }
+}
+
+/* A tall screen (a phone held upright): the video panel takes the video's height, not the whole board. */
+@media (orientation: portrait) {
+    /* The sync bar wraps to two lines here; the panel starts below it so the listening button stays reachable. */
+    .lf-wb-media:not([data-kind="audio"]) { inset: 108px 12px auto; }
+    .lf-wb-media[data-kind="audio"] { top: 108px; }
+    .lf-wb-media:not([data-kind="audio"]) .lf-wb-media__body { flex: none; }
+    .lf-wb-media__body video,
+    .lf-wb-media__body iframe { height: auto; max-height: calc(100dvh - 260px); aspect-ratio: 16 / 9; }
+    .lf-wb-media__body video { aspect-ratio: auto 16 / 9; }
+}
+
+/* iPhone/iPad Safari zoom the page into a field under 16px (a learner's note); only iOS matches. */
+@supports (-webkit-touch-callout: none) {
+    .lf-wb input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="color"], [type="hidden"]),
+    .lf-wb textarea { font-size: max(16px, 1em) !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .lf-wb *, .lf-wb *::after { transition: none !important; animation: none !important; }
+}

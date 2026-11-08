@@ -17,6 +17,8 @@ export default defineConfig({
                 'resources/css/auth.css',
                 'resources/css/tenant-site.css',
                 'resources/js/app.js',
+                'resources/css/liveclass-whiteboard.css',
+                'resources/js/liveclass-whiteboard/index.js',
             ],
             refresh: true,
         }),

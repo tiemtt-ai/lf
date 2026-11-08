@@ -3813,3 +3813,16 @@
 @media (max-width: 720px) {
     .lf-admin-ui .ui-result-grade { grid-template-columns: 1fr; }
 }
+
+/* Teacher live Sessions list (ADR-0002 § LiveClass Whiteboard Amendment). */
+.lf-admin-ui .ui-wb-session-actions { display: inline-flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.lf-admin-ui .ui-wb-session-actions .ui-button { white-space: nowrap; }
+.lf-admin-ui .ui-wb-today { color: var(--ui-primary); font-weight: 600; }
+/* Teacher live-session list: short value columns are fixed, the session title takes the rest; narrow screens scroll. */
+.lf-admin-ui .ui-wb-session-table { min-width: 980px; }
+.lf-admin-ui .ui-wb-col-sequence { width: 64px; }
+.lf-admin-ui .ui-wb-col-time { width: 188px; }
+.lf-admin-ui .ui-wb-col-mode { width: 150px; }
+.lf-admin-ui .ui-wb-col-class { width: 150px; }
+.lf-admin-ui .ui-wb-col-status { width: 120px; }
+.lf-admin-ui .ui-wb-col-actions { width: 220px; }

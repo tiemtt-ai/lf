@@ -1,6 +1,6 @@
 {{-- Session detail popup, and the status changes of that session (only those its current status allows). --}}
 <dialog x-ref="detailDialog" class="ui-modal ui-cohort-session-modal" data-columns="2" aria-labelledby="session_detail_title"
-        x-on:close="detailSession = null; detailActions = []">
+        x-on:close="detailSession = null; detailActions = []; detailBoardUrl = null">
     <div class="ui-modal__form">
         <header class="ui-modal__header">
             <div>
@@ -57,6 +57,12 @@
                 </template>
             </div>
             <button type="button" class="ui-button cursor-interaction" x-on:click="closeDetail()">{{ __('lf.LF_common_button_close') }}</button>
+            {{-- Whiteboard of a live Session, in its own window (ADR-0002 § LiveClass Whiteboard Amendment). --}}
+            <a class="ui-button ui-button--outline cursor-interaction" x-show="detailBoardUrl" x-cloak x-bind:href="detailBoardUrl"
+               x-bind:target="'lf-whiteboard-' + (detailSession?.id ?? '')"
+               x-on:click.prevent="const win = window.open(detailBoardUrl, 'lf-whiteboard-' + detailSession.id, 'popup,width=1280,height=800'); if (win) win.focus()">
+                <x-backend-icon name="presentation" class="ui-icon" />{{ __('lf.LF_liveclass_whiteboard_open') }}
+            </a>
             <template x-for="action in detailActions.filter(item => !item.danger)" :key="action.key">
                 <button type="button" class="ui-button ui-button--primary cursor-interaction" x-on:click="openLifecycle(action)" x-text="action.label"></button>
             </template>

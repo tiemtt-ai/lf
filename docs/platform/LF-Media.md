@@ -1,12 +1,12 @@
 # LF-Media.md
 
-Version: 1.13
+Version: 1.18
 
 Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-11-06
+Last Updated: 2026-11-08
 
 Document Path: platform/LF-Media.md
 
@@ -656,6 +656,83 @@ download dựa trên MIME và `Content-Disposition`.
 
 Media preview/download must not require buckets or files to be public.
 
+### Whiteboard Rendering Exception — Approved 2026-11-07
+
+Owner decision, theo [ADR-0002](../adr/ADR-0002-LiveClass-Foundation.md)
+§ LiveClass Whiteboard Amendment. Đây là ngoại lệ duy nhất cho luật "Document không
+được ép vào iframe/modal" ở trên; mọi màn hình khác giữ nguyên luật mở tab mới.
+
+**PDF**
+
+* Chỉ **bảng điện tử của LiveClass** được hiển thị PDF ngay trong trang, bằng
+  `pdfjs-dist` vẽ lên canvas. Không dùng iframe và không dùng trình xem PDF của
+  trình duyệt.
+* Chỉ áp dụng cho PDF: MIME `application/pdf` theo metadata server tin cậy, Media
+  `ready`, cùng tenant; hoặc bản PDF `preview` đã `ready` của một tài liệu Office (xem
+  **Office qua bản PDF** bên dưới). TXT, Office chưa có bản PDF và loại khác vẫn mở tab
+  mới từ bảng.
+* pdf.js tải **trọn tệp một lần** (`disableRange`, `disableStream`), vì không đổi được
+  URL của một tài liệu đang mở khi signed URL hết hạn. Bảng có giới hạn kích thước
+  tệp; tệp lớn hơn mở tab mới. Không được kéo dài thời hạn signed URL vì bảng.
+* pdf.js đọc tệp bằng `fetch`, nên URL phải đọc được từ origin của tenant mà không
+  mở public bucket: dùng route `media.files.signed` cùng origin, hoặc storage có CORS
+  chỉ cho phép origin của tenant. Đây là điều kiện triển khai.
+
+**Office qua bản PDF** (Amendment 2026-11-08, đợt 3 của
+[LF-LiveClass-Whiteboard-Media-Evaluation](../quality/LF-LiveClass-Whiteboard-Media-Evaluation.md))
+
+* Word, PowerPoint, Excel được Media chuyển một lần sang PDF khi gắn vào Activity, lưu
+  thành variant `preview` theo
+  [LF-Media-Processing-Contract](LF-Media-Processing-Contract.md) § Document board
+  preview. Bảng không bao giờ tự chuyển.
+* Danh sách tài liệu của bảng cho biết trạng thái: có bản PDF `ready` thì tài liệu mở như
+  PDF ở trên (vẽ, đồng bộ trang, ghi chú riêng); đang chuyển hoặc lỗi thì mở tệp gốc ở
+  tab mới và nói rõ lý do. Ngăn tài liệu tải lại danh sách mỗi lần mở.
+* Bản PDF đi qua route cùng origin có chữ ký `media.variants.signed`, chỉ phục vụ variant
+  `preview` thuộc đúng Media File `ready` của tenant. Hàm cấp URL của bảng chỉ cấp cho
+  bản PDF của chính tài liệu đang có trong danh sách của Session.
+* Bản PDF là hình ảnh của tệp: hiệu ứng PowerPoint, video nhúng và macro mất. Tệp gốc
+  không đổi và vẫn là bản tải xuống của Activity ở mọi nơi khác.
+
+**Video và âm thanh** (âm thanh: Amendment 2026-11-08, theo
+[LF-LiveClass-Whiteboard-Media-Evaluation](../quality/LF-LiveClass-Whiteboard-Media-Evaluation.md)
+đợt 1)
+
+* Video tải lên (signed/private delivery), video nhúng tin cậy (trusted normalized
+  embed) và âm thanh tải lên phát trong bảng theo đúng luật Video preview và Audio popup
+  ở trên: chỉ nạp sau thao tác của người dùng, giữ điều khiển, dừng, xoá `src` và giải
+  phóng tài nguyên khi đóng. Âm thanh không còn mở tab mới từ bảng.
+* Âm thanh hiện ở một thanh nhỏ, không che bảng: giáo viên vẫn viết và đổi trang PDF
+  khi âm thanh đang phát. Video vẫn hiện ở khung lớn như trước.
+* Video nhúng YouTube/Vimeo được điều khiển bằng `postMessage` với iframe của nhà cung
+  cấp (Amendment 2026-11-08, đợt 2): không nạp script của YouTube/Vimeo vào trang của
+  tenant. Bảng chỉ thêm tham số điều khiển vào URL nhúng đã chuẩn hoá (YouTube
+  `enablejsapi=1`, `origin` của trang, `playsinline=1`, `rel=0`; Vimeo `dnt=1`,
+  `playsinline=1`) và chỉ khi URL bắt đầu đúng bằng `https://www.youtube-nocookie.com/embed/`
+  hoặc `https://player.vimeo.com/video/`; tin nhắn chỉ nhận từ đúng iframe và đúng origin
+  của nhà cung cấp.
+* Trên máy người xem, bảng chỉ tự phát có tiếng khi trình duyệt cho phép. Bị chặn thì
+  phát không tiếng và hiện nút "Bật tiếng"; tiếng chỉ được bật trong thao tác bấm của
+  người dùng. Mở khoá âm thanh trên iPhone/Safari bằng một âm im lặng trong chính thao
+  tác bấm đó, như AllVia. Không có chế độ nào ép phát tiếng.
+* Video tải lên có bản chép faststart `ready` (Approved 2026-11-08,
+  [LF-Media-Processing-Contract](LF-Media-Processing-Contract.md) § Video board playback
+  copy) thì bảng phát bản chép đó qua route `media.variants.signed`; chưa có thì phát tệp
+  gốc như cũ. Hàm cấp URL của bảng chỉ cấp cho bản chép của chính video đang có trong
+  danh sách của Session. Tệp gốc vẫn là bản của Activity ở mọi nơi khác.
+
+**Chung**
+
+* Signed URL do một hàm mới của Media cấp, nhận ngữ cảnh LiveClass đã kiểm quyền
+  (tenant, người trình chiếu hoặc người xem, Session `live`), theo Signed Delivery
+  Principle. Hàm `generateVersionActivitySignedUrl(s)` hiện có vẫn chỉ cho admin.
+* Mỗi máy tự xin URL của mình: thao tác đổi tài liệu gửi qua kênh chỉ mang định danh
+  Version Activity, không mang URL. URL không được lưu vào localStorage và không
+  được log.
+* Bảng không có nút tải xuống. Đây không phải cơ chế chống sao chép.
+* PDF giáo viên mở từ máy mình không đi qua Media: không tải lên, không lưu, không
+  tạo Media File hay Usage.
+
 ## 6. Edit Form Display
 
 Existing attached media should be visible on edit/detail forms.
@@ -1043,6 +1120,15 @@ webp
 
 Variant có storage key riêng nhưng không thay thế original Media File identity.
 
+`preview` của tài liệu Office là bản PDF do LibreOffice tạo cho bảng điện tử của
+LiveClass (Amendment 2026-11-08, [LF-Media-Processing-Contract](LF-Media-Processing-Contract.md)
+§ Document board preview).
+
+`preview` của video MP4/MOV có chỉ mục ở cuối tệp là bản chép có chỉ mục ở đầu
+(faststart, không mã hoá lại) để bảng điện tử mở video nhanh (Approved 2026-11-08,
+[LF-Media-Processing-Contract](LF-Media-Processing-Contract.md) § Video board playback
+copy). Loại tệp phân biệt bằng `mime_type` của row.
+
 ---
 
 # Variant Principle
@@ -1198,6 +1284,10 @@ learning context, Progress và Completion.
 
 LiveClass Recording tham chiếu Media File. Media giữ binary, variants,
 transcript, caption và delivery; LiveClass giữ Session/Attendance/Replay data.
+
+Bảng điện tử của LiveClass chỉ đọc Media của Version Activity qua signed delivery và
+hiển thị PDF, video và âm thanh theo § Whiteboard Rendering Exception. Bảng không tạo Media File
+hay Usage.
 
 ## Assessment
 

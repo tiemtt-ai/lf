@@ -11,6 +11,7 @@ use App\Services\CourseTemplatePublishReadinessService;
 use App\Services\CourseTemplateVersionDetailPresenter;
 use App\Services\CourseTemplateVersionDuplicatingService;
 use App\Services\CourseTemplateVersionMediaPresenter;
+use App\Services\DocumentBoardPreview;
 use App\Services\MediaService;
 use App\Services\MediaThumbnailPresenter;
 use App\Services\TrustedVideoUrlService;
@@ -1025,7 +1026,7 @@ class CourseTemplateController extends Controller
             ->groupBy('media_file_id');
 
         return $activities
-            ->map(function (object $activity) use ($structuredUsages, $structuredJobs, $speechUsages, $speechJobs, $videoJobs): object {
+            ->map(function (object $activity) use ($customerId, $structuredUsages, $structuredJobs, $speechUsages, $speechJobs, $videoJobs): object {
                 $activity->view_kind = 'readonly';
                 $activity->view_url = null;
                 $activity->view_mime_type = null;
@@ -1034,6 +1035,7 @@ class CourseTemplateController extends Controller
                 $activity->structured_extraction_error_code = null;
                 $activity->speech_to_text_status = null;
                 $activity->speech_to_text_error_code = null;
+                $activity->board_preview = null;
 
                 $structuredUsage = $structuredUsages->get($activity->id);
                 if ($structuredUsage !== null) {
@@ -1085,6 +1087,11 @@ class CourseTemplateController extends Controller
                 $media = $this->mediaService
                     ->getOwnerMedia('course_activity', (int) $activity->id)
                     ->first();
+
+                if ($media && $media->status === 'ready' && $activity->activity_type === 'document') {
+                    // Board PDF of an Office file (LF-Media-Processing-Contract § Document board preview).
+                    $activity->board_preview = app(DocumentBoardPreview::class)->state($customerId, $media);
+                }
 
                 if ($media && $media->status === 'ready') {
                     $activity->view_url = $this->mediaService

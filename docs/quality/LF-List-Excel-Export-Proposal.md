@@ -1,5 +1,17 @@
 # Đề xuất xuất Excel cho các danh sách Admin / Teacher
 
+Version: 1.0
+
+Document Status: Approved
+
+Implementation Status: Partial
+
+Last Updated: 2026-11-07
+
+Document Path: quality/LF-List-Excel-Export-Proposal.md
+
+---
+
 Ngày rà soát: 2026-11-07 · Loại: rà soát + đề xuất (không sửa code) · Nguồn:
 `php artisan route:list`, `routes/web.php`, `routes/modules/*.php`,
 `resources/views/**/index.blade.php` và các tab trong `course-cohorts/partials/tabs`.

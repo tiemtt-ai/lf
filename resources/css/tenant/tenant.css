@@ -1214,6 +1214,17 @@
     background: var(--student-surface-soft);
 }
 
+/*
+ * iPhone and iPad Safari zoom the whole page into a field whose text is under
+ * 16px, and the page stays zoomed after login. Only iOS matches this query;
+ * !important because many learner fields set a smaller size by class.
+ */
+@supports (-webkit-touch-callout: none) {
+    input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="color"], [type="hidden"]),
+    select,
+    textarea { font-size: max(16px, 1em) !important; }
+}
+
 .student-form-actions {
     margin-top: 24px;
     display: flex;
@@ -2030,4 +2041,42 @@
 
 .student-login-submit {
     width: 100%;
+}
+
+/* Learner course page: live Sessions with "Xem bảng" (ADR-0002 § LiveClass Whiteboard Amendment). */
+.student-live-sessions {
+    margin-bottom: 24px;
+}
+
+.student-live-list {
+    display: grid;
+    gap: 12px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.student-live-item {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 0;
+    border-top: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.student-live-item:first-child {
+    border-top: 0;
+}
+
+.student-live-copy {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+}
+
+.student-live-copy span {
+    color: #64748b;
+    font-size: 14px;
 }

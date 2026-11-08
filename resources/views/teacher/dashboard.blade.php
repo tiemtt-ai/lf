@@ -18,6 +18,7 @@
             <h2 id="teacher-dashboard-quick-actions" class="ui-dash-title">{{ __('lf.LF_admin_title_quick_actions') }}</h2>
             <div class="ui-dash-shortcuts">
                 <x-dashboard-shortcut :href="route('teacher.cohorts.index')" icon="users" :title="__('lf.LF_navigation_menu_teacher_cohorts')" :help="__('lf.LF_teacher_action_cohorts_help')" />
+                <x-dashboard-shortcut :href="route('teacher.live-sessions.index')" icon="presentation" :title="__('lf.LF_navigation_menu_teacher_live_sessions')" :help="__('lf.LF_teacher_action_live_sessions_help')" />
                 <x-dashboard-shortcut :href="route('teacher.course-templates.index')" icon="book-open" :title="__('lf.LF_navigation_menu_common_course_templates')" :help="__('lf.LF_teacher_action_templates_help')" />
                 <x-dashboard-shortcut :href="route('teacher.media.index')" icon="image" :title="__('lf.LF_navigation_menu_admin_media')" :help="__('lf.LF_teacher_action_media_help')" />
             </div>

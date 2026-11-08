@@ -26,6 +26,9 @@ class LocalDocumentProcessingProvider implements MediaProcessingProvider
 
     public function process(object $mediaFile, object $job): array
     {
+        if ($job->job_type === 'transcode') {
+            return $this->boardPreview($mediaFile, $job);
+        }
         if (! in_array($job->job_type, ['ocr', 'structured_extraction'], true) || $mediaFile->file_type !== 'document') {
             throw new RuntimeException('unsupported_source');
         }
@@ -92,6 +95,68 @@ class LocalDocumentProcessingProvider implements MediaProcessingProvider
             return $result + ['usage' => ['units' => $this->processedPages, 'unit_type' => $this->usageUnit]];
         } catch (Throwable $exception) {
             throw new DocumentUsageException($exception, $this->processedPages, $this->usageUnit);
+        } finally {
+            $this->removeDirectory($directory);
+        }
+    }
+
+    /**
+     * Office -> PDF for the LiveClass board (LF-Media-Processing-Contract
+     * § Document board preview). The PDF is stored and verified here, so a
+     * returned key always names a complete object; it is not text and is
+     * never billed as OCR pages.
+     *
+     * @return array{storage_key: string, file_size_bytes: int, page_count: int, mime_type: string}
+     */
+    private function boardPreview(object $mediaFile, object $job): array
+    {
+        if (! DocumentPreviewStorage::eligible($mediaFile) || (string) $job->output_profile !== DocumentPreviewStorage::PROFILE) {
+            throw new RuntimeException('unsupported_source');
+        }
+        $this->processedPages = 0;
+        $this->usageUnit = 'page';
+        $this->usageScope = null;
+        $this->deadline = microtime(true) + (int) config('media.processing.local_document.max_processing_seconds');
+        $directory = $this->temporaryDirectory();
+
+        try {
+            $extension = strtolower((string) ($mediaFile->extension ?? pathinfo((string) $mediaFile->storage_key, PATHINFO_EXTENSION)));
+            $source = $directory.'/source.'.$extension;
+            $this->copySource($mediaFile, $source);
+            // Same layout as the OCR path: an own LibreOffice profile per run, the
+            // PDF written next to the source as `source.pdf`.
+            $profile = $directory.'/libreoffice-profile';
+            mkdir($profile, 0700, true);
+            $this->runCommand([
+                config('media.processing.local_document.soffice_binary'),
+                '-env:UserInstallation=file://'.$profile,
+                '--headless', '--convert-to', 'pdf', '--outdir', $directory, $source,
+            ], $this->commandTimeout('office_timeout_seconds'));
+
+            $pdf = $directory.'/source.pdf';
+            $size = is_file($pdf) ? filesize($pdf) : false;
+            $head = $size ? file_get_contents($pdf, false, null, 0, 1024) : false;
+            if ($size === false || $size < 5 || ! is_string($head) || ! str_contains($head, '%PDF-')) {
+                throw new RuntimeException('corrupt_source');
+            }
+            if ($size > (int) config('media.processing.document_preview.max_bytes')) {
+                throw new RuntimeException('preview_too_large');
+            }
+            $pages = $this->pdfPageCount($pdf);
+            if ($pages > (int) config('media.processing.document_preview.max_pages')) {
+                throw new RuntimeException('page_limit_exceeded');
+            }
+            $this->assertDeadline();
+
+            $storage = app(DocumentPreviewStorage::class);
+            $key = $storage->key($mediaFile, $job);
+
+            return [
+                'storage_key' => $key,
+                'file_size_bytes' => $storage->write($mediaFile, $key, $pdf),
+                'page_count' => $pages,
+                'mime_type' => 'application/pdf',
+            ];
         } finally {
             $this->removeDirectory($directory);
         }

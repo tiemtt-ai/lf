@@ -18,6 +18,8 @@ use App\Http\Controllers\CourseTemplateSectionController;
 use App\Http\Controllers\CourseTemplateTeacherController;
 use App\Http\Controllers\CourseTemplateVersionMediaPreviewController;
 use App\Http\Controllers\LiveClassScheduleController;
+use App\Http\Controllers\LiveClassWhiteboardController;
+use App\Http\Controllers\LiveClassWhiteboardSyncController;
 use Illuminate\Support\Facades\Route;
 
 require __DIR__.'/ai-authoring.php';
@@ -123,6 +125,23 @@ if ($registerCourseProductRoutes ?? false) {
         ->name('course-cohorts.sessions.cancel');
     Route::post('/course-cohorts/{cohort}/sessions/{session}/no-show', [CourseCohortOperationController::class, 'markSessionNoShow'])
         ->name('course-cohorts.sessions.no-show');
+    // Whiteboard of a live Session (ADR-0002 § LiveClass Whiteboard Amendment).
+    Route::get('/course-cohorts/{cohort}/sessions/{session}/board', [LiveClassWhiteboardController::class, 'adminBoard'])
+        ->whereNumber(['cohort', 'session'])->name('course-cohorts.sessions.board');
+    Route::get('/course-cohorts/{cohort}/sessions/{session}/board/materials', [LiveClassWhiteboardController::class, 'adminMaterials'])
+        ->whereNumber(['cohort', 'session'])->name('course-cohorts.sessions.board.materials');
+    Route::get('/course-cohorts/{cohort}/sessions/{session}/board/materials/{activity}/url', [LiveClassWhiteboardController::class, 'adminMaterialUrl'])
+        ->whereNumber(['cohort', 'session', 'activity'])->name('course-cohorts.sessions.board.materials.url');
+    Route::controller(LiveClassWhiteboardSyncController::class)->prefix('/course-cohorts/{cohort}/sessions/{session}/board')
+        ->name('course-cohorts.sessions.board.')->whereNumber(['cohort', 'session'])
+        ->group(function () {
+            Route::get('/state', 'state')->defaults('board_role', 'admin')->name('state');
+            Route::get('/status', 'status')->defaults('board_role', 'admin')->name('status');
+            Route::post('/presence', 'presence')->defaults('board_role', 'admin')->middleware('throttle:60,1')->name('presence');
+            Route::post('/events', 'events')->defaults('board_role', 'admin')->middleware('throttle:900,1')->name('events');
+            Route::post('/snapshot', 'snapshot')->defaults('board_role', 'admin')->middleware('throttle:120,1')->name('snapshot');
+            Route::post('/release', 'release')->defaults('board_role', 'admin')->middleware('throttle:60,1')->name('release');
+        });
     Route::put('/course-cohorts/{cohort}/sessions/{session}/attendance', [CourseCohortOperationController::class, 'saveAttendance'])
         ->name('course-cohorts.sessions.attendance');
     Route::post('/course-cohorts/{cohort}/sessions/{session}/recordings', [CourseCohortOperationController::class, 'storeRecording'])
@@ -418,6 +437,12 @@ Route::post(
     [CourseTemplateActivityController::class, 'initializeTranscriptionDirect']
 )->name('course-templates.lessons.activities.initialize-transcription');
 
+// Board PDF of an Office document (LF-Media-Processing-Contract § Document board preview).
+Route::post(
+    '/course-templates/{templateId}/lessons/{lessonId}/activities/{activityId}/board-preview',
+    [CourseTemplateActivityController::class, 'requestBoardPreviewDirect']
+)->name('course-templates.lessons.activities.board-preview');
+
 Route::patch(
     '/course-templates/{templateId}/sections/reorder',
     [CourseTemplateSectionController::class, 'reorder']
@@ -532,6 +557,11 @@ Route::post(
     '/course-templates/{templateId}/sections/{sectionId}/lessons/{lessonId}/activities/{activityId}/initialize-transcription',
     [CourseTemplateActivityController::class, 'initializeTranscription']
 )->name('course-templates.sections.lessons.activities.initialize-transcription');
+
+Route::post(
+    '/course-templates/{templateId}/sections/{sectionId}/lessons/{lessonId}/activities/{activityId}/board-preview',
+    [CourseTemplateActivityController::class, 'requestBoardPreview']
+)->name('course-templates.sections.lessons.activities.board-preview');
 
 if ($registerCourseTemplateLifecycleRoutes ?? false) {
     Route::get(

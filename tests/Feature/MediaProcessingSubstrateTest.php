@@ -2700,6 +2700,46 @@ class MediaProcessingSubstrateTest extends TestCase
             ->assertDontSeeText(__('lf.LF_course_template_activity_stt_disabled'));
     }
 
+    public function test_office_document_activity_shows_its_board_pdf_status_and_converts_on_request(): void
+    {
+        Queue::fake();
+        [$templateId, $lessonId] = $this->courseFixture();
+        $media = $this->uploadDocument();
+        // A Word file attached before board PDFs existed: ready, with no conversion job.
+        DB::table('media_files')->where('id', $media->id)->update(['extension' => 'docx', 'status' => 'ready']);
+        DB::table('media_processing_jobs')->where('media_file_id', $media->id)->delete();
+        $activityId = DB::table('core_course_template_activities')->insertGetId([
+            'customer_id' => $this->customerId, 'template_id' => $templateId,
+            'template_lesson_id' => $lessonId, 'title' => 'Worksheet',
+            'activity_type' => 'document', 'sort_order' => 1,
+            'created_by' => $this->admin->id, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('media_file_usages')->insert([
+            'customer_id' => $this->customerId, 'media_file_id' => $media->id,
+            'owner_type' => 'course_activity', 'owner_id' => $activityId,
+            'usage_type' => 'document', 'status' => 'active', 'created_by' => $this->admin->id,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $page = "https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=structure";
+        $action = "https://tenant-a.localhost/admin/course-templates/{$templateId}/lessons/{$lessonId}/activities/{$activityId}/board-preview";
+        $this->actingAs($this->admin)->get($page)->assertOk()
+            ->assertSee('data-activity-status="'.$activityId.':preview" data-status="absent"', false)
+            ->assertSee('action="'.$action.'"', false)
+            ->assertSeeText(__('lf.LF_course_template_activity_board_preview_start'));
+
+        $this->post($action)->assertSessionHas('success');
+        $this->assertDatabaseHas('media_processing_jobs', [
+            'media_file_id' => $media->id, 'job_type' => 'transcode', 'status' => 'pending', 'output_profile' => 'preset=pdf',
+        ]);
+        $this->get($page)->assertOk()
+            ->assertSee('data-activity-status="'.$activityId.':preview" data-status="processing"', false)
+            ->assertDontSee('action="'.$action.'"', false);
+
+        // Nothing is queued twice.
+        $this->post($action)->assertSessionHasErrors('board_preview');
+        $this->assertSame(1, DB::table('media_processing_jobs')->where('media_file_id', $media->id)->where('job_type', 'transcode')->count());
+    }
+
     public function test_audio_detach_cancels_pending_stt_and_reattach_creates_a_new_generation(): void
     {
         Queue::fake();

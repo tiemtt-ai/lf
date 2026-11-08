@@ -68,7 +68,7 @@
 <section class="mk-section course-cohort-sessions" aria-labelledby="cohort-sessions-title"
      x-data="{
          editingId: @js($formOldSession?->id), editingSession: @js($formOldSession), submitting: false, syncing: false,
-         detailSession: null, detailActions: [], lifecycle: null, lifecycleReason: '', lifecycleSubmitting: false,
+         detailSession: null, detailActions: [], detailBoardUrl: null, lifecycle: null, lifecycleReason: '', lifecycleSubmitting: false,
          showFormErrors: true, showRescheduleErrors: true, meetingLinkCopied: false, defaultTeachersPending: false, editingProgramme: @js($formHasErrors && (old('schedule_id') || old('opened_version_activity_id'))),
          programmeContentByActivity: @js($programmeContent),
          programmeLessonRows: @js($programmeLessons),
@@ -345,6 +345,7 @@
              this.detailActions = @js($lifecycleActions)
                  .map(key => ({ key, url: trigger.getAttribute(`data-lifecycle-${key}`), ...this.lifecycleTexts[key] }))
                  .filter(action => action.url)
+             this.detailBoardUrl = trigger.getAttribute('data-board-url')
              this.$refs.detailDialog.showModal()
          },
          closeDetail() { this.$refs.detailDialog.close() },

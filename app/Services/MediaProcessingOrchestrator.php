@@ -10,6 +10,9 @@ use InvalidArgumentException;
 
 class MediaProcessingOrchestrator
 {
+    /** § Retry: only these errors may run again. */
+    public const TRANSIENT_ERRORS = ['provider_timeout', 'provider_unavailable', 'rate_limited', 'transcript_invalid'];
+
     public function __construct(private readonly MediaOutputProfile $profiles) {}
 
     public function materializeVirusScanOnUpload(int $customerId, int $mediaFileId, ?int $actorId): void
@@ -87,7 +90,118 @@ class MediaProcessingOrchestrator
                     $this->profiles->canonical(['locales' => app(DocumentLanguageProfile::class)->serialize($documentLocales ?? [$canonicalLocale]), 'structure' => $this->structureFor($media)]),
                     $actorId, $reattach);
             }
+
+            // Optional board PDF of an Office file (§ Document board preview):
+            // made now, at attach time, so no class ever waits for LibreOffice.
+            if (DocumentPreviewStorage::eligible($media)) {
+                $this->createInitialJob($customerId, $media, 'transcode', DocumentPreviewStorage::PROFILE, $actorId, $reattach);
+            }
+
+            // Optional faststart copy of an MP4/MOV whose index is at the end
+            // (§ Video board playback copy): only box headers are read here.
+            if ($this->videoPreviewWanted($customerId, $media)) {
+                $this->createInitialJob($customerId, $media, 'transcode', VideoBoardPreview::PROFILE, $actorId, $reattach);
+            }
         });
+    }
+
+    private function videoPreviewWanted(int $customerId, object $media): bool
+    {
+        return VideoBoardPreview::eligible($media) && $media->status !== 'deleted'
+            && is_string($media->checksum ?? null) && trim($media->checksum) !== ''
+            && app(SpeechToTextProcessingEligibility::class)->hasActiveUsage($customerId, (int) $media->id, 'video')
+            && app(VideoBoardPreview::class)->needsCopy($media);
+    }
+
+    /**
+     * `media:video-faststart` for a video attached before § Video board playback
+     * copy: a first run, a successor of a run cancelled before it started, or a
+     * retry of a failed transient run. Returns what it did.
+     *
+     * @return 'created'|'retried'|'skipped'
+     */
+    public function requestVideoBoardPreview(int $customerId, int $mediaFileId, ?int $actorId): string
+    {
+        $outcome = DB::transaction(function () use ($customerId, $mediaFileId, $actorId): string|int {
+            $media = DB::table('media_files')->where('customer_id', $customerId)->where('id', $mediaFileId)->lockForUpdate()->first();
+            if (! $media || ! $this->videoPreviewWanted($customerId, $media)) {
+                return 'skipped';
+            }
+            $latest = $this->latestBoardPreviewJob($customerId, $media);
+            if ($latest === null) {
+                $this->createInitialJob($customerId, $media, 'transcode', VideoBoardPreview::PROFILE, $actorId);
+
+                return 'created';
+            }
+            if ($latest->status === 'cancelled' && $latest->started_at === null) {
+                $this->createInitialJob($customerId, $media, 'transcode', VideoBoardPreview::PROFILE, $actorId, true);
+
+                return 'created';
+            }
+            if ($latest->status === 'failed' && self::boardPreviewRetryable($latest)) {
+                return (int) $latest->id;
+            }
+
+            return 'skipped';
+        });
+        if (is_int($outcome)) {
+            $this->retry($customerId, $outcome, $actorId);
+
+            return 'retried';
+        }
+
+        return $outcome;
+    }
+
+    /**
+     * Admin "convert to PDF again" on an Office Activity: a retry of a failed
+     * transient run, a successor of a run cancelled before it started, or the
+     * first run for a file attached before board previews existed.
+     */
+    public function requestBoardPreview(int $customerId, int $mediaFileId, ?int $actorId): void
+    {
+        $retryOf = DB::transaction(function () use ($customerId, $mediaFileId, $actorId): ?int {
+            $media = DB::table('media_files')->where('customer_id', $customerId)->where('id', $mediaFileId)->lockForUpdate()->first();
+            if (! $media || $media->status === 'deleted' || ! DocumentPreviewStorage::eligible($media)) {
+                throw new InvalidArgumentException('Board preview is not available for this file.');
+            }
+            $this->assertDocumentUsage($customerId, $media);
+            $latest = $this->latestBoardPreviewJob($customerId, $media);
+            if ($latest === null) {
+                $this->createInitialJob($customerId, $media, 'transcode', DocumentPreviewStorage::PROFILE, $actorId);
+
+                return null;
+            }
+            if ($latest->status === 'cancelled' && $latest->started_at === null) {
+                $this->createInitialJob($customerId, $media, 'transcode', DocumentPreviewStorage::PROFILE, $actorId, true);
+
+                return null;
+            }
+            if ($latest->status === 'failed' && self::boardPreviewRetryable($latest)) {
+                return (int) $latest->id;
+            }
+
+            throw new InvalidArgumentException('Board preview cannot be requested again.');
+        });
+        if ($retryOf !== null) {
+            $this->retry($customerId, $retryOf, $actorId);
+        }
+    }
+
+    /** Highest run of the current board preview chain, or null. */
+    public function latestBoardPreviewJob(int $customerId, object $media): ?object
+    {
+        return DB::table('media_processing_jobs')->where('customer_id', $customerId)
+            ->where('media_file_id', $media->id)->where('job_type', 'transcode')
+            ->where('source_fingerprint', $this->sourceFingerprint($media))
+            ->where('processing_version', $this->versionFor('transcode', $media))
+            ->where('output_profile_hash', $this->profiles->hash(($media->file_type ?? null) === 'video' ? VideoBoardPreview::PROFILE : DocumentPreviewStorage::PROFILE))
+            ->orderByDesc('dispatch_generation')->orderByDesc('attempt')->orderByDesc('id')->first();
+    }
+
+    public static function boardPreviewRetryable(object $job): bool
+    {
+        return in_array($job->error_code, self::TRANSIENT_ERRORS, true) && (int) $job->attempt < 3;
     }
 
     /**
@@ -166,11 +280,11 @@ class MediaProcessingOrchestrator
         return DB::transaction(function () use ($customerId, $failedJobId, $actorId): object {
             $failed = DB::table('media_processing_jobs')->where('customer_id', $customerId)->where('id', $failedJobId)->lockForUpdate()->first();
             if (! $failed || $failed->status !== 'failed'
-                || ! in_array($failed->error_code, ['provider_timeout', 'provider_unavailable', 'rate_limited', 'transcript_invalid'], true)
+                || ! in_array($failed->error_code, self::TRANSIENT_ERRORS, true)
                 || (int) $failed->attempt >= 3) {
                 throw new InvalidArgumentException('Job is not retry eligible.');
             }
-            if (in_array($failed->job_type, ['ocr', 'structured_extraction'], true)
+            if (in_array($failed->job_type, ['ocr', 'structured_extraction', 'transcode'], true)
                 || in_array($failed->job_type, ['speech_to_text', 'frame_ocr'], true)) {
                 $media = DB::table('media_files')->where('customer_id', $customerId)->where('id', $failed->media_file_id)->lockForUpdate()->first();
                 if (! $media) {
@@ -178,6 +292,7 @@ class MediaProcessingOrchestrator
                 }
                 $this->assertDocumentUsage($customerId, $media);
                 $this->assertAudioUsage($customerId, $media, true);
+                $this->assertVideoPreviewUsage($customerId, $media, (string) $failed->job_type);
             }
             $highest = DB::table('media_processing_jobs')->where('customer_id', $customerId)
                 ->where('media_file_id', $failed->media_file_id)->where('job_type', $failed->job_type)
@@ -209,7 +324,8 @@ class MediaProcessingOrchestrator
             }
             $jitter = random_int(80, 120) / 100;
             $delay = (int) round(60 * (2 ** ($attempt - 2)) * $jitter);
-            DB::afterCommit(fn () => ProcessMediaProcessingJob::dispatch($customerId, (int) $id)->delay(now()->addSeconds($delay)));
+            DB::afterCommit(fn () => ProcessMediaProcessingJob::dispatch($customerId, (int) $id)
+                ->onQueue(ProcessMediaProcessingJob::queueFor((string) $failed->job_type, isset($media) ? $media->file_type : null))->delay(now()->addSeconds($delay)));
 
             return DB::table('media_processing_jobs')->where('customer_id', $customerId)->where('id', $id)->first();
         });
@@ -382,12 +498,13 @@ class MediaProcessingOrchestrator
 
     private function createInitialJob(int $customerId, object $media, string $jobType, string $profile, ?int $actorId, bool $reattach = false, bool $requestStructure = false): void
     {
-        if (in_array($jobType, ['ocr', 'structured_extraction'], true)) {
+        if (in_array($jobType, ['ocr', 'structured_extraction', 'transcode'], true)) {
             $this->assertDocumentUsage($customerId, $media);
         }
         if (in_array($jobType, ['speech_to_text', 'frame_ocr'], true)) {
             $this->assertAudioUsage($customerId, $media, true);
         }
+        $this->assertVideoPreviewUsage($customerId, $media, $jobType);
         $metadata = $jobType === 'ocr' && $requestStructure ? ['structured_requested' => true] : [];
         if ($jobType === 'structured_extraction') {
             $locales = app(DocumentLanguageProfile::class)->fromProfile($profile);
@@ -406,11 +523,12 @@ class MediaProcessingOrchestrator
             ->where('media_file_id', $media->id)->where('job_type', $jobType)
             ->where('source_fingerprint', $fingerprint)->where('processing_version', $version)
             ->where('output_profile_hash', $profileHash)
-            ->when($media->file_type !== 'document' || ! in_array($jobType, ['ocr', 'structured_extraction'], true), fn ($q) => $q->where('idempotency_key', $key))
+            ->when($media->file_type !== 'document' || ! in_array($jobType, ['ocr', 'structured_extraction', 'transcode'], true), fn ($q) => $q->where('idempotency_key', $key))
             ->orderByDesc('dispatch_generation')->orderByDesc('attempt')->first();
         $successor = $reattach
-            && (($media->file_type === 'document' && in_array($jobType, ['ocr', 'structured_extraction'], true))
-                || (in_array($media->file_type, ['audio', 'video'], true) && in_array($jobType, ['speech_to_text', 'frame_ocr'], true)))
+            && (($media->file_type === 'document' && in_array($jobType, ['ocr', 'structured_extraction', 'transcode'], true))
+                || (in_array($media->file_type, ['audio', 'video'], true) && in_array($jobType, ['speech_to_text', 'frame_ocr'], true))
+                || ($media->file_type === 'video' && $jobType === 'transcode'))
             && $latest?->status === 'cancelled' && $latest->started_at === null
             && $latest->error_code === null;
         $generation = $successor ? (int) $latest->dispatch_generation + 1 : 1;
@@ -460,7 +578,8 @@ class MediaProcessingOrchestrator
             }
         }
         $jobId = (int) $id;
-        DB::afterCommit(fn () => ProcessMediaProcessingJob::dispatch($customerId, $jobId));
+        $queue = ProcessMediaProcessingJob::queueFor($jobType, $media->file_type ?? null);
+        DB::afterCommit(fn () => ProcessMediaProcessingJob::dispatch($customerId, $jobId)->onQueue($queue));
     }
 
     private function structureFor(object $media): string
@@ -475,6 +594,15 @@ class MediaProcessingOrchestrator
         if ($media->file_type === 'document' && ($media->status === 'deleted'
             || ! app(DocumentProcessingEligibility::class)->hasActiveUsage($customerId, (int) $media->id))) {
             throw new InvalidArgumentException('Active Document Course usage is required.');
+        }
+    }
+
+    /** The video faststart copy needs an active Course video usage, like Video STT (§ Video board playback copy). */
+    private function assertVideoPreviewUsage(int $customerId, object $media, string $jobType): void
+    {
+        if ($jobType === 'transcode' && $media->file_type === 'video' && ($media->status === 'deleted'
+            || ! app(SpeechToTextProcessingEligibility::class)->hasActiveUsage($customerId, (int) $media->id, 'video'))) {
+            throw new InvalidArgumentException('Active Video Course usage is required.');
         }
     }
 
@@ -500,7 +628,7 @@ class MediaProcessingOrchestrator
             : null;
     }
 
-    private function sourceFingerprint(object $media): string
+    public function sourceFingerprint(object $media): string
     {
         if (! is_string($media->checksum) || trim($media->checksum) === '') {
             throw new InvalidArgumentException('Source checksum is required for processing.');
@@ -527,6 +655,12 @@ class MediaProcessingOrchestrator
         if ($jobType === 'structured_extraction' && $media !== null && $this->structureFor($media) === 'cells') {
             return 'local_document';
         }
+        if ($jobType === 'transcode' && ($media->file_type ?? null) === 'document') {
+            return (string) config('media.processing.document_preview.provider', 'unconfigured');
+        }
+        if ($jobType === 'transcode' && ($media->file_type ?? null) === 'video') {
+            return (string) config('media.processing.video_preview.provider', 'unconfigured');
+        }
 
         return (string) config("media.processing.providers.$jobType", 'unconfigured');
     }
@@ -541,6 +675,13 @@ class MediaProcessingOrchestrator
      */
     public function versionFor(string $jobType, ?object $media = null, array $parameters = []): string
     {
+        if ($jobType === 'transcode' && ($media->file_type ?? null) === 'document') {
+            return (string) config('media.processing.document_preview.version', 'libreoffice-pdf-v1');
+        }
+        if ($jobType === 'transcode' && ($media->file_type ?? null) === 'video') {
+            return (string) config('media.processing.video_preview.version', 'ffmpeg-faststart-v1');
+        }
+
         $version = (string) config("media.processing.versions.$jobType", 'unconfigured-v1');
 
         if ($jobType === 'ocr' && ($media->file_type ?? null) === 'document' && $this->providerFor('ocr') === 'local_document') {

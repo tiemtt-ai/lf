@@ -16,6 +16,228 @@ Approved
 
 Document Path: adr/ADR-0002-LiveClass-Foundation.md
 
+## LiveClass Whiteboard Amendment
+
+Approved: 2026-11-07 (Owner decision, from
+[LF-LiveClass-Whiteboard-Proposal](../quality/LF-LiveClass-Whiteboard-Proposal.md)).
+Architecture Review:
+[LF-LiveClass-Whiteboard-Architecture-Review](../quality/LF-LiveClass-Whiteboard-Architecture-Review.md)
+(Pass with changes; changes applied in this text). Frozen 2026-11-07.
+Implemented 2026-11-07: phase 1 (teacher board, administrator entry) and phase 2
+(learner viewer, private channel, active-presenter lock, cached state, board end
+and learner revoke).
+
+This amendment moves **Whiteboard** (Vietnamese UI name: "Bảng điện tử") out of
+Future Considerations. It adds no table, column or migration and changes no
+ownership boundary below. Live Quiz and the AI board stay in Future
+Considerations and need their own ADR.
+
+### What the Whiteboard is
+
+A full-screen teaching surface for one live Session. A teacher shows the
+Session's lesson material on a classroom touch screen and writes over it.
+Learners may open the same board on their own device and follow the teacher in
+real time. The business behaviour follows the AllVia e-board (read-only
+reference project). The function table in the proposal is the acceptance
+baseline. The QR invitation and guest accounts are excluded.
+
+### Ownership
+
+* The Whiteboard is a LiveClass operational feature bound to exactly one
+  same-tenant Session. It has no identity, table or lifecycle of its own.
+* It owns no learning content and produces no Attendance, Replay, Progress or
+  Completion evidence. Opening, viewing or drawing on a board is not evidence.
+* Board strokes, notes, page and zoom are stored only in the browser of the
+  person who drew them, keyed by tenant, user, Session and material, as in
+  AllVia. They are not Media, Recording or Chat. They are cleared from the
+  browser on logout, because a classroom touch screen is a shared device.
+  Storing boards on the server, exporting them or recording them needs a later
+  amendment.
+* The shared live state is a cache read model keyed by `customer_id` and
+  Session. It is never a source of truth. Its TTL is the Session's planned end
+  plus a buffer, refreshed on every write. Losing it loses only what late
+  joiners see; the active presenter's browser re-publishes its state on
+  reconnect.
+
+### Material
+
+* Curriculum Session: the material list is the Media of the published Version
+  Activities in the Session's Version Lesson that have
+  `available_during_session = 1` and a ready Media File, read-only, resolved
+  through the Cohort's locked Version and the Cohort content order
+  (`CourseCohortContentOrder`). Course keeps ownership. Activities without
+  Media (`quiz`, `live_class`) are not listed in this amendment.
+* Operational Session: no material list.
+* Showing material during the live Session is the teacher's presentation, so
+  learner unlock rules (`VersionActivityAccessService`) do not apply to it; the
+  Activity flag `available_during_session` is the gate (Owner confirmed
+  2026-11-07). This display is not Activity access and produces no Progress.
+* The presenter may open a PDF from their own device. That file stays in the
+  browser. It is never uploaded, stored or sent to learners, not even as page
+  images: learners following a local PDF see only the strokes, with a notice
+  that the material is on the teacher's screen.
+* PDF is rendered inside the board with pdf.js, and uploaded or trusted
+  embedded video and uploaded audio play inside the board, under the Media
+  Whiteboard Rendering Exception in [LF-Media](../platform/LF-Media.md). Every
+  other document type keeps opening in a new tab. (Audio: Whiteboard Media
+  Amendment below.)
+* Signed URLs for board material are issued by a Media method that receives a
+  LiveClass-authorized context. LiveClass never reads storage directly. The
+  current `generateVersionActivitySignedUrl(s)` stay administrator-only.
+
+### Who may open it
+
+All conditions are checked on the server for every page load, channel
+subscription, signed URL request and published event:
+
+* the Session and the actor share `customer_id` from `TenantContext`;
+* the Cohort is `active` and the Session is `live`;
+* **presenter**: an active teacher User with a row in
+  `core_liveclass_session_teachers` for that Session (any role) whose
+  `assigned_from`/`assigned_to` window, when set, covers now; or a
+  `customer_admin` of the tenant;
+* **viewer**: a learner with an `active` `core_course_cohort_students` row with
+  `left_at` empty for the Session's Cohort, whose Enrollment is `active` and
+  passes `CourseEnrollmentLifecycleService::allowsLearningAccessAt(now)`.
+
+A `completed`, `cancelled` or `no_show` Session never opens a board.
+
+### One active presenter
+
+Several people may be presenters, but only one **active presenter** publishes
+at a time. The active presenter is held as a per-Session lock in the cache.
+The first presenter to open the board takes it. Another presenter sees the
+board as a viewer and may take over explicitly; the previous holder is
+notified and becomes a viewer. Only the lock holder may publish or re-publish
+state. The server rejects events from anyone else.
+
+### Starting and ending a Session
+
+An assigned teacher who passes the presenter check may start their own Session
+(`scheduled → live`) and complete it (`live → completed`) through the existing
+`LiveClassSessionLifecycleService`, under the existing transition table. The
+server rejects a start outside the Session's planned local date in its
+recorded timezone, as AllVia allows it only for today's class. Cancel and
+no-show stay administrator actions.
+
+Every transition out of `live` (complete, cancel, no-show) and a Cohort leaving
+`active` must, from one shared point in the lifecycle service, clear the cache
+state and presenter lock and broadcast a board-ended event. Clients close the
+board on that event. A learner removed from the Cohort is disconnected the
+same way.
+
+### Real-time sync
+
+* One private broadcast channel per Session, authorized in
+  `routes/channels.php` with the conditions above. It is not shared with any
+  video or meeting provider.
+* **Only the active presenter publishes.** The presenter sends board events to
+  an authenticated server endpoint. The server authorizes, validates the event
+  type and size, assigns an atomic per-Session sequence number, updates the
+  cache read model and broadcasts immediately (`ShouldBroadcastNow`, or a
+  single ordered queue).
+* **Client events are switched off.** Reverb defaults accept `client-*`
+  events from channel members and any origin. The published
+  `config/reverb.php` must set `accept_client_events_from = none`, restrict
+  `allowed_origins` to tenant domains and enable rate limiting.
+* Learners only receive. A learner's own strokes and notes stay on their device.
+* A late joiner subscribes first, buffers incoming events, loads the cached
+  state, then applies buffered events after the state's sequence. A gap in
+  sequence numbers triggers a full resync.
+* Event types follow AllVia: stroke added or removed, page cleared, undo/redo,
+  note added, changed or removed, page changed, material changed, video
+  play/pause/seek, pointer position, scroll and zoom. One event is at most
+  8 KB, under Reverb's 10,000-byte limit; long strokes are split. Publish rate
+  is limited. Pointer and scroll events are not cached.
+
+### Navigation and middleware
+
+Each role has its own route group with that role's existing middleware set,
+following the Navigation and Middleware Guardrails; there is no mixed-role
+group:
+
+| Role | Entry | Board routes |
+| --- | --- | --- |
+| Teacher | Teacher Session list | under `/teacher/...` |
+| Administrator | Session detail in the Cohort Sessions tab | under `/admin/...` |
+| Learner | Learner course page | under `/my-courses/...`, `role:student` |
+
+The learner course page does not exist yet (`/my-courses` is a placeholder);
+the board's learner entry is built with it. The board opens in its own window.
+
+### Interface
+
+Layout and functions follow AllVia; colours, icons and tooltips follow the LF
+UI Kit. Every icon-only control has an i18n tooltip and `aria-label`
+(`data-tooltip`); on touch screens a long press shows it. Every board text
+(notices, connection status, the resume prompt, errors) uses
+`LF_liveclass_whiteboard_*` keys in `vi` and `en`. Tools are keyboard
+operable and animations respect `prefers-reduced-motion`.
+
+### Hybrid delivery
+
+The board carries no audio or video of the teacher. In a `hybrid` or `online`
+Session, remote learners still hear the teacher through the Session's
+`meeting_url_snapshot`. `delivery_mode` is unchanged. In-product audio/video
+(WebRTC) is not authorized by this amendment.
+
+### Not authorized here
+
+QR invitation and guest accounts; attendance at board start; learner
+submissions to the teacher; Live Quiz and AI board features; quiz Activities
+on the board; server-side board persistence, export and recording.
+Office-to-PDF conversion was listed here until the Whiteboard Office Preview
+Amendment below authorized it on 2026-11-08.
+
+### Whiteboard Media Amendment — 2026-11-08
+
+Approved: 2026-11-08 (Owner decision, phase 1 of
+[LF-LiveClass-Whiteboard-Media-Evaluation](../quality/LF-LiveClass-Whiteboard-Media-Evaluation.md)).
+No table, column or migration; ownership unchanged.
+
+* Uploaded audio plays inside the board, synchronised like video
+  (play, pause, seek, close). One Media item is open at a time.
+* The server stamps its own time on every media event and on the media part of
+  the snapshot, and returns its time with the cached state, so viewers and late
+  joiners compute the presenter's position. The presenter sends a non-cached
+  position heartbeat while playing; a viewer corrects drift above one second.
+* A presenter may preview a media item privately; nothing is published until
+  they show it to the class.
+* Trusted YouTube and Vimeo embeds are synchronised the same way (phase 2),
+  controlled through `postMessage` with the provider's iframe. No provider
+  script is loaded into the tenant page.
+* A viewer chooses a listening mode: in the room (muted) or remote (with
+  sound). The default follows the Session's `delivery_mode`; a `hybrid` Session
+  asks on joining and remembers the answer in the browser for that Session.
+  Sound is turned on only inside a user gesture; when autoplay with sound is
+  blocked the media plays muted and offers "turn sound on". Opening the board
+  stays optional for every learner and is still not attendance.
+* This does not carry the teacher's own voice or camera: remote learners still
+  hear the teacher through `meeting_url_snapshot`, and in-product WebRTC stays
+  unauthorized (§ Hybrid delivery).
+
+### Whiteboard Office Preview Amendment — 2026-11-08
+
+Approved: 2026-11-08 (Owner decision 4 and phase 3 of
+[LF-LiveClass-Whiteboard-Media-Evaluation](../quality/LF-LiveClass-Whiteboard-Media-Evaluation.md)).
+No table, column or migration; ownership unchanged.
+
+* Media, not LiveClass, converts a Word, PowerPoint or Excel file attached to a
+  course Activity into a PDF once, with LibreOffice on the Media worker, and keeps
+  it as a `preview` variant. The rules are in
+  [LF-Media-Processing-Contract](../platform/LF-Media-Processing-Contract.md)
+  § Document board preview.
+* Conversion runs when the file is attached to the Activity, on its own queue,
+  never when the board opens it. Nobody waits for it during a class.
+* When the preview is ready, the board shows it like an uploaded PDF: drawing,
+  page sync and private viewer notes work the same way. Until then, or when
+  conversion failed, the board opens the original file in a new tab, as before.
+  The material list says which applies.
+* The PDF is a picture of the file: PowerPoint animations, transitions, embedded
+  media and macros are lost. It is not a new Media File and not a new Activity.
+* The administrator sees the conversion status on the Activity and can ask for a
+  conversion again; the teacher sees it in the board's material drawer.
+
 ## Automatic Session Generation Amendment
 
 Approved: 2026-11-05 (Owner decision)
@@ -655,7 +877,7 @@ Các hạng mục sau là hướng mở rộng, không phải lỗi của Founda
 * Breakout Rooms
 * Webinar Mode
 * Live Poll
-* Whiteboard
+* Whiteboard — authorized by the LiveClass Whiteboard Amendment (2026-11-07)
 * Live Quiz
 * AI Live Assistant
 * Calendar synchronization

@@ -27,7 +27,8 @@ class CourseCohortLifecycleService
     ];
 
     public function __construct(
-        private readonly CourseCohortVersionResolver $versionResolver
+        private readonly CourseCohortVersionResolver $versionResolver,
+        private readonly LiveClassWhiteboardLiveState $boards,
     ) {}
 
     public function activate(int $customerId, int $cohortId): void
@@ -159,6 +160,11 @@ class CourseCohortLifecycleService
                     'status' => $targetStatus,
                     'updated_at' => now(),
                 ]);
+
+            // A Cohort leaving `active` closes the Whiteboards of its live Sessions.
+            if ($cohort->status === 'active' && $targetStatus !== 'active') {
+                DB::afterCommit(fn () => $this->boards->endCohort($customerId, $cohortId));
+            }
         }, 3);
     }
 

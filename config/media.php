@@ -47,6 +47,29 @@ return [
             'ocr_dpi' => (int) env('MEDIA_OCR_DPI', 200),
             'max_extracted_characters' => (int) env('MEDIA_MAX_EXTRACTED_CHARACTERS', 500000),
         ],
+        // Ban PDF cua tai lieu Office cho bang dien tu (LF-Media-Processing-Contract
+        // § Document board preview). Job `transcode`, profile `preset=pdf`, hang
+        // doi rieng de khong cho sau OCR/STT.
+        'document_preview' => [
+            'provider' => env('MEDIA_DOCUMENT_PREVIEW_PROVIDER', 'local_document'),
+            'version' => env('MEDIA_DOCUMENT_PREVIEW_VERSION', 'libreoffice-pdf-v1'),
+            'queue' => env('MEDIA_DOCUMENT_PREVIEW_QUEUE', 'media-preview'),
+            'extensions' => ['doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx'],
+            'max_pages' => (int) env('MEDIA_DOCUMENT_PREVIEW_MAX_PAGES', 300),
+            'max_bytes' => (int) env('MEDIA_DOCUMENT_PREVIEW_MAX_BYTES', 104857600),
+        ],
+        // Ban chep faststart cua video MP4/MOV co chi muc `moov` o cuoi, cho bang
+        // dien tu (LF-Media-Processing-Contract § Video board playback copy). Job
+        // `transcode`, profile `preset=faststart`; chep nguyen luong, khong ma hoa lai.
+        'video_preview' => [
+            'provider' => env('MEDIA_VIDEO_PREVIEW_PROVIDER', 'local_video'),
+            'version' => env('MEDIA_VIDEO_PREVIEW_VERSION', 'ffmpeg-faststart-v1'),
+            'queue' => env('MEDIA_VIDEO_PREVIEW_QUEUE', 'media-preview'),
+            'extensions' => ['mp4', 'm4v', 'mov'],
+            'ffmpeg_binary' => env('MEDIA_FFMPEG_BINARY', '/usr/local/bin/ffmpeg'),
+            'timeout_seconds' => (int) env('MEDIA_VIDEO_PREVIEW_TIMEOUT_SECONDS', 900),
+            'max_processing_seconds' => (int) env('MEDIA_VIDEO_PREVIEW_MAX_PROCESSING_SECONDS', 3300),
+        ],
         // Speech-to-text Phase 1. Gia tri contract theo
         // LF-Media-Processing-Contract § Speech-to-text resource controls,
         // khong phai tuning tuy y.

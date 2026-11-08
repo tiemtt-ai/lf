@@ -61,6 +61,7 @@
                     ['label' => __('lf.LF_navigation_menu_admin_media'), 'route' => 'teacher.media.index', 'active' => 'teacher.media.*', 'visible' => true],
                 ]],
                 ['label' => __('lf.LF_navigation_menu_teacher_cohorts'), 'route' => 'teacher.cohorts.index', 'active' => 'teacher.cohorts.*', 'visible' => true, 'icon' => 'users'],
+                ['label' => __('lf.LF_navigation_menu_teacher_live_sessions'), 'route' => 'teacher.live-sessions.index', 'active' => 'teacher.live-sessions.*', 'visible' => true, 'icon' => 'presentation'],
                 ['label' => __('lf.LF_navigation_group_assessment'), 'route' => null, 'active' => null, 'visible' => true, 'icon' => 'file-check', 'children' => [
                     ['label' => __('lf.LF_navigation_menu_assessment_questions'), 'route' => 'teacher.assessments.questions.index', 'active' => 'teacher.assessments.questions.*', 'visible' => true],
                     ['label' => __('lf.LF_navigation_menu_assessment_passages'), 'route' => 'teacher.assessments.passages.index', 'active' => 'teacher.assessments.passages.*', 'visible' => true],

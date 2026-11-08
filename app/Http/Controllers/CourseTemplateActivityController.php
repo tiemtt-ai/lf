@@ -105,6 +105,38 @@ class CourseTemplateActivityController extends Controller
         )->with('success', __('lf.LF_course_template_activity_stt_initialized'));
     }
 
+    public function requestBoardPreviewDirect(Request $request, int $templateId, int $lessonId, int $activityId)
+    {
+        return $this->requestBoardPreviewForActivity($request, $templateId, $lessonId, $activityId, null);
+    }
+
+    public function requestBoardPreview(Request $request, int $templateId, int $sectionId, int $lessonId, int $activityId)
+    {
+        return $this->requestBoardPreviewForActivity($request, $templateId, $lessonId, $activityId, $sectionId);
+    }
+
+    /** "Convert to PDF (again)" for the board PDF of an Office document. */
+    private function requestBoardPreviewForActivity(Request $request, int $templateId, int $lessonId, int $activityId, ?int $sectionId)
+    {
+        $customerId = $this->customerId();
+        $this->findHierarchy($customerId, $templateId, $sectionId, $lessonId);
+        $activity = $this->findActivity($customerId, $templateId, $lessonId, $activityId);
+        abort_unless($activity->activity_type === 'document', 404);
+        $media = $this->mediaService->getOwnerMedia('course_activity', $activityId, 'document')->first();
+        abort_unless($media && $media->status === 'ready', 404);
+
+        try {
+            $this->processingOrchestrator->requestBoardPreview($customerId, (int) $media->id, (int) $request->user()->id);
+        } catch (InvalidArgumentException) {
+            return back()->withErrors(['board_preview' => __('lf.LF_course_template_activity_board_preview_request_failed')]);
+        }
+
+        return redirect()->to(
+            route($this->templateRoutePrefix($request).'.edit', $templateId)
+            ."?tab=structure#course-template-lesson-{$lessonId}-activities"
+        )->with('success', __('lf.LF_course_template_activity_board_preview_requested'));
+    }
+
     public function index(
         Request $request,
         int $templateId,

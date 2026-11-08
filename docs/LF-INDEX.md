@@ -297,7 +297,7 @@ docs/tech/
 | [tech/LF-Admin-UI-Kit-Shared-CSS.md](tech/LF-Admin-UI-Kit-Shared-CSS.md) | Owner đã duyệt Shared CSS và popup UI KIT cho Admin/Giáo viên; chỉ opt-in chức năng được chỉ định; danh sách và form danh mục khóa học đã áp dụng |
 | [tech/LF-Admin-Form-Design-Standard.md](tech/LF-Admin-Form-Design-Standard.md) | Canonical presentation standard cho LF Admin Create/Edit forms và List/Index pages; kích hoạt bởi “Áp dụng thiết kế tiêu chuẩn”, “Áp dụng chuẩn danh sách” và các trigger tương đương |
 | [tech/LF-Tech-AWS.md](tech/LF-Tech-AWS.md) | AWS infrastructure |
-| [tech/LF-Tech-Runtime-Requirements.md](tech/LF-Tech-Runtime-Requirements.md) | Yêu cầu cài đặt runtime, extension, binary, biến môi trường, CI và gate triển khai production; vận hành queue/scheduler Media → AI Knowledge và điều kiện activation provider |
+| [tech/LF-Tech-Runtime-Requirements.md](tech/LF-Tech-Runtime-Requirements.md) | Yêu cầu cài đặt runtime, extension, binary, biến môi trường, CI và gate triển khai production; vận hành queue/scheduler Media → AI Knowledge và điều kiện activation provider; § 13 checklist production của bảng điện tử (Reverb, worker media-preview, LibreOffice, ffmpeg, S3) |
 
 ---
 
@@ -400,6 +400,11 @@ docs/quality/
 | [quality/LF-Regression-Audit.md](quality/LF-Regression-Audit.md) | Mandatory `LOW`/`MEDIUM`/`HIGH` audit for every Existing-Feature Change |
 | [quality/LF-UI-Async-State-Engineering-Practice.md](quality/LF-UI-Async-State-Engineering-Practice.md) | Nguyên tắc làm giao diện có nhiều luồng bất đồng bộ (bất biến trước, test đối kháng, đột biến, đi thử từ menu, danh sách kiểm trước khi gửi review); rút từ 6 lượt review P3-A |
 | [quality/LF-Media-Sharing-Proposal.md](quality/LF-Media-Sharing-Proposal.md) | Đề xuất chia sẻ Media trong tenant (phạm vi, quyền, thu hồi, bảng dữ liệu); chưa phải ADR |
+| [quality/LF-List-Excel-Export-Proposal.md](quality/LF-List-Excel-Export-Proposal.md) | Đề xuất xuất Excel cho các danh sách Admin/Teacher theo ưu tiên P1–P3; P1 đã làm 2026-11-07 |
+| [quality/LF-List-Excel-Export-P1-Regression-Audit.md](quality/LF-List-Excel-Export-P1-Regression-Audit.md) | Audit HIGH xuất Excel P1: query dùng chung với danh sách, lọc tenant, tối đa 5000 dòng, chưa ghi log người xuất; kèm chỉnh UI Kết quả và Thống kê |
+| [quality/LF-LiveClass-Whiteboard-Proposal.md](quality/LF-LiveClass-Whiteboard-Proposal.md) | Đề xuất Bảng điện tử theo nghiệp vụ bảng AllVia: quyết định của Owner, bảng chức năng chuẩn nghiệm thu, điểm vướng và lộ trình (giai đoạn 3 AI hoãn); Owner duyệt 2026-11-07, thiết kế đã chuyển vào ADR-0002 |
+| [quality/LF-LiveClass-Whiteboard-Architecture-Review.md](quality/LF-LiveClass-Whiteboard-Architecture-Review.md) | Architecture Review amendment Bảng điện tử (ADR-0002, LF-Core-LiveClass, LF-Media): Pass with changes, đã sửa; một người trình chiếu, tắt client event Reverb, lọc tài liệu theo `available_during_session`; Frozen 2026-11-07 |
+| [quality/LF-LiveClass-Whiteboard-Media-Evaluation.md](quality/LF-LiveClass-Whiteboard-Media-Evaluation.md) | Đánh giá Media trên bảng điện tử so với AllVia: âm thanh và video đồng bộ, chế độ Ở lớp / Từ xa cho offline–online–hybrid, YouTube, Office sang PDF bằng LibreOffice, giao tệp từ S3; đợt 1–3 và video faststart xong 2026-11-08, đợt 4 (S3) hoãn đến sau production; kết quả thử Chrome và iPhone |
 | [quality/LF-Assessment-Simple-Admin-Proposal.md](quality/LF-Assessment-Simple-Admin-Proposal.md) | Phân tích question_bank so với thiết kế Assessment của LF; đề xuất quản trị đơn giản, nguồn của ADR-0025 |
 | [quality/LF-Assessment-Grader-Assignment-Architecture-Review.md](quality/LF-Assessment-Grader-Assignment-Architecture-Review.md) | Rà ADR-0027 và database docs phân công chấm, tệp bài tự luận trước migration; PASS, Owner duyệt 2026-11-07 |
 | [quality/LF-Assessment-Rubric-Architecture-Review.md](quality/LF-Assessment-Rubric-Architecture-Review.md) | Rà ADR-0026 và database docs rubric trước migration; PASS, Owner duyệt 2026-11-06 |

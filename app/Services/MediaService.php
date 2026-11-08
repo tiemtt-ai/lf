@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Events\MediaFileDeleted;
+use App\Support\LiveClassBoardContext;
 use App\Support\TenantContext;
 use App\Support\UploadLimit;
 use DateTimeInterface;
@@ -297,6 +298,66 @@ class MediaService
         return $this->generateSignedUrl((int) $media);
     }
 
+    /**
+     * Board material URL for a live Session's Whiteboard (LF-Media § Whiteboard
+     * Rendering Exception). LiveClass has already authorized the viewer and the
+     * Session; this resolves only a ready Media File in use by a Version Activity
+     * of that Session's Lesson that is available during the Session.
+     */
+    public function generateLiveClassBoardSignedUrl(LiveClassBoardContext $context, int $versionActivityId, bool $preview = false): string
+    {
+        abort_unless($context->customerId === $this->customerId() && $context->versionLessonId, 404);
+        $customerId = $context->customerId;
+
+        $media = DB::table('core_course_template_version_activities as activities')
+            ->join('media_file_usages as usages', function ($join) use ($customerId): void {
+                $join->on('usages.owner_id', '=', 'activities.id')
+                    ->on('usages.media_file_id', '=', 'activities.media_file_id')
+                    ->where('usages.customer_id', $customerId)
+                    ->where('usages.owner_type', 'course_version_activity')
+                    ->where('usages.status', 'active');
+            })
+            ->join('media_files as media', function ($join) use ($customerId): void {
+                $join->on('media.id', '=', 'activities.media_file_id')
+                    ->where('media.customer_id', $customerId)
+                    ->where('media.status', 'ready');
+            })
+            ->whereColumn('usages.usage_type', 'activities.activity_type')
+            ->where('activities.customer_id', $customerId)
+            ->where('activities.template_version_id', $context->versionId)
+            ->where('activities.version_lesson_id', $context->versionLessonId)
+            ->where('activities.available_during_session', true)
+            ->where('activities.id', $versionActivityId)
+            ->first(['media.*']);
+
+        abort_if(! $media, 404);
+
+        // The board reads the file with fetch(), so it uses the same-origin
+        // signed route even when the disk could hand out a storage URL.
+        $expiresAt = now()->addMinutes((int) config('media.signed_url_ttl_minutes', 10));
+
+        // The video's faststart copy when ready (§ Video board playback copy);
+        // until then, and if it is gone, the original file as before.
+        $video = $preview ? null : app(VideoBoardPreview::class)->readyVariant($customerId, $media);
+
+        if ($preview || $video) {
+            // The Office file's PDF (§ Office qua bản PDF) or the video's copy; never another file's.
+            $variant = $video ?? app(DocumentBoardPreview::class)->readyVariant($customerId, $media);
+            abort_if(! $variant, 404);
+
+            return URL::temporarySignedRoute('media.variants.signed', $expiresAt, [
+                'mediaFile' => $media->id,
+                'variant' => $variant->id,
+                'expiration' => $expiresAt->getTimestamp(),
+            ]);
+        }
+
+        return URL::temporarySignedRoute('media.files.signed', $expiresAt, [
+            'mediaFile' => $media->id,
+            'expiration' => $expiresAt->getTimestamp(),
+        ]);
+    }
+
     private function shouldUseSignedDeliveryRoute(object $mediaFile): bool
     {
         $disk = config('filesystems.disks.'.$mediaFile->storage_disk);
@@ -442,7 +503,7 @@ class MediaService
                     $jobTypes = match ($usage['usage_type']) {
                         'audio' => ['speech_to_text'],
                         'video' => ['speech_to_text', 'caption', 'frame_ocr'],
-                        default => ['ocr', 'structured_extraction'],
+                        default => ['ocr', 'structured_extraction', 'transcode'],
                     };
                     DB::table('media_processing_jobs')->where('customer_id', $customerId)
                         ->where('media_file_id', $mediaFileId)->whereIn('job_type', $jobTypes)

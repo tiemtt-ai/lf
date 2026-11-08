@@ -480,6 +480,50 @@
                                                 @endif
                                             </div>
                                         @endif
+                                        @if (($activity->board_preview ?? null) !== null)
+                                            @php
+                                                $boardPreview = $activity->board_preview;
+                                                $boardStatus = $boardPreview['status'];
+                                                $boardMessage = __(match ($boardStatus) {
+                                                    'ready' => 'lf.LF_course_template_activity_board_preview_ready_help',
+                                                    'processing' => 'lf.LF_course_template_activity_board_preview_processing_help',
+                                                    'failed' => match ($boardPreview['error_code']) {
+                                                        'page_limit_exceeded' => 'lf.LF_course_template_activity_board_preview_failed_pages_help',
+                                                        'preview_too_large' => 'lf.LF_course_template_activity_board_preview_failed_size_help',
+                                                        'corrupt_source', 'unsupported_source' => 'lf.LF_course_template_activity_board_preview_failed_invalid_help',
+                                                        default => 'lf.LF_course_template_activity_board_preview_failed_help',
+                                                    },
+                                                    default => 'lf.LF_course_template_activity_board_preview_absent_help',
+                                                }, ['pages' => (int) config('media.processing.document_preview.max_pages')]);
+                                            @endphp
+                                            {{-- Board PDF of an Office file (LF-Media-Processing-Contract § Document board preview); started with fetch by course-template-activity-status.js. --}}
+                                            <div @class(['course-template-activity-structured-status', 'ui-sr-only' => $boardStatus === 'ready'])
+                                                 data-activity-status="{{ $activity->id }}:preview" data-status="{{ $boardStatus }}" role="status">
+                                                <span @class([
+                                                    'badge',
+                                                    'badge-success' => $boardStatus === 'ready',
+                                                    'badge-danger' => $boardStatus === 'failed',
+                                                    'badge-info' => $boardStatus === 'processing',
+                                                    'badge-secondary' => $boardStatus === 'absent',
+                                                ]) title="{{ $boardMessage }}">
+                                                    {{ __('lf.LF_course_template_activity_board_preview_'.$boardStatus) }}
+                                                </span>
+                                                <span @class(['lf-secondary-text', 'ui-sr-only' => $boardStatus !== 'failed'])>{{ $boardMessage }}</span>
+                                                @if ($boardPreview['can_request'])
+                                                    <form method="POST" class="course-template-activity-board-preview-form"
+                                                          action="{{ route($activityRoutePrefix.'.board-preview', $activityParameters) }}"
+                                                          data-activity-status-start="{{ $activity->id }}:preview"
+                                                          data-error="{{ __('lf.LF_course_template_activity_board_preview_request_failed') }}">
+                                                        @csrf
+                                                        <button type="submit" class="admin-link-button admin-text-action cursor-interaction"
+                                                                data-tooltip="{{ $boardMessage }}">
+                                                            {{ __($boardStatus === 'failed' ? 'lf.LF_course_template_activity_board_preview_retry' : 'lf.LF_course_template_activity_board_preview_start') }}
+                                                        </button>
+                                                        <span class="ui-caption ui-field__error" role="alert" data-activity-status-error></span>
+                                                    </form>
+                                                @endif
+                                            </div>
+                                        @endif
                                     </div>
                                 </div>
                                 <div class="admin-table-actions">

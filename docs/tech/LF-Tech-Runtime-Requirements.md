@@ -1,12 +1,12 @@
 # LF-Tech-Runtime-Requirements.md
 
-Version: 1.8
+Version: 1.10
 
 Document Status: Draft
 
 Implementation Status: Partial
 
-Last Updated: 2026-09-28
+Last Updated: 2026-11-08
 
 Document Path: tech/LF-Tech-Runtime-Requirements.md
 
@@ -134,6 +134,7 @@ thì upload vẫn chạy nhưng output dẫn xuất fail im lặng theo từng p
 | `pdfinfo` | Poppler — đếm trang | `MEDIA_PDFINFO_BINARY` | `pdfinfo` |
 | `tesseract` | OCR | `MEDIA_TESSERACT_BINARY` | `tesseract` |
 | `soffice` | LibreOffice headless — convert Office sang PDF | `MEDIA_SOFFICE_BINARY` | `soffice` |
+| `ffmpeg` | Bản chép faststart của video cho bảng điện tử | `MEDIA_FFMPEG_BINARY` | `/usr/local/bin/ffmpeg` |
 
 ## 4.1. Tesseract language data
 
@@ -703,6 +704,26 @@ reboot, restart khi lỗi, thu log và chạy đúng OS user có quyền storage
 Worker phải nghe đúng connection/queue đã cấu hình; không mặc định mọi job
 đều đi cùng một queue nếu deployment có tách queue.
 
+Bản PDF của tài liệu Office cho bảng điện tử chạy trên hàng đợi riêng
+`MEDIA_DOCUMENT_PREVIEW_QUEUE` (mặc định `media-preview`,
+[LF-Media-Processing-Contract](../platform/LF-Media-Processing-Contract.md) § Document
+board preview). Cần ít nhất một worker nghe hàng đợi này, cùng LibreOffice và Poppler
+`pdfinfo` như OCR; không có worker thì tài liệu Office trên bảng luôn mở tab mới.
+`composer run dev` và `npm run dev:all` nghe `media-preview,default` trong cùng một worker (bản PDF chạy
+trước). Production chạy worker riêng, ví dụ:
+
+```bash
+php artisan queue:work redis --queue=media-preview --timeout=3600
+```
+
+Bản chép faststart của video (§ Video board playback copy) chạy cùng hàng đợi
+`media-preview` (`MEDIA_VIDEO_PREVIEW_QUEUE`) và cần ffmpeg, ffprobe trên worker.
+
+Máy dev: `php artisan serve` chỉ dùng `PHP_CLI_SERVER_WORKERS` khi có cờ `--no-reload`;
+thiếu cờ thì chỉ có một worker, và một video đang phát giữ worker đó nên mọi yêu cầu
+khác của bảng phải chờ. Script `serve` của `npm run dev:all` có `--no-reload` và `.env`
+dev đặt 16 worker; vì vậy đổi `.env` thì phải tự chạy lại `npm run dev:all`.
+
 Với worker xử lý Media, giữ timeout/retry-after tại §5.3 và §11.3.D; thời gian
 process manager chờ dừng phải đủ cho job đang chạy. Khi đổi code/config, rebuild
 config cache và restart worker có kiểm soát để process dài hạn nạp cấu hình mới.
@@ -833,6 +854,52 @@ lại, phải giữ tenant boundary và tính idempotent; không chỉnh tay tr�
 để bỏ qua barrier.
 
 ---
+
+# 13. Bảng điện tử: việc tương ứng khi lên production
+
+Bổ sung 2026-11-08. Đối chiếu cách bảng điện tử chạy trên máy dev với việc phải làm trên
+server production. Thiết kế theo [LF-Core-LiveClass](../core/LF-Core-LiveClass.md)
+§ Whiteboard; tệp vẫn giao qua PHP cho tới đợt S3 (§ 13.3).
+
+## 13.1. Đối chiếu local → production
+
+| Thành phần | Máy dev | Production |
+|---|---|---|
+| Web server | `php artisan serve --no-reload`, 16 worker (`PHP_CLI_SERVER_WORKERS`) | Nginx + php-fpm, đủ process cho số luồng phát video cùng lúc (mỗi luồng giữ một process khi tệp đi qua PHP) |
+| Reverb | `npm run reverb`, `ws://127.0.0.1:8080` | Reverb chạy dưới Supervisor/systemd, sau proxy WebSocket có TLS (`wss`, cổng 443). `REVERB_HOST`, `REVERB_PORT`, `REVERB_SCHEME=https` là địa chỉ trình duyệt kết nối; `REVERB_SERVER_HOST`/`REVERB_SERVER_PORT` là nơi tiến trình lắng nghe. Chạy `npm run build` sau khi đặt `VITE_REVERB_*`. Đổi config Reverb phải restart Reverb |
+| Origin của Reverb | Mặc định `APP_BASE_DOMAIN` và `*.APP_BASE_DOMAIN` | Như local nếu tenant dùng subdomain. Tenant có domain riêng: đặt `REVERB_ALLOWED_ORIGINS` gồm **cả** base domain, `*.`base domain và từng domain riêng (biến này thay hẳn mặc định), nếu thiếu thì bảng của tenant đó không đồng bộ |
+| Bảo vệ kênh | `config/reverb.php`: `accept_client_events_from=none`, rate limit bật | Giữ nguyên; không đặt `REVERB_APP_ACCEPT_CLIENT_EVENTS_FROM` khác `none` |
+| Nhiều server Reverb | Không cần | Chạy hơn một tiến trình Reverb thì bật `REVERB_SCALING_ENABLED=true` (Redis) |
+| Cache (khoá người chiếu, ảnh chụp, nhật ký sự kiện) | Redis | Redis dùng chung cho mọi web server (`CACHE_STORE=redis`); không dùng `file`/`array` vì khoá và số thứ tự phải nguyên tử giữa các server |
+| Queue worker | `npm run queue`: một `queue:listen` nghe `media-preview,default` | Supervisor chạy `queue:work redis --queue=media-preview --timeout=3600` riêng (§ 12.2), cùng worker `default` |
+| Office sang PDF | LibreOffice `/usr/local/bin/soffice`, Poppler | Cài LibreOffice và Poppler trên máy chạy worker `media-preview`, đặt `MEDIA_SOFFICE_BINARY`; font tiếng Việt, Hàn, Nhật để PDF không lỗi chữ |
+| Video faststart | ffmpeg `/usr/local/bin/ffmpeg`, ffprobe | Cài ffmpeg, ffprobe trên worker `media-preview`, đặt `MEDIA_FFMPEG_BINARY`, `MEDIA_FFPROBE_BINARY`; thư mục tạm đủ chỗ khoảng bằng video lớn nhất |
+| Lưu tệp | `MEDIA_DISK=media_local` | Đến đợt 4 vẫn có thể là disk local của server (phải dùng chung cho web và worker). Sang S3 xem § 13.3 |
+| Tên miền tenant | `<tenant>.localhost:8010`, `APP_TENANT_SCHEME=http` | `APP_BASE_DOMAIN`, `APP_TENANT_SCHEME=https`; bảng cần HTTPS để trình duyệt cho mở `wss` và phát media ổn định trên iPhone |
+| Đăng nhập trên máy lớp dùng chung | Như nhau | Dữ liệu bảng trong trình duyệt bị xoá khi đăng xuất; nhắc giáo viên đăng xuất máy trong lớp |
+
+## 13.2. Việc chạy một lần sau khi deploy
+
+1. `php artisan migrate --force` (bảng điện tử không có migration riêng), `config:cache`,
+   `route:cache`, `view:cache`, `npm run build`.
+2. Restart worker (`queue:restart`) và Reverb.
+3. Video MP4/MOV đã gắn vào Activity từ trước: `php artisan media:video-faststart --customer=<id>`
+   cho từng tenant. Tệp Office cũ: admin bấm "Chuyển sang PDF" trên Activity.
+4. Smoke: giáo viên bắt đầu một buổi thử và mở bảng; học viên mở "Xem bảng" thấy "Đã kết
+   nối đồng bộ"; mở một PDF, một tệp Office có bản PDF, một MP3, một video (học viên theo
+   kịp, vào muộn vẫn đúng vị trí); thử trên iPhone Safari bấm "Bật tiếng" một lần.
+
+## 13.3. Khi chuyển tệp sang S3 (đợt 4, hoãn đến sau production)
+
+Theo [LF-LiveClass-Whiteboard-Media-Evaluation](../quality/LF-LiveClass-Whiteboard-Media-Evaluation.md)
+§ E; phải sửa tài liệu và rà soát trước khi code. Những gì sẽ đổi:
+
+* `MEDIA_DISK` trỏ S3 disk, `MEDIA_AWS_*` (§ 5.4). Bucket riêng tư.
+* Bảng giao tệp bằng link có chữ ký của S3 thay cho route qua PHP; CORS của bucket chỉ
+  cho origin của tenant (`GET`, `HEAD`, header `Range`).
+* Kiểm pdf.js và video với Range trên S3 (Architecture Review, mục Chưa kiểm chứng).
+* Worker vẫn cần thư mục tạm: LibreOffice và ffmpeg tải tệp từ S3 về rồi mới xử lý.
+* Video nén 720p/HLS và giới hạn dung lượng khi lớp đông (E2, E3) làm cùng đợt.
 
 # Owner
 

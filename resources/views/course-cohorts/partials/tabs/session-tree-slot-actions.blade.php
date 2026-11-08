@@ -14,6 +14,7 @@
 <button type="button" class="ux-row-edit cursor-interaction" aria-haspopup="dialog"
         aria-label="{{ __('lf.LF_course_cohort_session_details') }}: {{ $session->title }}" data-tooltip="{{ __('lf.LF_course_cohort_session_details') }}"
         @foreach (array_keys($sessionLifecycle) as $action) data-lifecycle-{{ $action }}="{{ route('admin.course-cohorts.sessions.'.$action, [$cohort->id, $session->id]) }}" @endforeach
+        @if ($cohort->status === 'active' && ! $slotProposal && $session->status === 'live') data-board-url="{{ route('admin.course-cohorts.sessions.board', [$cohort->id, $session->id]) }}" @endif
         x-on:click="openDetail(@js($session), $el)">
     <x-backend-icon name="eye" class="ui-icon" />
 </button>

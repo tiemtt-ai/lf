@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
-  "generated_or_updated_at": "2026-11-06",
+  "generated_or_updated_at": "2026-11-08",
   "root": "docs",
   "default_locale": "vi",
   "fallback_locale": "en",
   "source_of_truth": "docs/LF-INDEX.md",
-  "document_count": 337,
+  "document_count": 342,
   "documents": [
     {
       "path": "LF-Core-Overview.md",
@@ -320,7 +320,8 @@
       "authority": "architecture_decision",
       "canonical_for": [],
       "topics": [
-        "liveclass"
+        "liveclass",
+        "whiteboard"
       ],
       "keywords": {
         "vi": [
@@ -1838,7 +1839,8 @@
       "authority": "domain",
       "canonical_for": [],
       "topics": [
-        "liveclass"
+        "liveclass",
+        "whiteboard"
       ],
       "keywords": {
         "vi": [
@@ -9210,7 +9212,8 @@
         "orchestration",
         "fingerprint",
         "citation",
-        "metering"
+        "metering",
+        "whiteboard"
       ],
       "keywords": {
         "vi": [
@@ -9234,7 +9237,8 @@
         "media_processing_jobs",
         "media_extracted_texts",
         "media_transcripts",
-        "media_captions"
+        "media_captions",
+        "media_variants"
       ],
       "related_documents": [
         "adr/ADR-0004-Media-Foundation.md",
@@ -9245,7 +9249,8 @@
         "database/media/media_processing_jobs.md",
         "database/media/media_extracted_texts.md",
         "adr/ADR-0019-Media-Structured-Extraction-Boundary.md",
-        "adr/ADR-0020-AI-Vision-Interpretation-Boundary.md"
+        "adr/ADR-0020-AI-Vision-Interpretation-Boundary.md",
+        "adr/ADR-0002-LiveClass-Foundation.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"
@@ -9316,7 +9321,8 @@
       "canonical_for": [],
       "topics": [
         "media",
-        "ai-assisted-learning-authoring"
+        "ai-assisted-learning-authoring",
+        "whiteboard"
       ],
       "keywords": {
         "vi": [
@@ -12416,6 +12422,78 @@
       "routing_source": "LF-INDEX.md"
     },
     {
+      "path": "quality/LF-List-Excel-Export-P1-Regression-Audit.md",
+      "title": "Audit: xuất Excel cho danh sách P1",
+      "area": "quality",
+      "document_type": "quality_standard",
+      "document_status": "Review",
+      "implementation_status": "Implemented",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": [
+        "excel-export",
+        "tenant-isolation"
+      ],
+      "keywords": {
+        "vi": [
+          "xuất excel",
+          "danh sách người dùng",
+          "ghi danh",
+          "điểm danh",
+          "kết quả kiểm tra"
+        ],
+        "en": [
+          "excel export",
+          "list export",
+          "regression audit"
+        ]
+      },
+      "identifiers": [
+        "XlsxDownload",
+        "SimpleXlsx",
+        "CourseCohortExportController"
+      ],
+      "related_documents": [
+        "quality/LF-List-Excel-Export-Proposal.md",
+        "quality/LF-Regression-Audit.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "quality/LF-List-Excel-Export-Proposal.md",
+      "title": "Đề xuất xuất Excel cho các danh sách Admin / Teacher",
+      "area": "quality",
+      "document_type": "architecture_review",
+      "document_status": "Approved",
+      "implementation_status": "Partial",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": [
+        "excel-export"
+      ],
+      "keywords": {
+        "vi": [
+          "xuất excel",
+          "đề xuất xuất danh sách"
+        ],
+        "en": [
+          "excel export proposal",
+          "list export"
+        ]
+      },
+      "identifiers": [
+        "SimpleXlsx"
+      ],
+      "related_documents": [
+        "quality/LF-List-Excel-Export-P1-Regression-Audit.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
       "path": "quality/LF-LiveClass-Cohort-Schedule-Architecture-Review.md",
       "title": "LiveClass Cohort Schedule Architecture Review",
       "area": "quality",
@@ -12551,6 +12629,137 @@
         "LF-LiveClass-Schedule-Session-Origin-Architecture-Review"
       ],
       "related_documents": [],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "quality/LF-LiveClass-Whiteboard-Architecture-Review.md",
+      "title": "LiveClass Whiteboard Architecture Review",
+      "area": "quality",
+      "document_type": "architecture_review",
+      "document_status": "Approved",
+      "implementation_status": "Not Applicable",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": [
+        "liveclass",
+        "whiteboard",
+        "session",
+        "realtime"
+      ],
+      "keywords": {
+        "vi": [
+          "rà soát kiến trúc",
+          "bảng điện tử",
+          "đồng bộ bảng"
+        ],
+        "en": [
+          "architecture review",
+          "whiteboard",
+          "board sync"
+        ]
+      },
+      "identifiers": [
+        "core_liveclass_sessions",
+        "core_liveclass_session_teachers"
+      ],
+      "related_documents": [
+        "adr/ADR-0002-LiveClass-Foundation.md",
+        "core/LF-Core-LiveClass.md",
+        "platform/LF-Media.md",
+        "quality/LF-LiveClass-Whiteboard-Proposal.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "quality/LF-LiveClass-Whiteboard-Media-Evaluation.md",
+      "title": "LF LiveClass Whiteboard Media Evaluation",
+      "area": "quality",
+      "document_type": "architecture_review",
+      "document_status": "Approved",
+      "implementation_status": "Partial",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": [
+        "liveclass",
+        "whiteboard",
+        "media",
+        "realtime"
+      ],
+      "keywords": {
+        "vi": [
+          "bảng điện tử",
+          "âm thanh trên bảng",
+          "đồng bộ video",
+          "chế độ ở lớp từ xa",
+          "office sang pdf",
+          "video faststart"
+        ],
+        "en": [
+          "whiteboard media",
+          "audio sync",
+          "video sync",
+          "office to pdf",
+          "faststart"
+        ]
+      },
+      "identifiers": [
+        "media_variants",
+        "core_liveclass_sessions"
+      ],
+      "related_documents": [
+        "adr/ADR-0002-LiveClass-Foundation.md",
+        "core/LF-Core-LiveClass.md",
+        "platform/LF-Media.md",
+        "quality/LF-LiveClass-Whiteboard-Proposal.md",
+        "quality/LF-LiveClass-Whiteboard-Architecture-Review.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "quality/LF-LiveClass-Whiteboard-Proposal.md",
+      "title": "LF LiveClass Whiteboard Proposal",
+      "area": "quality",
+      "document_type": "architecture_review",
+      "document_status": "Approved",
+      "implementation_status": "Not Applicable",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": [
+        "liveclass",
+        "whiteboard",
+        "session",
+        "realtime"
+      ],
+      "keywords": {
+        "vi": [
+          "bảng điện tử",
+          "bảng thông minh",
+          "buổi học trực tiếp",
+          "đồng bộ bảng"
+        ],
+        "en": [
+          "whiteboard",
+          "e-board",
+          "smart board",
+          "board sync"
+        ]
+      },
+      "identifiers": [
+        "core_liveclass_sessions",
+        "core_liveclass_session_teachers"
+      ],
+      "related_documents": [
+        "adr/ADR-0002-LiveClass-Foundation.md",
+        "core/LF-Core-LiveClass.md",
+        "governance/LF-Architecture-Guardrails.md",
+        "platform/LF-Media.md"
+      ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"
     },
@@ -13564,7 +13773,8 @@
       "authority": "engineering",
       "canonical_for": [],
       "topics": [
-        "stack"
+        "stack",
+        "whiteboard"
       ],
       "keywords": {
         "vi": [

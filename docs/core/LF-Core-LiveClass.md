@@ -1,12 +1,12 @@
 # LF-Core-LiveClass.md
 
-Version: 2.8
+Version: 2.15
 
 Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-11-05
+Last Updated: 2026-11-08
 
 Document Path: core/LF-Core-LiveClass.md
 
@@ -884,6 +884,198 @@ Domain. Chat phải tuân theo tenant retention, privacy và consent policy.
 
 ---
 
+# Whiteboard
+
+Amendment 2026-11-07 (Approved, [ADR-0002](../adr/ADR-0002-LiveClass-Foundation.md)
+§ LiveClass Whiteboard Amendment; ADR là nguồn chi tiết, mục này tóm tắt).
+
+Trạng thái code (2026-11-08): giai đoạn 1 (bảng giáo viên, bắt đầu và kết thúc buổi, nút Mở
+bảng của quản trị) và giai đoạn 2 (học viên xem và đồng bộ) đã có; Media đợt 1–3 và bản
+video faststart đã có (§ Âm thanh, video và chế độ nghe; § Tài liệu Office trên bảng). Đợt 4
+(S3) hoãn đến sau production; Live Quiz cần ADR riêng.
+
+**Bảng điện tử** là màn hình giảng của một Session đang `live`: giáo viên chiếu tài
+liệu của bài học lên màn hình cảm ứng trong lớp và viết, vẽ lên đó; học viên có thể
+mở cùng bảng trên máy mình và xem theo giáo viên. Nghiệp vụ theo bảng điện tử của
+AllVia; bảng chức năng trong
+[LF-LiveClass-Whiteboard-Proposal](../quality/LF-LiveClass-Whiteboard-Proposal.md)
+là chuẩn nghiệm thu. Không có QR, không có tài khoản tạm.
+
+## Quyền sở hữu
+
+* Bảng thuộc LiveClass, gắn với đúng một Session cùng tenant. Bảng không có bảng
+  database, không có trạng thái riêng, **không cần migration**.
+* Bảng không sinh Attendance, Replay, Progress hay Completion. Mở bảng, xem bảng
+  hay vẽ trên bảng đều không phải evidence.
+* Nét vẽ, ghi chú, trang và độ phóng chỉ lưu trong trình duyệt của người vẽ, theo
+  tenant, người dùng, Session và tài liệu; bị xoá khi đăng xuất vì màn hình trong lớp
+  là máy dùng chung. Chúng không phải Media, Recording hay Chat.
+* Trạng thái đang chiếu giữ tạm trong cache theo `customer_id` và Session, hết hạn
+  sau giờ kết thúc dự kiến cộng một khoảng đệm. Cache không phải nguồn sự thật.
+
+## Tài liệu trên bảng
+
+| Session | Ngăn tài liệu |
+| --- | --- |
+| `curriculum` | Media `ready` của các Version Activity trong Version Lesson của Session có `available_during_session = 1`, theo thứ tự của lớp (`CourseCohortContentOrder`); chỉ đọc |
+| `operational` | Trống |
+
+* Cờ `available_during_session` là điều kiện hiển thị trong giờ học. Luật mở khoá
+  bài của học viên (`VersionActivityAccessService`) không áp dụng cho phần giáo viên
+  chiếu; việc xem trên bảng không phải là truy cập Activity và không tính Progress.
+* Giáo viên có thể mở thêm một PDF từ máy mình. Tệp chỉ nằm trong trình duyệt, không
+  tải lên, không gửi cho học viên; học viên chỉ thấy nét vẽ và một dòng báo tài liệu
+  đang ở trên máy giáo viên.
+* PDF hiển thị trong bảng bằng pdf.js; video tải lên, video nhúng tin cậy và âm thanh
+  tải lên phát trong bảng, theo [LF-Media](../platform/LF-Media.md) § Whiteboard
+  Rendering Exception và § Âm thanh, video và chế độ nghe bên dưới. Tài liệu Office có
+  bản PDF của Media thì hiện như PDF (§ Tài liệu Office trên bảng); Office chưa có bản
+  PDF và loại khác vẫn mở tab mới.
+* Mức 100% của một trang tài liệu là cả trang nằm trọn trong bảng (nhỏ hơn giữa vừa
+  chiều cao và vừa chiều rộng). Màn hình rộng vẫn vừa chiều cao như trước; điện thoại
+  dựng đứng thì vừa chiều rộng. Máy xem theo độ phóng của người trình bày tính trên mức
+  này, nên ở 100% màn hình nào cũng thấy trọn trang.
+* Link có chữ ký do một hàm của Media cấp theo ngữ cảnh LiveClass đã kiểm quyền.
+  LiveClass không đọc storage trực tiếp.
+
+## Tài liệu Office trên bảng — Amendment 2026-11-08 (Approved)
+
+Theo [ADR-0002](../adr/ADR-0002-LiveClass-Foundation.md) § Whiteboard Office Preview
+Amendment. Không thêm bảng, cột hay migration.
+
+* Media chuyển Word, PowerPoint, Excel sang PDF khi tài liệu được gắn vào Activity, không
+  phải khi bảng mở. LiveClass chỉ đọc trạng thái và xin URL qua Media.
+* Mỗi tài liệu Office trong ngăn tài liệu có một trạng thái: **PDF sẵn sàng** (mở trên
+  bảng như PDF), **đang chuyển** hoặc **không chuyển được** (cả hai mở tệp gốc ở tab mới).
+  Ngăn tài liệu tải lại danh sách mỗi lần mở; máy xem chưa thấy bản PDF thì tải lại danh
+  sách một lần trước khi mở theo người trình chiếu.
+* Sự kiện đồng bộ vẫn chỉ mang định danh Version Activity. Nét vẽ và ghi chú riêng của bản
+  PDF dùng chung khoá `activity:{id}` với tài liệu đó.
+* Admin xem trạng thái và yêu cầu chuyển lại trên Activity của khoá học mẫu; giáo viên
+  không sửa được tài liệu từ bảng.
+
+## Ai được mở
+
+Server kiểm tra ở mỗi lần mở trang, đăng ký kênh, xin link tài liệu và gửi thao tác:
+
+* cùng `customer_id` theo `TenantContext`; Cohort `active`; Session `live`;
+* **người trình chiếu**: giáo viên đang hoạt động có dòng trong
+  `core_liveclass_session_teachers` của Session (mọi vai trò), khung
+  `assigned_from`/`assigned_to` (nếu có) bao thời điểm hiện tại; hoặc
+  `customer_admin` của tenant;
+* **người xem**: học viên có dòng `core_course_cohort_students` `active`, `left_at`
+  trống, trong Cohort của Session; Enrollment `active` và còn trong thời hạn học
+  (`allowsLearningAccessAt`).
+
+## Một người trình chiếu tại một thời điểm
+
+Nhiều người có quyền trình chiếu, nhưng chỉ **một người đang trình chiếu** được gửi
+thao tác, giữ bằng khoá theo Session trong cache. Người mở bảng trước giữ khoá; người
+khác thấy bảng ở chế độ xem và có thể bấm "Nhận trình chiếu"; người cũ được báo và
+chuyển sang chế độ xem. Server từ chối thao tác của người không giữ khoá.
+
+## Bắt đầu và kết thúc buổi
+
+Giáo viên được phân công tự bắt đầu (`scheduled → live`) và kết thúc
+(`live → completed`) buổi của mình qua `LiveClassSessionLifecycleService`, theo bảng
+chuyển trạng thái hiện có. Server từ chối bắt đầu ngoài ngày dự kiến của buổi theo
+múi giờ đã lưu của buổi. Huỷ buổi và đánh dấu vắng (`no_show`) vẫn là việc của admin.
+
+Mọi lần Session rời `live` (kết thúc, huỷ, vắng) hoặc Cohort rời `active` đều đi qua
+một điểm chung trong lifecycle service: xoá cache và khoá trình chiếu, phát sự kiện
+"bảng đã đóng"; máy đang mở bảng tự đóng. Học viên bị rút khỏi lớp cũng bị ngắt như vậy.
+
+## Đồng bộ
+
+* Mỗi Session một kênh private, xác thực ở `routes/channels.php` theo điều kiện trên.
+* **Chỉ người đang trình chiếu gửi**, qua một endpoint có xác thực; server kiểm tra
+  quyền, loại và kích thước, đánh số thứ tự nguyên tử theo Session, cập nhật cache rồi
+  phát ngay (`ShouldBroadcastNow`).
+* **Tắt client event.** Reverb mặc định cho thành viên kênh gửi `client-*` từ mọi
+  origin; `config/reverb.php` phải đặt `accept_client_events_from = none`, giới hạn
+  `allowed_origins` theo domain tenant và bật rate limiting.
+* Học viên chỉ nhận. Nét vẽ riêng của học viên ở lại trên máy học viên.
+* Người vào sau: đăng ký kênh, giữ tạm thao tác đến, tải trạng thái trong cache, rồi
+  áp các thao tác có số thứ tự lớn hơn. Thấy hụt số thứ tự thì tải lại toàn bộ.
+* Mỗi thao tác tối đa 8 KB (Reverb giới hạn 10.000 byte); nét dài được chia nhỏ. Con
+  trỏ và vị trí cuộn không lưu vào cache.
+
+## Âm thanh, video và chế độ nghe — Amendment 2026-11-08 (Approved)
+
+Theo [LF-LiveClass-Whiteboard-Media-Evaluation](../quality/LF-LiveClass-Whiteboard-Media-Evaluation.md)
+đợt 1 (B1–B6), Owner duyệt 2026-11-08. Không thêm bảng, cột hay migration.
+
+* **Một Media một lúc.** Bảng mở nhiều nhất một video, video nhúng hoặc âm thanh. Âm
+  thanh không đóng khi giáo viên đổi trang hay đổi PDF; mở video khác hoặc âm thanh khác
+  thì thay thế. Sự kiện chỉ mang định danh Version Activity, không mang URL.
+* **Sự kiện.** `video.play`, `video.pause`, `video.seek`, `video.close` (có số thứ tự,
+  lưu cache) và `video.sync` (nhịp vị trí, không số thứ tự, không lưu cache) dùng cho
+  cả video và âm thanh; trường `kind` là `video`, `embed` hoặc `audio`. Server đóng dấu
+  giờ máy chủ `at` (mili giây) lên mọi sự kiện `video.*` và lên phần Media của snapshot;
+  `at` do trình duyệt gửi bị bỏ. Trạng thái cache trả kèm giờ máy chủ `now`.
+* **Chống lệch.** Khi Media đang phát, máy giáo viên gửi `video.sync` mỗi 5 giây. Máy
+  người xem tính vị trí đích = `time` + (đang phát ? thời gian đã trôi từ `at` theo giờ
+  máy chủ : 0) và chỉ tua khi lệch quá 1 giây. Người vào muộn tính cùng cách từ
+  snapshot và các sự kiện sau nó.
+* **Video nhúng (Amendment 2026-11-08, đợt 2).** YouTube và Vimeo đồng bộ phát, dừng,
+  tua và vị trí như video tải lên, qua `postMessage` với iframe của nhà cung cấp theo
+  [LF-Media](../platform/LF-Media.md) § Whiteboard Rendering Exception. Mở video nhúng
+  thì máy người xem mở theo ở trạng thái dừng; nhịp `video.sync` của video nhúng gửi cả
+  khi đang dừng, vì YouTube không báo sự kiện tua. Trình phát của nhà cung cấp không
+  phản hồi (bị chặn, mạng chậm) thì video vẫn hiện, chỉ không đồng bộ. Trên iPhone, học
+  viên có thể phải chạm vào chính trình phát để có tiếng.
+* **Ghi chú riêng của học viên** (đợt 2, C2) đã có từ giai đoạn 2: máy xem có lớp nét vẽ
+  và ghi chú riêng theo từng tài liệu, lưu trong trình duyệt (khoá có hậu tố `:viewer`),
+  không gửi đi. Đây không phải nộp bài.
+* **Xem trước riêng / Chiếu cho lớp.** Người đang trình chiếu có thể mở video hoặc âm
+  thanh chỉ trên máy mình: khi đó không gửi sự kiện nào, snapshot không có Media, và
+  Media đang chiếu cho lớp (nếu có) được đóng trước. "Chiếu cho lớp" gửi trạng thái hiện
+  tại (vị trí, đang phát hay dừng) để lớp mở theo.
+* **Chế độ nghe** chỉ áp dụng cho máy đang ở chế độ xem: "Ở lớp" phát không tiếng, "Từ
+  xa" phát có tiếng. Máy đang trình chiếu luôn có tiếng. Mặc định theo `delivery_mode`
+  của Session: `offline` → Ở lớp, `online` → Từ xa, `hybrid` → hỏi khi vào bảng (trong
+  lúc chưa trả lời: Ở lớp). Lựa chọn lưu trong trình duyệt theo tenant, người dùng và
+  Session, nên chỉ nhớ cho buổi đó; đổi được bất cứ lúc nào. Ai có quyền xem đều mở được
+  bảng, ở trong lớp hay ở xa; mở bảng không bắt buộc và không phải điểm danh.
+* **Bật tiếng.** Máy xem bị trình duyệt chặn tự phát có tiếng thì phát không tiếng (giữ
+  đúng vị trí) và hiện nút "Bật tiếng". Tiếng chỉ được bật trong thao tác bấm của người
+  dùng (nút Bật tiếng, nút chế độ nghe, câu trả lời câu hỏi buổi hybrid); thao tác đó
+  cũng mở khoá âm thanh cho iPhone/Safari. Người xem tự bật hoặc tắt tiếng bằng điều
+  khiển của trình phát thì chế độ nghe đổi theo.
+* **Nhắc Zoom.** Buổi `online` hoặc `hybrid`: khi Media đang chiếu cho lớp, bảng của
+  giáo viên nhắc không chia sẻ âm thanh máy tính qua Zoom/Meet, để học viên không nghe
+  hai lần.
+
+## Lối vào
+
+Mỗi vai trò có nhóm route riêng với bộ middleware của vai trò đó, không có nhóm trộn
+vai trò:
+
+| Vai trò | Lối vào | Route của bảng |
+| --- | --- | --- |
+| Giáo viên | Danh sách buổi học của giáo viên: "Bắt đầu buổi học", "Mở bảng" | `/teacher/...` |
+| Admin | Chi tiết buổi đang `live` trong tab Buổi học của Lớp học: "Mở bảng" | `/admin/...` |
+| Học viên | Trang khoá học, khi buổi đang `live`: "Xem bảng" | `/my-courses/...`, `role:student` |
+
+Trang khoá học của học viên chưa có (`/my-courses` mới là trang giữ chỗ); lối vào
+của học viên làm cùng trang đó. Bảng mở trong cửa sổ riêng, có nút toàn màn hình.
+
+## Giao diện
+
+Bố cục và chức năng theo AllVia; màu, icon và tooltip theo UI Kit của LF (Owner chốt
+2026-11-07). Mọi nút chỉ có icon có tooltip i18n và `aria-label` (`data-tooltip`);
+trên màn hình cảm ứng, chạm giữ để xem tooltip. Mọi chữ trên bảng (thông báo, trạng
+thái kết nối, câu hỏi mở lại trang cũ, lỗi) dùng key `LF_liveclass_whiteboard_*` đủ
+`vi` và `en`. Dùng được bằng bàn phím; hiệu ứng tôn trọng `prefers-reduced-motion`.
+
+## Ngoài phạm vi
+
+Âm thanh, video của giáo viên (WebRTC); điểm danh khi mở bảng; học viên gửi bài lên
+bảng; Live Quiz, hoạt động quiz trên bảng và bảng thông minh AI (cần ADR riêng); chuyển
+tài liệu Office sang PDF; lưu, xuất hoặc ghi lại bảng trên server.
+
+---
+
 # Relationship With Course Domain
 
 ```text
@@ -989,8 +1181,13 @@ Hybrid
 Schedule/Room/Session boundaries cho phép recurring planning và hybrid
 delivery mà không thay đổi Course Foundation binding. Schedule CRUD/Preview và
 explicit atomic creation từ selected occurrence với immutable Origin đã được
-Foundation approved. Automatic generation và synchronization vẫn thuộc phase
-sau.
+Foundation approved. Tạo Session khi lưu Schedule đã được duyệt (ADR-0002
+§ Automatic Session Generation Amendment, 2026-11-05); synchronization vẫn thuộc
+phase sau.
+
+Trong buổi `hybrid`, người ngồi trong lớp nhìn bảng điện tử trên màn hình cảm ứng;
+người học từ xa mở "Xem bảng" trên máy mình và nghe giảng qua `meeting_url_snapshot`
+của Session. Bảng không truyền âm thanh hay video (§ Whiteboard).
 
 ---
 
@@ -1014,6 +1211,8 @@ Recording references
 Replay summaries
 
 Chat logs
+
+Whiteboard (approved 2026-11-07; giai đoạn 1–2 và Media đợt 1–3 đã có code)
 ```
 
 ---
@@ -1021,13 +1220,13 @@ Chat logs
 # Future Scope
 
 ```text
-Whiteboard
+Whiteboard: lưu, xuất, ghi lại bảng; Live Quiz và bảng thông minh AI
 
 Breakout Rooms
 
 Calendar Sync
 
-Automatic Schedule → Session generation and synchronization
+Schedule → Session synchronization (tạo khi lưu đã duyệt 2026-11-05)
 
 Shared Holiday Calendar
 

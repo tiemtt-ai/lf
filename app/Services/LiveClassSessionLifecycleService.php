@@ -32,6 +32,8 @@ class LiveClassSessionLifecycleService
         'no_show' => [],
     ];
 
+    public function __construct(private readonly LiveClassWhiteboardLiveState $boards) {}
+
     public function start(int $customerId, int $cohortId, int $sessionId): void
     {
         $this->transition($customerId, $cohortId, $sessionId, 'live');
@@ -99,6 +101,12 @@ class LiveClassSessionLifecycleService
             DB::table('core_liveclass_sessions')
                 ->where('customer_id', $customerId)->where('id', $sessionId)
                 ->update($values);
+
+            // Every way out of `live` closes the Whiteboard from this one point
+            // (ADR-0002 § LiveClass Whiteboard Amendment), once the change is committed.
+            if ($session->status === 'live') {
+                DB::afterCommit(fn () => $this->boards->end($customerId, $sessionId));
+            }
         }, 3);
     }
 }

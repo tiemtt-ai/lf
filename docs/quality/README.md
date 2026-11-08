@@ -40,6 +40,11 @@ criteria hay không.
   và độ sâu kiểm chứng theo mức cao nhất áp dụng.
 * [LF-UI-Async-State-Engineering-Practice.md](LF-UI-Async-State-Engineering-Practice.md) — nguyên tắc và danh sách kiểm cho giao diện có nhiều luồng bất đồng bộ dùng chung trạng thái (2026-09-30).
 * [LF-Media-Sharing-Proposal.md](LF-Media-Sharing-Proposal.md) — đề xuất chia sẻ Media trong tenant, chờ Owner quyết trước khi viết ADR (2026-10-21).
+* [LF-List-Excel-Export-Proposal.md](LF-List-Excel-Export-Proposal.md) — rà soát và đề xuất xuất Excel cho các danh sách Admin/Teacher, chia P1–P3; P1 đã làm (2026-11-07).
+* [LF-List-Excel-Export-P1-Regression-Audit.md](LF-List-Excel-Export-P1-Regression-Audit.md) — audit HIGH cho xuất Excel P1 (Người dùng, Ghi danh, Học viên của lớp, Điểm danh, Kết quả kiểm tra) và các chỉnh UI Kết quả, Thống kê đi kèm (2026-11-07).
+* [LF-LiveClass-Whiteboard-Proposal.md](LF-LiveClass-Whiteboard-Proposal.md) — đề xuất Bảng điện tử theo nghiệp vụ bảng AllVia: quyết định của Owner, bảng chức năng chuẩn nghiệm thu, lộ trình; Owner duyệt 2026-11-07, thiết kế đã chuyển vào ADR-0002, LF-Core-LiveClass, LF-Media.
+* [LF-LiveClass-Whiteboard-Architecture-Review.md](LF-LiveClass-Whiteboard-Architecture-Review.md) — rà soát kiến trúc amendment Bảng điện tử: Pass with changes, đã sửa cùng ngày; Owner xác nhận, Frozen (2026-11-07).
+* [LF-LiveClass-Whiteboard-Media-Evaluation.md](LF-LiveClass-Whiteboard-Media-Evaluation.md) — đánh giá Media trên bảng điện tử so với AllVia và kết quả thử: đợt 1–3 (âm thanh, chế độ nghe, YouTube/Vimeo, Office sang PDF) và video faststart xong 2026-11-08; đợt 4 (S3) hoãn đến sau production.
 * [LF-Assessment-Grader-Assignment-Architecture-Review.md](LF-Assessment-Grader-Assignment-Architecture-Review.md) — rà ADR-0027 và database docs phân công chấm, tệp bài tự luận trước migration; PASS, Owner duyệt 2026-11-07.
 * [LF-Assessment-Rubric-Architecture-Review.md](LF-Assessment-Rubric-Architecture-Review.md) — rà ADR-0026 và database docs rubric trước migration; PASS, Owner duyệt 2026-11-06.
 * [LF-Assessment-Dynamic-Quiz-Proposal.md](LF-Assessment-Dynamic-Quiz-Proposal.md) — đề động "ghép khi soạn": tham khảo question_bank, nguồn của ADR-0025 Amendment 1.2 (D6a); Owner duyệt 2026-11-07.

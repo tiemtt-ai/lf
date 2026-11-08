@@ -1,5 +1,17 @@
 # Audit: xuất Excel cho danh sách P1
 
+Version: 1.0
+
+Document Status: Review
+
+Implementation Status: Implemented
+
+Last Updated: 2026-11-07
+
+Document Path: quality/LF-List-Excel-Export-P1-Regression-Audit.md
+
+---
+
 Ngày: 2026-11-07 · Audit Level: **HIGH** (đọc dữ liệu tenant, thêm route, sửa query của nhiều module) ·
 Không có thay đổi schema hay migration. Đề xuất gốc: [LF-List-Excel-Export-Proposal.md](LF-List-Excel-Export-Proposal.md).
 

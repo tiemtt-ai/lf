@@ -1,12 +1,12 @@
 # LF-Tech-Stack.md
 
-Version: 1.3
+Version: 1.5
 
 Document Status: Approved
 
 Implementation Status: Unknown
 
-Last Updated: 2026-09-05
+Last Updated: 2026-11-07
 
 Document Path: tech/LF-Tech-Stack.md
 
@@ -358,12 +358,30 @@ Realtime Communication
 
 ---
 
+### Current Use
+
+Bảng điện tử của LiveClass (ADR-0002 § LiveClass Whiteboard Amendment, Real-time
+sync): mỗi Session có một kênh riêng `private-tenant.{customer_id}.liveclass-board.{session_id}`,
+xác thực trong `routes/channels.php`. Trình duyệt dùng `laravel-echo` và
+`pusher-js` chỉ để nhận; người chiếu gửi sự kiện qua endpoint HTTP, server phát
+lại bằng `ShouldBroadcastNow`.
+
+`config/reverb.php` được publish và đặt:
+
+* `accept_client_events_from = none` — client không gửi được `client-*`;
+* `allowed_origins` = `APP_BASE_DOMAIN` và `*.APP_BASE_DOMAIN`, hoặc danh sách
+  trong `REVERB_ALLOWED_ORIGINS` (cần thêm domain riêng của tenant vào đây);
+* `rate_limiting.enabled = true`.
+
+Đổi cấu hình này phải khởi động lại `php artisan reverb:start`. Một tin nhắn trên
+kênh tối đa 8 KB (dưới giới hạn 10.000 byte của Reverb).
+
+---
+
 ### Future Use Cases
 
 ```text
 Notifications
-
-Live Class
 
 Realtime Chat
 
@@ -477,6 +495,28 @@ Tabs
 
 Small UI Behaviors
 ```
+
+---
+
+# Canvas và PDF — Bảng điện tử
+
+### Purpose
+
+Bảng điện tử của LiveClass (ADR-0002 § LiveClass Whiteboard Amendment): viết, vẽ
+và chiếu PDF trong trình duyệt.
+
+```text
+HTML Canvas 2D (Pointer Events)
+
+pdfjs-dist 4.10.38 — bản legacy, worker riêng
+```
+
+* Chỉ dùng trên trang bảng (`resources/js/liveclass-whiteboard/`), không nạp vào
+  `app.js` của các trang khác.
+* Bản legacy để chạy được trên Safari/iPad cũ; tắt `eval`, tải nguyên tệp
+  (không range/stream), giới hạn 50 MB và giới hạn điểm ảnh canvas.
+* PDF được vẽ trên máy người dùng; server không render PDF và không lưu nét vẽ.
+* Nâng phiên bản pdfjs-dist phải thử lại bảng trên Chrome, Safari và iPad.
 
 ---
 

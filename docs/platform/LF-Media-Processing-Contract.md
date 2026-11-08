@@ -1,12 +1,12 @@
 # LF-Media-Processing-Contract.md
 
-Version: 2.48
+Version: 2.50
 
 Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-09-26
+Last Updated: 2026-11-08
 
 Document Path: platform/LF-Media-Processing-Contract.md
 
@@ -17,6 +17,116 @@ Related ADR:
 * [ADR-0017 — AI-Assisted Learning Authoring](../adr/ADR-0017-AI-Assisted-Learning-Authoring.md)
 * [ADR-0018 — Media PII And External Processing Boundary](../adr/ADR-0018-Media-PII-And-External-Processing-Boundary.md) — Approved
 * [ADR-0019 — Media Structured Extraction Boundary](../adr/ADR-0019-Media-Structured-Extraction-Boundary.md) — Approved v1.5
+* [ADR-0002 — LiveClass Foundation](../adr/ADR-0002-LiveClass-Foundation.md) § Whiteboard Office Preview Amendment — Approved 2026-11-08
+
+---
+
+## Document board preview — Approved 2026-11-08
+
+Owner duyệt ngày 2026-11-08 (quyết định 4 và đợt 3 của
+[LF-LiveClass-Whiteboard-Media-Evaluation](../quality/LF-LiveClass-Whiteboard-Media-Evaluation.md)),
+theo [ADR-0002](../adr/ADR-0002-LiveClass-Foundation.md) § Whiteboard Office Preview
+Amendment. Không thêm bảng, cột hay migration: `job_type = 'transcode'`,
+`output_type = 'variant'` và `variant_type = 'preview'` đã có trong CHECK vật lý.
+
+**Job.** Tài liệu Word, PowerPoint, Excel (`doc`, `docx`, `ppt`, `pptx`, `xls`,
+`xlsx`) được chuyển một lần sang PDF bằng job `transcode` với output profile
+`preset=pdf`. Đây là job **tuỳ chọn** của `document`: thất bại không làm file mất
+`ready`, không chặn OCR hay structured extraction, và OCR không đọc bản PDF này.
+PDF, TXT và loại khác không sinh job.
+
+| Mục | Giá trị |
+| --- | --- |
+| Kích hoạt | Cùng lúc với OCR, khi usage `course_activity` / `document` active được gắn (§ 1); không chạy khi bảng mở tài liệu |
+| Provider | `local_document` (LibreOffice `--convert-to pdf`, hồ sơ người dùng LibreOffice riêng cho từng lần chạy) |
+| Version | `MEDIA_DOCUMENT_PREVIEW_VERSION`, mặc định `libreoffice-pdf-v1`; đổi LibreOffice hoặc cách chuyển có ảnh hưởng kết quả thì tăng version |
+| Hàng đợi | `MEDIA_DOCUMENT_PREVIEW_QUEUE`, mặc định `media-preview`, tách khỏi hàng đợi OCR/STT để tài liệu mới không chờ sau việc nặng; deployment phải có worker nghe hàng đợi này |
+| Thời gian | LibreOffice tối đa `MEDIA_OFFICE_TIMEOUT_SECONDS` (`900s`), co theo deadline `3.300s` của provider như OCR |
+| Giới hạn | PDF tối đa `MEDIA_DOCUMENT_PREVIEW_MAX_PAGES` (`300`) trang và `MEDIA_DOCUMENT_PREVIEW_MAX_BYTES` (`104857600`); vượt thì `page_limit_exceeded` / `preview_too_large`, không lưu bản cắt bớt |
+
+**Lưu.** Provider ghi PDF vào storage của Media File tại
+`tenants/{customer_id}/media/{media_file_id}/previews/{processing_version}/{job_id}.pdf`
+(key chứa id của job nên hai lần chạy không ghi đè nhau), xác minh object tồn tại và
+đúng kích thước, rồi mới trả kết quả. Trong transaction persist, job chỉ `ready` khi
+job còn `processing`, Media chưa `deleted` và usage còn active; khi đó tạo một row
+`media_variants` (`variant_type = 'preview'`, `mime_type = 'application/pdf'`,
+`status = 'ready'`, `metadata.page_count`) và chuyển bản `preview` `ready` cũ của file
+sang `archived`. Unique `uk_mv_revision` cho một row mỗi `processing_version`: nếu đã có
+row cùng version, row đó được trỏ sang object mới và object cũ bị xoá sau commit.
+Persist thất bại hoặc worker bị dừng (`failed()`) thì xoá object vừa ghi. Xoá Media File
+xoá mọi variant theo § xoá hiện có.
+
+**Trạng thái và lỗi.** Readiness đọc từ row `media_variants`, không từ `media_files`.
+Lỗi riêng: `preview_too_large` (vĩnh viễn), cùng các mã chung `corrupt_source`,
+`page_limit_exceeded`, `provider_unavailable`, `provider_timeout`. Retry theo § Retry
+(chỉ nhóm tạm thời, tối đa 3 attempt). Job còn `pending` mà usage đã detach thì
+`cancelled` như OCR. Mỗi Media File có nhiều nhất một job `transcode` `processing`; job
+đến sau được đưa lại hàng đợi sau một phút.
+
+**Người dùng.** Admin thấy trạng thái chuyển trên Activity tài liệu (đang chuyển, lỗi,
+chưa có) và có nút "Chuyển lại PDF": retry khi lỗi thuộc nhóm tạm thời, hoặc tạo job lần
+đầu cho tài liệu đã tải lên trước amendment này. Lỗi vĩnh viễn không có nút; tác giả phải
+sửa hoặc thay tệp.
+
+**Đọc bản PDF.** Chỉ bảng điện tử của LiveClass dùng variant này, qua route cùng origin
+có chữ ký `media.variants.signed` theo [LF-Media](LF-Media.md) § Whiteboard Rendering
+Exception. Mapping `variant` → `video` của Media Read Contract không đổi; mở variant tài
+liệu cho Media Read Service là amendment riêng.
+
+---
+
+## Video board playback copy — Approved 2026-11-08
+
+Owner chọn làm ngay và duyệt ngày 2026-11-08 (thay vì chờ đợt 4) sau khi thử iPhone:
+video MP4 có chỉ mục `moov` ở **cuối** tệp làm Safari phải tải phần cuối trước khi
+phát, nên video trên bảng điện tử mở chậm. Xem
+[LF-LiveClass-Whiteboard-Media-Evaluation](../quality/LF-LiveClass-Whiteboard-Media-Evaluation.md)
+§ Đề xuất video phát nhanh. Không thêm bảng, cột hay migration: `job_type =
+'transcode'`, `output_type = 'variant'` và `variant_type = 'preview'` đã có trong
+CHECK vật lý; `transcode` đã là job tuỳ chọn của `video` (§ Fan-out theo file type).
+
+**Job.** Video MP4/MOV có `moov` nằm sau `mdat` được chép một lần sang bản có `moov`
+ở đầu tệp (faststart) bằng job `transcode` với output profile `preset=faststart`.
+Chỉ đổi thứ tự hộp trong tệp: **chép nguyên mọi luồng, không mã hoá lại**, cùng
+định dạng chứa và MIME với tệp gốc. Đây là job **tuỳ chọn**: thất bại không làm file
+mất `ready` và không chặn virus scan, speech-to-text hay frame OCR; bảng vẫn phát tệp
+gốc như hiện nay.
+
+| Mục | Giá trị |
+| --- | --- |
+| Đủ điều kiện | `file_type = video`, phần mở rộng `mp4`, `m4v` hoặc `mov`, và khi đọc tiêu đề các hộp cấp cao nhất thì `moov` đứng sau `mdat`. Chỉ đọc tiêu đề hộp (vài byte mỗi hộp), không đọc nội dung. Tệp đã có `moov` ở đầu, hoặc đọc tiêu đề lỗi, thì không sinh job |
+| Kích hoạt | Khi usage `course_activity` / `video` active được gắn (§ 1), như bản PDF của Office; không chạy khi bảng mở video |
+| Provider | `local_video` (ffmpeg `-map 0 -c copy -movflags +faststart`) |
+| Version | `MEDIA_VIDEO_PREVIEW_VERSION`, mặc định `ffmpeg-faststart-v1`; đổi tham số ffmpeg có ảnh hưởng kết quả thì tăng version |
+| Hàng đợi | `MEDIA_VIDEO_PREVIEW_QUEUE`, mặc định `media-preview` (chung hàng đợi với bản PDF của Office) |
+| Thời gian | ffmpeg tối đa `MEDIA_VIDEO_PREVIEW_TIMEOUT_SECONDS` (`900s`), co theo deadline `3.300s` của provider |
+| Kiểm kết quả | Trước khi lưu: `moov` đứng trước `mdat`, thời lượng (ffprobe) lệch tệp gốc không quá `0,1s`, kích thước lệch không quá 1%. Sai thì `processing_failed`, không lưu |
+| Chỗ trống | Provider cần chỗ tạm bằng kích thước tệp gốc (tệp gốc trên disk local được đọc tại chỗ); thiếu chỗ là `provider_unavailable` |
+| Đo lường | `billable_unit_type = byte`, bằng kích thước tệp gốc (§ 5) |
+
+**Lưu.** Như § Document board preview: object tại
+`tenants/{customer_id}/media/{media_file_id}/previews/{processing_version}/{job_id}.{ext}`
+(`ext` của tệp gốc), xác minh tồn tại và đúng kích thước trước khi trả kết quả; job chỉ
+`ready` khi job còn `processing`, Media chưa `deleted` và usage còn active; tạo row
+`media_variants` (`variant_type = 'preview'`, `mime_type` = MIME tệp gốc, `status =
+'ready'`, `metadata.faststart = true`, `metadata.duration_ms`), chuyển bản `preview`
+`ready` cũ sang `archived`; persist thất bại hoặc `failed()` thì xoá object vừa ghi;
+xoá Media File xoá mọi variant. Video chỉ tốn thêm chỗ cho đúng các tệp cần sửa.
+
+**Trạng thái và lỗi.** Readiness đọc từ row `media_variants`. Mã lỗi chung
+`corrupt_source`, `processing_failed`, `provider_unavailable`, `provider_timeout`;
+retry theo § Retry. Mỗi Media File có nhiều nhất một job `transcode` `processing`.
+**Không có giao diện admin**: bản này chỉ làm video mở nhanh hơn, không đổi nội dung,
+nên admin không cần thấy trạng thái. Video gắn trước amendment này được tạo job bằng
+lệnh `php artisan media:video-faststart` (theo tenant hoặc theo Media File, chỉ tạo cho
+tệp đủ điều kiện và usage còn active, chạy lại không tạo trùng).
+
+**Đọc bản chép.** Chỉ bảng điện tử của LiveClass dùng variant này, qua route cùng
+origin có chữ ký `media.variants.signed` (route trả đúng `mime_type` của row và hỗ trợ
+Range), theo [LF-Media](LF-Media.md) § Whiteboard Rendering Exception. Chưa `ready` thì
+bảng phát tệp gốc. Trình phát bài học và mọi nơi khác vẫn phát tệp gốc; mở bản chép cho
+Media Read Service (mapping `variant` → `video`) là amendment riêng. Khi làm bản nén
+`720p`/HLS (đợt 4, E2), bộ mã hoá ghi `moov` ở đầu sẵn và preset này có thể bỏ.
 
 ---
 
@@ -1096,9 +1206,9 @@ người viết code **phải hỏi Owner**, không được tự chọn.
 
 | `file_type` | Job bắt buộc | Job tuỳ chọn |
 | --- | --- | --- |
-| `document` | `virus_scan`, `ocr` | `thumbnail`, `structured_extraction` |
+| `document` | `virus_scan`, `ocr` | `thumbnail`, `structured_extraction`, `transcode` (`preset=pdf`, chỉ Office — § Document board preview) |
 | `audio` | `virus_scan` | `speech_to_text` khi actor bật tự động phiên âm |
-| `video` | `virus_scan`; `speech_to_text` khi Video STT gate bật; `caption` **required nhưng deferred** | `transcode`, `thumbnail` |
+| `video` | `virus_scan`; `speech_to_text` khi Video STT gate bật; `caption` **required nhưng deferred** | `transcode` (`preset=faststart`, chỉ MP4/MOV có `moov` ở cuối — § Video board playback copy), `thumbnail` |
 | `image` | `virus_scan` | `thumbnail` |
 
 **`caption` là required nhưng deferred.** Nó vẫn là output bắt buộc của video —

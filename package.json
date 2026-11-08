@@ -5,8 +5,8 @@
     "scripts": {
         "build": "vite build",
         "dev": "vite",
-        "serve": "php artisan serve --host=0.0.0.0 --port=8010",
-        "queue": "php artisan queue:listen --tries=1 --timeout=3600",
+        "serve": "php artisan serve --host=0.0.0.0 --port=8010 --no-reload",
+        "queue": "php artisan queue:listen --queue=media-preview,default --tries=1 --timeout=3600",
         "reverb": "php artisan reverb:start",
         "dev:all": "concurrently --kill-others --names SERVER,VITE,QUEUE,REVERB --prefix-colors blue,green,yellow,magenta \"npm:serve\" \"npm:dev\" \"npm:queue\" \"npm:reverb\""
     },
@@ -23,6 +23,7 @@
         "concurrently": "^9.2.4",
         "laravel-echo": "^2.3.4",
         "laravel-vite-plugin": "^2.0.0",
+        "pdfjs-dist": "^4.10.38",
         "postcss": "^8.4.31",
         "pusher-js": "^8.5.0",
         "tailwindcss": "^3.1.0",

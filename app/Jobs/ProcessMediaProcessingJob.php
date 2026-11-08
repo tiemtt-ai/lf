@@ -10,12 +10,14 @@ use App\Services\CaptionAssetStorage;
 use App\Services\DoclingStructuredExtractionProvider;
 use App\Services\DocumentCanonicalRevision;
 use App\Services\DocumentLanguageProfile;
+use App\Services\DocumentPreviewStorage;
 use App\Services\DocumentProcessingEligibility;
 use App\Services\DocumentTextUnits;
 use App\Services\FakeMediaProcessingProvider;
 use App\Services\FasterWhisperSpeechToTextProvider;
 use App\Services\LocalDocumentProcessingProvider;
 use App\Services\LocalVideoFrameOcrProvider;
+use App\Services\LocalVideoPreviewProvider;
 use App\Services\MediaProcessingOrchestrator;
 use App\Services\RegionCropStorage;
 use App\Services\SpeechLanguageProfile;
@@ -51,6 +53,32 @@ class ProcessMediaProcessingJob implements ShouldQueue
         $this->afterCommit = true;
     }
 
+    /** Board copies (Office PDF, video faststart) run on their own queue so they never wait behind OCR or STT. */
+    public static function queueFor(string $jobType, ?string $fileType = null): ?string
+    {
+        if ($jobType !== 'transcode') {
+            return null;
+        }
+
+        return $fileType === 'video'
+            ? (string) config('media.processing.video_preview.queue', 'media-preview')
+            : (string) config('media.processing.document_preview.queue', 'media-preview');
+    }
+
+    /** Video jobs that need an active Course video usage (STT, captions, frame OCR, the faststart copy). */
+    private static function videoUsageJob(object $media, object $job): bool
+    {
+        return in_array($media->file_type, ['audio', 'video'], true)
+            && (in_array($job->job_type, ['speech_to_text', 'frame_ocr'], true)
+                || ($media->file_type === 'video' && in_array($job->job_type, ['caption', 'transcode'], true)));
+    }
+
+    /** Document jobs that need an active Course usage and share the OCR claim rules. */
+    private static function documentJob(object $media, object $job): bool
+    {
+        return $media->file_type === 'document' && in_array($job->job_type, ['ocr', 'structured_extraction', 'transcode'], true);
+    }
+
     public function handle(): void
     {
         $claimed = DB::transaction(function (): ?array {
@@ -63,10 +91,9 @@ class ProcessMediaProcessingJob implements ShouldQueue
                 return null;
             }
             if ($media->status === 'deleted'
-                || ($media->file_type === 'document' && in_array($job->job_type, ['ocr', 'structured_extraction'], true)
+                || (self::documentJob($media, $job)
                     && ! app(DocumentProcessingEligibility::class)->hasActiveUsage($this->customerId, (int) $media->id))
-                || (in_array($media->file_type, ['audio', 'video'], true)
-                    && (in_array($job->job_type, ['speech_to_text', 'frame_ocr'], true) || ($media->file_type === 'video' && $job->job_type === 'caption'))
+                || (self::videoUsageJob($media, $job)
                     && ! app(SpeechToTextProcessingEligibility::class)
                         ->hasActiveUsage($this->customerId, (int) $media->id, $media->file_type))) {
                 DB::table('media_processing_jobs')->where('id', $job->id)->where('customer_id', $this->customerId)->update([
@@ -82,7 +109,7 @@ class ProcessMediaProcessingJob implements ShouldQueue
                 // A fresh queue envelope preserves the same provider attempt.
                 // Sync cannot honor delay: completion and scheduled recovery
                 // drain its durable pending row instead of recursing here.
-                if (($media->file_type === 'document' && in_array($job->job_type, ['ocr', 'structured_extraction'], true)
+                if ((self::documentJob($media, $job) || self::videoUsageJob($media, $job)
                     || (in_array($media->file_type, ['audio', 'video'], true)
                         && in_array($job->job_type, ['speech_to_text', 'caption', 'frame_ocr'], true)))
                     && config('queue.connections.'.($this->connection ?? config('queue.default')).'.driver') !== 'sync') {
@@ -119,7 +146,11 @@ class ProcessMediaProcessingJob implements ShouldQueue
                 // ghi trong provider phai bi xoa, neu khong chung song sot ma
                 // khong con row nao tham chieu.
                 $this->purgeRegionCrops($media, $job);
-                $this->purgeCaptionAsset($media, $result);
+                if ($job->job_type === 'transcode') {
+                    $this->purgeBoardPreview($media, $job);
+                } else {
+                    $this->purgeCaptionAsset($media, $result);
+                }
 
                 throw $persistFailure;
             }
@@ -168,6 +199,7 @@ class ProcessMediaProcessingJob implements ShouldQueue
                     'formula_normalization_invalid',
                     'speech_language_profile_invalid', 'speech_language_profile_unsupported',
                     'frame_ocr_disabled', 'frame_ocr_unqualified', 'frame_ocr_invalid', 'frame_ocr_limit_exceeded',
+                    'preview_too_large',
                 ];
                 $errorCode = $e instanceof RuntimeException && in_array($e->getMessage(), $knownErrorCodes, true)
                     ? $e->getMessage()
@@ -194,7 +226,7 @@ class ProcessMediaProcessingJob implements ShouldQueue
                 }
             });
         } finally {
-            if (($media->file_type === 'document' && in_array($job->job_type, ['ocr', 'structured_extraction'], true)
+            if ((self::documentJob($media, $job) || self::videoUsageJob($media, $job)
                 || (in_array($media->file_type, ['audio', 'video'], true)
                     && in_array($job->job_type, ['speech_to_text', 'caption', 'frame_ocr'], true)))
                 && config('queue.connections.'.($this->connection ?? config('queue.default')).'.driver') === 'sync') {
@@ -240,6 +272,35 @@ class ProcessMediaProcessingJob implements ShouldQueue
         if ($job !== null && $media !== null) {
             $this->purgeRegionCrops($media, $job);
             $this->purgeVideoAudioWorkspace($media, $job);
+            if ($transitioned > 0 && $job->job_type === 'transcode') {
+                $this->purgeBoardPreview($media, $job);
+            }
+        }
+    }
+
+    /**
+     * The PDF is written before the persist transaction. A run that did not
+     * commit owns no row, so its object (keyed by this job's id) must go.
+     */
+    private function purgeBoardPreview(object $media, object $job): void
+    {
+        $key = app(DocumentPreviewStorage::class)->key($media, $job);
+        if (DB::table('media_variants')->where('customer_id', $this->customerId)
+            ->where('media_file_id', $media->id)->where('storage_key', $key)->exists()) {
+            return;
+        }
+
+        try {
+            if (! app(DocumentPreviewStorage::class)->purge($media, $key)) {
+                Log::error('Board preview purge incomplete after a failed run.', [
+                    'media_file_id' => (int) $media->id, 'processing_job_id' => (int) $job->id,
+                ]);
+            }
+        } catch (Throwable $exception) {
+            Log::error('Board preview purge failed.', [
+                'media_file_id' => (int) $media->id, 'processing_job_id' => (int) $job->id,
+                'exception' => $exception::class,
+            ]);
         }
     }
 
@@ -335,6 +396,7 @@ class ProcessMediaProcessingJob implements ShouldQueue
             'transcript_vtt' => app(TranscriptVttCaptionProvider::class),
             'faster_whisper_local' => app(FasterWhisperSpeechToTextProvider::class),
             'local_video_frame_ocr' => app(LocalVideoFrameOcrProvider::class),
+            'local_video' => app(LocalVideoPreviewProvider::class),
             default => throw new RuntimeException('provider_unavailable'),
         };
     }
@@ -342,7 +404,7 @@ class ProcessMediaProcessingJob implements ShouldQueue
     /** @param array<string, mixed> $result */
     private function persistSuccess(object $media, object $job, array $result): void
     {
-        if (in_array($job->job_type, ['ocr', 'structured_extraction'], true)
+        if (in_array($job->job_type, ['ocr', 'structured_extraction', 'transcode'], true)
             || (in_array($media->file_type, ['audio', 'video'], true)
                 && in_array($job->job_type, ['speech_to_text', 'caption', 'frame_ocr'], true))) {
             $currentJob = DB::table('media_processing_jobs')->where('customer_id', $this->customerId)
@@ -359,8 +421,7 @@ class ProcessMediaProcessingJob implements ShouldQueue
         if ($currentMedia === null || $currentMedia->status === 'deleted') {
             throw new RuntimeException('source_unavailable');
         }
-        if (in_array($media->file_type, ['audio', 'video'], true)
-            && (in_array($job->job_type, ['speech_to_text', 'frame_ocr'], true) || ($media->file_type === 'video' && $job->job_type === 'caption'))
+        if (self::videoUsageJob($media, $job)
             && ! app(SpeechToTextProcessingEligibility::class)
                 ->hasActiveUsage($this->customerId, (int) $media->id, $media->file_type)) {
             throw new RuntimeException('source_unavailable');
@@ -491,6 +552,8 @@ class ProcessMediaProcessingJob implements ShouldQueue
             ]);
             $this->archiveSupersededCaptionProfile($media, $job, $captionType, $transcriptRevision, $now);
             $outputType = 'caption';
+        } elseif ($job->job_type === 'transcode' && in_array($media->file_type, ['document', 'video'], true)) {
+            [$outputType, $outputId] = $this->persistBoardPreview($media, $job, $result, $now);
         } elseif ($job->job_type === 'structured_extraction') {
             $output = app(StructuredExtractionPersistenceService::class)
                 ->persist($this->customerId, $media, $job, (string) $locale, $result);
@@ -511,6 +574,10 @@ class ProcessMediaProcessingJob implements ShouldQueue
             }
             $update['billable_units'] = $usage['units'];
             $update['billable_unit_type'] = $usage['unit_type'];
+        }
+        if ($job->job_type === 'transcode' && $media->file_type === 'video') {
+            $update['billable_units'] = $result['usage']['units'];
+            $update['billable_unit_type'] = 'byte';
         }
         if (isset($coverage)) {
             // Giu metadata cu, chi them mot khoa: coverage la du kien do duoc, khong
@@ -558,6 +625,70 @@ class ProcessMediaProcessingJob implements ShouldQueue
      *                                             revisions (locale, caption format)
      *                                             from superseded ones.
      */
+    /**
+     * One `preview` row per processing version (`uk_mv_revision`). A rerun of the
+     * same version points that row at the new object and drops the old object
+     * after commit; any other ready preview of the file is archived.
+     *
+     * @param  array<string, mixed>  $result
+     * @return array{string, int}
+     */
+    private function persistBoardPreview(object $media, object $job, array $result, mixed $now): array
+    {
+        $video = $media->file_type === 'video';
+        if (! $video && ! app(DocumentProcessingEligibility::class)->hasActiveUsage($this->customerId, (int) $media->id)) {
+            throw new RuntimeException('source_unavailable');
+        }
+        $storage = app(DocumentPreviewStorage::class);
+        $key = $result['storage_key'] ?? null;
+        $mime = $video ? (string) $media->mime_type : 'application/pdf';
+        if (! is_string($key) || $key !== $storage->key($media, $job)
+            || ! is_int($result['file_size_bytes'] ?? null) || $result['file_size_bytes'] < 1
+            || ($result['mime_type'] ?? null) !== $mime
+            || ($video ? ! str_starts_with($mime, 'video/') || ! is_int($result['duration_ms'] ?? null) || $result['duration_ms'] < 1
+                || ! is_int($result['usage']['units'] ?? null) || $result['usage']['units'] < 1
+                : ! is_int($result['page_count'] ?? null) || $result['page_count'] < 1)) {
+            throw new RuntimeException('processing_failed');
+        }
+
+        $row = [
+            'storage_key' => $key, 'cdn_url' => null, 'mime_type' => $mime,
+            'width' => null, 'height' => null, 'bitrate' => null,
+            'file_size_bytes' => $result['file_size_bytes'], 'processing_job_id' => $job->id,
+            'source_fingerprint' => $job->source_fingerprint, 'status' => 'ready',
+            'metadata' => json_encode($video
+                ? ['faststart' => true, 'duration_ms' => $result['duration_ms']]
+                : ['page_count' => $result['page_count']], JSON_THROW_ON_ERROR),
+            'updated_at' => $now,
+        ];
+        $existing = DB::table('media_variants')->where('customer_id', $this->customerId)
+            ->where('media_file_id', $media->id)->where('variant_type', 'preview')
+            ->where('processing_version', $job->processing_version)->lockForUpdate()->first();
+        if ($existing !== null) {
+            DB::table('media_variants')->where('customer_id', $this->customerId)->where('id', $existing->id)->update($row);
+            $variantId = (int) $existing->id;
+            if ($existing->storage_key !== $key) {
+                $stale = (string) $existing->storage_key;
+                DB::afterCommit(function () use ($media, $stale): void {
+                    if (! app(DocumentPreviewStorage::class)->purge($media, $stale)) {
+                        Log::error('Superseded board preview object remains.', ['media_file_id' => (int) $media->id]);
+                    }
+                });
+            }
+        } else {
+            $variantId = (int) DB::table('media_variants')->insertGetId($row + [
+                'customer_id' => $this->customerId, 'media_file_id' => $media->id,
+                'variant_type' => 'preview', 'processing_version' => $job->processing_version,
+                'created_at' => $now,
+            ]);
+        }
+        DB::table('media_variants')->where('customer_id', $this->customerId)->where('media_file_id', $media->id)
+            ->where('variant_type', 'preview')->where('status', 'ready')->where('id', '<>', $variantId)
+            ->update(['status' => 'archived', 'updated_at' => $now]);
+
+        return ['variant', $variantId];
+    }
+
     private function archiveSupersededRevisions(string $table, object $media, object $job, array $scope, mixed $now): void
     {
         DB::table($table)

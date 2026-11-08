@@ -446,6 +446,29 @@ class MediaFileFoundationTest extends TestCase
             ->assertNotFound();
     }
 
+    public function test_signed_delivery_encodes_the_display_name_in_content_disposition(): void
+    {
+        $customerId = $this->createTenant();
+        $user = $this->createUser($customerId, 'customer_admin');
+        TenantContext::set((object) ['id' => $customerId]);
+
+        $mediaFile = app(MediaService::class)->uploadMedia(
+            UploadedFile::fake()->image('cover.png'),
+            ['file_type' => 'image', 'module' => 'course', 'entity_type' => 'activities', 'entity_id' => 9001, 'purpose' => 'cover'],
+            $user->id
+        );
+        DB::table('media_files')->where('id', $mediaFile->id)
+            ->update(['display_name' => "Bài \"1\"\r\n/../ảnh bìa.png"]);
+
+        $url = URL::temporarySignedRoute('media.files.signed', now()->addMinutes(5), ['mediaFile' => $mediaFile->id]);
+        $disposition = (string) $this->get($url)->assertOk()->headers->get('Content-Disposition');
+
+        $this->assertStringStartsWith('inline; filename="Bai 1-..-anh bia.png"', $disposition);
+        $this->assertStringContainsString("filename*=utf-8''".rawurlencode('Bài "1"-..-ảnh bìa.png'), $disposition);
+        $this->assertStringNotContainsString("\r", $disposition);
+        $this->assertStringNotContainsString("\n", $disposition);
+    }
+
     public function test_tenant_can_attach_media_file_usage(): void
     {
         $customerId = $this->createTenant();

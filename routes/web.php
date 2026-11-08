@@ -5,6 +5,8 @@ use App\Http\Controllers\Admin\ProfileController as AdminProfileController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Assessment\AssessmentLearnerController;
 use App\Http\Controllers\CustomerRegisterController;
+use App\Http\Controllers\LiveClassWhiteboardController;
+use App\Http\Controllers\LiveClassWhiteboardSyncController;
 use App\Http\Controllers\MediaFileController;
 use App\Http\Controllers\MediaFileDeliveryController;
 use App\Http\Controllers\PublicSiteController;
@@ -59,6 +61,11 @@ Route::middleware(['tenant'])->group(function () {
     Route::get('/media/files/{mediaFile}/signed', [MediaFileDeliveryController::class, 'show'])
         ->middleware('signed')
         ->name('media.files.signed');
+    // Board PDF of an Office document (LF-Media § Whiteboard Rendering Exception).
+    Route::get('/media/files/{mediaFile}/variants/{variant}/signed', [MediaFileDeliveryController::class, 'variant'])
+        ->whereNumber(['mediaFile', 'variant'])
+        ->middleware('signed')
+        ->name('media.variants.signed');
 
     Route::get('/', [TenantWebsiteController::class, 'home'])
         ->name('public.home');
@@ -217,6 +224,24 @@ Route::middleware([
     Route::get('/cohorts/{cohort}/judgments', [TeacherCohortJudgmentController::class, 'show'])->whereNumber('cohort')->name('cohorts.show');
     Route::post('/cohorts/{cohort}/judgments', [TeacherCohortJudgmentController::class, 'store'])->whereNumber('cohort')->name('cohorts.judgments.store');
 
+    // Live Sessions and their Whiteboard (ADR-0002 § LiveClass Whiteboard Amendment).
+    Route::get('/live-sessions', [LiveClassWhiteboardController::class, 'teacherIndex'])->name('live-sessions.index');
+    Route::post('/live-sessions/{session}/start', [LiveClassWhiteboardController::class, 'teacherStart'])->whereNumber('session')->name('live-sessions.start');
+    Route::post('/live-sessions/{session}/complete', [LiveClassWhiteboardController::class, 'teacherComplete'])->whereNumber('session')->name('live-sessions.complete');
+    Route::get('/live-sessions/{session}/board', [LiveClassWhiteboardController::class, 'teacherBoard'])->whereNumber('session')->name('live-sessions.board');
+    Route::get('/live-sessions/{session}/board/materials', [LiveClassWhiteboardController::class, 'teacherMaterials'])->whereNumber('session')->name('live-sessions.board.materials');
+    Route::get('/live-sessions/{session}/board/materials/{activity}/url', [LiveClassWhiteboardController::class, 'teacherMaterialUrl'])->whereNumber(['session', 'activity'])->name('live-sessions.board.materials.url');
+    // Board sync (ADR-0002 § LiveClass Whiteboard Amendment, Real-time sync): the teacher presents.
+    Route::controller(LiveClassWhiteboardSyncController::class)->prefix('/live-sessions/{session}/board')
+        ->name('live-sessions.board.')->whereNumber('session')->group(function () {
+            Route::get('/state', 'state')->defaults('board_role', 'teacher')->name('state');
+            Route::get('/status', 'status')->defaults('board_role', 'teacher')->name('status');
+            Route::post('/presence', 'presence')->defaults('board_role', 'teacher')->middleware('throttle:60,1')->name('presence');
+            Route::post('/events', 'events')->defaults('board_role', 'teacher')->middleware('throttle:900,1')->name('events');
+            Route::post('/snapshot', 'snapshot')->defaults('board_role', 'teacher')->middleware('throttle:120,1')->name('snapshot');
+            Route::post('/release', 'release')->defaults('board_role', 'teacher')->middleware('throttle:60,1')->name('release');
+        });
+
     // Media library for teachers: their own Media and what was shared with them (ADR-0021).
     Route::get('/media', [MediaFileController::class, 'index'])->name('media.index');
     Route::get('/media/picker', [MediaFileController::class, 'picker'])->name('media.picker');
@@ -248,6 +273,19 @@ Route::middleware([
 ])->group(function () {
     Route::get('/my-courses', [TenantWebsiteController::class, 'myCourses'])
         ->name('student.courses.index');
+
+    // A learner follows the Whiteboard of a live Session of their Cohort; learners only receive.
+    Route::prefix('/my-courses/live-sessions/{session}/board')->name('student.live-sessions.board')
+        ->whereNumber('session')->group(function () {
+            Route::get('/', [LiveClassWhiteboardController::class, 'studentBoard'])->name('');
+            Route::get('/materials', [LiveClassWhiteboardController::class, 'studentMaterials'])->name('.materials');
+            Route::get('/materials/{activity}/url', [LiveClassWhiteboardController::class, 'studentMaterialUrl'])
+                ->whereNumber('activity')->name('.materials.url');
+            Route::get('/state', [LiveClassWhiteboardSyncController::class, 'state'])
+                ->defaults('board_role', 'student')->name('.state');
+            Route::get('/status', [LiveClassWhiteboardSyncController::class, 'status'])
+                ->defaults('board_role', 'student')->name('.status');
+        });
 
     Route::get('/learning-history', [TenantWebsiteController::class, 'learningHistory'])
         ->name('student.learning-history');

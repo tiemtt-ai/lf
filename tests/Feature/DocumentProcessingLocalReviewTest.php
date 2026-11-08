@@ -6,6 +6,7 @@ use App\Exceptions\MediaReadException;
 use App\Jobs\ProcessMediaProcessingJob;
 use App\Models\User;
 use App\Services\DoclingStructuredExtractionProvider;
+use App\Services\DocumentBoardPreview;
 use App\Services\DocumentProcessRunner;
 use App\Services\LocalDocumentProcessingProvider;
 use App\Services\MediaProcessingOrchestrator;
@@ -19,6 +20,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use InvalidArgumentException;
 use Mockery;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Component\Process\ExecutableFinder;
@@ -657,7 +659,7 @@ PY;
                     ? $orchestrator->materializeForCourseActivity($this->customerId, $media->id, 'vi', $this->admin->id)
                     : $orchestrator->materializeOnDemandProfile($this->customerId, $media->id, 'ocr', ['layout' => 'preserve', 'locale' => 'vi']);
                 $this->fail('Unattached Document must not dispatch.');
-            } catch (\InvalidArgumentException $e) {
+            } catch (InvalidArgumentException $e) {
                 $this->assertSame('Active Document Course usage is required.', $e->getMessage());
             }
         }
@@ -673,7 +675,7 @@ PY;
             app(MediaProcessingOrchestrator::class)->materializeOnDemandProfile($this->customerId, $media->id,
                 'ocr', ['layout' => 'other', 'locale' => 'vi']);
             $this->fail('Expected unsupported profile.');
-        } catch (\InvalidArgumentException $e) {
+        } catch (InvalidArgumentException $e) {
             $this->assertSame('Unsupported output profile.', $e->getMessage());
         }
         $this->assertSame($before, DB::table('media_processing_jobs')->count());
@@ -1018,7 +1020,7 @@ PY;
         try {
             $orchestrator->materializeOnDemandProfile($this->customerId, $media->id, 'structured_extraction', ['locale' => 'vi', 'structure' => 'layout']);
             $this->fail('Structured materialization accepted missing canonical.');
-        } catch (\InvalidArgumentException) {
+        } catch (InvalidArgumentException) {
             $this->assertDatabaseMissing('media_processing_jobs', ['media_file_id' => $media->id, 'job_type' => 'structured_extraction']);
         }
         (new ProcessMediaProcessingJob($this->customerId, $this->ocrJob($media)->id))->handle();
@@ -1053,7 +1055,7 @@ PY;
         $this->assertSame(3, (int) $last->attempt);
         $this->assertSame(2, (int) $last->dispatch_generation);
         DB::table('media_processing_jobs')->where('id', $last->id)->update(['status' => 'failed', 'error_code' => 'provider_timeout', 'completed_at' => now()]);
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $orchestrator->retry($this->customerId, $last->id);
     }
 
@@ -1114,6 +1116,248 @@ PY;
         $this->assertNotSame($old->id, $new->id);
         (new ProcessMediaProcessingJob($this->customerId, $new->id))->handle();
         $this->assertDatabaseHas('media_extracted_texts', ['processing_job_id' => $new->id, 'locator_type' => 'sheet']);
+    }
+
+    // ------------------------------------------------------------------
+    // Board PDF of an Office document (LF-Media-Processing-Contract
+    // § Document board preview).
+
+    public function test_office_attach_queues_one_board_pdf_conversion_on_its_own_queue(): void
+    {
+        Queue::fake();
+        $media = $this->upload('office.pptx');
+        $this->attach($media);
+
+        $job = $this->previewJob($media);
+        $this->assertSame(['pending', 'local_document', 'preset=pdf', 'libreoffice-pdf-v1'],
+            [$job->status, $job->provider, $job->output_profile, $job->processing_version]);
+        Queue::assertPushedOn('media-preview', ProcessMediaProcessingJob::class,
+            fn (ProcessMediaProcessingJob $pushed): bool => $pushed->processingJobId === (int) $job->id);
+        // OCR keeps its own queue: the conversion never waits behind it, nor it behind the conversion.
+        Queue::assertPushed(ProcessMediaProcessingJob::class,
+            fn (ProcessMediaProcessingJob $pushed): bool => $pushed->processingJobId === (int) $this->ocrJob($media)->id && $pushed->queue === null);
+
+        // Saving the Activity again converts nothing twice.
+        $this->attach($media);
+        $this->assertSame(1, DB::table('media_processing_jobs')->where('media_file_id', $media->id)->where('job_type', 'transcode')->count());
+
+        $state = app(DocumentBoardPreview::class)->state($this->customerId, $media);
+        $this->assertSame(['processing', false], [$state['status'], $state['can_request']]);
+    }
+
+    public function test_pdf_and_text_documents_get_no_board_conversion(): void
+    {
+        Queue::fake();
+        foreach (['structured.pdf', null] as $fixture) {
+            $media = $this->upload($fixture);
+            $this->attach($media);
+            $this->assertSame(0, DB::table('media_processing_jobs')->where('media_file_id', $media->id)->where('job_type', 'transcode')->count());
+            $this->assertNull(app(DocumentBoardPreview::class)->state($this->customerId, $media));
+        }
+    }
+
+    public function test_board_pdf_is_stored_as_a_ready_preview_variant_and_a_new_version_archives_it(): void
+    {
+        $this->requirePdfRuntime();
+        $this->fakeOfficeConverter();
+        $media = $this->upload('office.docx');
+        $this->attach($media);
+
+        $job = $this->previewJob($media);
+        $this->assertSame('ready', $job->status, (string) $job->error_code);
+        $this->assertSame('variant', $job->output_type);
+        $variant = DB::table('media_variants')->where('id', $job->output_id)->first();
+        $key = "tenants/{$this->customerId}/media/{$media->id}/previews/libreoffice-pdf-v1/{$job->id}.pdf";
+        $this->assertSame(['preview', 'application/pdf', 'ready', $key, $job->source_fingerprint, 'libreoffice-pdf-v1'],
+            [$variant->variant_type, $variant->mime_type, $variant->status, $variant->storage_key, $variant->source_fingerprint, $variant->processing_version]);
+        $this->assertSame(filesize(base_path('tests/Fixtures/document/structured.pdf')), (int) $variant->file_size_bytes);
+        $this->assertGreaterThanOrEqual(1, json_decode($variant->metadata, true)['page_count']);
+        Storage::disk('media_local')->assertExists($key);
+        $state = app(DocumentBoardPreview::class)->state($this->customerId, $media);
+        $this->assertSame(['ready', (int) $variant->id], [$state['status'], $state['variant_id']]);
+        // OCR read the original, not the board PDF.
+        $this->assertSame('ready', $this->ocrJob($media)->status);
+
+        config(['media.processing.document_preview.version' => 'libreoffice-pdf-v2']);
+        app(MediaProcessingOrchestrator::class)->requestBoardPreview($this->customerId, $media->id, $this->admin->id);
+        $newer = $this->previewJob($media);
+        $this->assertSame(['ready', 'libreoffice-pdf-v2'], [$newer->status, $newer->processing_version]);
+        $this->assertSame('archived', DB::table('media_variants')->where('id', $variant->id)->value('status'));
+        Storage::disk('media_local')->assertExists($key);
+        $this->assertSame((int) $newer->output_id, app(DocumentBoardPreview::class)->state($this->customerId, $media)['variant_id']);
+    }
+
+    public function test_rerunning_the_same_version_points_its_row_at_the_new_file(): void
+    {
+        $this->requirePdfRuntime();
+        $this->fakeOfficeConverter();
+        $media = $this->upload('office.docx');
+        $this->attach($media);
+        $first = $this->previewJob($media);
+        $firstKey = DB::table('media_variants')->where('id', $first->output_id)->value('storage_key');
+
+        // A successor run of the same version (the row of the first run is unique per version).
+        DB::table('media_processing_jobs')->where('id', $first->id)->update(['status' => 'cancelled', 'started_at' => null, 'error_code' => null]);
+        DB::table('media_variants')->where('id', $first->output_id)->update(['status' => 'archived']);
+        app(MediaProcessingOrchestrator::class)->requestBoardPreview($this->customerId, $media->id, $this->admin->id);
+
+        $second = $this->previewJob($media);
+        $this->assertSame(['ready', (int) $first->output_id], [$second->status, (int) $second->output_id]);
+        $row = DB::table('media_variants')->where('id', $first->output_id)->first();
+        $this->assertSame(['ready', "tenants/{$this->customerId}/media/{$media->id}/previews/libreoffice-pdf-v1/{$second->id}.pdf"], [$row->status, $row->storage_key]);
+        Storage::disk('media_local')->assertMissing($firstKey);
+        Storage::disk('media_local')->assertExists($row->storage_key);
+    }
+
+    public static function previewLimits(): array
+    {
+        return [
+            'pages' => ['max_pages', 0, 'page_limit_exceeded'],
+            'bytes' => ['max_bytes', 10, 'preview_too_large'],
+        ];
+    }
+
+    #[DataProvider('previewLimits')]
+    public function test_a_board_pdf_over_a_limit_fails_for_good_and_leaves_no_file(string $limit, int $value, string $error): void
+    {
+        $this->requirePdfRuntime();
+        $this->fakeOfficeConverter();
+        config(["media.processing.document_preview.$limit" => $value]);
+        $media = $this->upload('office.docx');
+        $this->attach($media);
+
+        $job = $this->previewJob($media);
+        $this->assertSame(['failed', $error], [$job->status, $job->error_code]);
+        $this->assertSame(0, DB::table('media_variants')->where('media_file_id', $media->id)->count());
+        $this->assertSame([], Storage::disk('media_local')->allFiles("tenants/{$this->customerId}/media/{$media->id}/previews"));
+        $this->assertSame('ready', DB::table('media_files')->where('id', $media->id)->value('status'), 'a failed board PDF never blocks the file');
+        $state = app(DocumentBoardPreview::class)->state($this->customerId, $media);
+        $this->assertSame(['failed', $error, false], [$state['status'], $state['error_code'], $state['can_request']]);
+        $this->expectException(InvalidArgumentException::class);
+        app(MediaProcessingOrchestrator::class)->requestBoardPreview($this->customerId, $media->id, $this->admin->id);
+    }
+
+    public function test_a_conversion_that_loses_its_usage_keeps_no_file(): void
+    {
+        $this->requirePdfRuntime();
+        $this->fakeOfficeConverter(function (): void {
+            // The Activity drops the file while LibreOffice runs.
+            DB::table('media_file_usages')->where('owner_id', $this->activityId)->update(['status' => 'detached']);
+        });
+        $media = $this->upload('office.docx');
+        $this->attach($media);
+
+        $job = $this->previewJob($media);
+        $this->assertSame(['failed', 'source_unavailable'], [$job->status, $job->error_code]);
+        $this->assertSame(0, DB::table('media_variants')->where('media_file_id', $media->id)->count());
+        $this->assertSame([], Storage::disk('media_local')->allFiles("tenants/{$this->customerId}/media/{$media->id}/previews"));
+    }
+
+    public function test_detach_cancels_a_pending_conversion_and_reattach_starts_a_successor(): void
+    {
+        Queue::fake();
+        $media = $this->upload('office.xlsx');
+        $this->attach($media);
+        $first = $this->previewJob($media);
+
+        app(MediaService::class)->detachUsage($media->id, 'course_activity', $this->activityId, 'document');
+        $this->assertSame('cancelled', DB::table('media_processing_jobs')->where('id', $first->id)->value('status'));
+        $state = app(DocumentBoardPreview::class)->state($this->customerId, $media);
+        $this->assertSame('absent', $state['status']);
+
+        $this->attach($media);
+        $second = $this->previewJob($media);
+        $this->assertSame(['pending', (int) $first->id, 2], [$second->status, (int) $second->supersedes_job_id, (int) $second->dispatch_generation]);
+    }
+
+    public function test_requesting_again_retries_only_a_transient_failure(): void
+    {
+        Queue::fake();
+        $media = $this->upload('office.docx');
+        $this->attach($media);
+        $first = $this->previewJob($media);
+        DB::table('media_processing_jobs')->where('id', $first->id)->update([
+            'status' => 'failed', 'error_code' => 'provider_timeout', 'started_at' => now(), 'completed_at' => now(),
+        ]);
+        $this->assertTrue(app(DocumentBoardPreview::class)->state($this->customerId, $media)['can_request']);
+
+        app(MediaProcessingOrchestrator::class)->requestBoardPreview($this->customerId, $media->id, $this->admin->id);
+        $retry = $this->previewJob($media);
+        $this->assertSame(['pending', 2, (int) $first->id], [$retry->status, (int) $retry->attempt, (int) $retry->supersedes_job_id]);
+        Queue::assertPushedOn('media-preview', ProcessMediaProcessingJob::class,
+            fn (ProcessMediaProcessingJob $pushed): bool => $pushed->processingJobId === (int) $retry->id);
+
+        // A run still waiting cannot be requested twice.
+        try {
+            app(MediaProcessingOrchestrator::class)->requestBoardPreview($this->customerId, $media->id, $this->admin->id);
+            $this->fail('A pending conversion must not be requested again.');
+        } catch (InvalidArgumentException) {
+            $this->assertSame(2, DB::table('media_processing_jobs')->where('media_file_id', $media->id)->where('job_type', 'transcode')->count());
+        }
+    }
+
+    public function test_a_file_attached_before_board_pdfs_existed_can_be_converted_on_request(): void
+    {
+        Queue::fake();
+        $media = $this->upload('office.ppt');
+        $this->attach($media);
+        DB::table('media_processing_jobs')->where('media_file_id', $media->id)->where('job_type', 'transcode')->delete();
+        $state = app(DocumentBoardPreview::class)->state($this->customerId, $media);
+        $this->assertSame(['absent', true], [$state['status'], $state['can_request']]);
+
+        app(MediaProcessingOrchestrator::class)->requestBoardPreview($this->customerId, $media->id, $this->admin->id);
+        $this->assertSame('pending', $this->previewJob($media)->status);
+    }
+
+    public static function realBoardFormats(): array
+    {
+        return array_map(static fn ($extension) => [$extension], ['docx', 'pptx', 'xlsx']);
+    }
+
+    #[DataProvider('realBoardFormats')]
+    public function test_real_libreoffice_makes_the_board_pdf(string $extension): void
+    {
+        if (! (new ExecutableFinder)->find((string) config('media.processing.local_document.soffice_binary'))
+            && ! is_executable((string) config('media.processing.local_document.soffice_binary'))) {
+            $this->markTestSkipped('LibreOffice runtime is not installed.');
+        }
+        $this->requirePdfRuntime();
+        $media = $this->upload('office.'.$extension);
+        $this->attach($media);
+
+        $job = $this->previewJob($media);
+        $this->assertSame('ready', $job->status, (string) $job->error_code);
+        $variant = DB::table('media_variants')->where('id', $job->output_id)->first();
+        $this->assertStringStartsWith('%PDF-', substr(Storage::disk('media_local')->get($variant->storage_key), 0, 5));
+        $this->assertGreaterThanOrEqual(1, json_decode($variant->metadata, true)['page_count']);
+    }
+
+    private function previewJob(object $media): object
+    {
+        return DB::table('media_processing_jobs')->where('media_file_id', $media->id)->where('job_type', 'transcode')
+            ->orderByDesc('id')->firstOrFail();
+    }
+
+    /** Substitutes only LibreOffice: its PDF is the structured fixture; everything else runs for real. */
+    private function fakeOfficeConverter(?callable $during = null): void
+    {
+        $realRunner = new DocumentProcessRunner;
+        $runner = Mockery::mock(DocumentProcessRunner::class);
+        $runner->shouldReceive('run')->andReturnUsing(function (array $command, int $timeout) use ($realRunner, $during): string {
+            if ($command[0] !== config('media.processing.local_document.soffice_binary')) {
+                return $realRunner->run($command, $timeout);
+            }
+            $this->assertSame(['--headless', '--convert-to', 'pdf', '--outdir'], array_slice($command, 2, 4));
+            $this->assertSame('-env:UserInstallation=file://'.$command[6].'/libreoffice-profile', $command[1]);
+            $this->assertLessThanOrEqual((int) config('media.processing.local_document.office_timeout_seconds'), $timeout);
+            $this->assertTrue(copy(base_path('tests/Fixtures/document/structured.pdf'), $command[6].'/source.pdf'));
+            if ($during) {
+                $during();
+            }
+
+            return '';
+        });
+        $this->app->instance(DocumentProcessRunner::class, $runner);
     }
 
     private function upload(?string $fixture = null, string $text = 'Nội dung tài liệu local.'): object
