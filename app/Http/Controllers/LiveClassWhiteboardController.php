@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\LiveClassAttendanceCheckIn;
 use App\Services\LiveClassWhiteboardLiveState;
 use App\Services\LiveClassWhiteboardService;
 use App\Support\LiveClassBoardContext;
@@ -152,6 +153,12 @@ final class LiveClassWhiteboardController extends Controller
                 'backUrl' => $backUrl,
                 'materialsUrl' => $materialsUrl,
                 'materials' => $this->presentMaterials($context, $urlFor),
+                // Attendance QR code (ADR-0002 § Attendance Check-In Amendment): presenters of in-room Sessions only.
+                'attendanceCodeUrl' => LiveClassAttendanceCheckIn::offeredOn($context)
+                    ? ($context->role === 'teacher'
+                        ? route('teacher.live-sessions.board.attendance-code', $context->sessionId)
+                        : route('admin.course-cohorts.sessions.board.attendance-code', [$context->cohortId, $context->sessionId]))
+                    : null,
                 'sync' => $syncUrls + [
                     'channel' => LiveClassWhiteboardLiveState::channelName($context->customerId, $context->sessionId),
                     'authUrl' => url('/broadcasting/auth'),

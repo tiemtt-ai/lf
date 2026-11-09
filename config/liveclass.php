@@ -19,4 +19,9 @@ return [
     // deleted — only made unreachable while the flag is off.
     'attendance_enabled' => env('LIVECLASS_ATTENDANCE_ENABLED', false),
     'recording_enabled' => env('LIVECLASS_RECORDING_ENABLED', false),
+
+    // QR check-in (ADR-0002 § Attendance Check-In Amendment). A scan later than
+    // this after the start (the later of planned and actual) is `late`. Stays a
+    // deployment value until the per-tenant setting is approved.
+    'late_after_minutes' => (int) env('LIVECLASS_LATE_AFTER_MINUTES', 10),
 ];

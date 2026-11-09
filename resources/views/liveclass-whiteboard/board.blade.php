@@ -16,7 +16,7 @@
         'fullscreen', 'exit_fullscreen', 'reset_view',
         'sync_connecting', 'sync_connected', 'sync_disconnected', 'sync_off', 'sync_presenting', 'sync_waiting', 'sync_following',
         'sync_tap_play', 'sync_snapshot_too_large', 'sync_send_failed', 'revoked',
-        'listen_room', 'listen_remote', 'listen_room_help', 'listen_remote_help', 'sound_blocked', 'enable_sound_help', 'close_video', 'close_audio', 'preview',
+        'attendance_count', 'listen_room', 'listen_remote', 'listen_room_help', 'listen_remote_help', 'sound_blocked', 'enable_sound_help', 'close_video', 'close_audio', 'preview',
     ])->mapWithKeys(fn (string $key) => [$key => __('lf.LF_liveclass_whiteboard_'.$key)])->all();
     $tools = [
         ['key' => 'laser', 'icon' => 'laser'],
@@ -62,6 +62,12 @@
                 <strong>{{ $config['userName'] }}</strong>
                 <span>{{ $t('user_id', ['id' => $config['userCode']]) }}</span>
             </span>
+            @if ($config['attendanceCodeUrl'])
+                <button type="button" class="lf-wb-btn lf-wb-btn--text" x-show="! isViewing" x-on:click="openAttendance()"
+                        data-tooltip="{{ $t('attendance_title') }}" aria-label="{{ $t('attendance_title') }}" data-tooltip-placement="bottom-end">
+                    <x-backend-icon name="qr-code" class="ui-icon" /><span>{{ $t('attendance') }}</span>
+                </button>
+            @endif
             <button type="button" class="lf-wb-btn lf-wb-btn--primary" x-show="! isViewing" x-on:click="toggleDrawer()" x-bind:aria-expanded="drawerOpen" aria-controls="lf-wb-drawer"
                     data-tooltip="{{ $t('materials') }}" aria-label="{{ $t('materials') }}" data-tooltip-placement="bottom-end">
                 <x-backend-icon name="folder-open" class="ui-icon" /><span>{{ $t('materials') }}</span>
@@ -263,6 +269,34 @@
             <button type="button" class="ui-button ui-button--primary cursor-interaction" x-on:click="leave()">{{ $t('back') }}</button>
         </div>
     </div>
+
+    @if ($config['attendanceCodeUrl'])
+        <dialog x-ref="attendanceDialog" class="ui-modal lf-wb-attendance" x-bind:class="{ 'is-large': attendanceLarge }" data-columns="1" aria-labelledby="lf-wb-attendance-title" aria-describedby="lf-wb-attendance-help" x-on:close="closeAttendance()">
+            <div class="ui-modal__form">
+                <header class="ui-modal__header">
+                    <div><h3 id="lf-wb-attendance-title">{{ $t('attendance_title') }}</h3></div>
+                    <button type="button" class="ui-modal__close cursor-interaction" x-on:click="$refs.attendanceDialog.close()" aria-label="{{ $t('close') }}">×</button>
+                </header>
+                <div class="ui-modal__body">
+                    <p id="lf-wb-attendance-help" class="ui-enroll-dialog-text">{{ $t('attendance_help') }}</p>
+                    <div class="lf-wb-attendance__code" x-bind:aria-busy="(! attendance.svg).toString()">
+                        <img x-show="attendance.svg" x-bind:src="attendance.svg" alt="{{ $t('attendance_code_alt') }}" width="320" height="320">
+                        <span x-show="! attendance.svg && ! attendance.failed">{{ $t('loading') }}</span>
+                        <span x-show="attendance.failed" x-cloak>{{ $t('attendance_failed') }}</span>
+                    </div>
+                    <p class="lf-wb-attendance__count" x-show="attendance.learners !== null" x-cloak
+                       x-text="strings.attendance_count.replace(':count', attendance.checkedIn).replace(':total', attendance.learners)"></p>
+                </div>
+                <footer class="ui-modal__footer">
+                    <button type="button" class="ui-button cursor-interaction" x-on:click="attendanceLarge = ! attendanceLarge" x-bind:aria-pressed="attendanceLarge.toString()">
+                        <span x-show="! attendanceLarge"><x-backend-icon name="maximize" class="ui-icon" /> {{ $t('attendance_enlarge') }}</span>
+                        <span x-show="attendanceLarge" x-cloak><x-backend-icon name="minimize" class="ui-icon" /> {{ $t('attendance_shrink') }}</span>
+                    </button>
+                    <button type="button" class="ui-button cursor-interaction" x-on:click="$refs.attendanceDialog.close()">{{ $t('close') }}</button>
+                </footer>
+            </div>
+        </dialog>
+    @endif
 
     <dialog x-ref="clearAllDialog" class="ui-modal" data-columns="1" aria-labelledby="lf-wb-clear-title" aria-describedby="lf-wb-clear-body">
         <div class="ui-modal__form">

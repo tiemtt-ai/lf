@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\LiveClassAttendanceCheckInController;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Support\LoginExperience;
 use App\Support\TenantContext;
@@ -82,8 +83,19 @@ class AuthenticatedSessionController extends Controller
         return match ($user->role) {
             'customer_admin' => redirect()->route('admin.dashboard'),
             'teacher' => redirect()->route('teacher.dashboard'),
-            'student' => redirect('/'),
+            // A phone that opened the attendance QR link before signing in goes back to it.
+            'student' => redirect()->to($this->studentReturn($request) ?? '/'),
         };
+    }
+
+    /** Only the check-in page may be returned to, and only on the tenant that set it. */
+    private function studentReturn(Request $request): ?string
+    {
+        $url = $request->session()->pull(LiveClassAttendanceCheckInController::RETURN_TO);
+        $path = is_string($url) ? (string) parse_url($url, PHP_URL_PATH) : '';
+        $host = is_string($url) ? parse_url($url, PHP_URL_HOST) : null;
+
+        return preg_match('#^/my-courses/live-sessions/\d+/check-in$#', $path) && $host === $request->getHost() ? $url : null;
     }
 
     public function destroy(Request $request): RedirectResponse

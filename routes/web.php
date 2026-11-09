@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\ProfileController as AdminProfileController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Assessment\AssessmentLearnerController;
 use App\Http\Controllers\CustomerRegisterController;
+use App\Http\Controllers\LiveClassAttendanceCheckInController;
 use App\Http\Controllers\LiveClassWhiteboardController;
 use App\Http\Controllers\LiveClassWhiteboardSyncController;
 use App\Http\Controllers\MediaFileController;
@@ -241,6 +242,9 @@ Route::middleware([
             Route::post('/snapshot', 'snapshot')->defaults('board_role', 'teacher')->middleware('throttle:120,1,lf-wb-snapshot.')->name('snapshot');
             Route::post('/release', 'release')->defaults('board_role', 'teacher')->middleware('throttle:60,1,lf-wb-release.')->name('release');
         });
+    // Attendance QR code on the board (ADR-0002 § Attendance Check-In Amendment).
+    Route::get('/live-sessions/{session}/board/attendance-code', [LiveClassAttendanceCheckInController::class, 'teacherCode'])
+        ->whereNumber('session')->middleware('throttle:30,1,lf-wb-attendance-code.')->name('live-sessions.board.attendance-code');
 
     // Media library for teachers: their own Media and what was shared with them (ADR-0021).
     Route::get('/media', [MediaFileController::class, 'index'])->name('media.index');
@@ -256,6 +260,24 @@ Route::middleware([
 
     $registerAssessmentCategoryManagement = false;
     require __DIR__.'/modules/assessment.php';
+});
+
+/*
+|--------------------------------------------------------------------------
+| Attendance check-in page opened by the board's QR code
+|--------------------------------------------------------------------------
+|
+| Open without sign-in: a phone that is not signed in yet keeps the code it
+| received, then signs in (ADR-0002 § Attendance Check-In Amendment). A whole
+| class may share one IP address, hence the high limit.
+*/
+
+Route::middleware(['tenant', 'throttle:600,1,lf-checkin-scan.'])->group(function () {
+    // The short link inside the QR code: a short URL makes bigger QR cells, readable from the back of the room.
+    Route::get('/qr/{session}/{code}', [LiveClassAttendanceCheckInController::class, 'scan'])
+        ->whereNumber('session')->where('code', '[0-9a-z]{1,10}\.[A-Za-z0-9_-]{14}')->name('student.live-sessions.check-in.scan');
+    Route::get('/my-courses/live-sessions/{session}/check-in', [LiveClassAttendanceCheckInController::class, 'show'])
+        ->whereNumber('session')->name('student.live-sessions.check-in');
 });
 
 /*
@@ -286,6 +308,9 @@ Route::middleware([
             Route::get('/status', [LiveClassWhiteboardSyncController::class, 'status'])
                 ->defaults('board_role', 'student')->name('.status');
         });
+
+    Route::post('/my-courses/live-sessions/{session}/check-in', [LiveClassAttendanceCheckInController::class, 'store'])
+        ->whereNumber('session')->middleware('throttle:20,1,lf-checkin-store.')->name('student.live-sessions.check-in.store');
 
     Route::get('/learning-history', [TenantWebsiteController::class, 'learningHistory'])
         ->name('student.learning-history');

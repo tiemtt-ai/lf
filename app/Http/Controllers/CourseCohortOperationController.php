@@ -875,31 +875,54 @@ class CourseCohortOperationController extends Controller
             'attendance.*.notes' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        $memberships = DB::table('core_course_cohort_students')
-            ->where('customer_id', $customerId)->where('cohort_id', $cohort)
-            ->where('status', 'active')->pluck('student_id', 'enrollment_id');
+        $memberships = DB::table('core_course_cohort_students as memberships')
+            ->join('core_course_enrollments as enrollments', function ($join) use ($customerId): void {
+                $join->on('enrollments.id', '=', 'memberships.enrollment_id')->where('enrollments.customer_id', '=', $customerId);
+            })
+            ->where('memberships.customer_id', $customerId)->where('memberships.cohort_id', $cohort)
+            ->where('memberships.status', 'active')
+            ->get(['memberships.student_id', 'memberships.enrollment_id', 'enrollments.status as enrollment_status'])
+            ->keyBy('enrollment_id');
 
         DB::transaction(function () use ($validated, $memberships, $customerId, $session, $sessionRow, $request): void {
+            $existing = DB::table('core_liveclass_attendances')
+                ->where('customer_id', $customerId)->where('session_id', $session)->lockForUpdate()
+                ->get(['id', 'enrollment_id', 'status', 'attendance_mode', 'notes'])->keyBy('enrollment_id');
             foreach ($validated['attendance'] as $item) {
                 abort_unless($memberships->has($item['enrollment_id']), 422);
-                DB::table('core_liveclass_attendances')->updateOrInsert(
-                    [
+                // Only an active Enrollment is recorded (DOC-CONFLICT-0011); the others are left as they are.
+                if ($memberships->get($item['enrollment_id'])->enrollment_status !== 'active') {
+                    continue;
+                }
+                $values = [
+                    'status' => $item['status'],
+                    'attendance_mode' => $item['attendance_mode'] ?? null,
+                    'notes' => ($item['notes'] ?? '') === '' ? null : $item['notes'],
+                ];
+                $row = $existing->get($item['enrollment_id']);
+                // An unchanged row keeps its source, mode and check-in time (a QR scan stays a scan).
+                if ($row ? ((string) $row->status === $values['status'] && $row->attendance_mode === $values['attendance_mode']
+                        && (($row->notes ?? '') === '' ? null : $row->notes) === $values['notes'])
+                    : ($values['status'] === 'registered' && $values['attendance_mode'] === null && $values['notes'] === null)) {
+                    continue;
+                }
+                $values += [
+                    'user_id' => $memberships->get($item['enrollment_id'])->student_id,
+                    'version_activity_id' => $sessionRow->version_activity_id,
+                    'attendance_source' => 'manual',
+                    'recorded_by' => $request->user()->id,
+                    'updated_at' => now(),
+                ];
+                if ($row) {
+                    DB::table('core_liveclass_attendances')->where('id', $row->id)->update($values);
+                } else {
+                    DB::table('core_liveclass_attendances')->insert($values + [
                         'customer_id' => $customerId,
                         'session_id' => $session,
                         'enrollment_id' => $item['enrollment_id'],
-                    ],
-                    [
-                        'user_id' => $memberships->get($item['enrollment_id']),
-                        'version_activity_id' => $sessionRow->version_activity_id,
-                        'status' => $item['status'],
-                        'attendance_mode' => $item['attendance_mode'] ?? null,
-                        'attendance_source' => 'manual',
-                        'notes' => $item['notes'] ?? null,
-                        'recorded_by' => $request->user()->id,
                         'created_at' => now(),
-                        'updated_at' => now(),
-                    ]
-                );
+                    ]);
+                }
             }
         });
 

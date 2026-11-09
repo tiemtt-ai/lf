@@ -1,6 +1,6 @@
 # LF-Core-LiveClass.md
 
-Version: 2.20
+Version: 2.21
 
 Document Status: Approved
 
@@ -789,6 +789,42 @@ progress và không bị Replay tự động ghi đè.
 Raw join/leave events chi tiết có thể thuộc Track Domain; Attendance giữ
 operational summary đã chuẩn hóa.
 
+## Điểm danh bằng mã QR — 2026-11-09 (Approved)
+
+Theo Đặc tả nghiệp vụ "Buổi học của Lớp học" v1.0 (Owner chốt 2026-11-09). Đặc tả thay
+các quy tắc cũ trái với nó. Nguồn chi tiết: ADR-0002 § Attendance Check-In Amendment.
+Không thêm bảng, cột hay migration. Mọi phần dưới đây chỉ chạy khi bật
+`LIVECLASS_ATTENDANCE_ENABLED`.
+
+* **Áp dụng cho:** buổi `offline` và `hybrid`. Buổi `online` điểm danh bằng lần bấm "Vào
+  phòng họp", là đợt sau.
+* **Trên bảng:** giáo viên được phân công hoặc quản trị bấm "Điểm danh" để hiện mã QR,
+  kèm số học viên đã điểm danh. Mã đổi mỗi 30 giây, mỗi mã dùng được tối đa 60 giây (cộng
+  5 giây cho mạng chậm), nên ảnh chụp gửi đi không dùng được. Mã được ký bằng khoá của ứng
+  dụng, không lưu ở đâu cả. Trong mã là một link ngắn (`/qr/{session}/{mã}`, khoảng 50 ký
+  tự) để mã ít ô và ô to. Nút "Phóng to" cho mã chiếm cả màn hình, để học viên ngồi cuối
+  lớp quét được từ chỗ ngồi bằng app Camera của điện thoại.
+* **Học viên:** quét bằng điện thoại, đăng nhập bằng tài khoản thật của mình. Chưa đăng
+  nhập thì đăng nhập rồi quay lại trang điểm danh, và giờ vào vẫn là lúc quét. Chỉ người
+  được xem bảng mới được ghi nhận: còn trong lớp, tài khoản đang hoạt động, Enrollment
+  `active` và trong thời hạn học.
+* **Khi nào:** buổi đang `live`, từ 15 phút trước giờ bắt đầu dự kiến đến giờ kết thúc dự
+  kiến. Quét trước giờ bắt đầu tính là đúng giờ.
+* **Hệ thống ghi:**
+  - `present`; `late` nếu quét sau 10 phút tính từ giờ bắt đầu, lấy mốc muộn hơn giữa giờ
+    dự kiến và giờ giáo viên bắt đầu thật (`actual_start_at`). Số phút đặt ở
+    `liveclass.late_after_minutes` cho tới khi cài đặt theo trung tâm được duyệt.
+  - `joined_at` là giờ server nhận mã.
+  - `attendance_mode = offline` (tại lớp), `attendance_source = system`.
+* **Chỉ tính lần đầu.** Bản ghi đã có `joined_at`, hoặc đã được giáo viên hay quản trị
+  ghi tay, thì không bị lần quét sau đổi.
+* **Điểm danh tay vẫn dùng được và được ưu tiên.** Lưu tab Điểm danh chỉ ghi cho Enrollment
+  `active` (đóng DOC-CONFLICT-0011). Dòng không đổi thì giữ nguyên, kể cả giờ vào và nguồn
+  QR. Dòng có đổi thì thành `manual`. Tab hiện giờ vào của từng học viên.
+* **Đợt sau:** ghi lần bấm "Vào phòng họp", tự ghi vắng 30 phút sau giờ kết thúc, lưu lịch
+  sử sửa, số phút muộn theo trung tâm (cần duyệt Database docs), màn hình điểm danh cho
+  giáo viên, và buổi học trực tiếp tự hoàn thành theo điểm danh.
+
 ---
 
 # Recording
@@ -899,7 +935,8 @@ liệu của bài học lên màn hình cảm ứng trong lớp và viết, vẽ
 mở cùng bảng trên máy mình và xem theo giáo viên. Nghiệp vụ theo bảng điện tử của
 AllVia; bảng chức năng trong
 [LF-LiveClass-Whiteboard-Proposal](../quality/LF-LiveClass-Whiteboard-Proposal.md)
-là chuẩn nghiệm thu. Không có QR, không có tài khoản tạm.
+là chuẩn nghiệm thu. Không có QR mời vào bảng, không có tài khoản tạm; mã QR điểm danh
+hiện trên bảng là việc của Attendance (§ Attendance, Điểm danh bằng mã QR).
 
 ## Quyền sở hữu
 
@@ -1245,9 +1282,9 @@ của Session. Bảng không truyền âm thanh hay video (§ Whiteboard).
   (máy yếu, mất kết nối đồng bộ, Reverb lỗi). Khi share: không bật chia sẻ âm thanh máy
   tính nếu có video trên bảng, và báo học viên chỉ nhìn một nguồn (bảng LF hoặc màn hình
   share), không nhìn cả hai.
-* **Điểm danh.** Mở bảng hay vào phòng họp không phải điểm danh. Admin điểm danh tay theo
-  từng buổi (§ Attendance, khi bật `LIVECLASS_ATTENDANCE_ENABLED`); bản ghi chưa ghi người
-  học ở lớp hay từ xa.
+* **Điểm danh.** Mở bảng không phải điểm danh. Học viên ở lớp quét mã QR trên bảng, bản ghi
+  có hình thức "tại lớp" (§ Attendance, Điểm danh bằng mã QR). Ghi lần bấm "Vào phòng
+  họp" cho học viên ở xa là đợt sau; tới lúc đó admin điểm danh tay cho họ.
 
 ---
 

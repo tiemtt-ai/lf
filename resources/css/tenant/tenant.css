@@ -2086,3 +2086,15 @@
     flex-wrap: wrap;
     gap: 8px;
 }
+
+/* Attendance check-in page opened by the board's QR code (LF-Core-LiveClass § Attendance). */
+.lf-checkin {
+    max-width: 560px;
+    margin: 0 auto;
+}
+
+.lf-checkin__status {
+    margin: 12px 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+}

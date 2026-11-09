@@ -238,6 +238,63 @@ No table, column or migration; ownership unchanged.
 * The administrator sees the conversion status on the Activity and can ask for a
   conversion again; the teacher sees it in the board's material drawer.
 
+## Attendance Check-In Amendment — 2026-11-09
+
+Approved: 2026-11-09 (Owner decision). Implemented 2026-11-09 behind
+`liveclass.attendance_enabled`.
+
+Source: the Owner's business specification "Đặc tả nghiệp vụ: Buổi học của
+Lớp học" v1.0 (finalized 2026-11-09), § 6 Điểm danh. That specification
+replaces every earlier rule it contradicts. This amendment covers its first
+phase only: QR check-in for learners in the room. No table, column or
+migration.
+
+* **Scope.** A Session whose `delivery_mode` is `offline` or `hybrid` can show
+  an attendance QR code on its Whiteboard. Online check-in through "Vào phòng
+  họp", automatic absence, the edit history of attendance, a per-tenant late
+  threshold, the teacher attendance screen and Activity completion from
+  attendance are later phases and are not authorized here.
+* **Not the board's QR invitation.** The QR invitation and guest accounts listed
+  under § Not authorized here stay excluded. The attendance code admits nobody to
+  the board: a learner scans it with their own phone, signed in with their own
+  account. Opening, watching or drawing on the board is still not attendance.
+* **The code.** Only the board of someone who may present (the assigned teacher or
+  an administrator) fetches it, together with how many learners have checked in.
+  It changes every 30 seconds and is accepted for at most 60 seconds after it was
+  issued, plus a 5-second network margin, so a forwarded photo stops working. It
+  is an HMAC over tenant, Session and time window, signed with the application
+  key. Nothing is stored. The QR code holds a short link (`/qr/{session}/{code}`,
+  about 50 characters), so its cells stay big enough to scan from the back of the
+  room; the board can also show it over the whole screen.
+* **Who and when.** The learner must pass the same checks as a board viewer: an
+  active membership in the Session's Cohort, an active learner account, and an
+  active Enrollment inside its access window. The Session must be `live`, and the
+  scan must arrive between 15 minutes before the planned start and the planned
+  end.
+* **What is written.** One Attendance row per Enrollment and Session, as before:
+  - `status` is `present`, or `late` when the scan arrives more than 10 minutes
+    after the later of the planned start and the actual start. A scan before the
+    start counts as on time.
+  - `joined_at` is the server time when the code was received;
+  - `attendance_mode` is `offline`;
+  - `attendance_source` is `system`;
+  - `version_activity_id` comes from the Session.
+
+  The 10 minutes are `liveclass.late_after_minutes` until the per-tenant setting
+  is approved.
+* **First scan only.** A row that already has `joined_at` is not changed. A row
+  that a teacher or administrator has already set by hand is not overwritten
+  either.
+* **Manual attendance** keeps working and wins. Saving the Cohort attendance tab
+  now records only active Enrollments (closes DOC-CONFLICT-0011). It leaves
+  unchanged rows as they are, including their `joined_at`, mode and source. Rows
+  it changes become `manual`.
+* **Sign-in on the phone.** A learner who is not signed in on the phone is asked to
+  sign in, then returns to the check-in page. The time recorded is when the code
+  was received, before sign-in. The pending check-in expires after 10 minutes.
+* **Switch.** Everything above, the board button included, stays behind
+  `liveclass.attendance_enabled`.
+
 ## Automatic Session Generation Amendment
 
 Approved: 2026-11-05 (Owner decision)

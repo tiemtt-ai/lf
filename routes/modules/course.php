@@ -17,6 +17,7 @@ use App\Http\Controllers\CourseTemplateMediaPreviewController;
 use App\Http\Controllers\CourseTemplateSectionController;
 use App\Http\Controllers\CourseTemplateTeacherController;
 use App\Http\Controllers\CourseTemplateVersionMediaPreviewController;
+use App\Http\Controllers\LiveClassAttendanceCheckInController;
 use App\Http\Controllers\LiveClassScheduleController;
 use App\Http\Controllers\LiveClassWhiteboardController;
 use App\Http\Controllers\LiveClassWhiteboardSyncController;
@@ -142,6 +143,8 @@ if ($registerCourseProductRoutes ?? false) {
             Route::post('/snapshot', 'snapshot')->defaults('board_role', 'admin')->middleware('throttle:120,1,lf-wb-snapshot.')->name('snapshot');
             Route::post('/release', 'release')->defaults('board_role', 'admin')->middleware('throttle:60,1,lf-wb-release.')->name('release');
         });
+    Route::get('/course-cohorts/{cohort}/sessions/{session}/board/attendance-code', [LiveClassAttendanceCheckInController::class, 'adminCode'])
+        ->whereNumber(['cohort', 'session'])->middleware('throttle:30,1,lf-wb-attendance-code.')->name('course-cohorts.sessions.board.attendance-code');
     Route::put('/course-cohorts/{cohort}/sessions/{session}/attendance', [CourseCohortOperationController::class, 'saveAttendance'])
         ->name('course-cohorts.sessions.attendance');
     Route::post('/course-cohorts/{cohort}/sessions/{session}/recordings', [CourseCohortOperationController::class, 'storeRecording'])

@@ -11,6 +11,24 @@ be Course Activity Evidence only when that value exists. Canonical statuses are
 `registered`, `present`, `late`, `absent`, `excused`; attendance mode is
 `online` or `offline`.
 
+## Check-In Amendment — 2026-11-09
+
+ADR-0002 § Attendance Check-In Amendment. No column or migration.
+
+* A QR check-in writes `status` (`present` or `late`), `joined_at` (the server time
+  when the code was received), `attendance_mode = offline` and
+  `attendance_source = system`.
+* The physical table has no `attendance_method` column, although the field list
+  below documents one. The way a learner checked in is read from
+  `attendance_mode` and `attendance_source`:
+  - `offline` + `system`: QR scan in the room;
+  - `online` + `system`: "Vào phòng họp" (later phase);
+  - `manual`: set by a teacher or administrator.
+* A row that already has `joined_at`, or that was set by hand, is not changed by a
+  later scan. A manual save rewrites only the rows it changes.
+* Only an Enrollment with `status = active` is recorded, by a scan or by a manual
+  save.
+
 ## Purpose
 
 Ghi nhận trạng thái và thời lượng một học viên tham gia một LiveClass Session.

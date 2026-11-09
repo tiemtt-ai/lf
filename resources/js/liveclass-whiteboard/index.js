@@ -127,6 +127,11 @@ Alpine.data('lfWhiteboard', () => ({
     remotePlaying: null,
     clockOffset: null,
     listenAsked: false,
+    // Attendance QR code (LF-Core-LiveClass § Attendance, Điểm danh bằng mã QR), refreshed while the dialog is open.
+    attendance: { svg: '', checkedIn: 0, learners: null, failed: false },
+    attendanceTimer: 0,
+    // The code over the whole screen, for the back of a big room; remembered while the board is open.
+    attendanceLarge: false,
 
     init() {
         const engine = new BoardEngine({
@@ -785,6 +790,39 @@ Alpine.data('lfWhiteboard', () => ({
     undo() { this.engine().undo(); },
     redo() { this.engine().redo(); },
     clearPage() { this.engine().clearPage(); },
+
+    openAttendance() {
+        this.attendance = { ...this.attendance, svg: '', failed: false };
+        this.$refs.attendanceDialog?.showModal();
+        this.loadAttendanceCode();
+    },
+
+    closeAttendance() {
+        clearTimeout(this.attendanceTimer);
+        this.attendanceTimer = 0;
+    },
+
+    async loadAttendanceCode() {
+        clearTimeout(this.attendanceTimer);
+        if (! this.$refs.attendanceDialog?.open) {
+            return;
+        }
+        let next = 5;
+        try {
+            const response = await fetch(config.attendanceCodeUrl, { headers: { Accept: 'application/json' }, credentials: 'same-origin' });
+            if (! response.ok) {
+                throw new Error(String(response.status));
+            }
+            const data = await response.json();
+            this.attendance = { svg: data.svg, checkedIn: data.checked_in, learners: data.learners, failed: false };
+            next = Math.max(1, Number(data.refresh_in) || 30);
+        } catch {
+            this.attendance = { ...this.attendance, svg: '', failed: true };
+        }
+        if (this.$refs.attendanceDialog?.open) {
+            this.attendanceTimer = setTimeout(() => this.loadAttendanceCode(), next * 1000);
+        }
+    },
 
     askClearAll() {
         this.$refs.clearAllDialog.showModal();

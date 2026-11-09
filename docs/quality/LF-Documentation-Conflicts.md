@@ -236,12 +236,14 @@ trung lập.
 
 # Active Conflict Register
 
-Active items: 6. DOC-CONFLICT-0016 và DOC-CONFLICT-0017 đóng 2026-08-25;
+Active items: 5. DOC-CONFLICT-0016 và DOC-CONFLICT-0017 đóng 2026-08-25;
 DOC-CONFLICT-0018 và DOC-CONFLICT-0019 đóng 2026-08-27 bằng đợt amendment tài
 liệu của miền Media. DOC-CONFLICT-0020 và DOC-CONFLICT-0021 được Owner đóng
 2026-08-27; hiệu lực runtime/schema vẫn chịu Gate M/Gate R. DOC-CONFLICT-0022,
 0023 và 0024 được Owner đóng 2026-08-28 và 2026-08-29. DOC-CONFLICT-0025 được
 Owner đóng 2026-08-30 bằng Amendment 2.19 sau khi đo resource fixture thật.
+DOC-CONFLICT-0011 đóng 2026-11-09 cùng đợt điểm danh bằng mã QR (ADR-0002 § Attendance
+Check-In Amendment).
 
 Con số `Active items` được `docs:lint` đối chiếu tự động với số dòng có Status
 khác `RESOLVED`; cột Status của bảng dưới vẫn là nguồn sự thật.
@@ -263,7 +265,7 @@ khác `RESOLVED`; cột Status của bảng dưới vẫn là nguồn sự thậ
 | DOC-CONFLICT-0006 | Recording table doc không khớp migration | IMPLEMENTATION_DRIFT | ACCEPTED_TEMPORARILY | MEDIUM | LiveClass × Media | Database Owner | Trước khi phát triển tab Ghi hình |
 | DOC-CONFLICT-0007 | Attendance table doc không khớp migration | IMPLEMENTATION_DRIFT | ACCEPTED_TEMPORARILY | MEDIUM | LiveClass | Database Owner | Trước khi phát triển tab Điểm danh |
 | DOC-CONFLICT-0008 | Attendance/Recording chưa có Architecture Review chuyên biệt | GAP | ACCEPTED_TEMPORARILY | MEDIUM | LiveClass | Architecture Team | Trước khi phát triển hai tab |
-| DOC-CONFLICT-0011 | Attendance ghi được cho Enrollment không `active` | IMPLEMENTATION_DRIFT | ACCEPTED_TEMPORARILY | LOW (giảm từ HIGH) | LiveClass × Course | Domain Owner (LiveClass) | Trước khi mở lại tab Điểm danh |
+| DOC-CONFLICT-0011 | Attendance ghi được cho Enrollment không `active` | IMPLEMENTATION_DRIFT | RESOLVED | LOW (giảm từ HIGH) | LiveClass × Course | Domain Owner (LiveClass) | Đóng 2026-11-09: điểm danh tay và quét QR chỉ ghi Enrollment `active` |
 | DOC-CONFLICT-0014 | `course_category` được dùng làm `owner_type` nhưng không tài liệu nào đặt tên nó | IMPLEMENTATION_DRIFT | DECISION_REQUIRED | LOW | Media × Course | Domain Owner (Media) | Immediate Owner decision |
 | DOC-CONFLICT-0015 | `owner_type` không có ràng buộc vật lý nên vocabulary trôi không bị phát hiện | GAP | DECISION_REQUIRED | MEDIUM | Media | Database Owner | Immediate, after 0014 |
 | DOC-CONFLICT-0028 | Migration nới `idempotency_key` lên 320 được apply trong lúc gỡ lỗi runtime, chưa qua Database Review/Gate M | GAP | RESOLVED | MEDIUM | Media | Database Owner | Đóng 2026-08-30 bằng Owner attestation |
@@ -624,7 +626,7 @@ Notes: Chấp nhận tạm theo quyết định phạm vi ngày 2026-08-10.
 Conflict ID: DOC-CONFLICT-0011
 Title: Attendance ghi được cho Enrollment không còn active
 Classification: IMPLEMENTATION_DRIFT
-Status: ACCEPTED_TEMPORARILY
+Status: RESOLVED
 Impact: LOW (giảm từ HIGH sau khi endpoint bị khóa fail-closed ngày 2026-08-10)
 Detected At: 2026-08-10
 Detected By: Architecture Review — Course Cohort module
@@ -646,12 +648,13 @@ Required Decision: Đã chốt 2026-08-10 — phương án (B): khóa tab Điể
 Resolution Authority: Domain Owner (LiveClass)
 Resolution Plan: Khóa endpoint ghi và trạng thái tab bằng một cờ cấu hình phía server; giữ nguyên dữ liệu đã ghi nhận; mở lại cùng lúc với việc thiết kế lại chức năng dưới DOC-CONFLICT-0008, và bắt buộc sửa điều kiện Enrollment trước khi mở
 Target Review Date: Not set — gắn với thời điểm phát triển tab Điểm danh
-Resolved At: Not resolved
-Resolution: Not resolved — đường tới lỗi đã bị đóng, nhưng khiếm khuyết gốc vẫn còn nguyên trong code
+Resolved At: 2026-11-09
+Resolution: saveAttendance chỉ nhận membership `active` có Enrollment `status = active`; quét QR dùng cùng điều kiện với người xem bảng (Enrollment `active` và trong thời hạn học). `suspended` không được điểm danh. Cờ `attendance_enabled` vẫn mặc định tắt (ADR-0002 § Attendance Check-In Amendment)
 Superseded/Updated Documents: docs/database/course/core_course_cohorts.md § Feature Availability Lock Amendment — 2026-08-10
 Verification Evidence: config/liveclass.php `attendance_enabled` mặc định false; CourseCohortOperationController::saveAttendance abort 403 fail-closed trước mọi kiểm tra khác; tests/Feature/CourseCohortManagementTest::test_attendance_and_recording_are_locked_at_the_server_while_unfinished; `php artisan test`
 Related ADR/Review/Issue/PR: DOC-CONFLICT-0008
 Notes: Cố ý KHÔNG dùng RESOLVED. Điều kiện thiếu (`enrollments.status = 'active'`) vẫn chưa được thêm vào saveAttendance — chỉ có đường tới nó bị đóng. Bật lại cờ mà chưa sửa sẽ làm lỗi ghi evidence cho learning cycle đã đóng quay lại nguyên vẹn; đây là điều kiện chặn bắt buộc của pha phát triển tab Điểm danh. Câu hỏi `suspended` có được điểm danh hay không vẫn chưa chốt.
+Verification Evidence (2026-11-09): tests/Feature/LiveClassAttendanceCheckInTest
 ```
 
 ---

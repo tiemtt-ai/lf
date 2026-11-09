@@ -473,3 +473,66 @@ a.lf-wb-btn { text-decoration: none; } /* "Vào phòng họp" is a link styled a
 @media (prefers-reduced-motion: reduce) {
     .lf-wb *, .lf-wb *::after { transition: none !important; animation: none !important; }
 }
+
+/* Attendance QR code (LF-Core-LiveClass § Attendance, Điểm danh bằng mã QR): big enough to scan from the back of the room. */
+.lf-wb-attendance .lf-wb-attendance__code {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: min(60vh, 440px, 100%);
+    aspect-ratio: 1;
+    margin: 12px auto 0;
+    background: #fff;
+    border-radius: 8px;
+}
+
+.lf-wb-attendance .lf-wb-attendance__code img {
+    width: 100%;
+    height: 100%;
+    image-rendering: pixelated;
+}
+
+.lf-wb-attendance .lf-wb-attendance__count {
+    margin: 12px 0 0;
+    text-align: center;
+    font-weight: 600;
+}
+
+/* Enlarged: the code fills the screen so learners at the back of the room can scan it. */
+.lf-admin-ui .ui-modal.lf-wb-attendance.is-large {
+    width: 100vw;
+    height: 100dvh;
+    max-width: none;
+    max-height: none;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+}
+
+.lf-wb-attendance.is-large .ui-modal__form {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.lf-wb-attendance.is-large .ui-modal__body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+}
+
+.lf-wb-attendance.is-large #lf-wb-attendance-help {
+    display: none;
+}
+
+.lf-wb-attendance.is-large .lf-wb-attendance__code {
+    width: min(100%, calc(100dvh - 260px));
+    margin-top: 0;
+}
+
+.lf-wb-attendance.is-large .lf-wb-attendance__count {
+    font-size: 1.5rem;
+}
