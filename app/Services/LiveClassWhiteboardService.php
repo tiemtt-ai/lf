@@ -308,6 +308,21 @@ class LiveClassWhiteboardService
         return $session;
     }
 
+    /**
+     * The Session's meeting link for "Vào phòng họp" (LF-Core-LiveClass § Whiteboard,
+     * Lối vào): only an online or hybrid Session, only an http(s) URL.
+     */
+    public static function meetingUrl(object $session): ?string
+    {
+        $url = trim((string) ($session->meeting_url_snapshot ?? ''));
+        if ($url === '' || ($session->delivery_mode ?? null) === 'offline') {
+            return null;
+        }
+        $scheme = strtolower((string) parse_url($url, PHP_URL_SCHEME));
+
+        return in_array($scheme, ['http', 'https'], true) && parse_url($url, PHP_URL_HOST) ? $url : null;
+    }
+
     private function context(object $session, int $userId, string $role, bool $canPresent = true): LiveClassBoardContext
     {
         abort_unless($session->cohort_status === 'active' && $session->status === 'live', 403,
@@ -333,6 +348,7 @@ class LiveClassWhiteboardService
             canPresent: $canPresent,
             plannedEndAt: $plannedEnd,
             deliveryMode: (string) ($session->delivery_mode ?? 'online'),
+            meetingUrl: self::meetingUrl($session),
         );
     }
 

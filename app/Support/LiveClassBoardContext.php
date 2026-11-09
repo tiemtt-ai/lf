@@ -31,5 +31,6 @@ final class LiveClassBoardContext
         public readonly bool $canPresent = true,
         public readonly ?CarbonImmutable $plannedEndAt = null,
         public readonly string $deliveryMode = 'online',
+        public readonly ?string $meetingUrl = null,
     ) {}
 }

@@ -51,10 +51,10 @@
             <button type="button" class="lf-wb-btn" x-on:click="clearPage()" x-bind:disabled="! hasPageContent" data-tooltip="{{ $t('clear_page') }}" aria-label="{{ $t('clear_page') }}"><x-backend-icon name="brush-cleaning" class="ui-icon" /></button>
             <button type="button" class="lf-wb-btn" x-on:click="askClearAll()" x-bind:disabled="! hasAnyContent" data-tooltip="{{ $t('clear_all') }}" aria-label="{{ $t('clear_all') }}"><x-backend-icon name="trash-2" class="ui-icon" /></button>
             <span class="lf-wb-sep" aria-hidden="true"></span>
-            <button type="button" class="lf-wb-btn" x-on:click="zoom(1 / 1.2)" data-tooltip="{{ $t('zoom_out') }}" aria-label="{{ $t('zoom_out') }}"><x-backend-icon name="zoom-out" class="ui-icon" /></button>
+            <button type="button" class="lf-wb-btn" data-wb-phone-hidden x-on:click="zoom(1 / 1.2)" data-tooltip="{{ $t('zoom_out') }}" aria-label="{{ $t('zoom_out') }}"><x-backend-icon name="zoom-out" class="ui-icon" /></button>
             <button type="button" class="lf-wb-btn lf-wb-btn--value" x-on:click="resetView()" data-tooltip="{{ $t('reset_view') }}" x-bind:aria-label="strings.reset_view + ' (' + zoomPercent + '%)'"><span x-text="zoomPercent + '%'"></span></button>
-            <button type="button" class="lf-wb-btn" x-on:click="zoom(1.2)" data-tooltip="{{ $t('zoom_in') }}" aria-label="{{ $t('zoom_in') }}"><x-backend-icon name="zoom-in" class="ui-icon" /></button>
-            <button type="button" class="lf-wb-btn" x-on:click="resetView()" data-tooltip="{{ $t('reset_view') }}" aria-label="{{ $t('reset_view') }}"><x-backend-icon name="scan" class="ui-icon" /></button>
+            <button type="button" class="lf-wb-btn" data-wb-phone-hidden x-on:click="zoom(1.2)" data-tooltip="{{ $t('zoom_in') }}" aria-label="{{ $t('zoom_in') }}"><x-backend-icon name="zoom-in" class="ui-icon" /></button>
+            <button type="button" class="lf-wb-btn" data-wb-phone-hidden x-on:click="resetView()" data-tooltip="{{ $t('reset_view') }}" aria-label="{{ $t('reset_view') }}"><x-backend-icon name="scan" class="ui-icon" /></button>
         </div>
 
         <div class="lf-wb-top__group lf-wb-top__group--end">
@@ -146,6 +146,12 @@
                     <x-backend-icon name="volume-2" class="ui-icon" x-show="soundOn" x-cloak />
                     <span x-text="listenLabel"></span>
                 </button>
+                @if ($context->meetingUrl)
+                    <a class="lf-wb-btn lf-wb-btn--text" href="{{ $context->meetingUrl }}" target="_blank" rel="noopener noreferrer" data-wb-meeting
+                       data-tooltip="{{ __('lf.LF_liveclass_whiteboard_join_meeting') }}" aria-label="{{ __('lf.LF_liveclass_whiteboard_join_meeting') }}" data-tooltip-placement="bottom-start">
+                        <x-backend-icon name="video" class="ui-icon" /><span>{{ __('lf.LF_liveclass_whiteboard_join_meeting') }}</span>
+                    </a>
+                @endif
             </div>
 
             <div class="lf-wb-notice" x-show="isViewing && material.kind === 'pdf' && material.local" x-cloak role="status">

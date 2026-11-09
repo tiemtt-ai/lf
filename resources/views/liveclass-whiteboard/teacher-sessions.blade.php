@@ -87,8 +87,8 @@
                                 </td>
                                 <td class="mk-text-cell" data-label="{{ __('lf.LF_liveclass_whiteboard_col_mode') }}">
                                     {{ __('lf.LF_course_cohort_session_mode_'.$session->delivery_mode) }}
-                                    @if ($session->meeting_url_snapshot && $session->delivery_mode !== 'offline')
-                                        <p class="ui-caption"><a class="ui-cohort-version-link" href="{{ $session->meeting_url_snapshot }}" target="_blank" rel="noopener noreferrer"><x-backend-icon name="external-link" class="ui-icon" />{{ __('lf.LF_liveclass_whiteboard_join_meeting') }}</a></p>
+                                    @if ($meetingUrl = \App\Services\LiveClassWhiteboardService::meetingUrl($session))
+                                        <p class="ui-caption"><a class="ui-cohort-version-link" href="{{ $meetingUrl }}" target="_blank" rel="noopener noreferrer"><x-backend-icon name="external-link" class="ui-icon" />{{ __('lf.LF_liveclass_whiteboard_join_meeting') }}</a></p>
                                     @elseif ($session->room_name_snapshot)
                                         <p class="ui-caption">{{ $session->room_name_snapshot }}</p>
                                     @endif

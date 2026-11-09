@@ -89,6 +89,7 @@ html, body.lf-wb-body { height: 100%; margin: 0; overflow: hidden; background: #
 .lf-wb-material:focus-visible { outline: 2px solid var(--ui-primary); outline-offset: 1px; }
 .lf-wb-btn:disabled { color: var(--ui-button-disabled-text); cursor: default; }
 .lf-wb-btn--text { padding: 0 10px; }
+a.lf-wb-btn { text-decoration: none; } /* "Vào phòng họp" is a link styled as a board button. */
 .lf-wb-btn--value { min-width: 56px; font-variant-numeric: tabular-nums; color: var(--ui-muted); }
 .lf-wb-btn--primary { padding: 0 12px; background: var(--ui-primary); color: var(--ui-white); }
 .lf-wb-btn--primary:hover:not(:disabled) { background: var(--ui-primary-hover); }
@@ -436,6 +437,20 @@ html, body.lf-wb-body { height: 100%; margin: 0; overflow: hidden; background: #
     .lf-wb-btn--text span,
     .lf-wb-btn--primary span { display: none; }
     .lf-wb-classname input { width: 120px; }
+}
+
+/* A phone: the top bar keeps only what fits one 360px row. Pinch zooms, and the
+   percentage button resets the view, so the zoom and reset buttons go. */
+@media (max-width: 600px) {
+    .lf-wb-top { gap: 4px; padding: 0 6px; }
+    .lf-wb-top__group { gap: 2px; }
+    .lf-wb-top__group--start,
+    .lf-wb-top__group--end { flex: none; }
+    .lf-wb-top .lf-wb-btn { min-width: 36px; height: 36px; padding: 0 6px; }
+    .lf-wb-top .lf-wb-btn--value { min-width: 44px; padding: 0 4px; }
+    .lf-wb-classname,
+    .lf-wb-sep,
+    .lf-wb-top [data-wb-phone-hidden] { display: none; }
 }
 
 /* A tall screen (a phone held upright): the video panel takes the video's height, not the whole board. */

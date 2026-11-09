@@ -28,10 +28,17 @@
                                 <strong>{{ $session->title }}</strong>
                                 <span>{{ $session->cohort_name }} · {{ $start->format('H:i') }}–{{ $end->format('H:i') }}</span>
                             </div>
-                            <a class="student-button" href="{{ route('student.live-sessions.board', $session->id) }}" target="lf-whiteboard-{{ $session->id }}"
-                               onclick="event.preventDefault(); const w = window.open(this.href, this.target, 'popup,width=1280,height=800'); if (w) w.focus(); else window.location.href = this.href;">
-                                {{ __('lf.LF_liveclass_whiteboard_learner_view') }}
-                            </a>
+                            <div class="student-live-actions">
+                                @if ($meetingUrl = \App\Services\LiveClassWhiteboardService::meetingUrl($session))
+                                    <a class="student-button is-outline" href="{{ $meetingUrl }}" target="_blank" rel="noopener noreferrer" data-live-meeting>
+                                        {{ __('lf.LF_liveclass_whiteboard_join_meeting') }}
+                                    </a>
+                                @endif
+                                <a class="student-button" href="{{ route('student.live-sessions.board', $session->id) }}" target="lf-whiteboard-{{ $session->id }}"
+                                   onclick="event.preventDefault(); const w = window.open(this.href, this.target, 'popup,width=1280,height=800'); if (w) w.focus(); else window.location.href = this.href;">
+                                    {{ __('lf.LF_liveclass_whiteboard_learner_view') }}
+                                </a>
+                            </div>
                         </li>
                     @endforeach
                 </ul>

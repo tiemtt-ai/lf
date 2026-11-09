@@ -4596,7 +4596,7 @@ return [
     'LF_liveclass_whiteboard_completed' => 'Đã kết thúc buổi học.',
     'LF_liveclass_whiteboard_start_not_today' => 'Chỉ bắt đầu được buổi học vào đúng ngày học.',
     'LF_liveclass_whiteboard_not_live' => 'Bảng điện tử chỉ mở khi buổi học đang diễn ra.',
-    'LF_liveclass_whiteboard_join_meeting' => 'Mở link học online',
+    'LF_liveclass_whiteboard_join_meeting' => 'Vào phòng họp',
     'LF_liveclass_whiteboard_title' => 'Bảng điện tử',
     'LF_liveclass_whiteboard_back' => 'Quay lại',
     'LF_liveclass_whiteboard_class_name' => 'Tên lớp (chỉ đổi trên máy này, không lưu)',

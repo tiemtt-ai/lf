@@ -1,12 +1,12 @@
 # LF-Core-LiveClass.md
 
-Version: 2.15
+Version: 2.17
 
 Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-11-08
+Last Updated: 2026-11-09
 
 Document Path: core/LF-Core-LiveClass.md
 
@@ -999,6 +999,14 @@ một điểm chung trong lifecycle service: xoá cache và khoá trình chiếu
   áp các thao tác có số thứ tự lớn hơn. Thấy hụt số thứ tự thì tải lại toàn bộ.
 * Mỗi thao tác tối đa 8 KB (Reverb giới hạn 10.000 byte); nét dài được chia nhỏ. Con
   trỏ và vị trí cuộn không lưu vào cache.
+* **Nét vẽ theo bút** (2026-11-09). Nét được gửi ngay khi đang vẽ, không chờ nhấc bút:
+  `stroke.add` lúc đặt bút, rồi `stroke.append` với các điểm mới. Hàng đợi gộp các đoạn
+  chưa gửi của cùng một nét thành một thao tác, và mỗi lần gửi cách nhau ít nhất 100 ms
+  (tối đa 10 lần/giây, dưới giới hạn 900 lần/phút của route gửi thao tác). Nét bị huỷ
+  giữa chừng (hai ngón tay, đổi công cụ, đổi trang, `pointercancel`) gửi `stroke.remove`;
+  nếu chưa gửi phần nào thì bỏ luôn, không gửi gì. Snapshot có cả nét đang vẽ. Máy xem
+  nhận lại điểm đã có (từ snapshot hoặc thao tác phát lại) thì bỏ qua phần trùng; hụt
+  điểm thì tải lại toàn bộ. Không đổi loại thao tác của ADR-0002.
 
 ## Âm thanh, video và chế độ nghe — Amendment 2026-11-08 (Approved)
 
@@ -1055,10 +1063,16 @@ vai trò:
 | --- | --- | --- |
 | Giáo viên | Danh sách buổi học của giáo viên: "Bắt đầu buổi học", "Mở bảng" | `/teacher/...` |
 | Admin | Chi tiết buổi đang `live` trong tab Buổi học của Lớp học: "Mở bảng" | `/admin/...` |
-| Học viên | Trang khoá học, khi buổi đang `live`: "Xem bảng" | `/my-courses/...`, `role:student` |
+| Học viên | Mục "Buổi học đang diễn ra" trên `/my-courses`, khi buổi đang `live`: "Xem bảng" | `/my-courses/...`, `role:student` |
 
-Trang khoá học của học viên chưa có (`/my-courses` mới là trang giữ chỗ); lối vào
-của học viên làm cùng trang đó. Bảng mở trong cửa sổ riêng, có nút toàn màn hình.
+Bảng mở trong cửa sổ riêng, có nút toàn màn hình.
+
+**Vào phòng họp** (2026-11-09). Bảng không mang giọng nói hay hình (ADR-0002 § Hybrid
+delivery); nói chuyện hai chiều đi qua phòng họp của Session. Buổi `online` hoặc `hybrid`
+có `meeting_url_snapshot` dạng `http`/`https` thì có nút "Vào phòng họp", mở tab mới, ở:
+danh sách buổi học của giáo viên, mục "Buổi học đang diễn ra" của học viên và thanh trạng
+thái đồng bộ trên bảng (mọi vai trò). Buổi `offline`, không có link hoặc link không phải `http`/`https`
+thì không có nút. Link chỉ hiện cho người đã qua kiểm tra quyền mở bảng của Session đó.
 
 ## Giao diện
 

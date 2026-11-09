@@ -584,6 +584,45 @@ class LiveClassWhiteboardTest extends TestCase
         $this->assertSame('hybrid', $config($student, self::HOST."/my-courses/live-sessions/{$live}/board")['deliveryMode']);
     }
 
+    public function test_join_meeting_shows_an_online_sessions_http_link_to_people_who_may_open_the_board(): void
+    {
+        $setup = $this->setupClass();
+        $live = $this->liveSession($setup, 'Live', '2026-07-04 15:00:00', '2026-07-04 17:00:00', status: 'live', teacher: $setup['teacher']);
+        $student = $this->learner($setup);
+        $link = 'https://meet.example.test/room-1?pwd=a&b=c';
+        $pages = [
+            [$student, self::HOST.'/my-courses', 'data-live-meeting'],
+            [$student, self::HOST."/my-courses/live-sessions/{$live}/board", 'data-wb-meeting'],
+            [$setup['teacher'], self::HOST."/teacher/live-sessions/{$live}/board", 'data-wb-meeting'],
+            [$setup['teacher'], self::HOST.'/teacher/live-sessions', 'Vào phòng họp'],
+        ];
+        $shows = function (bool $expected) use ($pages, $link): void {
+            foreach ($pages as [$user, $url, $marker]) {
+                $html = $this->actingAs($user)->get($url)->assertOk()->getContent();
+                $this->assertSame($expected, str_contains($html, e($link)) && str_contains($html, $marker), $url);
+            }
+        };
+
+        // Offline: no button even with a link.
+        DB::table('core_liveclass_sessions')->where('id', $live)->update(['meeting_url_snapshot' => $link]);
+        $shows(false);
+
+        DB::table('core_liveclass_sessions')->where('id', $live)->update(['delivery_mode' => 'online']);
+        $shows(true);
+
+        // Only http(s) links become a button.
+        DB::table('core_liveclass_sessions')->where('id', $live)->update(['meeting_url_snapshot' => 'javascript:alert(1)']);
+        foreach ($pages as [$user, $url]) {
+            $this->assertStringNotContainsString('javascript:alert', $this->actingAs($user)->get($url)->assertOk()->getContent());
+        }
+
+        // A learner of another cohort never sees it.
+        DB::table('core_liveclass_sessions')->where('id', $live)->update(['meeting_url_snapshot' => $link]);
+        $outsider = $this->user($setup['customer'], 'student');
+        $this->assertStringNotContainsString(e($link), $this->actingAs($outsider)->get(self::HOST.'/my-courses')->assertOk()->getContent());
+        $this->actingAs($outsider)->get(self::HOST."/my-courses/live-sessions/{$live}/board")->assertNotFound();
+    }
+
     public function test_every_way_out_of_live_ends_the_board_and_clears_its_state(): void
     {
         Event::fake([LiveClassWhiteboardBroadcast::class]);

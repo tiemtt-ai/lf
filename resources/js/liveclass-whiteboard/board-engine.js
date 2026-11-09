@@ -1,5 +1,6 @@
 import { clamp, round1, strokeHit, uid } from './geometry';
 import { centredView, fitScales } from './board-view';
+import { extendStroke, growStroke } from './board-stroke';
 
 // Business behaviour follows the AllVia e-board: six pen colours, six note
 // colours, ten undo steps, a 20px grid, wheel zoom 0.3–3 on a blank board and
@@ -186,9 +187,19 @@ export class BoardEngine {
         };
     }
 
-    /** Own pages as plain data, for the presenter's snapshot. */
+    /**
+     * Own pages as plain data, for the presenter's snapshot. A stroke still being
+     * drawn is included: viewers already have its first part.
+     */
     pagesData() {
-        return pagesToObject(this.pages);
+        const data = pagesToObject(this.pages);
+        const gesture = this.gesture;
+        if (gesture?.type === 'stroke') {
+            const page = data[gesture.page] ?? { paths: [], notes: [] };
+            data[gesture.page] = { ...page, paths: [...page.paths, { ...gesture.stroke, points: gesture.stroke.points.slice() }] };
+        }
+
+        return data;
     }
 
     /** Current page size in world units, so viewers without the file can place strokes. */
@@ -234,20 +245,21 @@ export class BoardEngine {
         }
         const target = this.remotePage(page);
         switch (event.type) {
-            case 'stroke.add':
-                if (isStroke(event.stroke) && ! target.paths.some((stroke) => stroke.id === event.stroke.id)) {
+            case 'stroke.add': {
+                if (! isStroke(event.stroke)) {
+                    break;
+                }
+                const existing = target.paths.find((stroke) => stroke.id === event.stroke.id);
+                if (existing) {
+                    growStroke(existing, event.stroke);
+                } else {
                     target.paths = [...target.paths, { ...event.stroke, points: event.stroke.points.slice() }];
                 }
                 break;
+            }
             case 'stroke.append': {
                 const stroke = target.paths.find((item) => item.id === event.id);
-                const from = Number(event.from);
-                if (! stroke || ! Array.isArray(event.points)) {
-                    break;
-                }
-                if (stroke.points.length === from) {
-                    stroke.points.push(...event.points);
-                } else if (stroke.points.length < from) {
+                if (stroke && ! extendStroke(stroke, event.from, event.points)) {
                     return false;
                 }
                 break;
@@ -543,6 +555,7 @@ export class BoardEngine {
                 this.gesture = {
                     type: 'stroke',
                     pointerId: event.pointerId,
+                    page: this.page,
                     stroke: {
                         id: uid('s'),
                         tool: this.tool,
@@ -551,6 +564,8 @@ export class BoardEngine {
                         points: [[round1(world[0]), round1(world[1])]],
                     },
                 };
+                // Sent while drawing, so viewers see the line follow the pen (§ Nét vẽ theo bút).
+                this.emit('stroke.add', { page: this.page, stroke: { ...this.gesture.stroke, points: this.gesture.stroke.points.slice() } });
                 this.requestRender();
                 break;
             case 'eraser':
@@ -616,6 +631,7 @@ export class BoardEngine {
                 const coalesced = event.getCoalescedEvents?.() ?? [];
                 const samples = coalesced.length ? coalesced : [event];
                 const points = gesture.stroke.points;
+                const from = points.length;
                 const minStep = 0.75 / this.view.scale;
                 samples.forEach((sample) => {
                     const [x, y] = this.toWorld(this.screenPoint(sample));
@@ -624,6 +640,9 @@ export class BoardEngine {
                         points.push([round1(x), round1(y)]);
                     }
                 });
+                if (points.length > from) {
+                    this.emit('stroke.append', { page: gesture.page, id: gesture.stroke.id, from, points: points.slice(from) });
+                }
                 this.requestRender();
                 break;
             }
@@ -662,12 +681,14 @@ export class BoardEngine {
         delete this.canvas.dataset.panning;
 
         if (gesture.type === 'stroke' && event.type !== 'pointercancel') {
+            // Viewers already have every point: the stroke was sent while it was drawn.
             const page = this.currentPage();
             this.pushHistory(snapshotOf(page));
             page.paths = [...page.paths, gesture.stroke];
             this.baseDirty = true;
-            this.emit('stroke.add', { page: this.page, stroke: gesture.stroke });
             this.changed();
+        } else if (gesture.type === 'stroke') {
+            this.dropLiveStroke(gesture);
         } else if (gesture.type === 'erase') {
             if (gesture.erased) {
                 this.changed();
@@ -718,12 +739,20 @@ export class BoardEngine {
         if (this.gesture?.type === 'erase' && this.gesture.erased) {
             this.changed();
         }
+        if (this.gesture?.type === 'stroke') {
+            this.dropLiveStroke(this.gesture);
+        }
         this.gesture = null;
         delete this.canvas.dataset.panning;
         if (! keepPointers) {
             this.pointers.clear();
         }
         this.requestRender();
+    }
+
+    /** A stroke cut off before the pen lifted is not kept; viewers drop the part they got. */
+    dropLiveStroke(gesture) {
+        this.emit('stroke.remove', { page: gesture.page, ids: [gesture.stroke.id] });
     }
 
     eraseAt(world) {

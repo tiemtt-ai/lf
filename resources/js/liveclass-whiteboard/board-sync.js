@@ -5,6 +5,7 @@
 // then apply events in sequence; a gap triggers a full resync.
 import Echo from 'laravel-echo';
 import Pusher from 'pusher-js';
+import { cancelsUnsentStroke, mergeStrokeEvent } from './board-stroke';
 
 const FLUSH_MS = 100;
 const HEARTBEAT_MS = 20_000;
@@ -98,6 +99,7 @@ export class BoardSync {
         this.queue = [];
         this.flushTimer = 0;
         this.inflight = false;
+        this.sentAt = 0;
         this.retry = 0;
         this.timers = [];
         this.stopped = false;
@@ -307,10 +309,20 @@ export class BoardSync {
         if (this.mode !== 'presenting' || this.stopped) {
             return;
         }
+        const last = this.queue.at(-1)?.kind === 'event' ? this.queue.at(-1).event : null;
+        const merged = mergeStrokeEvent(last, event);
         if (EPHEMERAL.has(event.type)) {
             // Only the latest pointer position or view matters.
             this.queue = this.queue.filter((item) => item.kind !== 'event' || item.event.type !== event.type);
             this.queue.push({ kind: 'event', event });
+        } else if (merged && wireSize(merged) <= this.limit) {
+            // The unsent parts of a stroke being drawn travel as one event.
+            this.queue[this.queue.length - 1] = { kind: 'event', event: merged };
+        } else if (cancelsUnsentStroke(last, event)) {
+            // A stroke cut off before any of it was sent: nothing to tell viewers.
+            this.queue.pop();
+
+            return;
         } else {
             this.split(event).forEach((item) => this.queue.push(item));
         }
@@ -335,7 +347,7 @@ export class BoardSync {
         }
     }
 
-    /** Long strokes go as stroke.add plus stroke.append parts; anything else too big becomes a refresh. */
+    /** Long strokes go as stroke.add plus stroke.append parts, each part at most STROKE_CHUNK points; anything else too big becomes a refresh. */
     split(event) {
         if (wireSize(event) <= this.limit) {
             return [{ kind: 'event', event }];
@@ -345,6 +357,14 @@ export class BoardSync {
             const items = [{ kind: 'event', event: { ...event, stroke: { ...event.stroke, points: points.slice(0, STROKE_CHUNK) } } }];
             for (let from = STROKE_CHUNK; from < points.length; from += STROKE_CHUNK) {
                 items.push({ kind: 'event', event: { type: 'stroke.append', page: event.page, id: event.stroke.id, from, points: points.slice(from, from + STROKE_CHUNK) } });
+            }
+
+            return items;
+        }
+        if (event.type === 'stroke.append' && Array.isArray(event.points)) {
+            const items = [];
+            for (let offset = 0; offset < event.points.length; offset += STROKE_CHUNK) {
+                items.push({ kind: 'event', event: { ...event, from: event.from + offset, points: event.points.slice(offset, offset + STROKE_CHUNK) } });
             }
 
             return items;
@@ -368,6 +388,7 @@ export class BoardSync {
             return;
         }
         this.inflight = true;
+        this.sentAt = Date.now();
         const first = this.queue[0];
         let batch = [];
         try {
@@ -396,7 +417,9 @@ export class BoardSync {
             return;
         }
         this.inflight = false;
-        this.scheduleFlush(0);
+        // At most one request per FLUSH_MS, even while a stroke keeps the queue busy:
+        // the events route allows 900 a minute (15 a second).
+        this.scheduleFlush(Math.max(0, FLUSH_MS - (Date.now() - this.sentAt)));
     }
 
     flushFailed(error, batch) {

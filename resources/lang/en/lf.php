@@ -4596,7 +4596,7 @@ return [
     'LF_liveclass_whiteboard_completed' => 'The session has ended.',
     'LF_liveclass_whiteboard_start_not_today' => 'A session can only be started on its scheduled day.',
     'LF_liveclass_whiteboard_not_live' => 'The whiteboard opens only while the session is live.',
-    'LF_liveclass_whiteboard_join_meeting' => 'Open the online meeting',
+    'LF_liveclass_whiteboard_join_meeting' => 'Join the meeting',
     'LF_liveclass_whiteboard_title' => 'Whiteboard',
     'LF_liveclass_whiteboard_back' => 'Back',
     'LF_liveclass_whiteboard_class_name' => 'Class name (changes on this device only, not saved)',
