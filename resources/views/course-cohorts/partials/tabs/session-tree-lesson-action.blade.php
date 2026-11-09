@@ -13,9 +13,9 @@
                 aria-label="{{ __('lf.LF_course_template_lesson_common_edit') }}: {{ $lesson->title_snapshot }}"
                 data-tooltip="{{ __('lf.LF_course_template_lesson_common_edit') }}"
                 @if ($treeLessonOpen)
-                    x-on:click="editSession(@js($treeLessonOpen), 'lesson')"
+                    x-on:click="editSession(@js($treeLessonOpen))"
                 @else
-                    x-on:click="openProposal(@js($treeLessonProposed), 'lesson')"
+                    x-on:click="openProposal(@js($treeLessonProposed))"
                 @endif>
             <x-backend-icon name="square-pen" class="ui-icon" />
             <span class="ui-sr-only">{{ __('lf.LF_course_template_lesson_common_edit') }}</span>

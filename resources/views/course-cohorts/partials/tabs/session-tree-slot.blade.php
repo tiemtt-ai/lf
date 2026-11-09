@@ -7,7 +7,7 @@
     $sessionTeacherNames = $session->teacher_team->isNotEmpty() ? $session->teacher_team->pluck('name')->join(', ') : $session->primary_teacher_name;
     $sessionEndsLifecycleOpen = in_array($session->status, ['scheduled', 'live'], true);
 @endphp
-<div class="ui-cohort-session-tree__slot" @if ($slotProposal) data-proposed-activity="{{ $slotProposal['activity_id'] }}" @else data-session-id="{{ $session->id }}" @endif>
+<div @class(['ui-cohort-session-tree__slot', 'ui-cohort-session-tree__slot--cancelled' => $session->status === 'cancelled']) @if ($slotProposal) data-proposed-activity="{{ $slotProposal['activity_id'] }}" @else data-session-id="{{ $session->id }}" @endif>
     <div class="ui-cohort-session-tree__when">
         @if ($showTitle)
             <span class="mk-name-text">{{ $session->title }}</span>
@@ -25,6 +25,9 @@
             __('lf.LF_course_cohort_session_mode_'.$session->delivery_mode),
             $session->timezone && $session->timezone !== config('app.timezone') ? $session->timezone : null,
         ])->filter()->implode(' · ') }}</span>
+        @if ($session->status === 'cancelled' && filled($session->cancellation_reason ?? null))
+            <span class="ui-caption" data-cancellation-reason>{{ __('lf.LF_course_cohort_session_status_reason') }}: {{ $session->cancellation_reason }}</span>
+        @endif
     </div>
     <div class="ui-cohort-session-tree__teachers">
         @if ($sessionTeacherNames)

@@ -1,10 +1,5 @@
-{{-- On a live activity's row, where the Content tab has its actions: view and edit its session or its date from the Schedule. --}}
+{{-- On a live activity's row: view its session (and start or finish it from there). The session is edited only on the lesson row,
+     since a lesson holds one live session (2026-11-09); late teachers and a locked session's new time keep their own buttons. --}}
 @if ($activitySlots['session'])
-    @include('course-cohorts.partials.tabs.session-tree-slot-actions', ['session' => $activitySlots['session'], 'slotProposal' => $activitySlots['proposal'], 'slotEditLabel' => __('lf.LF_course_cohort_session_edit_activity')])
-@elseif ($activitySlots['proposal'] && $canCreateSession)
-    <button type="button" class="ux-row-edit cursor-interaction" aria-haspopup="dialog"
-            aria-label="{{ __('lf.LF_course_cohort_session_edit_activity') }}: {{ $activity->title_snapshot }}" data-tooltip="{{ __('lf.LF_course_cohort_session_edit_activity') }}"
-            x-on:click="openProposal(@js($activitySlots['proposal']))">
-        <x-backend-icon name="square-pen" class="ui-icon" />
-    </button>
+    @include('course-cohorts.partials.tabs.session-tree-slot-actions', ['session' => $activitySlots['session'], 'slotProposal' => $activitySlots['proposal'], 'slotEditable' => false])
 @endif

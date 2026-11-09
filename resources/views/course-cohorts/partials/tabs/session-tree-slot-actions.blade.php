@@ -2,6 +2,8 @@
 @php
     $slotProposal = $slotProposal ?? null;
     $slotEditLabel = $slotEditLabel ?? __('lf.LF_course_cohort_session_edit');
+    // False on an activity row: its session is edited on the lesson row.
+    $slotEditable = $slotEditable ?? true;
     $sessionEndsLifecycleOpen = in_array($session->status, ['scheduled', 'live'], true);
     // Session status là thao tác vận hành nên chỉ mở khi lớp đang hoạt động.
     $sessionLifecycle = $cohort->status !== 'active' || $slotProposal ? [] : array_filter([
@@ -25,14 +27,14 @@
         <x-backend-icon name="calendar" class="ui-icon" />
     </button>
 @endif
-@if ($slotProposal && $canCreateSession)
+@if ($slotEditable && $slotProposal && $canCreateSession)
     <button type="button" class="ux-row-edit cursor-interaction" aria-haspopup="dialog"
             aria-label="{{ $slotEditLabel }}: {{ $session->title }}" data-tooltip="{{ $slotEditLabel }}"
             x-on:click="openProposal(@js($slotProposal))">
         <x-backend-icon name="square-pen" class="ui-icon" />
     </button>
 @endif
-@if ($session->can_edit && $cohort->is_mutable)
+@if ($slotEditable && $session->can_edit && $cohort->is_mutable)
     <button type="button" class="ux-row-edit cursor-interaction" aria-haspopup="dialog"
             aria-label="{{ $slotEditLabel }}: {{ $session->title }}" data-tooltip="{{ $slotEditLabel }}"
             x-on:click="editSession(@js($session))">

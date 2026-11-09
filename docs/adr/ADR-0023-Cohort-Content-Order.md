@@ -1,16 +1,16 @@
 # ADR-0023 — Cohort Content Order
 
-Version: 1.4
+Version: 1.5
 
 Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-11-05
+Last Updated: 2026-11-09
 
 Proposal Date: 2026-11-05
 
-Approval Date: 2026-11-05 (bản 1.3 ghi quyết định cả box đi theo bài và cách 1 của Owner; bản 1.4 ghi việc lưu Lịch học tự tạo Session)
+Approval Date: 2026-11-05 (bản 1.3 ghi quyết định cả box đi theo bài và cách 1 của Owner; bản 1.4 ghi việc lưu Lịch học tự tạo Session; bản 1.5, Owner duyệt 2026-11-09, ghi việc hủy buổi thì dời các bài sau)
 
 Document Path: adr/ADR-0023-Cohort-Content-Order.md
 
@@ -187,6 +187,27 @@ Form buổi học mở trước một lần kéo không được ghi đè kết 
 Lesson và Activity lúc mở; `updateSession` khóa dòng Cohort và từ chối nếu Session đã được
 gắn sang Activity khác. `storeSession` từ một ngày trên chương trình cũng từ chối nếu
 occurrence đó không còn là ngày của Activity đã chọn. Cách này không cần cột mới.
+
+## 9. Hủy buổi thì dời các bài sau (bản 1.5)
+
+Owner duyệt 2026-11-09. Trước bản này, hủy buổi của bài k chỉ để trống vị trí đó; ngày gợi ý
+cho buổi bù là ngày trống đầu tiên, thường nằm sau các bài k+1, k+2, nên học viên học bài sau
+trước bài trước. Từ bản 1.5:
+
+* Hủy một Session theo chương trình chưa gây khóa (mục 4) làm ngày của nó bị bỏ qua. Bài k và
+  mọi Activity `live_class` phía sau lùi một vị trí: box của Activity i (tên, hình thức, link,
+  phòng, địa chỉ, giáo viên) chuyển sang ngày của vị trí i+1, như một lần kéo ở mục 3. Không
+  Session nào đổi giờ, nên không có dòng audit đổi lịch.
+* Box của bài k lấy từ Session vừa hủy. Session vừa hủy ở lại Activity của nó làm lịch sử,
+  với `superseded_by_session_id` trỏ tới Session đang mang bài k sau khi dời.
+* Activity cuối nhận ngày trống tiếp theo của Lịch học: nếu nó đã có Session thì được lưu tại
+  ngày đó kèm Origin (mục 3, trường hợp 5); không còn ngày trống thì bài đó hiện "Chưa có ngày".
+* Không dời, chỉ hủy, khi: Session đã gây khóa (đã đến giờ, `live`, có evidence); Activity của
+  nó vẫn còn một Session khác đang giao; hoặc một vị trí phía sau bị khóa, có hơn một Session
+  sửa được, hoặc phải lưu vào vị trí không có ngày. Thông báo sau khi hủy nói rõ có dời hay không.
+* Giáo viên trong box phải dạy được ở ngày mới; nếu không, cả lần hủy bị từ chối và thông báo
+  nêu tên giáo viên và ngày.
+* Cùng transaction với việc hủy, cùng thứ tự khóa của mục 8. Không đổi schema.
 
 ---
 

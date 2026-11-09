@@ -6,6 +6,12 @@
         ->filter(fn (object $session): bool => \App\Services\CourseCohortContentTree::delivers($session))
         ->sortBy('scheduled_start_at')
         ->values();
+    // A cancelled session before the lesson's current date makes that date a make-up (2026-11-09).
+    $treeLessonCancelled = $treeLiveActivities
+        ->flatMap(fn (object $item) => $sessionTree['sessionsByActivity']->get($item->id, collect()))
+        ->where('status', 'cancelled')
+        ->sortByDesc('scheduled_start_at')
+        ->first();
     $treeLessonProposal = $treeLiveActivities
         ->map(fn (object $item) => $sessionTree['proposals'][$item->id]['occurrence'] ?? null)
         ->filter()
@@ -25,6 +31,11 @@
     @if ($treeLessonSessions->isNotEmpty())
         {{-- How the lesson's session is delivered: in class, in class with remote learners, or online. --}}
         <span class="ui-session-mode ui-session-mode--{{ $treeLessonSessions->first()->delivery_mode }}" data-session-mode="{{ $treeLessonSessions->first()->delivery_mode }}">{{ __('lf.LF_course_cohort_session_mode_'.$treeLessonSessions->first()->delivery_mode) }}</span>
+    @endif
+    @if ($treeLessonCancelled && ($treeLessonSessions->isNotEmpty() || $treeLessonProposal))
+        @php $makeupFor = \Illuminate\Support\Carbon::parse($treeLessonCancelled->scheduled_start_at); @endphp
+        <span class="ui-status ui-status--draft ui-cohort-session-edited" data-session-makeup
+              title="{{ __('lf.LF_course_cohort_session_makeup_for', ['date' => $makeupFor->format('d/m/Y').' · '.$makeupFor->format('H:i')]) }}">{{ __('lf.LF_course_cohort_session_makeup') }}</span>
     @endif
     @if ($treeLessonSessions->first()?->schedule_relation === 'rescheduled')
         @include('course-cohorts.partials.tabs.session-tree-date-edited', ['session' => $treeLessonSessions->first()])

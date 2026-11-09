@@ -3005,12 +3005,18 @@ class CourseCohortManagementTest extends TestCase
         $this->assertDatabaseHas('core_liveclass_sessions', ['version_activity_id' => $b['activity'], 'delivery_mode' => 'hybrid', 'meeting_url_snapshot' => 'https://meet.example.test/b']);
 
         // The form picks In class or Online, with a box for remote learners; the lesson row shows the mode.
-        $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=sessions")->assertOk()
+        $sessionsTab = $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=sessions")->assertOk();
+        // One edit per session, on its lesson row: the live activity row has none (2026-11-09).
+        $this->assertSame(2, substr_count($sessionsTab->getContent(), 'x-on:click="editSession('));
+        $sessionsTab
             ->assertSee('name="session_place" value="offline"', false)
             ->assertSee('name="session_place" value="online"', false)
             ->assertSeeText(__('lf.LF_course_cohort_session_remote'))
             ->assertSee('data-session-mode="offline"', false)
-            ->assertSee('data-session-mode="hybrid"', false);
+            ->assertSee('data-session-mode="hybrid"', false)
+            // A lesson holds one live session, edited on the lesson row only; its activity row keeps view.
+            ->assertSee(e(__('lf.LF_course_template_lesson_common_edit').': Lesson A'), false)
+            ->assertSee(e(__('lf.LF_course_cohort_session_details')).': ', false);
     }
 
     public function test_the_class_default_meeting_link_fills_new_sessions_and_sessions_without_a_link(): void
@@ -3058,6 +3064,82 @@ class CourseCohortManagementTest extends TestCase
         $this->assertSame('https://meet.example.test/own', $read('https://meet.example.test/own', 'online'));
         $this->assertSame('https://meet.example.test/class', $read(null, 'hybrid'));
         $this->assertNull($read(null, 'offline'));
+    }
+
+    public function test_a_cancelled_session_reads_as_history_and_its_replacement_as_a_make_up(): void
+    {
+        [$customerId, $admin, $cohortId, $versionId] = $this->reorderCohort();
+        [$a] = $this->programme($customerId, $versionId, ['Lesson A']);
+        $page = "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=sessions";
+        $first = $this->programmeSession($admin, $cohortId, $a, 'Lesson A', '2026-08-10');
+        DB::table('core_liveclass_sessions')->where('id', $first)->update(['status' => 'cancelled', 'cancellation_reason' => 'Teacher ill']);
+
+        // Cancelled with nothing in its place yet: history, no make-up.
+        $response = $this->actingAs($admin)->get($page)->assertOk();
+        $this->assertMatchesRegularExpression('/data-cancelled-sessions="1"\s+open/', $response->getContent());
+        $response
+            ->assertSee('ui-cohort-session-tree__slot--cancelled', false)
+            ->assertSeeText(__('lf.LF_course_cohort_session_status_reason').': Teacher ill');
+
+        $this->programmeSession($admin, $cohortId, $a, 'Lesson A', '2026-08-12');
+        $this->actingAs($admin)->get($page)->assertOk()
+            ->assertSee('data-session-makeup', false)
+            ->assertSee(e(__('lf.LF_course_cohort_session_makeup_for', ['date' => '10/08/2026 · 09:00'])), false)
+            ->assertSeeText(__('lf.LF_course_cohort_session_cancelled_group'));
+
+        // Several cancelled sessions fold into one line.
+        $second = (int) DB::table('core_liveclass_sessions')->where('cohort_id', $cohortId)->orderByDesc('id')->value('id');
+        DB::table('core_liveclass_sessions')->where('id', $second)->update(['status' => 'cancelled']);
+        $response = $this->actingAs($admin)->get($page)->assertOk();
+        $this->assertMatchesRegularExpression('/data-cancelled-sessions="2"\s*>/', $response->getContent());
+        $response->assertSeeText(__('lf.LF_course_cohort_session_cancelled_group_count', ['count' => 2]));
+    }
+
+    public function test_cancelling_a_session_moves_its_lesson_and_the_later_ones_one_date_down(): void
+    {
+        [$customerId, $admin, $cohortId, $versionId] = $this->reorderCohort();
+        [$a, $b, $c] = $this->programme($customerId, $versionId, ['Lesson A', 'Lesson B', 'Lesson C']);
+        $this->weeklySchedule($admin, $cohortId, '2026-08-10', '2026-08-31');
+        $sessionOf = fn (array $item) => DB::table('core_liveclass_sessions')->where('cohort_id', $cohortId)
+            ->where('version_activity_id', $item['activity'])->where('status', 'scheduled')->first();
+        $dates = fn () => [substr((string) $sessionOf($a)?->scheduled_start_at, 0, 10), substr((string) $sessionOf($b)?->scheduled_start_at, 0, 10), substr((string) $sessionOf($c)?->scheduled_start_at, 0, 10)];
+        $this->assertSame(['2026-08-10', '2026-08-17', '2026-08-24'], $dates());
+        $first = $sessionOf($a);
+        $rowB = $sessionOf($b);
+        // Lesson B is taught in room R-B: the room travels with the lesson.
+        DB::table('core_liveclass_sessions')->where('id', $rowB->id)->update(['delivery_mode' => 'offline', 'room_name_snapshot' => 'R-B', 'meeting_url_snapshot' => null]);
+
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions/{$first->id}/cancel", ['reason' => 'Teacher ill'])
+            ->assertSessionHas('success', __('lf.LF_course_cohort_session_lifecycle_cancelled_shifted'));
+
+        // A takes B's date, B takes C's, C the next free Monday; nothing changed time.
+        $this->assertSame(['2026-08-17', '2026-08-24', '2026-08-31'], $dates());
+        $this->assertSame((int) $rowB->id, (int) $sessionOf($a)->id);
+        $this->assertSame('offline', $sessionOf($b)->delivery_mode);
+        $this->assertSame('R-B', $sessionOf($b)->room_name_snapshot);
+        $this->assertDatabaseHas('core_liveclass_sessions', ['id' => $first->id, 'status' => 'cancelled', 'version_activity_id' => $a['activity'], 'superseded_by_session_id' => $rowB->id]);
+        $this->assertSame(0, DB::table('core_liveclass_session_schedule_changes')->whereIn('session_id', [$rowB->id])->count());
+
+        // Cancelling the last lesson moves nothing.
+        $last = $sessionOf($c);
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions/{$last->id}/cancel")
+            ->assertSessionHas('success', __('lf.LF_course_cohort_session_lifecycle_cancelled'));
+        $this->assertSame(['2026-08-17', '2026-08-24', ''], $dates());
+    }
+
+    public function test_a_cancel_that_would_move_a_locked_session_cancels_without_moving(): void
+    {
+        [$customerId, $admin, $cohortId, $versionId] = $this->reorderCohort();
+        [$a, $b] = $this->programme($customerId, $versionId, ['Lesson A', 'Lesson B']);
+        $this->weeklySchedule($admin, $cohortId, '2026-08-10', '2026-08-31');
+        $rowA = DB::table('core_liveclass_sessions')->where('version_activity_id', $a['activity'])->first();
+        $rowB = DB::table('core_liveclass_sessions')->where('version_activity_id', $b['activity'])->first();
+        DB::table('core_liveclass_sessions')->where('id', $rowB->id)->update(['actual_start_at' => now()]);
+
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions/{$rowA->id}/cancel")
+            ->assertSessionHas('success', __('lf.LF_course_cohort_session_lifecycle_cancelled'));
+        $this->assertDatabaseHas('core_liveclass_sessions', ['id' => $rowB->id, 'version_activity_id' => $b['activity'], 'scheduled_start_at' => $rowB->scheduled_start_at]);
+        $this->assertDatabaseHas('core_liveclass_sessions', ['id' => $rowA->id, 'status' => 'cancelled', 'superseded_by_session_id' => null]);
     }
 
     private function programmeSession(User $admin, int $cohortId, array $item, string $title, string $date, array $extra = []): int
@@ -3374,7 +3456,7 @@ class CourseCohortManagementTest extends TestCase
         );
     }
 
-    public function test_saving_from_a_programme_popup_says_what_was_edited(): void
+    public function test_saving_a_programme_session_says_the_lesson_was_edited(): void
     {
         [$customerId, $admin, $cohortId, $versionId] = $this->reorderCohort();
         [$a] = $this->programme($customerId, $versionId, ['Lesson A']);
@@ -3382,13 +3464,11 @@ class CourseCohortManagementTest extends TestCase
         $url = "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions/{$session}";
         $fields = ['session_type' => 'curriculum', 'title' => 'Lesson A', 'delivery_mode' => 'online', 'version_lesson_id' => $a['lesson'], 'version_activity_id' => $a['activity'], 'opened_version_activity_id' => $a['activity'], 'scheduled_start_at' => '2026-08-10 09:00:00', 'scheduled_end_at' => '2026-08-10 10:00:00'];
 
-        $this->actingAs($admin)->put($url, $fields + ['opened_scope' => 'activity'])->assertSessionHasNoErrors()
-            ->assertSessionHas('success', __('lf.LF_course_cohort_session_saved_activity'));
-        $this->actingAs($admin)->put($url, $fields + ['opened_scope' => 'lesson'])
+        $this->actingAs($admin)->put($url, $fields)->assertSessionHasNoErrors()
             ->assertSessionHas('success', __('lf.LF_course_cohort_session_saved_lesson'));
     }
 
-    public function test_the_activity_popup_shows_errors_of_the_fields_it_hides(): void
+    public function test_the_lesson_popup_shows_each_error_under_its_field(): void
     {
         [$customerId, $admin, $cohortId, $versionId] = $this->reorderCohort();
         [$a] = $this->programme($customerId, $versionId, ['Lesson A']);
@@ -3396,15 +3476,13 @@ class CourseCohortManagementTest extends TestCase
         $page = "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=sessions";
         $summary = '<div class="ui-field__error ui-cohort-manage-error" role="alert"';
 
-        foreach (['activity' => true, 'lesson' => false] as $scope => $summarised) {
-            $response = $this->actingAs($admin)->from($page)->followingRedirects()
-                ->put("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions/{$session}", [
-                    'form_context' => 'session', 'opened_scope' => $scope, 'editing_session_id' => $session,
-                    'opened_version_activity_id' => $a['activity'], 'original_start_at' => '2026-08-10T09:00',
-                    'session_type' => 'curriculum', 'title' => 'Lesson A', 'delivery_mode' => 'offline', 'room_name' => '', 'address' => '',
-                ])->assertOk();
-            $summarised ? $response->assertSee($summary, false) : $response->assertDontSee($summary, false);
-        }
+        // The room error sits under the room field, not in a summary at the top of the popup.
+        $this->actingAs($admin)->from($page)->followingRedirects()
+            ->put("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions/{$session}", [
+                'form_context' => 'session', 'editing_session_id' => $session,
+                'opened_version_activity_id' => $a['activity'], 'original_start_at' => '2026-08-10T09:00',
+                'session_type' => 'curriculum', 'title' => 'Lesson A', 'delivery_mode' => 'offline', 'room_name' => '', 'address' => '',
+            ])->assertOk()->assertDontSee($summary, false);
     }
 
     public function test_the_session_form_edits_schedule_and_teachers_but_only_shows_template_fields(): void
@@ -3419,10 +3497,9 @@ class CourseCohortManagementTest extends TestCase
 
         $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=sessions")->assertOk()
             ->assertSee('From the template')
-            ->assertSee(__('lf.LF_course_cohort_session_programme_form_help'))
             ->assertSee(__('lf.LF_course_cohort_session_lesson_form_help'))
             ->assertSee('Lesson summary from the template')
-            ->assertSee("'lesson')", false);
+            ->assertSee('x-on:click="editSession(', false);
 
         $this->actingAs($admin)->put("{$url}/{$session}", [
             'title' => 'Forged', 'session_type' => 'operational', 'delivery_mode' => 'offline', 'room_name' => 'R1', 'address' => 'A1',

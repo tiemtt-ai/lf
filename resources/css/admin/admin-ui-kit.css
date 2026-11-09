@@ -3168,6 +3168,14 @@
 .lf-admin-ui .ui-cohort-session-tree__slots { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .lf-admin-ui .ui-cohort-session-tree__slot { display: grid; grid-template-columns: minmax(180px, 1.2fr) minmax(100px, 1fr) minmax(90px, auto) auto; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 8px; background: var(--ui-color-f8f9fd); font-size: 13px; }
 .lf-admin-ui .ui-cohort-session-tree__slot--undated { display: flex; justify-content: space-between; }
+/* A cancelled session is history: muted, its date struck through, only View left. */
+.lf-admin-ui .ui-cohort-session-cancelled { display: grid; gap: 6px; }
+.lf-admin-ui .ui-cohort-session-cancelled__summary { display: inline-flex; align-items: center; gap: 4px; width: fit-content; font-size: 13px; font-weight: 500; color: var(--ui-muted); list-style: none; }
+.lf-admin-ui .ui-cohort-session-cancelled__summary::-webkit-details-marker { display: none; }
+.lf-admin-ui .ui-cohort-session-cancelled__summary .ui-icon { width: 14px; height: 14px; transition: transform .15s; }
+.lf-admin-ui .ui-cohort-session-cancelled[open] > .ui-cohort-session-cancelled__summary .ui-icon { transform: rotate(90deg); }
+.lf-admin-ui .ui-cohort-session-tree__slot--cancelled { background: transparent; border: 1px dashed var(--ui-border); color: var(--ui-muted); }
+.lf-admin-ui .ui-cohort-session-tree__slot--cancelled .ui-cohort-session-tree__time { color: var(--ui-muted); text-decoration: line-through; }
 .lf-admin-ui .ui-cohort-session-contacts { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; font-size: 13px; }
 .lf-admin-ui .ui-cohort-session-contacts li { display: flex; flex-wrap: wrap; gap: 4px 12px; }
 .lf-admin-ui .ui-cohort-session-contacts a { color: var(--ui-primary); overflow-wrap: anywhere; }

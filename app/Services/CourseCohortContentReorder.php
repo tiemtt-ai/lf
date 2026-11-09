@@ -90,6 +90,102 @@ class CourseCohortContentReorder
         });
     }
 
+    /**
+     * ADR-0023 §9: a cancelled programme Session gives up its date, so its lesson and every later live Activity
+     * move one position down. Position i's date takes the box of Activity i-1; the last Activity takes the next
+     * free date. Call it inside the cancelling transaction. Returns whether anything moved.
+     */
+    public function shiftAfterCancel(int $customerId, object $cohort, int $cancelledId, int $actorId): bool
+    {
+        $shifted = false;
+        $this->inTransaction($customerId, $cohort, function (Collection $sessions) use ($customerId, $cohort, $cancelledId, $actorId, &$shifted): void {
+            $cancelled = $sessions->firstWhere('id', $cancelledId);
+            if (! $cancelled || $cancelled->status !== 'cancelled' || $cancelled->locks_position || ! $cohort->version_id) {
+                return;
+            }
+            $versionId = (int) $cohort->version_id;
+            $live = $this->contentTree->liveActivities($customerId, (int) $cohort->id, $versionId)->values();
+            $start = $live->search(fn (object $activity): bool => (int) $activity->id === (int) $cancelled->version_activity_id);
+            $byActivity = $sessions->groupBy(fn (object $session): int => (int) $session->version_activity_id);
+            $delivering = fn (object $activity): Collection => $byActivity->get((int) $activity->id, collect())
+                ->filter(fn (object $session): bool => CourseCohortContentTree::delivers($session))->values();
+            if ($start === false || $delivering($live[$start])->isNotEmpty()) {
+                return;
+            }
+
+            // Each later position: its Session, or its date from the Schedule as it stood before the cancel.
+            $beforeCancel = DB::table('core_liveclass_sessions')->where('customer_id', $customerId)->where('cohort_id', $cohort->id)->get()
+                ->map(fn (object $session): object => (int) $session->id === $cancelledId ? (object) (['status' => 'scheduled'] + (array) $session) : $session);
+            $dates = $this->contentTree->proposals($customerId, (int) $cohort->id, $versionId, $beforeCancel,
+                $this->sessionReadModel->plannedOccurrences($customerId, (int) $cohort->id));
+            $rows = [$start => null];
+            $sources = [$start => $cancelled];
+            for ($index = $start + 1; $index < $live->count(); $index++) {
+                $here = $delivering($live[$index]);
+                if ($here->count() > 1 || $here->contains(fn (object $session): bool => $session->locks_position || ! $session->can_edit)) {
+                    return;
+                }
+                $rows[$index] = $here->first();
+                $sources[$index] = $here->first();
+                // Saved content would land on a position without a date.
+                if (! $rows[$index] && $sources[$index - 1] && ! ($dates[(int) $live[$index]->id]['occurrence'] ?? null)) {
+                    return;
+                }
+            }
+
+            $titles = DB::table('core_course_template_version_lessons')
+                ->where('customer_id', $customerId)->where('template_version_id', $versionId)
+                ->pluck('title_snapshot', 'id');
+            $teams = DB::table('core_liveclass_session_teachers')
+                ->where('customer_id', $customerId)->whereIn('session_id', collect($sources)->filter()->pluck('id'))
+                ->get(['session_id', 'teacher_id', 'role'])
+                ->groupBy(fn (object $teacher): int => (int) $teacher->session_id);
+            $teamOf = fn (?object $session): Collection => $session ? $teams->get((int) $session->id, collect()) : collect();
+
+            // Check every move before writing any.
+            $writes = [];
+            for ($index = $start + 1; $index < $live->count(); $index++) {
+                $source = $sources[$index - 1];
+                $row = $rows[$index];
+                $date = $row ? null : ($dates[(int) $live[$index]->id]['occurrence'] ?? null);
+                if (! $row && ! $source) {
+                    continue;
+                }
+                $this->assertTeachersCanTeach($customerId, (int) $cohort->id, $teamOf($source),
+                    $row ? substr((string) $row->scheduled_start_at, 0, 10) : (string) $date['date']);
+                $writes[] = [$row, $date, $this->boxOf($source, $live[$index - 1], $titles, $cohort), $teamOf($source), $index - 1];
+            }
+
+            $holderOfCancelled = null;
+            foreach ($writes as [$row, $date, $box, $team, $activityIndex]) {
+                $sessionId = $row ? $this->moveBoxOnto($customerId, $row, $box) : $this->saveAtDate($customerId, $cohort, $date, $box, $actorId);
+                $this->replaceTeam($customerId, $sessionId, $team, $actorId);
+                if ($activityIndex === $start) {
+                    $holderOfCancelled = $sessionId;
+                }
+            }
+
+            // The last Activity, if it had a Session, keeps its box on the next free date.
+            $last = $live->count() - 1;
+            $lastSource = $sources[$last];
+            if ($last > $start && $lastSource) {
+                $free = $this->unsavedDates($customerId, $cohort, $sessions)[(int) $live[$last]->id]['occurrence'] ?? null;
+                if ($free) {
+                    $this->assertTeachersCanTeach($customerId, (int) $cohort->id, $teamOf($lastSource), (string) $free['date']);
+                    $this->replaceTeam($customerId, $this->saveAtDate($customerId, $cohort, $free, $this->boxOf($lastSource, $live[$last], $titles, $cohort), $actorId), $teamOf($lastSource), $actorId);
+                }
+            }
+
+            if ($holderOfCancelled) {
+                DB::table('core_liveclass_sessions')->where('customer_id', $customerId)->where('id', $cancelledId)
+                    ->update(['superseded_by_session_id' => $holderOfCancelled, 'updated_at' => now()]);
+            }
+            $shifted = $writes !== [];
+        });
+
+        return $shifted;
+    }
+
     /** Cohort first, then its Sessions, the order every Session write in the Cohort follows; §4 is judged inside the lock at one instant. */
     private function inTransaction(int $customerId, object $cohort, callable $reorder): void
     {

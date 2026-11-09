@@ -366,8 +366,8 @@ class CourseCohortOperationController extends Controller
     }
 
     /**
-     * The Programme popups edit an activity or a lesson: saving one is an edit for
-     * the admin, even when its date from the Schedule creates the Session only now.
+     * A programme session is edited on its lesson row: saving it is an edit of the lesson
+     * for the admin, even when its date from the Schedule creates the Session only now.
      */
     private function sessionSavedMessage(Request $request, string $default): string
     {
@@ -375,9 +375,7 @@ class CourseCohortOperationController extends Controller
             return __($default);
         }
 
-        return __($request->input('opened_scope') === 'lesson'
-            ? 'lf.LF_course_cohort_session_saved_lesson'
-            : 'lf.LF_course_cohort_session_saved_activity');
+        return __('lf.LF_course_cohort_session_saved_lesson');
     }
 
     public function storeSession(Request $request, int $cohort): RedirectResponse
@@ -840,10 +838,15 @@ class CourseCohortOperationController extends Controller
     {
         $customerId = $this->authorizeAdmin($request);
         $validated = $request->validate(['reason' => ['nullable', 'string', 'max:1000']]);
-        $this->sessionLifecycleService->cancel($customerId, $cohort, $session, $validated['reason'] ?? null);
+        // ADR-0023 §9: cancelling a programme session moves its lesson and the later ones one position down, in one transaction.
+        $shifted = DB::transaction(function () use ($customerId, $cohort, $session, $validated, $request): bool {
+            $this->sessionLifecycleService->cancel($customerId, $cohort, $session, $validated['reason'] ?? null);
+
+            return $this->contentReorder->shiftAfterCancel($customerId, $this->cohort($customerId, $cohort), $session, (int) $request->user()->id);
+        });
 
         return $this->tab($cohort, 'sessions')
-            ->with('success', __('lf.LF_course_cohort_session_lifecycle_cancelled'));
+            ->with('success', __($shifted ? 'lf.LF_course_cohort_session_lifecycle_cancelled_shifted' : 'lf.LF_course_cohort_session_lifecycle_cancelled'));
     }
 
     public function markSessionNoShow(Request $request, int $cohort, int $session): RedirectResponse

@@ -599,8 +599,11 @@ chọn và tên hiển thị.
 * Form buổi học (popup Sửa bài học và buổi ngoài chương trình) chọn Tại lớp hoặc Trực
   tuyến. Tại lớp: Phòng học bắt buộc, Địa chỉ **không bắt buộc**, ô "Có người tham gia
   từ xa". Trực tuyến hoặc có người từ xa: Link phòng họp. Popup Sửa bài học sửa được link
-  (trước đây link chỉ sửa ở popup Sửa hoạt động; popup này vẫn giữ).
+  (trước đây link chỉ sửa ở popup Sửa hoạt động, nay đã bỏ).
 * Dòng bài học trong tab Buổi học có nhãn hình thức cạnh ngày giờ.
+* Buổi học chỉ sửa ở **dòng bài học** (mỗi bài một Buổi học trực tiếp). Dòng hoạt động
+  "Buổi học trực tiếp" không còn nút sửa; vẫn có nút xem (bắt đầu, kết thúc buổi), nút
+  đổi giờ khi buổi đã khóa sửa và nút thêm giáo viên muộn.
 * Giáo viên (danh sách buổi): nhãn hình thức; nút "Mở bảng" và "Vào phòng họp" (buổi có
   link `http`/`https`).
 * Học viên ("Buổi học đang diễn ra"): Tại lớp chỉ hiện hướng dẫn quét mã QR trên màn hình
@@ -813,6 +816,11 @@ recurring Schedule persistence:
 * completed or archived Cohorts expose historical Sessions read-only and do
   not accept new Sessions;
 * cancelled and no-show Sessions remain visible and are never hard deleted.
+* 2026-11-09 ([ADR-0023 §9](../adr/ADR-0023-Cohort-Content-Order.md)): cancelling a programme
+  Session that has not started moves its lesson and every later live Activity one date down
+  (no time changes); the cancelled Session stays on its Activity with
+  `superseded_by_session_id` set to the Session now carrying that lesson. In the Sessions tab
+  it shows under "Buổi đã hủy", and the lesson date carries a "Buổi bù" badge.
 
 ---
 
