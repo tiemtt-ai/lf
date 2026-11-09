@@ -906,6 +906,13 @@ class CourseTemplatePublishingTest extends TestCase
 
         $this->actingAs($admin)->get($url)->assertOk()->assertSee('media/files/', false)->assertDontSee('tests/activity-', false);
 
+        // ADR-0022 Amendment 1.1: a Template still stored as `scheduled` publishes a class-based Version.
+        DB::table('core_course_templates')->where('id', $templateId)->update(['course_type' => 'scheduled']);
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-templates/{$templateId}/publish");
+        $this->assertSame('blended', DB::table('core_course_template_versions')->where('template_id', $templateId)
+            ->orderByDesc('version_number')->value('course_type_snapshot'));
+        DB::table('core_course_templates')->where('id', $templateId)->update(['course_type' => $version->course_type_snapshot]);
+
         // ADR-0022: the page shows the type frozen into this Version, whatever the working Template has now.
         $frozenType = $version->course_type_snapshot;
         $otherType = $frozenType === 'blended' ? 'scheduled' : 'blended';

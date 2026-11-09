@@ -718,6 +718,10 @@ class CourseTemplateManagementTest extends TestCase
         ]);
         $update('blended')->assertSessionHasErrors(['course_type' => __('lf.LF_course_type_change_locked')]);
         $this->assertSame('self_paced', DB::table('core_course_templates')->where('id', $templateId)->value('course_type'));
+
+        // A locked legacy `scheduled` Template saved as `blended` keeps its type: it is not a change (ADR-0022 Amendment 1.1).
+        DB::table('core_course_templates')->where('id', $templateId)->update(['course_type' => 'scheduled']);
+        $update('blended')->assertSessionHasNoErrors();
         // Saving other fields without the type keeps the locked value.
         $this->actingAs($admin)->put("https://tenant-a.localhost/admin/course-templates/{$templateId}", $create)->assertSessionHasNoErrors();
     }

@@ -3036,6 +3036,21 @@ class CourseCohortManagementTest extends TestCase
         ])->assertSessionHasNoErrors();
         $this->assertDatabaseHas('core_liveclass_sessions', ['title' => 'Extra', 'meeting_url_snapshot' => 'https://meet.example.test/class']);
 
+        // Saving a session as In class + remote with its link cleared takes the class's link again.
+        $sessionId = (int) DB::table('core_liveclass_sessions')->where('version_activity_id', $a['activity'])->value('id');
+        DB::table('core_liveclass_sessions')->where('id', $sessionId)->update(['meeting_url_snapshot' => 'https://meet.example.test/old']);
+        $this->actingAs($admin)->put("{$cohortUrl}/sessions/{$sessionId}", [
+            'title' => 'Lesson A', 'session_type' => 'curriculum',
+            'version_lesson_id' => $a['lesson'], 'version_activity_id' => $a['activity'],
+            'delivery_mode' => 'hybrid', 'room_name' => 'Room 201', 'meeting_url' => '',
+            'scheduled_start_at' => '2026-08-10 09:00:00', 'scheduled_end_at' => '2026-08-10 10:00:00',
+        ])->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('core_liveclass_sessions', ['id' => $sessionId, 'delivery_mode' => 'hybrid', 'meeting_url_snapshot' => 'https://meet.example.test/class']);
+
+        // The admin detail never offers the meeting of an in-class session.
+        $this->actingAs($admin)->get("{$cohortUrl}?tab=sessions")->assertOk()
+            ->assertSee("data-session-meeting-link x-show=\"detailSession?.delivery_mode !== 'offline'", false);
+
         // A session's own link wins; one left without a link reads the class's at join time, an in-class one never.
         $read = fn (?string $own, string $mode) => LiveClassWhiteboardService::meetingUrl((object) [
             'meeting_url_snapshot' => $own, 'delivery_mode' => $mode, 'cohort_meeting_url' => 'https://meet.example.test/class',

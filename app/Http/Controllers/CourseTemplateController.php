@@ -435,7 +435,8 @@ class CourseTemplateController extends Controller
         $validated['course_type'] ??= $template->course_type;
 
         DB::transaction(function () use ($customerId, $id, $request, $validated, $template): void {
-            if ($validated['course_type'] !== $template->course_type) {
+            // A legacy `scheduled` Template submitted as `blended` is the same type (ADR-0022 Amendment 1.1).
+            if (! CourseType::same($validated['course_type'], $template->course_type)) {
                 // Serialize with Activity writes and Product binding, then check against the locked graph.
                 DB::table('core_course_templates')->where('customer_id', $customerId)->where('id', $id)->lockForUpdate()->first();
                 app(CourseTemplateCourseTypeService::class)->assertCanChange($customerId, $id, $validated['course_type']);

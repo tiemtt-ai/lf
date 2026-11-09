@@ -32,7 +32,7 @@
                 <div class="ui-field__error ui-cohort-manage-error" role="alert" x-show="showFormErrors">{{ $formSummaryErrors->first() }}</div>
             @endif
             <div class="ui-modal__grid">
-                {{-- Opened on a lesson row: the fields of the Template's lesson form. The session's link is edited on its activity, so here it is only kept. --}}
+                {{-- Opened on a lesson row: the fields of the Template's lesson form. The session's place and meeting link are edited below. --}}
                 <template x-if="lessonScope()">
                     <dl class="ui-summary ui-field--full ui-cohort-session-template">
                         <template x-for="row in (programmeLessonRows[lessonId] || [])" :key="row.label">

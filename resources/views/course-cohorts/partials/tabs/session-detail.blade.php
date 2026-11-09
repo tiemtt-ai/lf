@@ -41,7 +41,8 @@
                     <dt>{{ __('lf.LF_course_cohort_session_provider') }}</dt>
                     <dd x-text="detailSession?.online_provider || meetingProvider(detailSession?.meeting_url_snapshot || detailSession?.activity_meeting_url) || @js(__('lf.LF_course_cohort_session_meeting_not_available'))"></dd>
                 </div>
-                <div class="ui-summary__item" x-show="detailSession?.meeting_url_snapshot || detailSession?.activity_meeting_url">
+                {{-- An in-class session has no meeting; the class's default link only serves online and hybrid sessions. --}}
+                <div class="ui-summary__item" data-session-meeting-link x-show="detailSession?.delivery_mode !== 'offline' && (detailSession?.meeting_url_snapshot || detailSession?.activity_meeting_url)">
                     <dt>{{ __('lf.LF_course_cohort_session_meeting_url') }}</dt>
                     <dd><a class="ui-cohort-version-link" x-bind:href="detailSession?.meeting_url_snapshot || detailSession?.activity_meeting_url" target="_blank" rel="noopener noreferrer"><x-backend-icon name="external-link" class="ui-icon" />{{ __('lf.LF_course_cohort_session_join') }}</a></dd>
                 </div>

@@ -2753,7 +2753,7 @@ return [
     'LF_course_cohort_session_meeting_url' => 'Link phòng họp',
     'LF_course_cohort_session_meeting_url_placeholder' => 'Dán liên kết tham gia buổi học',
     'LF_course_cohort_session_copy_meeting_url' => 'Sao chép liên kết tham gia',
-    'LF_course_cohort_session_curriculum_meeting_help' => 'Tự điền link có sẵn của buổi học mẫu (nếu có). Có thể nhập link riêng cho buổi này hoặc bổ sung sau.',
+    'LF_course_cohort_session_curriculum_meeting_help' => 'Tự điền link phòng họp mặc định của lớp (sửa ở tab Tổng quan, nút Chỉnh sửa). Có thể nhập link riêng cho buổi này hoặc bổ sung sau.',
     'LF_course_cohort_session_operational_meeting_help' => 'Không bắt buộc. Có thể bổ sung liên kết tham gia sau.',
     'LF_course_cohort_session_meeting_not_available' => 'Chưa có thông tin',
     'LF_course_cohort_session_room' => 'Phòng học',

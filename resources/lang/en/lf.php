@@ -2753,7 +2753,7 @@ return [
     'LF_course_cohort_session_meeting_url' => 'Meeting link',
     'LF_course_cohort_session_meeting_url_placeholder' => 'Paste the session join link',
     'LF_course_cohort_session_copy_meeting_url' => 'Copy join link',
-    'LF_course_cohort_session_curriculum_meeting_help' => 'Prefilled with the template lesson link when there is one. You can enter a link for this session or add it later.',
+    'LF_course_cohort_session_curriculum_meeting_help' => 'Prefilled with the class default meeting link (edit it from the class overview). You can enter a link for this session or add it later.',
     'LF_course_cohort_session_operational_meeting_help' => 'Optional. A join link can be added later.',
     'LF_course_cohort_session_meeting_not_available' => 'Not available',
     'LF_course_cohort_session_room' => 'Classroom',
