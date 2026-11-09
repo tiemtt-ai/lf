@@ -1099,6 +1099,8 @@ return [
     'LF_course_cohort_common_start_date' => 'Ngày bắt đầu vận hành',
     'LF_course_cohort_common_end_date' => 'Ngày kết thúc vận hành',
     'LF_course_cohort_common_metadata' => 'Metadata JSON',
+    'LF_course_cohort_default_meeting_url' => 'Link phòng họp mặc định',
+    'LF_course_cohort_default_meeting_url_help' => 'Buổi học trực tuyến hoặc có người học từ xa tự lấy link này khi buổi chưa có link riêng. Đổi link không sửa link đã lưu ở từng buổi.',
     'LF_course_cohort_common_notes' => 'Ghi chú',
     'LF_course_cohort_empty_notes' => 'Chưa có ghi chú.',
     'LF_course_cohort_common_product' => 'Sản phẩm',

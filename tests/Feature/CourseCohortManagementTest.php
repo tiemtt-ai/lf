@@ -7,6 +7,7 @@ use App\Services\CourseCohortContentTree;
 use App\Services\CourseCohortLifecycleService;
 use App\Services\LiveClassCohortSessionReadModel;
 use App\Services\LiveClassScheduleSessionGenerator;
+use App\Services\LiveClassWhiteboardService;
 use App\Support\SimpleXlsx;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -3010,6 +3011,38 @@ class CourseCohortManagementTest extends TestCase
             ->assertSeeText(__('lf.LF_course_cohort_session_remote'))
             ->assertSee('data-session-mode="offline"', false)
             ->assertSee('data-session-mode="hybrid"', false);
+    }
+
+    public function test_the_class_default_meeting_link_fills_new_sessions_and_sessions_without_a_link(): void
+    {
+        [$customerId, $admin, $cohortId, $versionId] = $this->reorderCohort();
+        [$a] = $this->programme($customerId, $versionId, ['Lesson A']);
+        $cohortUrl = "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}";
+
+        $this->actingAs($admin)->put($cohortUrl, $this->validCohortData(['default_meeting_url' => 'ftp://meet.example.test/x']))
+            ->assertSessionHasErrors('default_meeting_url');
+        $this->actingAs($admin)->put($cohortUrl, $this->validCohortData(['default_meeting_url' => ' https://meet.example.test/class ']))
+            ->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('core_course_cohorts', ['id' => $cohortId, 'default_meeting_url' => 'https://meet.example.test/class']);
+        $this->actingAs($admin)->get($cohortUrl)->assertOk()->assertSee('data-cohort-default-meeting', false)
+            ->assertSee('value="https://meet.example.test/class"', false);
+
+        // A new lesson session and a new operational session without a link take the class's.
+        $this->programmeSession($admin, $cohortId, $a, 'Lesson A', '2026-08-10');
+        $this->assertDatabaseHas('core_liveclass_sessions', ['version_activity_id' => $a['activity'], 'meeting_url_snapshot' => 'https://meet.example.test/class']);
+        $this->actingAs($admin)->post("{$cohortUrl}/sessions", [
+            'title' => 'Extra', 'session_type' => 'operational', 'delivery_mode' => 'online',
+            'scheduled_start_at' => '2026-08-12 09:00:00', 'scheduled_end_at' => '2026-08-12 10:00:00',
+        ])->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('core_liveclass_sessions', ['title' => 'Extra', 'meeting_url_snapshot' => 'https://meet.example.test/class']);
+
+        // A session's own link wins; one left without a link reads the class's at join time, an in-class one never.
+        $read = fn (?string $own, string $mode) => LiveClassWhiteboardService::meetingUrl((object) [
+            'meeting_url_snapshot' => $own, 'delivery_mode' => $mode, 'cohort_meeting_url' => 'https://meet.example.test/class',
+        ]);
+        $this->assertSame('https://meet.example.test/own', $read('https://meet.example.test/own', 'online'));
+        $this->assertSame('https://meet.example.test/class', $read(null, 'hybrid'));
+        $this->assertNull($read(null, 'offline'));
     }
 
     private function programmeSession(User $admin, int $cohortId, array $item, string $title, string $date, array $extra = []): int

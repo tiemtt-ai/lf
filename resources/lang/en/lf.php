@@ -1099,6 +1099,8 @@ return [
     'LF_course_cohort_common_start_date' => 'Operation start date',
     'LF_course_cohort_common_end_date' => 'Operation end date',
     'LF_course_cohort_common_metadata' => 'Metadata JSON',
+    'LF_course_cohort_default_meeting_url' => 'Default meeting link',
+    'LF_course_cohort_default_meeting_url_help' => 'Online sessions and sessions with remote learners use this link when they have none of their own. Changing it does not change links already saved on sessions.',
     'LF_course_cohort_common_notes' => 'Notes',
     'LF_course_cohort_empty_notes' => 'No notes yet.',
     'LF_course_cohort_common_product' => 'Product',

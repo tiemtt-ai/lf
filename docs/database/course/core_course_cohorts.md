@@ -228,6 +228,21 @@ Approved theo [ADR-0022](../../adr/ADR-0022-Course-Type-On-Template.md).
 * Online / offline / hybrid là `delivery_mode` của Session. Lớp "hybrid" là
   lớp có cả buổi online và buổi offline, không phải một loại khóa học.
 
+### Default Meeting Link Amendment — 2026-11-09 (Approved)
+
+Owner duyệt 2026-11-09 (Đợt B, [LF-Core-LiveClass](../../core/LF-Core-LiveClass.md)
+§ Buổi tự học và link mặc định của lớp). Thêm cột `default_meeting_url`; mục
+`meeting_url` trong Deferred Fields được thay bằng cột này.
+
+* Link phòng họp dùng chung của lớp, nhập ở popup sửa lớp, không bắt buộc.
+* Buổi học trực tuyến hoặc có người tham gia từ xa lấy link theo thứ tự: link riêng
+  của buổi (`core_liveclass_sessions.meeting_url_snapshot`) → `default_meeting_url`
+  → `live_class_url_snapshot` của Version Activity (chỉ cho dữ liệu cũ).
+* Tạo buổi mới (form, Lưu lịch, kéo thả nội dung chưa có buổi) chép link mặc định
+  vào buổi. Đổi link của lớp không sửa link đã lưu của buổi; buổi để trống link thì
+  khi mở phòng họp đọc link của lớp.
+* Buổi Tại lớp không dùng link.
+
 ---
 
 ## Relationships
@@ -468,6 +483,19 @@ Cohort.
 
 ---
 
+### default_meeting_url
+
+```text
+VARCHAR(2000)
+NULL
+```
+
+Link phòng họp mặc định của lớp (Default Meeting Link Amendment 2026-11-09). Chỉ
+URL `http`/`https`; backend kiểm tra, không có CHECK database. `NULL` khi lớp chưa
+có phòng họp chung.
+
+---
+
 ### status
 
 ```text
@@ -648,7 +676,6 @@ enrollment_ends_at
 timezone
 schedule_summary
 meeting_provider
-meeting_url
 corporate_customer_name
 ```
 

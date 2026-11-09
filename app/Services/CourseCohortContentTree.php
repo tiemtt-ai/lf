@@ -164,6 +164,9 @@ class CourseCohortContentTree
         }
 
         return [
+            // The class's default join link comes before the Template's (core_course_cohorts § Default Meeting Link).
+            'meetingUrl' => DB::table('core_course_cohorts')->where('customer_id', $customerId)
+                ->where('id', $cohortId)->value('default_meeting_url') ?: null,
             'sections' => $sections,
             'lessons' => $lessons,
             'activities' => $activities,
@@ -230,14 +233,14 @@ class CourseCohortContentTree
             ->filter(fn (object $activity): bool => $activity->activity_type === 'live_class'
                 && ! $sessionsByActivity->get($activity->id, collect())->contains(fn (object $session): bool => self::delivers($session)))
             ->values()
-            ->each(function (object $activity, int $index) use (&$proposals, $freeOccurrences, $lessonTitles): void {
+            ->each(function (object $activity, int $index) use (&$proposals, $freeOccurrences, $lessonTitles, $tree): void {
                 $occurrence = $freeOccurrences->get($index);
                 $proposals[$activity->id] = [
                     'lesson_id' => (string) $activity->version_lesson_id,
                     'activity_id' => (string) $activity->id,
                     'lesson_title' => (string) $lessonTitles->get($activity->version_lesson_id),
                     'activity_title' => (string) $activity->title_snapshot,
-                    'meeting_url' => $activity->live_class_url_snapshot,
+                    'meeting_url' => $tree['meetingUrl'] ?? $activity->live_class_url_snapshot,
                     'occurrence' => $occurrence,
                     'occurrence_key' => $occurrence
                         ? implode('|', [$occurrence['schedule_id'], $occurrence['schedule_slot_id'], $occurrence['date']])

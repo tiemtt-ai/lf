@@ -417,7 +417,8 @@ class CourseCohortOperationController extends Controller
         $validated = $this->canonicalSessionBinding(
             $customerId,
             (int) $cohortRow->version_id,
-            $validated
+            $validated,
+            $cohortRow->default_meeting_url ?? null
         );
         $timezone = $origin['timezone'] ?? config('app.timezone');
         if ($movedInterval) {
@@ -577,7 +578,8 @@ class CourseCohortOperationController extends Controller
             $validated = $this->canonicalSessionBinding(
                 $customerId,
                 (int) $cohortRow->version_id,
-                $validated
+                $validated,
+                $cohortRow->default_meeting_url ?? null
             );
             $this->validateSessionScheduleWindow($cohortRow, $validated, $sessionRow->timezone);
             $sessionTeachers = $this->canonicalSessionTeacherTeam($customerId, $cohort, $validated);
@@ -990,11 +992,18 @@ class CourseCohortOperationController extends Controller
         ];
     }
 
-    private function canonicalSessionBinding(int $customerId, int $versionId, array $validated): array
+    /** An empty join link takes the class's default, then the Template's (core_course_cohorts § Default Meeting Link). */
+    private function canonicalSessionBinding(int $customerId, int $versionId, array $validated, ?string $cohortMeetingUrl = null): array
     {
+        $cohortMeetingUrl = filled($cohortMeetingUrl) ? trim($cohortMeetingUrl) : null;
         if ($validated['session_type'] === 'operational') {
             $validated['version_lesson_id'] = null;
             $validated['version_activity_id'] = null;
+            if (! filled($validated['meeting_url'] ?? null) && $cohortMeetingUrl) {
+                $validated['meeting_url'] = $cohortMeetingUrl;
+                $validated['online_provider'] = filled($validated['online_provider'] ?? null)
+                    ? $validated['online_provider'] : LiveClassMeetingProvider::fromUrl($cohortMeetingUrl);
+            }
 
             return $validated;
         }
@@ -1017,10 +1026,10 @@ class CourseCohortOperationController extends Controller
 
         $validated['version_lesson_id'] = $lessonId;
         $validated['version_activity_id'] = $activityId;
-        // The Session owns its join URL; the Activity URL is only a default.
+        // The Session owns its join URL; the class's link, then the Activity's, are only defaults.
         $meetingUrl = filled($validated['meeting_url'] ?? null)
             ? trim($validated['meeting_url'])
-            : $activity->live_class_url_snapshot;
+            : ($cohortMeetingUrl ?? $activity->live_class_url_snapshot);
         $validated['meeting_url'] = $meetingUrl;
         $validated['online_provider'] = LiveClassMeetingProvider::fromUrl($meetingUrl);
 

@@ -310,11 +310,15 @@ class LiveClassWhiteboardService
 
     /**
      * The Session's meeting link for "Vào phòng họp" (LF-Core-LiveClass § Whiteboard,
-     * Lối vào): only an online or hybrid Session, only an http(s) URL.
+     * Lối vào): only an online or hybrid Session, only an http(s) URL. A Session
+     * without its own link uses the class's default (core_course_cohorts § Default Meeting Link).
      */
     public static function meetingUrl(object $session): ?string
     {
         $url = trim((string) ($session->meeting_url_snapshot ?? ''));
+        if ($url === '') {
+            $url = trim((string) ($session->cohort_meeting_url ?? ''));
+        }
         if ($url === '' || ($session->delivery_mode ?? null) === 'offline') {
             return null;
         }
@@ -392,7 +396,7 @@ class LiveClassWhiteboardService
                 'sessions.version_lesson_id', 'sessions.title', 'sessions.session_type', 'sessions.delivery_mode',
                 'sessions.status', 'sessions.scheduled_start_at', 'sessions.scheduled_end_at', 'sessions.timezone',
                 'sessions.meeting_url_snapshot', 'sessions.room_name_snapshot',
-                'cohorts.name as cohort_name', 'cohorts.status as cohort_status',
+                'cohorts.name as cohort_name', 'cohorts.status as cohort_status', 'cohorts.default_meeting_url as cohort_meeting_url',
                 'lessons.title_snapshot as lesson_title',
             ]);
     }

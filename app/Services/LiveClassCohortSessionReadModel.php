@@ -46,6 +46,10 @@ class LiveClassCohortSessionReadModel
                 $join->on('lessons.id', '=', 'sessions.version_lesson_id')
                     ->where('lessons.customer_id', '=', $customerId);
             })
+            ->leftJoin('core_course_cohorts as cohorts', function ($join) use ($customerId): void {
+                $join->on('cohorts.id', '=', 'sessions.cohort_id')
+                    ->where('cohorts.customer_id', '=', $customerId);
+            })
             ->leftJoin('core_course_template_version_activities as activities', function ($join) use ($customerId): void {
                 $join->on('activities.id', '=', 'sessions.version_activity_id')
                     ->where('activities.customer_id', '=', $customerId);
@@ -61,7 +65,8 @@ class LiveClassCohortSessionReadModel
                 'sessions.*',
                 'lessons.title_snapshot as lesson_title',
                 'activities.title_snapshot as activity_title',
-                'activities.live_class_url_snapshot as activity_meeting_url',
+                // Shown when the Session has no link of its own: the class's, then the Template's.
+                DB::raw('COALESCE(cohorts.default_meeting_url, activities.live_class_url_snapshot) as activity_meeting_url'),
                 'teachers.name as primary_teacher_name',
                 'origins.id as schedule_origin_id',
                 'origins.schedule_id as source_schedule_id',

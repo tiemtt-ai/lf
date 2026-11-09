@@ -196,7 +196,7 @@ class CourseCohortContentReorder
             $team = $moving ? $teams->get((int) $moving->id, collect()) : collect();
             $localDate = $sessionHere ? substr((string) $sessionHere->scheduled_start_at, 0, 10) : (string) $date['date'];
             $this->assertTeachersCanTeach($customerId, (int) $cohort->id, $team, $localDate);
-            $writes[] = [$sessionHere, $date, $current, $this->boxOf($moving, $current, $titles), $team];
+            $writes[] = [$sessionHere, $date, $current, $this->boxOf($moving, $current, $titles, $cohort), $team];
         }
 
         foreach ($writes as [$sessionHere, $date, $current, $box, $team]) {
@@ -213,15 +213,17 @@ class CourseCohortContentReorder
      * @param  Collection<int|string, string>  $titles
      * @return array<string, mixed>
      */
-    private function boxOf(?object $session, object $activity, Collection $titles): array
+    private function boxOf(?object $session, object $activity, Collection $titles, object $cohort): array
     {
+        $defaultUrl = ($cohort->default_meeting_url ?? null) ?: $activity->live_class_url_snapshot;
+
         return [
             'version_lesson_id' => $activity->version_lesson_id,
             'version_activity_id' => $activity->id,
             'title' => $session ? $session->title : $titles[$activity->version_lesson_id],
             'delivery_mode' => $session ? $session->delivery_mode : 'online',
-            'online_provider' => $session ? $session->online_provider : LiveClassMeetingProvider::fromUrl($activity->live_class_url_snapshot),
-            'meeting_url_snapshot' => $session ? $session->meeting_url_snapshot : $activity->live_class_url_snapshot,
+            'online_provider' => $session ? $session->online_provider : LiveClassMeetingProvider::fromUrl($defaultUrl),
+            'meeting_url_snapshot' => $session ? $session->meeting_url_snapshot : $defaultUrl,
             'facility_name_snapshot' => $session?->facility_name_snapshot,
             'room_name_snapshot' => $session?->room_name_snapshot,
             'address_snapshot' => $session?->address_snapshot,

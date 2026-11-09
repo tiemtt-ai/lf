@@ -611,7 +611,8 @@ chọn và tên hiển thị.
 
 ### Buổi tự học và link mặc định của lớp — Đề xuất 2026-11-09
 
-Trạng thái: **Proposed**, chờ Owner duyệt. Chưa có migration, chưa có code.
+Trạng thái: Đợt B **Approved** (Owner duyệt 2026-11-09, đã có code); Đợt C
+**Proposed**, chờ Owner duyệt, chưa có migration, chưa có code.
 
 **Đợt B — Link phòng họp mặc định của lớp.**
 
@@ -621,6 +622,9 @@ Trạng thái: **Proposed**, chờ Owner duyệt. Chưa có migration, chưa có
   mặc định của lớp → `live_class_url_snapshot` của Version (chỉ cho dữ liệu cũ).
 * Lưu link mặc định của lớp **không** sửa link của buổi đã tạo; chỉ dùng khi tạo buổi mới
   hoặc khi buổi để trống link.
+* Đã làm: cột `default_meeting_url`, ô "Link phòng họp mặc định" trong popup sửa lớp;
+  tạo buổi (form, Lưu lịch, kéo thả) chép link; "Vào phòng họp" của giáo viên, học viên
+  và trên bảng, cùng ô Phòng họp ở chi tiết buổi, đọc link của lớp khi buổi để trống.
 * Sau khi chạy ổn: bỏ tự điền từ `live_class_url_snapshot`, rồi xóa
   `core_course_template_activities.live_class_url` (migration riêng, cần duyệt riêng).
 

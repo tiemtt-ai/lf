@@ -76,6 +76,14 @@
                         @if ($editRetry) @error('end_date')<p class="ui-field__error" x-show="showErrors">{{ $message }}</p>@enderror @endif
                     </div>
                     <div class="ui-field ui-field--full">
+                        <label class="ui-field__label" for="cohort-edit-meeting">{{ __('lf.LF_course_cohort_default_meeting_url') }}</label>
+                        <input id="cohort-edit-meeting" type="url" name="default_meeting_url" autocomplete="off" inputmode="url" maxlength="2000"
+                               value="{{ $editValue('default_meeting_url', $cohort->default_meeting_url ?? '') }}" data-original="{{ $cohort->default_meeting_url ?? '' }}"
+                               placeholder="https://meet.google.com/abc-defg-hij" data-cohort-default-meeting>
+                        <p class="ui-caption">{{ __('lf.LF_course_cohort_default_meeting_url_help') }}</p>
+                        @if ($editRetry) @error('default_meeting_url')<p class="ui-field__error" x-show="showErrors">{{ $message }}</p>@enderror @endif
+                    </div>
+                    <div class="ui-field ui-field--full">
                         <label class="ui-field__label" for="cohort-edit-notes">{{ __('lf.LF_course_cohort_common_notes') }}</label>
                         <textarea id="cohort-edit-notes" name="notes" rows="3" data-original="{{ $cohort->notes }}" placeholder="{{ __('lf.LF_course_cohort_create_notes_placeholder') }}">{{ $editValue('notes', $cohort->notes) }}</textarea>
                         <p class="ui-caption">{{ __('lf.LF_course_cohort_create_notes_help') }}</p>

@@ -603,6 +603,7 @@ class CourseCohortController extends Controller
                 'start_date' => $validated['start_date'] ?? null,
                 'end_date' => $validated['end_date'] ?? null,
                 'notes' => $validated['notes'] ?? null,
+                'default_meeting_url' => filled($validated['default_meeting_url'] ?? null) ? trim($validated['default_meeting_url']) : null,
                 'updated_at' => now(),
             ];
 
@@ -696,6 +697,7 @@ class CourseCohortController extends Controller
             'start_date' => __('lf.LF_course_cohort_common_start_date'),
             'end_date' => __('lf.LF_course_cohort_common_end_date'),
             'notes' => __('lf.LF_course_cohort_common_notes'),
+            'default_meeting_url' => __('lf.LF_course_cohort_default_meeting_url'),
         ];
     }
 
@@ -739,7 +741,7 @@ class CourseCohortController extends Controller
     private function validatedUpdateData(Request $request, int $customerId, object $cohort): array
     {
         $input = array_intersect_key($request->request->all(), array_flip([
-            'name', 'capacity', 'start_date', 'end_date', 'notes',
+            'name', 'capacity', 'start_date', 'end_date', 'notes', 'default_meeting_url',
         ]));
 
         $validator = Validator::make($input, [
@@ -748,6 +750,7 @@ class CourseCohortController extends Controller
             'start_date' => ['nullable', 'required_with:end_date', 'date'],
             'end_date' => ['nullable', 'required_with:start_date', 'date', 'after_or_equal:start_date'],
             'notes' => ['nullable', 'string'],
+            'default_meeting_url' => ['nullable', 'string', 'max:2000', 'url:http,https'],
         ], [], $this->cohortFieldLabels());
 
         $validator->after(function ($validator) use ($request, $customerId, $cohort, $input): void {

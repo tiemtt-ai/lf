@@ -199,7 +199,7 @@
              return false
          },
          curriculumMeetingUrl() {
-             return this.activities.find(item => String(item.id) === String(this.activityId))?.live_class_url_snapshot || ''
+             return @js($cohort->default_meeting_url ?? '') || this.activities.find(item => String(item.id) === String(this.activityId))?.live_class_url_snapshot || ''
          },
          meetingProvider(url) {
              if (!url) return ''
