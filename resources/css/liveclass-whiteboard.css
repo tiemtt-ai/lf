@@ -449,7 +449,7 @@ a.lf-wb-btn { text-decoration: none; } /* "Vào phòng họp" is a link styled a
     .lf-wb-top .lf-wb-btn { min-width: 36px; height: 36px; padding: 0 6px; }
     .lf-wb-top .lf-wb-btn--value { min-width: 44px; padding: 0 4px; }
     .lf-wb-classname,
-    .lf-wb-sep,
+    .lf-wb-top .lf-wb-sep,
     .lf-wb-top [data-wb-phone-hidden] { display: none; }
 }
 

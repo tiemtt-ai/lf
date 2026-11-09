@@ -1,6 +1,6 @@
 # LF-Core-LiveClass.md
 
-Version: 2.17
+Version: 2.20
 
 Document Status: Approved
 
@@ -1007,6 +1007,29 @@ một điểm chung trong lifecycle service: xoá cache và khoá trình chiếu
   nếu chưa gửi phần nào thì bỏ luôn, không gửi gì. Snapshot có cả nét đang vẽ. Máy xem
   nhận lại điểm đã có (từ snapshot hoặc thao tác phát lại) thì bỏ qua phần trùng; hụt
   điểm thì tải lại toàn bộ. Không đổi loại thao tác của ADR-0002.
+* **Mục tiêu độ trễ nét vẽ** (2026-11-09). Tính từ lúc bút di chuyển trên máy người
+  trình chiếu đến lúc đoạn nét hiện trên máy học viên: **p95 ≤ 300 ms**, khi mỗi máy có
+  ping tới server ≤ 100 ms. Ngân sách: chờ gom gói tối đa 100 ms, gửi lên server
+  30–80 ms, Laravel và Reverb 30–100 ms, tới học viên và vẽ 20–50 ms. Lời nói qua Zoom
+  thường trễ 200–400 ms, nên trong mục tiêu này nét vẽ không chậm hơn lời nói. Đo trên
+  local (2026-11-09, nét 1,6 giây): đoạn đầu ~160 ms sau khi đặt bút, mỗi đoạn ~135 ms,
+  đoạn cuối ~50 ms sau khi nhấc bút. Cách đo: giáo viên và học viên mở trên cùng một máy
+  (chung đồng hồ), ghi thời điểm có điểm mới bên vẽ và thời điểm bên xem nhận được điểm
+  đó; đo lại trên staging trước khi chạy thật. Vượt mục tiêu thì tìm chỗ chậm ở mạng hoặc
+  server (khoá cache, broadcast), không giảm khoảng cách 100 ms giữa hai lần gửi, vì sẽ
+  vượt giới hạn 900 lần/phút.
+* **Chịu tải khi vẽ liền** (2026-11-09). Snapshot (tới 1 MB) nằm ở khoá cache riêng
+  (`…:snapshot`, mang số thứ tự của nó), tách khỏi nhật ký thao tác (`…:state`). Mỗi
+  lần gửi thao tác chỉ đọc và ghi nhật ký: đo local với bảng 1 MB, ~66 ms giảm còn
+  ~1 ms mỗi lần. Người vào sau đọc nhật ký trước rồi tới snapshot; snapshot mới hơn
+  nhật ký thì bỏ các thao tác nó đã gồm, snapshot cũ hơn điểm bắt đầu nhật ký thì không
+  dùng. Snapshot hết hạn trước nhật ký thì server xin bản mới. Nhật ký cũ còn mang
+  snapshot bên trong vẫn đọc được và được chuyển sang khoá riêng ở lần gửi kế tiếp.
+  Mỗi route của bảng (presence, events, snapshot, release) có bộ đếm giới hạn riêng;
+  trước đây các route `throttle:N,1` dùng chung một bộ đếm theo người dùng, nên vẽ liền
+  hơn 6 giây làm presence (60/phút) và snapshot (120/phút) bị chặn 429. Đã thử nét
+  liền 30 giây trên trình duyệt: 300 lần gửi, không lỗi, học viên vào muộn giữa nét
+  vẫn nhận đủ.
 
 ## Âm thanh, video và chế độ nghe — Amendment 2026-11-08 (Approved)
 
@@ -1081,6 +1104,10 @@ Bố cục và chức năng theo AllVia; màu, icon và tooltip theo UI Kit củ
 trên màn hình cảm ứng, chạm giữ để xem tooltip. Mọi chữ trên bảng (thông báo, trạng
 thái kết nối, câu hỏi mở lại trang cũ, lỗi) dùng key `LF_liveclass_whiteboard_*` đủ
 `vi` và `en`. Dùng được bằng bàn phím; hiệu ứng tôn trọng `prefers-reduced-motion`.
+
+Trên điện thoại (rộng ≤ 600px) thanh trên cùng giữ một hàng: ẩn ô tên lớp, nút phóng
+to, thu nhỏ và nút đưa về khung ban đầu (chụm hai ngón để phóng to; bấm số % để đưa về
+khung ban đầu); nút còn 36px.
 
 ## Ngoài phạm vi
 
@@ -1202,6 +1229,25 @@ phase sau.
 Trong buổi `hybrid`, người ngồi trong lớp nhìn bảng điện tử trên màn hình cảm ứng;
 người học từ xa mở "Xem bảng" trên máy mình và nghe giảng qua `meeting_url_snapshot`
 của Session. Bảng không truyền âm thanh hay video (§ Whiteboard).
+
+## Vận hành buổi hybrid (hướng dẫn, 2026-11-09)
+
+| Ai | Làm gì |
+| --- | --- |
+| Lớp học | Màn hình cảm ứng chạy bảng, và một máy chạy Zoom/Meet có micro (có thể là cùng máy). |
+| Giáo viên | Bấm "Vào phòng họp", **bật micro**. **Không bật "chia sẻ âm thanh máy tính"** (Share sound) khi chiếu video hoặc âm thanh trên bảng; bảng tự nhắc (§ Whiteboard, Nhắc Zoom). |
+| Học viên ở lớp | Nhìn màn hình của lớp; nếu mở bảng trên máy mình thì chọn "Ở lớp" (máy không phát tiếng). |
+| Học viên ở xa | Mở "Xem bảng" và "Vào phòng họp"; chọn "Từ xa". Nghe giáo viên qua Zoom/Meet, nhìn bảng LF. |
+
+* **Tiếng vọng.** Loa trong lớp phát video có thể lọt vào micro rồi sang Zoom. Nếu học
+  viên ở xa nghe vọng: tạm tắt micro lúc chiếu video, hoặc dùng micro cài áo hay tai nghe.
+* **Dự phòng: share màn hình bảng qua Zoom/Meet** chỉ khi học viên không mở được bảng
+  (máy yếu, mất kết nối đồng bộ, Reverb lỗi). Khi share: không bật chia sẻ âm thanh máy
+  tính nếu có video trên bảng, và báo học viên chỉ nhìn một nguồn (bảng LF hoặc màn hình
+  share), không nhìn cả hai.
+* **Điểm danh.** Mở bảng hay vào phòng họp không phải điểm danh. Admin điểm danh tay theo
+  từng buổi (§ Attendance, khi bật `LIVECLASS_ATTENDANCE_ENABLED`); bản ghi chưa ghi người
+  học ở lớp hay từ xa.
 
 ---
 

@@ -137,10 +137,10 @@ if ($registerCourseProductRoutes ?? false) {
         ->group(function () {
             Route::get('/state', 'state')->defaults('board_role', 'admin')->name('state');
             Route::get('/status', 'status')->defaults('board_role', 'admin')->name('status');
-            Route::post('/presence', 'presence')->defaults('board_role', 'admin')->middleware('throttle:60,1')->name('presence');
-            Route::post('/events', 'events')->defaults('board_role', 'admin')->middleware('throttle:900,1')->name('events');
-            Route::post('/snapshot', 'snapshot')->defaults('board_role', 'admin')->middleware('throttle:120,1')->name('snapshot');
-            Route::post('/release', 'release')->defaults('board_role', 'admin')->middleware('throttle:60,1')->name('release');
+            Route::post('/presence', 'presence')->defaults('board_role', 'admin')->middleware('throttle:60,1,lf-wb-presence.')->name('presence');
+            Route::post('/events', 'events')->defaults('board_role', 'admin')->middleware('throttle:900,1,lf-wb-events.')->name('events');
+            Route::post('/snapshot', 'snapshot')->defaults('board_role', 'admin')->middleware('throttle:120,1,lf-wb-snapshot.')->name('snapshot');
+            Route::post('/release', 'release')->defaults('board_role', 'admin')->middleware('throttle:60,1,lf-wb-release.')->name('release');
         });
     Route::put('/course-cohorts/{cohort}/sessions/{session}/attendance', [CourseCohortOperationController::class, 'saveAttendance'])
         ->name('course-cohorts.sessions.attendance');

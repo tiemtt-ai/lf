@@ -21,6 +21,10 @@ use Throwable;
  * what a learner who joins later sees, and the presenter's browser sends a
  * fresh snapshot when asked. Callers pass an authorized LiveClassBoardContext;
  * this class checks only who holds the lock.
+ *
+ * The snapshot (up to 1 MB) has its own key, apart from the event log. A
+ * presenter drawing publishes about ten times a second, and each publish
+ * reads and writes only the log.
  */
 final class LiveClassWhiteboardLiveState
 {
@@ -126,7 +130,7 @@ final class LiveClassWhiteboardLiveState
         return $this->locked($context, function () use ($context, $clientId, $events): array {
             $this->assertHolder($context, $clientId);
 
-            $state = $this->readState($context);
+            $state = $this->readLog($context);
             $outgoing = [];
             foreach ($events as $event) {
                 if (in_array($event['type'], self::EPHEMERAL_TYPES, true)) {
@@ -140,10 +144,16 @@ final class LiveClassWhiteboardLiveState
                 $outgoing[] = $event;
             }
 
+            $snapshotKey = $this->key($context->customerId, $context->sessionId, 'snapshot');
             if (count($state['events']) > self::LOG_LIMIT) {
-                $state = ['seq' => $state['seq'], 'snapshot' => null, 'snapshot_seq' => $state['seq'], 'events' => [], 'incomplete' => true];
+                $state = ['seq' => $state['seq'], 'snapshot_seq' => $state['seq'], 'events' => [], 'incomplete' => true];
+                Cache::forget($snapshotKey);
+            } elseif (($state['snapshotted'] ?? false) && ! Cache::has($snapshotKey)) {
+                // The snapshot expired or was evicted before the log: ask for a new one.
+                $state['snapshotted'] = false;
+                $state['incomplete'] = true;
             }
-            $this->writeState($context, $state);
+            $this->writeLog($context, $state);
 
             $broadcast = true;
             foreach ($this->messages($outgoing) as $message) {
@@ -177,10 +187,11 @@ final class LiveClassWhiteboardLiveState
 
         return $this->locked($context, function () use ($context, $clientId, $snapshot): int {
             $this->assertHolder($context, $clientId);
-            $state = $this->readState($context);
-            $this->writeState($context, [
-                'seq' => $state['seq'], 'snapshot' => $snapshot, 'snapshot_seq' => $state['seq'],
-                'events' => [], 'incomplete' => false,
+            $state = $this->readLog($context);
+            // Snapshot first, then the log: a reader that sees the new log also finds this snapshot.
+            $this->writeEntry($context, 'snapshot', ['seq' => $state['seq'], 'snapshot' => $snapshot]);
+            $this->writeLog($context, [
+                'seq' => $state['seq'], 'snapshot_seq' => $state['seq'], 'events' => [], 'incomplete' => false, 'snapshotted' => true,
             ]);
 
             return $state['seq'];
@@ -201,6 +212,35 @@ final class LiveClassWhiteboardLiveState
         return $state + ['presenter' => ['name' => $presenter['name'] ?? null], 'now' => self::serverMillis()];
     }
 
+    /**
+     * The log and the snapshot read without the lock, log first. A snapshot
+     * stored in between is newer than the log and covers all of it; one older
+     * than the log's start (dropped with an overfull log) does not count.
+     *
+     * @return array{seq: int, snapshot: array<string, mixed>|null, snapshot_seq: int, events: array<int, array<string, mixed>>, incomplete: bool}
+     */
+    private function readState(LiveClassBoardContext $context): array
+    {
+        $log = $this->readLog($context);
+        $entry = Cache::get($this->key($context->customerId, $context->sessionId, 'snapshot'));
+        if (! is_array($entry) && is_array($log['snapshot'] ?? null)) {
+            // Cached before the snapshot had its own key.
+            $entry = ['seq' => $log['snapshot_seq'], 'snapshot' => $log['snapshot']];
+        }
+        unset($log['snapshot'], $log['snapshotted']);
+
+        $entrySeq = is_array($entry) ? (int) ($entry['seq'] ?? -1) : -1;
+        if ($entrySeq > $log['snapshot_seq']) {
+            return [
+                'seq' => max($log['seq'], $entrySeq), 'snapshot' => $entry['snapshot'], 'snapshot_seq' => $entrySeq,
+                'events' => array_values(array_filter($log['events'], fn (array $event): bool => $event['seq'] > $entrySeq)),
+                'incomplete' => false,
+            ];
+        }
+
+        return ['snapshot' => $entrySeq === $log['snapshot_seq'] ? $entry['snapshot'] : null] + $log;
+    }
+
     /** Server time in milliseconds: the one clock every board compares media positions with. */
     public static function serverMillis(): int
     {
@@ -213,7 +253,7 @@ final class LiveClassWhiteboardLiveState
      */
     public function end(int $customerId, int $sessionId): void
     {
-        foreach (['lock', 'state'] as $part) {
+        foreach (['lock', 'state', 'snapshot'] as $part) {
             Cache::forget($this->key($customerId, $sessionId, $part));
         }
         $this->broadcast($customerId, $sessionId, 'board.ended', []);
@@ -325,18 +365,40 @@ final class LiveClassWhiteboardLiveState
         return (int) ($holder['user_id'] ?? 0) === $context->userId && ($holder['client_id'] ?? null) === $clientId;
     }
 
-    /** @return array{seq: int, snapshot: array<string, mixed>|null, snapshot_seq: int, events: array<int, array<string, mixed>>, incomplete: bool} */
-    private function readState(LiveClassBoardContext $context): array
+    /**
+     * The event log under the `state` key. One cached before the snapshot had
+     * its own key may still carry `snapshot`; readState() honours it.
+     *
+     * `snapshotted` says a snapshot was stored for this log, so a missing one
+     * means it expired.
+     *
+     * @return array{seq: int, snapshot_seq: int, events: array<int, array<string, mixed>>, incomplete: bool, snapshotted?: bool, snapshot?: mixed}
+     */
+    private function readLog(LiveClassBoardContext $context): array
     {
         $state = Cache::get($this->key($context->customerId, $context->sessionId, 'state'));
 
         return is_array($state)
             ? $state + ['incomplete' => false]
-            : ['seq' => 0, 'snapshot' => null, 'snapshot_seq' => 0, 'events' => [], 'incomplete' => false];
+            : ['seq' => 0, 'snapshot_seq' => 0, 'events' => [], 'incomplete' => false];
     }
 
     /** @param array<string, mixed> $state */
-    private function writeState(LiveClassBoardContext $context, array $state): void
+    private function writeLog(LiveClassBoardContext $context, array $state): void
+    {
+        if (array_key_exists('snapshot', $state)) {
+            // Moves an older cached snapshot to its own key, once.
+            if (is_array($state['snapshot'])) {
+                $this->writeEntry($context, 'snapshot', ['seq' => $state['snapshot_seq'], 'snapshot' => $state['snapshot']]);
+                $state['snapshotted'] = true;
+            }
+            unset($state['snapshot']);
+        }
+        $this->writeEntry($context, 'state', $state);
+    }
+
+    /** @param array<string, mixed> $value */
+    private function writeEntry(LiveClassBoardContext $context, string $part, array $value): void
     {
         // The Session's planned end plus a buffer, refreshed on every write.
         $now = CarbonImmutable::now();
@@ -344,7 +406,7 @@ final class LiveClassWhiteboardLiveState
         if ($expires === null || $expires->lessThan($now->addHours(self::BUFFER_HOURS))) {
             $expires = $now->addHours(self::BUFFER_HOURS);
         }
-        Cache::put($this->key($context->customerId, $context->sessionId, 'state'), $state, $expires);
+        Cache::put($this->key($context->customerId, $context->sessionId, $part), $value, $expires);
     }
 
     /**

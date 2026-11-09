@@ -236,10 +236,10 @@ Route::middleware([
         ->name('live-sessions.board.')->whereNumber('session')->group(function () {
             Route::get('/state', 'state')->defaults('board_role', 'teacher')->name('state');
             Route::get('/status', 'status')->defaults('board_role', 'teacher')->name('status');
-            Route::post('/presence', 'presence')->defaults('board_role', 'teacher')->middleware('throttle:60,1')->name('presence');
-            Route::post('/events', 'events')->defaults('board_role', 'teacher')->middleware('throttle:900,1')->name('events');
-            Route::post('/snapshot', 'snapshot')->defaults('board_role', 'teacher')->middleware('throttle:120,1')->name('snapshot');
-            Route::post('/release', 'release')->defaults('board_role', 'teacher')->middleware('throttle:60,1')->name('release');
+            Route::post('/presence', 'presence')->defaults('board_role', 'teacher')->middleware('throttle:60,1,lf-wb-presence.')->name('presence');
+            Route::post('/events', 'events')->defaults('board_role', 'teacher')->middleware('throttle:900,1,lf-wb-events.')->name('events');
+            Route::post('/snapshot', 'snapshot')->defaults('board_role', 'teacher')->middleware('throttle:120,1,lf-wb-snapshot.')->name('snapshot');
+            Route::post('/release', 'release')->defaults('board_role', 'teacher')->middleware('throttle:60,1,lf-wb-release.')->name('release');
         });
 
     // Media library for teachers: their own Media and what was shared with them (ADR-0021).

@@ -6,6 +6,7 @@ use App\Events\LiveClassWhiteboardBroadcast;
 use App\Models\User;
 use App\Services\CourseCohortLifecycleService;
 use App\Services\LiveClassSessionLifecycleService;
+use App\Services\LiveClassWhiteboardLiveState;
 use App\Services\MediaOutputProfile;
 use App\Services\MediaProcessingOrchestrator;
 use Illuminate\Broadcasting\BroadcastManager;
@@ -505,6 +506,78 @@ class LiveClassWhiteboardTest extends TestCase
         // Releasing by the holder frees the lock for the next presenter.
         $this->actingAs($setup['admin'])->postJson("{$adminBoard}/release", ['client_id' => 'admin-tab-1'])->assertNoContent();
         $this->actingAs($setup['teacher'])->getJson("{$teacherBoard}/status")->assertOk()->assertJsonPath('presenter.name', null);
+    }
+
+    public function test_the_snapshot_has_its_own_cache_key_and_a_late_joiner_sees_a_consistent_board(): void
+    {
+        Event::fake([LiveClassWhiteboardBroadcast::class]);
+        $setup = $this->setupClass();
+        $live = $this->liveSession($setup, 'Live', '2026-07-04 15:00:00', '2026-07-04 17:00:00', status: 'live', teacher: $setup['teacher']);
+        $board = self::HOST."/teacher/live-sessions/{$live}/board";
+        $logKey = "lf-wb:{$setup['customer']}:{$live}:state";
+        $snapshotKey = "lf-wb:{$setup['customer']}:{$live}:snapshot";
+        $pages = fn (string $id): array => ['1' => ['paths' => [['id' => $id, 'tool' => 'pen', 'points' => [[1, 2]]]], 'notes' => []]];
+        $send = fn (array $events) => $this->actingAs($setup['teacher'])->postJson("{$board}/events", ['client_id' => 'teacher-tab-1', 'events' => $events]);
+        $stroke = ['type' => 'stroke.add', 'page' => 1, 'stroke' => ['id' => 's1', 'tool' => 'pen', 'points' => [[1, 2]]]];
+        $this->actingAs($setup['teacher'])->postJson("{$board}/presence", ['client_id' => 'teacher-tab-1'])->assertOk();
+
+        // Publishing while drawing touches only the log.
+        $send([$stroke])->assertOk();
+        $this->actingAs($setup['teacher'])->postJson("{$board}/snapshot", ['client_id' => 'teacher-tab-1', 'state' => ['v' => 1, 'page' => 1, 'pages' => $pages('s1')]])
+            ->assertOk()->assertJsonPath('seq', 1);
+        $send([['type' => 'stroke.append', 'page' => 1, 'id' => 's1', 'from' => 1, 'points' => [[3, 4]]]])->assertOk()->assertJsonPath('snapshot_requested', false);
+        $this->assertArrayNotHasKey('snapshot', Cache::get($logKey));
+        $this->assertSame(1, Cache::get($snapshotKey)['seq']);
+        $state = $this->actingAs($setup['teacher'])->getJson("{$board}/state")->json();
+        $this->assertSame([1, 1, [2]], [$state['snapshot_seq'], count($state['snapshot']['pages']['1']['paths']), array_column($state['events'], 'seq')]);
+        $this->assertArrayNotHasKey('snapshotted', $state);
+
+        // A reader that got the log just before a newer snapshot: the snapshot covers the log.
+        Cache::put($snapshotKey, ['seq' => 2, 'snapshot' => ['v' => 1, 'page' => 1, 'pages' => $pages('s2')]], 600);
+        $state = $this->actingAs($setup['teacher'])->getJson("{$board}/state")->json();
+        $this->assertSame([2, 2, 's2', []], [$state['seq'], $state['snapshot_seq'], $state['snapshot']['pages']['1']['paths'][0]['id'], $state['events']]);
+
+        // A snapshot older than the log's start does not count.
+        Cache::put($logKey, ['seq' => 5, 'snapshot_seq' => 5, 'events' => [], 'incomplete' => true], 600);
+        $this->assertNull($this->actingAs($setup['teacher'])->getJson("{$board}/state")->json('snapshot'));
+
+        // A snapshot that expired before the log asks the presenter for a new one.
+        Cache::put($logKey, ['seq' => 2, 'snapshot_seq' => 2, 'events' => [], 'incomplete' => false, 'snapshotted' => true], 600);
+        Cache::forget($snapshotKey);
+        $send([$stroke])->assertOk()->assertJsonPath('snapshot_requested', true);
+
+        // A log cached before the split keeps its snapshot, which moves to its own key on the next publish.
+        Cache::put($logKey, ['seq' => 3, 'snapshot' => ['v' => 1, 'page' => 1, 'pages' => $pages('old')], 'snapshot_seq' => 3, 'events' => []], 600);
+        $this->assertSame('old', $this->actingAs($setup['teacher'])->getJson("{$board}/state")->json('snapshot.pages.1.paths.0.id'));
+        $send([$stroke])->assertOk()->assertJsonPath('snapshot_requested', false);
+        $this->assertArrayNotHasKey('snapshot', Cache::get($logKey));
+        $this->assertSame([3, 'old'], [Cache::get($snapshotKey)['seq'], Cache::get($snapshotKey)['snapshot']['pages']['1']['paths'][0]['id']]);
+        $this->assertSame([3, [4]], [
+            $this->actingAs($setup['teacher'])->getJson("{$board}/state")->json('snapshot_seq'),
+            array_column($this->actingAs($setup['teacher'])->getJson("{$board}/state")->json('events'), 'seq'),
+        ]);
+
+        // Ending the board clears the snapshot too.
+        app(LiveClassWhiteboardLiveState::class)->end($setup['customer'], $live);
+        $this->assertFalse(Cache::has($snapshotKey));
+    }
+
+    public function test_drawing_does_not_use_up_the_presence_or_snapshot_rate_limits(): void
+    {
+        Event::fake([LiveClassWhiteboardBroadcast::class]);
+        $setup = $this->setupClass();
+        $live = $this->liveSession($setup, 'Live', '2026-07-04 15:00:00', '2026-07-04 17:00:00', status: 'live', teacher: $setup['teacher']);
+        $board = self::HOST."/teacher/live-sessions/{$live}/board";
+        $this->actingAs($setup['teacher'])->postJson("{$board}/presence", ['client_id' => 'teacher-tab-1'])->assertOk();
+
+        // About 13 seconds of drawing at ten requests a second.
+        for ($i = 0; $i < 130; $i++) {
+            $this->actingAs($setup['teacher'])->postJson("{$board}/events", ['client_id' => 'teacher-tab-1', 'events' => [['type' => 'board.clear']]])->assertOk();
+        }
+
+        // Each board route counts on its own, so the heartbeat and the snapshot still go through.
+        $this->actingAs($setup['teacher'])->postJson("{$board}/presence", ['client_id' => 'teacher-tab-1'])->assertOk();
+        $this->actingAs($setup['teacher'])->postJson("{$board}/snapshot", ['client_id' => 'teacher-tab-1', 'state' => ['v' => 1, 'page' => 1, 'pages' => []]])->assertOk();
     }
 
     public function test_published_events_are_validated(): void
