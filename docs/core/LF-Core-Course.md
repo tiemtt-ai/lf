@@ -1,12 +1,12 @@
 # LF-Core-Course.md
 
-Version: 3.7
+Version: 3.8
 
 Document Status: Approved
 
 Implementation Status: Unknown
 
-Last Updated: 2026-11-04
+Last Updated: 2026-11-09
 
 Document Path: core/LF-Core-Course.md
 
@@ -385,7 +385,7 @@ normalized by `TrustedVideoUrlService`. A Live Class Activity URL is optional
 (amendment 2026-10-31): when present it must be HTTPS and is only a default
 suggested to the Cohort Session; a missing URL blocks neither saving nor
 publish. The actual join URL belongs to each Cohort Session. Live Class
-Activities use the `manual`
+Activities use the `join` or `manual`
 completion rule; percentage and pass thresholds are integers from `1` through
 `100`. Activity unlock rules are limited to `none`,
 and `previous_activity_completed`, matching the immutable Version Activity
@@ -407,6 +407,25 @@ to the real Cohort Session that schedules its Lesson:
 A Live Class Activity follows the Session schedule and cannot be `anytime`; it
 takes one or more Session-relative choices, and defaults to `during_session`
 when none is declared.
+
+> Amendment 2026-11-09 (Owner approved) — "Buổi học trực tiếp":
+>
+> * Activity `live_class` hiển thị là **Buổi học trực tiếp** (en: *Live session*),
+>   dòng phụ "Có giáo viên giảng, có điểm danh". Nghĩa của nó là buổi học có giáo
+>   viên giảng và có điểm danh; không gắn với Zoom, Meet hay Teams. Mã kỹ thuật
+>   giữ nguyên `live_class`.
+> * Mỗi Lesson có **tối đa một** Activity `live_class`. Backend từ chối khi tạo
+>   hoặc sửa Activity, và Publish readiness chặn Template có Lesson chứa hai
+>   Activity loại này (mã `lesson_live_class_multiple`, nêu tên Lesson).
+> * Trong khóa học theo lớp, Lesson **không có** Activity `live_class` là buổi tự
+>   học; danh sách bài học của Template hiện nhãn "Tự học".
+> * Form không còn ô "Liên kết tham gia mặc định"; server bỏ qua giá trị
+>   `live_class_url` gửi lên. Link đã lưu trên Template được giữ khi sửa Activity
+>   vẫn là `live_class`, bị xóa khi Activity đổi sang loại khác. Link đã đóng
+>   băng trong Version (`live_class_url_snapshot`) vẫn tự điền cho buổi học của
+>   lớp như trước. Hình thức tại lớp / trực tuyến và link phòng họp được chọn khi
+>   xếp lịch cho lớp. Bỏ hẳn `live_class_url` để sau, khi lớp học có link phòng
+>   họp mặc định.
 Existing Activities default to `anytime`. Activity `sort_order` controls only
 display order and does not define availability.
 
@@ -473,6 +492,13 @@ Template lifecycle therefore must not unlink Product Items, replace Versions,
 silent-migrate Enrollments, or reset Progress.
 
 ## Course Type — Amendment 2026-11-01 (Approved)
+
+> Amendment 2026-11-09 (Approved, [ADR-0022 Amendment 1.1](../adr/ADR-0022-Course-Type-On-Template.md#amendment-11--hai-loại-khóa-học-approved-2026-11-09)):
+> chỉ còn **hai loại**: Tự học (`self_paced`) và **Theo lớp** (mã `blended`, giữ
+> đúng quy tắc Kết hợp bên dưới). `scheduled` không còn được chọn; Template
+> `scheduled` đã chuyển sang `blended` (migration `2026_11_09_000100`). Version đã
+> xuất bản giữ `scheduled` trong snapshot và được đọc, hiển thị, lọc, so sánh như
+> Theo lớp. Các mục "Theo lịch" bên dưới chỉ còn giá trị lịch sử.
 
 > Trạng thái: **Approved** 2026-11-01 theo
 > [ADR-0022](../adr/ADR-0022-Course-Type-On-Template.md). Mục này thay thế mọi

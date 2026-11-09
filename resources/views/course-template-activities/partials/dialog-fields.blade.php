@@ -24,7 +24,6 @@
     // ADR-0022: the Template course type bounds the learning availability (and whether a live class exists).
     $courseType = $template->course_type ?? \App\Support\CourseType::BLENDED;
     $selfPaced = $courseType === \App\Support\CourseType::SELF_PACED;
-    $scheduled = $courseType === \App\Support\CourseType::SCHEDULED;
     if (! \App\Support\CourseType::allowsLiveClass($courseType)) {
         $activityTypes = array_values(array_diff($activityTypes, ['live_class']));
     }
@@ -35,13 +34,9 @@
             'during_session' => (bool) ($formActivity->available_during_session ?? false),
             'after_session' => (bool) ($formActivity->available_after_session ?? false),
         ]))
-        : [($presetPhase ?? null) ?: ($scheduled ? 'during_session' : 'anytime')];
+        : [($presetPhase ?? null) ?: 'anytime'];
     if ($selfPaced) {
         $selectedLearningPhases = ['anytime'];
-    }
-    if ($scheduled) {
-        // Only the session phases exist here; a new Activity still starts with one chosen.
-        $selectedLearningPhases = array_values(array_diff($selectedLearningPhases, ['anytime'])) ?: ($formActivity ? [] : ['during_session']);
     }
     $storedEstimateMinutes = $formActivity?->estimated_duration_seconds !== null
         ? (int) ceil($formActivity->estimated_duration_seconds / 60)
@@ -180,7 +175,7 @@
          anytimeName: @js(__('lf.LF_course_template_activity_learning_availability_anytime')),
          noPhaseName: @js(__('lf.LF_course_template_activity_phase_none')),
          recognizedLabel: @js(__('lf.LF_course_template_activity_url_recognized', ['provider' => '__P__'])),
-         externalUrl: @js((string) ($formActivity?->external_video_url ?? $formActivity?->live_class_url ?? '')),
+         externalUrl: @js((string) ($formActivity?->external_video_url ?? '')),
          // A live class follows the session schedule: it cannot be anytime, but any session phase is allowed.
          get liveLocked() { return this.activityType === 'live_class'; },
          get urlProvider() {
@@ -427,7 +422,7 @@
             </div>
         </div>
 
-        {{-- Video from a link, or the room of a live class. --}}
+        {{-- Video from a link. --}}
         <div class="ui-field" x-show="activityType === 'embedded_video'" x-cloak>
             <label class="ui-field__label" for="activity-form-external_video_url">{{ __('lf.LF_course_template_activity_common_external_url') }}</label>
             <input id="activity-form-external_video_url" type="url" name="external_video_url" value="{{ $formActivity?->external_video_url }}"
@@ -437,12 +432,8 @@
             <span class="ui-field__hint">{{ __('lf.LF_course_template_activity_url_help_embedded_video') }}</span>
         </div>
 
+        {{-- A live session marks a taught, attended lesson; in class or online and the meeting link are chosen when the class is scheduled. --}}
         <div class="ui-field" x-show="activityType === 'live_class'" x-cloak>
-            <label class="ui-field__label" for="activity-form-live_class_url">{{ __('lf.LF_course_template_activity_live_class_url_label') }}</label>
-            <input id="activity-form-live_class_url" type="url" name="live_class_url" value="{{ $formActivity?->live_class_url }}"
-                   placeholder="{{ __('lf.LF_course_template_activity_placeholder_live_class_url') }}" :disabled="activityType !== 'live_class'"
-                   x-on:input="externalUrl = $event.target.value">
-            <span class="ui-field__success" x-show="urlProvider" x-cloak x-text="recognizedLabel.replace('__P__', urlProvider)"></span>
             <span class="ui-field__hint">{{ __('lf.LF_course_template_activity_url_help_live_class') }}</span>
         </div>
 
@@ -615,14 +606,9 @@
     <section class="ui-activity-section">
         <fieldset class="ui-field ui-fieldset-reset" data-ui-error-for="learning_phases">
             <input type="hidden" name="learning_phases_present" value="1">
-            <legend @class(['ui-field__label', 'ui-field__label--tip' => $scheduled])>
+            <legend class="ui-field__label">
                 <span>{!! $star !!}{{ __('lf.LF_course_template_activity_learning_availability') }}</span>
-                @if ($scheduled)
-                    <x-info-tip class="lf-info-tip--lines" :text="__('lf.LF_course_type_session_phases_help')" />
-                @endif
             </legend>
-            {{-- A scheduled course has no "anytime": there is no mode to pick, so the phases stand alone under the title. --}}
-            @unless ($scheduled)
             {{-- Anytime and the session phases are exclusive: pick the mode first, then the phases of a session. --}}
             <div class="ui-option-cards" role="radiogroup">
                 @foreach (['anytime', 'session'] as $mode)
@@ -637,16 +623,12 @@
                     </div>
                 @endforeach
             </div>
-            @endunless
             {{-- The phases of a session take a full-width row under both cards, pointing at the session card,
                  so choosing a mode never makes one card taller than the other. --}}
-            <div @class(['ui-option-cards__detail', 'ui-option-cards__detail--solo' => $scheduled]) x-show="learningMode === 'session'" x-cloak
+            <div class="ui-option-cards__detail" x-show="learningMode === 'session'" x-cloak
                  data-ui-required-group="learning_phases" data-ui-required-message="{{ __('lf.LF_course_template_activity_learning_phases_required') }}"
                  x-on:change="if ($event.target.name === 'learning_phases[]') $el.querySelectorAll('[data-ui-dialog-form-error]').forEach(node => node.remove())">
-                @if ($scheduled)
-                    <span class="ui-field__hint">{{ __('lf.LF_course_template_activity_phase_choose_hint') }}</span>
-                @else
-                    <span class="ui-activity-panel__head">
+                <span class="ui-activity-panel__head">
                         {{-- The field title above already carries the required mark. --}}
                         <span class="ui-field__label ui-field__label--tip">
                             <span>{{ __('lf.LF_course_template_activity_phase_choose') }}</span>
@@ -654,7 +636,6 @@
                         </span>
                         <span class="ui-field__hint">{{ __('lf.LF_course_template_activity_phase_choose_hint') }}</span>
                     </span>
-                @endif
                 <div class="ui-chip-list">
                     @foreach (['before_session', 'during_session', 'after_session'] as $phase)
                         <label class="ui-chip">
@@ -670,9 +651,7 @@
                 <span class="ui-field__hint" x-show="liveLocked" x-cloak>{{ __('lf.LF_course_template_activity_live_phase_locked') }}</span>
                 <span class="ui-field__hint ui-field__hint--notice" role="status" x-show="liveLocked && liveAdjusted" x-cloak>{{ __('lf.LF_activity_live_phase_adjusted') }}</span>
             </div>
-            @unless ($scheduled)
-                <input type="hidden" name="learning_phases[]" value="anytime" x-bind:disabled="learningMode !== 'anytime'">
-            @endunless
+            <input type="hidden" name="learning_phases[]" value="anytime" x-bind:disabled="learningMode !== 'anytime'">
         </fieldset>
     </section>
     @endif

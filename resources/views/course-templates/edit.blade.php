@@ -201,7 +201,7 @@
                                             @if ($field === 'status')
                                                 <span class="ui-status ui-status--{{ $template->status }}">{{ __('lf.LF_course_template_common_'.$template->status) }}</span>
                                             @elseif ($field === 'course_type')
-                                                <span class="ui-course-type ui-course-type--{{ $template->course_type }}" data-course-type="{{ $template->course_type }}">{{ __(\App\Support\CourseType::labelKey($template->course_type)) }}</span>
+                                                <span class="ui-course-type ui-course-type--{{ \App\Support\CourseType::normalize($template->course_type) }}" data-course-type="{{ \App\Support\CourseType::normalize($template->course_type) }}">{{ __(\App\Support\CourseType::labelKey($template->course_type)) }}</span>
                                             @elseif ($groupKey === 'media')
                                                 {{-- Same 112px tile as the media slots of the edit form (x-ui-media-slot), read-only: View on hover, no Upload or Remove. --}}
                                                 @php($thumb = $item[5] ?? null)

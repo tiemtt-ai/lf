@@ -20,7 +20,7 @@
         <div class="ui-version__chips">
             <span id="cohort-edit-status" class="ui-status ui-status--{{ $cohortTone }}">{{ __('lf.LF_course_cohort_common_'.$cohort->status) }}</span>
             @if ($cohort->course_type ?? null)
-                <span class="ui-course-type ui-course-type--{{ $cohort->course_type }}" data-course-type="{{ $cohort->course_type }}">{{ __(\App\Support\CourseType::labelKey($cohort->course_type)) }}</span>
+                <span class="ui-course-type ui-course-type--{{ \App\Support\CourseType::normalize($cohort->course_type) }}" data-course-type="{{ \App\Support\CourseType::normalize($cohort->course_type) }}">{{ __(\App\Support\CourseType::labelKey($cohort->course_type)) }}</span>
             @endif
             @if (collect($cohortTabs)->contains('read_only', true))
                 <span class="ui-status ui-status--archived course-cohort-readonly-label"><x-backend-icon name="lock" class="ui-icon" />{{ __('lf.LF_course_cohort_tab_read_only') }}</span>

@@ -1189,7 +1189,7 @@ class CourseCohortManagementTest extends TestCase
 
         DB::table('core_course_template_versions')->where('id', $versionId)->update(['course_type_snapshot' => 'blended']);
         $this->actingAs($admin)->get('https://tenant-a.localhost/admin/course-cohorts/create')
-            ->assertOk()->assertSee('Self Study Product · '.DB::table('core_course_products')->where('id', $productId)->value('product_code').' · Kết hợp', false);
+            ->assertOk()->assertSee('Self Study Product · '.DB::table('core_course_products')->where('id', $productId)->value('product_code').' · Theo lớp', false);
         $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-cohorts', $payload)->assertRedirect();
         $cohortId = (int) DB::table('core_course_cohorts')->where('name', 'Self Class')->value('id');
 
@@ -2980,6 +2980,36 @@ class CourseCohortManagementTest extends TestCase
 
             return ['lesson' => (int) $lesson, 'activity' => (int) $activity];
         }, $titles, array_keys($titles));
+    }
+
+    public function test_an_in_class_session_needs_a_room_but_no_address_and_remote_learners_make_it_hybrid(): void
+    {
+        [$customerId, $admin, $cohortId, $versionId] = $this->reorderCohort();
+        [$a, $b] = $this->programme($customerId, $versionId, ['Lesson A', 'Lesson B']);
+        $url = "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions";
+        $payload = fn (array $item, array $extra) => $extra + [
+            'title' => 'Lesson', 'session_type' => 'curriculum',
+            'version_lesson_id' => $item['lesson'], 'version_activity_id' => $item['activity'],
+            'scheduled_start_at' => '2026-08-10 09:00:00', 'scheduled_end_at' => '2026-08-10 10:00:00',
+        ];
+
+        $this->actingAs($admin)->post($url, $payload($a, ['delivery_mode' => 'offline', 'room_name' => '']))->assertSessionHasErrors('room_name');
+        $this->actingAs($admin)->post($url, $payload($a, ['delivery_mode' => 'offline', 'room_name' => 'Room 201']))->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('core_liveclass_sessions', ['version_activity_id' => $a['activity'], 'delivery_mode' => 'offline', 'room_name_snapshot' => 'Room 201', 'address_snapshot' => null]);
+
+        $this->actingAs($admin)->post($url, $payload($b, [
+            'delivery_mode' => 'hybrid', 'room_name' => 'Room 202', 'meeting_url' => 'https://meet.example.test/b',
+            'scheduled_start_at' => '2026-08-11 09:00:00', 'scheduled_end_at' => '2026-08-11 10:00:00',
+        ]))->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('core_liveclass_sessions', ['version_activity_id' => $b['activity'], 'delivery_mode' => 'hybrid', 'meeting_url_snapshot' => 'https://meet.example.test/b']);
+
+        // The form picks In class or Online, with a box for remote learners; the lesson row shows the mode.
+        $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=sessions")->assertOk()
+            ->assertSee('name="session_place" value="offline"', false)
+            ->assertSee('name="session_place" value="online"', false)
+            ->assertSeeText(__('lf.LF_course_cohort_session_remote'))
+            ->assertSee('data-session-mode="offline"', false)
+            ->assertSee('data-session-mode="hybrid"', false);
     }
 
     private function programmeSession(User $admin, int $cohortId, array $item, string $title, string $date, array $extra = []): int

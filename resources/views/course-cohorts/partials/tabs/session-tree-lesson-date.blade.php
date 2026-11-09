@@ -22,6 +22,10 @@
             {{ __('lf.LF_course_cohort_session_tree_unscheduled') }}
         @endif
     </span>
+    @if ($treeLessonSessions->isNotEmpty())
+        {{-- How the lesson's session is delivered: in class, in class with remote learners, or online. --}}
+        <span class="ui-session-mode ui-session-mode--{{ $treeLessonSessions->first()->delivery_mode }}" data-session-mode="{{ $treeLessonSessions->first()->delivery_mode }}">{{ __('lf.LF_course_cohort_session_mode_'.$treeLessonSessions->first()->delivery_mode) }}</span>
+    @endif
     @if ($treeLessonSessions->first()?->schedule_relation === 'rescheduled')
         @include('course-cohorts.partials.tabs.session-tree-date-edited', ['session' => $treeLessonSessions->first()])
     @endif

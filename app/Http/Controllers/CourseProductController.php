@@ -49,7 +49,7 @@ class CourseProductController extends Controller
         $keyword = trim((string) $request->query('keyword', ''));
         $status = $request->query('status');
         $visibility = $request->query('visibility');
-        $courseType = in_array($request->query('course_type'), CourseType::VALUES, true) ? $request->query('course_type') : null;
+        $courseType = in_array($request->query('course_type'), CourseType::SELECTABLE, true) ? $request->query('course_type') : null;
 
         if (! in_array($status, [...self::STATUSES, 'all'], true)) {
             $status = null;
@@ -88,7 +88,7 @@ class CourseProductController extends Controller
             ->when($visibility, function ($query) use ($visibility): void {
                 $query->where('products.visibility', $visibility);
             })
-            ->when($courseType, fn ($query) => $query->where('bound.course_type', $courseType))
+            ->when($courseType, fn ($query) => $query->whereIn('bound.course_type', CourseType::storedValues($courseType)))
             ->select(['products.*', 'bound.course_type'])
             ->orderByDesc('products.created_at')
             ->orderByDesc('products.id')
@@ -523,7 +523,7 @@ class CourseProductController extends Controller
             // ADR-0022: a Product already used by learners or a class keeps its course type.
             $currentType = $item->version_id ? DB::table('core_course_template_versions')
                 ->where('customer_id', $customerId)->where('id', $item->version_id)->value('course_type_snapshot') : null;
-            if ($currentType !== null && $currentType !== $version->course_type_snapshot
+            if ($currentType !== null && ! CourseType::same($currentType, $version->course_type_snapshot)
                 && $this->templateChangePolicy->hasUsage($customerId, $productId)) {
                 throw ValidationException::withMessages(['version_id' => __('lf.LF_course_type_product_version_mismatch', [
                     'current' => __(CourseType::labelKey($currentType)),

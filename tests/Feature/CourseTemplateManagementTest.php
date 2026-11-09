@@ -641,16 +641,19 @@ class CourseTemplateManagementTest extends TestCase
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
         $categoryId = $this->createCategory($customerId, 'Korean', 'korean');
-        foreach (['self_paced' => 'Self Study Course', 'scheduled' => 'Evening Class Course'] as $type => $title) {
+        foreach (['self_paced' => 'Self Study Course', 'blended' => 'Evening Class Course', 'scheduled' => 'Legacy Class Course'] as $type => $title) {
             $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-templates', $this->validTemplateData([
-                'category_id' => $categoryId, 'title' => $title, 'course_type' => $type, 'intro_image_file' => null,
+                'category_id' => $categoryId, 'title' => $title, 'course_type' => $type === 'scheduled' ? 'blended' : $type, 'intro_image_file' => null,
             ]))->assertSessionHasNoErrors();
         }
+        // A legacy scheduled Template reads as class-based (ADR-0022 Amendment 1.1).
+        DB::table('core_course_templates')->where('title', 'Legacy Class Course')->update(['course_type' => 'scheduled']);
 
         $this->actingAs($admin)->get('https://tenant-a.localhost/admin/course-templates')->assertOk()
-            ->assertSee('data-course-type="self_paced"', false)->assertSee('data-course-type="scheduled"', false);
-        $this->actingAs($admin)->get('https://tenant-a.localhost/admin/course-templates?course_type=scheduled')->assertOk()
-            ->assertSee('Evening Class Course')->assertDontSee('Self Study Course');
+            ->assertSee('data-course-type="self_paced"', false)->assertSee('data-course-type="blended"', false)
+            ->assertDontSee('data-course-type="scheduled"', false)->assertDontSee('<option value="scheduled"', false);
+        $this->actingAs($admin)->get('https://tenant-a.localhost/admin/course-templates?course_type=blended')->assertOk()
+            ->assertSee('Evening Class Course')->assertSee('Legacy Class Course')->assertDontSee('Self Study Course');
         // An unknown value is ignored rather than filtering everything out.
         $this->actingAs($admin)->get('https://tenant-a.localhost/admin/course-templates?course_type=live_online_course')->assertOk()
             ->assertSee('Evening Class Course')->assertSee('Self Study Course');
@@ -674,8 +677,8 @@ class CourseTemplateManagementTest extends TestCase
             'unlock_rule' => 'none', 'created_at' => now(), 'updated_at' => now(),
         ]);
         DB::table('core_course_template_activities')->insert([
-            'customer_id' => $customerId, 'template_id' => $templateId, 'template_lesson_id' => $lessonId, 'title' => 'Free reading',
-            'sort_order' => 0, 'activity_type' => 'document', 'duration_seconds' => 0, 'available_anytime' => true,
+            'customer_id' => $customerId, 'template_id' => $templateId, 'template_lesson_id' => $lessonId, 'title' => 'Class reading',
+            'sort_order' => 0, 'activity_type' => 'document', 'duration_seconds' => 0, 'available_anytime' => false, 'available_during_session' => true,
             'is_required' => true, 'completion_rule' => 'view', 'is_preview' => false, 'unlock_rule' => 'none',
             'created_at' => now(), 'updated_at' => now(),
         ]);
@@ -684,11 +687,15 @@ class CourseTemplateManagementTest extends TestCase
             ['course_type' => $type] + $create
         );
 
-        // An anytime Activity cannot stay in a scheduled course: the change is refused and names the Activity.
+        // Scheduled is no longer a choice (ADR-0022 Amendment 1.1).
         $update('scheduled')->assertSessionHasErrors('course_type');
-        $this->assertStringContainsString('Free reading', session('errors')->first('course_type'));
+        // A session Activity cannot stay in a self-paced course: the change is refused and names the Activity.
+        $update('self_paced')->assertSessionHasErrors('course_type');
+        $this->assertStringContainsString('Class reading', session('errors')->first('course_type'));
         $this->assertSame('blended', DB::table('core_course_templates')->where('id', $templateId)->value('course_type'));
 
+        DB::table('core_course_template_activities')->where('template_id', $templateId)
+            ->update(['available_anytime' => true, 'available_during_session' => false]);
         $update('self_paced')->assertSessionHasNoErrors();
         $this->assertSame('self_paced', DB::table('core_course_templates')->where('id', $templateId)->value('course_type'));
 

@@ -270,6 +270,12 @@ Migration backfill suy ra từ working Activity: tất cả `anytime` (hoặc ch
 Activity) → `self_paced`; không có `anytime` → `scheduled`; lẫn lộn →
 `blended`. Activity `live_class` luôn tính là theo buổi học.
 
+Amendment 2026-11-09 (Approved, ADR-0022 Amendment 1.1): chỉ nhận `self_paced`
+(Tự học) và `blended` (hiển thị **Theo lớp**) khi tạo hoặc đổi loại. Migration
+`2026_11_09_000100_merge_scheduled_course_type_into_class_based` chuyển Template
+`scheduled` sang `blended`, không tăng `working_revision` vì nghĩa không đổi.
+CHECK giữ cả ba giá trị cho dữ liệu cũ. Không đổi schema.
+
 ### estimated_minutes_per_lesson
 
 INT UNSIGNED NULL

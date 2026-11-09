@@ -55,7 +55,7 @@
                         data-ui-empty-label="{{ __('lf.LF_course_template_index_no_options') }}"
                         data-ui-clear-label="{{ __('lf.LF_course_template_common_clear_filters') }}">
                     <option value="">{{ __('lf.LF_course_type_all') }}</option>
-                    @foreach (\App\Support\CourseType::VALUES as $typeOption)
+                    @foreach (\App\Support\CourseType::SELECTABLE as $typeOption)
                         <option value="{{ $typeOption }}" @selected($courseType === $typeOption)>{{ __(\App\Support\CourseType::labelKey($typeOption)) }}</option>
                     @endforeach
                 </select>
@@ -147,7 +147,7 @@
                             {{ $template->category_name ?? '—' }}
                         </td>
                         <td class="mk-text-cell" data-label="{{ __('lf.LF_course_type_label') }}">
-                            <span class="ui-course-type ui-course-type--{{ $template->course_type }}" data-course-type="{{ $template->course_type }}">{{ __(\App\Support\CourseType::labelKey($template->course_type)) }}</span>
+                            <span class="ui-course-type ui-course-type--{{ \App\Support\CourseType::normalize($template->course_type) }}" data-course-type="{{ \App\Support\CourseType::normalize($template->course_type) }}">{{ __(\App\Support\CourseType::labelKey($template->course_type)) }}</span>
                         </td>
                         <td class="ux-action-cell" data-label="{{ __('lf.LF_course_template_common_status') }}">
                             <span class="ui-status ui-status--{{ $template->status }}">{{ __('lf.LF_course_template_common_'.$template->status) }}</span>

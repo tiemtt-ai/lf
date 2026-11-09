@@ -223,6 +223,8 @@ Approved theo [ADR-0022](../../adr/ADR-0022-Course-Type-On-Template.md).
   hạn Enrollment và không phải cửa sổ đăng ký.
 * Cohort legacy đang gắn Product `self_paced` vẫn đọc được nhưng không được
   kích hoạt, thêm học viên hoặc thêm buổi học cho tới khi được xử lý.
+* Amendment 2026-11-09 (ADR-0022 Amendment 1.1): `scheduled` và `blended` cùng
+  là loại **Theo lớp**; `scheduled` chỉ còn trong snapshot Version cũ.
 * Online / offline / hybrid là `delivery_mode` của Session. Lớp "hybrid" là
   lớp có cả buổi online và buổi offline, không phải một loại khóa học.
 

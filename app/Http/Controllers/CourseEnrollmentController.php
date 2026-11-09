@@ -135,7 +135,7 @@ class CourseEnrollmentController extends Controller
         if ($productId && ! DB::table('core_course_products')->where('customer_id', $customerId)->where('id', $productId)->exists()) {
             $productId = null;
         }
-        if (! in_array($courseType, CourseType::VALUES, true)) {
+        if (! in_array($courseType, CourseType::SELECTABLE, true)) {
             $courseType = null;
         }
         if ($enrolledBy && ! DB::table('users')->where('customer_id', $customerId)->where('id', $enrolledBy)->exists()) {
@@ -185,7 +185,7 @@ class CourseEnrollmentController extends Controller
                 $query->where('enrollments.source', $source);
             })
             ->when($productId, fn ($query) => $query->where('enrollments.product_id', $productId))
-            ->when($courseType, fn ($query) => $query->where('versions.course_type_snapshot', $courseType))
+            ->when($courseType, fn ($query) => $query->whereIn('versions.course_type_snapshot', CourseType::storedValues($courseType)))
             ->when($enrolledBy, fn ($query) => $query->where('enrollments.enrolled_by', $enrolledBy))
             ->when($enrolledFrom, fn ($query) => $query->where('enrollments.enrolled_at', '>=', $enrolledFrom.' 00:00:00'))
             ->when($enrolledTo, fn ($query) => $query->where('enrollments.enrolled_at', '<=', $enrolledTo.' 23:59:59'))

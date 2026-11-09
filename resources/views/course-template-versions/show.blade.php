@@ -40,7 +40,7 @@
                         <div class="ui-version__chips">
                             {{-- The type frozen into this Version (ADR-0022), not the one the working Template has now. --}}
                             @if ($version->course_type_snapshot ?? null)
-                                <span class="ui-course-type ui-course-type--{{ $version->course_type_snapshot }}" data-course-type="{{ $version->course_type_snapshot }}" title="{{ __('lf.LF_course_type_label') }}">{{ __(\App\Support\CourseType::labelKey($version->course_type_snapshot)) }}</span>
+                                <span class="ui-course-type ui-course-type--{{ \App\Support\CourseType::normalize($version->course_type_snapshot) }}" data-course-type="{{ \App\Support\CourseType::normalize($version->course_type_snapshot) }}" title="{{ __('lf.LF_course_type_label') }}">{{ __(\App\Support\CourseType::labelKey($version->course_type_snapshot)) }}</span>
                             @endif
                             @if ($version->is_current)
                                 <span class="ui-status ui-status--active">{{ __('lf.LF_version_detail_current_published') }}</span>

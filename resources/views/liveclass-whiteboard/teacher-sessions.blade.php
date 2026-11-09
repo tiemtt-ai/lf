@@ -86,10 +86,8 @@
                                     @endif
                                 </td>
                                 <td class="mk-text-cell" data-label="{{ __('lf.LF_liveclass_whiteboard_col_mode') }}">
-                                    {{ __('lf.LF_course_cohort_session_mode_'.$session->delivery_mode) }}
-                                    @if ($meetingUrl = \App\Services\LiveClassWhiteboardService::meetingUrl($session))
-                                        <p class="ui-caption"><a class="ui-cohort-version-link" href="{{ $meetingUrl }}" target="_blank" rel="noopener noreferrer"><x-backend-icon name="external-link" class="ui-icon" />{{ __('lf.LF_liveclass_whiteboard_join_meeting') }}</a></p>
-                                    @elseif ($session->room_name_snapshot)
+                                    <span class="ui-session-mode ui-session-mode--{{ $session->delivery_mode }}">{{ __('lf.LF_course_cohort_session_mode_'.$session->delivery_mode) }}</span>
+                                    @if ($session->room_name_snapshot && $session->delivery_mode !== 'online')
                                         <p class="ui-caption">{{ $session->room_name_snapshot }}</p>
                                     @endif
                                 </td>
@@ -111,13 +109,19 @@
                                                 <x-backend-icon name="presentation" class="ui-icon" />{{ __('lf.LF_liveclass_whiteboard_open') }}
                                             </a>
                                         @endif
+                                        {{-- In class + remote and online sessions have a meeting room. --}}
+                                        @if ($meetingUrl = \App\Services\LiveClassWhiteboardService::meetingUrl($session))
+                                            <a class="ui-button cursor-interaction" href="{{ $meetingUrl }}" target="_blank" rel="noopener noreferrer">
+                                                <x-backend-icon name="external-link" class="ui-icon" />{{ __('lf.LF_liveclass_whiteboard_join_meeting') }}
+                                            </a>
+                                        @endif
                                         @if ($session->can_complete)
                                             <button type="button" class="ui-button ui-button--danger-outline cursor-interaction"
                                                     data-url="{{ route('teacher.live-sessions.complete', $session->id) }}" x-on:click="ask('complete', $el.dataset.url, {{ $session->id }})">
                                                 {{ __('lf.LF_liveclass_whiteboard_complete') }}
                                             </button>
                                         @endif
-                                        @if (! $session->can_start && ! $session->can_open)
+                                        @if (! $session->can_start && ! $session->can_open && ! $meetingUrl)
                                             <span class="ui-caption">—</span>
                                         @endif
                                     </div>

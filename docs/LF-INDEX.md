@@ -371,7 +371,7 @@ docs/adr/
 | [ADR-0019](adr/ADR-0019-Media-Structured-Extraction-Boundary.md) | Approved: mở locator sang region/table/sheet, structured extraction là content type mới; Media quan sát cấu trúc, AI diễn giải |
 | [ADR-0020](adr/ADR-0020-AI-Vision-Interpretation-Boundary.md) | Approved: diễn giải là output AI không phải row media_*; mỗi call một ai_model_runs; quota chặn trước; retention thừa kế ADR-0018 |
 | [ADR-0021](adr/ADR-0021-Media-Sharing-Within-Tenant.md) | Approved: chia sẻ Media trong tenant, admin thấy hết, giáo viên theo chia sẻ (người cụ thể hoặc nhóm vai trò), chặn thu hồi khi đang dùng, media cũ riêng tư |
-| [ADR-0022](adr/ADR-0022-Course-Type-On-Template.md) | Approved: loại khóa học Tự học / Theo lịch / Kết hợp thuộc Course Template và Version; Product bỏ `offering_type`; Cohort chỉ dùng khóa học theo lớp |
+| [ADR-0022](adr/ADR-0022-Course-Type-On-Template.md) | Approved: loại khóa học thuộc Course Template và Version; Product bỏ `offering_type`; Cohort chỉ dùng khóa học theo lớp. Amendment 1.1 (2026-11-09): chỉ còn Tự học / Theo lớp (`scheduled` cũ đọc như Theo lớp) |
 | [ADR-0023](adr/ADR-0023-Cohort-Content-Order.md) | Approved: thứ tự Lesson và Activity riêng của lớp, ngày theo vị trí, khóa lịch đã qua |
 | [ADR-0024](adr/ADR-0024-Cohort-Owned-Content.md) | Archived: Owner rút 2026-11-05; lớp không có bản nội dung riêng |
 | [ADR-0025](adr/ADR-0025-Assessment-Simple-Administration.md) | Approved: module Kiểm tra riêng (đề nháp + phiên bản, ngữ liệu, ghi danh từng đề thay Enrollment, chấm tay); sửa một phần ADR-0003 |

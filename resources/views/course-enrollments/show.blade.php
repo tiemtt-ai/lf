@@ -54,7 +54,7 @@
             <div class="ui-version__chips">
                 <span class="ui-status ui-status--{{ $statusTone }}">{{ __('lf.LF_course_enrollment_common_'.$enrollment->status) }}</span>
                 @if ($enrollment->course_type)
-                    <span class="ui-course-type ui-course-type--{{ $enrollment->course_type }}" data-course-type="{{ $enrollment->course_type }}">{{ __(\App\Support\CourseType::labelKey($enrollment->course_type)) }}</span>
+                    <span class="ui-course-type ui-course-type--{{ \App\Support\CourseType::normalize($enrollment->course_type) }}" data-course-type="{{ \App\Support\CourseType::normalize($enrollment->course_type) }}">{{ __(\App\Support\CourseType::labelKey($enrollment->course_type)) }}</span>
                 @endif
                 @if ($learningState === 'ended')
                     <span class="ui-status ui-status--danger">{{ __('lf.LF_course_enrollment_learning_ended') }}</span>

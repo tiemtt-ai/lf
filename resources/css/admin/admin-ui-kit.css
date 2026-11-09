@@ -2967,6 +2967,10 @@
 .lf-admin-ui .ui-course-type--self_paced { background: var(--ui-teal-soft); color: var(--ui-teal); }
 .lf-admin-ui .ui-course-type--scheduled { background: var(--ui-color-eef0fb); color: var(--ui-primary); }
 .lf-admin-ui .ui-course-type--blended { background: var(--ui-violet-soft); color: var(--ui-violet); }
+.lf-admin-ui .ui-session-mode { display: inline-flex; align-items: center; width: fit-content; padding: 0 8px; border-radius: 999px; font-size: 12px; line-height: 20px; white-space: nowrap; background: var(--ui-color-eef0f5); color: var(--ui-muted); }
+.lf-admin-ui .ui-session-mode--offline { background: var(--ui-teal-soft); color: var(--ui-teal); }
+.lf-admin-ui .ui-session-mode--hybrid { background: var(--ui-violet-soft); color: var(--ui-violet); }
+.lf-admin-ui .ui-session-mode--online { background: var(--ui-color-eef0fb); color: var(--ui-primary); }
 .lf-admin-ui .ui-course-type-readonly { display: flex; align-items: center; min-height: var(--ui-control-height); }
 .lf-admin-ui .ui-template-picker-trigger { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; min-height: var(--ui-control-height); padding: 7px 12px; border: 1px solid var(--ui-border); border-radius: var(--ui-control-radius); background: var(--ui-white); color: var(--ui-text); font: inherit; text-align: left; }
 .lf-admin-ui .ui-template-picker-trigger:hover { border-color: var(--ui-border-hover); }

@@ -57,7 +57,7 @@ class CourseTemplateController extends Controller
         if (! in_array($status, CourseTemplateStatus::VALUES, true)) {
             $status = null;
         }
-        $courseType = in_array($request->query('course_type'), CourseType::VALUES, true) ? $request->query('course_type') : null;
+        $courseType = in_array($request->query('course_type'), CourseType::SELECTABLE, true) ? $request->query('course_type') : null;
 
         $templates = DB::table('core_course_templates as templates')
             ->leftJoin('core_course_categories as categories', function ($join) use ($customerId): void {
@@ -73,7 +73,7 @@ class CourseTemplateController extends Controller
             ->when($status, function ($query) use ($status): void {
                 $query->where('templates.status', $status);
             })
-            ->when($courseType, fn ($query) => $query->where('templates.course_type', $courseType))
+            ->when($courseType, fn ($query) => $query->whereIn('templates.course_type', CourseType::storedValues($courseType)))
             ->when(
                 $request->user()?->role === 'teacher',
                 function ($query) use ($customerId, $request): void {
@@ -725,7 +725,7 @@ class CourseTemplateController extends Controller
             ],
             'title' => ['required', 'string', 'max:255'],
             // Chosen when the Template is created; an edit may omit it to keep the stored type (ADR-0022).
-            'course_type' => [$templateId === null ? 'required' : 'nullable', Rule::in(CourseType::VALUES)],
+            'course_type' => [$templateId === null ? 'required' : 'nullable', Rule::in(CourseType::SELECTABLE)],
             'short_description' => ['nullable', 'string', 'max:500'],
             'description' => ['nullable', 'string'],
             'publisher_name' => ['required', 'string', 'max:255'],

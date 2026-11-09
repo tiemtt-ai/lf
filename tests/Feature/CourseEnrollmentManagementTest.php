@@ -2002,7 +2002,7 @@ class CourseEnrollmentManagementTest extends TestCase
         DB::table('core_course_template_versions')->where('id', $classVersion)->update(['course_type_snapshot' => 'scheduled']);
         $url = 'https://tenant-a.localhost/admin/course-enrollments';
 
-        $this->actingAs($admin)->get($url.'?course_type=scheduled')->assertOk()
+        $this->actingAs($admin)->get($url.'?course_type=blended')->assertOk()
             ->assertSee('name="course_type"', false)
             ->assertDontSee('name="student_id"', false)
             ->assertSeeInOrder(['id="course-enrollment-advanced-filters"', 'name="source"'], false)

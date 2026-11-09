@@ -102,7 +102,7 @@ class CourseProductVersionSummaryPresenter
                     'id' => (int) $version->id,
                     'number_label' => $this->versionNumberLabel((int) $version->version_number),
                     'code' => $version->version_code,
-                    'course_type' => $version->course_type_snapshot,
+                    'course_type' => CourseType::normalize($version->course_type_snapshot),
                     'published_at' => $version->published_at
                         ? date('d/m/Y', strtotime($version->published_at)) : null,
                     'view_url' => $canView ? route('admin.course-templates.versions.show', [
@@ -188,7 +188,7 @@ class CourseProductVersionSummaryPresenter
 
                 // ADR-0022: a Product takes the type frozen in its Version, so the picker promises that one;
                 // the working copy's type only counts until something is published.
-                $courseType = (string) ($template->version_course_type ?? $template->course_type);
+                $courseType = (string) CourseType::normalize($template->version_course_type ?? $template->course_type);
 
                 return [
                     'id' => (int) $template->id,
@@ -197,7 +197,7 @@ class CourseProductVersionSummaryPresenter
                     'category_name' => $template->category_name,
                     'course_type' => $courseType,
                     'course_type_label' => __(CourseType::labelKey($courseType)),
-                    'working_type_note' => $courseType !== (string) $template->course_type
+                    'working_type_note' => ! CourseType::same($courseType, $template->course_type)
                         ? __('lf.LF_product_template_picker_working_type', ['type' => __(CourseType::labelKey((string) $template->course_type))])
                         : null,
                     'version_label' => $template->version_number === null ? null : $this->versionNumberLabel((int) $template->version_number),
@@ -247,7 +247,7 @@ class CourseProductVersionSummaryPresenter
             'number_label' => $this->versionNumberLabel((int) $version->version_number),
             'code' => $version->version_code,
             'status' => $version->version_status,
-            'course_type' => $version->course_type_snapshot,
+            'course_type' => CourseType::normalize($version->course_type_snapshot),
             'status_label' => __('lf.LF_course_template_version_status_'.$version->version_status),
             'lesson_count' => (int) $version->lesson_count,
             'activity_count' => (int) $version->activity_count,

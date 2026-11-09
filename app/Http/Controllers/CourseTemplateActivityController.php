@@ -500,6 +500,7 @@ class CourseTemplateActivityController extends Controller
                 ->first();
 
             abort_if(! $lesson, 404);
+            $this->assertSingleLiveClass($validated, $customerId, $templateId, $lessonId, null);
 
             $validated['sort_order'] ??= $this->nextSortOrder(
                 $customerId,
@@ -681,6 +682,7 @@ class CourseTemplateActivityController extends Controller
 
         DB::transaction(function () use ($request, $customerId, $templateId, $lessonId, $activityId, $validated, $activity): void {
             $this->lockTemplate($customerId, $templateId);
+            $this->assertSingleLiveClass($validated, $customerId, $templateId, $lessonId, $activityId);
             DB::table('core_course_template_activities')
                 ->where('customer_id', $customerId)
                 ->where('template_id', $templateId)
@@ -839,15 +841,19 @@ class CourseTemplateActivityController extends Controller
             ]
         );
 
-        $validator->after(function ($validator) use ($request, $courseType): void {
+        $validator->after(function ($validator) use ($request, $courseType, $customerId, $templateId, $activityId, $lessonId): void {
             // The normalized input: a live class without a declaration already defaults to during the session.
             $phases = $validator->getData()['learning_phases'] ?? [];
 
             if ($request->input('activity_type') === 'live_class' && ! CourseType::allowsLiveClass($courseType)) {
                 $validator->errors()->add('activity_type', __('lf.LF_course_type_live_class_not_allowed'));
             }
+            if ($request->input('activity_type') === 'live_class' && $lessonId !== null
+                && $this->lessonHasOtherLiveClass($customerId, $templateId, $lessonId, $activityId)) {
+                $validator->errors()->add('activity_type', __('lf.LF_course_template_activity_live_class_one_per_lesson'));
+            }
             if (is_array($phases) && array_diff($phases, CourseType::allowedPhases($courseType)) !== []) {
-                $validator->errors()->add('learning_phases', __('lf.LF_course_type_phases_not_allowed_'.$courseType));
+                $validator->errors()->add('learning_phases', __('lf.LF_course_type_phases_not_allowed_'.CourseType::normalize($courseType)));
 
                 return;
             }
@@ -914,7 +920,6 @@ class CourseTemplateActivityController extends Controller
             'sort_order',
             'activity_type',
             'external_video_url',
-            'live_class_url',
             'assessment_quiz_id',
             'duration_seconds',
             'estimated_duration_minutes',
@@ -938,22 +943,21 @@ class CourseTemplateActivityController extends Controller
             array_flip($fields)
         );
         // Without a declaration an Activity defaults to anytime; a live class, which cannot be anytime, to during the session.
-        // A scheduled course has no anytime, so it defaults to during the session; a self-paced one is always anytime.
+        // A self-paced course is always anytime.
         $input['learning_phases'] = match (true) {
             $courseType === CourseType::SELF_PACED => $input['learning_phases'] ?? ['anytime'],
             default => $input['learning_phases']
                 ?? ($request->boolean('learning_phases_present')
                     ? []
-                    : [($input['activity_type'] ?? null) === 'live_class' || $courseType === CourseType::SCHEDULED ? 'during_session' : 'anytime']),
+                    : [($input['activity_type'] ?? null) === 'live_class' ? 'during_session' : 'anytime']),
         };
         unset($input['learning_phases_present']);
 
         $typeField = [
             'embedded_video' => 'external_video_url',
-            'live_class' => 'live_class_url',
             'quiz' => 'assessment_quiz_id',
         ][$input['activity_type'] ?? ''] ?? null;
-        foreach (['external_video_url', 'live_class_url', 'assessment_quiz_id'] as $field) {
+        foreach (['external_video_url', 'assessment_quiz_id'] as $field) {
             if ($field !== $typeField) {
                 unset($input[$field]);
             }
@@ -1035,7 +1039,6 @@ class CourseTemplateActivityController extends Controller
                     }
                 },
             ],
-            'live_class_url' => ['nullable', 'url', 'max:1000', 'starts_with:https://', 'prohibited_unless:activity_type,live_class'],
             'assessment_quiz_id' => [
                 'nullable', 'integer', 'min:1',
                 'required_if:activity_type,quiz',
@@ -1197,7 +1200,10 @@ class CourseTemplateActivityController extends Controller
             'sort_order' => $validated['sort_order'] ?? null,
             'activity_type' => $validated['activity_type'],
             'external_video_url' => $validated['external_video_url'] ?? null,
-            'live_class_url' => $validated['live_class_url'] ?? null,
+            // The default join link is no longer entered; a stored one is kept while the Activity stays a live class.
+            'live_class_url' => $validated['activity_type'] === 'live_class' && $existingActivity?->activity_type === 'live_class'
+                ? $existingActivity->live_class_url
+                : null,
             'assessment_quiz_id' => $validated['assessment_quiz_id'] ?? null,
             'duration_seconds' => $preserveAutomaticDuration
                 ? (int) $existingActivity->duration_seconds
@@ -1219,6 +1225,28 @@ class CourseTemplateActivityController extends Controller
             'unlock_after_activity_id' => $validated['unlock_after_activity_id'] ?? null,
             'unlock_at' => null,
         ], fn ($value, $key) => $key !== 'sort_order' || $value !== null, ARRAY_FILTER_USE_BOTH), $extra);
+    }
+
+    /** A lesson holds at most one live session; the lesson without one is a self-study lesson. */
+    private function lessonHasOtherLiveClass(int $customerId, int $templateId, int $lessonId, ?int $activityId): bool
+    {
+        return DB::table('core_course_template_activities')
+            ->where('customer_id', $customerId)
+            ->where('template_id', $templateId)
+            ->where('template_lesson_id', $lessonId)
+            ->where('activity_type', 'live_class')
+            ->when($activityId !== null, fn ($query) => $query->where('id', '!=', $activityId))
+            ->exists();
+    }
+
+    private function assertSingleLiveClass(array $validated, int $customerId, int $templateId, int $lessonId, ?int $activityId): void
+    {
+        if ($validated['activity_type'] === 'live_class'
+            && $this->lessonHasOtherLiveClass($customerId, $templateId, $lessonId, $activityId)) {
+            throw ValidationException::withMessages([
+                'activity_type' => __('lf.LF_course_template_activity_live_class_one_per_lesson'),
+            ]);
+        }
     }
 
     private function recalculateLessonDuration(int $customerId, int $templateId, int $lessonId): void

@@ -536,3 +536,42 @@ a.lf-wb-btn { text-decoration: none; } /* "Vào phòng họp" is a link styled a
 .lf-wb-attendance.is-large .lf-wb-attendance__count {
     font-size: 1.5rem;
 }
+
+/* In the corner: a small code that keeps refreshing during the lesson; pressing it makes it large again. */
+.lf-admin-ui .ui-modal.lf-wb-attendance.is-corner {
+    position: fixed;
+    inset: auto 16px 16px auto;
+    width: 220px;
+    max-width: calc(100vw - 32px);
+    margin: 0;
+    z-index: 40;
+    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.24);
+}
+
+.lf-wb-attendance.is-corner .ui-modal__header {
+    padding: 8px 12px;
+}
+
+.lf-wb-attendance.is-corner .ui-modal__header h3 {
+    font-size: 14px;
+}
+
+.lf-wb-attendance.is-corner .ui-modal__body {
+    padding: 0 12px 12px;
+}
+
+.lf-wb-attendance.is-corner #lf-wb-attendance-help,
+.lf-wb-attendance.is-corner .ui-modal__footer {
+    display: none;
+}
+
+.lf-wb-attendance.is-corner .lf-wb-attendance__code {
+    width: 100%;
+    margin-top: 0;
+    cursor: zoom-in;
+}
+
+.lf-wb-attendance.is-corner .lf-wb-attendance__count {
+    margin-top: 6px;
+    font-size: 13px;
+}

@@ -83,7 +83,7 @@ class VersionActivityAccessService
             return $this->deny('no_active_cohort');
         }
 
-        if ($courseType === CourseType::BLENDED && (bool) $activity->available_anytime && $activity->activity_type !== 'live_class') {
+        if (CourseType::normalize($courseType) === CourseType::BLENDED && (bool) $activity->available_anytime && $activity->activity_type !== 'live_class') {
             $today = Carbon::now(config('app.timezone'))->toDateString();
             if (! $cohort->start_date || ! $cohort->end_date
                 || $today < substr((string) $cohort->start_date, 0, 10) || $today > substr((string) $cohort->end_date, 0, 10)) {

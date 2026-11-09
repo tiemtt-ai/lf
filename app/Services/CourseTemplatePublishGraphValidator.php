@@ -360,6 +360,16 @@ class CourseTemplatePublishGraphValidator
                 'course_type' => __(CourseType::labelKey($courseType)),
             ], $lesson ? $this->lessonFragment($lesson) : null);
         }
+        // A lesson holds at most one live session; a lesson without one is a self-study lesson.
+        foreach ($activities->where('activity_type', 'live_class')->groupBy('template_lesson_id') as $lessonId => $live) {
+            if ($live->count() < 2) {
+                continue;
+            }
+            $lesson = $lessons->get($lessonId);
+            $this->add($issues, 'lesson_live_class_multiple', 'content', [
+                'lesson' => $lesson?->title ?? __('lf.LF_course_template_publish_integrity_unknown_lesson'),
+            ], $lesson ? $this->lessonFragment($lesson) : null);
+        }
     }
 
     private function validateTemplateMedia(int $customerId, int $templateId, object $template, Collection $issues): void

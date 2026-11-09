@@ -132,6 +132,7 @@ Alpine.data('lfWhiteboard', () => ({
     attendanceTimer: 0,
     // The code over the whole screen, for the back of a big room; remembered while the board is open.
     attendanceLarge: false,
+    attendanceView: 'closed',
 
     init() {
         const engine = new BoardEngine({
@@ -791,13 +792,41 @@ Alpine.data('lfWhiteboard', () => ({
     redo() { this.engine().redo(); },
     clearPage() { this.engine().clearPage(); },
 
+    // The toolbar button shows the code large in the middle of the screen; pressed again it moves to a corner,
+    // where it keeps refreshing while the lesson goes on. Pressing the corner code makes it large again.
     openAttendance() {
-        this.attendance = { ...this.attendance, svg: '', failed: false };
-        this.$refs.attendanceDialog?.showModal();
-        this.loadAttendanceCode();
+        this.setAttendanceView(this.attendanceView === 'large' ? 'corner' : 'large');
+    },
+
+    setAttendanceView(view) {
+        const dialog = this.$refs.attendanceDialog;
+        if (! dialog) {
+            return;
+        }
+        const wasOpen = dialog.open;
+        if (wasOpen) {
+            dialog.close();
+        }
+        this.attendanceView = view;
+        this.attendanceLarge = view === 'large';
+        if (view === 'large') {
+            dialog.showModal();
+        } else {
+            dialog.show();
+        }
+        if (! wasOpen) {
+            this.attendance = { ...this.attendance, svg: '', failed: false };
+            this.loadAttendanceCode();
+        }
     },
 
     closeAttendance() {
+        // Moving between large and the corner closes the dialog for a moment: only a real close stops the code.
+        if (this.$refs.attendanceDialog?.open) {
+            return;
+        }
+        this.attendanceView = 'closed';
+        this.attendanceLarge = false;
         clearTimeout(this.attendanceTimer);
         this.attendanceTimer = 0;
     },

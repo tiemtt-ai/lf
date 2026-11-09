@@ -4,7 +4,7 @@
     $selectedCategoryId = $formTemplate?->category_id;
     $selectedVideoSource = $formTemplate?->intro_video_source;
     $selectedDifficulty = $formTemplate?->difficulty_level;
-    $selectedCourseType = $formTemplate?->course_type;
+    $selectedCourseType = \App\Support\CourseType::normalize($formTemplate?->course_type);
     // ADR-0022: a Product bound to one of its published Versions locks the type.
     $courseTypeLocked = $formTemplate && app(\App\Services\CourseTemplateCourseTypeService::class)->isLocked((int) $formTemplate->customer_id, (int) $formTemplate->id);
     $selectedStatus = $formTemplate?->status ?? \App\Support\CourseTemplateStatus::DEFAULT;
@@ -46,7 +46,7 @@
                 @if ($courseTypeLocked || $archivedTemplate)
                     <span class="ui-field__label">{{ __('lf.LF_course_type_label') }}</span>
                     <span class="ui-course-type-locked">
-                        <span class="ui-course-type ui-course-type--{{ $selectedCourseType }}" data-course-type="{{ $selectedCourseType }}">{{ __(\App\Support\CourseType::labelKey($selectedCourseType)) }}</span>
+                        <span class="ui-course-type ui-course-type--{{ \App\Support\CourseType::normalize($selectedCourseType) }}" data-course-type="{{ \App\Support\CourseType::normalize($selectedCourseType) }}">{{ __(\App\Support\CourseType::labelKey($selectedCourseType)) }}</span>
                         @if ($courseTypeLocked)
                             {{-- Short on screen; the full reason stays available as the tooltip and to assistive technology. --}}
                             <span class="ui-course-type-locked__note" title="{{ __('lf.LF_course_type_change_locked') }}">
@@ -64,7 +64,7 @@
                     <select id="template-form-course_type" name="course_type" data-ui-kit-select required
                             data-ui-empty-label="{{ __('lf.LF_course_template_index_no_options') }}" data-ui-clear-label="{{ __('lf.LF_course_template_common_clear_filters') }}">
                         <option value="" @selected($selectedCourseType === null)>{{ __('lf.LF_course_type_select') }}</option>
-                        @foreach (\App\Support\CourseType::VALUES as $courseType)
+                        @foreach (\App\Support\CourseType::SELECTABLE as $courseType)
                             <option value="{{ $courseType }}" @selected($selectedCourseType === $courseType)>{{ __(\App\Support\CourseType::labelKey($courseType)) }}</option>
                         @endforeach
                     </select>

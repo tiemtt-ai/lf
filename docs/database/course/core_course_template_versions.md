@@ -88,7 +88,7 @@ Foundation, but their implementation is outside this snapshot batch.
 | `intro_video_embed_url_snapshot` | VARCHAR(2048) | nullable | Normalized HTTPS YouTube/Vimeo URL, required only for `embed`. |
 | `intro_video_provider_snapshot` | VARCHAR(50) | nullable | Trusted provider `youtube` or `vimeo`, required only for `embed`. |
 | `intro_document_media_file_id_snapshot` | BIGINT UNSIGNED | nullable | Introduction document Media File frozen at publish time. |
-| `course_type_snapshot` | VARCHAR(50) | required | Amendment 2026-11-01 (Approved, [ADR-0022](../../adr/ADR-0022-Course-Type-On-Template.md)): frozen Template `course_type` (`self_paced`, `scheduled`, `blended`). Authority for Product, Cohort, Enrollment and runtime course type. Backfilled from Version Activity availability. |
+| `course_type_snapshot` | VARCHAR(50) | required | Amendment 2026-11-01 (Approved, [ADR-0022](../../adr/ADR-0022-Course-Type-On-Template.md)): frozen Template `course_type` (`self_paced`, `scheduled`, `blended`). Authority for Product, Cohort, Enrollment and runtime course type. Backfilled from Version Activity availability. Amendment 2026-11-09 (ADR-0022 Amendment 1.1): Version không bị sửa; `scheduled` là giá trị cũ, đọc và chạy như `blended` (Theo lớp). |
 | `difficulty_level_snapshot` | VARCHAR(50) | nullable | Snapshot difficulty: `beginner`, `intermediate`, or `advanced`. |
 | `estimated_minutes_per_lesson_snapshot` | INT UNSIGNED | nullable | Frozen estimated minutes per Lesson. |
 | `estimated_lesson_count_snapshot` | INT UNSIGNED | nullable | Frozen estimated Lesson count; not a hard limit. |

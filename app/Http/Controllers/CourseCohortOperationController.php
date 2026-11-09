@@ -986,7 +986,7 @@ class CourseCohortOperationController extends Controller
             'meeting_url' => ['nullable', 'url', 'max:2000'],
             'facility_name' => ['nullable', 'string', 'max:255'],
             'room_name' => ['nullable', 'string', 'max:255', 'required_if:delivery_mode,offline,hybrid'],
-            'address' => ['nullable', 'string', 'max:2000', 'required_if:delivery_mode,offline,hybrid'],
+            'address' => ['nullable', 'string', 'max:2000'],
         ];
     }
 

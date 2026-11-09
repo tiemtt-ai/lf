@@ -54,7 +54,7 @@
                 <div class="ui-version__chips">
                     <span class="ui-status ui-status--{{ $product->status }}">{{ __('lf.LF_course_product_common_'.$product->status) }}</span>
                     @if ($boundCourseType ?? null)
-                        <span class="ui-course-type ui-course-type--{{ $boundCourseType }}" data-course-type="{{ $boundCourseType }}">{{ __(\App\Support\CourseType::labelKey($boundCourseType)) }}</span>
+                        <span class="ui-course-type ui-course-type--{{ \App\Support\CourseType::normalize($boundCourseType) }}" data-course-type="{{ \App\Support\CourseType::normalize($boundCourseType) }}">{{ __(\App\Support\CourseType::labelKey($boundCourseType)) }}</span>
                     @endif
                 </div>
             </div>

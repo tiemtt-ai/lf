@@ -1,6 +1,6 @@
 # LF-Core-LiveClass.md
 
-Version: 2.21
+Version: 2.22
 
 Document Status: Approved
 
@@ -585,6 +585,65 @@ Session. Online / offline / hybrid là `delivery_mode` của từng Session, kh�
 phải loại khóa học; lớp "hybrid" là lớp có cả buổi online và buổi offline.
 Nguyên tắc này chưa thay đổi code.
 
+### Hình thức buổi học trên giao diện — 2026-11-09 (Approved)
+
+Owner duyệt 2026-11-09. Không đổi dữ liệu: `delivery_mode` giữ ba giá trị, chỉ đổi cách
+chọn và tên hiển thị.
+
+| Giao diện | `delivery_mode` |
+| --- | --- |
+| **Tại lớp** | `offline` |
+| **Tại lớp** + "Có người tham gia từ xa" | `hybrid` (hiển thị "Tại lớp + từ xa") |
+| **Trực tuyến** | `online` |
+
+* Form buổi học (popup Sửa bài học và buổi ngoài chương trình) chọn Tại lớp hoặc Trực
+  tuyến. Tại lớp: Phòng học bắt buộc, Địa chỉ **không bắt buộc**, ô "Có người tham gia
+  từ xa". Trực tuyến hoặc có người từ xa: Link phòng họp. Popup Sửa bài học sửa được link
+  (trước đây link chỉ sửa ở popup Sửa hoạt động; popup này vẫn giữ).
+* Dòng bài học trong tab Buổi học có nhãn hình thức cạnh ngày giờ.
+* Giáo viên (danh sách buổi): nhãn hình thức; nút "Mở bảng" và "Vào phòng họp" (buổi có
+  link `http`/`https`).
+* Học viên ("Buổi học đang diễn ra"): Tại lớp chỉ hiện hướng dẫn quét mã QR trên màn hình
+  lớp, không có nút xem bảng; Tại lớp + từ xa cho chọn "Tôi ở lớp" (hướng dẫn quét QR) hay
+  "Tôi học từ xa" ("Xem bảng", "Vào phòng họp"); Trực tuyến có "Xem bảng" và "Vào phòng họp".
+* Chưa có: buổi tự học (bài không có Buổi học trực tiếp) và link phòng họp mặc định của
+  lớp; xem đề xuất ở [Buổi tự học và link mặc định của lớp](#buổi-tự-học-và-link-mặc-định-của-lớp--đề-xuất-2026-11-09).
+
+### Buổi tự học và link mặc định của lớp — Đề xuất 2026-11-09
+
+Trạng thái: **Proposed**, chờ Owner duyệt. Chưa có migration, chưa có code.
+
+**Đợt B — Link phòng họp mặc định của lớp.**
+
+* Thêm `core_course_cohorts.default_meeting_url` (VARCHAR(2000) NULL, chỉ `http`/`https`),
+  nhập ở popup sửa lớp. Thay mục `meeting_url` đang để "deferred" trong tài liệu Cohort.
+* Buổi học tự điền link theo thứ tự: link riêng của buổi (`meeting_url_snapshot`) → link
+  mặc định của lớp → `live_class_url_snapshot` của Version (chỉ cho dữ liệu cũ).
+* Lưu link mặc định của lớp **không** sửa link của buổi đã tạo; chỉ dùng khi tạo buổi mới
+  hoặc khi buổi để trống link.
+* Sau khi chạy ổn: bỏ tự điền từ `live_class_url_snapshot`, rồi xóa
+  `core_course_template_activities.live_class_url` (migration riêng, cần duyệt riêng).
+
+**Đợt C — Buổi tự học có lịch.** Đây là thay đổi Foundation: phải sửa ADR-0002 (Session
+binding) và ADR-0023 (ngày theo vị trí) trước.
+
+* Thêm `session_type = self_study`: có `version_lesson_id`, `version_activity_id = NULL`,
+  bài đó không có Activity `live_class`. Không có hình thức, phòng, link; không có bảng,
+  không điểm danh, không sinh Activity Completion Evidence.
+* `delivery_mode` thành nullable, bắt buộc với `curriculum` và `operational`, phải `NULL`
+  với `self_study` (CHECK cập nhật tương ứng).
+* Giờ: buổi tự học **giữ giờ bắt đầu và kết thúc như buổi thường** (Owner chốt
+  2026-11-09), để kéo thả theo vị trí, cửa sổ Trước / Trong / Sau buổi học và mục "Buổi học
+  đang diễn ra" dùng chung một cách tính.
+* Lịch học xếp ngày cho **mọi bài** theo thứ tự chương trình, không chỉ bài có Buổi học
+  trực tiếp. Lớp đã có buổi: bấm Lưu lịch lần nữa để tạo buổi tự học cho các bài còn thiếu
+  ngày; buổi đã có giữ nguyên.
+* Giao diện: dòng bài tự học có nhãn "Tự học"; popup chỉ có ngày giờ (không giáo viên bắt
+  buộc, không hình thức, phòng, link). Giáo viên thấy buổi tự học trong danh sách nhưng
+  không có nút.
+* Ngoài phạm vi: trang tự học của học viên có dấu hoàn thành (Đợt D, cần trang học và ghi
+  tiến độ, chưa có trong LF).
+
 ### Curriculum Session
 
 `session_type = curriculum` requires:
@@ -804,6 +863,9 @@ Không thêm bảng, cột hay migration. Mọi phần dưới đây chỉ chạ
   dụng, không lưu ở đâu cả. Trong mã là một link ngắn (`/qr/{session}/{mã}`, khoảng 50 ký
   tự) để mã ít ô và ô to. Nút "Phóng to" cho mã chiếm cả màn hình, để học viên ngồi cuối
   lớp quét được từ chỗ ngồi bằng app Camera của điện thoại.
+  Từ 2026-11-09 nút trên thanh công cụ tên "Mã QR điểm danh": bấm lần đầu mã hiện to giữa
+  màn hình, bấm lần nữa (hoặc "Thu vào góc") mã thu nhỏ ở góc dưới bên phải và vẫn tự đổi
+  mã, bấm vào mã ở góc thì to lại, × thì đóng.
 * **Học viên:** quét bằng điện thoại, đăng nhập bằng tài khoản thật của mình. Chưa đăng
   nhập thì đăng nhập rồi quay lại trang điểm danh, và giờ vào vẫn là lúc quét. Chỉ người
   được xem bảng mới được ghi nhận: còn trong lớp, tài khoản đang hoạt động, Enrollment

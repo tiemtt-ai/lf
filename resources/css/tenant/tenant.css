@@ -2087,6 +2087,29 @@
     gap: 8px;
 }
 
+/* In class + remote: the learner says where they are; in class means the QR code on the classroom screen. */
+.student-live-where {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.student-live-where .student-button[aria-pressed="true"] {
+    border-color: var(--student-primary, #4f5bd5);
+    box-shadow: inset 0 0 0 1px var(--student-primary, #4f5bd5);
+}
+
+.student-live-item [x-cloak] {
+    display: none !important;
+}
+
+.student-live-hint {
+    flex-basis: 100%;
+    margin: 0;
+    color: #475569;
+    font-size: 14px;
+}
+
 /* Attendance check-in page opened by the board's QR code (LF-Core-LiveClass § Attendance). */
 .lf-checkin {
     max-width: 560px;

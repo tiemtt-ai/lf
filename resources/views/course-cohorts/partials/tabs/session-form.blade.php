@@ -35,7 +35,6 @@
                 {{-- Opened on a lesson row: the fields of the Template's lesson form. The session's link is edited on its activity, so here it is only kept. --}}
                 <template x-if="lessonScope()">
                     <dl class="ui-summary ui-field--full ui-cohort-session-template">
-                        <input type="hidden" name="meeting_url" x-bind:value="meetingUrl">
                         <template x-for="row in (programmeLessonRows[lessonId] || [])" :key="row.label">
                             <div class="ui-summary__item" x-bind:class="{ 'ui-summary__item--wide': row.wide }">
                                 <dt class="ui-field__label" x-text="row.label"></dt>
@@ -136,12 +135,59 @@
                     <p class="ui-caption" x-show="sessionType === 'curriculum'">{{ __('lf.LF_course_cohort_session_title_help') }}</p>
                     @error('title')<p class="ui-field__error" role="alert" x-show="showFormErrors">{{ $message }}</p>@enderror
                 </div>
-                <div class="ui-field" x-show="!activityScope()" x-bind:class="{ 'ui-field--full': programmeForm() }">
-                    <label class="ui-field__label" for="delivery_mode"><span class="ui-field__required" aria-hidden="true">*</span>{{ __('lf.LF_course_cohort_session_mode') }}</label>
-                    <select id="delivery_mode" name="delivery_mode" data-ui-kit-select x-model="mode" required>
-                        @foreach (['online', 'offline', 'hybrid'] as $deliveryMode)<option value="{{ $deliveryMode }}">{{ __('lf.LF_course_cohort_session_mode_'.$deliveryMode) }}</option>@endforeach
-                    </select>
+                {{-- In class or online; an in-class session with remote learners is stored as hybrid. --}}
+                <input type="hidden" name="delivery_mode" x-bind:value="mode">
+                <fieldset class="ui-field ui-field--full ui-fieldset-reset" x-show="!activityScope()">
+                    <legend class="ui-field__label"><span class="ui-field__required" aria-hidden="true">*</span>{{ __('lf.LF_course_cohort_session_mode') }}</legend>
+                    <div class="ui-option-cards" role="radiogroup">
+                        @foreach (['offline', 'online'] as $place)
+                            <label class="ui-option-card" x-bind:class="{ 'is-selected': {{ $place === 'online' ? "mode === 'online'" : "mode !== 'online'" }} }">
+                                <input type="radio" name="session_place" value="{{ $place }}" x-bind:checked="{{ $place === 'online' ? "mode === 'online'" : "mode !== 'online'" }}"
+                                       x-on:change="mode = @js($place)">
+                                <span class="ui-option-card__dot" aria-hidden="true"></span>
+                                <span><b>{{ __('lf.LF_course_cohort_session_mode_'.$place) }}</b></span>
+                            </label>
+                        @endforeach
+                    </div>
+                    <p class="ui-caption">{{ __('lf.LF_course_cohort_session_place_help') }}</p>
                     @error('delivery_mode')<p class="ui-field__error" role="alert" x-show="showFormErrors">{{ $message }}</p>@enderror
+                </fieldset>
+                <div class="ui-field" x-show="(mode === 'offline' || mode === 'hybrid') && !activityScope()" x-cloak>
+                    <label class="ui-field__label" for="room_name"><span class="ui-field__required" aria-hidden="true">*</span>{{ __('lf.LF_course_cohort_session_room') }}</label>
+                    <input id="room_name" name="room_name" maxlength="255" x-model="roomName" x-bind:required="(mode === 'offline' || mode === 'hybrid') && !activityScope()" placeholder="{{ __('lf.LF_course_cohort_session_room_placeholder') }}">
+                    @error('room_name')<p class="ui-field__error" role="alert" x-show="showFormErrors">{{ $message }}</p>@enderror
+                </div>
+                <div class="ui-field" x-show="(mode === 'offline' || mode === 'hybrid') && !activityScope()" x-cloak>
+                    <label class="ui-field__label" for="address">{{ __('lf.LF_course_cohort_session_address') }}</label>
+                    <input id="address" name="address" maxlength="2000" x-model="address" placeholder="{{ __('lf.LF_course_cohort_session_address_placeholder') }}">
+                    @error('address')<p class="ui-field__error" role="alert" x-show="showFormErrors">{{ $message }}</p>@enderror
+                </div>
+                <div class="ui-field ui-field--full" x-show="mode !== 'online' && !activityScope()" x-cloak>
+                    <label class="ui-check">
+                        <input type="checkbox" x-bind:checked="mode === 'hybrid'" x-on:change="mode = $event.target.checked ? 'hybrid' : 'offline'">
+                        <span>{{ __('lf.LF_course_cohort_session_remote') }}</span>
+                    </label>
+                    <p class="ui-caption" x-show="mode === 'hybrid'" x-cloak>{{ __('lf.LF_course_cohort_session_remote_help') }}</p>
+                </div>
+                <div class="ui-field" x-bind:class="{ 'ui-field--full': sessionType === 'curriculum' }" x-show="(mode === 'online' || mode === 'hybrid') && !activityScope()">
+                    <label class="ui-field__label" for="meeting_url">{{ __('lf.LF_course_cohort_session_meeting_url') }}</label>
+                    <div class="ui-cohort-session-link">
+                        <input id="meeting_url" type="url" name="meeting_url" x-model.trim="meetingUrl" x-bind:disabled="activityScope()" placeholder="{{ __('lf.LF_course_cohort_session_meeting_url_placeholder') }}">
+                        <button type="button" class="ux-row-edit cursor-interaction" x-show="meetingUrl" x-on:click="copyCurriculumMeetingLink()"
+                                x-bind:aria-label="meetingLinkCopied ? @js(__('lf.LF_course_cohort_edit_copied')) : @js(__('lf.LF_course_cohort_session_copy_meeting_url'))"
+                                x-bind:data-tooltip="meetingLinkCopied ? @js(__('lf.LF_course_cohort_edit_copied')) : @js(__('lf.LF_course_cohort_session_copy_meeting_url'))">
+                            <span x-show="!meetingLinkCopied"><x-backend-icon name="copy" class="ui-icon" /></span>
+                            <span x-show="meetingLinkCopied" x-cloak><x-backend-icon name="check" class="ui-icon" /></span>
+                        </button>
+                    </div>
+                    <p class="ui-caption" x-show="sessionType === 'curriculum'">{{ __('lf.LF_course_cohort_session_curriculum_meeting_help') }}</p>
+                    <p class="ui-caption" x-show="sessionType === 'operational'" x-cloak>{{ __('lf.LF_course_cohort_session_operational_meeting_help') }}</p>
+                    <template x-if="!activityScope()"><span>@error('meeting_url')<p class="ui-field__error" role="alert" x-show="showFormErrors">{{ $message }}</p>@enderror</span></template>
+                </div>
+                <div class="ui-field" x-show="(mode === 'online' || mode === 'hybrid') && sessionType === 'operational'" x-cloak>
+                    <label class="ui-field__label" for="online_provider">{{ __('lf.LF_course_cohort_session_provider') }}</label>
+                    <input id="online_provider" name="online_provider" maxlength="50" x-model="provider" placeholder="{{ __('lf.LF_course_cohort_session_provider_placeholder') }}">
+                    @error('online_provider')<p class="ui-field__error" role="alert" x-show="showFormErrors">{{ $message }}</p>@enderror
                 </div>
 
                 {{-- An activity with no date yet cannot be saved without one: only then its time stays on this popup. --}}
@@ -196,36 +242,6 @@
                     @error('teacher_ids.*')<p class="ui-field__error" role="alert" x-show="showFormErrors">{{ $message }}</p>@enderror
                 </div>
 
-                <div class="ui-field" x-bind:class="{ 'ui-field--full': sessionType === 'curriculum' }" x-show="(mode === 'online' || mode === 'hybrid') && !programmeForm()">
-                    <label class="ui-field__label" for="meeting_url">{{ __('lf.LF_course_cohort_session_meeting_url') }}</label>
-                    <div class="ui-cohort-session-link">
-                        <input id="meeting_url" type="url" name="meeting_url" x-model.trim="meetingUrl" x-bind:disabled="programmeForm()" placeholder="{{ __('lf.LF_course_cohort_session_meeting_url_placeholder') }}">
-                        <button type="button" class="ux-row-edit cursor-interaction" x-show="meetingUrl" x-on:click="copyCurriculumMeetingLink()"
-                                x-bind:aria-label="meetingLinkCopied ? @js(__('lf.LF_course_cohort_edit_copied')) : @js(__('lf.LF_course_cohort_session_copy_meeting_url'))"
-                                x-bind:data-tooltip="meetingLinkCopied ? @js(__('lf.LF_course_cohort_edit_copied')) : @js(__('lf.LF_course_cohort_session_copy_meeting_url'))">
-                            <span x-show="!meetingLinkCopied"><x-backend-icon name="copy" class="ui-icon" /></span>
-                            <span x-show="meetingLinkCopied" x-cloak><x-backend-icon name="check" class="ui-icon" /></span>
-                        </button>
-                    </div>
-                    <p class="ui-caption" x-show="sessionType === 'curriculum'">{{ __('lf.LF_course_cohort_session_curriculum_meeting_help') }}</p>
-                    <p class="ui-caption" x-show="sessionType === 'operational'" x-cloak>{{ __('lf.LF_course_cohort_session_operational_meeting_help') }}</p>
-                    <template x-if="!programmeForm()"><span>@error('meeting_url')<p class="ui-field__error" role="alert" x-show="showFormErrors">{{ $message }}</p>@enderror</span></template>
-                </div>
-                <div class="ui-field" x-show="(mode === 'online' || mode === 'hybrid') && sessionType === 'operational'" x-cloak>
-                    <label class="ui-field__label" for="online_provider">{{ __('lf.LF_course_cohort_session_provider') }}</label>
-                    <input id="online_provider" name="online_provider" maxlength="50" x-model="provider" placeholder="{{ __('lf.LF_course_cohort_session_provider_placeholder') }}">
-                    @error('online_provider')<p class="ui-field__error" role="alert" x-show="showFormErrors">{{ $message }}</p>@enderror
-                </div>
-                <div class="ui-field" x-show="(mode === 'offline' || mode === 'hybrid') && !activityScope()" x-cloak>
-                    <label class="ui-field__label" for="room_name"><span class="ui-field__required" aria-hidden="true">*</span>{{ __('lf.LF_course_cohort_session_room') }}</label>
-                    <input id="room_name" name="room_name" maxlength="255" x-model="roomName" x-bind:required="(mode === 'offline' || mode === 'hybrid') && !activityScope()" placeholder="{{ __('lf.LF_course_cohort_session_room_placeholder') }}">
-                    @error('room_name')<p class="ui-field__error" role="alert" x-show="showFormErrors">{{ $message }}</p>@enderror
-                </div>
-                <div class="ui-field" x-show="(mode === 'offline' || mode === 'hybrid') && !activityScope()" x-cloak>
-                    <label class="ui-field__label" for="address"><span class="ui-field__required" aria-hidden="true">*</span>{{ __('lf.LF_course_cohort_session_address') }}</label>
-                    <input id="address" name="address" maxlength="2000" x-model="address" x-bind:required="(mode === 'offline' || mode === 'hybrid') && !activityScope()" placeholder="{{ __('lf.LF_course_cohort_session_address_placeholder') }}">
-                    @error('address')<p class="ui-field__error" role="alert" x-show="showFormErrors">{{ $message }}</p>@enderror
-                </div>
             </div>
         </div>
         <footer class="ui-modal__footer">

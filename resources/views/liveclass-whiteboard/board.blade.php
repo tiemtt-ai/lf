@@ -16,7 +16,7 @@
         'fullscreen', 'exit_fullscreen', 'reset_view',
         'sync_connecting', 'sync_connected', 'sync_disconnected', 'sync_off', 'sync_presenting', 'sync_waiting', 'sync_following',
         'sync_tap_play', 'sync_snapshot_too_large', 'sync_send_failed', 'revoked',
-        'attendance_count', 'listen_room', 'listen_remote', 'listen_room_help', 'listen_remote_help', 'sound_blocked', 'enable_sound_help', 'close_video', 'close_audio', 'preview',
+        'attendance_count', 'attendance_enlarge', 'listen_room', 'listen_remote', 'listen_room_help', 'listen_remote_help', 'sound_blocked', 'enable_sound_help', 'close_video', 'close_audio', 'preview',
     ])->mapWithKeys(fn (string $key) => [$key => __('lf.LF_liveclass_whiteboard_'.$key)])->all();
     $tools = [
         ['key' => 'laser', 'icon' => 'laser'],
@@ -271,7 +271,7 @@
     </div>
 
     @if ($config['attendanceCodeUrl'])
-        <dialog x-ref="attendanceDialog" class="ui-modal lf-wb-attendance" x-bind:class="{ 'is-large': attendanceLarge }" data-columns="1" aria-labelledby="lf-wb-attendance-title" aria-describedby="lf-wb-attendance-help" x-on:close="closeAttendance()">
+        <dialog x-ref="attendanceDialog" class="ui-modal lf-wb-attendance" x-bind:class="{ 'is-large': attendanceView === 'large', 'is-corner': attendanceView === 'corner' }" data-columns="1" aria-labelledby="lf-wb-attendance-title" aria-describedby="lf-wb-attendance-help" x-on:close="closeAttendance()">
             <div class="ui-modal__form">
                 <header class="ui-modal__header">
                     <div><h3 id="lf-wb-attendance-title">{{ $t('attendance_title') }}</h3></div>
@@ -279,7 +279,9 @@
                 </header>
                 <div class="ui-modal__body">
                     <p id="lf-wb-attendance-help" class="ui-enroll-dialog-text">{{ $t('attendance_help') }}</p>
-                    <div class="lf-wb-attendance__code" x-bind:aria-busy="(! attendance.svg).toString()">
+                    <div class="lf-wb-attendance__code" x-bind:aria-busy="(! attendance.svg).toString()"
+                         x-on:click="if (attendanceView === 'corner') setAttendanceView('large')"
+                         x-bind:role="attendanceView === 'corner' ? 'button' : null" x-bind:title="attendanceView === 'corner' ? strings.attendance_enlarge : null">
                         <img x-show="attendance.svg" x-bind:src="attendance.svg" alt="{{ $t('attendance_code_alt') }}" width="320" height="320">
                         <span x-show="! attendance.svg && ! attendance.failed">{{ $t('loading') }}</span>
                         <span x-show="attendance.failed" x-cloak>{{ $t('attendance_failed') }}</span>
@@ -288,9 +290,9 @@
                        x-text="strings.attendance_count.replace(':count', attendance.checkedIn).replace(':total', attendance.learners)"></p>
                 </div>
                 <footer class="ui-modal__footer">
-                    <button type="button" class="ui-button cursor-interaction" x-on:click="attendanceLarge = ! attendanceLarge" x-bind:aria-pressed="attendanceLarge.toString()">
-                        <span x-show="! attendanceLarge"><x-backend-icon name="maximize" class="ui-icon" /> {{ $t('attendance_enlarge') }}</span>
-                        <span x-show="attendanceLarge" x-cloak><x-backend-icon name="minimize" class="ui-icon" /> {{ $t('attendance_shrink') }}</span>
+                    <button type="button" class="ui-button cursor-interaction" x-on:click="setAttendanceView(attendanceView === 'large' ? 'corner' : 'large')">
+                        <span x-show="attendanceView !== 'large'"><x-backend-icon name="maximize" class="ui-icon" /> {{ $t('attendance_enlarge') }}</span>
+                        <span x-show="attendanceView === 'large'" x-cloak><x-backend-icon name="minimize" class="ui-icon" /> {{ $t('attendance_shrink') }}</span>
                     </button>
                     <button type="button" class="ui-button cursor-interaction" x-on:click="$refs.attendanceDialog.close()">{{ $t('close') }}</button>
                 </footer>

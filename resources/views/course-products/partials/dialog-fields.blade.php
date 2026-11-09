@@ -35,7 +35,7 @@
     },
     closePreview() { this.previewOpen = false; this.preview = { name: '', url: '', mimeType: '', mediaType: '' } },
     category: @js($selectedCategory), template: @js($selectedTemplate),
-    pickerTemplates: @js($pickerTemplates), pickerTab: 'all', pickerQuery: '', pickerCategory: '', templateMissing: false, boundType: @js($boundCourseType),
+    pickerTemplates: @js($pickerTemplates), pickerTab: 'all', pickerQuery: '', pickerCategory: '', templateMissing: false, boundType: @js(\App\Support\CourseType::normalize($boundCourseType)),
     categoryNames: @js($categories->pluck('name', 'id')),
     courseTypeLabels: @js(collect(\App\Support\CourseType::VALUES)->mapWithKeys(fn ($type) => [$type => __(\App\Support\CourseType::labelKey($type))])),
     pickedTemplate() { return this.pickerTemplates.find(item => String(item.id) === String(this.template)) ?? null },
@@ -246,7 +246,7 @@
                     </header>
                     <div class="ui-modal__body">
                         <div class="ui-tabs ui-template-picker__tabs" role="tablist">
-                            @foreach (['all', ...\App\Support\CourseType::VALUES] as $pickerTab)
+                            @foreach (['all', ...\App\Support\CourseType::SELECTABLE] as $pickerTab)
                                 <button type="button" role="tab" class="ui-tabs__tab cursor-interaction" data-template-picker-tab="{{ $pickerTab }}"
                                         x-bind:aria-selected="(pickerTab === '{{ $pickerTab }}').toString()" x-on:click="pickerTab = '{{ $pickerTab }}'">
                                     {{ $pickerTab === 'all' ? __('lf.LF_course_type_all_short') : __(\App\Support\CourseType::labelKey($pickerTab)) }}

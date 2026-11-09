@@ -116,11 +116,34 @@ class CourseTemplatePublishingTest extends TestCase
                     ->assertDontSee('aria-describedby="course-template-publish-disabled-help"', false);
 
                 // ADR-0022: an Activity that does not fit the course type blocks publish.
-                DB::table('core_course_templates')->where('id', $templateId)->update(['course_type' => 'scheduled']);
+                DB::table('core_course_templates')->where('id', $templateId)->update(['course_type' => 'self_paced']);
+                $activityRows = DB::table('core_course_template_activities')->where('template_id', $templateId);
+                $activityRows->update(['available_anytime' => false, 'available_during_session' => true]);
                 $this->actingAs($admin)->get($editUrl)->assertOk()
                     ->assertSee('data-readiness-code="activity_course_type"', false);
                 $this->actingAs($admin)->from($editUrl)->post($publishUrl)->assertSessionHasErrors();
                 $this->assertDatabaseMissing('core_course_template_versions', ['template_id' => $templateId]);
+                DB::table('core_course_template_activities')->where('template_id', $templateId)
+                    ->update(['available_anytime' => true, 'available_during_session' => false]);
+                // A lesson with two live sessions (data from before the one-per-lesson rule) blocks publish.
+                DB::table('core_course_templates')->where('id', $templateId)->update(['course_type' => 'blended']);
+                $liveIds = [];
+                foreach ([1, 2] as $order) {
+                    $liveIds[] = DB::table('core_course_template_activities')->insertGetId([
+                        'customer_id' => $customerId, 'template_id' => $templateId, 'template_lesson_id' => $lessonId,
+                        'title' => 'Live '.$order, 'sort_order' => $order, 'activity_type' => 'live_class',
+                        'duration_seconds' => 0, 'estimated_duration_seconds' => 600, 'is_required' => true,
+                        'completion_rule' => 'join', 'is_preview' => false, 'unlock_rule' => 'none',
+                        'available_anytime' => false, 'available_during_session' => true,
+                        'created_by' => $admin->id, 'created_at' => now(), 'updated_at' => now(),
+                    ]);
+                }
+                $this->actingAs($admin)->get($editUrl)->assertOk()
+                    ->assertSee('data-readiness-code="lesson_live_class_multiple"', false)
+                    ->assertSee(__('lf.LF_course_template_publish_integrity_lesson_live_class_multiple', ['lesson' => ucfirst($status).' Lesson']));
+                $this->actingAs($admin)->from($editUrl)->post($publishUrl)->assertSessionHasErrors();
+                $this->assertDatabaseMissing('core_course_template_versions', ['template_id' => $templateId]);
+                DB::table('core_course_template_activities')->whereIn('id', $liveIds)->delete();
                 DB::table('core_course_templates')->where('id', $templateId)->update(['course_type' => 'self_paced']);
 
                 $this->actingAs($admin)

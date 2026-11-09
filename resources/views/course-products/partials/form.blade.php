@@ -22,7 +22,7 @@
 @endphp
 
 <div x-data="{
-    category: @js($selectedCategory), template: @js($selectedTemplate), boundType: @js($boundCourseType),
+    category: @js($selectedCategory), template: @js($selectedTemplate), boundType: @js(\App\Support\CourseType::normalize($boundCourseType)),
     courseTypeLabels: @js(collect(\App\Support\CourseType::VALUES)->mapWithKeys(fn ($type) => [$type => __(\App\Support\CourseType::labelKey($type))])),
     // ADR-0022: the Product course type is the type of the Version it binds.
     courseType() {

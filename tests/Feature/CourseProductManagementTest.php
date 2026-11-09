@@ -1284,6 +1284,11 @@ class CourseProductManagementTest extends TestCase
         ]);
         $attach($selfPacedId)->assertSessionHasErrors('version_id');
         $this->assertSame($blendedId, (int) DB::table('core_course_product_items')->where('product_id', $productId)->value('version_id'));
+        // A legacy scheduled Version is the same class-based type (ADR-0022 Amendment 1.1), so the move is allowed.
+        $legacyId = $this->createVersion($customerId, $admin->id, title: 'TOPIK Template', templateId: $templateId, versionNumber: 3);
+        DB::table('core_course_template_versions')->where('id', $legacyId)->update(['course_type_snapshot' => 'scheduled']);
+        $attach($legacyId)->assertSessionHasNoErrors();
+        $attach($blendedId)->assertSessionHasNoErrors();
 
         // Without usage the binding may change type, but a self-paced course needs learning days first.
         DB::table('core_course_cohorts')->where('id', $cohortId)->delete();

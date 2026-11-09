@@ -377,6 +377,9 @@ class LiveClassWhiteboardTest extends TestCase
         $this->liveSession($setup, 'Tomorrow', '2026-07-05 15:00:00', '2026-07-05 17:00:00', teacher: $setup['teacher']);
         $student = $this->learner($setup);
         $outsider = $this->user($setup['customer'], 'student');
+        // In class only shows the QR check-in hint; the board is for online and remote learners.
+        $this->assertStringContainsString('data-live-qr-hint', $this->actingAs($student)->get(self::HOST.'/my-courses')->assertOk()->getContent());
+        DB::table('core_liveclass_sessions')->where('id', $live)->update(['delivery_mode' => 'online']);
 
         $page = $this->actingAs($student)->get(self::HOST.'/my-courses')->assertOk()->getContent();
         $this->assertSame(1, preg_match_all('#href="[^"]*/my-courses/live-sessions/(\d+)/board"#', $page, $found));
@@ -694,6 +697,37 @@ class LiveClassWhiteboardTest extends TestCase
         $outsider = $this->user($setup['customer'], 'student');
         $this->assertStringNotContainsString(e($link), $this->actingAs($outsider)->get(self::HOST.'/my-courses')->assertOk()->getContent());
         $this->actingAs($outsider)->get(self::HOST."/my-courses/live-sessions/{$live}/board")->assertNotFound();
+    }
+
+    public function test_the_learner_card_follows_the_delivery_mode(): void
+    {
+        $setup = $this->setupClass();
+        $live = $this->liveSession($setup, 'Live', '2026-07-04 15:00:00', '2026-07-04 17:00:00', status: 'live', teacher: $setup['teacher']);
+        $student = $this->learner($setup);
+        DB::table('core_liveclass_sessions')->where('id', $live)->update(['meeting_url_snapshot' => 'https://meet.example.test/room']);
+        $page = fn (): string => $this->actingAs($student)->get(self::HOST.'/my-courses')->assertOk()->getContent();
+        $board = "/my-courses/live-sessions/{$live}/board";
+
+        // In class: only the QR hint, no board and no meeting.
+        $html = $page();
+        $this->assertStringContainsString('data-live-qr-hint', $html);
+        $this->assertStringNotContainsString($board, $html);
+        $this->assertStringNotContainsString('data-live-where', $html);
+
+        // In class + remote: the learner picks where they are; remote has the board and the meeting.
+        DB::table('core_liveclass_sessions')->where('id', $live)->update(['delivery_mode' => 'hybrid']);
+        $html = $page();
+        $this->assertStringContainsString('data-live-where="room"', $html);
+        $this->assertStringContainsString('data-live-where="remote"', $html);
+        $this->assertStringContainsString($board, $html);
+        $this->assertStringContainsString('data-live-meeting', $html);
+
+        // Online: the board and the meeting, no choice and no QR.
+        DB::table('core_liveclass_sessions')->where('id', $live)->update(['delivery_mode' => 'online']);
+        $html = $page();
+        $this->assertStringNotContainsString('data-live-where', $html);
+        $this->assertStringContainsString($board, $html);
+        $this->assertStringContainsString('data-live-meeting', $html);
     }
 
     public function test_every_way_out_of_live_ends_the_board_and_clears_its_state(): void

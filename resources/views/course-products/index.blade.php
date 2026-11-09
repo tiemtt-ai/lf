@@ -61,7 +61,7 @@
                             data-ui-empty-label="{{ __('lf.LF_course_template_index_no_options') }}"
                             data-ui-clear-label="{{ __('lf.LF_course_product_common_clear_filters') }}">
                         <option value="">{{ __('lf.LF_course_type_all') }}</option>
-                        @foreach (\App\Support\CourseType::VALUES as $typeOption)
+                        @foreach (\App\Support\CourseType::SELECTABLE as $typeOption)
                             <option value="{{ $typeOption }}" @selected($courseType === $typeOption)>{{ __(\App\Support\CourseType::labelKey($typeOption)) }}</option>
                         @endforeach
                     </select>
@@ -171,7 +171,7 @@
                         <td @class(['mk-text-cell', 'mk-na' => ! $product->course_type])
                             data-label="{{ __('lf.LF_course_type_label') }}">
                             @if ($product->course_type)
-                                <span class="ui-course-type ui-course-type--{{ $product->course_type }}" data-course-type="{{ $product->course_type }}">{{ __(\App\Support\CourseType::labelKey($product->course_type)) }}</span>
+                                <span class="ui-course-type ui-course-type--{{ \App\Support\CourseType::normalize($product->course_type) }}" data-course-type="{{ \App\Support\CourseType::normalize($product->course_type) }}">{{ __(\App\Support\CourseType::labelKey($product->course_type)) }}</span>
                             @else
                                 —
                             @endif

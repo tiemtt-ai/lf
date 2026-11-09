@@ -99,7 +99,7 @@
                     <label class="ui-field__label ui-sr-only" for="course_type">{{ __('lf.LF_course_type_label') }}</label>
                     <select id="course_type" name="course_type" data-ui-kit-select data-ui-empty-label="{{ __('lf.LF_course_enrollment_index_no_options') }}" data-ui-clear-label="{{ __('lf.LF_course_enrollment_common_clear_filters') }}">
                         <option value="">{{ __('lf.LF_course_enrollment_filter_all_course_types') }}</option>
-                        @foreach (\App\Support\CourseType::VALUES as $type)
+                        @foreach (\App\Support\CourseType::SELECTABLE as $type)
                         <option value="{{ $type }}" @selected($courseType === $type)>{{ __(\App\Support\CourseType::labelKey($type)) }}</option>
                     @endforeach
                     </select>

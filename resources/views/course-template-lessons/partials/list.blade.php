@@ -186,6 +186,14 @@
                                     {{ __($sessionActivityCount > 0 ? 'lf.LF_course_template_activity_learning_mode_session' : 'lf.LF_course_template_activity_learning_mode_anytime') }}
                                 </span>
                             @endif
+                            {{-- In a class course a lesson without a live session is a self-study lesson. --}}
+                            @if (($template->course_type ?? null) !== \App\Support\CourseType::SELF_PACED
+                                && ! $lessonActivities->contains('activity_type', 'live_class'))
+                                <span>
+                                    <x-backend-icon name="book-open" class="ui-icon" />
+                                    {{ __('lf.LF_course_template_lesson_self_study') }}
+                                </span>
+                            @endif
                         </span>
                     </div>
                     <div class="admin-table-actions">

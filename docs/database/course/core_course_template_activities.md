@@ -1,12 +1,12 @@
 # Table: core_course_template_activities
 
-Version: 1.1
+Version: 1.2
 
 Document Status: Approved
 
 Implementation Status: Unknown
 
-Last Updated: 2026-11-01
+Last Updated: 2026-11-09
 
 Document Path: database/course/core_course_template_activities.md
 
@@ -113,6 +113,8 @@ core_course_template_activities
   * `scheduled`: chỉ `before_session` / `during_session` / `after_session`
     (≥ 1); `anytime` bị từ chối; mặc định `during_session` khi không khai báo.
   * `blended`: cả 4 lựa chọn theo các quy tắc ở trên.
+  * Amendment 2026-11-09 (ADR-0022 Amendment 1.1): `scheduled` không còn được
+    chọn; giá trị cũ được xử lý như `blended` (Theo lớp).
   Backend kiểm tra khi tạo/sửa Activity, khi đổi loại Template và trong
   Publish readiness.
 * Không tham chiếu Live Class Activity; Cohort Session thực tế gắn Lesson là
@@ -190,6 +192,11 @@ Giá trị:
 * quiz
 * live_class
 
+Amendment 2026-11-09 (Owner approved): `live_class` hiển thị là "Buổi học trực
+tiếp". Mỗi Lesson có tối đa một Activity `live_class`; luật nằm ở backend (tạo,
+sửa, Publish readiness), không có ràng buộc database. Lesson không có Activity
+này là buổi tự học.
+
 ---
 
 ## Type-specific Content
@@ -212,6 +219,12 @@ Dùng khi activity_type = live_class. Chỉ URL HTTPS. Không bắt buộc (amen
 tế thuộc về từng Cohort Session (`meeting_url_snapshot`) vì mỗi lớp có phòng
 riêng và URL thường chưa có khi soạn Template. Thiếu URL không chặn lưu Activity
 và không chặn publish.
+
+Amendment 2026-11-09 (Owner approved): **ngừng nhận giá trị mới**. Form không còn
+ô này và server bỏ qua giá trị gửi lên. Giá trị đã lưu được giữ khi Activity vẫn
+là `live_class`, về `NULL` khi đổi loại. Publish vẫn đóng băng giá trị đã lưu vào
+`live_class_url_snapshot` để buổi học của lớp tự điền link. Cột chưa bị xóa; xóa
+sau khi lớp học có link phòng họp mặc định. Không đổi schema.
 
 ### assessment_quiz_id
 

@@ -1,12 +1,12 @@
 # ADR-0022 — Course Type On Course Template
 
-Version: 1.0
+Version: 1.1
 
 Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-11-01
+Last Updated: 2026-11-09
 
 Proposal Date: 2026-11-01
 
@@ -193,6 +193,77 @@ Template trở thành nguồn duy nhất của loại khóa học; Product, Coho
 Enrollment đọc loại qua Version. Form Product đổi sang popup chọn Template.
 Activity form, Template form, Product form/list, Cohort form, Enrollment
 duration policy và Publish readiness cần thay đổi.
+
+# Amendment 1.1 — Hai loại khóa học (Approved 2026-11-09)
+
+Owner (Business/Architecture) duyệt ngày 2026-11-09. Amendment này thay mục 1, bảng `scheduled` ở mục 3 và các chỗ nêu Theo lịch ở mục 5–7; phần
+còn lại giữ nguyên.
+
+## Bối cảnh
+
+Từ 2026-11-09, Activity `live_class` mang nghĩa "Buổi học trực tiếp" (có giáo
+viên giảng, có điểm danh), mỗi Lesson tối đa một; Lesson không có nó là buổi tự
+học ([LF-Core-Course](../core/LF-Core-Course.md#activity-learning-availability)).
+Vì vậy "buổi nào có giáo viên" đã nằm ở từng Lesson. Phân biệt `scheduled` và
+`blended` ở cấp khóa học không còn giúp người soạn; nó chỉ cấm `anytime` ở
+`scheduled`, khiến buổi tự học trong khóa Theo lịch phải xếp ngày mới mở được.
+
+## Đề xuất
+
+| Mã | Tên hiển thị | Ý nghĩa |
+| --- | --- | --- |
+| `self_paced` | Tự học | Đăng ký là học, mở theo thời hạn học; không có lớp. Không đổi. |
+| `blended` | **Theo lớp** | Học trong lớp, mở theo lịch của lớp. Activity chọn `anytime` (mở từ `start_date` đến hết `end_date` của lớp) hoặc Trước / Trong / Sau buổi học. Giữ đúng quy tắc `blended` hiện hành. |
+
+* `scheduled` thôi là lựa chọn mới: form Template chỉ còn Tự học / Theo lớp;
+  backend chỉ nhận `self_paced`, `blended` khi tạo hoặc đổi loại.
+* Giữ mã `blended` cho "Theo lớp" để không đổi CHECK của
+  `course_type` / `course_type_snapshot`.
+* Working Template đang `scheduled` chuyển sang `blended` (dữ liệu nháp, sửa
+  được; mọi Activity `scheduled` đều hợp lệ với `blended`).
+* **Version đã xuất bản không bị sửa** (Course Guardrails Rule 7). `scheduled`
+  trong `course_type_snapshot` là giá trị cũ, hiển thị là "Theo lớp" và chạy như
+  hiện nay. Vì Activity của Version `scheduled` không có `anytime`, chạy theo quy
+  tắc `blended` cũng cho cùng kết quả.
+* Mọi chỗ so loại ("Cohort chỉ dùng khóa học theo lớp", "Product đã dùng chỉ đổi
+  sang Version cùng loại", bộ lọc danh sách) coi `scheduled` và `blended` là
+  cùng một loại.
+
+## Ảnh hưởng
+
+Template form, danh sách và bộ lọc Template / Product / Enrollment, đổi loại
+Template, Product đổi Version, Cohort, nhãn vi/en, tài liệu
+`core_course_cohorts.md`, `core_course_template_activities.md`,
+`LF-Core-Course.md` (mục Course Type). Một migration dữ liệu chuyển Template
+`scheduled` → `blended`; không đổi schema.
+
+## Quyết định cho các câu hỏi mở
+
+* Giữ mã `blended` cho "Theo lớp"; không đổi CHECK, không đổi schema.
+* Chuyển ngay mọi working Template `scheduled` sang `blended`; không tăng
+  `working_revision` vì nghĩa không đổi.
+
+## Architecture Review (2026-11-09) — Pass
+
+* Tenant: migration chỉ đổi giá trị trong từng dòng, không đổi `customer_id`;
+  mọi truy vấn lọc vẫn theo tenant.
+* Guardrails Course Rule 7: không sửa Version đã xuất bản; snapshot `scheduled`
+  được đọc như Theo lớp. Activity của Version `scheduled` không có `anytime`,
+  nên quy tắc `blended` cho cùng kết quả ở runtime.
+* Enrollment, Progress, Product binding không đổi dữ liệu.
+* Database: chỉ migration dữ liệu, không đổi bảng hay CHECK.
+
+## Implementation record
+
+* `App\Support\CourseType`: `SELECTABLE` (Tự học, Theo lớp), `normalize`,
+  `storedValues`, `same`; `scheduled` dùng chung quy tắc thời điểm với `blended`;
+  nhãn của `scheduled` là nhãn Theo lớp.
+* Form Template chỉ nhận `self_paced` / `blended`; bộ lọc Template, Product,
+  Enrollment và tab chọn Template của Product chỉ còn Tự học / Theo lớp, lọc
+  Theo lớp gồm cả `scheduled`. Product đã dùng được chuyển giữa Version
+  `scheduled` và `blended`. Nhân bản Version `scheduled` về bản nháp ghi
+  `blended`. Form Activity bỏ nhánh riêng của Theo lịch.
+* Migration `2026_11_09_000100_merge_scheduled_course_type_into_class_based`.
 
 # Approval
 
