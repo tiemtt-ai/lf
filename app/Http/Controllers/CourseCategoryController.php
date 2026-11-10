@@ -587,9 +587,10 @@ class CourseCategoryController extends Controller
             return null;
         }
 
-        $media->signed_url = $this->mediaService->generateSignedUrl(
-            (int) $media->id
-        );
+        // A file still being scanned or processed (or failed) has no address yet; the page still opens.
+        $media->signed_url = $media->status === 'ready'
+            ? $this->mediaService->generateSignedUrl((int) $media->id)
+            : null;
 
         return $media;
     }

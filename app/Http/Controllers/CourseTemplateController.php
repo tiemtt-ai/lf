@@ -572,6 +572,12 @@ class CourseTemplateController extends Controller
                         $this->detachOwnerMedia($id, $usageType);
                     }
                 }
+                // Rows of removed teachers go with the Template; an active one was refused above.
+                DB::table('core_course_template_teachers')
+                    ->where('customer_id', $customerId)
+                    ->whereIn('template_id', $ids)
+                    ->where('status', 'inactive')
+                    ->delete();
 
                 DB::table('core_course_templates')
                     ->where('customer_id', $customerId)
@@ -1485,6 +1491,8 @@ class CourseTemplateController extends Controller
             $counts = DB::table($table)
                 ->where('customer_id', $customerId)
                 ->whereIn('template_id', $templateIds)
+                // A removed teacher keeps an inactive row (kept for reassignment); only a current one blocks.
+                ->when($reason === 'teachers', fn ($query) => $query->where('status', 'active'))
                 ->selectRaw('template_id, count(*) as aggregate')
                 ->groupBy('template_id')
                 ->pluck('aggregate', 'template_id');

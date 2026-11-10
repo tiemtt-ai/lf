@@ -483,6 +483,40 @@ class CourseProductManagementTest extends TestCase
         $this->actingAs($admin)->deleteJson($url, ['ids' => []])->assertStatus(422);
     }
 
+    public function test_an_unused_draft_is_deleted_with_its_own_item_but_a_sold_or_used_one_is_not(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $versionId = $this->createVersion($customerId, $admin->id);
+        $draft = $this->createProduct($customerId, 'Draft by mistake', 'draft-by-mistake');
+        $active = $this->createProduct($customerId, 'On sale', 'on-sale', status: 'active');
+        $usedDraft = $this->createProduct($customerId, 'Draft with a class', 'draft-with-a-class');
+        foreach ([$draft, $active, $usedDraft] as $productId) {
+            // The create form always adds the Product Item.
+            $this->createProductItem($customerId, $productId, $versionId);
+        }
+        DB::table('core_course_cohorts')->insert([
+            'customer_id' => $customerId, 'product_id' => $usedDraft, 'version_id' => $versionId, 'name' => 'Class',
+            'status' => 'draft', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $url = 'https://tenant-a.localhost/admin/course-products';
+
+        $content = $this->actingAs($admin)->get($url)->assertOk()->getContent();
+        $document = new \DOMDocument;
+        @$document->loadHTML('<?xml encoding="UTF-8">'.$content);
+        $xpath = new \DOMXPath($document);
+        $this->assertSame(1, $xpath->query('//input[@data-ui-bulk-item and not(@disabled) and @value="'.$draft.'"]')->length);
+        $this->assertSame(0, $xpath->query('//input[@data-ui-bulk-item and @value="'.$active.'"]')->length);
+
+        $this->actingAs($admin)->deleteJson($url, ['ids' => [$active]])->assertStatus(409);
+        $this->actingAs($admin)->deleteJson($url, ['ids' => [$usedDraft]])->assertStatus(409);
+        $this->actingAs($admin)->deleteJson($url, ['ids' => [$draft]])->assertOk();
+
+        $this->assertDatabaseMissing('core_course_products', ['id' => $draft]);
+        $this->assertDatabaseMissing('core_course_product_items', ['product_id' => $draft]);
+        $this->assertSame(2, DB::table('core_course_product_items')->whereIn('product_id', [$active, $usedDraft])->count());
+    }
+
     public function test_product_queries_and_mutations_are_tenant_isolated(): void
     {
         $customerId = $this->createTenant();

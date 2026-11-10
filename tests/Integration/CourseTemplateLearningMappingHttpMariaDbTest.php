@@ -137,6 +137,28 @@ class CourseTemplateLearningMappingHttpMariaDbTest extends TestCase
         $this->assertDatabaseHas('core_learning_framework_versions', ['id' => $f['version_id'], 'status' => 'published']);
     }
 
+    public function test_an_archived_template_takes_no_mapping_change(): void
+    {
+        $f = $this->fixture('archived-mapping');
+        $this->select($f);
+        $this->storeLessonMapping($f)->assertSessionHasNoErrors();
+        $intentId = (int) DB::table('core_course_template_learning_mapping_intents')->where('template_id', $f['template_id'])->value('id');
+        DB::table('core_course_templates')->where('id', $f['template_id'])->update(['status' => 'archived']);
+        $revision = DB::table('core_course_templates')->where('id', $f['template_id'])->value('working_revision');
+        $readOnly = ['template' => __('lf.LF_course_template_status_archived_readonly')];
+
+        $this->storeMapping($f, ['source_type' => 'course_template_activity', 'source_id' => (string) $f['activity_id']])
+            ->assertSessionHasErrors($readOnly);
+        $this->admin($f)->delete($f['host']."/admin/course-templates/{$f['template_id']}/learning-mappings/{$intentId}")
+            ->assertSessionHasErrors($readOnly);
+        $this->admin($f)->delete($f['host']."/admin/course-templates/{$f['template_id']}/learning-framework", ['working_revision' => (string) $revision])
+            ->assertSessionHasErrors();
+
+        $this->assertSame([$intentId], DB::table('core_course_template_learning_mapping_intents')
+            ->where('template_id', $f['template_id'])->pluck('id')->map(fn ($id): int => (int) $id)->all());
+        $this->assertSame($revision, DB::table('core_course_templates')->where('id', $f['template_id'])->value('working_revision'));
+    }
+
     public function test_adding_a_lesson_mapping_from_the_tab_form(): void
     {
         $f = $this->fixture('store-lesson');

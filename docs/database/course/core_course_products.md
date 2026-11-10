@@ -1,12 +1,12 @@
 # Table: core_course_products
 
-Version: 1.5
+Version: 1.7
 
 Document Status: Approved
 
 Implementation Status: Unknown
 
-Last Updated: 2026-11-01
+Last Updated: 2026-11-10
 
 Document Path: database/course/core_course_products.md
 
@@ -414,7 +414,7 @@ Giá khuyến mãi.
 
 ### sale_starts_at
 
-TIMESTAMP NULL
+DATETIME NULL
 
 Thời điểm bắt đầu áp dụng giá sale.
 
@@ -422,7 +422,7 @@ NULL = áp dụng ngay.
 
 ### sale_ends_at
 
-TIMESTAMP NULL
+DATETIME NULL
 
 Thời điểm kết thúc giá sale.
 
@@ -688,13 +688,13 @@ Giá trị:
 
 ### available_from
 
-TIMESTAMP NULL
+DATETIME NULL
 
 Ngày bắt đầu hiển thị / bán.
 
 ### available_until
 
-TIMESTAMP NULL
+DATETIME NULL
 
 Ngày kết thúc hiển thị / bán.
 
@@ -704,7 +704,7 @@ Ngày kết thúc hiển thị / bán.
 
 ### registration_starts_at
 
-TIMESTAMP NULL
+DATETIME NULL
 
 Ngày bắt đầu cho phép đăng ký.
 
@@ -712,7 +712,7 @@ NULL = cho phép đăng ký ngay khi Product active.
 
 ### registration_ends_at
 
-TIMESTAMP NULL
+DATETIME NULL
 
 Ngày kết thúc cho phép đăng ký.
 
@@ -1015,7 +1015,7 @@ nghiệp vụ nào và không phá vỡ audit/historical state.
 
 Không được hard delete Product nếu đang hoặc từng được tham chiếu bởi:
 
-* `core_course_product_items`;
+* `core_course_product_items`, trừ trường hợp dưới đây;
 * `core_course_product_relations.product_id`;
 * `core_course_product_relations.related_product_id`;
 * `core_certificate_template_products`;
@@ -1023,6 +1023,16 @@ Không được hard delete Product nếu đang hoặc từng được tham chi�
   khi các bảng đó được triển khai trong tương lai.
 
 Các quan hệ phải cùng `customer_id`.
+
+Owner decision 2026-11-10: form tạo Product luôn tạo kèm Product Item, nên một
+Product còn `draft` mà không có reference nào khác ở trên (relation, Enrollment,
+Cohort, Certificate, Learning Path, Progress, Completion, Review, Note, Bookmark,
+Favorite) được hard delete. Product Item của chính nó là dữ liệu thiết lập, không
+phải reference, và bị xoá cùng trong transaction đó. Product đang `active` hoặc
+`inactive` vẫn theo quy tắc trên: Product Item chặn hard delete.
+
+ADR-0028 (2026-11-10): sáu cột mốc bán / hiển thị / đăng ký là `DATETIME`
+để nhận ngày sau 2038.
 
 ## Foreign Key Recommendation
 

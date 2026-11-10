@@ -14361,7 +14361,7 @@
         },
         {
           "name": "enrolled_at",
-          "type": "timestamp",
+          "type": "datetime",
           "nullable": false,
           "default": "current_timestamp()",
           "unsigned": false,
@@ -14388,7 +14388,7 @@
         },
         {
           "name": "access_starts_at",
-          "type": "timestamp",
+          "type": "datetime",
           "nullable": true,
           "default": "NULL",
           "unsigned": false,
@@ -14397,7 +14397,7 @@
         },
         {
           "name": "access_ends_at",
-          "type": "timestamp",
+          "type": "datetime",
           "nullable": true,
           "default": "NULL",
           "unsigned": false,
@@ -14406,7 +14406,7 @@
         },
         {
           "name": "review_starts_at",
-          "type": "timestamp",
+          "type": "datetime",
           "nullable": true,
           "default": "NULL",
           "unsigned": false,
@@ -14415,7 +14415,7 @@
         },
         {
           "name": "review_ends_at",
-          "type": "timestamp",
+          "type": "datetime",
           "nullable": true,
           "default": "NULL",
           "unsigned": false,
@@ -16927,7 +16927,7 @@
         },
         {
           "name": "sale_starts_at",
-          "type": "timestamp",
+          "type": "datetime",
           "nullable": true,
           "default": "NULL",
           "unsigned": false,
@@ -16936,7 +16936,7 @@
         },
         {
           "name": "sale_ends_at",
-          "type": "timestamp",
+          "type": "datetime",
           "nullable": true,
           "default": "NULL",
           "unsigned": false,
@@ -17089,7 +17089,7 @@
         },
         {
           "name": "available_from",
-          "type": "timestamp",
+          "type": "datetime",
           "nullable": true,
           "default": "NULL",
           "unsigned": false,
@@ -17098,7 +17098,7 @@
         },
         {
           "name": "available_until",
-          "type": "timestamp",
+          "type": "datetime",
           "nullable": true,
           "default": "NULL",
           "unsigned": false,
@@ -17107,7 +17107,7 @@
         },
         {
           "name": "registration_starts_at",
-          "type": "timestamp",
+          "type": "datetime",
           "nullable": true,
           "default": "NULL",
           "unsigned": false,
@@ -17116,7 +17116,7 @@
         },
         {
           "name": "registration_ends_at",
-          "type": "timestamp",
+          "type": "datetime",
           "nullable": true,
           "default": "NULL",
           "unsigned": false,
@@ -18476,7 +18476,7 @@
         },
         {
           "name": "unlock_at",
-          "type": "timestamp",
+          "type": "datetime",
           "nullable": true,
           "default": "NULL",
           "unsigned": false,
@@ -19374,7 +19374,7 @@
         },
         {
           "name": "unlock_at",
-          "type": "timestamp",
+          "type": "datetime",
           "nullable": true,
           "default": "NULL",
           "unsigned": false,

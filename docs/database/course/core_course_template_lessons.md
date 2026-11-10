@@ -1,12 +1,12 @@
 # Table: core_course_template_lessons
 
-Version: 1.3
+Version: 1.4
 
 Document Status: Approved
 
 Implementation Status: Unknown
 
-Last Updated: 2026-08-09
+Last Updated: 2026-11-10
 
 Document Path: database/course/core_course_template_lessons.md
 
@@ -217,13 +217,17 @@ Lesson phải hoàn thành trước.
 
 ### unlock_at
 
-TIMESTAMP NULL
+DATETIME NULL
 
 Ngày mở khóa nếu dùng date_based.
 
 Lưu theo UTC, vì runtime so `unlock_at_snapshot` như UTC instant
 (LF-Core-Course, `date_based`). Admin nhập và xem theo timezone của app; giá trị
 form được đổi sang UTC khi lưu và đổi lại khi hiển thị.
+
+`DATETIME` (không phải `TIMESTAMP`) để nhận mốc sau 2038. Các giá trị lưu
+trước 2026-11-10 ở giờ địa phương được migration chuyển sang UTC; snapshot của
+Version đã xuất bản không đổi (ADR-0028).
 
 ## ADR-0015 Amendment
 

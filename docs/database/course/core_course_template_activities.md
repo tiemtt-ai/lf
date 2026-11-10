@@ -1,12 +1,12 @@
 # Table: core_course_template_activities
 
-Version: 1.2
+Version: 1.3
 
 Document Status: Approved
 
 Implementation Status: Unknown
 
-Last Updated: 2026-11-09
+Last Updated: 2026-11-10
 
 Document Path: database/course/core_course_template_activities.md
 
@@ -349,11 +349,12 @@ Activity cần hoàn thành trước.
 
 ### unlock_at
 
-TIMESTAMP NULL
+DATETIME NULL
 
 Legacy compatibility column. Current Activity authoring and publish readiness
 require this field to remain `NULL`; date-based unlock belongs outside the
 current Activity runtime contract.
+Kiểu `DATETIME` từ ADR-0028 cho đồng bộ với Lesson.
 
 ---
 

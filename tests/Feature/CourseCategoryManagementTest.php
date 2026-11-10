@@ -774,6 +774,25 @@ class CourseCategoryManagementTest extends TestCase
         Storage::disk('media_local')->assertExists($mediaFile->storage_key);
     }
 
+    public function test_a_thumbnail_still_being_processed_does_not_break_the_list_or_the_form(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-categories', $this->validCategoryData([
+            'name' => 'Media Korean', 'slug' => 'media-korean',
+            'thumbnail_image_file' => UploadedFile::fake()->image('category-thumbnail.png', 120, 120),
+        ]))->assertRedirect();
+        $categoryId = (int) DB::table('core_course_categories')->where('slug', 'media-korean')->value('id');
+        $mediaFile = $this->assertActiveMediaUsage($customerId, $categoryId, 'thumbnail');
+
+        // The virus scan runs on a queue; until it finishes (or when it fails) the file is not ready.
+        foreach (['processing', 'failed'] as $status) {
+            DB::table('media_files')->where('id', $mediaFile->id)->update(['status' => $status]);
+            $this->get('https://tenant-a.localhost/admin/course-categories')->assertOk();
+            $this->get("https://tenant-a.localhost/admin/course-categories/{$categoryId}/edit", ['X-Requested-With' => 'XMLHttpRequest'])->assertOk();
+        }
+    }
+
     public function test_customer_admin_can_upload_category_banner(): void
     {
         $customerId = $this->createTenant();

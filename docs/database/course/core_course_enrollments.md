@@ -135,6 +135,8 @@ core_course_progress
 * Tiến độ học lưu ở nhóm Learning Progress.
 * Nếu product có thời hạn học, enrollment cần lưu ngày bắt đầu và ngày hết hạn riêng.
 * Sau khi enrollment hết hạn, dữ liệu học tập vẫn được giữ lại.
+* `enrolled_at` và bốn mốc học / ôn là `DATETIME` (ADR-0028): thời lượng Product
+  tới 36500 ngày cho mốc sau 2038, `TIMESTAMP` không lưu được.
 
 ---
 
@@ -315,7 +317,7 @@ NULL = hệ thống tự tạo.
 ### enrolled_at
 
 ```text
-TIMESTAMP
+DATETIME
 NOT NULL
 ```
 
@@ -368,7 +370,7 @@ Giá trị không thay đổi khi Product thay đổi. Khi một workflow đư�
 ### access_starts_at
 
 ```text
-TIMESTAMP NULL
+DATETIME NULL
 ```
 
 Thời điểm bắt đầu được học.
@@ -380,7 +382,7 @@ NULL = được học ngay sau khi enrolled.
 ### access_ends_at
 
 ```text
-TIMESTAMP NULL
+DATETIME NULL
 ```
 
 Thời điểm hết quyền học.
@@ -402,7 +404,7 @@ access_ends_at = 2026-09-22
 ### review_starts_at
 
 ```text
-TIMESTAMP NULL
+DATETIME NULL
 ```
 
 Thời điểm bắt đầu giai đoạn ôn tập.
@@ -414,7 +416,7 @@ Thường là sau khi hết thời gian học chính.
 ### review_ends_at
 
 ```text
-TIMESTAMP NULL
+DATETIME NULL
 ```
 
 Thời điểm kết thúc giai đoạn ôn tập.

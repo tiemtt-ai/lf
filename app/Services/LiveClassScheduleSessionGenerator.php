@@ -35,12 +35,14 @@ class LiveClassScheduleSessionGenerator
         }
 
         // Two Schedules of a Cohort may share a time. A date overlapping one just
-        // created ends the pass: the next one no longer offers it.
+        // created ends the pass: the next one no longer offers it. A pass also sees
+        // at most the first free occurrences the read model lists (100), so a long
+        // programme needs further passes; each one that creates nothing ends it.
         $created = [];
         do {
-            [$ids, $interrupted] = $this->pass($customerId, $cohort, $actorId);
+            [$ids] = $this->pass($customerId, $cohort, $actorId);
             $created = [...$created, ...$ids];
-        } while ($interrupted);
+        } while ($ids !== []);
 
         // Every live Activity must get a date: refused here, the Schedule is not saved either.
         $missing = count($this->proposals($customerId, $cohort));

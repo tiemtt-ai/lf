@@ -1167,6 +1167,28 @@ class CourseTemplateManagementTest extends TestCase
         $this->actingAs($admin)->deleteJson($url, ['ids' => []])->assertStatus(422);
     }
 
+    public function test_a_template_whose_teachers_were_all_removed_can_be_deleted(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $teacher = $this->createUser($customerId, 'teacher');
+        $template = $this->createTemplate($customerId, 'Once taught', 'once-taught');
+        $base = "https://tenant-a.localhost/admin/course-templates/{$template}/teachers";
+        $this->actingAs($admin)->post($base, ['teacher_id' => $teacher->id, 'role' => 'primary'])->assertSessionHasNoErrors();
+        $assignment = (int) DB::table('core_course_template_teachers')->where('template_id', $template)->value('id');
+
+        $this->actingAs($admin)->deleteJson('https://tenant-a.localhost/admin/course-templates', ['ids' => [$template]])->assertStatus(409);
+
+        // Removing keeps an inactive row for reassignment; it no longer blocks and goes with the Template.
+        $this->actingAs($admin)->delete("{$base}/{$assignment}")->assertSessionHasNoErrors();
+        $this->actingAs($admin)->get('https://tenant-a.localhost/admin/course-templates')->assertOk()
+            ->assertDontSee(__('lf.LF_course_template_delete_blocked_teachers', ['count' => 1]), false);
+        $this->actingAs($admin)->deleteJson('https://tenant-a.localhost/admin/course-templates', ['ids' => [$template]])->assertOk();
+
+        $this->assertDatabaseMissing('core_course_templates', ['id' => $template]);
+        $this->assertDatabaseMissing('core_course_template_teachers', ['template_id' => $template]);
+    }
+
     public function test_an_assigned_teacher_may_work_on_a_template_but_only_its_creator_or_an_admin_deletes_it(): void
     {
         $customerId = $this->createTenant();

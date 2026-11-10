@@ -142,6 +142,9 @@ Giá trị:
 Create đặt `active` ở server. Form update không nhận `status` và bảo toàn giá
 trị hiện có; remove là lifecycle action chuyển assignment sang `inactive`.
 
+Chỉ assignment `active` chặn xoá Template. Khi Template được xoá, các dòng
+`inactive` của nó bị xoá cùng trong transaction đó.
+
 ---
 
 ## Audit

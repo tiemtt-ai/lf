@@ -2998,6 +2998,23 @@ class CourseCohortManagementTest extends TestCase
     }
 
     /** @return array<int, array{lesson: int, activity: int}> direct Lessons, each with one live Activity */
+    public function test_saving_a_schedule_dates_a_programme_longer_than_one_hundred_live_activities(): void
+    {
+        [$customerId, $admin, $cohortId, $versionId] = $this->reorderCohort();
+        DB::table('core_course_cohorts')->where('id', $cohortId)->update(['start_date' => '2026-08-01', 'end_date' => '2026-12-31']);
+        $this->programme($customerId, $versionId, array_map(fn (int $n): string => "Lesson {$n}", range(1, 105)));
+        $daily = $this->validScheduleData([
+            'starts_on' => '2026-08-10', 'ends_on' => '2026-12-31',
+            'slots' => array_map(fn (int $day): array => ['weekday' => $day, 'start_time' => '09:00', 'end_time' => '10:00'], range(1, 7)),
+        ]);
+
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/schedules", $daily)
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(105, DB::table('core_liveclass_sessions')->where('cohort_id', $cohortId)->count());
+        $this->assertSame('2026-11-22 09:00:00', DB::table('core_liveclass_sessions')->where('cohort_id', $cohortId)->max('scheduled_start_at'));
+    }
+
     private function programme(int $customerId, int $versionId, array $titles): array
     {
         static $source = 50000;

@@ -95,7 +95,11 @@ class CourseProductController extends Controller
             ->paginate(10)
             ->withQueryString();
 
-        $blockers = $this->deletionBlockers($customerId, $products->getCollection()->pluck('id')->map(fn ($id) => (int) $id)->all());
+        $blockers = $this->deletionBlockers(
+            $customerId,
+            $products->getCollection()->pluck('id')->map(fn ($id) => (int) $id)->all(),
+            $products->getCollection()->where('status', 'draft')->pluck('id')->map(fn ($id) => (int) $id)->all()
+        );
         $products->getCollection()->each(function (object $product) use ($blockers): void {
             $reasons = $blockers[(int) $product->id] ?? [];
             $product->delete_blocker = $reasons === [] ? null : $this->deletionBlockMessage($reasons);
@@ -398,7 +402,8 @@ class CourseProductController extends Controller
                 abort_if($locked->count() !== count($ids), 404);
 
                 // All or nothing: one Product that is still referenced refuses the whole request and says which.
-                $blockers = $this->deletionBlockers($customerId, $ids);
+                $draftIds = $locked->where('status', 'draft')->pluck('id')->map(fn ($id): int => (int) $id)->all();
+                $blockers = $this->deletionBlockers($customerId, $ids, $draftIds);
 
                 foreach ($locked as $product) {
                     $reasons = $blockers[(int) $product->id] ?? [];
@@ -412,6 +417,13 @@ class CourseProductController extends Controller
                     foreach (['cover_image', ...CourseProductV2::MEDIA_PURPOSES] as $purpose) {
                         $this->detachProductMedia($id, $purpose);
                     }
+                }
+
+                if ($draftIds !== []) {
+                    DB::table('core_course_product_items')
+                        ->where('customer_id', $customerId)
+                        ->whereIn('product_id', $draftIds)
+                        ->delete();
                 }
 
                 DB::table('core_course_products')
@@ -1613,7 +1625,11 @@ class CourseProductController extends Controller
      * @param  array<int, int>  $productIds
      * @return array<int, array<string, int>>
      */
-    private function deletionBlockers(int $customerId, array $productIds): array
+    /**
+     * @param  array<int, int>  $draftIds  Products still in `draft`: their own Product Item is set-up data that goes
+     *                                     with them, not a reference (core_course_products.md, Delete / Reference Rules)
+     */
+    private function deletionBlockers(int $customerId, array $productIds, array $draftIds = []): array
     {
         $blockers = [];
 
@@ -1648,6 +1664,7 @@ class CourseProductController extends Controller
             $counts = DB::table($table)
                 ->where('customer_id', $customerId)
                 ->whereIn($column, $productIds)
+                ->when($reason === 'items' && $draftIds !== [], fn ($query) => $query->whereNotIn($column, $draftIds))
                 ->selectRaw($column.' as product_id, count(*) as aggregate')
                 ->groupBy($column)
                 ->pluck('aggregate', 'product_id');
@@ -1732,9 +1749,10 @@ class CourseProductController extends Controller
             return null;
         }
 
-        $media->signed_url = $this->mediaService->generateSignedUrl(
-            (int) $media->id
-        );
+        // A file still being scanned or processed (or failed) has no address yet; the page still opens.
+        $media->signed_url = $media->status === 'ready'
+            ? $this->mediaService->generateSignedUrl((int) $media->id)
+            : null;
 
         return $media;
     }
