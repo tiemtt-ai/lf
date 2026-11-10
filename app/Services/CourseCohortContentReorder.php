@@ -345,6 +345,18 @@ class CourseCohortContentReorder
     private function saveAtDate(int $customerId, object $cohort, array $date, array $box, int $actorId): int
     {
         $origin = $this->originService->resolve($customerId, (int) $cohort->id, (int) $date['schedule_id'], (int) $date['schedule_slot_id'], (string) $date['date'], true);
+        // Two Schedules may share a time, so a date shown free can collide with one saved earlier in this move.
+        if (LiveClassSessionOverlap::exists(
+            $customerId,
+            (int) $cohort->id,
+            LiveClassSessionTime::utc($origin['scheduled_start_at'], $origin['timezone']),
+            LiveClassSessionTime::utc($origin['scheduled_end_at'], $origin['timezone'])
+        )) {
+            $this->refuse('order', __('lf.LF_course_cohort_order_date_overlap', [
+                'title' => $box['title'],
+                'date' => Carbon::parse($origin['scheduled_start_at'])->format('d/m/Y H:i'),
+            ]));
+        }
         $sessionNo = (int) DB::table('core_liveclass_sessions')->where('customer_id', $customerId)->where('cohort_id', $cohort->id)->max('session_no') + 1;
         $now = now();
         $sessionId = DB::table('core_liveclass_sessions')->insertGetId($box + [

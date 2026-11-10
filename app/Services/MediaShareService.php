@@ -90,6 +90,33 @@ class MediaShareService
     }
 
     /**
+     * For attaching a library pick, inside the caller's transaction: lock the Media row — the lock apply() takes, so a
+     * revocation and an attach never pass each other (ADR-0021 D7) — and re-check that the actor may still use it with a
+     * locking read (it sees a revocation committed while waiting). An admin may use any Media; a teacher their own or
+     * one shared with them. Null when it is gone or no longer usable.
+     */
+    public function lockForAttach(int $customerId, int $mediaId, User $actor): ?object
+    {
+        $media = DB::table('media_files')->where('customer_id', $customerId)->where('id', $mediaId)
+            ->where('status', '!=', 'deleted')->lockForUpdate()->first();
+        if (! $media || (int) $actor->customer_id !== $customerId) {
+            return null;
+        }
+        if ($actor->role !== self::ROLE_TEACHER || (int) $media->uploaded_by === (int) $actor->id) {
+            return $media;
+        }
+
+        $share = DB::table('media_file_shares')->where('customer_id', $customerId)->where('media_file_id', $mediaId)
+            ->whereNull('revoked_at')
+            ->where(function (Builder $grant) use ($actor): void {
+                $grant->where('grantee_user_id', (int) $actor->id)->orWhere('grantee_role', self::ROLE_TEACHER);
+            })
+            ->sharedLock()->first(['id']);
+
+        return $share ? $media : null;
+    }
+
+    /**
      * Set who a Media is shared with. Only the owner or an admin of the tenant may do it.
      *
      * @param  array<int, int|string>  $teacherIds  used when the scope is `teachers`
@@ -113,6 +140,11 @@ class MediaShareService
                 && ($actor->role === 'customer_admin' || (int) $media->uploaded_by === (int) $actor->id),
                 403
             );
+
+            // Owner decision 2026-11-10: a learner's own upload or answer file is never shared. Making it private stays allowed.
+            if ($scope !== self::SCOPE_PRIVATE && $this->learnerContentIds($customerId, [$mediaId]) !== []) {
+                throw ValidationException::withMessages(['scope' => __('lf.LF_media_share_error_learner_content')]);
+            }
 
             $ownerId = (int) $media->uploaded_by;
             $tenantTeachers = DB::table('users')->where('customer_id', $customerId)->where('role', self::ROLE_TEACHER)
@@ -168,6 +200,33 @@ class MediaShareService
     }
 
     /**
+     * Media that came from a learner and so may hold their personal data: uploaded by a student, or used (now or before)
+     * as an assessment answer — an essay attachment or a speaking recording. Such Media cannot be shared (Owner decision
+     * 2026-11-10, the simple gate; a full PII classification stays future work, ADR-0018/ADR-0021).
+     *
+     * @param  iterable<int, int|string>  $mediaIds
+     * @return array<int, int> the ids among $mediaIds that are learner content
+     */
+    public function learnerContentIds(int $customerId, iterable $mediaIds): array
+    {
+        $ids = collect($mediaIds)->map(fn ($id): int => (int) $id)->unique()->values()->all();
+        if ($ids === []) {
+            return [];
+        }
+
+        $byStudent = DB::table('media_files')
+            ->join('users', function ($join) use ($customerId): void {
+                $join->on('users.id', '=', 'media_files.uploaded_by')->where('users.customer_id', '=', $customerId);
+            })
+            ->where('media_files.customer_id', $customerId)->whereIn('media_files.id', $ids)
+            ->where('users.role', 'student')->pluck('media_files.id');
+        $asAnswer = DB::table('media_file_usages')->where('customer_id', $customerId)->whereIn('media_file_id', $ids)
+            ->where('owner_type', 'assessment_answer')->distinct()->pluck('media_file_id');
+
+        return $byStudent->merge($asAnswer)->map(fn ($id): int => (int) $id)->unique()->sort()->values()->all();
+    }
+
+    /**
      * Teachers who can see a Media for these active grantee keys.
      *
      * @param  array<int, string>  $keys
@@ -180,8 +239,11 @@ class MediaShareService
             return $tenantTeachers;
         }
 
+        // Only active teachers count: a deactivated teacher cannot sign in, so their share
+        // ending takes nothing away and must not freeze the owner's sharing (their content stays).
         return collect($keys)->filter(fn (string $key): bool => str_starts_with($key, 'u:'))
-            ->map(fn (string $key): int => (int) substr($key, 2))->values()->all();
+            ->map(fn (string $key): int => (int) substr($key, 2))
+            ->filter(fn (int $id): bool => in_array($id, $tenantTeachers, true))->values()->all();
     }
 
     /**

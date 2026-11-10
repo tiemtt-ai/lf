@@ -2,13 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\MediaFileResponse;
 use App\Support\MediaInlineHeaders;
 use App\Support\TenantContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
-use Symfony\Component\HttpFoundation\HeaderUtils;
 
 class MediaFileDeliveryController extends Controller
 {
@@ -28,21 +26,9 @@ class MediaFileDeliveryController extends Controller
         $headers = [
             'Accept-Ranges' => 'bytes',
             'Content-Type' => $file->mime_type,
-            'Content-Disposition' => $this->inlineDisposition((string) $file->display_name),
         ] + MediaInlineHeaders::for($file->mime_type);
 
-        if ($this->isLocalDisk($file->storage_disk)) {
-            return response()->file(
-                Storage::disk($file->storage_disk)->path($file->storage_key),
-                $headers
-            );
-        }
-
-        return Storage::disk($file->storage_disk)->response(
-            $file->storage_key,
-            $file->display_name,
-            $headers
-        );
+        return MediaFileResponse::inline($file->storage_disk, $file->storage_key, (string) $file->display_name, $headers);
     }
 
     /**
@@ -68,37 +54,74 @@ class MediaFileDeliveryController extends Controller
         $name = pathinfo((string) $file->display_name, PATHINFO_FILENAME).'.'.$extension;
         $headers = [
             'Content-Type' => $video ? (string) $row->mime_type : 'application/pdf',
-            'Content-Disposition' => $this->inlineDisposition($name),
             'X-Content-Type-Options' => 'nosniff',
         ];
-        if ($this->isLocalDisk($file->storage_disk)) {
-            $path = Storage::disk($file->storage_disk)->path($row->storage_key);
-            abort_unless(is_file($path), 404);
 
-            return response()->file($path, $headers);
-        }
-
-        return Storage::disk($file->storage_disk)->response($row->storage_key, $name, $headers);
+        return MediaFileResponse::inline($file->storage_disk, $row->storage_key, $name, $headers);
     }
 
     /**
-     * `inline` with the display name as RFC 6266 `filename*` (UTF-8, so Vietnamese
-     * names survive) and an ASCII `filename` fallback. Control characters and path
-     * separators are dropped first; quotes are escaped by HeaderUtils.
+     * A derived object of a ready Media File of this tenant (LF-Media § Signed Delivery): the crop of a `region` or a
+     * `formula`, a `caption` file or a `variant`, looked up by customer_id, media_file_id and the row id. Archived rows
+     * are still served for the life of an already signed URL, as a pinned revision may be read.
      */
-    private function inlineDisposition(string $name): string
+    public function derived(Request $request, int $mediaFile, string $kind, int $derived)
     {
-        $name = trim(str_replace(['/', '\\'], '-', (string) preg_replace('/[\x00-\x1F\x7F]+/u', '', $name)));
-        if ($name === '' || $name === '.' || $name === '..') {
-            $name = 'file';
-        }
-        $fallback = trim((string) preg_replace('/[^\x20-\x7E]|[%"]/', '', Str::ascii($name)));
+        $customerId = TenantContext::customerId();
+        abort_if(! $customerId, 404);
 
-        return HeaderUtils::makeDisposition(HeaderUtils::DISPOSITION_INLINE, $name, $fallback !== '' ? $fallback : 'file');
+        $file = DB::table('media_files')->where('customer_id', $customerId)->where('id', $mediaFile)->first();
+        abort_if(! $file || $file->status !== 'ready', 404);
+        $live = ['ready', 'archived'];
+
+        [$storageKey, $mimeType, $extension] = match ($kind) {
+            'region' => $this->crop(DB::table('media_extracted_regions')->where('customer_id', $customerId)
+                ->where('media_file_id', $file->id)->where('id', $derived)->whereIn('status', $live)->first(['crop_storage_key', 'crop_mime_type'])),
+            'formula' => $this->crop(DB::table('media_extracted_formulas as formula')
+                ->join('media_extracted_regions as region', function ($join): void {
+                    $join->on('region.id', '=', 'formula.region_id')->on('region.customer_id', '=', 'formula.customer_id')
+                        ->on('region.media_file_id', '=', 'formula.media_file_id');
+                })
+                ->where('formula.customer_id', $customerId)->where('formula.media_file_id', $file->id)->where('formula.id', $derived)
+                ->whereIn('region.status', $live)->first(['region.crop_storage_key', 'region.crop_mime_type'])),
+            'caption' => $this->caption(DB::table('media_captions')->where('customer_id', $customerId)
+                ->where('media_file_id', $file->id)->where('id', $derived)->whereIn('status', $live)->first(['storage_key', 'caption_type'])),
+            'variant' => $this->variantObject(DB::table('media_variants')->where('customer_id', $customerId)
+                ->where('media_file_id', $file->id)->where('id', $derived)->whereIn('status', $live)->first(['storage_key', 'mime_type'])),
+            default => abort(404),
+        };
+
+        $name = pathinfo((string) $file->display_name, PATHINFO_FILENAME).'-'.$kind.($extension !== '' ? '.'.$extension : '');
+
+        return MediaFileResponse::inline($file->storage_disk, $storageKey, $name, [
+            'Content-Type' => $mimeType,
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
     }
 
-    private function isLocalDisk(string $disk): bool
+    /** @return array{0: string, 1: string, 2: string} */
+    private function crop(?object $row): array
     {
-        return config('filesystems.disks.'.$disk.'.driver') === 'local';
+        abort_if(! $row || blank($row->crop_storage_key), 404);
+        $key = (string) $row->crop_storage_key;
+
+        return [$key, (string) ($row->crop_mime_type ?: 'image/png'), (string) pathinfo($key, PATHINFO_EXTENSION)];
+    }
+
+    /** @return array{0: string, 1: string, 2: string} */
+    private function caption(?object $row): array
+    {
+        abort_if(! $row, 404);
+        $type = strtolower((string) $row->caption_type);
+
+        return [(string) $row->storage_key, $type === 'vtt' ? 'text/vtt; charset=UTF-8' : 'text/plain; charset=UTF-8', $type];
+    }
+
+    /** @return array{0: string, 1: string, 2: string} */
+    private function variantObject(?object $row): array
+    {
+        abort_if(! $row, 404);
+
+        return [(string) $row->storage_key, (string) $row->mime_type, (string) pathinfo((string) $row->storage_key, PATHINFO_EXTENSION)];
     }
 }

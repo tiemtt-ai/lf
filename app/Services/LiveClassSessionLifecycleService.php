@@ -83,16 +83,26 @@ class LiveClassSessionLifecycleService
                 ]);
             }
 
+            // An unassigned Session takes no runtime evidence (LF-Core-LiveClass), so it does not go live either.
+            if ($targetStatus === 'live' && ! LiveClassAttendanceCheckIn::sessionHasTeacher($customerId, $sessionId)) {
+                throw ValidationException::withMessages([
+                    'lifecycle' => __('lf.LF_course_cohort_session_lifecycle_needs_teacher'),
+                ]);
+            }
+
             $now = now();
             $values = ['status' => $targetStatus, 'updated_at' => $now];
 
             // `actual_*` record what really happened and are written once by the
-            // transition that observes it, never by the scheduling workflow.
+            // transition that observes it, never by the scheduling workflow. Like
+            // `scheduled_*` they are wall-clock in the Session's own timezone
+            // (LF-Core-LiveClass § Session Time Convention), not the server's.
+            $sessionClock = $now->copy()->setTimezone($session->timezone ?: config('app.timezone'))->format('Y-m-d H:i:s');
             if ($targetStatus === 'live' && ! $session->actual_start_at) {
-                $values['actual_start_at'] = $now;
+                $values['actual_start_at'] = $sessionClock;
             }
             if ($targetStatus === 'completed' && ! $session->actual_end_at) {
-                $values['actual_end_at'] = $now;
+                $values['actual_end_at'] = $sessionClock;
             }
             if (in_array($targetStatus, ['cancelled', 'no_show'], true)) {
                 $values['cancellation_reason'] = $reason;

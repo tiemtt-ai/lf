@@ -15,9 +15,8 @@
     :action="route('admin.learning-frameworks.update', $framework->id)" data-lf-framework-scale-form x-data="{ levels: {{ \Illuminate\Support\Js::from($editLevels) }} }">
     <x-slot:hidden>
         @method('PUT')
-        <input type="hidden" name="code" value="{{ $framework->code }}">
-        <input type="hidden" name="name" value="{{ $framework->name }}">
-        <input type="hidden" name="description" value="{{ $framework->description }}">
+        {{-- Only the scale changes here; the server keeps name and description as stored. --}}
+        <input type="hidden" name="section" value="scale">
         <input type="hidden" name="mastery_scale_key" value="{{ $framework->default_mastery_scale_key }}">
         <input type="hidden" name="mastery_scale_version" value="{{ $nextScaleVersion }}">
     </x-slot:hidden>

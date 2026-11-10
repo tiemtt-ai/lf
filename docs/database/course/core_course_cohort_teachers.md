@@ -1,12 +1,12 @@
 # Table: core_course_cohort_teachers
 
-Version: 1.4
+Version: 1.5
 
 Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-11-05
+Last Updated: 2026-11-10
 
 Document Path: database/course/core_course_cohort_teachers.md
 
@@ -67,6 +67,10 @@ Session chưa có Attendance, Recording, Replay hoặc operational evidence khá
 
 Thông báo lỗi phải liệt kê đầy đủ các Session chặn thao tác để người dùng thay
 giáo viên trước, thay vì chỉ báo một lỗi chung.
+
+**Live Session Amendment (Owner 2026-11-10):** Session đang `live` luôn chặn thao
+tác, kể cả khi đã có Attendance hoặc đã quá `scheduled_end_at`, vì giáo viên đang
+dạy buổi đó. Session đã kết thúc có evidence vẫn không chặn.
 
 Assignment cấp Session của các Session **đã diễn ra hoặc đã có evidence** là
 bằng chứng lịch sử về người đã dạy. Chúng không bị xóa, không bị sửa và không

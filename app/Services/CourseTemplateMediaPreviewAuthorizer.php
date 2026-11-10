@@ -69,15 +69,12 @@ class CourseTemplateMediaPreviewAuthorizer
         }
 
         $authorizedTeacher = $user->role === 'teacher'
-            && (
-                (int) $template->created_by === (int) $user->id
-                || DB::table('core_course_template_teachers')
-                    ->where('customer_id', $customerId)
-                    ->where('template_id', $template->id)
-                    ->where('teacher_id', $user->id)
-                    ->where('status', 'active')
-                    ->exists()
-            );
+            && DB::table('core_course_template_teachers')
+                ->where('customer_id', $customerId)
+                ->where('template_id', $template->id)
+                ->where('teacher_id', $user->id)
+                ->where('status', 'active')
+                ->exists();
 
         abort_unless($authorizedTeacher, 404);
     }

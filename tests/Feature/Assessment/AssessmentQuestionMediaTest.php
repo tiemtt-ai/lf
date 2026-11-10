@@ -100,6 +100,30 @@ class AssessmentQuestionMediaTest extends TestCase
         $this->assertTrue(DB::table('media_files')->where('id', $newMedia)->exists());
     }
 
+    public function test_a_replacement_the_media_domain_rejects_keeps_the_saved_audio(): void
+    {
+        $id = $this->create(['prompt_audio_file' => UploadedFile::fake()->create('nghe.mp3', 32, 'audio/mpeg')]);
+        $oldMedia = (int) DB::table('core_assessment_question_media')->where('question_id', $id)->value('media_file_id');
+
+        // Passes the form rule (MIME audio/mpeg) but not Media's MIME + extension check.
+        $this->actingAs($this->admin)->post(self::BASE.'/'.$id, $this->payload([
+            '_method' => 'PUT',
+            'prompt_audio_file' => UploadedFile::fake()->create('nghe.txt', 32, 'audio/mpeg'),
+        ]), self::AJAX)->assertUnprocessable();
+
+        $this->assertSame($oldMedia, (int) DB::table('core_assessment_question_media')->where('question_id', $id)->value('media_file_id'));
+        $this->assertSame('active', DB::table('media_file_usages')->where('media_file_id', $oldMedia)->value('status'));
+    }
+
+    public function test_m4a_and_aac_prompt_audio_are_accepted(): void
+    {
+        // audio/x-hx-aac-adts is what libmagic reports for an ADTS .aac file.
+        foreach ([['nghe.m4a', 'audio/x-m4a'], ['nghe.aac', 'audio/x-hx-aac-adts']] as [$name, $mime]) {
+            $id = $this->create(['prompt_audio_file' => UploadedFile::fake()->create($name, 32, $mime)]);
+            $this->assertSame(1, DB::table('core_assessment_question_media')->where('question_id', $id)->where('media_role', 'prompt_audio')->count(), $name);
+        }
+    }
+
     public function test_wrong_file_types_are_refused(): void
     {
         $this->actingAs($this->admin)->post(self::BASE, $this->payload([

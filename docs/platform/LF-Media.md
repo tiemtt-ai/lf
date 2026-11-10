@@ -1,12 +1,12 @@
 # LF-Media.md
 
-Version: 1.18
+Version: 1.21
 
 Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-11-08
+Last Updated: 2026-11-10
 
 Document Path: platform/LF-Media.md
 
@@ -60,6 +60,13 @@ rollback sau khi object đã ghi, object mới cũng phải bị xóa.
 
 UI delete phải diễn đạt đúng hai nhánh: file chỉ thuộc Activity này sẽ bị xóa
 vĩnh viễn; file còn được nơi khác sử dụng chỉ bị gỡ khỏi Activity.
+
+**Superseded 2026-11-10 (Owner decision).** Từ khi có Thư viện Media, file là tài
+sản của người tải lên. Khi Activity bị xóa, đổi loại, thay file hoặc bỏ file, owner
+Domain chỉ detach usage; Media được giữ nguyên trong thư viện (kể cả khi không còn
+usage `active`), người dùng tự xóa trong Thư viện Media. Hai nhánh tombstone/purge ở
+trên giờ chỉ áp dụng cho thao tác xóa tường minh trong thư viện và cho các luồng
+tự dọn file của chính người thao tác (ví dụ bài làm của học viên).
 
 ## Capability closure — Phase 1 Audio/Video derived content
 
@@ -275,6 +282,10 @@ Whenever a file is uploaded from any entry point:
 1. Calculate the file checksum.
 2. Search existing Media Files within the same tenant by `customer_id` and
    `checksum`. File size and MIME type may be used as additional validation.
+   **Amendment 2026-11-10:** the search is also limited to the same uploader
+   (`uploaded_by`) and the same `file_type`. Another person's identical file is
+   never handed back: the uploader owns the Media (ADR-0021), and a cleanup on
+   one person's behalf must never reach someone else's file.
 
 If an identical Media File already exists:
 
@@ -310,6 +321,24 @@ Physical deletion is allowed only when:
 
 * no usages remain
 * retention policy allows deletion
+
+## 4.1 Sharing gates (ADR-0021) — 2026-11-10
+
+* **Learner content is never shared** (ADR-0021 D12, Owner decision 2026-11-10):
+  Media uploaded by a `student`, or used (now or before) by an
+  `assessment_answer` usage, is refused for any scope except *Chỉ mình tôi*
+  (422, `LF_media_share_error_learner_content`); the library hides its share
+  action unless it is still shared from before. This is a simple gate, not a PII
+  classification (ADR-0018).
+* **A re-activated usage belongs to whoever attaches it now:** re-attaching a
+  detached `media_file_usages` row sets `created_by` to the current actor, so the
+  D7 revoke check counts the person really using it.
+* **Attach is serialized with revoke (D7):** a library pick (Course Activity,
+  Course Template intro media, Assessment prompt media) locks the `media_files` row — the lock the share change
+  takes — and re-checks with a locking read that the actor may still use it, in
+  the same transaction as the attach.
+* An archived Course Template starts no processing for its activities
+  (transcription, board preview): both take the Template lock like other writes.
 
 ## 5. Upload Modes
 
@@ -515,7 +544,7 @@ viện dẫn "tập MIME được hỗ trợ".
 | `file_type` | Extension | MIME |
 | --- | --- | --- |
 | `image` | jpg, jpeg, png, gif, webp, svg | image/jpeg, image/png, image/gif, image/webp, image/svg+xml |
-| `audio` | mp3, wav, ogg, webm, m4a, aac | audio/mpeg, audio/mp3, audio/wav, audio/x-wav, audio/ogg, audio/webm, audio/mp4 |
+| `audio` | mp3, wav, ogg, webm, m4a, aac | audio/mpeg, audio/mp3, audio/wav, audio/x-wav, audio/ogg, audio/webm, audio/mp4, audio/x-m4a, audio/aac, audio/x-hx-aac-adts |
 | `video` | mp4, webm, mov, avi | video/mp4, video/webm, video/quicktime, video/x-msvideo |
 | `document` | pdf, doc, docx, xls, xlsx, ppt, pptx, txt | application/pdf, application/msword, …wordprocessingml.document, application/vnd.ms-excel, …spreadsheetml.sheet, application/vnd.ms-powerpoint, …presentationml.presentation, text/plain |
 | `subtitle` | vtt, srt, txt | text/vtt, application/x-subrip, text/plain |
@@ -543,6 +572,12 @@ Hai điểm phải nói rõ vì chúng dễ gây hiểu nhầm:
   sẽ phải chuẩn hoá MIME trước khi dùng cho bản ghi này. Nguồn: bài nói Speaking
   của module Kiểm tra; xem
   [LF-Assessment-Learner-Regression-Audit](../quality/LF-Assessment-Learner-Regression-Audit.md).
+* **M4A/AAC (v1.20, 2026-11-10).** Thêm `audio/x-m4a`, `audio/aac` và
+  `audio/x-hx-aac-adts` (MIME libmagic trả cho tệp `.aac` ADTS) để khớp form câu
+  hỏi Kiểm tra (`mimes:m4a,aac`) và bài nói Speaking. Bản ghi MP4 của Safari
+  (lưu `.m4a`) có thể bị nhận là `video/mp4`: được nhận khi **đồng thời**
+  `file_type = 'audio'`, extension `m4a` và MIME `video/mp4`, như ngoại lệ WebM.
+  Extension `mp4` vẫn không thuộc `audio`.
 
 Giới hạn dung lượng là `MEDIA_MAX_UPLOAD_KILOBYTES`, không theo từng `file_type`.
 Xem [LF-Tech-Runtime-Requirements § 10](../tech/LF-Tech-Runtime-Requirements.md)
@@ -1054,6 +1089,15 @@ Signed URL / signed delivery:
 * Phải kiểm tra tenant và authorization trước khi phát hành.
 * Không được lưu như canonical asset identity.
 * Không được log credential, signing secret hoặc full signed query string.
+
+**Derived content (2026-11-10):** crop của `region` / `formula`, tệp `caption` và
+`variant` mà Media Read Contract trả về (`delivery_url`) dùng route
+`media.derived.signed` (`/media/files/{mediaFile}/derived/{kind}/{derived}/signed`)
+trong nhóm middleware `tenant`, chữ ký tuyệt đối (gắn với host của tenant), tra
+dòng theo `customer_id` + `media_file_id` + `id` và phục vụ qua
+`MediaFileResponse::inline` (404 khi không có dòng hoặc object). Disk local không
+dùng route `/storage/{path}` của Laravel (chữ ký tương đối, chạy trên mọi host);
+object storage (S3) giữ URL ngắn hạn của chính nó.
 
 Public bucket/object access không phải default cho tenant media.
 

@@ -177,9 +177,46 @@ class CourseTemplateTeacherManagementTest extends TestCase
         $notAllowed($this->putJson("{$base}/{$assignmentId}", $this->validAssignmentData(['teacher_id' => $peer->id, 'role' => 'assistant'])));
         $notAllowed($this->deleteJson("{$base}/{$assignmentId}"));
 
-        $this->assertSame(1, DB::table('core_course_template_teachers')->where('template_id', $templateId)->count());
+        // The creator's own primary assignment and the peer's: nothing added or removed.
+        $this->assertSame(2, DB::table('core_course_template_teachers')->where('template_id', $templateId)->count());
         $this->assertSame('active', DB::table('core_course_template_teachers')->where('id', $assignmentId)->value('status'));
         $this->assertSame('primary', DB::table('core_course_template_teachers')->where('id', $assignmentId)->value('role'));
+    }
+
+    public function test_the_creator_migration_gives_each_teacher_creator_a_primary_assignment_and_changes_nothing_else(): void
+    {
+        $customerId = $this->createTenant();
+        $otherCustomerId = $this->createTenant('tenant-b');
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $creator = $this->createUser($customerId, 'teacher', 'Creator');
+        $peer = $this->createUser($customerId, 'teacher', 'Peer');
+        $foreign = $this->createUser($otherCustomerId, 'teacher', 'Foreign');
+        $fresh = $this->createTemplate($customerId, 'Never assigned', $creator->id);
+        $removed = $this->createTemplate($customerId, 'Creator removed', $creator->id);
+        $kept = $this->createTemplate($customerId, 'Creator assistant', $creator->id);
+        $byAdmin = $this->createTemplate($customerId, 'Admin made', $admin->id);
+        $crossTenant = $this->createTemplate($customerId, 'Foreign creator', $foreign->id);
+        // Rows as they were before the decision: creators had access through created_by alone.
+        DB::table('core_course_template_teachers')->delete();
+        $peerRow = $this->createAssignment($customerId, $fresh, $peer->id, 'reviewer');
+        $removedRow = $this->createAssignment($customerId, $removed, $creator->id, 'assistant');
+        DB::table('core_course_template_teachers')->where('id', $removedRow)->update(['status' => 'inactive']);
+        $keptRow = $this->createAssignment($customerId, $kept, $creator->id, 'assistant');
+
+        $migration = require database_path('migrations/2026_11_10_000200_template_creator_becomes_primary_assignment.php');
+        $migration->up();
+        $migration->up();
+
+        $added = DB::table('core_course_template_teachers')->where('template_id', $fresh)->where('teacher_id', $creator->id)->get();
+        $this->assertCount(1, $added, 'a second run adds nothing');
+        $this->assertSame(['primary', 'active', 1, $creator->id], [$added[0]->role, $added[0]->status, (int) $added[0]->sort_order, (int) $added[0]->assigned_by]);
+        $this->assertSame('reviewer', DB::table('core_course_template_teachers')->where('id', $peerRow)->value('role'));
+        $reactivated = DB::table('core_course_template_teachers')->where('id', $removedRow)->first();
+        $this->assertSame(['primary', 'active'], [$reactivated->role, $reactivated->status]);
+        $this->assertSame(1, DB::table('core_course_template_teachers')->where('template_id', $removed)->count(), 'the old row is reused, not duplicated');
+        $this->assertSame('assistant', DB::table('core_course_template_teachers')->where('id', $keptRow)->value('role'), 'an active assignment keeps its role');
+        $this->assertDatabaseMissing('core_course_template_teachers', ['template_id' => $byAdmin]);
+        $this->assertDatabaseMissing('core_course_template_teachers', ['template_id' => $crossTenant]);
     }
 
     public function test_assignment_order_is_automatic_and_scoped_to_template(): void
@@ -271,6 +308,31 @@ class CourseTemplateTeacherManagementTest extends TestCase
             ->assertSessionHasErrors('teacher_id');
 
         $this->assertDatabaseCount('core_course_template_teachers', 1);
+    }
+
+    public function test_a_double_submitted_assignment_is_rechecked_under_the_template_lock(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $teacher = $this->createUser($customerId, 'teacher', 'Teacher');
+        $templateId = $this->createTemplate($customerId, 'Race Template');
+        // The concurrent first submit commits between this request's early check and its Template lock.
+        $raced = false;
+        DB::listen(function ($query) use (&$raced, $customerId, $templateId, $teacher): void {
+            if (! $raced && DB::transactionLevel() > 1 && str_contains($query->sql, 'from "core_course_templates"')) {
+                $raced = true;
+                $this->createAssignment($customerId, $templateId, $teacher->id);
+            }
+        });
+
+        $this->actingAs($admin)
+            ->post($this->assignmentCollectionUrl('admin', $templateId), $this->validAssignmentData([
+                'teacher_id' => $teacher->id,
+            ]))
+            ->assertSessionHasErrors('teacher_id');
+
+        // One connection only: the simulated concurrent row rolls back with this request; a real one is committed.
+        $this->assertTrue($raced);
     }
 
     public function test_assignment_access_and_mutations_are_tenant_isolated(): void
@@ -525,7 +587,7 @@ class CourseTemplateTeacherManagementTest extends TestCase
         string $title,
         ?int $createdBy = null
     ): int {
-        return DB::table('core_course_templates')->insertGetId(['course_type' => 'blended',
+        return $this->assignCreator($customerId, DB::table('core_course_templates')->insertGetId(['course_type' => 'blended',
             'customer_id' => $customerId,
             'category_id' => null,
             'title' => $title,
@@ -548,7 +610,21 @@ class CourseTemplateTeacherManagementTest extends TestCase
             'last_version_published_at' => null,
             'created_at' => now(),
             'updated_at' => now(),
-        ]);
+        ]), $createdBy);
+    }
+
+    /** The creator of a Template is its primary assignment when a teacher (Owner decision 2026-11-10). */
+    private function assignCreator(int $customerId, int $templateId, ?int $createdBy): int
+    {
+        if ($createdBy !== null && DB::table('users')->where('id', $createdBy)->value('role') === 'teacher') {
+            DB::table('core_course_template_teachers')->insert([
+                'customer_id' => $customerId, 'template_id' => $templateId, 'teacher_id' => $createdBy,
+                'role' => 'primary', 'sort_order' => 0, 'status' => 'active',
+                'assigned_by' => $createdBy, 'assigned_at' => now(), 'created_at' => now(), 'updated_at' => now(),
+            ]);
+        }
+
+        return $templateId;
     }
 
     private function createAssignment(

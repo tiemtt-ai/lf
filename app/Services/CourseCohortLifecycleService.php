@@ -85,12 +85,20 @@ class CourseCohortLifecycleService
      */
     public function cohortIdsWithRecords(int $customerId, array $cohortIds): array
     {
+        // A seat transferred out still names this Cohort as its origin (FK restrict), so it is a record too.
+        $transferredOut = DB::table('core_course_cohort_students')
+            ->where('customer_id', $customerId)
+            ->whereIn('transfer_from_cohort_id', $cohortIds)
+            ->distinct()
+            ->pluck('transfer_from_cohort_id');
+
         return collect(self::RECORD_TABLES)
             ->flatMap(fn (string $table) => DB::table($table)
                 ->where('customer_id', $customerId)
                 ->whereIn('cohort_id', $cohortIds)
                 ->distinct()
                 ->pluck('cohort_id'))
+            ->concat($transferredOut)
             ->map(fn ($id) => (int) $id)
             ->unique()
             ->values()
@@ -150,7 +158,7 @@ class CourseCohortLifecycleService
             }
 
             if ($cohort->status === 'draft' && $targetStatus === 'archived') {
-                $this->assertDraftArchiveEligible($customerId, $cohortId);
+                $this->assertDraftArchiveEligible($customerId, $cohort);
             }
 
             DB::table('core_course_cohorts')
@@ -261,8 +269,22 @@ class CourseCohortLifecycleService
         return array_values(array_unique($errors));
     }
 
-    private function assertDraftArchiveEligible(int $customerId, int $cohortId): void
+    private function assertDraftArchiveEligible(int $customerId, object $cohort): void
     {
+        $cohortId = (int) $cohort->id;
+
+        // Owner decision 2026-11-10: a draft whose Product moved to another Version can never
+        // activate, so it may be archived with its members. They leave the class; their
+        // Enrollments are untouched (core_course_cohorts.md § Stale Draft Archive Amendment).
+        if ($this->bindsAStaleVersion($customerId, $cohort)) {
+            $leaving = DB::table('core_course_cohort_students')
+                ->where('customer_id', $customerId)->where('cohort_id', $cohortId)->where('status', 'active');
+            $now = now();
+            $leaving->update(['status' => 'removed', 'left_at' => $now, 'updated_at' => $now]);
+
+            return;
+        }
+
         $hasMembershipUsage = DB::table('core_course_cohort_students')
             ->where('customer_id', $customerId)
             ->where(function ($query) use ($cohortId): void {
@@ -276,6 +298,16 @@ class CourseCohortLifecycleService
                 'lifecycle' => __('lf.LF_course_cohort_lifecycle_draft_archive_usage'),
             ]);
         }
+    }
+
+    private function bindsAStaleVersion(int $customerId, object $cohort): bool
+    {
+        if (! $cohort->product_id || ! $cohort->version_id) {
+            return false;
+        }
+        $resolved = $this->versionResolver->resolve($customerId, (int) $cohort->product_id, true);
+
+        return ! $resolved || (int) $resolved->version_id !== (int) $cohort->version_id;
     }
 
     private function failActivation(array $errors): never

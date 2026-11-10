@@ -668,6 +668,27 @@ class CourseTemplateSectionManagementTest extends TestCase
         ]);
     }
 
+    public function test_section_description_and_display_order_are_bounded_to_their_columns(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, 'Bounded Course', 'bounded-course');
+        $url = "https://tenant-a.localhost/admin/course-templates/{$templateId}/sections";
+
+        $this->actingAs($admin)
+            ->post($url, $this->validSectionData([
+                'description' => str_repeat('ạ', 20001),
+                'display_order' => 1000001,
+            ]))
+            ->assertSessionHasErrors(['description', 'display_order']);
+        $this->actingAs($admin)
+            ->post($url, $this->validSectionData([
+                'description' => str_repeat('ạ', 20000),
+                'display_order' => 1000000,
+            ]))
+            ->assertSessionDoesntHaveErrors(['description', 'display_order']);
+    }
+
     public function test_section_validation_allows_automatic_display_order(): void
     {
         $customerId = $this->createTenant();
@@ -822,6 +843,60 @@ class CourseTemplateSectionManagementTest extends TestCase
             'id' => $parentId,
             'parent_section_id' => null,
         ]);
+    }
+
+    public function test_a_concurrent_move_that_closes_a_cycle_is_refused_under_the_template_lock(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, 'Own Template', 'own-template');
+        $sectionA = $this->createSection($customerId, $templateId, 'A', 1);
+        $sectionB = $this->createSection($customerId, $templateId, 'B', 2);
+        // The other admin's move of B under A commits after this request's form check, before its Template lock.
+        $raced = false;
+        DB::listen(function ($query) use (&$raced, $sectionA, $sectionB): void {
+            if (! $raced && DB::transactionLevel() > 1 && str_contains($query->sql, 'from "core_course_templates"')) {
+                $raced = true;
+                DB::table('core_course_template_sections')->where('id', $sectionB)->update(['parent_section_id' => $sectionA]);
+            }
+        });
+
+        $this->actingAs($admin)
+            ->putJson(
+                "https://tenant-a.localhost/admin/course-templates/{$templateId}/sections/{$sectionA}",
+                $this->validSectionData(['parent_section_id' => $sectionB, 'title' => 'A'])
+            )
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('parent_section_id');
+
+        $this->assertTrue($raced);
+        $this->assertNull(DB::table('core_course_template_sections')->where('id', $sectionA)->value('parent_section_id'));
+    }
+
+    public function test_a_parent_deleted_after_the_form_check_is_refused_under_the_template_lock(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, 'Own Template', 'own-template');
+        $parentId = $this->createSection($customerId, $templateId, 'Parent', 1);
+        $raced = false;
+        DB::listen(function ($query) use (&$raced, $parentId): void {
+            if (! $raced && DB::transactionLevel() > 1 && str_contains($query->sql, 'from "core_course_templates"')) {
+                $raced = true;
+                DB::table('core_course_template_sections')->where('id', $parentId)->delete();
+            }
+        });
+
+        $this->actingAs($admin)
+            ->postJson(
+                "https://tenant-a.localhost/admin/course-templates/{$templateId}/sections",
+                $this->validSectionData(['parent_section_id' => $parentId, 'title' => 'Orphan'])
+            )
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('parent_section_id');
+
+        $this->assertTrue($raced);
+        $this->assertDatabaseMissing('core_course_template_sections', ['title' => 'Orphan']);
     }
 
     public function test_delete_is_blocked_when_a_child_section_exists(): void
@@ -1114,7 +1189,7 @@ class CourseTemplateSectionManagementTest extends TestCase
     ): int {
         $now = now();
 
-        return DB::table('core_course_templates')->insertGetId(['course_type' => 'blended',
+        return $this->assignCreator($customerId, DB::table('core_course_templates')->insertGetId(['course_type' => 'blended',
             'customer_id' => $customerId,
             'category_id' => null,
             'title' => $title,
@@ -1137,7 +1212,21 @@ class CourseTemplateSectionManagementTest extends TestCase
             'last_version_published_at' => null,
             'created_at' => $now,
             'updated_at' => $now,
-        ]);
+        ]), $createdBy);
+    }
+
+    /** The creator of a Template is its primary assignment when a teacher (Owner decision 2026-11-10). */
+    private function assignCreator(int $customerId, int $templateId, ?int $createdBy): int
+    {
+        if ($createdBy !== null && DB::table('users')->where('id', $createdBy)->value('role') === 'teacher') {
+            DB::table('core_course_template_teachers')->insert([
+                'customer_id' => $customerId, 'template_id' => $templateId, 'teacher_id' => $createdBy,
+                'role' => 'primary', 'sort_order' => 0, 'status' => 'active',
+                'assigned_by' => $createdBy, 'assigned_at' => now(), 'created_at' => now(), 'updated_at' => now(),
+            ]);
+        }
+
+        return $templateId;
     }
 
     private function createSection(

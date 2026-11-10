@@ -223,6 +223,22 @@ class AiAuthoringApplicationServiceMariaDbTest extends TestCase
         $this->assertSame(0, DB::table('core_learning_node_mappings')->count());
     }
 
+    public function test_an_archived_template_takes_no_ai_intent(): void
+    {
+        $uuid = $this->acceptedReuse();
+        $preview = $this->applications()->targetPreview($this->f['teacher_id'], $uuid);
+        $this->applications()->confirmTarget($this->f['teacher_id'], $uuid, 2, $preview['target_hash'], (string) Str::uuid());
+        $templateId = (int) DB::table('core_course_template_activities')->where('id', $this->f['activity_id'])->value('template_id');
+        DB::table('core_course_templates')->where('id', $templateId)->update(['status' => 'archived']);
+        $revision = (int) DB::table('core_course_templates')->where('id', $templateId)->value('working_revision');
+
+        $applied = $this->applications()->applyIntent($this->f['teacher_id'], $uuid, 3, (string) Str::uuid());
+
+        $this->assertSame('template_read_only', $applied['error_code']);
+        $this->assertSame(0, DB::table('core_course_template_learning_mapping_intents')->where('origin', 'ai_proposal')->count());
+        $this->assertSame($revision, (int) DB::table('core_course_templates')->where('id', $templateId)->value('working_revision'));
+    }
+
     public function test_a_stale_snapshot_hash_cannot_be_confirmed(): void
     {
         $uuid = $this->acceptedReuse();

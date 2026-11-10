@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\CourseEnrollmentController;
 use App\Models\User;
 use App\Services\CourseEnrollmentLifecycleService;
 use App\Services\EnrollmentCreationAction;
@@ -13,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
 class CourseEnrollmentManagementTest extends TestCase
@@ -32,10 +34,12 @@ class CourseEnrollmentManagementTest extends TestCase
 
     public function test_admin_course_enrollment_routes_exist_and_teacher_routes_do_not(): void
     {
-        foreach (['index', 'create', 'store', 'show', 'edit', 'update', 'activate', 'suspend', 'reactivate', 'cancel'] as $route) {
+        foreach (['index', 'create', 'show', 'edit', 'update', 'activate', 'suspend', 'reactivate', 'cancel'] as $route) {
             $this->assertTrue(Route::has("admin.course-enrollments.{$route}"));
             $this->assertFalse(Route::has("teacher.course-enrollments.{$route}"));
         }
+        // The single-pair create skipped re-enrollment confirmation and the submission token.
+        $this->assertFalse(Route::has('admin.course-enrollments.store'));
         $this->assertFalse(Route::has('admin.course-enrollments.bulk-update'));
         $this->assertFalse(Route::has('teacher.course-enrollments.bulk-update'));
         $this->assertTrue(Route::has('admin.course-enrollments.bulk-lifecycle'));
@@ -65,16 +69,7 @@ class CourseEnrollmentManagementTest extends TestCase
         $versionId = $this->createVersion($customerId, $admin->id, title: 'TOPIK Beginner');
         $this->createProductItem($customerId, $productId, $versionId);
 
-        $this->actingAs($admin)
-            ->post(
-                'https://tenant-a.localhost/admin/course-enrollments',
-                $this->validEnrollmentData([
-                    'student_id' => $student->id,
-                    'product_id' => $productId,
-                    'notes' => 'Manual admin assignment.',
-                ])
-            )
-            ->assertRedirect();
+        $this->enrollPair($admin, $student->id, $productId, ['notes' => 'Manual admin assignment.']);
 
         $this->assertDatabaseHas('core_course_enrollments', [
             'customer_id' => $customerId,
@@ -271,17 +266,12 @@ class CourseEnrollmentManagementTest extends TestCase
         $this->createProductItem($customerId, $productId, $versionId);
 
         $this->actingAs($admin)
-            ->from('https://tenant-a.localhost/admin/course-enrollments/create')
-            ->post(
-                'https://tenant-a.localhost/admin/course-enrollments',
-                $this->validEnrollmentData([
-                    'student_id' => $student->id,
-                    'product_id' => $productId,
-                    'version_id' => $otherVersionId,
-                ])
-            )
-            ->assertRedirect('https://tenant-a.localhost/admin/course-enrollments/create')
-            ->assertSessionHasErrors('version_id');
+            ->postJson('https://tenant-a.localhost/admin/course-enrollments/bulk/preflight', [
+                'student_ids' => [$student->id], 'product_ids' => [$productId],
+                'configuration' => $this->bulkConfiguration(), 'version_id' => $otherVersionId,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('version_id');
 
         $this->assertDatabaseCount('core_course_enrollments', 0);
     }
@@ -293,17 +283,10 @@ class CourseEnrollmentManagementTest extends TestCase
         $student = $this->createUser($customerId, 'student');
         $productId = $this->createProduct($customerId, 'TOPIK Beginner', 'topik-beginner');
 
-        $this->actingAs($admin)
-            ->from('https://tenant-a.localhost/admin/course-enrollments/create')
-            ->post(
-                'https://tenant-a.localhost/admin/course-enrollments',
-                $this->validEnrollmentData([
-                    'student_id' => $student->id,
-                    'product_id' => $productId,
-                ])
-            )
-            ->assertRedirect('https://tenant-a.localhost/admin/course-enrollments/create')
-            ->assertSessionHasErrors('product_id');
+        $this->assertSame(
+            __('lf.LF_course_enrollment_validation_active_item'),
+            $this->assertPairRefused($admin, $student->id, $productId)
+        );
 
         $this->assertDatabaseCount('core_course_enrollments', 0);
     }
@@ -319,10 +302,7 @@ class CourseEnrollmentManagementTest extends TestCase
             $versionId = $this->createVersion($customerId, $admin->id, title: ucfirst($status).' Version');
             $this->createProductItem($customerId, $productId, $versionId);
 
-            $this->actingAs($admin)->from('https://tenant-a.localhost/admin/course-enrollments/create')
-                ->post('https://tenant-a.localhost/admin/course-enrollments', $this->validEnrollmentData([
-                    'student_id' => $student->id, 'product_id' => $productId,
-                ]))->assertSessionHasErrors('product_id');
+            $this->assertPairRefused($admin, $student->id, $productId);
         }
 
         $this->assertDatabaseCount('core_course_enrollments', 0);
@@ -341,17 +321,10 @@ class CourseEnrollmentManagementTest extends TestCase
         );
         $this->createProductItem($customerId, $productId, $versionId);
 
-        $this->actingAs($admin)
-            ->from('https://tenant-a.localhost/admin/course-enrollments/create')
-            ->post(
-                'https://tenant-a.localhost/admin/course-enrollments',
-                $this->validEnrollmentData([
-                    'student_id' => $student->id,
-                    'product_id' => $productId,
-                ])
-            )
-            ->assertRedirect('https://tenant-a.localhost/admin/course-enrollments/create')
-            ->assertSessionHasErrors('product_id');
+        $this->assertSame(
+            __('lf.LF_course_enrollment_validation_published_version'),
+            $this->assertPairRefused($admin, $student->id, $productId)
+        );
 
         $this->assertDatabaseCount('core_course_enrollments', 0);
     }
@@ -373,38 +346,9 @@ class CourseEnrollmentManagementTest extends TestCase
         $versionId = $this->createVersion($customerId, $admin->id);
         $this->createProductItem($customerId, $productId, $versionId);
 
-        $this->actingAs($admin)
-            ->from('https://tenant-a.localhost/admin/course-enrollments/create')
-            ->post(
-                'https://tenant-a.localhost/admin/course-enrollments',
-                $this->validEnrollmentData([
-                    'student_id' => $otherStudent->id,
-                    'product_id' => $productId,
-                ])
-            )
-            ->assertSessionHasErrors('student_id');
-
-        $this->actingAs($admin)
-            ->from('https://tenant-a.localhost/admin/course-enrollments/create')
-            ->post(
-                'https://tenant-a.localhost/admin/course-enrollments',
-                $this->validEnrollmentData([
-                    'student_id' => $student->id,
-                    'product_id' => $otherProductId,
-                ])
-            )
-            ->assertSessionHasErrors('product_id');
-
-        $this->actingAs($admin)
-            ->from('https://tenant-a.localhost/admin/course-enrollments/create')
-            ->post(
-                'https://tenant-a.localhost/admin/course-enrollments',
-                $this->validEnrollmentData([
-                    'student_id' => $teacher->id,
-                    'product_id' => $productId,
-                ])
-            )
-            ->assertSessionHasErrors('student_id');
+        $this->assertPairRefused($admin, $otherStudent->id, $productId);
+        $this->assertPairRefused($admin, $student->id, $otherProductId);
+        $this->assertPairRefused($admin, $teacher->id, $productId);
 
         $this->assertDatabaseCount('core_course_enrollments', 0);
     }
@@ -434,30 +378,14 @@ class CourseEnrollmentManagementTest extends TestCase
         );
         $itemId = $this->createProductItem($customerId, $productId, $version7Id);
 
-        $this->actingAs($admin)
-            ->post(
-                'https://tenant-a.localhost/admin/course-enrollments',
-                $this->validEnrollmentData([
-                    'student_id' => $studentA->id,
-                    'product_id' => $productId,
-                ])
-            )
-            ->assertRedirect();
+        $this->enrollPair($admin, $studentA->id, $productId);
 
         DB::table('core_course_product_items')
             ->where('customer_id', $customerId)
             ->where('id', $itemId)
             ->update(['version_id' => $version8Id, 'updated_at' => now()]);
 
-        $this->actingAs($admin)
-            ->post(
-                'https://tenant-a.localhost/admin/course-enrollments',
-                $this->validEnrollmentData([
-                    'student_id' => $studentB->id,
-                    'product_id' => $productId,
-                ])
-            )
-            ->assertRedirect();
+        $this->enrollPair($admin, $studentB->id, $productId);
 
         $this->assertDatabaseHas('core_course_enrollments', [
             'student_id' => $studentA->id,
@@ -594,21 +522,17 @@ class CourseEnrollmentManagementTest extends TestCase
         $versionId = $this->createVersion($customerId, $admin->id);
         $this->createProductItem($customerId, $productId, $versionId);
 
-        $payload = $this->validEnrollmentData([
-            'student_id' => $student->id,
-            'product_id' => $productId,
-        ]);
-        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-enrollments', $payload)
-            ->assertRedirect();
-        $this->actingAs($admin)->from('https://tenant-a.localhost/admin/course-enrollments/create')
-            ->post('https://tenant-a.localhost/admin/course-enrollments', $payload)
-            ->assertSessionHasErrors('student_id');
+        $this->enrollPair($admin, $student->id, $productId);
+        $this->assertPairRefused($admin, $student->id, $productId, status: 'existing_non_terminal');
         $firstId = (int) DB::table('core_course_enrollments')->value('id');
         DB::table('core_course_enrollments')->where('id', $firstId)->update([
             'status' => 'completed', 'completed_at' => now(), 'updated_at' => now(),
         ]);
-        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-enrollments', $payload)
-            ->assertRedirect();
+        // A terminal cycle allows a new one only after the admin confirms that pair.
+        $this->assertPairRefused($admin, $student->id, $productId, status: 'reenrollment_eligible');
+        $this->enrollPair($admin, $student->id, $productId, confirmations: [
+            ['student_id' => $student->id, 'product_id' => $productId, 'previous_enrollment_id' => $firstId],
+        ]);
 
         $this->assertSame(
             2,
@@ -1243,39 +1167,34 @@ class CourseEnrollmentManagementTest extends TestCase
         $versionId = $this->createVersion($customerId, $admin->id);
         $this->createProductItem($customerId, $productId, $versionId);
 
+        $preflight = 'https://tenant-a.localhost/admin/course-enrollments/bulk/preflight';
         $this->actingAs($admin)
-            ->from('https://tenant-a.localhost/admin/course-enrollments/create')
-            ->post('https://tenant-a.localhost/admin/course-enrollments', [
-                'student_id' => $student->id,
-                'product_id' => $productId,
+            ->postJson($preflight, [
+                'student_ids' => [$student->id], 'product_ids' => [$productId],
+                'configuration' => $this->bulkConfiguration(),
                 'source' => 'api',
-                'source_id' => 99,
                 'status' => 'completed',
                 'enrolled_at' => '2000-01-01 00:00:00',
                 'version_id' => 999,
             ])
-            ->assertSessionHasErrors(['source', 'source_id', 'status', 'version_id']);
+            ->assertJsonValidationErrors(['source', 'status', 'enrolled_at', 'version_id']);
 
         $this->actingAs($admin)
-            ->post('https://tenant-a.localhost/admin/course-enrollments', [
-                'student_id' => $student->id,
-                'product_id' => $productId,
-                'access_starts_at' => '2026-08-02 10:00:00',
-                'access_ends_at' => '2026-08-01 10:00:00',
-                'review_starts_at' => '2026-09-02 10:00:00',
-                'review_ends_at' => '2026-09-01 10:00:00',
+            ->postJson($preflight, [
+                'student_ids' => [$student->id], 'product_ids' => [$productId],
+                'configuration' => $this->bulkConfiguration([
+                    'access_starts_at' => '2026-08-02 10:00:00',
+                    'access_ends_at' => '2026-08-01 10:00:00',
+                    'review_starts_at' => '2026-09-02 10:00:00',
+                    'review_ends_at' => '2026-09-01 10:00:00',
+                ]),
             ])
-            ->assertSessionHasErrors([
-                'access_starts_at', 'access_ends_at', 'review_starts_at', 'review_ends_at',
+            ->assertJsonValidationErrors([
+                'configuration.access_starts_at', 'configuration.access_ends_at',
+                'configuration.review_starts_at', 'configuration.review_ends_at',
             ]);
 
-        $this->actingAs($admin)
-            ->post('https://tenant-a.localhost/admin/course-enrollments', [
-                'student_id' => $student->id,
-                'product_id' => $productId,
-                'notes' => 'Internal only',
-            ])
-            ->assertRedirect();
+        $this->enrollPair($admin, $student->id, $productId, ['notes' => 'Internal only']);
 
         $this->assertDatabaseHas('core_course_enrollments', [
             'student_id' => $student->id,
@@ -1300,12 +1219,7 @@ class CourseEnrollmentManagementTest extends TestCase
         $this->createProductItem($customerId, $productId, $versionA);
         $this->createProductItem($customerId, $productId, $versionB, sortOrder: 1);
 
-        $this->actingAs($admin)
-            ->post('https://tenant-a.localhost/admin/course-enrollments', [
-                'student_id' => $student->id,
-                'product_id' => $productId,
-            ])
-            ->assertSessionHasErrors('product_id');
+        $this->assertPairRefused($admin, $student->id, $productId);
 
         $this->actingAs($admin)
             ->getJson('https://tenant-a.localhost/admin/course-enrollments/products/search?q=ambiguous')
@@ -1326,11 +1240,6 @@ class CourseEnrollmentManagementTest extends TestCase
         DB::table('core_course_product_items')->where('id', $itemId)->update([
             'template_id' => $otherTemplateId,
         ]);
-
-        $this->actingAs($admin)->from('https://tenant-a.localhost/admin/course-enrollments/create')
-            ->post('https://tenant-a.localhost/admin/course-enrollments', $this->validEnrollmentData([
-                'student_id' => $student->id, 'product_id' => $productId,
-            ]))->assertSessionHasErrors('product_id');
 
         $this->actingAs($admin)->postJson('https://tenant-a.localhost/admin/course-enrollments/bulk/preflight', [
             'student_ids' => [$student->id], 'product_ids' => [$productId],
@@ -1462,31 +1371,19 @@ class CourseEnrollmentManagementTest extends TestCase
 
         try {
             Carbon::setTestNow('2026-08-10 08:59:59');
-            $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-enrollments', [
-                'student_id' => $students[0]->id, 'product_id' => $productId,
-            ])->assertSessionHasErrors('product_id');
+            $this->assertPairRefused($admin, $students[0]->id, $productId);
 
             Carbon::setTestNow('2026-08-10 09:00:00');
-            $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-enrollments', [
-                'student_id' => $students[1]->id, 'product_id' => $productId,
-            ])->assertRedirect();
+            $this->enrollPair($admin, $students[1]->id, $productId);
 
             Carbon::setTestNow('2026-08-12 09:00:00');
-            $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-enrollments', [
-                'student_id' => $students[2]->id, 'product_id' => $productId,
-            ])->assertRedirect();
+            $this->enrollPair($admin, $students[2]->id, $productId);
 
             Carbon::setTestNow('2026-08-12 09:00:01');
-            $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-enrollments', [
-                'student_id' => $students[3]->id, 'product_id' => $productId,
-            ])->assertSessionHasErrors('product_id');
+            $this->assertPairRefused($admin, $students[3]->id, $productId);
 
             Carbon::setTestNow('2026-08-20 09:00:00');
-            $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-enrollments', [
-                'student_id' => $students[4]->id,
-                'product_id' => $productId,
-                'enrolled_at' => '2026-08-11 10:30:00',
-            ])->assertRedirect();
+            $this->enrollPair($admin, $students[4]->id, $productId, ['enrolled_at' => '2026-08-11 10:30:00']);
         } finally {
             Carbon::setTestNow();
         }
@@ -1522,9 +1419,7 @@ class CourseEnrollmentManagementTest extends TestCase
             'registration_starts_at' => now()->subDay(), 'registration_ends_at' => null,
         ]);
 
-        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-enrollments', [
-            'student_id' => $student->id, 'product_id' => $productId,
-        ])->assertSessionHasErrors('product_id');
+        $this->assertPairRefused($admin, $student->id, $productId);
 
         $policy = app(CourseEnrollmentLifecycleService::class);
         $enrollment = (object) [
@@ -1553,11 +1448,7 @@ class CourseEnrollmentManagementTest extends TestCase
             'access_duration_days' => null,
         ]);
 
-        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-enrollments', [
-            'student_id' => $singleStudent->id,
-            'product_id' => $selfPacedId,
-            'enrolled_at' => '2026-08-10 09:00:00',
-        ])->assertSessionHasErrors('product_id');
+        $this->assertPairRefused($admin, $singleStudent->id, $selfPacedId, ['enrolled_at' => '2026-08-10 09:00:00']);
 
         $liveId = $this->createProduct($customerId, 'Live Product', 'live-product');
         $liveVersionId = $this->createVersion($customerId, $admin->id);
@@ -1574,11 +1465,7 @@ class CourseEnrollmentManagementTest extends TestCase
             'registration_ends_at' => '2026-08-31 23:59:59',
         ]);
 
-        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-enrollments', [
-            'student_id' => $singleStudent->id,
-            'product_id' => $liveId,
-            'enrolled_at' => '2026-08-10 09:00:00',
-        ])->assertRedirect();
+        $this->enrollPair($admin, $singleStudent->id, $liveId, ['enrolled_at' => '2026-08-10 09:00:00']);
 
         $singleEnrollment = DB::table('core_course_enrollments')
             ->where('student_id', $singleStudent->id)->where('product_id', $liveId)->first();
@@ -1609,11 +1496,7 @@ class CourseEnrollmentManagementTest extends TestCase
             $this->assertNull($reprojectedLive->{$field});
         }
 
-        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-enrollments', [
-            'student_id' => $outsideStudent->id,
-            'product_id' => $liveId,
-            'enrolled_at' => '2026-09-01 00:00:00',
-        ])->assertSessionHasErrors('product_id');
+        $this->assertPairRefused($admin, $outsideStudent->id, $liveId, ['enrolled_at' => '2026-09-01 00:00:00']);
 
         $configuration = $this->bulkConfiguration(['enrolled_at' => '2026-08-10 09:00:00']);
         $preflight = $this->actingAs($admin)->postJson('https://tenant-a.localhost/admin/course-enrollments/bulk/preflight', [
@@ -1680,8 +1563,40 @@ class CourseEnrollmentManagementTest extends TestCase
         }
     }
 
+    public function test_an_enrollment_date_whose_window_has_already_ended_is_refused_and_offsets_are_read_locally(): void
+    {
+        Carbon::setTestNow('2026-11-10 09:00:00');
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $student = $this->createUser($customerId, 'student');
+        $productId = $this->createProduct($customerId, 'Typo Product', 'typo-product');
+        $this->createProductItem($customerId, $productId, $this->createVersion($customerId, $admin->id));
+        DB::table('core_course_products')->where('id', $productId)->update(['access_duration_days' => 30, 'review_duration_days' => null]);
+        $preflight = 'https://tenant-a.localhost/admin/course-enrollments/bulk/preflight';
+
+        // 2025 typed instead of 2026: the 30 days ended long ago, so it would be expired at once.
+        $this->assertPairRefused($admin, $student->id, $productId, ['enrolled_at' => '2025-11-10 09:00:00']);
+        // Out of range years are a field error, never a DATETIME overflow.
+        foreach (['9999-01-01 00:00:00', '1999-12-31 23:59:59'] as $outOfRange) {
+            $this->actingAs($admin)->postJson($preflight, [
+                'student_ids' => [$student->id], 'product_ids' => [$productId],
+                'configuration' => $this->bulkConfiguration(['enrolled_at' => $outOfRange]),
+            ])->assertUnprocessable()->assertJsonValidationErrors('configuration.enrolled_at');
+            $this->actingAs($admin)->getJson('https://tenant-a.localhost/admin/course-enrollments/products/search?'
+                .http_build_query(['student_ids' => [$student->id], 'enrolled_at' => $outOfRange]))
+                ->assertUnprocessable()->assertJsonValidationErrors('enrolled_at');
+        }
+        $this->assertSame(0, DB::table('core_course_enrollments')->count());
+
+        // A moment sent with an offset is stored as the same instant in app-timezone wall clock.
+        $this->enrollPair($admin, $student->id, $productId, ['enrolled_at' => '2026-11-10T02:00:00Z']);
+        $this->assertSame('2026-11-10 09:00:00', DB::table('core_course_enrollments')->value('enrolled_at'));
+    }
+
     public function test_selected_enrollment_date_snapshots_durations_and_edit_reprojects_from_snapshots(): void
     {
+        // The dates below are in the past now; the windows they project must still be open.
+        Carbon::setTestNow('2026-08-01 08:00:00');
         $this->assertTrue(Schema::hasColumns('core_course_enrollments', [
             'access_duration_days', 'review_duration_days',
         ]));
@@ -1697,11 +1612,7 @@ class CourseEnrollmentManagementTest extends TestCase
             'review_duration_days' => 5,
         ]);
 
-        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-enrollments', [
-            'student_id' => $student->id,
-            'product_id' => $productId,
-            'enrolled_at' => '2026-08-05 10:00:00',
-        ])->assertRedirect();
+        $this->enrollPair($admin, $student->id, $productId, ['enrolled_at' => '2026-08-05 10:00:00']);
 
         $enrollment = DB::table('core_course_enrollments')->where('student_id', $student->id)->first();
         $this->assertSame(30, $enrollment->access_duration_days);
@@ -1777,6 +1688,80 @@ class CourseEnrollmentManagementTest extends TestCase
         $this->assertStringStartsWith('2026-08-12T09:00:00', $inside->json('ineligible.data.0.registration_window.ends_at'));
         $this->assertStringContainsString('13/08/2026 09:00', $outside->json('ineligible.data.0.invalid_pairs.0.reason'));
         $this->assertSame('ineligible', $outside->json('selected_eligibility.'.$productId.'.eligibility'));
+    }
+
+    public function test_a_notes_only_save_from_the_minute_precision_popup_keeps_the_stored_moment(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $student = $this->createUser($customerId, 'student');
+        $productId = $this->createProduct($customerId, 'Minute Product', 'minute-product');
+        $versionId = $this->createVersion($customerId, $admin->id);
+        $this->createProductItem($customerId, $productId, $versionId);
+        $enrollmentId = $this->createEnrollment($customerId, $student->id, $productId, $versionId);
+        DB::table('core_course_enrollments')->where('id', $enrollmentId)->update([
+            'enrolled_at' => '2026-08-05 10:00:37', 'access_starts_at' => '2026-08-05 10:00:37',
+            'access_ends_at' => '2026-09-04 10:00:37', 'access_duration_days' => 30,
+        ]);
+        // A re-projection would now be refused, so only an unchanged date can save.
+        DB::table('core_course_products')->where('id', $productId)->update(['status' => 'inactive']);
+
+        $this->actingAs($admin)->putJson('https://tenant-a.localhost/admin/course-enrollments/'.$enrollmentId, [
+            'enrolled_at' => '2026-08-05T10:00', 'notes' => 'Only the note changed.',
+        ])->assertOk();
+
+        $saved = DB::table('core_course_enrollments')->where('id', $enrollmentId)->first();
+        $this->assertSame('Only the note changed.', $saved->notes);
+        $this->assertSame('2026-08-05 10:00:37', $saved->enrolled_at);
+        $this->assertSame('2026-09-04 10:00:37', $saved->access_ends_at);
+
+        $this->actingAs($admin)->putJson('https://tenant-a.localhost/admin/course-enrollments/'.$enrollmentId, [
+            'enrolled_at' => '2026-08-05T10:01', 'notes' => 'Date moved.',
+        ])->assertUnprocessable()->assertJsonValidationErrors('enrolled_at');
+    }
+
+    public function test_product_search_checks_a_bounded_number_of_products(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $student = $this->createUser($customerId, 'student');
+        $limit = CourseEnrollmentController::PRODUCT_SEARCH_LIMIT;
+        foreach (range(1, $limit + 1) as $index) {
+            $productId = $this->createProduct($customerId, sprintf('Capped %03d', $index), sprintf('capped-%03d', $index));
+            $this->createProductItem($customerId, $productId, $this->createVersion($customerId, $admin->id, title: 'Capped '.$index));
+        }
+        $search = 'https://tenant-a.localhost/admin/course-enrollments/products/search?';
+
+        $capped = $this->actingAs($admin)->getJson($search.http_build_query(['q' => 'Capped', 'student_ids' => [$student->id]]))
+            ->assertOk()->assertJson(['limited' => true]);
+        $this->assertSame($limit, $capped->json('counts.eligible') + $capped->json('counts.ineligible'));
+        $this->assertSame('Capped 001', $capped->json('data.0.title'));
+        $this->actingAs($admin)->getJson($search.http_build_query(['q' => 'Capped 05']))
+            ->assertOk()->assertJson(['limited' => false, 'counts' => ['eligible' => 2]]);
+    }
+
+    public function test_product_search_bounds_selected_products_by_the_pair_limit(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $students = collect(range(1, 2))->map(fn () => $this->createUser($customerId, 'student'));
+        $search = 'https://tenant-a.localhost/admin/course-enrollments/products/search?';
+        $studentIds = $students->pluck('id')->all();
+
+        $this->actingAs($admin)->getJson($search.http_build_query(['student_ids' => $studentIds, 'selected_product_ids' => range(1, 51)]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['selected_product_ids' => __('lf.LF_bulk_enrollment_validation_pair_limit')]);
+        $this->actingAs($admin)->getJson($search.http_build_query(['student_ids' => $studentIds, 'selected_product_ids' => range(1, 50)]))
+            ->assertOk();
+        $this->actingAs($admin)->getJson($search.http_build_query(['selected_product_ids' => range(1, 100)]))
+            ->assertOk();
+    }
+
+    public function test_enrollment_binding_trigger_is_created_on_mysql_and_mariadb(): void
+    {
+        $migration = file_get_contents(database_path('migrations/2026_08_03_000000_protect_course_enrollment_binding.php'));
+        $this->assertSame(2, substr_count($migration, "in_array(DB::connection()->getDriverName(), ['mysql', 'mariadb'], true)"));
+        $this->assertStringNotContainsString("!== 'mysql'", $migration);
     }
 
     public function test_course_enrollment_module_has_no_eloquent_models(): void
@@ -2038,6 +2023,7 @@ class CourseEnrollmentManagementTest extends TestCase
 
     public function test_bulk_configuration_pair_limit_payload_binding_and_automatic_time_policy_are_enforced(): void
     {
+        Carbon::setTestNow('2026-07-31 08:00:00');
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
         $student = $this->createUser($customerId, 'student');
@@ -2199,6 +2185,30 @@ class CourseEnrollmentManagementTest extends TestCase
         return ['student_ids' => $studentIds, 'product_ids' => $productIds,
             'reenrollment_confirmations' => $confirmations, 'configuration' => $configuration,
             'submission_token' => $token];
+    }
+
+    /** One Student and one Product through the admin bulk flow: preflight, token, commit. */
+    private function enrollPair(object $admin, int $studentId, int $productId, array $configuration = [], array $confirmations = []): TestResponse
+    {
+        $configuration = $this->bulkConfiguration($configuration);
+        $token = $this->prepareBulkSubmission($admin, [$studentId], [$productId], $confirmations, $configuration);
+
+        return $this->actingAs($admin)->post(
+            'https://tenant-a.localhost/admin/course-enrollments/bulk',
+            $this->bulkStoreData([$studentId], [$productId], $token, $confirmations, $configuration)
+        )->assertRedirect()->assertSessionHasNoErrors();
+    }
+
+    /** The preflight refuses the pair and issues no token; returns the pair's reason. */
+    private function assertPairRefused(object $admin, int $studentId, int $productId, array $configuration = [], string $status = 'ineligible'): string
+    {
+        $pair = $this->actingAs($admin)->postJson('https://tenant-a.localhost/admin/course-enrollments/bulk/preflight', [
+            'student_ids' => [$studentId], 'product_ids' => [$productId], 'reenrollment_confirmations' => [],
+            'configuration' => $this->bulkConfiguration($configuration), 'finalize' => true,
+        ])->assertOk()->assertJson(['valid' => false, 'submission_token' => null])->json('pairs.0');
+        $this->assertSame($status, $pair['status']);
+
+        return (string) $pair['reason'];
     }
 
     private function bulkConfiguration(array $overrides = []): array
@@ -2424,19 +2434,6 @@ class CourseEnrollmentManagementTest extends TestCase
             'created_at' => $now,
             'updated_at' => $now,
         ]);
-    }
-
-    private function validEnrollmentData(array $overrides = []): array
-    {
-        return array_merge([
-            'student_id' => 1,
-            'product_id' => 1,
-            'access_starts_at' => null,
-            'access_ends_at' => null,
-            'review_starts_at' => null,
-            'review_ends_at' => null,
-            'notes' => null,
-        ], $overrides);
     }
 
     private function createCohort(int $customerId, int $productId, int $versionId): int

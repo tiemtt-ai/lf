@@ -773,6 +773,55 @@ class CourseTemplateManagementTest extends TestCase
         $this->assertDatabaseCount('core_course_template_sections', 0);
     }
 
+    public function test_a_template_whose_intro_image_is_still_processing_can_be_saved_and_replaced(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $categoryId = $this->createCategory($customerId, 'General', 'general');
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-templates', $this->validTemplateData([
+            'category_id' => $categoryId, 'title' => 'Processing Cover',
+        ]))->assertRedirect();
+        $template = DB::table('core_course_templates')->where('title', 'Processing Cover')->first();
+        $firstId = (int) $template->intro_image_media_file_id;
+        $this->assertGreaterThan(0, $firstId);
+        DB::table('media_files')->where('id', $firstId)->update(['status' => 'processing']);
+
+        $this->actingAs($admin)->put("https://tenant-a.localhost/admin/course-templates/{$template->id}", $this->validTemplateData([
+            'category_id' => $categoryId, 'title' => 'Processing Cover Renamed',
+            'intro_image_file' => null, 'intro_image_media_file_id' => $firstId,
+        ]))->assertSessionHasNoErrors();
+        $this->assertSame('Processing Cover Renamed', DB::table('core_course_templates')->where('id', $template->id)->value('title'));
+        $this->assertSame($firstId, (int) DB::table('core_course_templates')->where('id', $template->id)->value('intro_image_media_file_id'));
+
+        $this->actingAs($admin)->put("https://tenant-a.localhost/admin/course-templates/{$template->id}", $this->validTemplateData([
+            'category_id' => $categoryId, 'title' => 'Processing Cover Renamed',
+            'intro_image_file' => UploadedFile::fake()->image('new-cover.png', 140, 90),
+            'intro_image_media_file_id' => $firstId,
+        ]))->assertSessionHasNoErrors();
+        $secondId = (int) DB::table('core_course_templates')->where('id', $template->id)->value('intro_image_media_file_id');
+        $this->assertNotSame($firstId, $secondId);
+        $this->assertSame([$secondId], DB::table('media_file_usages')->where('owner_type', 'course_template')
+            ->where('owner_id', $template->id)->where('usage_type', 'intro_image')->where('status', 'active')
+            ->pluck('media_file_id')->map(fn ($id) => (int) $id)->all());
+    }
+
+    public function test_an_unready_media_not_already_in_the_slot_is_still_refused_as_intro_image(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $categoryId = $this->createCategory($customerId, 'General', 'general');
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-templates', $this->validTemplateData([
+            'category_id' => $categoryId, 'title' => 'Owner Of Pending',
+        ]))->assertRedirect();
+        $pending = (int) DB::table('core_course_templates')->where('title', 'Owner Of Pending')->value('intro_image_media_file_id');
+        DB::table('media_files')->where('id', $pending)->update(['status' => 'processing']);
+        $otherId = $this->createTemplate($customerId, 'Strict Cover', 'strict-cover', $admin->id);
+
+        $this->actingAs($admin)->put("https://tenant-a.localhost/admin/course-templates/{$otherId}", $this->validTemplateData([
+            'category_id' => $categoryId, 'title' => 'Strict Cover', 'intro_image_file' => null, 'intro_image_media_file_id' => $pending,
+        ]))->assertSessionHasErrors('intro_image_media_file_id');
+    }
+
     public function test_preview_media_is_optional_for_course_template(): void
     {
         $customerId = $this->createTenant();
@@ -1087,7 +1136,7 @@ class CourseTemplateManagementTest extends TestCase
             'sort_order' => 0, 'is_required' => true, 'status' => 'active', 'created_at' => now(), 'updated_at' => now(),
         ]);
 
-        foreach ([[$withSection, 'sections'], [$withTeacher, 'teachers'], [$withProduct, 'products']] as [$id, $reason]) {
+        foreach ([[$withSection, 'sections'], [$withProduct, 'products']] as [$id, $reason]) {
             $this->actingAs($admin)
                 ->deleteJson('https://tenant-a.localhost/admin/course-templates', ['ids' => [$id]])
                 ->assertStatus(409)
@@ -1100,6 +1149,13 @@ class CourseTemplateManagementTest extends TestCase
             ->assertOk()
             ->assertJson(['message' => trans_choice('lf.LF_course_template_bulk_deleted', 1, ['count' => 1])]);
         $this->assertDatabaseMissing('core_course_templates', ['id' => $free]);
+
+        // An assigned teacher no longer blocks: the admin deletes the Template with its assignments.
+        $this->actingAs($admin)
+            ->deleteJson('https://tenant-a.localhost/admin/course-templates', ['ids' => [$withTeacher]])
+            ->assertOk();
+        $this->assertDatabaseMissing('core_course_templates', ['id' => $withTeacher]);
+        $this->assertDatabaseMissing('core_course_template_teachers', ['template_id' => $withTeacher]);
 
         $this->actingAs($admin)
             ->from('https://tenant-a.localhost/admin/course-templates')
@@ -1123,7 +1179,10 @@ class CourseTemplateManagementTest extends TestCase
         // A teacher with no access to the template does not even learn that it exists.
         $this->actingAs($stranger)->deleteJson('https://tenant-a.localhost/teacher/course-templates', ['ids' => [$own]])->assertNotFound();
         $this->assertDatabaseHas('core_course_templates', ['id' => $own]);
-        $this->actingAs($teacher)->deleteJson('https://tenant-a.localhost/teacher/course-templates', ['ids' => [$own]])->assertOk();
+        // Its creator works on it but does not delete it; only an admin does.
+        $this->actingAs($teacher)->deleteJson('https://tenant-a.localhost/teacher/course-templates', ['ids' => [$own]])->assertForbidden();
+        $this->assertDatabaseHas('core_course_templates', ['id' => $own]);
+        $this->actingAs($admin)->deleteJson('https://tenant-a.localhost/admin/course-templates', ['ids' => [$own]])->assertOk();
         $this->assertDatabaseMissing('core_course_templates', ['id' => $own]);
     }
 
@@ -1155,8 +1214,8 @@ class CourseTemplateManagementTest extends TestCase
         $this->actingAs($teacher)->deleteJson('https://tenant-a.localhost/teacher/course-templates', ['ids' => [$two]])->assertNotFound();
         $this->assertDatabaseHas('core_course_templates', ['id' => $two]);
         $own = $this->createTemplate($customerId, 'Teacher own', 'teacher-own', $teacher->id);
-        $this->actingAs($teacher)->deleteJson('https://tenant-a.localhost/teacher/course-templates', ['ids' => [$own]])->assertOk();
-        $this->assertDatabaseMissing('core_course_templates', ['id' => $own]);
+        $this->actingAs($teacher)->deleteJson('https://tenant-a.localhost/teacher/course-templates', ['ids' => [$own]])->assertForbidden();
+        $this->assertDatabaseHas('core_course_templates', ['id' => $own]);
 
         $this->actingAs($admin)->deleteJson($url, ['ids' => [$one, $two]])
             ->assertOk()->assertJsonPath('message', trans_choice('lf.LF_course_template_bulk_deleted', 2, ['count' => 2]));
@@ -1167,56 +1226,75 @@ class CourseTemplateManagementTest extends TestCase
         $this->actingAs($admin)->deleteJson($url, ['ids' => []])->assertStatus(422);
     }
 
-    public function test_a_template_whose_teachers_were_all_removed_can_be_deleted(): void
+    public function test_an_admin_deletes_a_template_together_with_its_active_and_removed_assignments(): void
     {
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
         $teacher = $this->createUser($customerId, 'teacher');
+        $removed = $this->createUser($customerId, 'teacher');
         $template = $this->createTemplate($customerId, 'Once taught', 'once-taught');
         $base = "https://tenant-a.localhost/admin/course-templates/{$template}/teachers";
         $this->actingAs($admin)->post($base, ['teacher_id' => $teacher->id, 'role' => 'primary'])->assertSessionHasNoErrors();
-        $assignment = (int) DB::table('core_course_template_teachers')->where('template_id', $template)->value('id');
+        $this->actingAs($admin)->post($base, ['teacher_id' => $removed->id, 'role' => 'assistant'])->assertSessionHasNoErrors();
+        $this->actingAs($admin)->delete($base.'/'.DB::table('core_course_template_teachers')->where('teacher_id', $removed->id)->value('id'))->assertSessionHasNoErrors();
 
-        $this->actingAs($admin)->deleteJson('https://tenant-a.localhost/admin/course-templates', ['ids' => [$template]])->assertStatus(409);
-
-        // Removing keeps an inactive row for reassignment; it no longer blocks and goes with the Template.
-        $this->actingAs($admin)->delete("{$base}/{$assignment}")->assertSessionHasNoErrors();
-        $this->actingAs($admin)->get('https://tenant-a.localhost/admin/course-templates')->assertOk()
-            ->assertDontSee(__('lf.LF_course_template_delete_blocked_teachers', ['count' => 1]), false);
         $this->actingAs($admin)->deleteJson('https://tenant-a.localhost/admin/course-templates', ['ids' => [$template]])->assertOk();
 
         $this->assertDatabaseMissing('core_course_templates', ['id' => $template]);
         $this->assertDatabaseMissing('core_course_template_teachers', ['template_id' => $template]);
     }
 
-    public function test_an_assigned_teacher_may_work_on_a_template_but_only_its_creator_or_an_admin_deletes_it(): void
+    public function test_assigned_teachers_and_the_creator_work_on_a_template_but_only_an_admin_deletes_it(): void
     {
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
         $creator = $this->createUser($customerId, 'teacher');
         $assigned = $this->createUser($customerId, 'teacher');
         $template = $this->createTemplate($customerId, 'Shared work', 'shared-work', $creator->id);
-        // An assignment that is no longer active never granted deletion either: access comes from the active one only.
         DB::table('core_course_template_teachers')->insert([
             'customer_id' => $customerId, 'template_id' => $template, 'teacher_id' => $assigned->id,
-            'role' => 'lead', 'sort_order' => 0, 'status' => 'active', 'created_at' => now(), 'updated_at' => now(),
+            'role' => 'assistant', 'sort_order' => 1, 'status' => 'active', 'created_at' => now(), 'updated_at' => now(),
         ]);
         $base = 'https://tenant-a.localhost/teacher/course-templates';
 
-        // The assigned teacher sees the Template, but the list locks it with the reason, and the server refuses (403, not the 409 of "still assigned").
-        $html = $this->actingAs($assigned)->get($base)->assertOk()->assertSeeText('Shared work')
-            ->assertSee(__('lf.LF_course_template_delete_blocked_teachers', ['count' => 1]), false)->getContent();
-        $this->assertSame(0, substr_count($html, 'data-ui-bulk-item'), 'no selectable row for the assigned teacher');
-        $this->actingAs($assigned)->deleteJson($base, ['ids' => [$template]])->assertForbidden();
+        // Both teachers see the Template; the list locks it with the reason and the server refuses.
+        foreach ([$creator, $assigned] as $teacher) {
+            $html = $this->actingAs($teacher)->get($base)->assertOk()->assertSeeText('Shared work')
+                ->assertSee(__('lf.LF_course_template_delete_blocked_not_creator'), false)->getContent();
+            $this->assertSame(0, substr_count($html, 'data-ui-bulk-item'), 'no selectable row for a teacher');
+            $this->actingAs($teacher)->deleteJson($base, ['ids' => [$template]])->assertForbidden();
+        }
         $this->assertDatabaseHas('core_course_templates', ['id' => $template]);
 
-        // Once nothing hangs on it, the creator deletes it; for the assigned teacher the reason is now "not the creator".
-        DB::table('core_course_template_teachers')->where('template_id', $template)->delete();
-        $this->actingAs($creator)->deleteJson($base, ['ids' => [$template]])->assertOk();
-        $this->assertDatabaseMissing('core_course_templates', ['id' => $template]);
+        // The creator's access comes from the assignment: once it is inactive, `created_by` grants nothing.
+        DB::table('core_course_template_teachers')->where('template_id', $template)->where('teacher_id', $creator->id)->update(['status' => 'inactive']);
+        $this->actingAs($creator)->get("{$base}/{$template}/edit")->assertNotFound();
+        $this->actingAs($creator)->get($base)->assertOk()->assertDontSeeText('Shared work');
 
-        $other = $this->createTemplate($customerId, 'Admin removes', 'admin-removes', $creator->id);
-        $this->actingAs($admin)->deleteJson('https://tenant-a.localhost/admin/course-templates', ['ids' => [$other]])->assertOk();
+        $this->actingAs($admin)->deleteJson('https://tenant-a.localhost/admin/course-templates', ['ids' => [$template]])->assertOk();
+        $this->assertDatabaseMissing('core_course_templates', ['id' => $template]);
+        $this->assertDatabaseMissing('core_course_template_teachers', ['template_id' => $template]);
+    }
+
+    public function test_a_teacher_who_creates_a_template_becomes_its_primary_assignment(): void
+    {
+        $customerId = $this->createTenant();
+        $teacher = $this->createUser($customerId, 'teacher');
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $this->createCategory($customerId, 'General', 'general-'.$customerId);
+
+        $this->actingAs($teacher)->post('https://tenant-a.localhost/teacher/course-templates', $this->validTemplateData(['title' => 'Teacher made']))
+            ->assertSessionHasNoErrors();
+        $template = (int) DB::table('core_course_templates')->where('title', 'Teacher made')->value('id');
+        $this->assertDatabaseHas('core_course_template_teachers', [
+            'customer_id' => $customerId, 'template_id' => $template, 'teacher_id' => $teacher->id,
+            'role' => 'primary', 'status' => 'active', 'assigned_by' => $teacher->id,
+        ]);
+
+        // An admin is not a teacher assignment.
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-templates', $this->validTemplateData(['title' => 'Admin made']))
+            ->assertSessionHasNoErrors();
+        $this->assertDatabaseMissing('core_course_template_teachers', ['template_id' => (int) DB::table('core_course_templates')->where('title', 'Admin made')->value('id')]);
     }
 
     public function test_template_index_enables_delete_only_for_unused_templates_and_explains_why_not(): void
@@ -1727,7 +1805,7 @@ class CourseTemplateManagementTest extends TestCase
                 'general-'.$customerId
             );
 
-        return DB::table('core_course_templates')->insertGetId(['course_type' => 'blended',
+        return $this->assignCreator($customerId, DB::table('core_course_templates')->insertGetId(['course_type' => 'blended',
             'customer_id' => $customerId,
             'category_id' => $categoryId,
             'title' => $title,
@@ -1750,7 +1828,21 @@ class CourseTemplateManagementTest extends TestCase
             'last_version_published_at' => null,
             'created_at' => $now,
             'updated_at' => $now,
-        ]);
+        ]), $createdBy);
+    }
+
+    /** The creator of a Template is its primary assignment when a teacher (Owner decision 2026-11-10). */
+    private function assignCreator(int $customerId, int $templateId, ?int $createdBy): int
+    {
+        if ($createdBy !== null && DB::table('users')->where('id', $createdBy)->value('role') === 'teacher') {
+            DB::table('core_course_template_teachers')->insert([
+                'customer_id' => $customerId, 'template_id' => $templateId, 'teacher_id' => $createdBy,
+                'role' => 'primary', 'sort_order' => 0, 'status' => 'active',
+                'assigned_by' => $createdBy, 'assigned_at' => now(), 'created_at' => now(), 'updated_at' => now(),
+            ]);
+        }
+
+        return $templateId;
     }
 
     private function validTemplateData(array $overrides = []): array

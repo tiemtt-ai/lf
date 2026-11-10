@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\Assessment\AssessmentQuizService;
 use App\Services\CourseActivityMediaPresenter;
 use App\Services\DocumentProcessRunner;
 use App\Services\MediaProcessingOrchestrator;
@@ -14,17 +15,16 @@ use App\Support\CourseTemplateWorkingRevision;
 use App\Support\CourseType;
 use App\Support\TenantContext;
 use App\Support\UploadLimit;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use InvalidArgumentException;
-use Throwable;
 
 class CourseTemplateActivityController extends Controller
 {
@@ -89,12 +89,16 @@ class CourseTemplateActivityController extends Controller
         ]);
         $locales = $validated['processing_locales'] ?? [$validated['processing_locale']];
         try {
-            $this->processingOrchestrator->initializeLegacySpeechToText(
-                $customerId,
-                $activityId,
-                $locales,
-                (int) $request->user()->id,
-            );
+            // An archived Template is read-only: no new processing job for its activities.
+            DB::transaction(function () use ($customerId, $templateId, $activityId, $locales, $request): void {
+                $this->lockTemplate($customerId, $templateId);
+                $this->processingOrchestrator->initializeLegacySpeechToText(
+                    $customerId,
+                    $activityId,
+                    $locales,
+                    (int) $request->user()->id,
+                );
+            });
         } catch (InvalidArgumentException $exception) {
             $message = __('lf.LF_course_template_activity_stt_initialize_ineligible');
 
@@ -128,7 +132,11 @@ class CourseTemplateActivityController extends Controller
         abort_unless($media && $media->status === 'ready', 404);
 
         try {
-            $this->processingOrchestrator->requestBoardPreview($customerId, (int) $media->id, (int) $request->user()->id);
+            // An archived Template is read-only: no new processing job for its activities.
+            DB::transaction(function () use ($customerId, $templateId, $media, $request): void {
+                $this->lockTemplate($customerId, $templateId);
+                $this->processingOrchestrator->requestBoardPreview($customerId, (int) $media->id, (int) $request->user()->id);
+            });
         } catch (InvalidArgumentException) {
             return back()->withErrors(['board_preview' => __('lf.LF_course_template_activity_board_preview_request_failed')]);
         }
@@ -585,6 +593,7 @@ class CourseTemplateActivityController extends Controller
             'section' => $section,
             'lesson' => $lesson,
             'activity' => $activity,
+            'activityQuiz' => $this->quizSummary($customerId, $activity->assessment_quiz_id ?? null),
             'prerequisiteActivities' => $this->prerequisiteActivities(
                 $customerId,
                 $templateId,
@@ -633,6 +642,7 @@ class CourseTemplateActivityController extends Controller
             'section' => $section,
             'lesson' => $lesson,
             'activity' => $activity,
+            'activityQuiz' => $this->quizSummary($customerId, $activity->assessment_quiz_id ?? null),
             'externalUrl' => $this->safeExternalUrl(
                 $activity->external_video_url ?? $activity->live_class_url
             ),
@@ -789,9 +799,6 @@ class CourseTemplateActivityController extends Controller
                 ->where('id', $activityId)
                 ->delete();
             $this->recalculateLessonDuration($customerId, $templateId, $lessonId);
-            $this->deleteUnusedMediaAfterCommit(
-                $usages->pluck('media_file_id')->map(fn ($id): int => (int) $id)->all()
-            );
         });
 
         $structureUrl = route(
@@ -1008,11 +1015,13 @@ class CourseTemplateActivityController extends Controller
 
         return [
             'title' => ['required', 'string', 'max:255'],
-            'description' => ['nullable', 'string'],
+            // TEXT holds 65,535 bytes; 20,000 characters stays inside it even for 3-byte UTF-8.
+            'description' => ['nullable', 'string', 'max:20000'],
             'sort_order' => [
                 'nullable',
                 'integer',
                 'min:0',
+                'max:1000000',
             ],
             'activity_type' => [
                 'required',
@@ -1045,6 +1054,17 @@ class CourseTemplateActivityController extends Controller
                 'nullable', 'integer', 'min:1',
                 'required_if:activity_type,quiz',
                 'prohibited_unless:activity_type,quiz',
+                // Quiz Picker Amendment: a published Quiz the actor may pick; the stored one stays when saved unchanged.
+                function (string $attribute, mixed $value, \Closure $fail) use ($customerId, $activityId): void {
+                    $stored = $activityId === null ? null : DB::table('core_course_template_activities')
+                        ->where('customer_id', $customerId)->where('id', $activityId)->value('assessment_quiz_id');
+                    if ($stored !== null && (int) $stored === (int) $value) {
+                        return;
+                    }
+                    if (! $this->pickableQuizzes($customerId)->where('z.id', (int) $value)->exists()) {
+                        $fail(__('lf.LF_course_template_activity_quiz_unavailable'));
+                    }
+                },
             ],
             'duration_seconds' => [
                 'nullable',
@@ -1408,7 +1428,17 @@ class CourseTemplateActivityController extends Controller
             403
         );
 
-        $this->mediaService->attachUsage($mediaId, 'course_activity', $activityId, $activityType);
+        // Take the share lock and check again in the same transaction as the attach, so a revocation committed
+        // meanwhile is seen and a new use cannot slip past it (ADR-0021 D7).
+        DB::transaction(function () use ($customerId, $mediaId, $user, $activityId, $activityType): void {
+            $locked = app(MediaShareService::class)->lockForAttach($customerId, $mediaId, $user);
+            abort_if($locked === null && $user->role === 'teacher', 403);
+            if (! $locked || $locked->file_type !== $activityType || $locked->status !== 'ready') {
+                throw ValidationException::withMessages(['existing_media_id' => __('lf.LF_media_pick_invalid')]);
+            }
+
+            $this->mediaService->attachUsage($mediaId, 'course_activity', $activityId, $activityType);
+        });
 
         return $media;
     }
@@ -1572,7 +1602,8 @@ class CourseTemplateActivityController extends Controller
             && ! $replacingActiveMedia;
         $detachingActiveMedia = $replacingActiveMedia || $removingActiveMedia;
 
-        $detachedMediaIds = DB::table('media_file_usages')
+        // Owner decision 2026-11-10: the Media stays in the library; only its use here ends.
+        DB::table('media_file_usages')
             ->where('customer_id', $this->customerId())
             ->where('owner_type', 'course_activity')
             ->where('owner_id', $activityId)
@@ -1580,19 +1611,14 @@ class CourseTemplateActivityController extends Controller
             ->when($activeUsage && ! $detachingActiveMedia, fn ($query) => $query->where('usage_type', '!=', $activeUsage))
             ->when(! $activeUsage || $detachingActiveMedia, fn ($query) => $query->whereIn('usage_type', ['video', 'audio', 'document']))
             ->get()
-            ->map(function (object $usage) use ($activityId): int {
+            ->each(function (object $usage) use ($activityId): void {
                 $this->mediaService->detachUsage(
                     (int) $usage->media_file_id,
                     'course_activity',
                     $activityId,
                     $usage->usage_type
                 );
-
-                return (int) $usage->media_file_id;
-            })
-            ->all();
-
-        $this->deleteUnusedMediaAfterCommit($detachedMediaIds);
+            });
 
         if ($removingActiveMedia && in_array($activityType, self::AUTO_MEDIA_DURATION_TYPES, true)) {
             DB::table('core_course_template_activities')
@@ -1603,43 +1629,6 @@ class CourseTemplateActivityController extends Controller
                     'updated_at' => now(),
                 ]);
         }
-    }
-
-    /**
-     * Owner rows commit first; destructive storage cleanup follows. A Media
-     * that gained or retained another active usage is preserved atomically by
-     * MediaService's row-locked conditional delete.
-     *
-     * @param  array<int, int>  $mediaFileIds
-     */
-    private function deleteUnusedMediaAfterCommit(array $mediaFileIds): void
-    {
-        $mediaFileIds = array_values(array_unique($mediaFileIds));
-        if ($mediaFileIds === []) {
-            return;
-        }
-
-        // Only the person who uploaded a Media may have it removed with the activity: a Media picked from the library
-        // (someone else's, shared) stays in the library when this activity lets go of it.
-        $actorId = (int) auth()->id();
-
-        DB::afterCommit(function () use ($mediaFileIds, $actorId): void {
-            foreach ($mediaFileIds as $mediaFileId) {
-                if ((int) DB::table('media_files')->where('id', $mediaFileId)->value('uploaded_by') !== $actorId) {
-                    continue;
-                }
-
-                try {
-                    $this->mediaService->deleteMediaIfUnused($mediaFileId);
-                } catch (Throwable $exception) {
-                    Log::error('Course Activity detached Media cleanup failed.', [
-                        'media_file_id' => $mediaFileId,
-                        'exception' => $exception::class,
-                        'retry_with' => 'Media library delete or media:purge-deleted-storage',
-                    ]);
-                }
-            }
-        });
     }
 
     private function ownerMedia(string $ownerType, int $ownerId): object
@@ -1655,6 +1644,59 @@ class CourseTemplateActivityController extends Controller
             });
     }
 
+    /** The Quiz picker of a Quiz Activity: published Quizzes the actor may pick (a teacher: their own). */
+    public function quizPicker(Request $request, int $templateId): JsonResponse
+    {
+        $customerId = $this->customerId();
+        $template = DB::table('core_course_templates')->where('customer_id', $customerId)->where('id', $templateId)->first();
+        abort_if(! $template, 404);
+        $this->authorizeTemplateAccess($customerId, $template);
+        $validated = $request->validate([
+            'keyword' => ['nullable', 'string', 'max:100'],
+            'assessment_type' => ['nullable', Rule::in(AssessmentQuizService::TYPES)],
+        ]);
+        $keyword = trim((string) ($validated['keyword'] ?? ''));
+
+        $rows = $this->pickableQuizzes($customerId)
+            ->leftJoin('core_assessment_categories as cat', function ($join): void {
+                $join->on('cat.id', '=', 'z.category_id')->on('cat.customer_id', '=', 'z.customer_id');
+            })
+            ->leftJoin('users as author', 'author.id', '=', 'z.created_by')
+            ->when($keyword !== '', fn ($query) => $query->where('z.title', 'like', '%'.addcslashes($keyword, '%_\\').'%'))
+            ->when($validated['assessment_type'] ?? null, fn ($query, $type) => $query->where('z.assessment_type', $type))
+            ->selectSub(fn ($query) => $query->from('core_assessment_quiz_version_questions as vq')->selectRaw('count(*)')
+                ->whereColumn('vq.quiz_version_id', 'z.current_version_id')->where('vq.customer_id', $customerId), 'question_count')
+            ->addSelect('z.id', 'z.title', 'z.assessment_type', 'z.duration_minutes', 'cat.name as category_name', 'author.name as author_name')
+            ->orderBy('z.title')->orderBy('z.id')
+            ->limit(30)->get();
+
+        return response()->json(['items' => $rows->map(fn (object $row): array => [
+            'id' => (int) $row->id,
+            'name' => (string) $row->title,
+            'type' => __('lf.LF_assessment_quiz_type_'.$row->assessment_type),
+            'category' => (string) ($row->category_name ?? ''),
+            'questions' => trans_choice('lf.LF_course_template_activity_quiz_questions', (int) $row->question_count, ['count' => (int) $row->question_count]),
+            'duration' => $row->duration_minutes ? __('lf.LF_course_template_activity_quiz_minutes', ['count' => (int) $row->duration_minutes]) : __('lf.LF_course_template_activity_quiz_untimed'),
+            'owner' => (string) ($row->author_name ?? '—'),
+        ])->values()]);
+    }
+
+    private function pickableQuizzes(int $customerId): Builder
+    {
+        return app(AssessmentQuizService::class)->scoped($customerId, request()->user(), 'z')->where('z.status', 'published');
+    }
+
+    /** @return array{id: int, name: string}|null the Quiz an Activity points to, by tenant only (the id may predate the picker) */
+    private function quizSummary(int $customerId, mixed $quizId): ?array
+    {
+        if (! $quizId) {
+            return null;
+        }
+        $title = DB::table(AssessmentQuizService::TABLE)->where('customer_id', $customerId)->where('id', (int) $quizId)->value('title');
+
+        return ['id' => (int) $quizId, 'name' => $title !== null ? (string) $title : __('lf.LF_course_template_activity_quiz_missing', ['id' => (int) $quizId])];
+    }
+
     private function authorizeTemplateAccess(int $customerId, object $template): void
     {
         $user = request()->user();
@@ -1664,15 +1706,12 @@ class CourseTemplateActivityController extends Controller
         }
 
         $isAssignedTeacher = $user?->role === 'teacher'
-            && (
-                (int) $template->created_by === (int) $user->id
-                || DB::table('core_course_template_teachers')
-                    ->where('customer_id', $customerId)
-                    ->where('template_id', $template->id)
-                    ->where('teacher_id', $user->id)
-                    ->where('status', 'active')
-                    ->exists()
-            );
+            && DB::table('core_course_template_teachers')
+                ->where('customer_id', $customerId)
+                ->where('template_id', $template->id)
+                ->where('teacher_id', $user->id)
+                ->where('status', 'active')
+                ->exists();
 
         abort_unless($isAssignedTeacher, 404);
     }

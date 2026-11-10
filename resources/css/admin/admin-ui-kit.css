@@ -3838,3 +3838,6 @@
 .lf-admin-ui .ui-wb-col-class { width: 150px; }
 .lf-admin-ui .ui-wb-col-status { width: 120px; }
 .lf-admin-ui .ui-wb-col-actions { width: 220px; }
+
+/* Quiz Activity: the chosen Quiz and the button that opens its picker. */
+.lf-admin-ui .ui-quiz-choice { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }

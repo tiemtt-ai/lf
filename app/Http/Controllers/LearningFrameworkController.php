@@ -256,6 +256,17 @@ final class LearningFrameworkController extends Controller
         });
     }
 
+    public function retireCompetency(Request $request, int $framework, int $definition): JsonResponse|RedirectResponse
+    {
+        abort_unless($request->user()?->role === 'customer_admin', 403);
+
+        return $this->mutate(function () use ($request, $framework, $definition): JsonResponse|RedirectResponse {
+            $outcome = $this->authoring->retireCompetency((int) $request->user()->id, $framework, $definition);
+
+            return $this->saved(__('lf.LF_learning_competency_'.$outcome));
+        });
+    }
+
     public function storeNode(LearningNodeRequest $request, int $framework, int $version): JsonResponse|RedirectResponse
     {
         return $this->mutate(function () use ($request, $framework, $version): RedirectResponse {
@@ -299,6 +310,7 @@ final class LearningFrameworkController extends Controller
             $readable = [
                 'LF_FRAMEWORK_AUTHORING_SCALE_INVALID' => ['mastery_scale', 'lf.LF_learning_simple_error_scale'],
                 'LF_FRAMEWORK_AUTHORING_NODE_ALREADY_IN_DRAFT' => ['learning', 'lf.LF_learning_simple_error_already_in_draft'],
+                'LF_FRAMEWORK_AUTHORING_NODE_NOT_IN_DRAFT' => ['learning', 'lf.LF_learning_simple_error_not_in_draft'],
             ][$exception->getMessage()] ?? null;
 
             return $this->rejected($readable
@@ -307,6 +319,11 @@ final class LearningFrameworkController extends Controller
         } catch (QueryException $exception) {
             $detail = (string) ($exception->errorInfo[2] ?? '');
             preg_match('/(?:constraint|key) [`\'"]?([A-Za-z0-9_]+)/i', $detail, $matches);
+            // A Framework code (idx_lrn_001) or Definition code (idx_lrn_008) already used in the tenant is
+            // the admin's to fix on the code field, not a data conflict.
+            if (preg_match('/\bidx_lrn_00[18]\b/', $detail) === 1) {
+                return $this->rejected(['code' => __('lf.LF_learning_simple_error_code_taken')]);
+            }
             Log::warning('Learning authoring database invariant rejected a mutation.', [
                 'correlation_id' => request()->header('X-Request-ID') ?: (string) Str::uuid(),
                 'sqlstate' => $exception->errorInfo[0] ?? $exception->getCode(),

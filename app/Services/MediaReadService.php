@@ -590,7 +590,7 @@ class MediaReadService
                             // co 100 vung, va ky ca tram chu ky cho nguoi chi doc
                             // text la lang phi va mo rong be mat ro ri vo co.
                             'delivery_url' => $includeCrop
-                                ? $this->mediaService->generateDerivedSignedUrl($media, $row->crop_storage_key)
+                                ? $this->mediaService->generateDerivedSignedUrl($media, 'region', (int) $row->id, $row->crop_storage_key)
                                 : null,
                         ],
                     ];
@@ -606,7 +606,7 @@ class MediaReadService
                             'width' => (int) $row->crop_width, 'height' => (int) $row->crop_height,
                             'bytes' => (int) $row->crop_bytes,
                             'delivery_url' => $includeCrop
-                                ? $this->mediaService->generateDerivedSignedUrl($media, $row->crop_storage_key)
+                                ? $this->mediaService->generateDerivedSignedUrl($media, 'formula', (int) $row->id, $row->crop_storage_key)
                                 : null,
                         ],
                         'normalization_status' => $row->normalization_status,
@@ -659,7 +659,9 @@ class MediaReadService
                         : (($row->locale ?? null) === null ? null : [$row->locale]),
                     'locator' => $asset ? null : ['type' => $row->locator_type, 'value' => $row->locator_value],
                     'text' => $text,
-                    'delivery_url' => $asset ? $this->mediaService->generateDerivedSignedUrl($media, $row->storage_key) : null,
+                    'delivery_url' => $asset
+                        ? $this->mediaService->generateDerivedSignedUrl($media, $contentType === 'caption_asset' ? 'caption' : 'variant', (int) $row->id, $row->storage_key)
+                        : null,
                     'confidence' => $row->confidence_score ?? null,
                     'status' => $row->status,
                     'structure' => $structure,

@@ -3,9 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Services\CourseTemplateVersionMediaAuthorizer;
+use App\Support\MediaFileResponse;
 use App\Support\MediaInlineHeaders;
 use App\Support\TenantContext;
-use Illuminate\Support\Facades\Storage;
 
 class CourseTemplateVersionMediaPreviewController extends Controller
 {
@@ -32,16 +32,8 @@ class CourseTemplateVersionMediaPreviewController extends Controller
         $headers = [
             'Accept-Ranges' => 'bytes',
             'Content-Type' => $media->mime_type,
-            'Content-Disposition' => 'inline; filename="'.addcslashes(
-                $media->display_name,
-                '\\"'
-            ).'"',
         ] + MediaInlineHeaders::for($media->mime_type);
 
-        if (config('filesystems.disks.'.$media->storage_disk.'.driver') === 'local') {
-            return response()->file(Storage::disk($media->storage_disk)->path($media->storage_key), $headers);
-        }
-
-        return Storage::disk($media->storage_disk)->response($media->storage_key, $media->display_name, $headers);
+        return MediaFileResponse::inline($media->storage_disk, $media->storage_key, (string) $media->display_name, $headers);
     }
 }

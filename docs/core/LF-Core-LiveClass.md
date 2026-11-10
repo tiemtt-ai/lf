@@ -1,12 +1,12 @@
 # LF-Core-LiveClass.md
 
-Version: 2.22
+Version: 2.24
 
 Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-11-09
+Last Updated: 2026-11-10
 
 Document Path: core/LF-Core-LiveClass.md
 
@@ -22,6 +22,8 @@ Document Path: core/LF-Core-LiveClass.md
 > của Template (kể cả tên); chỉ sửa ngày giờ, giáo viên, hình thức, link tham gia, phòng, địa chỉ (link theo
 > § Session Meeting URL: mở từ dòng link của Template, chỉ áp dụng cho buổi đó, để trống thì dùng lại link Template). Buổi sắp tới
 > chưa gán giáo viên hiện giáo viên của lớp theo ngày đó và mở form với họ được chọn sẵn.
+> Từ 2026-11-10: lần kéo hoặc lần hủy-dời phải lưu buổi mới vào một ngày giao với buổi khác của lớp
+> (hai Lịch học trùng giờ) thì bị từ chối cả lần, như kiểm tra giao giờ của form buổi học.
 
 # LF-Core LiveClass Architecture
 
@@ -799,10 +801,13 @@ recurring Schedule persistence:
 * an unassigned Session in an already active Cohort cannot accept runtime
   evidence such as Attendance or Recording until a teacher is assigned; this
   covers QR check-in too: the board offers no code and a scan records nothing;
-* Owner decision 2026-11-04: in a `draft` Cohort, a `scheduled` Session whose
-  start has passed, with no teacher and no evidence, may still receive teachers
-  through a dedicated action. Other fields and the times stay unchanged, and
-  each teacher must still be available for the Session's dates;
+* Owner decision 2026-11-04, widened 2026-11-10: in a `draft` or `active`
+  Cohort, a `scheduled` Session whose start has passed, with no teacher and no
+  evidence, may still receive teachers through a dedicated action. Other fields
+  and the times stay unchanged, and each teacher must still be available for
+  the Session's dates;
+* an unassigned Session cannot move to `live`; it may still be cancelled or
+  marked no-show;
 * title, type, curriculum binding and delivery fields may be edited only while
   the Session has not started, remains in a pre-runtime state and has no
   Attendance, Recording, Replay, Progress evidence or other operational child;

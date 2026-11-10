@@ -49,13 +49,16 @@ class CourseTemplateTeacherController extends Controller
     {
         $customerId = $this->customerId();
         $this->findTemplate($customerId, $templateId);
-        $validated = $this->validatedData(
+        $this->validatedData(
             $request,
             $customerId,
             $templateId
         );
-        DB::transaction(function () use ($customerId, $templateId, $validated, $request): void {
+        DB::transaction(function () use ($customerId, $templateId, $request): void {
             CourseTemplateEditable::lock($customerId, $templateId);
+            // Re-validate under the Template lock: a double submit already passed the check above
+            // and would otherwise hit UNIQUE(template_id, teacher_id).
+            $validated = $this->validatedData($request, $customerId, $templateId);
             $now = now();
             // A teacher removed earlier keeps their row (one per Template and teacher): assigning them again
             // reactivates it with the new role, keeping its place in the list.
@@ -291,15 +294,12 @@ class CourseTemplateTeacherController extends Controller
         }
 
         $isAssignedTeacher = $user?->role === 'teacher'
-            && (
-                (int) $template->created_by === (int) $user->id
-                || DB::table('core_course_template_teachers')
-                    ->where('customer_id', $customerId)
-                    ->where('template_id', $template->id)
-                    ->where('teacher_id', $user->id)
-                    ->where('status', 'active')
-                    ->exists()
-            );
+            && DB::table('core_course_template_teachers')
+                ->where('customer_id', $customerId)
+                ->where('template_id', $template->id)
+                ->where('teacher_id', $user->id)
+                ->where('status', 'active')
+                ->exists();
 
         abort_unless($isAssignedTeacher, 404);
     }

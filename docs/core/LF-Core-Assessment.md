@@ -1,12 +1,12 @@
 # LF-Core-Assessment.md
 
-Version: 1.5
+Version: 1.6
 
 Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-11-07
+Last Updated: 2026-11-10
 
 Document Path: core/LF-Core-Assessment.md
 
@@ -322,6 +322,10 @@ Trang kết quả của học viên và trang chấm chỉ hiện chú thích m�
 Gắn đề hoặc gói đề vào Course Template chưa làm. Hoạt động `quiz` và
 `assessment_quiz_id` ở Course giữ nguyên; template có hoạt động quiz vẫn bị chặn
 xuất bản theo [LF-Core-Course](LF-Core-Course.md).
+
+Từ 2026-11-10 (Owner): Hoạt động `quiz` chọn đề qua popup lọc / chọn, chỉ đề
+`published` của tenant; giáo viên chỉ thấy đề mình tạo, admin thấy mọi đề. Đây chỉ là
+bước chọn đề; khoá học chưa đóng băng phiên bản đề và chưa mở xuất bản.
 
 Khi làm, kiến trúc đích của ADR-0003 áp dụng cho lần làm bài có nguồn quyền là
 khoá học:

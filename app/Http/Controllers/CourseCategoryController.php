@@ -7,11 +7,13 @@ use App\Services\MediaThumbnailPresenter;
 use App\Support\TenantContext;
 use App\Support\UploadLimit;
 use Illuminate\Database\QueryException;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class CourseCategoryController extends Controller
@@ -107,10 +109,10 @@ class CourseCategoryController extends Controller
         $validated = $this->validatedData($request, $customerId);
         $now = now();
 
-        $categoryId = DB::transaction(function () use ($customerId, $validated, $request, $now): int {
+        $categoryId = $this->withSlugCollisionAsValidation(fn (): int => DB::transaction(function () use ($customerId, $validated, $request, $now): int {
             $validated['sort_order'] = $this->nextSortOrder($customerId, true);
 
-            return DB::table('core_course_categories')->insertGetId([
+            $categoryId = DB::table('core_course_categories')->insertGetId([
                 'customer_id' => $customerId,
                 'parent_id' => $validated['parent_id'] ?? null,
                 'name' => $validated['name'],
@@ -128,9 +130,11 @@ class CourseCategoryController extends Controller
                 'created_at' => $now,
                 'updated_at' => $now,
             ]);
-        });
+            // Same transaction: a refused image leaves no half-created Category behind.
+            $this->syncUploadedMedia($request, $categoryId, $validated['name']);
 
-        $this->syncUploadedMedia($request, $categoryId, $validated['name']);
+            return $categoryId;
+        }));
 
         if ($request->expectsJson()) {
             return response()->json(['message' => __('lf.LF_course_category_common_created')], 201);
@@ -186,12 +190,20 @@ class CourseCategoryController extends Controller
             }
         }
 
-        DB::table('core_course_categories')
-            ->where('customer_id', $customerId)
-            ->where('id', $id)
-            ->update($values);
+        $this->withSlugCollisionAsValidation(fn () => DB::transaction(function () use ($customerId, $id, $values, $request, $validated): void {
+            // Category writes of one tenant serialize on its row (as create does), so the tree is re-checked here:
+            // two moves checked before either commits could otherwise each pass and together close a cycle.
+            $this->lockTenant($customerId);
+            $this->findCategory($customerId, $id);
+            $this->assertParentUnderLock($customerId, $id, $values['parent_id']);
 
-        $this->syncUploadedMedia($request, $id, $validated['name']);
+            DB::table('core_course_categories')
+                ->where('customer_id', $customerId)
+                ->where('id', $id)
+                ->update($values);
+
+            $this->syncUploadedMedia($request, $id, $validated['name']);
+        }));
 
         if ($request->expectsJson()) {
             return response()->json(['message' => __('lf.LF_course_category_common_updated')]);
@@ -309,6 +321,23 @@ class CourseCategoryController extends Controller
         return back()->with('success', __('lf.LF_course_category_common_status_updated'));
     }
 
+    /**
+     * The slug check runs before the write without a lock, so two admins saving the same name at once
+     * both pass it; the loser hits uk_cc_customer_slug and answers with the usual duplicate-slug error.
+     */
+    private function withSlugCollisionAsValidation(callable $write): mixed
+    {
+        try {
+            return $write();
+        } catch (UniqueConstraintViolationException $exception) {
+            $message = $exception->getMessage();
+            if (str_contains($message, 'uk_cc_customer_slug') || str_contains($message, 'core_course_categories.slug')) {
+                throw ValidationException::withMessages(['slug' => __('validation.unique', ['attribute' => 'slug'])]);
+            }
+            throw $exception;
+        }
+    }
+
     private function validatedData(
         Request $request,
         int $customerId,
@@ -338,17 +367,20 @@ class CourseCategoryController extends Controller
                     ->where(fn ($query) => $query->where('customer_id', $customerId))
                     ->ignore($categoryId),
             ],
-            'description' => ['nullable', 'string'],
+            // TEXT holds 65,535 bytes; 20,000 characters stays inside it even for 3-byte UTF-8.
+            'description' => ['nullable', 'string', 'max:20000'],
             'thumbnail_image' => ['nullable', 'string', 'max:500'],
             'banner_image' => ['nullable', 'string', 'max:500'],
             'thumbnail_image_file' => [
                 'nullable',
                 'file',
+                'mimes:jpg,jpeg,png,gif,webp,svg',
                 'max:'.UploadLimit::effectiveKilobytes(),
             ],
             'banner_image_file' => [
                 'nullable',
                 'file',
+                'mimes:jpg,jpeg,png,gif,webp,svg',
                 'max:'.UploadLimit::effectiveKilobytes(),
             ],
             'remove_thumbnail_image_media' => ['nullable', 'boolean'],
@@ -443,13 +475,43 @@ class CourseCategoryController extends Controller
             ->get();
     }
 
+    private function lockTenant(int $customerId): void
+    {
+        DB::table('saas_customers')
+            ->where('id', $customerId)
+            ->lockForUpdate()
+            ->first(['id']);
+    }
+
+    /** The parent must still be this tenant's and must not be the category itself or one of its descendants. */
+    private function assertParentUnderLock(int $customerId, int $categoryId, mixed $parentId): void
+    {
+        $parentId = (int) $parentId;
+
+        if ($parentId === 0) {
+            return;
+        }
+
+        $parentExists = DB::table('core_course_categories')
+            ->where('customer_id', $customerId)
+            ->where('id', $parentId)
+            ->exists();
+
+        if (
+            ! $parentExists
+            || $parentId === $categoryId
+            || in_array($parentId, $this->descendantIds($customerId, $categoryId), true)
+        ) {
+            throw ValidationException::withMessages([
+                'parent_id' => __('lf.LF_course_category_common_invalid_parent'),
+            ]);
+        }
+    }
+
     private function nextSortOrder(int $customerId, bool $lockTenant = false): int
     {
         if ($lockTenant) {
-            DB::table('saas_customers')
-                ->where('id', $customerId)
-                ->lockForUpdate()
-                ->first(['id']);
+            $this->lockTenant($customerId);
         }
 
         $maximum = DB::table('core_course_categories')
@@ -523,15 +585,13 @@ class CourseCategoryController extends Controller
                 continue;
             }
 
-            $this->detachExistingMedia(
-                $categoryId,
-                $mediaConfig['usage_type']
-            );
-
             if (! $request->hasFile($field)) {
+                $this->detachExistingMedia($categoryId, $mediaConfig['usage_type']);
+
                 continue;
             }
 
+            // Upload first: a refused file must not cost the image already in place.
             $mediaFile = $this->mediaService->upload(
                 $request->file($field),
                 [
@@ -545,6 +605,7 @@ class CourseCategoryController extends Controller
                 (int) $request->user()->id
             );
 
+            $this->detachExistingMedia($categoryId, $mediaConfig['usage_type'], (int) $mediaFile->id);
             $this->mediaService->attachUsage(
                 (int) $mediaFile->id,
                 'course_category',
@@ -556,7 +617,8 @@ class CourseCategoryController extends Controller
 
     private function detachExistingMedia(
         int $categoryId,
-        string $usageType
+        string $usageType,
+        ?int $keepMediaId = null
     ): void {
         foreach (
             $this->mediaService->getOwnerMedia(
@@ -565,6 +627,9 @@ class CourseCategoryController extends Controller
                 $usageType
             ) as $media
         ) {
+            if ((int) $media->id === $keepMediaId) {
+                continue;
+            }
             $this->mediaService->detachUsage(
                 (int) $media->id,
                 'course_category',

@@ -10,9 +10,9 @@ use App\Services\BulkEnrollmentPayload;
 use App\Services\BulkEnrollmentService;
 use App\Services\BulkEnrollmentSubmissionToken;
 use App\Services\CourseEnrollmentLifecycleService;
-use App\Services\EnrollmentCreationAction;
 use App\Services\EnrollmentEligibilityPolicy;
 use App\Support\CourseType;
+use App\Support\EnrollmentTime;
 use App\Support\TenantContext;
 use App\Support\XlsxDownload;
 use Illuminate\Http\JsonResponse;
@@ -45,6 +45,9 @@ class CourseEnrollmentController extends Controller
         'import',
         'api',
     ];
+
+    /** Products checked per search: eligibility runs for every selected Student against each one. */
+    public const PRODUCT_SEARCH_LIMIT = 50;
 
     public function index(Request $request): View
     {
@@ -278,10 +281,18 @@ class CourseEnrollmentController extends Controller
             'student_ids.*' => ['integer', 'min:1', 'distinct'],
             'selected_product_ids' => ['sometimes', 'array', 'max:100'],
             'selected_product_ids.*' => ['integer', 'min:1', 'distinct'],
-            'enrolled_at' => ['nullable', 'date'],
-        ])->validate();
+            'enrolled_at' => ['nullable', ...EnrollmentTime::RULES],
+        ])->after(function ($validator) use ($request): void {
+            // Same bound as the page's selection (canProject) and bulk preflight: every selected
+            // Product is re-checked against every selected Student on each search.
+            $studentCount = count((array) $request->query('student_ids', []));
+            $selectedCount = count((array) $request->query('selected_product_ids', []));
+            if ($studentCount * $selectedCount > BulkEnrollmentPreflightRequest::MAX_PAIRS) {
+                $validator->errors()->add('selected_product_ids', __('lf.LF_bulk_enrollment_validation_pair_limit'));
+            }
+        })->validate();
         $enrolledAt = filled($selection['enrolled_at'] ?? null)
-            ? Carbon::parse($selection['enrolled_at'])
+            ? EnrollmentTime::parse((string) $selection['enrolled_at'])
             : now();
         $studentIds = collect($selection['student_ids'] ?? [])->map(fn ($id): int => (int) $id)
             ->unique()->sort()->values();
@@ -301,7 +312,10 @@ class CourseEnrollmentController extends Controller
                 });
             })
             ->orderBy('products.title')->orderBy('products.id')
+            ->limit(self::PRODUCT_SEARCH_LIMIT + 1)
             ->get();
+        $limited = $productItems->count() > self::PRODUCT_SEARCH_LIMIT;
+        $productItems = $productItems->take(self::PRODUCT_SEARCH_LIMIT)->values();
         $states = $request->integer('student_id') > 0
             ? $this->pairEnrollmentStates($customerId, [$request->integer('student_id')], $productItems->pluck('id')->all())
             : [];
@@ -355,6 +369,7 @@ class CourseEnrollmentController extends Controller
                 'pagination' => $this->collectionPagination($ineligible->count(), $ineligiblePage, 10),
             ],
             'counts' => ['eligible' => $eligible->count(), 'ineligible' => $ineligible->count()],
+            'limited' => $limited,
             'selected_eligibility' => $selectedEligibility,
         ]);
     }
@@ -465,23 +480,6 @@ class CourseEnrollmentController extends Controller
         ]);
     }
 
-    public function store(Request $request, EnrollmentCreationAction $creation)
-    {
-        $this->authorizeAdmin($request);
-
-        $customerId = $this->customerId();
-        $validated = $this->validatedCreateData($request, $customerId);
-        $enrollmentId = $creation->create(
-            $customerId,
-            (int) $request->user()->id,
-            $validated
-        );
-
-        return redirect()
-            ->route($this->routePrefix($request).'.show', $enrollmentId)
-            ->with('success', __('lf.LF_course_enrollment_common_created'));
-    }
-
     public function show(Request $request, int $id): View
     {
         $this->authorizeAdmin($request);
@@ -554,9 +552,11 @@ class CourseEnrollmentController extends Controller
                 'notes' => $validated['notes'] ?? null,
                 'updated_at' => now(),
             ];
+            // The popup sends minutes only; the same minute keeps the stored moment and its windows.
             if (isset($validated['enrolled_at'])
-                && ! Carbon::parse($validated['enrolled_at'])->equalTo(Carbon::parse($enrollment->enrolled_at))) {
-                $enrolledAt = Carbon::parse($validated['enrolled_at']);
+                && ! EnrollmentTime::parse((string) $validated['enrolled_at'])->startOfMinute()
+                    ->equalTo(Carbon::parse($enrollment->enrolled_at)->startOfMinute())) {
+                $enrolledAt = EnrollmentTime::parse((string) $validated['enrolled_at']);
                 $timeWindows = $enrollmentPolicy->reprojectEnrollment($enrollment, $enrolledAt);
                 $updates = array_merge($updates, [
                     'enrolled_at' => $enrolledAt,
@@ -599,47 +599,6 @@ class CourseEnrollmentController extends Controller
         return $this->runLifecycle($request, $id, fn () => $service->cancel($this->customerId(), $id), 'cancelled');
     }
 
-    private function validatedCreateData(Request $request, int $customerId): array
-    {
-        $validator = Validator::make($request->all(), [
-            'student_id' => ['required', 'integer', 'min:1'],
-            'product_id' => ['required', 'integer', 'min:1'],
-            'access_starts_at' => ['prohibited'],
-            'access_ends_at' => ['prohibited'],
-            'review_starts_at' => ['prohibited'],
-            'review_ends_at' => ['prohibited'],
-            'notes' => ['nullable', 'string'],
-            'customer_id' => ['prohibited'],
-            'version_id' => ['prohibited'],
-            'source' => ['prohibited'],
-            'source_id' => ['prohibited'],
-            'status' => ['prohibited'],
-            'enrolled_at' => ['nullable', 'date'],
-        ]);
-
-        $validator->after(function ($validator) use ($request, $customerId): void {
-            $studentId = (int) $request->input('student_id');
-            $productId = (int) $request->input('product_id');
-
-            if ($studentId > 0 && ! $this->studentExists($customerId, $studentId)) {
-                $validator->errors()->add(
-                    'student_id',
-                    __('lf.LF_course_enrollment_validation_student')
-                );
-            }
-
-            if ($productId > 0 && ! $this->productExists($customerId, $productId)) {
-                $validator->errors()->add(
-                    'product_id',
-                    __('lf.LF_course_enrollment_validation_product')
-                );
-            }
-
-        });
-
-        return $validator->validate();
-    }
-
     private function validatedUpdateData(Request $request): array
     {
         $validator = Validator::make($request->all(), [
@@ -648,7 +607,7 @@ class CourseEnrollmentController extends Controller
             'access_ends_at' => ['prohibited'],
             'review_starts_at' => ['prohibited'],
             'review_ends_at' => ['prohibited'],
-            'enrolled_at' => ['nullable', 'date'],
+            'enrolled_at' => ['nullable', ...EnrollmentTime::RULES],
             'notes' => ['nullable', 'string'],
         ]);
 
@@ -869,25 +828,6 @@ class CourseEnrollmentController extends Controller
         }
 
         return $states;
-    }
-
-    private function studentExists(int $customerId, int $studentId): bool
-    {
-        return DB::table('users')
-            ->where('customer_id', $customerId)
-            ->where('id', $studentId)
-            ->where('role', 'student')
-            ->where('status', 'active')
-            ->exists();
-    }
-
-    private function productExists(int $customerId, int $productId): bool
-    {
-        return DB::table('core_course_products')
-            ->where('customer_id', $customerId)
-            ->where('id', $productId)
-            ->where('status', 'active')
-            ->exists();
     }
 
     private function customerId(): int

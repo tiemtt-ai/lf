@@ -1,6 +1,6 @@
 # Table: core_course_template_activities
 
-Version: 1.3
+Version: 1.4
 
 Document Status: Approved
 
@@ -234,6 +234,13 @@ Provisional positive integer Assessment Quiz reference khi
 `activity_type = quiz`. Có thể lưu ở working Activity, nhưng Template chứa Quiz
 bị chặn publish cho đến khi Assessment Phase 2 định nghĩa ownership và
 immutable binding.
+
+Quiz Picker Amendment (Owner 2026-11-10): `assessment_quiz_id` được chọn qua popup
+lọc / chọn đề (giống chọn Media), không nhập số. Chỉ nhận đề cùng tenant, `status =
+published` (có phiên bản, chưa lưu trữ); giáo viên chỉ chọn được đề do mình tạo, admin
+chọn được mọi đề của tenant. Đề đã gắn trước đó mà nay không còn hợp lệ vẫn giữ khi
+lưu lại không đổi. Template chứa Quiz vẫn bị chặn publish; đóng băng phiên bản đề vào
+Version Activity thuộc phần Course Integration làm sau.
 
 ---
 

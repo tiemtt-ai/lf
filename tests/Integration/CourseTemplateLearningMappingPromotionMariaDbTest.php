@@ -141,7 +141,7 @@ class CourseTemplateLearningMappingPromotionMariaDbTest extends TestCase
         DB::table('core_learning_framework_versions')->where('id', $f['version_id'])
             ->update(['status' => 'deprecated', 'deprecated_at' => now(), 'deprecated_by' => $f['admin_id']]);
 
-        $this->assertPublishRollsBack($f, 'A Learning Node or Framework Version is no longer publishable.');
+        $this->assertPublishRollsBack($f, __('lf.LF_course_template_publish_learning_node_unpublishable'));
     }
 
     public function test_a_deleted_mapped_source_fails_the_publish_closed(): void
@@ -150,12 +150,38 @@ class CourseTemplateLearningMappingPromotionMariaDbTest extends TestCase
         $this->mapLesson($f);
 
         // A second Lesson keeps the Template publishable once the mapped one is
-        // gone; without it the failure could come from readiness instead.
+        // gone, so the only blocker left is the orphaned Intent.
         $this->createLesson($f, 'Spare Lesson', 1);
         DB::table('core_course_template_activities')->where('template_lesson_id', $f['lesson_id'])->delete();
         DB::table('core_course_template_lessons')->where('id', $f['lesson_id'])->delete();
 
         $this->assertPublishRollsBack($f);
+    }
+
+    public function test_readiness_names_intents_left_by_a_deleted_lesson_until_they_are_removed(): void
+    {
+        $f = $this->fixture('orphanready');
+        $this->mapLesson($f);
+        $this->createLesson($f, 'Spare Lesson', 1);
+        DB::table('core_course_template_activities')->where('template_lesson_id', $f['lesson_id'])->delete();
+        DB::table('core_course_template_lessons')->where('id', $f['lesson_id'])->delete();
+
+        $readiness = $this->readiness($f);
+        $orphan = $readiness->blockers()->firstWhere('code', 'learning_mapping_orphan');
+        $this->assertNotNull($orphan, 'Readiness must name the orphaned Intent before publish fails on it.');
+        $this->assertSame('learning', $orphan->targetTab);
+        $this->assertStringContainsString('1', $orphan->message());
+
+        DB::table('core_course_template_learning_mapping_intents')->where('template_id', $f['template_id'])->delete();
+        $this->assertNull($this->readiness($f)->blockers()->firstWhere('code', 'learning_mapping_orphan'));
+    }
+
+    /** @param array<string, mixed> $f */
+    private function readiness(array $f): \App\Services\CourseTemplatePublishReadiness
+    {
+        $service = app(\App\Services\CourseTemplatePublishReadinessService::class);
+
+        return $service->evaluate($f['customer_id'], $service->load($f['customer_id'], $f['template_id']));
     }
 
     public function test_promotion_refuses_a_call_that_does_not_match_its_publish_context(): void
@@ -169,6 +195,62 @@ class CourseTemplateLearningMappingPromotionMariaDbTest extends TestCase
     }
 
     // ----------------------------------------------------------- Idempotency
+
+    public function test_an_admin_marks_a_published_link_wrong_once_with_a_reason_and_nothing_else_changes(): void
+    {
+        $f = $this->fixture('invalidate');
+        $this->mapLesson($f, 'teaches', '0.75');
+        $this->mapActivity($f, 'practices', null);
+        $version = $this->publish($f);
+        TenantContext::set(null);
+        $host = 'https://'.$f['slug'].'.localhost';
+        $page = $host."/admin/course-templates/{$f['template_id']}/versions/{$version->id}";
+        $mapping = DB::table('core_learning_node_mappings')->where('customer_id', $f['customer_id'])->where('source_type', 'course_version_lesson')->firstOrFail();
+        $other = DB::table('core_learning_node_mappings')->where('customer_id', $f['customer_id'])->where('source_type', 'course_version_activity')->firstOrFail();
+        $url = "{$page}/links/{$mapping->id}/invalidate";
+        $admin = User::findOrFail($f['admin_id']);
+
+        $html = $this->actingAs($admin)->get($page)->assertOk()->getContent();
+        $this->assertStringContainsString('data-course-version-link-invalidate="'.$mapping->id.'"', $html);
+        $this->assertStringContainsString('Invalidate Lesson', $html, 'The source label comes from the frozen snapshot.');
+
+        // A teacher, a blank reason and another tenant are refused without writing.
+        $teacher = User::where('email', 'teacher-invalidate@example.test')->firstOrFail();
+        $this->actingAs($teacher)->post($url, ['invalidation_reason' => 'x'])->assertForbidden();
+        $this->actingAs($admin)->post($url, ['invalidation_reason' => '   '])->assertSessionHasErrors('invalidation_reason');
+        $foreign = $this->fixture('invalidate-other');
+        $this->actingAs(User::findOrFail($foreign['admin_id']))
+            ->post('https://'.$foreign['slug'].".localhost/admin/course-templates/{$foreign['template_id']}/versions/{$version->id}/links/{$mapping->id}/invalidate", ['invalidation_reason' => 'x'])
+            ->assertNotFound();
+        $this->assertNull(DB::table('core_learning_node_mappings')->where('id', $mapping->id)->value('invalidated_at'));
+
+        $before = (array) DB::table('core_learning_node_mappings')->where('id', $mapping->id)->first();
+        $this->actingAs($admin)->post($url, ['invalidation_reason' => '  Wrong lesson for this skill.  '])
+            ->assertSessionHasNoErrors()->assertSessionHas('success', __('lf.LF_course_template_version_link_invalidated'));
+        $after = (array) DB::table('core_learning_node_mappings')->where('id', $mapping->id)->first();
+        $this->assertNotNull($after['invalidated_at']);
+        $this->assertSame([$f['admin_id'], 'Wrong lesson for this skill.'], [(int) $after['invalidated_by'], $after['invalidation_reason']]);
+        unset($before['invalidated_at'], $before['invalidated_by'], $before['invalidation_reason'], $after['invalidated_at'], $after['invalidated_by'], $after['invalidation_reason']);
+        $this->assertSame($before, $after, 'No other field of the Mapping changes.');
+        $this->assertNull(DB::table('core_learning_node_mappings')->where('id', $other->id)->value('invalidated_at'));
+        $this->assertSame(2, DB::table('core_learning_node_mappings')->where('customer_id', $f['customer_id'])->count(), 'Nothing is deleted.');
+
+        // Once only; the page shows who and why, and offers no second mark.
+        $this->actingAs($admin)->post($url, ['invalidation_reason' => 'Again'])
+            ->assertSessionHasErrors(['invalidation_reason' => __('lf.LF_course_template_version_link_already_invalid')]);
+        $html = $this->actingAs($admin)->get($page)->assertOk()->getContent();
+        $this->assertStringNotContainsString('data-course-version-link-invalidate="'.$mapping->id.'"', $html);
+        $this->assertStringContainsString('Wrong lesson for this skill.', $html);
+        $this->assertStringContainsString('data-course-version-link-invalidate="'.$other->id.'"', $html);
+
+        // Learning readers drop it; the trigger still refuses any other update.
+        TenantContext::set((object) ['id' => $f['customer_id']]);
+        $live = app(\App\Services\LearningCourseCompetencyReadService::class)->competencies($f['customer_id'], (int) $version->id, (int) $f['version_id'])
+            ->firstWhere('id', $f['node_id']);
+        $this->assertNotContains('Invalidate Lesson', $live->labels);
+        $this->expectException(QueryException::class);
+        DB::table('core_learning_node_mappings')->where('id', $mapping->id)->update(['invalidation_reason' => 'Rewritten']);
+    }
 
     public function test_a_retried_promotion_does_not_duplicate_a_mapping(): void
     {
@@ -202,6 +284,8 @@ class CourseTemplateLearningMappingPromotionMariaDbTest extends TestCase
         $first = $this->publish($f);
         $firstMapping = DB::table('core_learning_node_mappings')->where('customer_id', $f['customer_id'])->firstOrFail();
 
+        // A publish needs a change since the latest Version.
+        DB::table('core_course_templates')->where('id', $f['template_id'])->increment('working_revision');
         $second = $this->publish($f);
         $this->assertNotSame($first->id, $second->id);
 

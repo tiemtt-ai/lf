@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\EnrollmentTime;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -79,7 +80,7 @@ class EnrollmentCreationAction
         ])->keyBy('id');
         $bindings = $this->resolver->resolveMany($customerId, $productIds->all(), $lock);
         $enrolledAt ??= filled($payload['configuration']['enrolled_at'] ?? null)
-            ? Carbon::parse($payload['configuration']['enrolled_at']) : now();
+            ? EnrollmentTime::parse((string) $payload['configuration']['enrolled_at']) : now();
 
         $timePolicies = $productIds->mapWithKeys(function (int $productId) use ($customerId, $enrolledAt, $lock): array {
             try {

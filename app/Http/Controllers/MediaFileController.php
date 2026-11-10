@@ -275,9 +275,13 @@ class MediaFileController extends Controller
 
         $usageGroups = $this->usageGroups($customerId, $mediaFiles->getCollection()->pluck('id'), $teacherId);
         $shareStates = $this->shares->stateFor($customerId, $mediaFiles->getCollection()->pluck('id'));
-        $mediaFiles->setCollection($mediaFiles->getCollection()->map(function (object $mediaFile) use ($usageGroups, $shareStates, $teacherId): object {
+        $learnerContent = $this->shares->learnerContentIds($customerId, $mediaFiles->getCollection()->pluck('id'));
+        $mediaFiles->setCollection($mediaFiles->getCollection()->map(function (object $mediaFile) use ($usageGroups, $shareStates, $learnerContent, $teacherId): object {
             $mediaFile->active_usages = $usageGroups->get((int) $mediaFile->id, collect());
             $mediaFile->share_state = $shareStates[(int) $mediaFile->id];
+            // A learner's file is never shared; one shared before the gate keeps the action so it can be made private.
+            $mediaFile->shareable = ! in_array((int) $mediaFile->id, $learnerContent, true)
+                || $mediaFile->share_state['scope'] !== MediaShareService::SCOPE_PRIVATE;
             $mediaFile->is_mine = $teacherId === null || (int) $mediaFile->uploaded_by === $teacherId;
             $mediaFile->preview_url = $this->previewUrl($mediaFile);
             $mediaFile->preview_mode = match ($mediaFile->file_type) {

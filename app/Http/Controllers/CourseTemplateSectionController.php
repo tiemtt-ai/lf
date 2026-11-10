@@ -75,6 +75,7 @@ class CourseTemplateSectionController extends Controller
             $templateId
         ): void {
             $template = CourseTemplateEditable::lock($customerId, $templateId);
+            $this->assertParentUnderLock($customerId, $templateId, null, $validated['parent_section_id'] ?? null);
 
             $validated['display_order'] ??= $this->nextDisplayOrder(
                 $customerId,
@@ -167,8 +168,10 @@ class CourseTemplateSectionController extends Controller
 
         DB::transaction(function () use ($customerId, $templateId, $sectionId, $validated): void {
             $this->lockTemplate($customerId, $templateId);
-            CourseTemplateWorkingRevision::bump($customerId, $templateId);
             $current = $this->findSection($customerId, $templateId, $sectionId);
+            // The form check ran before the lock: a move of another Section committed meanwhile can close a cycle.
+            $this->assertParentUnderLock($customerId, $templateId, $sectionId, $validated['parent_section_id'] ?? null);
+            CourseTemplateWorkingRevision::bump($customerId, $templateId);
             $parentChanged = (int) $current->parent_section_id !== (int) ($validated['parent_section_id'] ?? 0);
             // Without an order a Section stays where it is, or goes last under a new parent.
             $validated['display_order'] ??= $parentChanged
@@ -354,6 +357,35 @@ class CourseTemplateSectionController extends Controller
         CourseTemplateEditable::lock($customerId, $templateId);
     }
 
+    /**
+     * Re-check the parent on the locked Template: every Section write takes that lock, so the tree read here is
+     * the one the write lands on. The parent must still exist and must not be the Section or one of its descendants.
+     */
+    private function assertParentUnderLock(int $customerId, int $templateId, ?int $sectionId, mixed $parentId): void
+    {
+        $parentId = (int) $parentId;
+
+        if ($parentId === 0) {
+            return;
+        }
+
+        $parentExists = DB::table('core_course_template_sections')
+            ->where('customer_id', $customerId)
+            ->where('template_id', $templateId)
+            ->where('id', $parentId)
+            ->exists();
+        $closesCycle = $sectionId !== null && (
+            $parentId === $sectionId
+            || in_array($parentId, $this->descendantIds($customerId, $templateId, $sectionId), true)
+        );
+
+        if (! $parentExists || $closesCycle) {
+            throw ValidationException::withMessages([
+                'parent_section_id' => __('lf.LF_course_template_section_common_invalid_parent'),
+            ]);
+        }
+    }
+
     private function validatedData(
         Request $request,
         int $customerId,
@@ -433,9 +465,10 @@ class CourseTemplateSectionController extends Controller
                         ->where('template_id', $templateId)),
             ],
             'title' => ['required', 'string', 'max:255'],
-            'description' => ['nullable', 'string'],
+            // TEXT holds 65,535 bytes; 20,000 characters stays inside it even for 3-byte UTF-8.
+            'description' => ['nullable', 'string', 'max:20000'],
             'allows_lessons' => ['required', 'boolean'],
-            'display_order' => ['nullable', 'integer', 'min:0'],
+            'display_order' => ['nullable', 'integer', 'min:0', 'max:1000000'],
         ];
     }
 
@@ -600,15 +633,12 @@ class CourseTemplateSectionController extends Controller
         }
 
         $isAssignedTeacher = $user?->role === 'teacher'
-            && (
-                (int) $template->created_by === (int) $user->id
-                || DB::table('core_course_template_teachers')
-                    ->where('customer_id', $customerId)
-                    ->where('template_id', $template->id)
-                    ->where('teacher_id', $user->id)
-                    ->where('status', 'active')
-                    ->exists()
-            );
+            && DB::table('core_course_template_teachers')
+                ->where('customer_id', $customerId)
+                ->where('template_id', $template->id)
+                ->where('teacher_id', $user->id)
+                ->where('status', 'active')
+                ->exists();
 
         abort_unless($isAssignedTeacher, 404);
     }

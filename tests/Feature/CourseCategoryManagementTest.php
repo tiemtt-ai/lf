@@ -774,6 +774,31 @@ class CourseCategoryManagementTest extends TestCase
         Storage::disk('media_local')->assertExists($mediaFile->storage_key);
     }
 
+    public function test_a_non_image_thumbnail_creates_nothing_and_does_not_cost_the_current_image(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $pdf = fn () => UploadedFile::fake()->create('brochure.pdf', 12, 'application/pdf');
+
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-categories', $this->validCategoryData([
+            'name' => 'Pdf Cover', 'slug' => 'pdf-cover', 'thumbnail_image_file' => $pdf(),
+        ]))->assertSessionHasErrors('thumbnail_image_file');
+        $this->assertSame(0, DB::table('core_course_categories')->where('slug', 'pdf-cover')->count());
+
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-categories', $this->validCategoryData([
+            'name' => 'Image Cover', 'slug' => 'image-cover',
+            'thumbnail_image_file' => UploadedFile::fake()->image('cover.png', 120, 120),
+        ]))->assertRedirect();
+        $categoryId = (int) DB::table('core_course_categories')->where('slug', 'image-cover')->value('id');
+        $before = $this->assertActiveMediaUsage($customerId, $categoryId, 'thumbnail');
+
+        $this->actingAs($admin)->put("https://tenant-a.localhost/admin/course-categories/{$categoryId}", $this->validCategoryData([
+            'name' => 'Image Cover Renamed', 'slug' => 'image-cover', 'thumbnail_image_file' => $pdf(),
+        ]))->assertSessionHasErrors('thumbnail_image_file');
+        $this->assertSame('Image Cover', DB::table('core_course_categories')->where('id', $categoryId)->value('name'));
+        $this->assertSame($before->id, $this->assertActiveMediaUsage($customerId, $categoryId, 'thumbnail')->id);
+    }
+
     public function test_a_thumbnail_still_being_processed_does_not_break_the_list_or_the_form(): void
     {
         $customerId = $this->createTenant();
@@ -1011,6 +1036,97 @@ class CourseCategoryManagementTest extends TestCase
             'customer_id' => $otherCustomerId,
             'slug' => 'korean',
         ]);
+    }
+
+    public function test_a_concurrent_same_slug_create_answers_as_a_slug_error_not_a_server_error(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        // The other admin's identical create commits after this request's slug check, before its insert.
+        $raced = false;
+        DB::listen(function ($query) use (&$raced, $customerId): void {
+            if (! $raced && DB::transactionLevel() > 1 && str_contains($query->sql, 'from "saas_customers"')) {
+                $raced = true;
+                $this->createCategory($customerId, 'Korean', 'korean');
+            }
+        });
+
+        $this->actingAs($admin)
+            ->post('https://tenant-a.localhost/admin/course-categories', $this->validCategoryData([
+                'name' => 'Korean',
+            ]))
+            ->assertSessionHasErrors(['slug' => 'slug đã tồn tại.']);
+
+        $this->assertTrue($raced);
+    }
+
+    public function test_a_concurrent_rename_to_a_taken_slug_answers_as_a_slug_error(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $categoryId = $this->createCategory($customerId, 'Japanese', 'japanese');
+        // The other admin's create commits right after this request's slug check.
+        $raced = false;
+        DB::listen(function ($query) use (&$raced, $customerId): void {
+            if (! $raced && str_contains($query->sql, 'from "core_course_categories"') && str_contains($query->sql, '"slug"')) {
+                $raced = true;
+                $this->createCategory($customerId, 'Korean', 'korean');
+            }
+        });
+
+        $this->actingAs($admin)
+            ->putJson("https://tenant-a.localhost/admin/course-categories/{$categoryId}", $this->validCategoryData([
+                'name' => 'Korean',
+            ]))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('slug');
+
+        $this->assertTrue($raced);
+        $this->assertSame('japanese', DB::table('core_course_categories')->where('id', $categoryId)->value('slug'));
+    }
+
+    public function test_a_concurrent_move_that_closes_a_category_cycle_is_refused_under_the_tenant_lock(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $categoryA = $this->createCategory($customerId, 'Alpha', 'alpha');
+        $categoryB = $this->createCategory($customerId, 'Beta', 'beta');
+        // The other admin's move of Beta under Alpha commits after this request's form check, before its write.
+        $raced = false;
+        DB::listen(function ($query) use (&$raced, $categoryA, $categoryB): void {
+            if (! $raced && DB::transactionLevel() > 1 && str_contains($query->sql, 'from "saas_customers"')) {
+                $raced = true;
+                DB::table('core_course_categories')->where('id', $categoryB)->update(['parent_id' => $categoryA]);
+            }
+        });
+
+        $this->actingAs($admin)
+            ->putJson("https://tenant-a.localhost/admin/course-categories/{$categoryA}", $this->validCategoryData([
+                'name' => 'Alpha',
+                'parent_id' => $categoryB,
+            ]))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('parent_id');
+
+        $this->assertTrue($raced);
+        $this->assertNull(DB::table('core_course_categories')->where('id', $categoryA)->value('parent_id'));
+    }
+
+    public function test_category_description_is_bounded_to_fit_its_text_column(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+
+        $this->actingAs($admin)
+            ->post('https://tenant-a.localhost/admin/course-categories', $this->validCategoryData([
+                'description' => str_repeat('ạ', 20001),
+            ]))
+            ->assertSessionHasErrors('description');
+        $this->actingAs($admin)
+            ->post('https://tenant-a.localhost/admin/course-categories', $this->validCategoryData([
+                'description' => str_repeat('ạ', 20000),
+            ]))
+            ->assertSessionDoesntHaveErrors();
     }
 
     public function test_category_can_be_updated_and_deactivated_without_crossing_tenants(): void

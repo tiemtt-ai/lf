@@ -83,8 +83,8 @@ final class AssessmentPromptMediaService
     }
 
     /**
-     * Applies the form: a new file or a Media picked from the library replaces the role's current media, a removal
-     * mark only detaches it.
+     * Applies the form: a new file or a Media picked from the library replaces the role's current media (the new file is
+     * uploaded first, so a rejected one leaves the current media in place), a removal mark only detaches it.
      *
      * @param  array<string, UploadedFile|null>  $files  role => uploaded file
      * @param  array<string, bool>  $remove  role => remove the saved one
@@ -102,12 +102,13 @@ final class AssessmentPromptMediaService
                 continue;
             }
 
-            $this->detachRole($kind, $customerId, $ownerId, $role);
-
             if (! $file && ! $libraryId) {
+                $this->detachRole($kind, $customerId, $ownerId, $role);
+
                 continue;
             }
 
+            // Upload (and validate) the new file before the current one is detached: a rejected file keeps the saved media.
             $mediaFileId = $libraryId ?? (int) $this->media->upload($file, [
                 'file_type' => $fileType,
                 'module' => 'assessment',
@@ -117,7 +118,17 @@ final class AssessmentPromptMediaService
                 'display_name' => $displayName,
             ], $userId)->id;
 
-            DB::transaction(function () use ($config, $customerId, $ownerId, $role, $usageType, $mediaFileId): void {
+            DB::transaction(function () use ($kind, $config, $customerId, $userId, $ownerId, $role, $fileType, $usageType, $mediaFileId, $libraryId): void {
+                if ($libraryId) {
+                    // The pick was checked before saving; check it again under the share lock so a revocation committed
+                    // meanwhile is seen and the new use cannot slip past it (ADR-0021 D7).
+                    $actor = User::query()->where('customer_id', $customerId)->find($userId);
+                    $locked = $actor ? $this->shares->lockForAttach($customerId, (int) $mediaFileId, $actor) : null;
+                    if (! $locked || $locked->file_type !== $fileType || $locked->status !== 'ready') {
+                        throw ValidationException::withMessages([$role.'_file' => __('lf.LF_assessment_media_pick_invalid')]);
+                    }
+                }
+                $this->detachRole($kind, $customerId, $ownerId, $role);
                 $this->media->attachUsage($mediaFileId, $config['owner_type'], $ownerId, $usageType);
                 DB::table(self::TABLE)->insert([
                     'customer_id' => $customerId,

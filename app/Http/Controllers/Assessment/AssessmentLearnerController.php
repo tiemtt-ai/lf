@@ -182,13 +182,13 @@ final class AssessmentLearnerController extends Controller
         try {
             $replaced = $this->attempts->saveRecording($customerId, $id, $questionId, (int) $file->id, $this->media);
         } catch (ValidationException) {
-            $this->media->deleteMediaIfUnused((int) $file->id);
+            $this->media->deleteMediaIfUnused((int) $file->id, (int) $request->user()->id);
 
             return $this->closed($id);
         }
         if ($replaced) {
             try {
-                $this->media->deleteMediaIfUnused($replaced);
+                $this->media->deleteMediaIfUnused($replaced, (int) $request->user()->id);
             } catch (Throwable $exception) {
                 Log::warning('Replaced assessment recording was not deleted.', ['media_file_id' => $replaced, 'exception' => $exception::class]);
             }
@@ -257,7 +257,7 @@ final class AssessmentLearnerController extends Controller
         try {
             $this->attempts->saveAttachment($customerId, $id, (int) $question->id, (int) $file->id, $this->media);
         } catch (ValidationException $exception) {
-            $this->media->deleteMediaIfUnused((int) $file->id);
+            $this->media->deleteMediaIfUnused((int) $file->id, (int) $request->user()->id);
             if (isset($exception->errors()['attempt'])) {
                 return $this->closed($id);
             }
@@ -284,7 +284,7 @@ final class AssessmentLearnerController extends Controller
         }
         if ($removed) {
             try {
-                $this->media->deleteMediaIfUnused($mediaId);
+                $this->media->deleteMediaIfUnused($mediaId, (int) $request->user()->id);
             } catch (Throwable $exception) {
                 Log::warning('Removed essay attachment was not deleted.', ['media_file_id' => $mediaId, 'exception' => $exception::class]);
             }

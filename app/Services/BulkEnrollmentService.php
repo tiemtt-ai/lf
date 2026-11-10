@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Exceptions\BulkEnrollmentAtomicException;
+use App\Support\EnrollmentTime;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -41,7 +42,7 @@ class BulkEnrollmentService
             }
 
             $enrolledAt = filled($payload['configuration']['enrolled_at'] ?? null)
-                ? Carbon::parse($payload['configuration']['enrolled_at']) : now();
+                ? EnrollmentTime::parse((string) $payload['configuration']['enrolled_at']) : now();
             $prepared = $this->withConfirmationContract(
                 $this->creation->prepare($customerId, $payload, true, true, $enrolledAt),
                 $payload

@@ -188,6 +188,14 @@ class CourseEnrollmentLifecycleService
         $accessEnd = $accessStart->copy()->addDays($accessDays);
         $reviewStart = $reviewDays > 0 ? $accessEnd->copy() : null;
         $reviewEnd = $reviewStart?->copy()->addDays($reviewDays);
+        // A cycle whose learning window has already ended would be expired by the next
+        // `course:expire-enrollments` run, and expired is terminal: refuse it up front.
+        $windowEnd = $reviewEnd ?? $accessEnd;
+        if ($windowEnd->lessThanOrEqualTo(now())) {
+            throw ValidationException::withMessages([$field => __('lf.LF_course_enrollment_window_already_ended', [
+                'end' => $windowEnd->format('d/m/Y H:i'),
+            ])]);
+        }
 
         return [
             'access_starts_at' => $accessStart,

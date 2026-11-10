@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use App\Services\MediaService;
+use App\Services\MediaShareBlockedException;
 use App\Services\MediaShareService;
 use App\Support\TenantContext;
 use Illuminate\Database\QueryException;
@@ -172,6 +173,86 @@ class MediaSharingTest extends TestCase
         app(MediaService::class)->detachUsage($media, 'course_activity', 501, 'document');
         app(MediaService::class)->detachUsage($media, 'course_activity', 502, 'document');
         $this->actingAs($admin)->putJson(self::URL."/{$media}/shares", ['scope' => 'private'])->assertOk();
+    }
+
+    public function test_a_learners_upload_or_answer_file_cannot_be_shared_and_shows_no_share_action(): void
+    {
+        [$customerId, $admin, $teachers] = $this->world();
+        $student = $this->createUser($customerId, 'student');
+        $byStudent = $this->upload($student, 'Student essay');
+        $answer = $this->upload($admin, 'Answer recording');
+        $staff = $this->upload($admin, 'Staff doc');
+        app(MediaService::class)->attachUsage($answer, 'assessment_answer', 77, 'attachment');
+        $refused = ['scope' => __('lf.LF_media_share_error_learner_content')];
+
+        $this->assertSame([$byStudent, $answer], app(MediaShareService::class)->learnerContentIds($customerId, [$byStudent, $answer, $staff]));
+        foreach ([$byStudent, $answer] as $media) {
+            $this->actingAs($admin)->putJson(self::URL."/{$media}/shares", ['scope' => 'all_teachers'])->assertStatus(422)->assertJsonValidationErrors($refused);
+            $this->putJson(self::URL."/{$media}/shares", ['scope' => 'teachers', 'user_ids' => [$teachers[0]->id]])->assertStatus(422);
+            $this->putJson(self::URL."/{$media}/shares", ['scope' => 'private'])->assertOk();
+        }
+        $this->assertSame(0, DB::table('media_file_shares')->count());
+        // A detached answer usage still marks the file as the learner's.
+        app(MediaService::class)->detachUsage($answer, 'assessment_answer', 77, 'attachment');
+        $this->putJson(self::URL."/{$answer}/shares", ['scope' => 'all_teachers'])->assertStatus(422);
+        $this->putJson(self::URL."/{$staff}/shares", ['scope' => 'all_teachers'])->assertOk();
+
+        $html = $this->actingAs($admin)->get(self::URL)->assertOk()->getContent();
+        $shareButtons = $this->xpath($html)->query('//button[starts-with(@data-tooltip, "'.__('lf.LF_media_file_action_share').'")]');
+        $this->assertSame(1, $shareButtons->length, 'only the staff file offers sharing');
+        $this->assertStringContainsString('Staff doc', $shareButtons->item(0)->getAttribute('aria-label'));
+    }
+
+    public function test_a_reattached_usage_counts_for_whoever_attached_it_again(): void
+    {
+        [$customerId, $admin, $teachers] = $this->world();
+        [$owner, $coTeacher] = $teachers;
+        $media = $this->upload($owner, 'Owner doc');
+        $service = app(MediaService::class);
+        $this->actingAs($owner);
+        $service->attachUsage($media, 'course_activity', 7, 'document');
+        $service->detachUsage($media, 'course_activity', 7, 'document');
+        app(MediaShareService::class)->apply($owner, $customerId, $media, 'teachers', [$coTeacher->id]);
+
+        $this->actingAs($coTeacher);
+        $service->attachUsage($media, 'course_activity', 7, 'document');
+        $this->assertSame($coTeacher->id, (int) DB::table('media_file_usages')->where('media_file_id', $media)->value('created_by'));
+
+        $this->expectException(MediaShareBlockedException::class);
+        app(MediaShareService::class)->apply($owner, $customerId, $media, 'private');
+    }
+
+    public function test_the_attach_side_check_takes_the_share_lock_and_sees_a_revocation(): void
+    {
+        [$customerId, $admin, $teachers] = $this->world();
+        $media = $this->upload($admin, 'Shared doc');
+        $shares = app(MediaShareService::class);
+        $shares->apply($admin, $customerId, $media, 'teachers', [$teachers[0]->id]);
+        $own = $this->upload($teachers[1], 'Own doc');
+
+        $this->assertSame($media, (int) DB::transaction(fn () => $shares->lockForAttach($customerId, $media, $teachers[0]))?->id);
+        $this->assertNull(DB::transaction(fn () => $shares->lockForAttach($customerId, $media, $teachers[1])));
+        $this->assertSame($own, (int) DB::transaction(fn () => $shares->lockForAttach($customerId, $own, $teachers[1]))?->id);
+        $this->assertSame($own, (int) DB::transaction(fn () => $shares->lockForAttach($customerId, $own, $admin))?->id);
+
+        $shares->apply($admin, $customerId, $media, 'private');
+        $this->assertNull(DB::transaction(fn () => $shares->lockForAttach($customerId, $media, $teachers[0])));
+    }
+
+    public function test_a_deactivated_teacher_who_uses_the_media_does_not_freeze_its_sharing(): void
+    {
+        [$customerId, $admin, $teachers] = $this->world();
+        $media = $this->upload($admin, 'Doc');
+        $this->actingAs($admin)->putJson(self::URL."/{$media}/shares", ['scope' => 'teachers', 'user_ids' => [$teachers[0]->id]])->assertOk();
+
+        $this->actingAs($teachers[0]);
+        app(MediaService::class)->attachUsage($media, 'course_activity', 701, 'document');
+        DB::table('users')->where('id', $teachers[0]->id)->update(['status' => 'inactive']);
+
+        // The teacher can no longer use the library, so their old usage does not block a change.
+        $this->actingAs($admin)->putJson(self::URL."/{$media}/shares", ['scope' => 'teachers', 'user_ids' => [$teachers[1]->id]])->assertOk();
+        $this->putJson(self::URL."/{$media}/shares", ['scope' => 'private'])->assertOk();
+        $this->assertSame(0, DB::table('media_file_shares')->where('media_file_id', $media)->whereNull('revoked_at')->count());
     }
 
     public function test_leaving_the_whole_group_is_refused_for_any_teacher_who_uses_it_but_a_chosen_one_may_stay(): void

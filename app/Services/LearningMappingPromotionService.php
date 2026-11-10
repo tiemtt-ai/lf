@@ -43,7 +43,7 @@ final class LearningMappingPromotionService
         foreach ($intents as $intent) {
             $sourceMap = $intent->source_type === 'course_template_lesson' ? $lessonMap : ($intent->source_type === 'course_template_activity' ? $activityMap : null);
             if ($sourceMap === null || ! array_key_exists($intent->source_id, $sourceMap)) {
-                throw ValidationException::withMessages(['publish' => 'A Learning Mapping source is no longer present in this Course Template.']);
+                throw ValidationException::withMessages(['publish' => __('lf.LF_course_template_publish_learning_source_missing')]);
             }
             $node = DB::table('core_learning_nodes as nodes')->join('core_learning_framework_versions as versions', function ($join) use ($customerId): void {
                 $join->on('versions.id', '=', 'nodes.framework_version_id')->where('versions.customer_id', $customerId);
@@ -51,14 +51,14 @@ final class LearningMappingPromotionService
                 ->where('nodes.framework_id', $intent->framework_id)->where('nodes.framework_version_id', $intent->framework_version_id)
                 ->where('nodes.status', 'active')->where('versions.status', 'published')->first(['nodes.id']);
             if (! $node) {
-                throw ValidationException::withMessages(['publish' => 'A Learning Node or Framework Version is no longer publishable.']);
+                throw ValidationException::withMessages(['publish' => __('lf.LF_course_template_publish_learning_node_unpublishable')]);
             }
             $sourceType = $intent->source_type === 'course_template_lesson' ? 'course_version_lesson' : 'course_version_activity';
             $sourceId = $sourceMap[$intent->source_id];
             $sourceTable = $intent->source_type === 'course_template_lesson' ? 'core_course_template_lessons' : 'core_course_template_activities';
             $sourceLabel = DB::table($sourceTable)->where('customer_id', $customerId)->where('template_id', $templateId)->where('id', $intent->source_id)->value('title');
             if ($sourceLabel === null) {
-                throw ValidationException::withMessages(['publish' => 'A Learning Mapping source no longer exists.']);
+                throw ValidationException::withMessages(['publish' => __('lf.LF_course_template_publish_learning_source_missing')]);
             }
             $snapshot = [
                 'label' => $sourceLabel,

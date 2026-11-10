@@ -1,6 +1,6 @@
 # Table: core_course_products
 
-Version: 1.7
+Version: 1.9
 
 Document Status: Approved
 
@@ -174,6 +174,12 @@ Giá trị:
  * BA-FOUND-01
  * AI-FUND-2026
 
+Product tạo từ trang quản trị nhận mã tự sinh `PRD-YYYYMMDD-NNN` (NNN tăng
+dần trong ngày, theo tenant); giá trị nhập tay bị bỏ qua. Mã đã cấp không được
+cấp lại: số thứ tự kế tiếp lớn hơn cả mã đang có trong bảng lẫn mã của Product
+đã xoá cứng còn ghi trong `saas_audit_logs` (action `course_product_delete`,
+`before.product_code`, cùng `customer_id`).
+
 ### customer_id
 
 BIGINT UNSIGNED
@@ -256,6 +262,8 @@ Youtube URL hoặc AWS URL.
 BIGINT UNSIGNED NULL
 
 Liên kết media_files hoặc media_videos.
+
+Cột legacy: form Admin không nhận giá trị này từ request và không ghi đè khi lưu.
 
 ---
 
@@ -700,6 +708,11 @@ Ngày kết thúc hiển thị / bán.
 
 ---
 
+Các cột DATETIME của Product (sale, publishing, registration window) lưu giờ
+địa phương theo `app.timezone` dạng `Y-m-d H:i:s`; giá trị có offset được đổi
+sang `app.timezone` trước khi lưu. Giá trị hợp lệ từ 2000-01-01 đến trước
+2100-01-01.
+
 ## Registration Window
 
 ### registration_starts_at
@@ -752,6 +765,8 @@ Giá trị:
 Ý nghĩa:
 
 * `draft` — Product đang soạn thảo, chưa dùng cho website hoặc enrollment.
+  Product mới luôn tạo ở `draft`; chuyển `active` chỉ qua cập nhật (kiểm tra
+  Version và ghi audit).
 * `active` — Product runtime đang khả dụng theo `visibility`, thời gian hiển
   thị, thời gian đăng ký và các rule thương mại khác.
 * `inactive` — Product tạm ngưng sử dụng nhưng vẫn giữ dữ liệu lịch sử.

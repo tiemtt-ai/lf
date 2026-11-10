@@ -7,7 +7,8 @@
     $sessionEndsLifecycleOpen = in_array($session->status, ['scheduled', 'live'], true);
     // Session status là thao tác vận hành nên chỉ mở khi lớp đang hoạt động.
     $sessionLifecycle = $cohort->status !== 'active' || $slotProposal ? [] : array_filter([
-        'start' => $session->status === 'scheduled',
+        // Buổi chưa có giáo viên không bắt đầu được (LiveClassSessionLifecycleService).
+        'start' => $session->status === 'scheduled' && collect($session->teacher_ids ?? [])->isNotEmpty(),
         'complete' => $session->status === 'live',
         'cancel' => $sessionEndsLifecycleOpen,
         'no-show' => $sessionEndsLifecycleOpen,

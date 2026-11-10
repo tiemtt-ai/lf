@@ -707,6 +707,7 @@ class CourseTemplatePublishingTest extends TestCase
         $url = "https://tenant-a.localhost/admin/course-templates/{$templateId}/publish";
 
         $this->actingAs($admin)->post($url)->assertRedirect();
+        $this->bumpWorkingRevision($templateId);
         $this->actingAs($admin)->post($url)->assertRedirect();
 
         $versions = DB::table('core_course_template_versions')
@@ -785,6 +786,7 @@ class CourseTemplatePublishingTest extends TestCase
         $publishUrl = "https://tenant-a.localhost/admin/course-templates/{$templateId}/publish";
 
         foreach (range(1, 11) as $iteration) {
+            $this->bumpWorkingRevision($templateId);
             $this->actingAs($admin)->post($publishUrl)->assertRedirect();
         }
 
@@ -2881,6 +2883,7 @@ class CourseTemplatePublishingTest extends TestCase
                 "https://tenant-a.localhost/admin/course-templates/{$templateId}/publish"
             )
             ->assertSessionDoesntHaveErrors();
+        $this->bumpWorkingRevision($templateId);
         $this->actingAs($admin)
             ->post(
                 "https://tenant-a.localhost/admin/course-templates/{$templateId}/publish"
@@ -3235,6 +3238,7 @@ class CourseTemplatePublishingTest extends TestCase
 
         $imageId = $this->createIntroMedia($customerId, $admin->id, 'image', 'image/png', 'png');
         DB::table('core_course_templates')->where('id', $templateId)->update(['intro_image_media_file_id' => $imageId]);
+        $this->bumpWorkingRevision($templateId);
         DB::table('media_file_usages')->insert([
             'customer_id' => $customerId, 'media_file_id' => $imageId, 'owner_type' => 'course_template',
             'owner_id' => $templateId, 'usage_type' => 'intro_image', 'status' => 'active', 'metadata' => null,
@@ -3270,6 +3274,31 @@ class CourseTemplatePublishingTest extends TestCase
         $this->assertDatabaseMissing('media_file_usages', ['owner_type' => 'course_template_version', 'media_file_id' => $imageId]);
         $this->assertSame($templateBefore, (array) DB::table('core_course_templates')->where('id', $templateId)->first());
         $this->assertSame($draftUsageBefore, (array) DB::table('media_file_usages')->where('owner_type', 'course_template')->where('owner_id', $templateId)->first());
+    }
+
+    private function bumpWorkingRevision(int $templateId): void
+    {
+        DB::table('core_course_templates')->where('id', $templateId)->increment('working_revision');
+    }
+
+    public function test_publish_without_changes_since_latest_version_is_rejected_without_a_duplicate(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin', 'Double Submit Admin');
+        $templateId = $this->createTemplate($customerId, $admin->id, 'Double Submit Course');
+        $this->addValidContent($customerId, $templateId, $admin->id, 'Double');
+        $url = "https://tenant-a.localhost/admin/course-templates/{$templateId}/publish";
+        $revision = (int) DB::table('core_course_templates')->where('id', $templateId)->value('working_revision');
+
+        $this->actingAs($admin)->post($url, ['working_revision' => $revision])->assertSessionDoesntHaveErrors();
+        $this->actingAs($admin)->post($url, ['working_revision' => $revision])
+            ->assertSessionHasErrors(['publish' => 'Không có thay đổi kể từ Phiên bản 1.']);
+
+        $this->assertSame(1, DB::table('core_course_template_versions')->where('template_id', $templateId)->count());
+
+        $this->bumpWorkingRevision($templateId);
+        $this->actingAs($admin)->post($url, ['working_revision' => $revision + 1])->assertSessionDoesntHaveErrors();
+        $this->assertSame(2, DB::table('core_course_template_versions')->where('template_id', $templateId)->count());
     }
 
     private function createIntroMedia(int $customerId, int $createdBy, string $type, string $mime, string $extension): int

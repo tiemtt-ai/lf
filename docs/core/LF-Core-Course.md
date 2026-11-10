@@ -1,6 +1,6 @@
 # LF-Core-Course.md
 
-Version: 3.8
+Version: 3.10
 
 Document Status: Approved
 
@@ -179,7 +179,11 @@ Working content có thể được giáo viên chỉnh sửa.
 Teacher assignments are optional mutable operating configuration of the
 working Template. A Template with no active assigned Teacher receives a
 non-blocking readiness warning and may still publish; the assignment can be
-completed later. Assignments are not Course content and are not copied into immutable Template Versions;
+completed later. A teacher who creates a Template becomes its `primary`
+assignment; a teacher's access to a Template comes only from an active
+assignment, and only `customer_admin` deletes a Template, together with its
+assignments (Owner decision 2026-11-10, `core_course_template_teachers.md`).
+Assignments are not Course content and are not copied into immutable Template Versions;
 later assignment changes do not mutate an existing Version, Product Item,
 Enrollment or Progress. Assignment integrity at the publish boundary must not
 be described as enforced until the shared publish graph loads and validates
@@ -326,6 +330,9 @@ shown on the page. If the locked Template has another revision, publish is
 rejected without creating a Version, so edits made after the page was opened
 are reviewed before they become immutable. A direct request without
 `working_revision` keeps the readiness-only behaviour.
+Publish also refuses, under the same lock, when the latest Version was made from
+the current `working_revision` (nothing changed since it, so a repeated submit
+creates no duplicate Version); the error reuses the Publish tab "no changes" text.
 
 ## Course Template Publish — Information Readiness
 
@@ -454,6 +461,12 @@ A Quiz Activity may be authored with a provisional positive integer
 `assessment_quiz_id`, but any Template containing a Quiz Activity is blocked
 from publish. Publishing remains blocked until Assessment Phase 2 defines the
 tenant-owned, published and immutable Quiz binding.
+
+Quiz Picker Amendment (Owner 2026-11-10): the id is chosen in a filter-and-pick
+dialog, not typed. Only a published, non-archived Quiz of the tenant is accepted;
+a teacher picks only Quizzes they created, an admin any Quiz of the tenant. An
+already stored id that is no longer eligible is kept when re-saved unchanged.
+Publish stays blocked as above.
 
 Publish and every Section, Lesson or Activity mutation serialize through the
 same working Template lock. Validation runs after that lock and before any

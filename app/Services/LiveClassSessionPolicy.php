@@ -24,7 +24,9 @@ class LiveClassSessionPolicy
     /**
      * A draft Cohort cannot activate while an open Session has no Teacher, and
      * the general edit closes once the start time passes. Without this narrow
-     * exception such a Session could never be released. Owner decision 2026-11-04.
+     * exception such a Session could never be released. Owner decision 2026-11-04,
+     * widened to active Cohorts 2026-11-10: an active Cohort may hold an unassigned
+     * Session too, and without a teacher it can neither start nor take evidence.
      */
     public function canAssignLateTeachers(
         object $session,
@@ -33,7 +35,7 @@ class LiveClassSessionPolicy
         bool $hasEvidence,
         CarbonInterface $now
     ): bool {
-        return $cohortStatus === 'draft'
+        return in_array($cohortStatus, ['draft', 'active'], true)
             && ! $hasTeacher
             && ! $hasEvidence
             && $session->status === 'scheduled'

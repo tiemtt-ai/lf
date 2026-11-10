@@ -67,6 +67,11 @@ Route::middleware(['tenant'])->group(function () {
         ->whereNumber(['mediaFile', 'variant'])
         ->middleware('signed')
         ->name('media.variants.signed');
+    // Derived content of a Media (region/formula crop, caption file, variant): host-bound like the routes above (LF-Media § Signed Delivery).
+    Route::get('/media/files/{mediaFile}/derived/{kind}/{derived}/signed', [MediaFileDeliveryController::class, 'derived'])
+        ->whereNumber(['mediaFile', 'derived'])->whereIn('kind', ['region', 'formula', 'caption', 'variant'])
+        ->middleware('signed')
+        ->name('media.derived.signed');
 
     Route::get('/', [TenantWebsiteController::class, 'home'])
         ->name('public.home');

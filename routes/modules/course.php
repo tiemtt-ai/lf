@@ -198,9 +198,6 @@ if ($registerCourseProductRoutes ?? false) {
     Route::get('/course-enrollments/products/search', [CourseEnrollmentController::class, 'searchProducts'])
         ->name('course-enrollments.products.search');
 
-    Route::post('/course-enrollments', [CourseEnrollmentController::class, 'store'])
-        ->name('course-enrollments.store');
-
     Route::post('/course-enrollments/bulk', [CourseEnrollmentController::class, 'bulkStore'])
         ->name('course-enrollments.bulk-store');
 
@@ -314,6 +311,10 @@ Route::get(
     [CourseActivityMediaPreviewController::class, 'show']
 )->whereIn('slot', ['video', 'audio', 'document'])
     ->name('course-templates.activities.media.preview');
+
+// Quiz Activity: published Quizzes the actor may pick (JSON for the picker dialog).
+Route::get('/course-templates/{templateId}/activities/quiz-picker', [CourseTemplateActivityController::class, 'quizPicker'])
+    ->name('course-templates.activities.quiz-picker');
 
 Route::put('/course-templates/{id}', [CourseTemplateController::class, 'update'])
     ->name('course-templates.update');
@@ -585,6 +586,11 @@ if ($registerCourseTemplateLifecycleRoutes ?? false) {
         '/course-templates/{templateId}/versions/{versionId}',
         [CourseTemplateController::class, 'showVersion']
     )->name('course-templates.versions.show');
+
+    Route::post(
+        '/course-templates/{templateId}/versions/{versionId}/links/{mappingId}/invalidate',
+        [CourseTemplateController::class, 'invalidateVersionMapping']
+    )->name('course-templates.versions.links.invalidate');
 
     Route::post(
         '/course-templates/{templateId}/versions/{versionId}/duplicate-to-draft',

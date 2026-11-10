@@ -1,12 +1,12 @@
 # Table: core_learning_nodes
 
-Version: 1.0
+Version: 1.1
 
 Document Status: Frozen
 
 Implementation Status: Implemented
 
-Last Updated: 2026-08-22
+Last Updated: 2026-11-10
 
 Document Path: database/learning/core_learning_nodes.md
 
@@ -76,6 +76,11 @@ Nodes in a published/deprecated/archived Version are immutable and never
 hard-deleted. Draft Nodes may be edited only through the owning draft Version
 workflow. `retired` is draft authoring state only; it excludes the Node from the
 next publish and never removes a Node from an already published Version.
+Owner decision 3a, 2026-11-10: in the working draft, "stop using" a competency
+sets its Node to `retired` when an earlier non-draft Version already holds its
+Definition; a Node brought in by the draft alone is deleted instead, with its
+Definition when that Definition was created for the draft and no Node holds it
+any more. Adding the Definition back reactivates the retired Node.
 Evidence or Mapping references always use the exact Node ID and do
 not follow a Definition automatically to another Version.
 Triggers `trg_lrn_nodes_bu_immutable` and

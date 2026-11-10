@@ -176,6 +176,38 @@ final class LearningFrameworkReadService
             ]);
     }
 
+    /**
+     * Every Mapping a published Course Version promoted, invalidated ones included, for the
+     * admin review list (ADR-0029). Labels come from the frozen source snapshot and the Node.
+     */
+    public function courseVersionMappingReview(int $actorId, int $courseVersionId): Collection
+    {
+        $customerId = $this->customerAdminTenantId($actorId);
+
+        return DB::table('core_learning_node_mappings as mappings')
+            ->join('core_learning_nodes as nodes', function ($join) use ($customerId): void {
+                $join->on('nodes.id', '=', 'mappings.learning_node_id')->where('nodes.customer_id', $customerId);
+            })
+            ->leftJoin('users as invalidators', function ($join) use ($customerId): void {
+                $join->on('invalidators.id', '=', 'mappings.invalidated_by')->where('invalidators.customer_id', $customerId);
+            })
+            ->where('mappings.customer_id', $customerId)
+            ->whereIn('mappings.source_type', ['course_version_lesson', 'course_version_activity'])
+            ->where('mappings.source_discriminator', (string) $courseVersionId)
+            ->orderBy('mappings.id')
+            ->get([
+                'mappings.id', 'mappings.source_type', 'mappings.source_snapshot', 'mappings.mapping_role',
+                'mappings.invalidated_at', 'mappings.invalidation_reason', 'invalidators.name as invalidated_by_name',
+                'nodes.code_snapshot', 'nodes.name_snapshot',
+            ])
+            ->map(function (object $mapping): object {
+                $mapping->source_label = json_decode((string) $mapping->source_snapshot, true)['label'] ?? '';
+                unset($mapping->source_snapshot);
+
+                return $mapping;
+            });
+    }
+
     public function assertPublishedVersionForAuthor(int $actorId, int $frameworkId, int $versionId): void
     {
         $this->assertPublishedVersion($this->customerAdminTenantId($actorId), $frameworkId, $versionId);

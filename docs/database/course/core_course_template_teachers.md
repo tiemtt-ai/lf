@@ -1,12 +1,12 @@
 # Table: core_course_template_teachers
 
-Version: 1.0
+Version: 1.1
 
 Document Status: Approved
 
 Implementation Status: Unknown
 
-Last Updated: 2026-08-09
+Last Updated: 2026-11-10
 
 Document Path: database/course/core_course_template_teachers.md
 
@@ -66,6 +66,21 @@ core_course_template_teachers
 * Teacher assignment không tự động tạo phân công giáo viên cho Product, Cohort
   hoặc LiveClass Session.
 * Khi Template đang được Product tham chiếu, thay đổi teacher assignment phải bảo toàn quyền truy cập và lịch sử liên quan.
+
+---
+
+## Creator And Access Amendment — Owner decision 2026-11-10
+
+* Teacher tạo Template trở thành assignment `active`, `role = primary`,
+  `assigned_by` = chính người tạo, trong cùng transaction tạo Template. Admin
+  tạo Template thì không sinh assignment.
+* Quyền của teacher trên Template chỉ tính theo assignment `active`;
+  `core_course_templates.created_by` chỉ còn là audit, không cấp quyền.
+* Chỉ `customer_admin` được xoá Template.
+* Data migration một lần: mỗi Template có `created_by` là teacher cùng tenant
+  mà chưa có assignment `active` của người đó thì kích hoạt lại dòng
+  `inactive` của người đó với `role = primary`, hoặc thêm dòng mới
+  `role = primary`, `sort_order = MAX + 1`. Không đổi assignment khác.
 
 ---
 
@@ -142,8 +157,9 @@ Giá trị:
 Create đặt `active` ở server. Form update không nhận `status` và bảo toàn giá
 trị hiện có; remove là lifecycle action chuyển assignment sang `inactive`.
 
-Chỉ assignment `active` chặn xoá Template. Khi Template được xoá, các dòng
-`inactive` của nó bị xoá cùng trong transaction đó.
+Assignment không chặn xoá Template (Owner decision 2026-11-10). Khi admin xoá
+Template, mọi assignment của nó, `active` lẫn `inactive`, bị xoá cùng trong
+transaction đó.
 
 ---
 

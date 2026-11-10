@@ -262,6 +262,7 @@ final class AiAuthoringRebaseService
             'rebase_requires_successor' => 'proposal_successor_required',
             'rebase_plan_incomplete' => 'invalid_proposal',
             'confirmation_conflict' => 'proposal_revision_conflict',
+            'template_read_only' => 'template_read_only',
             default => 'proposal_not_found',
         };
     }

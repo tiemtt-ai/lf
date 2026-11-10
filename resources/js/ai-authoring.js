@@ -381,6 +381,7 @@ export class AiAuthoring {
                 proposal_idempotency_conflict: 'conflict_idempotency', framework_selection_conflict: 'framework_conflict',
                 proposal_target_changed: 'conflict_target_changed', proposal_context_changed: 'conflict_context_changed',
                 proposal_intent_conflict: 'conflict_intent', proposal_intent_missing: 'conflict_intent_missing',
+                template_read_only: 'conflict_template_read_only',
                 proposal_inheritance_empty: 'inherit_empty',
             }, code) ?? 'conflict_generic');
         }

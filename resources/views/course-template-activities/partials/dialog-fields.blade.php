@@ -478,10 +478,22 @@
             </div>
         </div>
 
-        <div class="ui-field" x-show="activityType === 'quiz'" x-cloak>
-            <label class="ui-field__label" for="activity-form-assessment_quiz_id">Assessment Quiz ID</label>
-            <input id="activity-form-assessment_quiz_id" type="number" min="1" name="assessment_quiz_id" value="{{ $formActivity?->assessment_quiz_id }}"
-                   placeholder="{{ __('lf.LF_course_template_activity_placeholder_assessment') }}" :disabled="activityType !== 'quiz'">
+        {{-- Quiz Picker Amendment: the Quiz is chosen in the picker, never typed; the hidden id is what is saved. --}}
+        <div class="ui-field" x-show="activityType === 'quiz'" x-cloak data-activity-quiz-field data-ui-error-for="assessment_quiz_id"
+             x-data="{ quiz: @js($activityQuiz ?? null) }"
+             x-on:quiz-picked.window="if ($event.target?.closest?.('form') === $root.closest('form')) quiz = $event.detail.chosen">
+            <span class="ui-field__label" id="activity-form-quiz-label">{!! $star !!}{{ __('lf.LF_course_template_activity_quiz_label') }}</span>
+            <input type="hidden" name="assessment_quiz_id" x-bind:value="quiz ? quiz.id : ''" :disabled="activityType !== 'quiz'">
+            <div class="ui-quiz-choice">
+                <span x-show="quiz" x-text="quiz?.name" data-activity-quiz-name></span>
+                <span class="ui-caption" x-show="! quiz">{{ __('lf.LF_course_template_activity_quiz_none') }}</span>
+                <button type="button" id="activity-form-assessment_quiz_id" class="ui-button cursor-interaction" data-quiz-choose aria-describedby="activity-form-quiz-label"
+                        x-on:click="$dispatch('open-quiz-picker', { chosenId: quiz?.id ?? null })">
+                    <x-backend-icon name="clipboard-check" class="ui-icon" />
+                    <span x-text="quiz ? @js(__('lf.LF_course_template_activity_quiz_change')) : @js(__('lf.LF_course_template_activity_quiz_choose'))"></span>
+                </button>
+            </div>
+            <small class="ui-caption">{{ __('lf.LF_course_template_activity_quiz_hint') }}</small>
         </div>
 
 

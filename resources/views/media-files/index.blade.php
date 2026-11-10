@@ -417,7 +417,7 @@
                                     x-on:click="openUsage(@js($mediaFile->display_name), @js($usageItems), @js(trim(($typeLabels[$mediaFile->file_type] ?? '').' · '.strtoupper((string) $mediaFile->extension), ' ·')), @js($mediaFile->share_note), @js($othersUse))">
                                 <x-backend-icon name="link-2" class="ui-icon" />
                             </button>
-                            @if ($mediaFile->is_mine)
+                            @if ($mediaFile->is_mine && $mediaFile->shareable)
                             <button type="button" class="ux-row-edit cursor-interaction" aria-haspopup="dialog"
                                     aria-label="{{ __('lf.LF_media_file_action_share') }}: {{ $mediaFile->display_name }}"
                                     data-tooltip="{{ __('lf.LF_media_file_action_share') }}"

@@ -13,6 +13,7 @@ use App\Services\LiveClassCohortSessionReadModel;
 use App\Services\LiveClassMeetingProvider;
 use App\Services\LiveClassSessionLifecycleService;
 use App\Services\LiveClassSessionOriginService;
+use App\Services\LiveClassSessionOverlap;
 use App\Services\LiveClassSessionPolicy;
 use App\Services\LiveClassSessionTime;
 use Illuminate\Http\JsonResponse;
@@ -342,7 +343,7 @@ class CourseCohortOperationController extends Controller
             ->whereNotIn('sessions.status', ['cancelled', 'no_show'])
             ->orderBy('sessions.session_no')
             ->get([
-                'sessions.id', 'sessions.session_no', 'sessions.title',
+                'sessions.id', 'sessions.session_no', 'sessions.title', 'sessions.status',
                 'sessions.scheduled_start_at', 'sessions.scheduled_end_at', 'sessions.timezone',
             ]);
 
@@ -358,11 +359,12 @@ class CourseCohortOperationController extends Controller
             ->map(fn ($id): int => (int) $id)->unique();
         $now = now();
 
+        // A live Session always blocks, even with check-ins or past its planned end: the teacher is teaching it now.
         return $sessions
-            ->reject(fn (object $session): bool => $withEvidence->contains((int) $session->id))
-            ->filter(fn (object $session): bool => LiveClassSessionTime::utc(
-                $session->scheduled_end_at, $session->timezone
-            )->gt($now))
+            ->filter(fn (object $session): bool => $session->status === 'live' || (
+                ! $withEvidence->contains((int) $session->id)
+                && LiveClassSessionTime::utc($session->scheduled_end_at, $session->timezone)->gt($now)
+            ))
             ->values();
     }
 
@@ -430,9 +432,8 @@ class CourseCohortOperationController extends Controller
         }
         $sessionTeachers = $this->canonicalSessionTeacherTeam($customerId, $cohort, $validated);
 
-        DB::transaction(function () use ($customerId, $cohort, $cohortRow, $validated, $sessionTeachers, $request, $origin, $timezone, $movedInterval): void {
-            DB::table('core_course_cohorts')->where('customer_id', $customerId)
-                ->where('id', $cohort)->lockForUpdate()->firstOrFail();
+        DB::transaction(function () use ($customerId, $cohort, $validated, $sessionTeachers, $request, $origin, $timezone, $movedInterval): void {
+            $cohortRow = $this->lockSetupCohort($customerId, $cohort);
             if ($origin) {
                 $origin = $this->sessionOriginService->resolve(
                     $customerId, $cohort, (int) $origin['schedule_id'],
@@ -456,6 +457,7 @@ class CourseCohortOperationController extends Controller
                     $validated['scheduled_end_at'] = $origin['scheduled_end_at'];
                 }
             }
+            $this->validateSessionScheduleWindow($cohortRow, $validated, $timezone);
             $this->validateSessionDoesNotOverlap($customerId, $cohort, $validated, $timezone);
             $sessionNo = (int) DB::table('core_liveclass_sessions')
                 ->where('customer_id', $customerId)->where('cohort_id', $cohort)
@@ -519,9 +521,8 @@ class CourseCohortOperationController extends Controller
         $validated = $request->validate($this->sessionRules($customerId, (int) $cohortRow->version_id));
         $requestedInterval = $request->boolean('apply_schedule') ? $this->requestedInterval($request) : null;
 
-        DB::transaction(function () use ($customerId, $cohort, $cohortRow, $session, $validated, $request, $requestedInterval): void {
-            DB::table('core_course_cohorts')->where('customer_id', $customerId)
-                ->where('id', $cohort)->lockForUpdate()->firstOrFail();
+        DB::transaction(function () use ($customerId, $cohort, $session, $validated, $request, $requestedInterval): void {
+            $cohortRow = $this->lockSetupCohort($customerId, $cohort);
             $sessionRow = DB::table('core_liveclass_sessions')
                 ->where('customer_id', $customerId)
                 ->where('cohort_id', $cohort)
@@ -600,7 +601,7 @@ class CourseCohortOperationController extends Controller
     public function updateSchedule(Request $request, int $cohort, int $session): RedirectResponse
     {
         $customerId = $this->authorizeAdmin($request);
-        $cohortRow = $this->setupCohort($customerId, $cohort);
+        $this->setupCohort($customerId, $cohort);
         $validated = $request->validate([
             'scheduled_start_at' => ['required', 'date'],
             'scheduled_end_at' => ['required', 'date', 'after:scheduled_start_at'],
@@ -615,9 +616,8 @@ class CourseCohortOperationController extends Controller
             'schedule_slot_id' => ['prohibited'],
             'source_local_date' => ['prohibited'],
         ]);
-        DB::transaction(function () use ($customerId, $cohort, $cohortRow, $session, $validated, $request): void {
-            DB::table('core_course_cohorts')->where('customer_id', $customerId)
-                ->where('id', $cohort)->lockForUpdate()->firstOrFail();
+        DB::transaction(function () use ($customerId, $cohort, $session, $validated, $request): void {
+            $cohortRow = $this->lockSetupCohort($customerId, $cohort);
             $sessionRow = DB::table('core_liveclass_sessions')
                 ->where('customer_id', $customerId)->where('cohort_id', $cohort)
                 ->where('id', $session)->lockForUpdate()->firstOrFail();
@@ -879,7 +879,13 @@ class CourseCohortOperationController extends Controller
             'attendance.*.status' => ['required', Rule::in(['registered', 'present', 'late', 'absent', 'excused'])],
             'attendance.*.attendance_mode' => ['nullable', Rule::in(['online', 'offline'])],
             'attendance.*.notes' => ['nullable', 'string', 'max:1000'],
+            // What the row showed when the page was loaded: a row the admin did not touch is left alone,
+            // so a QR scan made after the page opened is never overwritten by a stale form.
+            'attendance.*.loaded_status' => ['nullable', Rule::in(['registered', 'present', 'late', 'absent', 'excused'])],
+            'attendance.*.loaded_mode' => ['nullable', Rule::in(['online', 'offline'])],
+            'attendance.*.loaded_notes' => ['nullable', 'string', 'max:1000'],
         ]);
+        $skipped = 0;
 
         $memberships = DB::table('core_course_cohort_students as memberships')
             ->join('core_course_enrollments as enrollments', function ($join) use ($customerId): void {
@@ -890,21 +896,29 @@ class CourseCohortOperationController extends Controller
             ->get(['memberships.student_id', 'memberships.enrollment_id', 'enrollments.status as enrollment_status'])
             ->keyBy('enrollment_id');
 
-        DB::transaction(function () use ($validated, $memberships, $customerId, $session, $sessionRow, $request): void {
+        DB::transaction(function () use ($validated, $memberships, $customerId, $session, $sessionRow, $request, &$skipped): void {
             $existing = DB::table('core_liveclass_attendances')
                 ->where('customer_id', $customerId)->where('session_id', $session)->lockForUpdate()
                 ->get(['id', 'enrollment_id', 'status', 'attendance_mode', 'notes'])->keyBy('enrollment_id');
             foreach ($validated['attendance'] as $item) {
                 abort_unless($memberships->has($item['enrollment_id']), 422);
-                // Only an active Enrollment is recorded (DOC-CONFLICT-0011); the others are left as they are.
-                if ($memberships->get($item['enrollment_id'])->enrollment_status !== 'active') {
-                    continue;
-                }
                 $values = [
                     'status' => $item['status'],
                     'attendance_mode' => $item['attendance_mode'] ?? null,
                     'notes' => ($item['notes'] ?? '') === '' ? null : $item['notes'],
                 ];
+                if (array_key_exists('loaded_status', $item)
+                    && $values['status'] === ($item['loaded_status'] ?? 'registered')
+                    && $values['attendance_mode'] === ($item['loaded_mode'] ?? null)
+                    && $values['notes'] === (($item['loaded_notes'] ?? '') === '' ? null : $item['loaded_notes'])) {
+                    continue;
+                }
+                // Only an active Enrollment is recorded (DOC-CONFLICT-0011); the others are left as they are.
+                if ($memberships->get($item['enrollment_id'])->enrollment_status !== 'active') {
+                    $skipped++;
+
+                    continue;
+                }
                 $row = $existing->get($item['enrollment_id']);
                 // An unchanged row keeps its source, mode and check-in time (a QR scan stays a scan).
                 if ($row ? ((string) $row->status === $values['status'] && $row->attendance_mode === $values['attendance_mode']
@@ -932,8 +946,12 @@ class CourseCohortOperationController extends Controller
             }
         });
 
-        return $this->tab($cohort, 'attendance', ['session_id' => $session])
-            ->with('success', __('lf.LF_course_cohort_attendance_saved'));
+        $message = __('lf.LF_course_cohort_attendance_saved');
+        if ($skipped > 0) {
+            $message .= ' '.__('lf.LF_course_cohort_attendance_skipped_inactive', ['count' => $skipped]);
+        }
+
+        return $this->tab($cohort, 'attendance', ['session_id' => $session])->with('success', $message);
     }
 
     public function storeRecording(Request $request, int $cohort, int $session): RedirectResponse
@@ -1195,35 +1213,16 @@ class CourseCohortOperationController extends Controller
         ?int $excludeSessionId = null,
         string $errorField = 'scheduled_start_at'
     ): void {
-        $newStart = LiveClassSessionTime::utc($validated['scheduled_start_at'], $timezone);
-        $newEnd = LiveClassSessionTime::utc($validated['scheduled_end_at'], $timezone);
-
-        // Stored `scheduled_*` values are wall-clock in each row's own timezone,
-        // so they cannot be compared in SQL. The bounds below are a coarse
-        // prefilter only: a two-day margin exceeds the widest possible IANA
-        // offset spread (-12..+14, i.e. 26 hours), so no genuinely overlapping
-        // Session can fall outside it. The authoritative comparison happens in
-        // PHP against normalized instants.
-        $candidates = DB::table('core_liveclass_sessions')
-            ->where('customer_id', $customerId)
-            ->where('cohort_id', $cohortId)
-            ->whereNotIn('status', ['cancelled', 'no_show'])
-            ->where('scheduled_start_at', '<', $newEnd->addDays(2)->format('Y-m-d H:i:s'))
-            ->where('scheduled_end_at', '>', $newStart->subDays(2)->format('Y-m-d H:i:s'))
-            ->when($excludeSessionId !== null, fn ($query) => $query->where('id', '!=', $excludeSessionId))
-            ->get(['id', 'scheduled_start_at', 'scheduled_end_at', 'timezone']);
-
-        foreach ($candidates as $candidate) {
-            if (LiveClassSessionTime::overlaps(
-                LiveClassSessionTime::utc($candidate->scheduled_start_at, $candidate->timezone),
-                LiveClassSessionTime::utc($candidate->scheduled_end_at, $candidate->timezone),
-                $newStart,
-                $newEnd
-            )) {
-                throw ValidationException::withMessages([
-                    $errorField => __('lf.LF_course_cohort_session_schedule_overlap'),
-                ]);
-            }
+        if (LiveClassSessionOverlap::exists(
+            $customerId,
+            $cohortId,
+            LiveClassSessionTime::utc($validated['scheduled_start_at'], $timezone),
+            LiveClassSessionTime::utc($validated['scheduled_end_at'], $timezone),
+            $excludeSessionId
+        )) {
+            throw ValidationException::withMessages([
+                $errorField => __('lf.LF_course_cohort_session_schedule_overlap'),
+            ]);
         }
     }
 
@@ -1278,6 +1277,20 @@ class CourseCohortOperationController extends Controller
     private function setupCohort(int $customerId, int $id): object
     {
         $cohort = $this->cohort($customerId, $id);
+        abort_unless(CourseCohortMutationPolicy::canMutate($cohort), 422,
+            __('lf.LF_course_cohort_setup_status_invalid'));
+
+        return $cohort;
+    }
+
+    /**
+     * The Cohort read again under its row lock: the period and status judged by a Session
+     * write are the ones that stand when it is stored, not those read before the lock.
+     */
+    private function lockSetupCohort(int $customerId, int $id): object
+    {
+        $cohort = DB::table('core_course_cohorts')->where('customer_id', $customerId)
+            ->where('id', $id)->lockForUpdate()->firstOrFail();
         abort_unless(CourseCohortMutationPolicy::canMutate($cohort), 422,
             __('lf.LF_course_cohort_setup_status_invalid'));
 

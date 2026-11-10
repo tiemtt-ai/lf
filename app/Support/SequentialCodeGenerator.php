@@ -10,7 +10,8 @@ class SequentialCodeGenerator
         int $customerId,
         string $table,
         string $column,
-        string $prefix
+        string $prefix,
+        iterable $reservedCodes = []
     ): string {
         $date = now()->format('Ymd');
         $pattern = $prefix.'-'.$date.'-';
@@ -19,6 +20,9 @@ class SequentialCodeGenerator
             ->where('customer_id', $customerId)
             ->where($column, 'like', $pattern.'%')
             ->pluck($column)
+            // Codes no longer in the table but still referenced elsewhere (e.g. audit rows of
+            // deleted records) count as taken, so they are never handed out again.
+            ->merge($reservedCodes)
             ->map(function ($code) use ($pattern): int {
                 $code = (string) $code;
 

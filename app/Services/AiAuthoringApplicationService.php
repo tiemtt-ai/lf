@@ -533,6 +533,7 @@ final class AiAuthoringApplicationService
                 'intent_missing' => 'proposal_intent_missing',
                 'confirmation_conflict' => 'proposal_revision_conflict',
                 'target_unavailable' => 'proposal_target_changed',
+                'template_read_only' => 'template_read_only',
                 default => 'proposal_not_found',
             });
         } catch (LearningAuthoringBasisException $refused) {

@@ -131,7 +131,7 @@ final class CourseAuthoringRebaseService
     public function rebase(int $adminId, int $activityId, int $frameworkId, int $targetVersionId, int $expectedWorkingRevision, array $dispositions): array
     {
         $customerId = TenantContext::customerId() ?? throw new CourseAuthoringContextException('not_found');
-        $context = $this->context->proposalContext($adminId, $activityId, true);
+        $context = $this->context->editableContext($adminId, $activityId);
         if ($context['actor_role'] !== 'admin') {
             throw new CourseAuthoringContextException('forbidden');
         }

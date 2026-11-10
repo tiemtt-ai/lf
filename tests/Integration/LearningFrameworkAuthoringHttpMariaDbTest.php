@@ -97,6 +97,27 @@ class LearningFrameworkAuthoringHttpMariaDbTest extends TestCase
         ]);
     }
 
+    public function test_a_code_already_used_answers_on_the_code_field_not_as_a_generic_conflict(): void
+    {
+        $framework = $this->createFramework('fw-taken');
+        $this->admin()
+            ->post($this->host.'/admin/learning-frameworks', $this->frameworkPayload('fw-taken'))
+            ->assertSessionHasErrors(['code' => 'Mã này đã được dùng. Hãy chọn mã khác.'])
+            ->assertSessionDoesntHaveErrors('learning');
+        $this->assertSame(1, DB::table('core_learning_frameworks')->where('code', 'fw-taken')->count());
+
+        $this->createDefinition($framework->id, 'TAKEN-1');
+        $this->admin()->post($this->host."/admin/learning-frameworks/{$framework->id}/competencies", [
+            'canonical_name' => 'Năng lực trùng mã', 'node_type' => 'competency', 'code' => 'TAKEN-1', 'description' => '',
+        ])->assertSessionHasErrors('code')->assertSessionDoesntHaveErrors('learning');
+
+        $other = $this->createDefinition($framework->id, 'OTHER-1');
+        $this->admin()->put($this->host."/admin/learning-frameworks/{$framework->id}/definitions/{$other->id}",
+            $this->definitionPayload($framework->id, 'TAKEN-1'))
+            ->assertSessionHasErrors('code')->assertSessionDoesntHaveErrors('learning');
+        $this->assertSame('OTHER-1', DB::table('core_learning_node_definitions')->where('id', $other->id)->value('code'));
+    }
+
     public function test_popup_saves_answer_json_and_popup_forms_need_an_active_framework_of_the_tenant(): void
     {
         $framework = $this->createFramework('fw-popup-save');
@@ -430,7 +451,7 @@ class LearningFrameworkAuthoringHttpMariaDbTest extends TestCase
 
         // Popup forms are loaded fresh: neither one picks up the refused input.
         $edit = $this->admin()->get($this->host."/admin/learning-frameworks/{$framework->id}/form", ['X-Requested-With' => 'XMLHttpRequest'])->assertOk()->getContent();
-        $this->assertStringContainsString('<input type="hidden" name="code" value="bleed-guard">', $edit);
+        $this->assertStringContainsString('<input type="hidden" name="section" value="identity">', $edit);
         $this->assertStringNotContainsString('DEFINITION-CODE-XYZ', $edit);
         $add = $this->admin()->get($this->host."/admin/learning-frameworks/{$framework->id}/competencies/create", ['X-Requested-With' => 'XMLHttpRequest'])->assertOk()->getContent();
         $this->assertStringNotContainsString('DEFINITION-CODE-XYZ', $add);
@@ -629,6 +650,94 @@ class LearningFrameworkAuthoringHttpMariaDbTest extends TestCase
             ]],
         ])->assertSessionHasErrors('mastery_scale');
         $this->assertSame('2', (string) DB::table('core_learning_frameworks')->where('id', $framework->id)->value('default_mastery_scale_version'));
+    }
+
+    public function test_stopping_a_competency_retires_a_published_one_and_deletes_one_the_draft_brought(): void
+    {
+        $framework = $this->createFramework('retire');
+        $kept = $this->createDefinition($framework->id, 'KEEP-1');
+        $dropped = $this->createDefinition($framework->id, 'DROP-1');
+        $url = $this->host."/admin/learning-frameworks/{$framework->id}";
+        $this->admin()->post($url.'/competencies', ['node_definition_id' => (string) $kept->id])->assertSessionHasNoErrors();
+        $this->admin()->post($url.'/competencies', ['node_definition_id' => (string) $dropped->id])->assertSessionHasNoErrors();
+        $v1 = DB::table('core_learning_framework_versions')->where('framework_id', $framework->id)->firstOrFail();
+        $this->admin()->post("{$url}/versions/{$v1->id}/publish")->assertSessionHasNoErrors();
+
+        // With no draft open, the button opens one and retires the seeded copy only.
+        $this->assertStringContainsString('data-lf-framework-retire="'.$dropped->id.'"', $this->admin()->get($url)->assertOk()->getContent());
+        $this->admin()->post("{$url}/competencies/{$dropped->id}/retire")->assertSessionHasNoErrors()
+            ->assertSessionHas('success', __('lf.LF_learning_competency_retired'));
+        $draft = DB::table('core_learning_framework_versions')->where('framework_id', $framework->id)->where('status', 'draft_snapshot')->firstOrFail();
+        $this->assertSame('retired', DB::table('core_learning_nodes')->where('framework_version_id', $draft->id)->where('node_definition_id', $dropped->id)->value('status'));
+        $this->assertSame(['active', 'active'], DB::table('core_learning_nodes')->where('framework_version_id', $v1->id)->orderBy('id')->pluck('status')->all(), 'The published Version is untouched.');
+        $html = $this->admin()->get($url)->assertOk()->getContent();
+        $this->assertStringContainsString(__('lf.LF_learning_simple_draft_removed', ['names' => 'Definition DROP-1']), $html);
+        $this->assertStringContainsString('data-lf-framework-unplaced="'.$dropped->id.'"', $html, 'It can be added back.');
+        $this->admin()->post("{$url}/competencies/{$dropped->id}/retire")->assertSessionHasErrors(['learning' => __('lf.LF_learning_simple_error_not_in_draft')]);
+
+        // Adding it back reactivates the same Node; retiring again leaves it out of v2.
+        $this->admin()->post($url.'/competencies', ['node_definition_id' => (string) $dropped->id])->assertSessionHasNoErrors();
+        $this->assertSame(1, DB::table('core_learning_nodes')->where('framework_version_id', $draft->id)->where('node_definition_id', $dropped->id)->where('status', 'active')->count());
+        $this->admin()->post("{$url}/competencies/{$dropped->id}/retire")->assertSessionHasNoErrors();
+
+        // A competency new in this draft goes for good, Definition included.
+        $this->admin()->post($url.'/competencies', ['canonical_name' => 'Mistake', 'node_type' => 'competency'])->assertSessionHasNoErrors();
+        $mistake = DB::table('core_learning_node_definitions')->where('framework_id', $framework->id)->where('canonical_name', 'Mistake')->firstOrFail();
+        $this->admin()->post("{$url}/competencies/{$mistake->id}/retire")->assertSessionHasNoErrors()
+            ->assertSessionHas('success', __('lf.LF_learning_competency_deleted'));
+        $this->assertDatabaseMissing('core_learning_node_definitions', ['id' => $mistake->id]);
+
+        $this->admin()->post("{$url}/versions/{$draft->id}/publish")->assertSessionHasNoErrors();
+        $offered = DB::table('core_learning_nodes')->where('framework_version_id', $draft->id)->where('status', 'active')->pluck('node_definition_id')->map(fn ($id) => (int) $id)->all();
+        $this->assertSame([(int) $kept->id], $offered, 'v2 offers only the kept competency.');
+
+        $teacher = User::forceCreate([
+            'customer_id' => $framework->customer_id, 'name' => 'Teacher', 'email' => 'retire-teacher@example.test',
+            'password' => bcrypt('password123'), 'role' => 'teacher', 'status' => 'active', 'email_verified_at' => now(),
+        ]);
+        $this->actingAs($teacher)->post("{$url}/competencies/{$kept->id}/retire")->assertForbidden();
+    }
+
+    public function test_the_two_edit_forms_do_not_undo_each_other_and_a_new_scale_reaches_the_open_draft(): void
+    {
+        $framework = $this->createFramework('two-forms');
+        $definition = $this->createDefinition($framework->id, 'TF-1');
+        $url = $this->host."/admin/learning-frameworks/{$framework->id}";
+        $this->admin()->post($url.'/competencies', ['node_definition_id' => (string) $definition->id])->assertSessionHasNoErrors();
+        $draft = DB::table('core_learning_framework_versions')->where('framework_id', $framework->id)->firstOrFail();
+        $before = DB::table('core_learning_frameworks')->where('id', $framework->id)->first();
+
+        // Saving the scale form unchanged keeps the scale version.
+        $levels = json_decode((string) $before->default_mastery_scale, true)['levels'];
+        $scaleForm = fn (array $levels, string $version) => ['section' => 'scale', 'mastery_scale_key' => $before->default_mastery_scale_key,
+            'mastery_scale_version' => $version, 'mastery_scale' => ['levels' => array_map(fn ($l) => ['key' => $l['key'], 'threshold' => (string) $l['threshold']], $levels)]];
+        $this->admin()->put($url, $scaleForm($levels, '99'))->assertSessionHasNoErrors();
+        $this->assertSame((string) $before->default_mastery_scale_version, (string) DB::table('core_learning_frameworks')->where('id', $framework->id)->value('default_mastery_scale_version'));
+
+        // Admin A renames from a page opened before admin B changed the scale; B's scale stays.
+        $levels[1]['threshold'] = 0.55;
+        $this->admin()->put($url, $scaleForm($levels, '2'))->assertSessionHasNoErrors();
+        $this->admin()->put($url, ['section' => 'identity', 'name' => 'Renamed', 'description' => 'New text'])->assertSessionHasNoErrors();
+        $row = DB::table('core_learning_frameworks')->where('id', $framework->id)->first();
+        $this->assertSame(['Renamed', 'New text', 'two-forms', '2'], [$row->name, $row->description, $row->code, (string) $row->default_mastery_scale_version]);
+        $this->assertStringContainsString('"threshold":0.55', $row->default_mastery_scale);
+
+        // And a scale save keeps the new name.
+        $this->admin()->put($url, $scaleForm($levels, '2'))->assertSessionHasNoErrors();
+        $this->assertSame('Renamed', DB::table('core_learning_frameworks')->where('id', $framework->id)->value('name'));
+
+        // The open draft took the new scale and publishes with it.
+        $draftRow = DB::table('core_learning_framework_versions')->where('id', $draft->id)->first();
+        $this->assertSame('2', (string) $draftRow->mastery_scale_version);
+        $this->assertStringContainsString('"threshold":0.55', $draftRow->mastery_scale_snapshot);
+
+        // The forms send only their own part.
+        $identityHtml = $this->admin()->get($url.'/form', ['X-Requested-With' => 'XMLHttpRequest'])->assertOk()->getContent();
+        $this->assertStringContainsString('name="section" value="identity"', $identityHtml);
+        $this->assertStringNotContainsString('name="mastery_scale[levels]', $identityHtml);
+        $scaleHtml = $this->admin()->get($url.'/scale/form', ['X-Requested-With' => 'XMLHttpRequest'])->assertOk()->getContent();
+        $this->assertStringContainsString('name="section" value="scale"', $scaleHtml);
+        $this->assertStringNotContainsString('name="name"', $scaleHtml);
     }
 
     public function test_version_history_shows_each_version_with_its_own_competencies_and_scale(): void

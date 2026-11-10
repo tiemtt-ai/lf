@@ -163,22 +163,16 @@ class AiAuthoringHostSectionTest extends TestCase
         $page->assertDontSee(__('lf.LF_ai_authoring_title'));
     }
 
-    public function test_the_templates_creator_without_an_assignment_opens_the_page_but_gets_no_ai_section(): void
+    /** Owner decision 2026-11-10: `created_by` grants nothing; a teacher reaches a Template only through an active assignment. */
+    public function test_the_templates_creator_without_an_assignment_cannot_open_the_page(): void
     {
         $creator = $this->user('teacher');
         DB::table('core_course_templates')->where('id', $this->templateId)->update(['created_by' => $creator->id]);
 
-        $page = $this->actingAs($creator)->get($this->pageUrl('teacher'));
-
-        $page->assertOk();
-        $page->assertDontSee('id="ai-authoring"', false);
+        $this->actingAs($creator)->get($this->pageUrl('teacher'))->assertNotFound();
     }
 
-    /**
-     * The creator can still open the page, so this isolates the AI authority
-     * itself: an ended assignment carries no AI even for someone who is in.
-     */
-    public function test_an_ended_ai_assignment_gives_no_section_even_to_someone_who_can_open_the_page(): void
+    public function test_an_ended_assignment_takes_the_page_and_its_ai_section_away_even_from_the_creator(): void
     {
         $creator = $this->user('teacher');
         DB::table('core_course_templates')->where('id', $this->templateId)->update(['created_by' => $creator->id]);
@@ -187,9 +181,7 @@ class AiAuthoringHostSectionTest extends TestCase
 
         DB::table('core_course_template_teachers')->where('id', $assignment)->update(['status' => 'inactive']);
 
-        $page = $this->actingAs($creator)->get($this->pageUrl('teacher'));
-        $page->assertOk();
-        $page->assertDontSee('id="ai-authoring"', false);
+        $this->actingAs($creator)->get($this->pageUrl('teacher'))->assertNotFound();
     }
 
     public function test_a_revoked_ai_assignment_removes_the_section(): void

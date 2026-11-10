@@ -27,17 +27,24 @@ class LearningFrameworkRequest extends FormRequest
      */
     public function rules(): array
     {
+        // `section` names the edit form that saved (2026-11-10): `identity` sends only name and
+        // description, `scale` only the scale. Create and a full update send everything.
+        $section = $this->input('section');
+        $identity = $section === 'scale' ? ['exclude'] : [];
+        $scale = $section === 'identity' ? ['exclude'] : [];
+
         return [
-            // Blank on create means "derive it from the name"; updates always resend the stored code.
-            'code' => ['nullable', 'string', 'max:100'],
-            'name' => ['required', 'string', 'max:255'],
-            'description' => ['nullable', 'string', 'max:5000'],
-            'mastery_scale_key' => ['required', 'string', 'max:100'],
-            'mastery_scale_version' => ['required', 'string', 'max:50'],
-            'mastery_scale' => ['required', 'array'],
-            'mastery_scale.levels' => ['required', 'array', 'min:2'],
-            'mastery_scale.levels.*.key' => ['required', 'string', 'max:100', 'distinct'],
-            'mastery_scale.levels.*.threshold' => ['required', 'numeric'],
+            'section' => ['nullable', 'string', 'in:identity,scale'],
+            // Blank on create means "derive it from the name"; a full update resends the stored code.
+            'code' => [...$identity, 'nullable', 'string', 'max:100'],
+            'name' => [...$identity, 'required', 'string', 'max:255'],
+            'description' => [...$identity, 'nullable', 'string', 'max:5000'],
+            'mastery_scale_key' => [...$scale, 'required', 'string', 'max:100'],
+            'mastery_scale_version' => [...$scale, 'required', 'string', 'max:50'],
+            'mastery_scale' => [...$scale, 'required', 'array'],
+            'mastery_scale.levels' => [...$scale, 'required', 'array', 'min:2'],
+            'mastery_scale.levels.*.key' => [...$scale, 'required', 'string', 'max:100', 'distinct'],
+            'mastery_scale.levels.*.threshold' => [...$scale, 'required', 'numeric'],
 
             'customer_id' => ['prohibited'],
             'status' => ['prohibited'],

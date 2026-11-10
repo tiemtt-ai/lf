@@ -1,14 +1,8 @@
 <x-learning-framework-dialog :title="__('lf.LF_learning_simple_edit_framework')" :action="route('admin.learning-frameworks.update', $framework->id)">
     <x-slot:hidden>
         @method('PUT')
-        {{-- Only name and description change here; the code and default scale travel unchanged. --}}
-        <input type="hidden" name="code" value="{{ $framework->code }}">
-        <input type="hidden" name="mastery_scale_key" value="{{ $framework->default_mastery_scale_key }}">
-        <input type="hidden" name="mastery_scale_version" value="{{ $framework->default_mastery_scale_version }}">
-        @foreach ($masteryScale['levels'] as $i => $level)
-            <input type="hidden" name="mastery_scale[levels][{{ $i }}][key]" value="{{ $level['key'] }}">
-            <input type="hidden" name="mastery_scale[levels][{{ $i }}][threshold]" value="{{ $level['threshold'] }}">
-        @endforeach
+        {{-- Only name and description change here; the server keeps the code and scale as stored. --}}
+        <input type="hidden" name="section" value="identity">
     </x-slot:hidden>
     <div class="ui-modal__grid">
         <div class="ui-field ui-field--full">

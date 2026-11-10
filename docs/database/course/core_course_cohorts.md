@@ -768,6 +768,16 @@ nullable but cannot become active, receive membership, or supply runtime
 context. Backfill is permitted only when every membership Enrollment implies
 the same Product and Version.
 
+### Stale Draft Archive Amendment — Owner decision 2026-11-10
+
+A `draft` Cohort whose bound Version is no longer the Version its Product
+resolves to (or whose Product resolves to none) can never activate. Such a
+draft may move to `archived` even when it has Membership: in the same
+transaction its `active` Memberships become `removed` with `left_at`, then the
+Cohort is archived. Enrollments, their Product and Version are not changed.
+A draft whose Version is still current keeps the earlier rule: Membership
+blocks archive.
+
 After a duplicate audit succeeds, Cohort code is unique by
 `(customer_id, code)`.
 

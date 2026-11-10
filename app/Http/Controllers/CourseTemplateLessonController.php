@@ -357,9 +357,12 @@ class CourseTemplateLessonController extends Controller
 
         DB::transaction(function () use ($customerId, $templateId, $sectionId, $lessonId, $validated): void {
             $this->lockTemplate($customerId, $templateId);
+            // Re-read under the lock whether or not an order was sent: a lesson deleted meanwhile is a 404,
+            // never an update of nothing followed by prerequisites written for it.
+            $current = $this->findLesson($customerId, $templateId, $sectionId, $lessonId);
             CourseTemplateWorkingRevision::bump($customerId, $templateId);
             $violationsBefore = $this->unlockOrder->violations($customerId, $templateId, $sectionId !== null);
-            $validated['sort_order'] ??= $this->findLesson($customerId, $templateId, $sectionId, $lessonId)->sort_order;
+            $validated['sort_order'] ??= $current->sort_order;
             DB::table('core_course_template_lessons')
                 ->where('customer_id', $customerId)
                 ->where('template_id', $templateId)
@@ -718,8 +721,9 @@ class CourseTemplateLessonController extends Controller
         return [
             'title' => ['required', 'string', 'max:255'],
             'short_description' => ['nullable', 'string', 'max:500'],
-            'description' => ['nullable', 'string'],
-            'sort_order' => ['nullable', 'integer', 'min:0'],
+            // TEXT holds 65,535 bytes; 20,000 characters stays inside it even for 3-byte UTF-8.
+            'description' => ['nullable', 'string', 'max:20000'],
+            'sort_order' => ['nullable', 'integer', 'min:0', 'max:1000000'],
             'is_preview' => ['required', 'boolean'],
             'lesson_type' => ['required', Rule::in([
                 'regular', 'review', 'midterm_exam', 'final_exam', 'other_exam',
@@ -963,15 +967,12 @@ class CourseTemplateLessonController extends Controller
         }
 
         $isAssignedTeacher = $user?->role === 'teacher'
-            && (
-                (int) $template->created_by === (int) $user->id
-                || DB::table('core_course_template_teachers')
-                    ->where('customer_id', $customerId)
-                    ->where('template_id', $template->id)
-                    ->where('teacher_id', $user->id)
-                    ->where('status', 'active')
-                    ->exists()
-            );
+            && DB::table('core_course_template_teachers')
+                ->where('customer_id', $customerId)
+                ->where('template_id', $template->id)
+                ->where('teacher_id', $user->id)
+                ->where('status', 'active')
+                ->exists();
 
         abort_unless($isAssignedTeacher, 404);
     }

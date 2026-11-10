@@ -117,28 +117,69 @@ final class LearningFrameworkAuthoringService
     /**
      * @param  array<string, mixed>  $command
      */
+    /**
+     * `section` (2026-11-10) says which form saved: `identity` writes name and description,
+     * `scale` writes the default scale; each leaves the other's fields as stored, so two admins
+     * on the two forms do not undo each other. Without it every field is written, as before.
+     * A scale equal to the stored one keeps its version, and a changed scale also reaches the
+     * open draft Version, which publishes with the scale the page shows.
+     */
     public function updateFramework(int $actorId, int $frameworkId, array $command): object
     {
         $customerId = $this->access->tenantId();
-        $scale = $this->normalizeScale($command['mastery_scale'] ?? null);
+        $section = $command['section'] ?? null;
+        $writesIdentity = $section !== 'scale';
+        $writesScale = $section !== 'identity';
+        $scale = $writesScale ? $this->normalizeScale($command['mastery_scale'] ?? null) : null;
 
-        return DB::transaction(function () use ($customerId, $actorId, $frameworkId, $command, $scale): object {
+        return DB::transaction(function () use ($customerId, $actorId, $frameworkId, $command, $scale, $writesIdentity, $writesScale): object {
             $this->assertActor($customerId, $actorId, self::CAPABILITY_AUTHOR);
             $framework = $this->lockFramework($customerId, $frameworkId);
+            $now = $this->now();
+            $values = ['updated_by' => $actorId, 'updated_at' => $now];
+
+            if ($writesIdentity) {
+                $values += [
+                    'name' => $this->text($command, 'name', 255),
+                    'description' => $this->optionalText($command, 'description'),
+                ];
+                // The identity form does not show the code; only a full update writes it.
+                if (! isset($command['section'])) {
+                    $values['code'] = $this->text($command, 'code', 100);
+                }
+            }
+
+            $scaleChanged = false;
+            if ($writesScale) {
+                $key = $this->text($command, 'mastery_scale_key', 100);
+                $scaleChanged = $key !== $framework->default_mastery_scale_key
+                    || json_decode($scale, true) != json_decode((string) $framework->default_mastery_scale, true);
+                $values += [
+                    'default_mastery_scale_key' => $key,
+                    'default_mastery_scale_version' => $scaleChanged
+                        ? $this->text($command, 'mastery_scale_version', 50)
+                        : $framework->default_mastery_scale_version,
+                    'default_mastery_scale' => $scale,
+                ];
+            }
 
             DB::table('core_learning_frameworks')
                 ->where('customer_id', $customerId)
                 ->where('id', $framework->id)
-                ->update([
-                    'code' => $this->text($command, 'code', 100),
-                    'name' => $this->text($command, 'name', 255),
-                    'description' => $this->optionalText($command, 'description'),
-                    'default_mastery_scale_key' => $this->text($command, 'mastery_scale_key', 100),
-                    'default_mastery_scale_version' => $this->text($command, 'mastery_scale_version', 50),
-                    'default_mastery_scale' => $scale,
-                    'updated_by' => $actorId,
-                    'updated_at' => $this->now(),
-                ]);
+                ->update($values);
+
+            if ($scaleChanged) {
+                DB::table('core_learning_framework_versions')
+                    ->where('customer_id', $customerId)->where('framework_id', $framework->id)
+                    ->where('status', 'draft_snapshot')
+                    ->update([
+                        'mastery_scale_key' => $values['default_mastery_scale_key'],
+                        'mastery_scale_version' => $values['default_mastery_scale_version'],
+                        'mastery_scale_snapshot' => $scale,
+                        'updated_by' => $actorId,
+                        'updated_at' => $now,
+                    ]);
+            }
 
             return $this->row('core_learning_frameworks', $customerId, $framework->id);
         });
@@ -200,8 +241,7 @@ final class LearningFrameworkAuthoringService
 
         return DB::transaction(function () use ($customerId, $actorId, $versionId, $command): object {
             $this->assertActor($customerId, $actorId, self::CAPABILITY_AUTHOR);
-            $version = $this->lockRow('core_learning_framework_versions', $customerId, $versionId);
-            $this->lockFramework($customerId, (int) $version->framework_id);
+            $version = $this->lockUnderFramework('core_learning_framework_versions', $customerId, $versionId);
 
             if ($version->status !== 'draft_snapshot') {
                 throw new DomainException('LF_FRAMEWORK_AUTHORING_VERSION_NOT_DRAFT');
@@ -274,8 +314,7 @@ final class LearningFrameworkAuthoringService
 
         return DB::transaction(function () use ($customerId, $actorId, $definitionId, $command, $type): object {
             $this->assertActor($customerId, $actorId, self::CAPABILITY_AUTHOR);
-            $definition = $this->lockRow('core_learning_node_definitions', $customerId, $definitionId);
-            $this->lockFramework($customerId, (int) $definition->framework_id);
+            $definition = $this->lockUnderFramework('core_learning_node_definitions', $customerId, $definitionId);
 
             if ((int) ($command['framework_id'] ?? 0) !== (int) $definition->framework_id) {
                 throw new DomainException('LF_FRAMEWORK_AUTHORING_FRAMEWORK_MISMATCH');
@@ -344,10 +383,9 @@ final class LearningFrameworkAuthoringService
 
         return DB::transaction(function () use ($customerId, $actorId, $command): object {
             $this->assertActor($customerId, $actorId, self::CAPABILITY_AUTHOR);
-            $version = $this->lockRow(
+            $version = $this->lockUnderFramework(
                 'core_learning_framework_versions', $customerId, (int) ($command['framework_version_id'] ?? 0)
             );
-            $this->lockFramework($customerId, (int) $version->framework_id);
             $definition = $this->lockRow(
                 'core_learning_node_definitions', $customerId, (int) ($command['node_definition_id'] ?? 0)
             );
@@ -403,9 +441,11 @@ final class LearningFrameworkAuthoringService
 
         return DB::transaction(function () use ($customerId, $actorId, $nodeId, $command): object {
             $this->assertActor($customerId, $actorId, self::CAPABILITY_AUTHOR);
+            $unlockedNode = $this->rowOrFail('core_learning_nodes', $customerId, $nodeId);
+            $version = $this->lockUnderFramework(
+                'core_learning_framework_versions', $customerId, (int) $unlockedNode->framework_version_id
+            );
             $node = $this->lockRow('core_learning_nodes', $customerId, $nodeId);
-            $version = $this->lockRow('core_learning_framework_versions', $customerId, (int) $node->framework_version_id);
-            $this->lockFramework($customerId, (int) $version->framework_id);
             $definition = $this->lockRow('core_learning_node_definitions', $customerId, (int) $node->node_definition_id);
 
             if ($version->status !== 'draft_snapshot') {
@@ -510,9 +550,18 @@ final class LearningFrameworkAuthoringService
                 if ((int) $definition->framework_id !== $frameworkId) {
                     throw new DomainException('LF_FRAMEWORK_AUTHORING_FRAMEWORK_MISMATCH');
                 }
-                if (DB::table('core_learning_nodes')->where('customer_id', $customerId)
-                    ->where('framework_version_id', $draft->id)->where('node_definition_id', $definition->id)->exists()) {
+                $existing = DB::table('core_learning_nodes')->where('customer_id', $customerId)
+                    ->where('framework_version_id', $draft->id)->where('node_definition_id', $definition->id)
+                    ->lockForUpdate()->first(['id', 'status']);
+                if ($existing !== null && $existing->status !== 'retired') {
                     throw new DomainException('LF_FRAMEWORK_AUTHORING_NODE_ALREADY_IN_DRAFT');
+                }
+                // Adding back a competency retired in this draft puts it back in the next Version.
+                if ($existing !== null) {
+                    DB::table('core_learning_nodes')->where('customer_id', $customerId)->where('id', $existing->id)
+                        ->update(['status' => 'active', 'updated_by' => $actorId, 'updated_at' => $this->now()]);
+
+                    return $this->row('core_learning_node_definitions', $customerId, $definition->id);
                 }
             } else {
                 $code = trim((string) ($command['code'] ?? ''));
@@ -531,6 +580,87 @@ final class LearningFrameworkAuthoringService
             $this->createNode($actorId, ['framework_version_id' => $draft->id, 'node_definition_id' => $definition->id]);
 
             return $this->row('core_learning_node_definitions', $customerId, $definition->id);
+        });
+    }
+
+    /**
+     * Takes a competency out of the next Version (Owner decision 3a, 2026-11-10). A
+     * competency an earlier Version already published stays in the draft as `retired`
+     * (core_learning_nodes.md: draft-only state, excluded from what the Version offers);
+     * one brought in by this draft alone is deleted, its Definition too when nothing else
+     * holds it. Published Versions are never touched.
+     *
+     * @return string `retired` or `deleted`
+     */
+    public function retireCompetency(int $actorId, int $frameworkId, int $definitionId): string
+    {
+        $customerId = $this->access->tenantId();
+
+        return DB::transaction(function () use ($customerId, $actorId, $frameworkId, $definitionId): string {
+            $draft = $this->workingDraft($actorId, $frameworkId);
+            $definition = $this->lockRow('core_learning_node_definitions', $customerId, $definitionId);
+            if ((int) $definition->framework_id !== $frameworkId) {
+                throw new DomainException('LF_FRAMEWORK_AUTHORING_FRAMEWORK_MISMATCH');
+            }
+            $node = DB::table('core_learning_nodes')->where('customer_id', $customerId)
+                ->where('framework_version_id', $draft->id)->where('node_definition_id', $definition->id)
+                ->where('status', 'active')->lockForUpdate()->first(['id']);
+            if ($node === null) {
+                throw new DomainException('LF_FRAMEWORK_AUTHORING_NODE_NOT_IN_DRAFT');
+            }
+
+            $published = DB::table('core_learning_nodes as nodes')
+                ->join('core_learning_framework_versions as versions', function ($join) use ($customerId): void {
+                    $join->on('versions.id', '=', 'nodes.framework_version_id')->where('versions.customer_id', $customerId);
+                })
+                ->where('nodes.customer_id', $customerId)->where('nodes.node_definition_id', $definition->id)
+                ->where('versions.status', '!=', 'draft_snapshot')->exists();
+
+            if ($published) {
+                DB::table('core_learning_nodes')->where('customer_id', $customerId)->where('id', $node->id)
+                    ->update(['status' => 'retired', 'updated_by' => $actorId, 'updated_at' => $this->now()]);
+
+                return 'retired';
+            }
+
+            DB::table('core_learning_nodes')->where('customer_id', $customerId)->where('id', $node->id)->delete();
+            if (! DB::table('core_learning_nodes')->where('customer_id', $customerId)->where('node_definition_id', $definition->id)->exists()
+                && $definition->created_at >= $draft->created_at) {
+                DB::table('core_learning_node_definitions')->where('customer_id', $customerId)->where('id', $definition->id)->delete();
+            }
+
+            return 'deleted';
+        });
+    }
+
+    /**
+     * ADR-0029: marks one Mapping of a published Course Version as wrong. Sets the three
+     * invalidation fields together, once (the only update trg_lrn_mappings_bu_lifecycle allows);
+     * nothing is deleted and nothing else changes. Teacher judgment ignores it from then on.
+     */
+    public function invalidateCourseMapping(int $actorId, int $courseVersionId, int $mappingId, string $reason): void
+    {
+        $customerId = $this->access->tenantId();
+        $reason = trim($reason);
+        if ($reason === '' || mb_strlen($reason) > 1000) {
+            throw new DomainException('LF_FRAMEWORK_AUTHORING_INVALIDATION_REASON');
+        }
+
+        DB::transaction(function () use ($customerId, $actorId, $courseVersionId, $mappingId, $reason): void {
+            $this->assertActor($customerId, $actorId, self::CAPABILITY_PUBLISH);
+            $mapping = DB::table('core_learning_node_mappings')->where('customer_id', $customerId)->where('id', $mappingId)
+                ->whereIn('source_type', ['course_version_lesson', 'course_version_activity'])
+                ->where('source_discriminator', (string) $courseVersionId)
+                ->lockForUpdate()->first(['id', 'invalidated_at']);
+            if ($mapping === null) {
+                throw new RecordsNotFoundException;
+            }
+            if ($mapping->invalidated_at !== null) {
+                throw new DomainException('LF_FRAMEWORK_AUTHORING_MAPPING_ALREADY_INVALIDATED');
+            }
+
+            DB::table('core_learning_node_mappings')->where('customer_id', $customerId)->where('id', $mapping->id)
+                ->update(['invalidated_at' => $this->now(), 'invalidated_by' => $actorId, 'invalidation_reason' => $reason]);
         });
     }
 
@@ -614,13 +744,12 @@ final class LearningFrameworkAuthoringService
 
         return DB::transaction(function () use ($customerId, $actorId, $versionId): object {
             $this->assertActor($customerId, $actorId, self::CAPABILITY_PUBLISH);
-            $version = $this->lockRow('core_learning_framework_versions', $customerId, $versionId);
             // N2: the Framework guard reached only two of the four write paths.
             // Nothing physical checks Framework status on publish —
             // trg_lrn_fw_versions_bu_immutable validates the version's own
             // lifecycle only — so archiving a Framework did not stop its draft
             // version becoming a permanently valid judgment basis.
-            $this->lockFramework($customerId, (int) $version->framework_id);
+            $version = $this->lockUnderFramework('core_learning_framework_versions', $customerId, $versionId);
 
             if ($version->status !== 'draft_snapshot') {
                 throw new DomainException('LF_FRAMEWORK_AUTHORING_VERSION_NOT_DRAFT');
@@ -688,6 +817,36 @@ final class LearningFrameworkAuthoringService
         }
 
         return $framework;
+    }
+
+    /**
+     * One lock order for every path: the Framework row first, then the row under it (Version, Definition, Node).
+     * The row is read without a lock only to learn its Framework, then locked; framework_id never changes, so
+     * the locked row belongs to the Framework already held.
+     */
+    private function lockUnderFramework(string $table, int $customerId, int $id): object
+    {
+        $unlocked = $this->rowOrFail($table, $customerId, $id);
+        $this->lockFramework($customerId, (int) $unlocked->framework_id);
+        $row = $this->lockRow($table, $customerId, $id);
+
+        if ((int) $row->framework_id !== (int) $unlocked->framework_id) {
+            throw new DomainException('LF_FRAMEWORK_AUTHORING_FRAMEWORK_MISMATCH');
+        }
+
+        return $row;
+    }
+
+    /** The tenant's row without a lock; missing reads as RecordsNotFoundException, as lockRow does. */
+    private function rowOrFail(string $table, int $customerId, int $id): object
+    {
+        $row = DB::table($table)->where('customer_id', $customerId)->where('id', $id)->first();
+
+        if ($row === null) {
+            throw new RecordsNotFoundException("{$table} row not found in tenant.");
+        }
+
+        return $row;
     }
 
     private function lockRow(string $table, int $customerId, int $id): object

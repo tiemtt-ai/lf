@@ -279,12 +279,13 @@ final class AssessmentResultController extends Controller
     /** Signed URLs of every media file the version snapshot shows (question and passage media), by media id. */
     private function mediaUrls(object $version): array
     {
+        $customerId = $this->customerId();
         $ids = DB::table(AssessmentQuizPublishService::VERSION_QUESTIONS_TABLE)
-            ->where('quiz_version_id', $version->id)->pluck('question_snapshot')
+            ->where('customer_id', $customerId)->where('quiz_version_id', $version->id)->pluck('question_snapshot')
             ->flatMap(fn ($json) => collect((json_decode((string) $json, true) ?: [])['media'] ?? [])->pluck('media_file_id'))
             ->merge(collect(json_decode((string) $version->passages_snapshot, true) ?: [])->flatMap(fn ($p) => collect($p['media'] ?? [])->pluck('media_file_id')))
             ->unique();
-        $ready = DB::table('media_files')->whereIn('id', $ids)->where('status', 'ready')->pluck('id');
+        $ready = DB::table('media_files')->where('customer_id', $customerId)->whereIn('id', $ids)->where('status', 'ready')->pluck('id');
 
         return $ready->mapWithKeys(fn ($id) => [(int) $id => $this->media->generateSignedUrl((int) $id)])->all();
     }

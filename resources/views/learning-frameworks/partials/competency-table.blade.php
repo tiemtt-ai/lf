@@ -1,5 +1,6 @@
-{{-- Competency rows of one Version. $marker names the row's data attribute; $canEdit adds the edit popup; $newIds marks rows new against the previous Version. --}}
+{{-- Competency rows of one Version. $marker names the row's data attribute; $canEdit adds the edit popup; $newIds marks rows new against the previous Version; $retireNumber (working set only) adds "stop using" for that next Version. --}}
 @php($columns = $canEdit ? 5 : 4)
+@php($retireNumber = $retireNumber ?? null)
 <div class="mk-table-scroll" role="region" aria-label="{{ __('lf.LF_learning_simple_list_title') }}" tabindex="0">
     <table aria-label="{{ __('lf.LF_learning_simple_list_title') }}">
         <colgroup>
@@ -50,6 +51,21 @@
                                     data-tooltip="{{ __('lf.action_edit') }}">
                                 <x-backend-icon name="square-pen" class="ui-icon" />
                             </button>
+                        @endif
+                        @if ($definition && $retireNumber !== null)
+                            <form method="POST" class="ui-inline-form"
+                                  action="{{ route('admin.learning-frameworks.competencies.retire', [$definition->framework_id, $definition->id]) }}"
+                                  data-lf-confirm="{{ __('lf.LF_learning_simple_retire_confirm', ['name' => $node->name_snapshot, 'number' => $retireNumber]) }}"
+                                  data-lf-confirm-label="{{ __('lf.LF_learning_simple_retire') }}"
+                                  data-lf-confirm-tone="danger"
+                                  data-lf-framework-retire="{{ $definition->id }}">
+                                @csrf
+                                <button type="submit" class="ux-row-delete cursor-interaction"
+                                        aria-label="{{ __('lf.LF_learning_simple_retire_named', ['name' => $node->name_snapshot]) }}"
+                                        data-tooltip="{{ __('lf.LF_learning_simple_retire') }}">
+                                    <x-backend-icon name="trash" class="ui-icon" />
+                                </button>
+                            </form>
                         @endif
                     </td>
                 @endif

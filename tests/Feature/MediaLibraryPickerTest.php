@@ -205,6 +205,11 @@ class MediaLibraryPickerTest extends TestCase
             'meta_title' => null, 'meta_description' => null, 'meta_keywords' => null, 'working_revision' => 1, 'status' => 'draft',
             'created_by' => $teacherId, 'last_version_published_at' => null, 'created_at' => now(), 'updated_at' => now(),
         ]);
+        // Owner decision 2026-11-10: the teacher reaches the Template through their primary assignment.
+        DB::table('core_course_template_teachers')->insert([
+            'customer_id' => $customerId, 'template_id' => $templateId, 'teacher_id' => $teacherId, 'role' => 'primary',
+            'sort_order' => 0, 'status' => 'active', 'assigned_by' => $teacherId, 'assigned_at' => now(), 'created_at' => now(), 'updated_at' => now(),
+        ]);
         $lessonId = DB::table('core_course_template_lessons')->insertGetId([
             'customer_id' => $customerId, 'template_id' => $templateId, 'template_section_id' => null, 'title' => 'Lesson',
             'short_description' => null, 'description' => null, 'sort_order' => 0, 'is_preview' => false, 'duration_seconds' => 0,

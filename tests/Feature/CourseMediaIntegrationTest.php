@@ -8,10 +8,12 @@ use App\Services\MediaService;
 use App\Services\MediaShareService;
 use App\Support\MediaInlineHeaders;
 use App\Support\TenantContext;
+use Illuminate\Database\Events\TransactionBeginning;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
@@ -427,6 +429,8 @@ class CourseMediaIntegrationTest extends TestCase
                     'slug' => 'switch-cover-template',
                     'intro_video_source' => 'upload',
                     'intro_image_file' => null,
+                    // The form posts the image already in its slot back, so it is kept.
+                    'intro_image_media_file_id' => $coverImage->id,
                     'intro_video_file' => UploadedFile::fake()->create(
                         'updated-intro.mp4',
                         32,
@@ -449,7 +453,7 @@ class CourseMediaIntegrationTest extends TestCase
             'id' => $templateId,
             'customer_id' => $customerId,
             'intro_video_source' => 'upload',
-            'intro_image_media_file_id' => null,
+            'intro_image_media_file_id' => $coverImage->id,
             'intro_video_media_file_id' => $introVideo->id,
         ]);
         $this->assertDatabaseHas('media_file_usages', [
@@ -1350,6 +1354,33 @@ class CourseMediaIntegrationTest extends TestCase
         }
     }
 
+    public function test_course_template_preview_encodes_the_display_name_and_404s_a_missing_object(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $this->actingAs($admin)->post(
+            'https://tenant-a.localhost/admin/course-templates',
+            $this->validTemplateData(['title' => 'Header Preview Template'])
+        )->assertRedirect();
+        $template = DB::table('core_course_templates')->where('title', 'Header Preview Template')->sole();
+        $mediaId = (int) $template->intro_image_media_file_id;
+        DB::table('media_files')->where('customer_id', $customerId)->where('id', $mediaId)
+            ->update(['display_name' => "Ảnh \"bìa\"\r\nX-Injected: 1.png"]);
+        $url = route('admin.course-templates.media.preview', [$template->id, 'image', $mediaId]);
+
+        $response = $this->actingAs($admin)->get($url)->assertOk();
+        $disposition = (string) $response->headers->get('Content-Disposition');
+        $this->assertStringStartsWith('inline; filename="Anh bia', $disposition);
+        $this->assertStringContainsString("filename*=utf-8''", $disposition);
+        $this->assertStringNotContainsString("\n", $disposition);
+        $this->assertFalse($response->headers->has('X-Injected'));
+
+        // A ready row whose stored object is gone is a 404, not a 500.
+        $media = DB::table('media_files')->where('id', $mediaId)->first();
+        Storage::disk($media->storage_disk)->delete($media->storage_key);
+        $this->actingAs($admin)->get($url)->assertNotFound();
+    }
+
     public function test_course_template_preview_rejects_unassigned_teacher_cross_tenant_and_wrong_owner(): void
     {
         $customerId = $this->createTenant();
@@ -1726,6 +1757,32 @@ class CourseMediaIntegrationTest extends TestCase
             'owner_id' => $otherProductId,
             'usage_type' => 'cover_image',
         ]);
+    }
+
+    public function test_a_share_revoked_after_validation_stops_the_template_intro_pick(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $teacher = $this->createUser($customerId, 'teacher');
+        $imageId = $this->createMediaFile($customerId, $admin->id, 'image', 'shared-cover.png', 'image/png');
+        TenantContext::set((object) ['id' => $customerId]);
+        app(MediaShareService::class)->apply($admin, $customerId, $imageId, 'teachers', [$teacher->id]);
+        // The revocation lands after the form was validated, just as the save transaction starts (ADR-0021 D7).
+        $revoked = false;
+        Event::listen(TransactionBeginning::class, function () use (&$revoked, $imageId): void {
+            if (! $revoked) {
+                $revoked = true;
+                DB::table('media_file_shares')->where('media_file_id', $imageId)->update(['revoked_at' => now()]);
+            }
+        });
+
+        $this->actingAs($teacher)->post('https://tenant-a.localhost/teacher/course-templates', $this->validTemplateData([
+            'title' => 'Picked After Revoke', 'slug' => 'picked-after-revoke', 'intro_image_file' => null, 'intro_image_media_file_id' => $imageId,
+        ]))->assertSessionHasErrors('intro_image_media_file_id');
+
+        $this->assertTrue($revoked);
+        $this->assertDatabaseMissing('core_course_templates', ['title' => 'Picked After Revoke']);
+        $this->assertDatabaseMissing('media_file_usages', ['media_file_id' => $imageId, 'owner_type' => 'course_template']);
     }
 
     public function test_teacher_can_upload_template_cover_for_own_and_assigned_template(): void
@@ -2346,7 +2403,8 @@ class CourseMediaIntegrationTest extends TestCase
         ]);
     }
 
-    public function test_deleting_an_activity_purges_its_exclusive_media_source_after_commit(): void
+    /** Owner decision 2026-11-10: the Media stays in the library; only its use by the Activity ends. */
+    public function test_deleting_an_activity_keeps_its_media_in_the_library(): void
     {
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
@@ -2371,8 +2429,8 @@ class CourseMediaIntegrationTest extends TestCase
 
         $this->assertDatabaseMissing('core_course_template_activities', ['id' => $activityId]);
         $this->assertDatabaseHas('media_file_usages', ['id' => $usage->id, 'status' => 'detached']);
-        $this->assertDatabaseHas('media_files', ['id' => $media->id, 'status' => 'deleted']);
-        Storage::disk('media_local')->assertMissing($media->storage_key);
+        $this->assertDatabaseHas('media_files', ['id' => $media->id, 'status' => 'ready']);
+        Storage::disk('media_local')->assertExists($media->storage_key);
     }
 
     /**
@@ -2403,6 +2461,9 @@ class CourseMediaIntegrationTest extends TestCase
             ->where('owner_id', $doomedId)->where('status', 'active')->value('media_file_id');
 
         $this->actingAs($admin)->delete("{$collection}/{$doomedId}")->assertRedirect();
+        TenantContext::set((object) ['id' => $customerId]);
+        app(MediaService::class)->deleteMediaIfUnused($mediaId);
+        TenantContext::set(null);
         $this->assertDatabaseHas('media_files', ['id' => $mediaId, 'status' => 'deleted']);
 
         $this->actingAs($admin)->post($collection, $this->validActivityData([
@@ -2502,8 +2563,9 @@ class CourseMediaIntegrationTest extends TestCase
         $replacementMediaId = (int) DB::table('media_file_usages')
             ->where('owner_type', 'course_activity')->where('owner_id', $activityId)
             ->where('usage_type', 'video')->where('status', 'active')->value('media_file_id');
-        $this->assertDatabaseHas('media_files', ['id' => $originalMedia->id, 'status' => 'deleted']);
-        Storage::disk('media_local')->assertMissing($originalMedia->storage_key);
+        $this->assertDatabaseHas('media_files', ['id' => $originalMedia->id, 'status' => 'ready']);
+        $this->assertDatabaseHas('media_file_usages', ['id' => $originalUsage->id, 'status' => 'detached']);
+        Storage::disk('media_local')->assertExists($originalMedia->storage_key);
         $response = $this->actingAs($admin)->withHeaders($this->ajaxHeaders())->get($editUrl)
             ->assertOk()
             ->assertDontSeeText('after.mp4')->assertDontSeeText('before.mp4');

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Exceptions\CourseAuthoringContextException;
 use App\Support\Ai\CanonicalJson;
+use App\Support\CourseTemplateStatus;
 use App\Support\TenantContext;
 use Illuminate\Support\Facades\DB;
 
@@ -95,6 +96,26 @@ final class CourseAuthoringContextService
             'dto' => $dto,
             'course_context_hash' => CanonicalJson::hash($dto),
         ];
+    }
+
+    /**
+     * The working-draft write port: proposalContext under the Template lock, refused
+     * while the Template is archived (LF-Core-Course, archived Template is read-only).
+     * The explicit rebase stays allowed on an active Template: the Intents doc makes it
+     * the sole exception to the selection lock.
+     *
+     * @return array{template_id:int,lesson_id:int,activity_id:int,actor_role:string,selected_framework_id:?int,selected_framework_version_id:?int,dto:array<string,mixed>,course_context_hash:string}
+     */
+    public function editableContext(int $actorId, int $activityId): array
+    {
+        $context = $this->proposalContext($actorId, $activityId, true);
+        $status = DB::table('core_course_templates')
+            ->where('customer_id', $context['dto']['customer_id'])->where('id', $context['template_id'])->value('status');
+        if ($status === CourseTemplateStatus::ARCHIVED) {
+            throw new CourseAuthoringContextException('template_read_only');
+        }
+
+        return $context;
     }
 
     /**

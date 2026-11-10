@@ -12,6 +12,8 @@ use App\Services\CourseTemplateVersionDetailPresenter;
 use App\Services\CourseTemplateVersionDuplicatingService;
 use App\Services\CourseTemplateVersionMediaPresenter;
 use App\Services\DocumentBoardPreview;
+use App\Services\LearningFrameworkAuthoringService;
+use App\Services\LearningFrameworkReadService;
 use App\Services\MediaService;
 use App\Services\MediaShareService;
 use App\Services\MediaThumbnailPresenter;
@@ -23,7 +25,9 @@ use App\Support\CourseType;
 use App\Support\ListReturnUrl;
 use App\Support\TenantContext;
 use App\Support\UploadLimit;
+use DomainException;
 use Illuminate\Database\QueryException;
+use Illuminate\Database\RecordsNotFoundException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -79,16 +83,14 @@ class CourseTemplateController extends Controller
             ->when(
                 $request->user()?->role === 'teacher',
                 function ($query) use ($customerId, $request): void {
-                    $query->where(function ($query) use ($customerId, $request): void {
-                        $query->where('templates.created_by', $request->user()->id)
-                            ->orWhereExists(function ($query) use ($customerId, $request): void {
-                                $query->selectRaw('1')
-                                    ->from('core_course_template_teachers as assignments')
-                                    ->whereColumn('assignments.template_id', 'templates.id')
-                                    ->where('assignments.customer_id', $customerId)
-                                    ->where('assignments.teacher_id', $request->user()->id)
-                                    ->where('assignments.status', 'active');
-                            });
+                    // Access comes only from an active assignment (core_course_template_teachers.md, 2026-11-10).
+                    $query->whereExists(function ($query) use ($customerId, $request): void {
+                        $query->selectRaw('1')
+                            ->from('core_course_template_teachers as assignments')
+                            ->whereColumn('assignments.template_id', 'templates.id')
+                            ->where('assignments.customer_id', $customerId)
+                            ->where('assignments.teacher_id', $request->user()->id)
+                            ->where('assignments.status', 'active');
                     });
                 }
             )
@@ -183,6 +185,22 @@ class CourseTemplateController extends Controller
                     'updated_at' => $now,
                 ])
             );
+
+            // A teacher who creates a Template is its primary assignment; access comes only from assignments.
+            if ($request->user()?->role === 'teacher') {
+                DB::table('core_course_template_teachers')->insert([
+                    'customer_id' => $customerId,
+                    'template_id' => $templateId,
+                    'teacher_id' => $request->user()->id,
+                    'role' => 'primary',
+                    'sort_order' => 0,
+                    'status' => 'active',
+                    'assigned_by' => $request->user()->id,
+                    'assigned_at' => $now,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ]);
+            }
 
             $this->syncIntroductionMedia($request, $templateId, $validated);
 
@@ -393,8 +411,38 @@ class CourseTemplateController extends Controller
                 ->groupBy('version_section_id'),
             'activitiesByLesson' => $activitiesByLesson,
             'templateVersionMedia' => $templateMedia,
+            // ADR-0029: the competency links this Version published, wrong ones marked.
+            'learningLinks' => Schema::hasTable('core_learning_node_mappings')
+                ? app(LearningFrameworkReadService::class)->courseVersionMappingReview((int) $request->user()->id, $versionId)
+                : collect(),
             ...$presentation,
         ]);
+    }
+
+    /** ADR-0029: an admin marks one published competency link of this Version as wrong, with a reason. */
+    public function invalidateVersionMapping(Request $request, int $templateId, int $versionId, int $mappingId): RedirectResponse
+    {
+        abort_unless($request->user()?->role === 'customer_admin', 403);
+        $customerId = $this->customerId();
+        $this->findTemplate($customerId, $templateId);
+        abort_unless(DB::table('core_course_template_versions')->where('customer_id', $customerId)
+            ->where('template_id', $templateId)->where('id', $versionId)->exists(), 404);
+        $validated = $request->validate(['invalidation_reason' => ['required', 'string', 'max:1000']]);
+
+        try {
+            app(LearningFrameworkAuthoringService::class)->invalidateCourseMapping(
+                (int) $request->user()->id, $versionId, $mappingId, (string) $validated['invalidation_reason']
+            );
+        } catch (RecordsNotFoundException) {
+            abort(404);
+        } catch (DomainException $exception) {
+            return back()->withErrors(['invalidation_reason' => __($exception->getMessage() === 'LF_FRAMEWORK_AUTHORING_MAPPING_ALREADY_INVALIDATED'
+                ? 'lf.LF_course_template_version_link_already_invalid'
+                : 'lf.LF_course_template_version_link_reason_required')]);
+        }
+
+        return redirect()->to(route('admin.course-templates.versions.show', [$templateId, $versionId]).'#course-version-links-title')
+            ->with('success', __('lf.LF_course_template_version_link_invalidated'));
     }
 
     public function duplicateVersionToDraft(
@@ -572,11 +620,10 @@ class CourseTemplateController extends Controller
                         $this->detachOwnerMedia($id, $usageType);
                     }
                 }
-                // Rows of removed teachers go with the Template; an active one was refused above.
+                // Assignments go with the Template in the same transaction (Owner decision 2026-11-10).
                 DB::table('core_course_template_teachers')
                     ->where('customer_id', $customerId)
                     ->whereIn('template_id', $ids)
-                    ->where('status', 'inactive')
                     ->delete();
 
                 DB::table('core_course_templates')
@@ -757,6 +804,30 @@ class CourseTemplateController extends Controller
         };
     }
 
+    /**
+     * A newly picked introduction Media must be ready. The Media already in the slot
+     * is accepted in any live state: while it is still being processed the slot shows
+     * nothing, yet the form posts its id back, and refusing it would make every save of
+     * the Template fail until processing ends (or forever when it failed).
+     */
+    private function introductionMediaRule(int $customerId, ?int $templateId, string $fileType): array
+    {
+        $column = 'intro_'.$fileType.'_media_file_id';
+        $currentId = $templateId === null ? null : DB::table('core_course_templates')
+            ->where('customer_id', $customerId)->where('id', $templateId)->value($column);
+
+        return [
+            'nullable',
+            'integer',
+            Rule::exists('media_files', 'id')
+                ->where(fn ($query) => $query
+                    ->where('customer_id', $customerId)
+                    ->where('file_type', $fileType)
+                    ->where(fn ($state) => $state->where('status', 'ready')
+                        ->when($currentId !== null, fn ($kept) => $kept->orWhere('id', (int) $currentId)))),
+        ];
+    }
+
     private function validationRules(int $customerId, ?int $templateId = null): array
     {
         return [
@@ -773,30 +844,14 @@ class CourseTemplateController extends Controller
             'description' => ['nullable', 'string'],
             'publisher_name' => ['required', 'string', 'max:255'],
             'intro_video_source' => ['nullable', Rule::in(['upload', 'embed'])],
-            'intro_image_media_file_id' => [
-                'nullable',
-                'integer',
-                Rule::exists('media_files', 'id')
-                    ->where(fn ($query) => $query
-                        ->where('customer_id', $customerId)
-                        ->where('file_type', 'image')
-                        ->where('status', 'ready')),
-            ],
-            'intro_video_media_file_id' => [
-                'nullable',
-                'integer',
-                Rule::exists('media_files', 'id')
-                    ->where(fn ($query) => $query
-                        ->where('customer_id', $customerId)
-                        ->where('file_type', 'video')
-                        ->where('status', 'ready')),
-            ],
+            'intro_image_media_file_id' => $this->introductionMediaRule($customerId, $templateId, 'image'),
+            'intro_video_media_file_id' => $this->introductionMediaRule($customerId, $templateId, 'video'),
             'intro_video_embed_url' => ['nullable', 'string', 'max:2048'],
             'intro_video_provider' => [
                 'nullable',
                 Rule::in(['youtube', 'vimeo']),
             ],
-            'intro_document_media_file_id' => ['nullable', 'integer', Rule::exists('media_files', 'id')->where(fn ($query) => $query->where('customer_id', $customerId)->where('file_type', 'document')->where('status', 'ready'))],
+            'intro_document_media_file_id' => $this->introductionMediaRule($customerId, $templateId, 'document'),
             'remove_intro_image' => ['nullable', 'boolean'],
             'remove_intro_video' => ['nullable', 'boolean'],
             'remove_intro_document' => ['nullable', 'boolean'],
@@ -1258,15 +1313,16 @@ class CourseTemplateController extends Controller
             $mediaId = $remove ? null : ($validated[$definition['column']] ?? null);
             if ($request->hasFile($definition['field'])) {
                 $mediaId = $this->uploadIntroductionMedia($request, $templateId, $definition['field'], $definition['type'], $usage);
+            } elseif ($mediaId) {
+                $this->assertIntroductionPickStillUsable($request, $templateId, (int) $mediaId, $usage, $definition['column']);
             }
             if ($mediaId) {
                 $this->mediaService->attachUsage((int) $mediaId, 'course_template', $templateId, $usage);
             }
-            if ($remove || $request->hasFile($definition['field'])) {
-                foreach ($this->mediaService->getOwnerMedia('course_template', $templateId, $usage) as $media) {
-                    if ((int) $media->id !== (int) $mediaId) {
-                        $this->mediaService->detachUsage((int) $media->id, 'course_template', $templateId, $usage);
-                    }
+            // The slot holds one Media: whatever it held before and is not kept is let go.
+            foreach ($this->mediaService->getOwnerMedia('course_template', $templateId, $usage) as $media) {
+                if ((int) $media->id !== (int) $mediaId) {
+                    $this->mediaService->detachUsage((int) $media->id, 'course_template', $templateId, $usage);
                 }
             }
             $values[$definition['column']] = $mediaId;
@@ -1284,6 +1340,26 @@ class CourseTemplateController extends Controller
                 ...$values,
                 'updated_at' => now(),
             ]);
+    }
+
+    /**
+     * A Media newly picked from the library for an intro slot, inside the save transaction: take the share lock and
+     * check again, so a revocation committed after the form was validated is seen and the new use cannot slip past it
+     * (ADR-0021 D7). A Media the slot already uses is kept as is.
+     */
+    private function assertIntroductionPickStillUsable(Request $request, int $templateId, int $mediaId, string $usage, string $field): void
+    {
+        $customerId = $this->customerId();
+        $kept = DB::table('media_file_usages')->where('customer_id', $customerId)->where('media_file_id', $mediaId)
+            ->where('owner_type', 'course_template')->where('owner_id', $templateId)->where('usage_type', $usage)
+            ->where('status', 'active')->exists();
+        if ($kept) {
+            return;
+        }
+
+        if (! app(MediaShareService::class)->lockForAttach($customerId, $mediaId, $request->user())) {
+            throw ValidationException::withMessages([$field => __('validation.exists', ['attribute' => str_replace('_', ' ', $field)])]);
+        }
     }
 
     private function uploadIntroductionMedia(
@@ -1434,12 +1510,10 @@ class CourseTemplateController extends Controller
         return $template;
     }
 
-    /** Deleting a Template is for the person who created it and for admins; an assigned teacher may work on it but not delete it. */
+    /** Only an admin deletes a Template; teachers work on it through their assignment (Owner decision 2026-11-10). */
     private function mayDeleteTemplate(object $template): bool
     {
-        $user = request()->user();
-
-        return $user?->role === 'customer_admin' || (int) $template->created_by === (int) $user?->id;
+        return request()->user()?->role === 'customer_admin';
     }
 
     private function authorizeTemplateAccess(int $customerId, object $template): void
@@ -1451,22 +1525,19 @@ class CourseTemplateController extends Controller
         }
 
         $isAssignedTeacher = $user?->role === 'teacher'
-            && (
-                (int) $template->created_by === (int) $user->id
-                || DB::table('core_course_template_teachers')
-                    ->where('customer_id', $customerId)
-                    ->where('template_id', $template->id)
-                    ->where('teacher_id', $user->id)
-                    ->where('status', 'active')
-                    ->exists()
-            );
+            && DB::table('core_course_template_teachers')
+                ->where('customer_id', $customerId)
+                ->where('template_id', $template->id)
+                ->where('teacher_id', $user->id)
+                ->where('status', 'active')
+                ->exists();
 
         abort_unless($isAssignedTeacher, 404);
     }
 
     /**
      * What still hangs on each template: reason => count, per template id. A template with any entry cannot be
-     * deleted (structure, versions, assigned teachers, products that use it, learning mappings).
+     * deleted (structure, versions, products that use it, learning mappings).
      *
      * @param  array<int, int>  $templateIds
      * @return array<int, array<string, int>>
@@ -1480,7 +1551,6 @@ class CourseTemplateController extends Controller
             'lessons' => 'core_course_template_lessons',
             'activities' => 'core_course_template_activities',
             'versions' => 'core_course_template_versions',
-            'teachers' => 'core_course_template_teachers',
             'products' => 'core_course_product_items',
             'mappings' => 'core_course_template_learning_mapping_intents',
         ] as $reason => $table) {
@@ -1491,8 +1561,6 @@ class CourseTemplateController extends Controller
             $counts = DB::table($table)
                 ->where('customer_id', $customerId)
                 ->whereIn('template_id', $templateIds)
-                // A removed teacher keeps an inactive row (kept for reassignment); only a current one blocks.
-                ->when($reason === 'teachers', fn ($query) => $query->where('status', 'active'))
                 ->selectRaw('template_id, count(*) as aggregate')
                 ->groupBy('template_id')
                 ->pluck('aggregate', 'template_id');

@@ -21,4 +21,5 @@ Route::put('/learning-frameworks/{framework}/definitions/{definition}', [Learnin
 Route::post('/learning-frameworks/{framework}/versions/{version}/nodes', [LearningFrameworkController::class, 'storeNode'])->name('learning-frameworks.nodes.store');
 Route::put('/learning-frameworks/{framework}/versions/{version}/nodes/{node}', [LearningFrameworkController::class, 'updateNode'])->name('learning-frameworks.nodes.update');
 Route::post('/learning-frameworks/{framework}/competencies', [LearningFrameworkController::class, 'storeCompetency'])->name('learning-frameworks.competencies.store');
+Route::post('/learning-frameworks/{framework}/competencies/{definition}/retire', [LearningFrameworkController::class, 'retireCompetency'])->name('learning-frameworks.competencies.retire');
 Route::delete('/learning-frameworks/{framework}/versions/{version}', [LearningFrameworkController::class, 'destroyVersion'])->name('learning-frameworks.versions.destroy');

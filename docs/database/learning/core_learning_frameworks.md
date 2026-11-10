@@ -1,12 +1,12 @@
 # Table: core_learning_frameworks
 
-Version: 1.0
+Version: 1.1
 
 Document Status: Frozen
 
 Implementation Status: Implemented
 
-Last Updated: 2026-11-02
+Last Updated: 2026-11-10
 
 Document Path: database/learning/core_learning_frameworks.md
 
@@ -78,6 +78,12 @@ Amendment 2026-11-02 (Owner approved): `customer_admin` may hard-delete a
 Framework with no Version and no Definition through the authoring service. Every
 other reference reaches a Framework through one of these two, so no referenced
 Framework can be deleted; the `RESTRICT` foreign keys remain the final guard.
+
+Amendment 2026-11-10: the edit forms save one part each, name and description
+or the default scale, and the authoring service keeps the other part as stored.
+A saved scale equal to the stored one keeps its scale version. A changed scale is
+also written to the open `draft_snapshot` Version, so the draft publishes with
+the current default; published Versions keep their own snapshot.
 
 Version-number allocation locks the parent Framework row with `SELECT ... FOR
 UPDATE`, reads the maximum committed number and inserts the next number in the

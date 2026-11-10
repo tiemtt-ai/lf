@@ -3,11 +3,14 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Services\MediaService;
+use App\Support\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class CourseTemplateActivityManagementTest extends TestCase
@@ -37,6 +40,7 @@ class CourseTemplateActivityManagementTest extends TestCase
             ->where('customer_id', $customerId)
             ->where('id', $templateId)
             ->update(['created_by' => $teacher->id]);
+        $this->assignCreator($customerId, $templateId, $teacher->id);
         $this->createActivity(
             $customerId,
             $templateId,
@@ -327,6 +331,56 @@ class CourseTemplateActivityManagementTest extends TestCase
         $this->assertStringNotContainsString('.course-template-activity-title:focus-visible', $css);
     }
 
+    public function test_a_quiz_activity_picks_a_published_quiz_the_actor_may_use(): void
+    {
+        [$customerId, $templateId, $sectionId, $lessonId] = $this->createHierarchy();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $teacher = $this->createUser($customerId, 'teacher');
+        $colleague = $this->createUser($customerId, 'teacher');
+        $this->assignCreator($customerId, $templateId, $teacher->id);
+        $quiz = fn (string $title, string $status, User $owner, int $tenant = 0): int => DB::table('core_assessment_quizzes')->insertGetId([
+            'customer_id' => $tenant ?: $customerId, 'created_by' => $owner->id, 'title' => $title, 'assessment_type' => 'exam',
+            'duration_minutes' => 45, 'status' => $status, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $own = $quiz('Own published', 'published', $teacher);
+        $ownDraft = $quiz('Own draft', 'draft', $teacher);
+        $ownArchived = $quiz('Own archived', 'archived', $teacher);
+        $theirs = $quiz('Colleague published', 'published', $colleague);
+        [$otherCustomer] = $this->createHierarchy('tenant-b', 'other');
+        $foreign = $quiz('Foreign published', 'published', $this->createUser($otherCustomer, 'customer_admin'), $otherCustomer);
+
+        // The picker lists only published Quizzes of the tenant; a teacher sees their own, an admin all.
+        $picker = fn (string $area) => "https://tenant-a.localhost/{$area}/course-templates/{$templateId}/activities/quiz-picker";
+        $ids = fn ($response) => collect($response->assertOk()->json('items'))->pluck('id')->all();
+        $this->assertSame([$own], $ids($this->actingAs($teacher)->getJson($picker('teacher'))));
+        $this->assertEqualsCanonicalizing([$own, $theirs], $ids($this->actingAs($admin)->getJson($picker('admin'))));
+        $this->assertSame([$theirs], $ids($this->actingAs($admin)->getJson($picker('admin').'?keyword=Colleague')));
+        $this->assertSame([], $ids($this->actingAs($admin)->getJson($picker('admin').'?assessment_type=exercise')));
+        $this->actingAs($colleague)->getJson($picker('teacher'))->assertNotFound();
+
+        // Saving accepts only a pickable Quiz.
+        $url = $this->activityCollectionUrl('teacher', $templateId, $sectionId, $lessonId);
+        $payload = fn (int $quizId) => $this->validActivityData(['title' => 'Quiz', 'activity_type' => 'quiz', 'assessment_quiz_id' => $quizId, 'completion_rule' => 'pass', 'completion_threshold' => 70]);
+        foreach ([$ownDraft, $ownArchived, $theirs, $foreign, 999999] as $refused) {
+            $this->actingAs($teacher)->post($url, $payload($refused))
+                ->assertSessionHasErrors(['assessment_quiz_id' => __('lf.LF_course_template_activity_quiz_unavailable')]);
+        }
+        $this->actingAs($teacher)->post($url, $payload($own))->assertSessionHasNoErrors();
+        $activityId = (int) DB::table('core_course_template_activities')->where('title', 'Quiz')->value('id');
+        $this->assertSame($own, (int) DB::table('core_course_template_activities')->where('id', $activityId)->value('assessment_quiz_id'));
+
+        // A stored Quiz that later stops being pickable stays when the Activity is saved unchanged.
+        DB::table('core_assessment_quizzes')->where('id', $own)->update(['status' => 'archived']);
+        $this->actingAs($teacher)->put("{$url}/{$activityId}", $payload($own))->assertSessionHasNoErrors();
+        $this->actingAs($teacher)->put("{$url}/{$activityId}", $payload($theirs))->assertSessionHasErrors('assessment_quiz_id');
+
+        // The form shows the chosen Quiz by name and opens the picker; nothing is typed.
+        $html = $this->actingAs($teacher)->get("{$url}/{$activityId}/edit", ['X-Requested-With' => 'XMLHttpRequest'])->assertOk()->getContent();
+        $this->assertStringContainsString('data-quiz-picker', $html);
+        $this->assertStringContainsString('Own published', $html);
+        $this->assertStringNotContainsString('type="number" min="1" name="assessment_quiz_id"', $html);
+    }
+
     public function test_admin_can_create_update_and_delete_an_activity(): void
     {
         [$customerId, $templateId, $sectionId, $lessonId] =
@@ -537,6 +591,33 @@ class CourseTemplateActivityManagementTest extends TestCase
         $this->assertSame('inactive', DB::table('core_course_template_teachers')->where('id', $assignmentId)->value('status'));
     }
 
+    public function test_an_archived_template_starts_no_transcription_or_board_preview(): void
+    {
+        config(['media.disk' => 'media_local', 'media.bucket' => 'lf-test-media']);
+        Storage::fake('media_local');
+        [$customerId, $templateId, $lessonId] = $this->createDirectHierarchy();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $base = "https://tenant-a.localhost/admin/course-templates/{$templateId}";
+        $this->actingAs($admin);
+        $this->post("{$base}/lessons/{$lessonId}/activities", $this->validActivityData(['title' => 'Audio']))->assertRedirect();
+        $this->post("{$base}/lessons/{$lessonId}/activities", $this->validActivityData(['title' => 'Document']))->assertRedirect();
+        [$audioId, $documentId] = DB::table('core_course_template_activities')->where('template_id', $templateId)->orderBy('id')->pluck('id')->map(fn ($id) => (int) $id)->all();
+        DB::table('core_course_template_activities')->where('id', $audioId)->update(['activity_type' => 'audio']);
+        DB::table('core_course_template_activities')->where('id', $documentId)->update(['activity_type' => 'document']);
+        TenantContext::set((object) ['id' => $customerId]);
+        $media = app(MediaService::class);
+        $pdf = $media->uploadMedia(UploadedFile::fake()->createWithContent('notes.pdf', "%PDF-1.4\nnotes\n%%EOF"),
+            ['file_type' => 'document', 'module' => 'course', 'entity_type' => 'activities', 'entity_id' => $documentId, 'purpose' => 'document'], $admin->id);
+        $media->attachUsage((int) $pdf->id, 'course_activity', $documentId, 'document');
+        DB::table('core_course_templates')->where('id', $templateId)->update(['status' => 'archived']);
+        $readOnly = ['template' => __('lf.LF_course_template_status_archived_readonly')];
+
+        $this->post("{$base}/lessons/{$lessonId}/activities/{$audioId}/initialize-transcription", ['processing_locales' => ['vi']])
+            ->assertSessionHasErrors($readOnly);
+        $this->post("{$base}/lessons/{$lessonId}/activities/{$documentId}/board-preview")->assertSessionHasErrors($readOnly);
+        $this->assertSame(0, DB::table('media_processing_jobs')->whereIn('job_type', ['speech_to_text', 'transcode'])->count());
+    }
+
     public function test_admin_and_teacher_can_create_activities_for_direct_lessons(): void
     {
         [$customerId, $templateId, $lessonId] =
@@ -547,6 +628,7 @@ class CourseTemplateActivityManagementTest extends TestCase
             ->where('customer_id', $customerId)
             ->where('id', $templateId)
             ->update(['created_by' => $teacher->id]);
+        $this->assignCreator($customerId, $templateId, $teacher->id);
 
         foreach ([
             [$admin, 'admin', 'Admin Direct Activity'],
@@ -675,6 +757,7 @@ class CourseTemplateActivityManagementTest extends TestCase
             ->where('customer_id', $customerId)
             ->where('id', $templateId)
             ->update(['created_by' => $teacher->id]);
+        $this->assignCreator($customerId, $templateId, $teacher->id);
         $collectionUrl = $this->activityCollectionUrl(
             'teacher',
             $templateId,
@@ -780,6 +863,26 @@ class CourseTemplateActivityManagementTest extends TestCase
             ->assertSessionHasErrors('unlock_rule');
 
         $this->assertDatabaseCount('core_course_template_activities', 0);
+    }
+
+    public function test_activity_description_and_sort_order_are_bounded_to_their_columns(): void
+    {
+        [$customerId, $templateId, $sectionId, $lessonId] = $this->createHierarchy();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $url = $this->activityCollectionUrl('admin', $templateId, $sectionId, $lessonId);
+
+        $this->actingAs($admin)
+            ->post($url, $this->validActivityData([
+                'description' => str_repeat('ạ', 20001),
+                'sort_order' => 1000001,
+            ]))
+            ->assertSessionHasErrors(['description', 'sort_order']);
+        $this->actingAs($admin)
+            ->post($url, $this->validActivityData([
+                'description' => str_repeat('ạ', 20000),
+                'sort_order' => 1000000,
+            ]))
+            ->assertSessionDoesntHaveErrors(['description', 'sort_order']);
     }
 
     public function test_final_activity_content_fields_are_stored(): void
@@ -1375,6 +1478,7 @@ class CourseTemplateActivityManagementTest extends TestCase
         $admin = $this->createUser($customerId, 'customer_admin');
         $teacher = $this->createUser($customerId, 'teacher');
         DB::table('core_course_templates')->where('id', $templateId)->update(['created_by' => $teacher->id]);
+        $this->assignCreator($customerId, $templateId, $teacher->id);
         $a = $this->createActivity($customerId, $templateId, $lessonId, 'A', 1);
         $b = $this->createActivity($customerId, $templateId, $lessonId, 'B', 2);
         $c = $this->createActivity($customerId, $templateId, $lessonId, 'C', 3);
@@ -1627,6 +1731,7 @@ class CourseTemplateActivityManagementTest extends TestCase
         $admin = $this->createUser($customerId, 'customer_admin');
         $teacher = $this->createUser($customerId, 'teacher');
         DB::table('core_course_templates')->where('id', $templateId)->update(['created_by' => $teacher->id]);
+        $this->assignCreator($customerId, $templateId, $teacher->id);
 
         foreach ([[$admin, 'admin'], [$teacher, 'teacher']] as [$user, $area]) {
             $url = $this->activityCollectionUrl($area, $templateId, $sectionId, $lessonId);
@@ -1672,6 +1777,7 @@ class CourseTemplateActivityManagementTest extends TestCase
         $admin = $this->createUser($customerId, 'customer_admin');
         $teacher = $this->createUser($customerId, 'teacher');
         DB::table('core_course_templates')->where('id', $templateId)->update(['created_by' => $teacher->id]);
+        $this->assignCreator($customerId, $templateId, $teacher->id);
         $firstId = $this->createActivity($customerId, $templateId, $lessonId, 'Unlock First');
         $secondId = $this->createActivity($customerId, $templateId, $lessonId, 'Unlock Second');
         $freeId = $this->createActivity($customerId, $templateId, $lessonId, 'Free Activity');
@@ -1825,6 +1931,20 @@ class CourseTemplateActivityManagementTest extends TestCase
             'status' => 'active',
             'email_verified_at' => now(),
         ]);
+    }
+
+    /** The creator of a Template is its primary assignment when a teacher (Owner decision 2026-11-10). */
+    private function assignCreator(int $customerId, int $templateId, ?int $createdBy): int
+    {
+        if ($createdBy !== null && DB::table('users')->where('id', $createdBy)->value('role') === 'teacher') {
+            DB::table('core_course_template_teachers')->insert([
+                'customer_id' => $customerId, 'template_id' => $templateId, 'teacher_id' => $createdBy,
+                'role' => 'primary', 'sort_order' => 0, 'status' => 'active',
+                'assigned_by' => $createdBy, 'assigned_at' => now(), 'created_at' => now(), 'updated_at' => now(),
+            ]);
+        }
+
+        return $templateId;
     }
 
     private function createTemplate(

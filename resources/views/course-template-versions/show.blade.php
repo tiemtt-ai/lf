@@ -189,6 +189,8 @@
 
         @include('course-template-versions.partials.content-structure')
 
+        @include('course-template-versions.partials.learning-links')
+
         {{-- Same UI Kit preview popup (default size) as the Template information tab; x-if drops the player on close, which stops playback. --}}
         <div class="lf-admin-ui">
             <x-media-preview-modal ui-kit id="version-media-preview-title" show="previewOpen" close="closeVersionPreview()" title="preview.name" compact="false">

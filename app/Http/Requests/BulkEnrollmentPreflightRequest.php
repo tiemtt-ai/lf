@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Support\EnrollmentTime;
 use Illuminate\Foundation\Http\FormRequest;
 
 class BulkEnrollmentPreflightRequest extends FormRequest
@@ -29,7 +30,7 @@ class BulkEnrollmentPreflightRequest extends FormRequest
             'configuration.access_ends_at' => ['prohibited'],
             'configuration.review_starts_at' => ['prohibited'],
             'configuration.review_ends_at' => ['prohibited'],
-            'configuration.enrolled_at' => ['required', 'date'],
+            'configuration.enrolled_at' => ['required', ...EnrollmentTime::RULES],
             'configuration.notes' => ['nullable', 'string'],
             'finalize' => ['sometimes', 'boolean'],
             'customer_id' => ['prohibited'],

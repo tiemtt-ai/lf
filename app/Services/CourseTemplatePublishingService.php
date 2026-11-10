@@ -37,6 +37,15 @@ class CourseTemplatePublishingService
             if ($expectedRevision !== null && (int) $template->working_revision !== $expectedRevision) {
                 throw ValidationException::withMessages(['publish' => __('lf.LF_course_template_publish_stale')]);
             }
+            // Publish never moves working_revision, so a repeated submit (double click) would snapshot an identical Version.
+            $latestVersion = DB::table('core_course_template_versions')
+                ->where('customer_id', $customerId)
+                ->where('template_id', $templateId)
+                ->orderByDesc('version_number')
+                ->first(['version_number', 'source_working_revision']);
+            if ($latestVersion && (int) $latestVersion->source_working_revision === (int) $template->working_revision) {
+                throw ValidationException::withMessages(['publish' => __('lf.LF_course_template_publish_no_changes', ['version' => $latestVersion->version_number])]);
+            }
             $sections = $graph->sections;
             $lessons = $graph->lessons;
             $activities = $graph->activities;
@@ -511,7 +520,7 @@ class CourseTemplatePublishingService
             return $this->aiPublication->assertPublishableIntents($publishedBy, $templateId, $intents);
         } catch (AiAuthoringProposalException $exception) {
             throw ValidationException::withMessages([
-                'publish' => 'An AI-reviewed Learning Mapping is no longer publishable ('.$exception->errorCode.').',
+                'publish' => __('lf.LF_course_template_publish_learning_ai_unpublishable', ['code' => $exception->errorCode]),
             ]);
         }
     }

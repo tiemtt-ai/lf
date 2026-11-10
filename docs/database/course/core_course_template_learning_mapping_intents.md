@@ -1,6 +1,6 @@
 # Table: core_course_template_learning_mapping_intents
 
-Version: 1.3
+Version: 1.4
 
 Document Status: Approved
 
@@ -84,9 +84,15 @@ follow that gate as well.
 This is safe only while an Intent has no effect before publish: canonical
 Mapping is created solely by promotion. If a future component reads Intent
 before publish, this decision must be reviewed again. The one Intent-specific
-rule is coherence, not lifecycle: a selected Framework Version cannot change
-while the Template has Intents, and each Intent is composite-FK-bound to that
-exact selection. Canonical Mapping is immutable after promotion and is
+rule is coherence, not lifecycle: each Intent is composite-FK-bound to the exact
+selection, so a selected Framework Version never changes under its Intents.
+Changing or detaching the selection follows `core_course_templates.md`: only
+while the Template is `draft`, only after the author confirms against the
+current `working_revision`, and in the same transaction every Intent of the
+Template is removed, `manual` and `ai_proposal` alike (clarified 2026-11-10; an
+AI application receipt keeps its `intent_id` as history). A call without that
+confirmation is refused while Intents exist. The explicit inherited-Version
+rebase below is the only path that carries Intents across. Canonical Mapping is immutable after promotion and is
 corrected by the approved invalidation lifecycle in
 `core_learning_node_mappings`.
 

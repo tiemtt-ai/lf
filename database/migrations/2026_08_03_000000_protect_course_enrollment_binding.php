@@ -9,7 +9,7 @@ return new class extends Migration
 
     public function up(): void
     {
-        if (DB::connection()->getDriverName() !== 'mysql') {
+        if (! in_array(DB::connection()->getDriverName(), ['mysql', 'mariadb'], true)) {
             return;
         }
 
@@ -39,7 +39,7 @@ SQL);
 
     public function down(): void
     {
-        if (DB::connection()->getDriverName() !== 'mysql') {
+        if (! in_array(DB::connection()->getDriverName(), ['mysql', 'mariadb'], true)) {
             return;
         }
 

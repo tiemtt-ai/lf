@@ -871,15 +871,19 @@ class CourseCohortController extends Controller
             return __('lf.LF_course_cohort_validation_session_requires_operation');
         }
 
-        $timezone = config('app.timezone');
-        $from = CarbonImmutable::parse($startsOn, $timezone)->startOfDay()->utc();
-        $to = CarbonImmutable::parse($endsOn, $timezone)->endOfDay()->utc();
-        $outside = $sessions->first(fn (object $session): bool => LiveClassSessionTime::utc($session->scheduled_start_at, $session->timezone)->lt($from)
-            || LiveClassSessionTime::utc($session->scheduled_end_at, $session->timezone)->gt($to));
+        // The period is anchored in each Session's own timezone, the frame the Session was
+        // admitted in (CourseCohortOperationController::validateSessionScheduleWindow), so a
+        // Session accepted on the last evening is not judged outside afterwards.
+        $outside = $sessions->first(function (object $session) use ($startsOn, $endsOn): bool {
+            $timezone = $session->timezone ?: config('app.timezone');
+
+            return LiveClassSessionTime::utc($session->scheduled_start_at, $timezone)->lt(CarbonImmutable::parse($startsOn, $timezone)->startOfDay())
+                || LiveClassSessionTime::utc($session->scheduled_end_at, $timezone)->gt(CarbonImmutable::parse($endsOn, $timezone)->endOfDay());
+        });
 
         return $outside ? __('lf.LF_course_cohort_validation_session_outside_operation', [
             'title' => $outside->title,
-            'at' => LiveClassSessionTime::utc($outside->scheduled_start_at, $outside->timezone)->setTimezone($timezone)->format('d/m/Y H:i'),
+            'at' => CarbonImmutable::parse($outside->scheduled_start_at)->format('d/m/Y H:i'),
         ]) : null;
     }
 

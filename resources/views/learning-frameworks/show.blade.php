@@ -177,6 +177,7 @@
                 'marker' => 'data-lf-framework-item',
                 'canEdit' => $isActive,
                 'newIds' => $added->pluck('node_definition_id')->map(fn ($id) => (int) $id),
+                'retireNumber' => $isActive ? $nextNumber : null,
             ])
 
             <div class="mk-table-foot">

@@ -20,6 +20,9 @@
         'triggerLabel' => __('lf.LF_course_cohort_common_archive'),
         'title' => __('lf.LF_course_cohort_lifecycle_archive_title'),
         'body' => __('lf.LF_course_cohort_lifecycle_archive_body'),
+        // A draft left on an old Version archives with its members, who leave the class (CourseCohortLifecycleService).
+        'warnings' => in_array(__('lf.LF_course_cohort_activation_product_version_invalid'), $activationIssues, true)
+            ? [__('lf.LF_course_cohort_lifecycle_archive_stale_version')] : [],
         'confirmClass' => 'ui-button ui-button--danger-outline cursor-interaction',
         'confirmLabel' => __('lf.LF_course_cohort_lifecycle_archive_confirm'),
     ])

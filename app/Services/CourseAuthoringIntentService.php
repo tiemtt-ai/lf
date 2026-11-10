@@ -43,7 +43,7 @@ final class CourseAuthoringIntentService
         ?int $aiContextReviewId,
     ): int {
         $customerId = TenantContext::customerId() ?? throw new CourseAuthoringContextException('not_found');
-        $context = $this->context->proposalContext($actorId, $activityId, true);
+        $context = $this->context->editableContext($actorId, $activityId);
 
         if ($context['selected_framework_id'] !== $frameworkId || $context['selected_framework_version_id'] !== $frameworkVersionId) {
             throw new CourseAuthoringContextException('framework_selection_conflict');
@@ -122,7 +122,7 @@ final class CourseAuthoringIntentService
         ?int $newContextReviewId,
     ): void {
         $customerId = TenantContext::customerId() ?? throw new CourseAuthoringContextException('not_found');
-        $context = $this->context->proposalContext($actorId, $activityId, true);
+        $context = $this->context->editableContext($actorId, $activityId);
 
         $intent = DB::table('core_course_template_learning_mapping_intents')->where('customer_id', $customerId)
             ->where('template_id', $context['template_id'])->where('id', $intentId)->lockForUpdate()->first();

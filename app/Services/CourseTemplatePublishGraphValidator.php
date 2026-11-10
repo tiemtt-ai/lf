@@ -6,6 +6,7 @@ use App\Support\CourseTemplateStatus;
 use App\Support\CourseType;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class CourseTemplatePublishGraphValidator
 {
@@ -58,6 +59,7 @@ class CourseTemplatePublishGraphValidator
         $this->validateCourseType($template, $activities, $lessonMap, $issues);
         $this->validateTemplateMedia($customerId, (int) $template->id, $template, $issues);
         $this->validateVideoState($template, $issues);
+        $this->validateLearningMappingSources($customerId, (int) $template->id, $lessonMap, $activityMap, $issues);
 
         return new CourseTemplatePublishReadiness($issues, $warnings);
     }
@@ -369,6 +371,29 @@ class CourseTemplatePublishGraphValidator
             $this->add($issues, 'lesson_live_class_multiple', 'content', [
                 'lesson' => $lesson?->title ?? __('lf.LF_course_template_publish_integrity_unknown_lesson'),
             ], $lesson ? $this->lessonFragment($lesson) : null);
+        }
+    }
+
+    /**
+     * Mapping Intents whose Lesson or Activity was deleted fail the publish transaction
+     * closed (core_course_template_learning_mapping_intents.md). Readiness names them first,
+     * so the author removes them from the learning tab instead of meeting a failed publish.
+     */
+    private function validateLearningMappingSources(int $customerId, int $templateId, Collection $lessonMap, Collection $activityMap, Collection $issues): void
+    {
+        if (! Schema::hasTable('core_course_template_learning_mapping_intents')) {
+            return;
+        }
+        $orphans = DB::table('core_course_template_learning_mapping_intents')
+            ->where('customer_id', $customerId)->where('template_id', $templateId)
+            ->get(['source_type', 'source_id'])
+            ->reject(fn (object $intent): bool => match ($intent->source_type) {
+                'course_template_lesson' => $lessonMap->has((int) $intent->source_id),
+                'course_template_activity' => $activityMap->has((int) $intent->source_id),
+                default => false,
+            })->count();
+        if ($orphans > 0) {
+            $this->add($issues, 'learning_mapping_orphan', 'learning', ['count' => $orphans], 'course-learning-orphans-title');
         }
     }
 

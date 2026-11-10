@@ -16,7 +16,9 @@ use App\Support\SequentialCodeGenerator;
 use App\Support\TenantContext;
 use App\Support\UploadLimit;
 use Illuminate\Database\QueryException;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
@@ -30,6 +32,14 @@ class CourseProductController extends Controller
     private const STATUSES = ['draft', 'active', 'inactive', 'archived'];
 
     private const ITEM_STATUSES = ['active', 'inactive'];
+
+    private const DATE_FIELDS = [
+        'sale_starts_at', 'sale_ends_at', 'available_from', 'available_until',
+        'registration_starts_at', 'registration_ends_at',
+    ];
+
+    // DATETIME columns: keep values in a sane business range so no year overflows storage or strtotime.
+    private const DATE_RULES = ['date', 'after_or_equal:2000-01-01', 'before:2100-01-01'];
 
     public function __construct(
         private readonly MediaService $mediaService,
@@ -146,7 +156,7 @@ class CourseProductController extends Controller
         $validated = $this->validatedData($request, $customerId);
         $now = now();
 
-        $productId = DB::transaction(function () use ($request, $validated, $customerId, $now): int {
+        $productId = $this->createWithFreshCode(fn (): int => DB::transaction(function () use ($request, $validated, $customerId, $now): int {
             $this->assertEligibleTemplateVersionBinding($customerId, $validated, true);
             $productId = DB::table('core_course_products')->insertGetId(
                 $this->productValues($validated, [
@@ -155,14 +165,14 @@ class CourseProductController extends Controller
                         $customerId,
                         'core_course_products',
                         'product_code',
-                        'PRD'
+                        'PRD',
+                        $this->deletedProductCodes($customerId, 'PRD-'.now()->format('Ymd').'-')
                     ),
                     'enrollment_count' => 0,
                     'is_certificate_enabled' => false,
                     'created_by' => $request->user()?->id,
-                    'published_at' => $validated['status'] === 'active'
-                        ? $now
-                        : null,
+                    // A new Product is always a Draft (validationRules); activation goes through update.
+                    'published_at' => null,
                     'created_at' => $now,
                     'updated_at' => $now,
                 ])
@@ -176,7 +186,7 @@ class CourseProductController extends Controller
             $this->attachUploadedMedia($request, $productId);
 
             return $productId;
-        });
+        }));
 
         $editUrl = route($this->routePrefix($request).'.edit', $productId);
 
@@ -192,6 +202,52 @@ class CourseProductController extends Controller
         return redirect()
             ->to($editUrl)
             ->with('success', __('lf.LF_course_product_common_created_next_steps'));
+    }
+
+    /**
+     * Codes of hard-deleted Products, read from their course_product_delete audit rows, so a
+     * new Product never reuses a code that the audit history still attributes to another one.
+     *
+     * @return list<string>
+     */
+    private function deletedProductCodes(int $customerId, string $pattern): array
+    {
+        return DB::table('saas_audit_logs')
+            ->where('customer_id', $customerId)
+            ->where('action', 'course_product_delete')
+            ->where('before', 'like', '%'.$pattern.'%')
+            ->pluck('before')
+            ->map(function ($before): string {
+                $data = json_decode((string) $before, true);
+
+                return is_array($data) ? (string) ($data['product_code'] ?? '') : '';
+            })
+            ->filter(fn (string $code): bool => str_starts_with($code, $pattern))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * SequentialCodeGenerator reads the current maximum without a lock, so two concurrent creates
+     * can pick the same product_code. Retry a code collision with a fresh code; a slug collision
+     * (same title submitted twice at once) answers as the usual duplicate-slug validation error.
+     */
+    private function createWithFreshCode(callable $create): int
+    {
+        for ($attempt = 1; ; $attempt++) {
+            try {
+                return $create();
+            } catch (UniqueConstraintViolationException $exception) {
+                $message = $exception->getMessage();
+                if (str_contains($message, 'uk_ccp_customer_slug') || str_contains($message, 'core_course_products.slug')) {
+                    throw ValidationException::withMessages(['slug' => __('validation.unique', ['attribute' => 'slug'])]);
+                }
+                $codeCollision = str_contains($message, 'uk_ccp_customer_code') || str_contains($message, 'core_course_products.product_code');
+                if (! $codeCollision || $attempt >= 3) {
+                    throw $exception;
+                }
+            }
+        }
     }
 
     public function edit(Request $request, int $id): View
@@ -298,7 +354,7 @@ class CourseProductController extends Controller
             $validated['sort_order'] = (int) $validated['category_id'] === (int) $lockedProduct->category_id
                 ? (int) $lockedProduct->sort_order
                 : $this->nextSortOrder((int) $validated['category_id']);
-            $values = $this->withoutMissingSeoValues(
+            $values = $this->withoutMissingOptionalValues(
                 $request,
                 $this->productValues($validated, [
                     'published_at' => $lockedProduct->published_at === null
@@ -827,7 +883,24 @@ class CourseProductController extends Controller
             }
         });
 
-        return $validator->validate();
+        return $this->withNormalizedDates($validator->validate());
+    }
+
+    /**
+     * Store product date-times as app-timezone wall clock (Y-m-d H:i:s). A value carrying an offset
+     * (e.g. 2026-11-10T10:00:00Z) is converted to the app timezone instead of keeping its digits.
+     */
+    private function withNormalizedDates(array $validated): array
+    {
+        $timezone = (string) config('app.timezone');
+        foreach (self::DATE_FIELDS as $field) {
+            if (isset($validated[$field]) && $validated[$field] !== '') {
+                $validated[$field] = Carbon::parse((string) $validated[$field], $timezone)
+                    ->setTimezone($timezone)->format('Y-m-d H:i:s');
+            }
+        }
+
+        return $validated;
     }
 
     private function validationRules(int $customerId, ?int $productId = null, ?string $courseType = null): array
@@ -858,14 +931,13 @@ class CourseProductController extends Controller
                 Rule::in(['youtube', 'aws']),
             ],
             'thumbnail_video_url' => ['nullable', 'string', 'max:1000'],
-            'thumbnail_video_media_id' => ['nullable', 'integer', 'min:1'],
             'price' => ['required', 'numeric', 'min:0', 'max:999999999999.99'],
             'promotion_enabled' => [$legacy ? 'nullable' : 'required', 'boolean'],
             'discount_type' => ['nullable', Rule::requiredIf(fn () => request()->boolean('promotion_enabled')), Rule::in(CourseProductV2::DISCOUNT_TYPES)],
             'discount_value' => ['nullable', Rule::requiredIf(fn () => request()->boolean('promotion_enabled')), 'numeric', 'gt:0', 'max:999999999999.99', Rule::when(request('discount_type') === 'percentage', ['max:100'])],
             'sale_price' => ['nullable', 'numeric', 'min:0'],
-            'sale_starts_at' => ['nullable', 'required_with:sale_ends_at', 'date'],
-            'sale_ends_at' => ['nullable', 'required_with:sale_starts_at', 'date', 'after:sale_starts_at'],
+            'sale_starts_at' => ['nullable', 'required_with:sale_ends_at', ...self::DATE_RULES],
+            'sale_ends_at' => ['nullable', 'required_with:sale_starts_at', ...self::DATE_RULES, 'after:sale_starts_at'],
             'currency' => ['required', Rule::in(['VND', 'USD', 'KRW'])],
             'enrollment_type' => [
                 $legacy ? 'required' : 'nullable',
@@ -885,14 +957,15 @@ class CourseProductController extends Controller
                 $legacy ? 'required' : 'nullable',
                 Rule::in(['public', 'private', 'hidden']),
             ],
-            'available_from' => ['nullable', 'date'],
-            'available_until' => ['nullable', 'date'],
-            'registration_starts_at' => ['nullable', 'required_with:registration_ends_at', 'date'],
-            'registration_ends_at' => ['nullable', 'required_with:registration_starts_at', 'date', 'after:registration_starts_at'],
+            'available_from' => ['nullable', ...self::DATE_RULES],
+            'available_until' => ['nullable', ...self::DATE_RULES],
+            'registration_starts_at' => ['nullable', 'required_with:registration_ends_at', ...self::DATE_RULES],
+            'registration_ends_at' => ['nullable', 'required_with:registration_starts_at', ...self::DATE_RULES, 'after:registration_starts_at'],
             'meta_title' => ['nullable', 'string', 'max:255'],
             'meta_description' => ['nullable', 'string', 'max:500'],
             'meta_keywords' => ['nullable', 'string', 'max:500'],
-            'status' => ['required', Rule::in(self::STATUSES)],
+            // A new Product starts as Draft; activation runs through update (lifecycle policy + audit).
+            'status' => ['required', Rule::in($productId === null ? ['draft'] : self::STATUSES)],
             'cover_image_file' => [
                 'nullable',
                 'file',
@@ -934,7 +1007,6 @@ class CourseProductController extends Controller
             'thumbnail_image',
             'thumbnail_video_source',
             'thumbnail_video_url',
-            'thumbnail_video_media_id',
             'price',
             'promotion_enabled', 'discount_type', 'discount_value',
             'sale_price',
@@ -1168,7 +1240,6 @@ class CourseProductController extends Controller
             'thumbnail_image' => $validated['thumbnail_image'] ?? null,
             'thumbnail_video_source' => $validated['thumbnail_video_source'] ?? null,
             'thumbnail_video_url' => $validated['thumbnail_video_url'] ?? null,
-            'thumbnail_video_media_id' => $validated['thumbnail_video_media_id'] ?? null,
             'price' => $validated['price'],
             'promotion_enabled' => (bool) ($validated['promotion_enabled'] ?? false),
             'discount_type' => $validated['discount_type'] ?? null,
@@ -1219,9 +1290,21 @@ class CourseProductController extends Controller
         return Str::slug($source);
     }
 
-    private function withoutMissingSeoValues(Request $request, array $values): array
+    /**
+     * Update writes these columns only when the request sends them. The Product forms do not expose
+     * them, so a normal save must keep what is stored instead of resetting it to the create default.
+     */
+    private const OPTIONAL_UPDATE_FIELDS = [
+        'meta_title', 'meta_description', 'meta_keywords',
+        'thumbnail_type', 'thumbnail_image', 'thumbnail_video_source', 'thumbnail_video_url',
+        'sale_price', 'max_students', 'is_refundable', 'refund_days', 'tags', 'badge_type',
+        'show_enrollment_count', 'display_enrollment_count', 'visibility',
+        'available_from', 'available_until',
+    ];
+
+    private function withoutMissingOptionalValues(Request $request, array $values): array
     {
-        foreach (['meta_title', 'meta_description', 'meta_keywords'] as $field) {
+        foreach (self::OPTIONAL_UPDATE_FIELDS as $field) {
             if (! $request->has($field)) {
                 unset($values[$field]);
             }

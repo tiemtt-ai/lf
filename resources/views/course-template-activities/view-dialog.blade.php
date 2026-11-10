@@ -53,7 +53,7 @@
             @if ($activity->assessment_quiz_id)
                 <div class="ui-summary__item">
                     <dt class="ui-field__label">{{ __('lf.LF_course_template_activity_common_reference') }}</dt>
-                    <dd>Assessment Quiz #{{ $activity->assessment_quiz_id }}</dd>
+                    <dd>{{ $activityQuiz['name'] ?? '#'.$activity->assessment_quiz_id }}</dd>
                 </div>
             @endif
 

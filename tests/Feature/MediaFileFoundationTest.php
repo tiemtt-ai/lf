@@ -309,6 +309,43 @@ class MediaFileFoundationTest extends TestCase
         Storage::disk('media_local')->assertExists($firstMediaFile->storage_key);
     }
 
+    public function test_another_person_identical_upload_gets_its_own_media_and_its_cleanup_spares_the_first(): void
+    {
+        $customerId = $this->createTenant();
+        $teacher = $this->createUser($customerId, 'teacher');
+        $student = $this->createUser($customerId, 'student');
+        TenantContext::set((object) ['id' => $customerId]);
+        $service = app(MediaService::class);
+        $attributes = ['file_type' => 'document', 'module' => 'course', 'entity_type' => 'lessons', 'entity_id' => 1001, 'purpose' => 'document'];
+
+        $teacherFile = $service->uploadMedia($this->uploadedTextFile('notes.txt'), $attributes, $teacher->id);
+        $studentFile = $service->uploadMedia($this->uploadedTextFile('notes.txt'), $attributes, $student->id);
+
+        $this->assertNotSame($teacherFile->id, $studentFile->id);
+        $this->assertSame($student->id, (int) $studentFile->uploaded_by);
+        $this->assertNull($service->deleteMediaIfUnused($teacherFile->id, $student->id));
+        $this->assertDatabaseHas('media_files', ['id' => $teacherFile->id, 'status' => 'ready']);
+        $service->deleteMediaIfUnused($studentFile->id, $student->id);
+        $this->assertDatabaseHas('media_files', ['id' => $studentFile->id, 'status' => 'deleted']);
+    }
+
+    public function test_duplicate_upload_reuses_only_a_media_of_the_same_file_type(): void
+    {
+        $customerId = $this->createTenant();
+        $user = $this->createUser($customerId, 'customer_admin');
+        TenantContext::set((object) ['id' => $customerId]);
+        $service = app(MediaService::class);
+        $attributes = ['file_type' => 'document', 'module' => 'course', 'entity_type' => 'lessons', 'entity_id' => 1001, 'purpose' => 'document'];
+
+        $first = $service->uploadMedia($this->uploadedTextFile('notes.txt'), $attributes, $user->id);
+        // The same bytes kept as another kind (an audio-webm row reused for a video slot would 404 in preview).
+        DB::table('media_files')->where('id', $first->id)->update(['file_type' => 'audio']);
+        $second = $service->uploadMedia($this->uploadedTextFile('notes.txt'), $attributes, $user->id);
+
+        $this->assertNotSame((int) $first->id, (int) $second->id);
+        $this->assertSame('document', $second->file_type);
+    }
+
     public function test_duplicate_upload_is_tenant_scoped(): void
     {
         $customerId = $this->createTenant();
@@ -446,6 +483,66 @@ class MediaFileFoundationTest extends TestCase
             ->assertNotFound();
     }
 
+    public function test_derived_content_urls_are_bound_to_their_tenant_host(): void
+    {
+        $customerId = $this->createTenant();
+        $otherCustomerId = $this->createTenant('tenant-b');
+        $user = $this->createUser($customerId, 'customer_admin');
+        $otherUser = $this->createUser($otherCustomerId, 'customer_admin');
+        $service = app(MediaService::class);
+        $attributes = ['file_type' => 'image', 'module' => 'course', 'entity_type' => 'activities', 'entity_id' => 9001, 'purpose' => 'cover'];
+        TenantContext::set((object) ['id' => $otherCustomerId]);
+        $foreign = $service->uploadMedia(UploadedFile::fake()->image('b.png'), $attributes, $otherUser->id);
+        $foreignRegion = $this->derivedRegion($otherCustomerId, (int) $foreign->id, 'b');
+        TenantContext::set((object) ['id' => $customerId]);
+        $media = $service->uploadMedia(UploadedFile::fake()->image('page.png'), $attributes, $user->id);
+        $sibling = $service->uploadMedia(UploadedFile::fake()->image('other.png', 20, 20), ['entity_id' => 9002] + $attributes, $user->id);
+        $region = $this->derivedRegion($customerId, (int) $media->id, 'a');
+        $siblingRegion = $this->derivedRegion($customerId, (int) $sibling->id, 's');
+        $captionKey = "tenants/{$customerId}/media/{$media->id}/captions/vi.vtt";
+        Storage::disk('media_local')->put($captionKey, "WEBVTT\n");
+        $caption = DB::table('media_captions')->insertGetId([
+            'customer_id' => $customerId, 'media_file_id' => $media->id, 'locale' => 'vi', 'caption_type' => 'vtt', 'storage_key' => $captionKey,
+            'status' => 'ready', 'processing_version' => 'v1', 'source_fingerprint' => str_repeat('c', 64), 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $cropUrl = $service->generateDerivedSignedUrl($media, 'region', $region, 'ignored-on-local-disks');
+        $this->assertStringStartsWith('https://tenant-a.localhost/media/files/'.$media->id.'/derived/region/'.$region.'/signed?', $cropUrl);
+        $this->get($cropUrl)->assertOk()->assertHeader('content-type', 'image/png');
+        $this->assertSame('crop-a', $this->get($cropUrl)->baseResponse->getFile()->getContent());
+        $this->get($service->generateDerivedSignedUrl($media, 'caption', $caption, $captionKey))->assertOk()->assertHeader('content-type', 'text/vtt; charset=utf-8');
+
+        // Another tenant host, a tampered id and an expired link are refused by the absolute signature.
+        $this->get(str_replace('tenant-a.', 'tenant-b.', $cropUrl))->assertForbidden();
+        $this->get(str_replace('/region/'.$region.'/', '/region/'.$siblingRegion.'/', $cropUrl))->assertForbidden();
+        $this->travel(6)->minutes();
+        $this->get($cropUrl)->assertForbidden();
+        $this->travelBack();
+
+        // A correctly signed link to a row of another Media, or of another tenant, finds nothing.
+        $sign = fn (int $mediaId, string $kind, int $id) => URL::temporarySignedRoute('media.derived.signed', now()->addMinutes(5), ['mediaFile' => $mediaId, 'kind' => $kind, 'derived' => $id]);
+        $this->get($sign((int) $media->id, 'region', $siblingRegion))->assertNotFound();
+        $this->get($sign((int) $foreign->id, 'region', $foreignRegion))->assertNotFound();
+        $this->get($sign((int) $media->id, 'caption', $region))->assertNotFound();
+        $this->get($sign((int) $media->id, 'region', 999999))->assertNotFound();
+        Storage::disk('media_local')->delete("tenants/{$customerId}/media/{$media->id}/regions/a.png");
+        $this->get($sign((int) $media->id, 'region', $region))->assertNotFound();
+    }
+
+    private function derivedRegion(int $customerId, int $mediaId, string $tag): int
+    {
+        $key = "tenants/{$customerId}/media/{$mediaId}/regions/{$tag}.png";
+        Storage::disk('media_local')->put($key, 'crop-'.$tag);
+
+        return DB::table('media_extracted_regions')->insertGetId([
+            'customer_id' => $customerId, 'media_file_id' => $mediaId, 'locale' => 'vi', 'locator_type' => 'region',
+            'locator_value' => 'p1-r1', 'page' => 1, 'ordinal' => 1, 'reading_order' => 1, 'role' => 'figure',
+            'extraction_method' => 'docling', 'processing_version' => 'v1', 'source_fingerprint' => str_repeat('f', 64), 'status' => 'ready',
+            'crop_storage_key' => $key, 'crop_mime_type' => 'image/png', 'crop_width' => 10, 'crop_height' => 10, 'crop_bytes' => 6,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+    }
+
     public function test_signed_delivery_encodes_the_display_name_in_content_disposition(): void
     {
         $customerId = $this->createTenant();
@@ -467,6 +564,35 @@ class MediaFileFoundationTest extends TestCase
         $this->assertStringContainsString("filename*=utf-8''".rawurlencode('Bài "1"-..-ảnh bìa.png'), $disposition);
         $this->assertStringNotContainsString("\r", $disposition);
         $this->assertStringNotContainsString("\n", $disposition);
+    }
+
+    public function test_signed_delivery_of_a_ready_row_without_its_object_is_not_found(): void
+    {
+        $customerId = $this->createTenant();
+        $user = $this->createUser($customerId, 'customer_admin');
+        TenantContext::set((object) ['id' => $customerId]);
+
+        $mediaFile = app(MediaService::class)->uploadMedia(
+            UploadedFile::fake()->image('cover.png'),
+            ['file_type' => 'image', 'module' => 'course', 'entity_type' => 'activities', 'entity_id' => 9001, 'purpose' => 'cover'],
+            $user->id
+        );
+        Storage::disk($mediaFile->storage_disk)->delete($mediaFile->storage_key);
+
+        $url = URL::temporarySignedRoute('media.files.signed', now()->addMinutes(5), ['mediaFile' => $mediaFile->id]);
+        $this->get($url)->assertNotFound();
+    }
+
+    public function test_m4a_and_aac_audio_pass_the_content_rules_without_opening_mp4_as_audio(): void
+    {
+        $media = app(MediaService::class);
+
+        foreach ([['audio/x-m4a', 'm4a'], ['audio/mp4', 'm4a'], ['audio/aac', 'aac'], ['audio/x-hx-aac-adts', 'aac'], ['video/mp4', 'm4a']] as [$mime, $extension]) {
+            $this->assertTrue($media->fileContentIsAllowed('audio', $mime, $extension), "{$mime} .{$extension}");
+        }
+        $this->assertFalse($media->fileContentIsAllowed('audio', 'video/mp4', 'mp4'));
+        $this->assertFalse($media->fileContentIsAllowed('audio', 'video/quicktime', 'm4a'));
+        $this->assertFalse($media->fileContentIsAllowed('video', 'audio/x-m4a', 'mp4'));
     }
 
     public function test_tenant_can_attach_media_file_usage(): void

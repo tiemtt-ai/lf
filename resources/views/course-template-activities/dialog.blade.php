@@ -31,6 +31,7 @@
     </div>
     <x-ui-upload-progress />
     <x-media-library-picker />
+    <x-assessment-quiz-picker :url="route($templateRoutePrefix.'.activities.quiz-picker', $template->id)" />
     <footer class="ui-modal__footer">
         <span class="ui-caption ui-field__error" role="alert" data-ui-dialog-form-feedback></span>
         <button type="button" class="ui-button cursor-interaction" data-ui-dialog-form-cancel>

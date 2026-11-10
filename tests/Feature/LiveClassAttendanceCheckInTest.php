@@ -254,6 +254,32 @@ class LiveClassAttendanceCheckInTest extends TestCase
             ->assertOk()->assertSee(__('lf.LF_course_cohort_attendance_checked_in_qr', ['time' => '16:02']));
     }
 
+    public function test_a_form_loaded_before_a_scan_does_not_overwrite_it(): void
+    {
+        $setup = $this->setupClass();
+        $session = $this->liveSession($setup, 'offline');
+        $scannedLater = $this->learner($setup);
+        $absent = $this->learner($setup);
+        $cancelled = $this->learner($setup, enrollmentStatus: 'cancelled');
+        $enrollment = fn (User $user): int => (int) DB::table('core_course_cohort_students')->where('student_id', $user->id)->value('enrollment_id');
+        $untouched = ['loaded_status' => 'registered', 'loaded_mode' => '', 'loaded_notes' => ''];
+        // The admin opened the tab while nobody had checked in; the scan happens before the save.
+        $this->scanAt($setup, $session, $scannedLater, '2026-07-04 16:02:00');
+
+        $response = $this->actingAs($setup['admin'])->put(self::HOST."/admin/course-cohorts/{$setup['cohort']}/sessions/{$session}/attendance", ['attendance' => [
+            ['enrollment_id' => $enrollment($scannedLater), 'status' => 'registered', 'attendance_mode' => '', 'notes' => ''] + $untouched,
+            ['enrollment_id' => $enrollment($absent), 'status' => 'absent', 'attendance_mode' => '', 'notes' => ''] + $untouched,
+            ['enrollment_id' => $enrollment($cancelled), 'status' => 'present', 'attendance_mode' => '', 'notes' => ''] + $untouched,
+        ]])->assertRedirect();
+
+        $rows = DB::table('core_liveclass_attendances')->where('session_id', $session)->get()->keyBy('user_id');
+        $this->assertSame(['present', 'system'], [$rows[$scannedLater->id]->status, $rows[$scannedLater->id]->attendance_source]);
+        $this->assertSame(['absent', 'manual'], [$rows[$absent->id]->status, $rows[$absent->id]->attendance_source]);
+        $this->assertFalse($rows->has($cancelled->id));
+        $response->assertSessionHas('success', __('lf.LF_course_cohort_attendance_saved').' '
+            .__('lf.LF_course_cohort_attendance_skipped_inactive', ['count' => 1]));
+    }
+
     public function test_an_unassigned_session_offers_no_code_and_records_no_scan(): void
     {
         $setup = $this->setupClass();

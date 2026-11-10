@@ -301,7 +301,11 @@ class AiAuthoringSuccessorMariaDbTest extends TestCase
         $draft = (int) $learning->createDraftVersion($this->f['admin_id'], ['framework_id' => $this->f['framework_id'], 'version_code' => 'v2', 'title' => 'V2'])->id;
         $nodeId = $this->tenantService(AiAuthoringApplicationService::class)->approveNode($this->f['admin_id'], $uuid, $this->f['framework_id'], $draft, 1, 1, (string) Str::uuid())['node_id'];
         $learning->publishVersion($this->f['admin_id'], $draft);
+        // A selected framework is switched only on a draft Template (core_course_templates.md).
+        $status = DB::table('core_course_templates')->where('id', $this->f['template_id'])->value('status');
+        DB::table('core_course_templates')->where('id', $this->f['template_id'])->update(['status' => 'draft']);
         $this->tenantService(CourseTemplateLearningMappingIntentService::class)->select($this->f['admin_id'], $this->f['customer_id'], $this->f['template_id'], $this->f['framework_id'], $draft);
+        DB::table('core_course_templates')->where('id', $this->f['template_id'])->update(['status' => $status]);
 
         return [$uuid, $nodeId];
     }

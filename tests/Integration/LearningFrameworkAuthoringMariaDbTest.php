@@ -568,6 +568,76 @@ class LearningFrameworkAuthoringMariaDbTest extends TestCase
         $this->assertSame('Description remains editable', $updated->description);
     }
 
+    /**
+     * Every write path locks the Framework row before any Version, Definition or Node row, so two
+     * paths never wait on each other in opposite order (discardDraft and workingDraft already did).
+     */
+    public function test_every_authoring_write_locks_the_framework_before_the_rows_under_it(): void
+    {
+        $fixture = $this->courseFixture('lockorder');
+        TenantContext::set((object) ['id' => $fixture['customer_id']]);
+        $service = app(LearningFrameworkAuthoringService::class);
+        $adminId = $fixture['admin_id'];
+        $framework = $service->createFramework($adminId, $this->frameworkCommand('lockorder'));
+        $version = $service->createDraftVersion($adminId, [
+            'framework_id' => $framework->id, 'version_code' => 'v1', 'title' => 'Draft',
+        ]);
+        $definition = $service->createDefinition($adminId, [
+            'framework_id' => $framework->id, 'code' => 'lock-order', 'node_type' => 'concept',
+            'canonical_name' => 'Lock order',
+        ]);
+
+        $locked = [];
+        DB::listen(function ($query) use (&$locked): void {
+            if (str_ends_with(strtolower(trim($query->sql)), 'for update')
+                && preg_match('/from `([a-z_]+)`/', $query->sql, $match) === 1) {
+                $locked[] = $match[1];
+            }
+        });
+        $firstLocks = function (callable $write) use (&$locked): array {
+            $locked = [];
+            $write();
+
+            return array_values(array_unique(array_filter($locked, fn (string $table): bool => in_array($table, [
+                'core_learning_frameworks', 'core_learning_framework_versions',
+                'core_learning_node_definitions', 'core_learning_nodes',
+            ], true))));
+        };
+
+        $node = null;
+        $paths = [
+            'createNode' => function () use ($service, $adminId, $version, $definition, &$node): void {
+                $node = $service->createNode($adminId, [
+                    'framework_version_id' => $version->id, 'node_definition_id' => $definition->id,
+                ]);
+            },
+            'updateDraftVersion' => fn () => $service->updateDraftVersion($adminId, $version->id, [
+                'framework_id' => $framework->id, 'version_code' => 'v1', 'title' => 'Draft 2',
+            ]),
+            'updateDefinition' => fn () => $service->updateDefinition($adminId, $definition->id, [
+                'framework_id' => $framework->id, 'code' => 'lock-order', 'node_type' => 'concept',
+                'canonical_name' => 'Lock order 2',
+            ]),
+            'updateDraftNode' => function () use ($service, $adminId, $version, $definition, &$node): void {
+                $service->updateDraftNode($adminId, $node->id, [
+                    'framework_version_id' => $version->id, 'node_definition_id' => $definition->id, 'sequence' => 2,
+                ]);
+            },
+            'publishVersion' => fn () => $service->publishVersion($adminId, $version->id),
+            'workingDraft' => fn () => $service->workingDraft($adminId, $framework->id),
+        ];
+
+        foreach ($paths as $name => $write) {
+            $tables = $firstLocks($write);
+            $this->assertSame('core_learning_frameworks', $tables[0] ?? null, "{$name} locks ".implode(', ', $tables));
+        }
+
+        $draft = DB::table('core_learning_framework_versions')
+            ->where('framework_id', $framework->id)->where('status', 'draft_snapshot')->first();
+        $tables = $firstLocks(fn () => $service->discardDraft($adminId, $framework->id, $draft->id));
+        $this->assertSame('core_learning_frameworks', $tables[0] ?? null, 'discardDraft locks '.implode(', ', $tables));
+    }
+
     public function test_node_definition_and_published_draft_mutations_fail_with_exact_codes(): void
     {
         $fixture = $this->courseFixture('immutable');

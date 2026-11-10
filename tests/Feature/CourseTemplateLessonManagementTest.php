@@ -490,6 +490,28 @@ class CourseTemplateLessonManagementTest extends TestCase
         ]);
     }
 
+    public function test_lesson_description_and_sort_order_are_bounded_to_their_columns(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, 'Bounded Course', 'bounded-course');
+        $sectionId = $this->createSection($customerId, $templateId, 'Bounded Section');
+        $url = $this->lessonCollectionUrl('admin', $templateId, $sectionId);
+
+        $this->actingAs($admin)
+            ->post($url, $this->validLessonData([
+                'description' => str_repeat('ạ', 20001),
+                'sort_order' => 1000001,
+            ]))
+            ->assertSessionHasErrors(['description', 'sort_order']);
+        $this->actingAs($admin)
+            ->post($url, $this->validLessonData([
+                'description' => str_repeat('ạ', 20000),
+                'sort_order' => 1000000,
+            ]))
+            ->assertSessionDoesntHaveErrors(['description', 'sort_order']);
+    }
+
     public function test_validation_and_conditional_unlock_fields_are_enforced(): void
     {
         $customerId = $this->createTenant();
@@ -1971,6 +1993,38 @@ class CourseTemplateLessonManagementTest extends TestCase
         }
     }
 
+    public function test_update_with_an_order_answers_404_for_a_lesson_deleted_before_the_template_lock(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, 'Race Course', 'race-course');
+        [$firstId, $secondId] = $this->createOrderedLessons($customerId, $templateId, null, ['First', 'Second']);
+        // The other admin's delete commits after this request's form check, before its Template lock.
+        $raced = false;
+        DB::listen(function ($query) use (&$raced, $secondId): void {
+            if (! $raced && DB::transactionLevel() > 1 && str_contains($query->sql, 'from "core_course_templates"')) {
+                $raced = true;
+                DB::table('core_course_template_lessons')->where('id', $secondId)->delete();
+            }
+        });
+
+        $this->actingAs($admin)
+            ->putJson(
+                $this->directLessonCollectionUrl('admin', $templateId)."/{$secondId}",
+                $this->validLessonData([
+                    'title' => 'Second',
+                    'sort_order' => 2,
+                    'unlock_rule' => 'selected_lessons_completed',
+                    'prerequisite_match' => 'all',
+                    'prerequisite_lesson_ids' => [$firstId],
+                ])
+            )
+            ->assertNotFound();
+
+        $this->assertTrue($raced);
+        $this->assertDatabaseMissing('core_course_template_lesson_prerequisites', ['lesson_id' => $secondId]);
+    }
+
     public function test_update_refusal_also_rolls_back_the_prerequisites_of_the_moved_lesson(): void
     {
         $customerId = $this->createTenant();
@@ -2562,7 +2616,7 @@ class CourseTemplateLessonManagementTest extends TestCase
     ): int {
         $now = now();
 
-        return DB::table('core_course_templates')->insertGetId(['course_type' => 'blended',
+        return $this->assignCreator($customerId, DB::table('core_course_templates')->insertGetId(['course_type' => 'blended',
             'customer_id' => $customerId,
             'category_id' => null,
             'title' => $title,
@@ -2585,7 +2639,21 @@ class CourseTemplateLessonManagementTest extends TestCase
             'last_version_published_at' => null,
             'created_at' => $now,
             'updated_at' => $now,
-        ]);
+        ]), $createdBy);
+    }
+
+    /** The creator of a Template is its primary assignment when a teacher (Owner decision 2026-11-10). */
+    private function assignCreator(int $customerId, int $templateId, ?int $createdBy): int
+    {
+        if ($createdBy !== null && DB::table('users')->where('id', $createdBy)->value('role') === 'teacher') {
+            DB::table('core_course_template_teachers')->insert([
+                'customer_id' => $customerId, 'template_id' => $templateId, 'teacher_id' => $createdBy,
+                'role' => 'primary', 'sort_order' => 0, 'status' => 'active',
+                'assigned_by' => $createdBy, 'assigned_at' => now(), 'created_at' => now(), 'updated_at' => now(),
+            ]);
+        }
+
+        return $templateId;
     }
 
     private function createSection(

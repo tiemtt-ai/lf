@@ -258,7 +258,6 @@ class CourseProductManagementTest extends TestCase
                 'thumbnail_image' => '/images/topik.jpg',
                 'thumbnail_video_source' => 'youtube',
                 'thumbnail_video_url' => 'https://www.youtube.com/watch?v=example',
-                'thumbnail_video_media_id' => 12,
                 'price' => '299000.00',
                 'sale_price' => '199000.00',
                 'sale_starts_at' => '2026-07-01 00:00:00',
@@ -284,7 +283,7 @@ class CourseProductManagementTest extends TestCase
                 'meta_title' => 'TOPIK Beginner',
                 'meta_description' => 'Learn TOPIK from the beginning.',
                 'meta_keywords' => 'topik,korean',
-                'status' => 'active',
+                'status' => 'draft',
             ]))
             ->assertRedirectContains('/admin/course-products/')
             ->assertSessionHas('success', 'Sản phẩm đã được tạo. Bạn có thể thêm phiên bản khóa học và sản phẩm liên quan.');
@@ -299,7 +298,6 @@ class CourseProductManagementTest extends TestCase
             'thumbnail_image' => '/images/topik.jpg',
             'thumbnail_video_source' => 'youtube',
             'thumbnail_video_url' => 'https://www.youtube.com/watch?v=example',
-            'thumbnail_video_media_id' => 12,
             'currency' => 'VND',
             'enrollment_type' => 'paid',
             'max_students' => 100,
@@ -317,18 +315,126 @@ class CourseProductManagementTest extends TestCase
             'meta_title' => 'TOPIK Beginner',
             'meta_description' => 'Learn TOPIK from the beginning.',
             'meta_keywords' => 'topik,korean',
-            'status' => 'active',
+            'status' => 'draft',
+            'published_at' => null,
             'created_by' => $admin->id,
             'enrollment_count' => 0,
             'is_certificate_enabled' => 0,
         ]);
+    }
 
-        $this->assertNotNull(
-            DB::table('core_course_products')
-                ->where('customer_id', $customerId)
-                ->where('slug', 'topik-beginner')
-                ->value('published_at')
-        );
+    public function test_create_ignores_legacy_thumbnail_video_media_id(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+
+        $this->actingAs($admin)
+            ->post('https://tenant-a.localhost/admin/course-products', $this->validProductData([
+                'title' => 'Legacy Media', 'thumbnail_video_media_id' => 999999,
+            ]))
+            ->assertRedirectContains('/admin/course-products/');
+
+        $this->assertNull(DB::table('core_course_products')->where('slug', 'legacy-media')->value('thumbnail_video_media_id'));
+    }
+
+    public function test_update_keeps_columns_the_form_does_not_send(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $this->actingAs($admin);
+        $productId = $this->createProduct($customerId, 'Kept Product', 'kept-product');
+        $kept = [
+            'visibility' => 'hidden', 'max_students' => 40, 'sale_price' => '1000.00',
+            'available_from' => '2026-08-01 00:00:00', 'available_until' => '2026-12-01 00:00:00',
+            'tags' => '["a"]', 'badge_type' => 'hot', 'is_refundable' => 1, 'refund_days' => 5,
+            'show_enrollment_count' => 0, 'display_enrollment_count' => 9,
+            'thumbnail_type' => 'video', 'thumbnail_image' => '/x.jpg',
+            'thumbnail_video_source' => 'youtube', 'thumbnail_video_url' => 'https://youtu.be/x',
+            'thumbnail_video_media_id' => 77,
+        ];
+        DB::table('core_course_products')->where('id', $productId)->update($kept);
+        $payload = array_diff_key($this->validProductData(['title' => 'Kept Product', 'price' => 5000]), $kept);
+
+        $this->actingAs($admin)
+            ->put("https://tenant-a.localhost/admin/course-products/{$productId}", $payload)
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('core_course_products', ['id' => $productId, 'price' => 5000] + $kept);
+    }
+
+    public function test_product_dates_are_stored_as_app_timezone_wall_clock_and_bounded(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+
+        $this->actingAs($admin)
+            ->post('https://tenant-a.localhost/admin/course-products', $this->validProductData([
+                'title' => 'Dated Product',
+                'registration_starts_at' => '2026-11-10T10:00:00Z',
+                'registration_ends_at' => '2026-11-20T21:30',
+            ]))
+            ->assertRedirectContains('/admin/course-products/');
+
+        // Asia/Ho_Chi_Minh is UTC+7: 10:00Z is 17:00 local.
+        $this->assertDatabaseHas('core_course_products', [
+            'slug' => 'dated-product',
+            'registration_starts_at' => '2026-11-10 17:00:00',
+            'registration_ends_at' => '2026-11-20 21:30:00',
+        ]);
+
+        $this->actingAs($admin)
+            ->post('https://tenant-a.localhost/admin/course-products', $this->validProductData([
+                'title' => 'Far Product',
+                'registration_starts_at' => '2026-11-10 10:00:00',
+                'registration_ends_at' => '9999-12-31 23:59:59',
+            ]))
+            ->assertSessionHasErrors('registration_ends_at');
+
+        // The ordering rule still compares the instants, offsets included.
+        $this->actingAs($admin)
+            ->post('https://tenant-a.localhost/admin/course-products', $this->validProductData([
+                'title' => 'Reversed Product',
+                'registration_starts_at' => '2026-11-10T10:00:00Z',
+                'registration_ends_at' => '2026-11-10 16:00:00',
+            ]))
+            ->assertSessionHasErrors('registration_ends_at');
+    }
+
+    public function test_create_retries_a_product_code_collision_and_maps_a_slug_collision_to_validation(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $this->actingAs($admin);
+        $existingId = $this->createProduct($customerId, 'Seed', 'seed', 'SEED-1');
+        $seed = (array) DB::table('core_course_products')->where('id', $existingId)->first();
+        unset($seed['id']);
+        // A concurrent create commits right after this request read the highest code. SQLite has one
+        // connection, so the row is injected from a listener on the generator's code query; it rolls
+        // back with the failed attempt, which is enough to show the collision is retried or mapped.
+        $concurrent = null;
+        $codeQueries = 0;
+        DB::listen(function ($query) use (&$concurrent, &$codeQueries, $seed): void {
+            if (! str_contains($query->sql, '"product_code" like')) {
+                return;
+            }
+            $codeQueries++;
+            if ($concurrent !== null) {
+                $row = $concurrent;
+                $concurrent = null;
+                DB::table('core_course_products')->insert(array_merge($seed, $row));
+            }
+        });
+
+        $concurrent = ['product_code' => 'PRD-20260704-001', 'slug' => 'other-product', 'title' => 'Other product'];
+        $this->post('https://tenant-a.localhost/admin/course-products', $this->validProductData(['title' => 'Race Product']))
+            ->assertRedirectContains('/admin/course-products/');
+        $this->assertSame(2, $codeQueries, 'the code collision is retried with a fresh code');
+        $this->assertSame('PRD-20260704-001', DB::table('core_course_products')->where('slug', 'race-product')->value('product_code'));
+
+        $concurrent = ['product_code' => 'SEED-2', 'slug' => 'twin-product', 'title' => 'Twin Product'];
+        $this->post('https://tenant-a.localhost/admin/course-products', $this->validProductData(['title' => 'Twin Product']))
+            ->assertSessionHasErrors('slug');
+        $this->assertSame(0, DB::table('core_course_products')->where('slug', 'twin-product')->count());
     }
 
     public function test_admin_can_edit_update_and_archive_product_without_hard_delete(): void
@@ -615,6 +721,30 @@ class CourseProductManagementTest extends TestCase
         ]);
     }
 
+    public function test_product_code_is_not_reused_after_a_draft_is_deleted(): void
+    {
+        $customerId = $this->createTenant();
+        $otherCustomerId = $this->createTenant('tenant-b');
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $url = 'https://tenant-a.localhost/admin/course-products';
+        // Another tenant's deleted code does not affect this tenant's sequence.
+        DB::table('saas_audit_logs')->insert([
+            'customer_id' => $otherCustomerId, 'action' => 'course_product_delete',
+            'before' => json_encode(['product_id' => 999, 'product_code' => 'PRD-20260704-007']), 'created_at' => now(),
+        ]);
+
+        $this->actingAs($admin)->post($url, $this->validProductData(['title' => 'Mistake', 'slug' => 'mistake']))
+            ->assertRedirectContains('/admin/course-products/');
+        $mistake = DB::table('core_course_products')->where('slug', 'mistake')->first();
+        $this->assertSame('PRD-20260704-001', $mistake->product_code);
+        $this->actingAs($admin)->deleteJson($url, ['ids' => [$mistake->id]])->assertOk();
+        $this->assertDatabaseHas('saas_audit_logs', ['customer_id' => $customerId, 'action' => 'course_product_delete']);
+
+        $this->actingAs($admin)->post($url, $this->validProductData(['title' => 'Replacement', 'slug' => 'replacement']))
+            ->assertRedirectContains('/admin/course-products/');
+        $this->assertSame('PRD-20260704-002', DB::table('core_course_products')->where('slug', 'replacement')->value('product_code'));
+    }
+
     public function test_product_code_is_hidden_on_create_and_readonly_on_edit(): void
     {
         $customerId = $this->createTenant();
@@ -891,28 +1021,28 @@ class CourseProductManagementTest extends TestCase
         $this->assertDatabaseCount('core_course_products', 0);
     }
 
-    public function test_all_documented_statuses_are_accepted(): void
+    public function test_create_accepts_only_the_draft_status(): void
     {
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
 
-        foreach (['draft', 'active', 'inactive', 'archived'] as $status) {
-            $this->actingAs($admin)
-                ->post(
-                    'https://tenant-a.localhost/admin/course-products',
-                    $this->validProductData([
-                        'title' => 'Product '.$status,
-                        'slug' => 'product-'.$status,
-                        'status' => $status,
-                    ])
-                )
-                ->assertRedirectContains('/edit');
+        $this->actingAs($admin)
+            ->post('https://tenant-a.localhost/admin/course-products', $this->validProductData([
+                'title' => 'Product draft', 'status' => 'draft',
+            ]))
+            ->assertRedirectContains('/edit');
+        $this->assertDatabaseHas('core_course_products', [
+            'customer_id' => $customerId, 'slug' => 'product-draft', 'status' => 'draft', 'published_at' => null,
+        ]);
 
-            $this->assertDatabaseHas('core_course_products', [
-                'customer_id' => $customerId,
-                'slug' => 'product-'.$status,
-                'status' => $status,
-            ]);
+        // A crafted create cannot skip the activation checks and audit row that update applies.
+        foreach (['active', 'inactive', 'archived'] as $status) {
+            $this->actingAs($admin)
+                ->post('https://tenant-a.localhost/admin/course-products', $this->validProductData([
+                    'title' => 'Product '.$status, 'status' => $status,
+                ]))
+                ->assertSessionHasErrors('status');
+            $this->assertDatabaseMissing('core_course_products', ['customer_id' => $customerId, 'slug' => 'product-'.$status]);
         }
     }
 

@@ -66,7 +66,9 @@ class MediaService
             $customerId,
             $checksum,
             $fileSizeBytes,
-            $mimeType
+            $mimeType,
+            $uploadedBy,
+            $validated['file_type']
         );
 
         if ($duplicate) {
@@ -191,10 +193,24 @@ class MediaService
         return $this->signedUrlForMedia($mediaFile, $expiresAt);
     }
 
-    public function generateDerivedSignedUrl(object $mediaFile, string $storageKey, ?DateTimeInterface $expiresAt = null): string
+    /**
+     * Signed URL of a derived object of a Media: `region` / `formula` (its crop), `caption` or `variant`, by that row's id.
+     * A local disk signs the tenant-bound `media.derived.signed` route (absolute signature, `tenant` middleware), never
+     * Laravel's `/storage/{path}` serve route, whose relative signature works on any tenant host. Object storage keeps
+     * its own short-lived URL.
+     */
+    public function generateDerivedSignedUrl(object $mediaFile, string $kind, int $derivedId, string $storageKey, ?DateTimeInterface $expiresAt = null): string
     {
         abort_unless($mediaFile->status === 'ready', 404);
         $expiresAt ??= now()->addMinutes((int) config('media.signed_url_ttl_minutes', 10));
+
+        if ($this->shouldUseSignedDeliveryRoute($mediaFile)) {
+            return URL::temporarySignedRoute('media.derived.signed', $expiresAt, [
+                'mediaFile' => $mediaFile->id,
+                'kind' => $kind,
+                'derived' => $derivedId,
+            ]);
+        }
 
         return Storage::disk($mediaFile->storage_disk)->temporaryUrl($storageKey, $expiresAt);
     }
@@ -414,7 +430,11 @@ class MediaService
                         'metadata' => $this->encodeMetadata(
                             $usage['metadata']
                         ),
-                        'created_by' => $existing->created_by ?? $createdBy,
+                        // A re-activated usage belongs to whoever attached it now: the share-revoke check (ADR-0021 D7)
+                        // reads created_by, and the earlier owner of the row must not count as the one using it.
+                        'created_by' => $existing->status === 'active'
+                            ? ($existing->created_by ?? $createdBy)
+                            : ($createdBy ?? $existing->created_by),
                         'updated_at' => $now,
                     ]);
 
@@ -627,15 +647,15 @@ class MediaService
      * shared with attachUsage(), so a concurrent attach either wins and keeps
      * the asset, or observes the tombstone and cannot resurrect deleted media.
      */
-    public function deleteMediaIfUnused(int $mediaFileId): ?object
+    public function deleteMediaIfUnused(int $mediaFileId, ?int $onlyUploadedBy = null): ?object
     {
-        return $this->deleteMediaInternal($mediaFileId, false);
+        return $this->deleteMediaInternal($mediaFileId, false, $onlyUploadedBy);
     }
 
-    private function deleteMediaInternal(int $mediaFileId, bool $failWhenInUse): ?object
+    private function deleteMediaInternal(int $mediaFileId, bool $failWhenInUse, ?int $onlyUploadedBy = null): ?object
     {
         $customerId = $this->customerId();
-        $mediaFile = DB::transaction(function () use ($customerId, $mediaFileId, $failWhenInUse): ?object {
+        $mediaFile = DB::transaction(function () use ($customerId, $mediaFileId, $failWhenInUse, $onlyUploadedBy): ?object {
             $mediaFile = DB::table('media_files')
                 ->where('customer_id', $customerId)
                 ->where('id', $mediaFileId)
@@ -645,6 +665,11 @@ class MediaService
             if ($mediaFile === null) {
                 abort_if($failWhenInUse, 404);
 
+                return null;
+            }
+
+            // A cleanup on someone's behalf only removes their own upload.
+            if ($onlyUploadedBy !== null && (int) $mediaFile->uploaded_by !== $onlyUploadedBy) {
                 return null;
             }
 
@@ -993,6 +1018,11 @@ class MediaService
             return true;
         }
 
+        // Likewise an MP4-container recording (Safari MediaRecorder, saved as .m4a) can be reported as video/mp4.
+        if ($fileType === 'audio' && $extension === 'm4a' && $mimeType === 'video/mp4') {
+            return true;
+        }
+
         $rules = $this->fileContentRules()[$fileType] ?? null;
 
         return $rules !== null
@@ -1043,6 +1073,9 @@ class MediaService
                     'audio/ogg',
                     'audio/webm',
                     'audio/mp4',
+                    'audio/x-m4a',
+                    'audio/aac',
+                    'audio/x-hx-aac-adts',
                 ],
                 'extensions' => ['mp3', 'wav', 'ogg', 'webm', 'm4a', 'aac'],
             ],
@@ -1158,14 +1191,23 @@ class MediaService
         }
     }
 
+    /**
+     * The same bytes uploaded again by the same person reuse their Media. Another
+     * person's identical file is never handed back: the uploader owns the row
+     * (ADR-0021), and a learner's cleanup must never reach staff files.
+     */
     private function findDuplicateMediaFile(
         int $customerId,
         string $checksum,
         int $fileSizeBytes,
-        string $mimeType
+        string $mimeType,
+        int $uploadedBy,
+        string $fileType
     ): ?object {
         return DB::table('media_files')
             ->where('customer_id', $customerId)
+            ->where('uploaded_by', $uploadedBy)
+            ->where('file_type', $fileType)
             ->where('checksum', $checksum)
             ->where('file_size_bytes', $fileSizeBytes)
             ->where('mime_type', $mimeType)

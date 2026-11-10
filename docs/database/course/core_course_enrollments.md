@@ -323,6 +323,12 @@ NOT NULL
 
 Thời điểm học viên được cấp quyền học.
 
+Đầu vào (2026-11-10): giá trị gửi lên được đọc theo `config('app.timezone')`;
+giá trị có múi giờ khác được đổi sang `app.timezone` trước khi lưu. Chỉ nhận từ
+2000-01-01 đến trước 2100-01-01 (`App\Support\EnrollmentTime`), để mốc cộng thời
+lượng Product không vượt giới hạn `DATETIME`. Ngoài khoảng này là lỗi nhập, không
+phải lỗi DB.
+
 ---
 
 ### access_duration_days

@@ -1,6 +1,6 @@
 # ADR-0021 — Media Sharing Within Tenant
 
-Version: 1.0
+Version: 1.1
 
 Status: Approved
 
@@ -8,7 +8,7 @@ Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-10-21
+Last Updated: 2026-11-10
 
 Proposal Date: 2026-10-21
 
@@ -126,6 +126,13 @@ thấy Media ở danh sách thư viện và hộp chọn, và bị xoá khi Medi
 tôi*. Đây là cách chủ sở hữu tự quyết điều gì được tiết lộ: hệ thống không tự suy ra
 tên nội dung đang dùng Media (D6 giữ nguyên: chỉ số lượng, không tên). Đổi riêng
 ghi chú không phải thu hồi chia sẻ nên không chạy kiểm tra D7.
+
+## D12 — Không chia sẻ Media của học viên (Amendment 2026-11-10, Owner duyệt)
+
+Owner chose the simple gate: Media do học viên (`student`) tải lên hoặc từng được
+dùng làm bài làm (usage `assessment_answer`: tệp đính kèm bài luận, bản ghi âm nói)
+không chia sẻ được, kể cả bởi admin; đưa về *Chỉ mình tôi* vẫn được. A full PII
+classification stays future work (ADR-0018).
 
 ---
 
