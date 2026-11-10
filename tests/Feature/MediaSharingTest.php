@@ -203,6 +203,41 @@ class MediaSharingTest extends TestCase
         $this->assertStringContainsString('Staff doc', $shareButtons->item(0)->getAttribute('aria-label'));
     }
 
+    public function test_a_learner_file_shared_before_the_gate_stays_out_of_teacher_reach(): void
+    {
+        [$customerId, $admin, $teachers] = $this->world();
+        $student = $this->createUser($customerId, 'student');
+        $byStudent = $this->upload($student, 'Old student essay');
+        $answer = $this->upload($admin, 'Old answer recording');
+        $staff = $this->upload($admin, 'Old staff doc');
+        app(MediaService::class)->attachUsage($answer, 'assessment_answer', 78, 'attachment');
+        // Share rows written before the sharing gate existed: all teachers, and one teacher by name.
+        foreach ([$byStudent, $answer, $staff] as $media) {
+            DB::table('media_file_shares')->insert([
+                ['customer_id' => $customerId, 'media_file_id' => $media, 'grantee_type' => 'role', 'grantee_user_id' => null, 'grantee_role' => 'teacher',
+                    'grantee_key' => 'role:teacher', 'shared_by' => $admin->id, 'created_at' => now(), 'updated_at' => now()],
+                ['customer_id' => $customerId, 'media_file_id' => $media, 'grantee_type' => 'user', 'grantee_user_id' => $teachers[0]->id, 'grantee_role' => null,
+                    'grantee_key' => 'u:'.$teachers[0]->id, 'shared_by' => $admin->id, 'created_at' => now(), 'updated_at' => now()],
+            ]);
+        }
+        $shares = app(MediaShareService::class);
+
+        $visible = $shares->visibleToTeacher($customerId, $teachers[0]->id)->pluck('media_files.id')->map(fn ($id): int => (int) $id)->all();
+        $this->assertContains($staff, $visible);
+        $this->assertNotContains($byStudent, $visible);
+        $this->assertNotContains($answer, $visible);
+        foreach ([$byStudent, $answer] as $media) {
+            $this->assertNull(DB::transaction(fn () => $shares->lockForAttach($customerId, $media, $teachers[0])));
+            $this->assertSame($media, (int) DB::transaction(fn () => $shares->lockForAttach($customerId, $media, $admin))?->id);
+        }
+        $this->assertSame($staff, (int) DB::transaction(fn () => $shares->lockForAttach($customerId, $staff, $teachers[0]))?->id);
+
+        $html = $this->actingAs($teachers[0])->get('https://tenant-a.localhost/teacher/media')->assertOk()->getContent();
+        $this->assertStringContainsString('Old staff doc', $html);
+        $this->assertStringNotContainsString('Old student essay', $html);
+        $this->assertStringNotContainsString('Old answer recording', $html);
+    }
+
     public function test_a_reattached_usage_counts_for_whoever_attached_it_again(): void
     {
         [$customerId, $admin, $teachers] = $this->world();

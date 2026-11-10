@@ -1,6 +1,6 @@
 # LF-Media.md
 
-Version: 1.21
+Version: 1.22
 
 Document Status: Approved
 
@@ -328,8 +328,11 @@ Physical deletion is allowed only when:
   Media uploaded by a `student`, or used (now or before) by an
   `assessment_answer` usage, is refused for any scope except *Chỉ mình tôi*
   (422, `LF_media_share_error_learner_content`); the library hides its share
-  action unless it is still shared from before. This is a simple gate, not a PII
-  classification (ADR-0018).
+  action unless it is still shared from before. A share row left from before the
+  gate gives a teacher nothing: the library, the pickers and the attach check
+  (`visibleToTeacher`, `lockForAttach`) treat learner content as private, so only
+  its owner and admins reach it; an Activity already using it keeps working.
+  This is a simple gate, not a PII classification (ADR-0018).
 * **A re-activated usage belongs to whoever attaches it now:** re-attaching a
   detached `media_file_usages` row sets `created_by` to the current actor, so the
   D7 revoke check counts the person really using it.

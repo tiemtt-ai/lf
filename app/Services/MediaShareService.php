@@ -81,12 +81,30 @@ class MediaShareService
             ->where('media_files.status', '!=', 'deleted')
             ->where(function (Builder $query) use ($customerId, $teacherId): void {
                 $query->where('media_files.uploaded_by', $teacherId)
-                    ->orWhereIn('media_files.id', DB::table('media_file_shares')->select('media_file_id')
-                        ->where('customer_id', $customerId)->whereNull('revoked_at')
-                        ->where(function (Builder $grant) use ($teacherId): void {
-                            $grant->where('grantee_user_id', $teacherId)->orWhere('grantee_role', self::ROLE_TEACHER);
-                        }));
+                    ->orWhere(fn (Builder $shared) => $this->withoutLearnerContent(
+                        $shared->whereIn('media_files.id', DB::table('media_file_shares')->select('media_file_id')
+                            ->where('customer_id', $customerId)->whereNull('revoked_at')
+                            ->where(function (Builder $grant) use ($teacherId): void {
+                                $grant->where('grantee_user_id', $teacherId)->orWhere('grantee_role', self::ROLE_TEACHER);
+                            })),
+                        $customerId
+                    ));
             });
+    }
+
+    /**
+     * A learner's file (uploaded by a student, or used as an answer) is private to its owner and admins even when a share
+     * row from before the sharing gate still names it (ADR-0021 D12): teachers never reach it through a share.
+     */
+    private function withoutLearnerContent(Builder $query, int $customerId): Builder
+    {
+        return $query
+            ->whereNotIn('media_files.uploaded_by', DB::table('users')->select('id')
+                ->where('customer_id', $customerId)->where('role', 'student'))
+            ->whereNotExists(fn (Builder $answer) => $answer->selectRaw('1')->from('media_file_usages as answer_usage')
+                ->whereColumn('answer_usage.media_file_id', 'media_files.id')
+                ->where('answer_usage.customer_id', $customerId)
+                ->where('answer_usage.owner_type', 'assessment_answer'));
     }
 
     /**
@@ -104,6 +122,10 @@ class MediaShareService
         }
         if ($actor->role !== self::ROLE_TEACHER || (int) $media->uploaded_by === (int) $actor->id) {
             return $media;
+        }
+
+        if ($this->learnerContentIds($customerId, [$mediaId]) !== []) {
+            return null;
         }
 
         $share = DB::table('media_file_shares')->where('customer_id', $customerId)->where('media_file_id', $mediaId)
