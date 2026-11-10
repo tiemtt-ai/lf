@@ -96,3 +96,22 @@ docs/quality
 ```
 
 hoặc working directory.
+
+## Testing Rule
+
+- Chạy test đúng dạng `php artisan test <tệp>`. Không thêm `--env=...`: cờ này
+  làm phpunit.xml (SQLite `:memory:`) không còn áp dụng, test chạy vào DB thật
+  và `RefreshDatabase` xoá sạch dữ liệu (2026-11-04 đã mất `learnforge_db`).
+- Không chạy test vào `learnforge_db` (DB dev). Test chạy lâu bất thường
+  (giây → phút) là dấu hiệu đang vào MariaDB thật.
+- SQLite bỏ qua CHECK, độ rộng cột và kiểu thời gian. Schema, migration và test
+  `tests/Integration/*MariaDb*` phải kiểm trên một instance MariaDB 11.4 tạm
+  (`mariadb-install-db` + `mariadbd --skip-networking --socket=...`), rồi chạy
+  với `DB_CONNECTION=mysql DB_SOCKET=<sock> DB_HOST=localhost DB_USERNAME=root DB_PASSWORD=`.
+  Tắt instance và xoá datadir khi xong.
+- `BulkEnrollmentMysqlConcurrencyTest` cần DB tên
+  `lf_bulk_enrollment_concurrency_test_20260721` đã migrate sẵn và `CACHE_STORE=database`.
+- Kiểm schema: `php artisan schema:drift --docs-only` và
+  `php artisan schema:drift --connection=mysql`.
+- Trước mọi thao tác ghi vào `learnforge_db`: `mysqldump --single-transaction
+  --routines --triggers --events` ra thư mục ngoài repo.
