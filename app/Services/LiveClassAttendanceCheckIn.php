@@ -133,7 +133,7 @@ final class LiveClassAttendanceCheckIn
         $membership = LearnerCohortSeat::current($context->customerId, $context->cohortId, $context->userId);
         abort_unless($membership, 404);
 
-        return DB::transaction(function () use ($context, $session, $membership, $status, $at): array {
+        $result = DB::transaction(function () use ($context, $session, $membership, $status, $at): array {
             $key = [
                 'customer_id' => $context->customerId,
                 'session_id' => $context->sessionId,
@@ -171,6 +171,13 @@ final class LiveClassAttendanceCheckIn
 
             return ['result' => 'recorded', 'status' => $status, 'joined_at' => $joinedAt];
         });
+        if ($result['result'] === 'recorded') {
+            // A `join` Activity completes when the learner is present (ADR-0030 D3).
+            app(CourseProgressRecorder::class)->attendanceChanged($context->customerId,
+                [(int) $membership->enrollment_id], $session->version_activity_id ? (int) $session->version_activity_id : null);
+        }
+
+        return $result;
     }
 
     private function signature(int $customerId, int $sessionId, int $window): string

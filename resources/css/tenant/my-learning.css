@@ -1,0 +1,504 @@
+/* "Khóa học của tôi" on the tenant website: course, class and lesson pages of the learner (LF-Navigation § My Courses).
+   The lists themselves use the standard B2B cards in student-site.css. */
+
+.lf-learn-empty {
+    padding: 28px;
+    display: grid;
+    justify-items: start;
+    gap: 12px;
+    color: var(--student-text-soft);
+}
+
+.lf-learn-empty p {
+    margin: 0;
+}
+
+.lf-learn-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.lf-learn-badge {
+    padding: 3px 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    border-radius: 6px;
+    color: var(--student-text-soft);
+    background: var(--student-surface-soft);
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.4;
+}
+
+.lf-learn-badge.is-blue {
+    color: var(--student-blue-dark);
+    background: var(--student-blue-soft);
+}
+
+.lf-learn-badge.is-green {
+    color: var(--student-green-text);
+    background: var(--student-green-soft);
+}
+
+.lf-learn-badge.is-orange {
+    color: var(--student-orange-dark);
+    background: var(--student-orange-soft);
+}
+
+.lf-learn-badge.is-danger {
+    color: var(--student-danger-text);
+    background: var(--student-danger-soft);
+}
+
+.lf-learn-badge.is-live {
+    color: #fff;
+    background: var(--student-live);
+}
+
+.lf-learn-badge.is-muted {
+    color: var(--student-text-muted);
+}
+
+.lf-learn-progress {
+    min-width: 0;
+    display: grid;
+    gap: 5px;
+    flex: 1;
+    color: var(--student-text-soft);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.lf-learn-progress.is-wide {
+    grid-template-columns: auto minmax(80px, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+}
+
+.lf-learn-bar {
+    height: 6px;
+    display: block;
+    overflow: hidden;
+    border-radius: 999px;
+    background: var(--student-surface-soft);
+}
+
+.lf-learn-bar > span {
+    height: 100%;
+    display: block;
+    border-radius: inherit;
+    background: var(--student-primary);
+}
+
+.lf-learn-progress.is-secondary .lf-learn-bar > span {
+    background: var(--student-green-text);
+}
+
+.lf-learn-progress__aside {
+    font-weight: 600;
+}
+
+.lf-learn-back {
+    margin-bottom: 14px;
+    display: inline-flex;
+    gap: 6px;
+    color: var(--student-text-soft);
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.lf-learn-back:hover {
+    color: var(--student-primary-dark);
+}
+
+.lf-learn-summary {
+    padding: 24px;
+    display: grid;
+    gap: 12px;
+}
+
+.lf-learn-summary h1 {
+    margin: 0;
+    color: var(--student-text);
+    font-size: 26px;
+    font-weight: 800;
+}
+
+.lf-learn-summary__meta,
+.lf-learn-summary__window,
+.lf-learn-summary__class {
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+    color: var(--student-text-soft);
+    font-size: 14px;
+}
+
+.lf-learn-summary__meta strong {
+    color: var(--student-text);
+}
+
+.lf-learn-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 12px;
+}
+
+.lf-learn-stat {
+    padding: 14px 16px;
+    display: grid;
+    gap: 4px;
+    border: 1px solid var(--student-border);
+    border-radius: var(--student-radius-sm);
+    background: var(--student-surface-soft);
+}
+
+.lf-learn-stat > span:first-child,
+.lf-learn-stat small {
+    color: var(--student-text-soft);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.lf-learn-stat strong {
+    color: var(--student-text);
+    font-size: 20px;
+}
+
+.lf-learn-class-panel {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(220px, 300px);
+    gap: 16px;
+}
+
+.lf-learn-class-panel__progress {
+    padding: 14px 16px;
+    display: grid;
+    gap: 10px;
+    border: 1px solid var(--student-border);
+    border-radius: var(--student-radius-sm);
+}
+
+.lf-learn-class-panel__progress strong {
+    color: var(--student-text);
+}
+
+.lf-learn-class-panel__note {
+    margin: 0;
+    color: var(--student-text-muted);
+    font-size: 12px;
+}
+
+.lf-learn-class-panel__next {
+    padding: 14px 16px;
+    display: grid;
+    align-content: center;
+    gap: 3px;
+    border-radius: var(--student-radius-sm);
+    background: var(--student-primary-soft);
+    color: var(--student-text-soft);
+    font-size: 12px;
+}
+
+.lf-learn-class-panel__next strong {
+    color: var(--student-text);
+    font-size: 15px;
+}
+
+.lf-learn-outline {
+    margin-top: 28px;
+}
+
+.lf-learn-outline__head h2 {
+    margin: 0;
+    color: var(--student-text);
+    font-size: 20px;
+    font-weight: 800;
+}
+
+.lf-learn-outline__head p {
+    margin: 4px 0 14px;
+    color: var(--student-text-soft);
+    font-size: 13px;
+}
+
+.lf-learn-section + .lf-learn-section {
+    margin-top: 18px;
+}
+
+.lf-learn-section__title {
+    margin: 0 0 10px;
+    color: var(--student-text);
+    font-size: 15px;
+    font-weight: 800;
+}
+
+.lf-learn-lessons {
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 10px;
+    list-style: none;
+}
+
+.lf-learn-lesson {
+    padding: 12px 16px;
+    display: grid;
+    grid-template-columns: 56px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 14px;
+}
+
+.lf-learn-lesson.is-locked {
+    background: var(--student-surface-soft);
+}
+
+.lf-learn-lesson.is-live {
+    border-color: var(--student-live);
+}
+
+.lf-learn-lesson__no {
+    padding: 6px 0;
+    display: grid;
+    justify-items: center;
+    border-radius: var(--student-radius-sm);
+    color: var(--student-primary-dark);
+    background: var(--student-primary-soft);
+    font-size: 18px;
+    font-weight: 800;
+    line-height: 1.1;
+}
+
+.lf-learn-lesson__no small {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.lf-learn-session__date {
+    font-size: 15px;
+}
+
+.lf-learn-lesson__body {
+    min-width: 0;
+    display: grid;
+    gap: 3px;
+}
+
+.lf-learn-lesson__body strong {
+    color: var(--student-text);
+    font-size: 15px;
+}
+
+.lf-learn-lesson__meta {
+    color: var(--student-text-soft);
+    font-size: 13px;
+}
+
+.lf-learn-lesson__state {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 6px;
+}
+
+.lf-learn-summary__resume {
+    margin: 4px 0 0;
+}
+
+.lf-learn-lesson__link {
+    color: inherit;
+    text-decoration: none;
+}
+
+.lf-learn-lesson__link:hover strong {
+    color: var(--student-primary-dark);
+    text-decoration: underline;
+}
+
+/* Lesson page (ADR-0030 D1) */
+.lf-learn-lesson-head h1 {
+    font-size: 24px;
+}
+
+.lf-learn-activities {
+    margin: 14px 0 0;
+    padding: 0;
+    display: grid;
+    gap: 12px;
+    list-style: none;
+}
+
+.lf-learn-activity {
+    padding: 16px 18px;
+    display: grid;
+    gap: 12px;
+}
+
+.lf-learn-activity.is-locked {
+    background: var(--student-surface-soft);
+}
+
+.lf-learn-activity__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.lf-learn-activity__title {
+    min-width: 0;
+    display: grid;
+    justify-items: start;
+    gap: 5px;
+}
+
+.lf-learn-activity__title strong {
+    color: var(--student-text);
+    font-size: 16px;
+}
+
+.lf-learn-activity__state {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 6px;
+}
+
+.lf-learn-activity__description,
+.lf-learn-activity__note {
+    margin: 0;
+    color: var(--student-text-soft);
+    font-size: 14px;
+    line-height: 1.55;
+    white-space: pre-line;
+}
+
+.lf-learn-activity__locked {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--student-text-muted);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.lf-learn-activity__sessions {
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 8px;
+    list-style: none;
+}
+
+.lf-learn-activity__sessions li {
+    padding: 10px 12px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    border: 1px solid var(--student-border);
+    border-radius: var(--student-radius-sm);
+    color: var(--student-text);
+    font-size: 14px;
+}
+
+.lf-learn-activity > .student-button,
+.lf-learn-activity > .student-text-link {
+    justify-self: start;
+}
+
+.lf-learn-activity__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.lf-learn-activity__error {
+    margin: 0;
+}
+
+.lf-learn-player {
+    display: grid;
+    justify-items: start;
+    gap: 10px;
+}
+
+.lf-learn-player video,
+.lf-learn-embed {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    border-radius: var(--student-radius-sm);
+    background: var(--student-text);
+}
+
+.lf-learn-player.is-audio audio {
+    width: 100%;
+}
+
+.lf-learn-embed {
+    overflow: hidden;
+}
+
+.lf-learn-embed iframe {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    display: block;
+}
+
+.lf-learn-pager {
+    margin-top: 24px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+@media (max-width: 767px) {
+
+    .lf-learn-class-panel {
+        grid-template-columns: 1fr;
+    }
+
+    .lf-learn-progress.is-wide {
+        grid-template-columns: 1fr auto;
+    }
+
+    .lf-learn-progress.is-wide .lf-learn-bar {
+        grid-column: 1 / -1;
+        grid-row: 2;
+    }
+
+    .lf-learn-lesson {
+        grid-template-columns: 48px minmax(0, 1fr);
+    }
+
+    .lf-learn-lesson__state {
+        grid-column: 2;
+        justify-content: flex-start;
+    }
+
+    .lf-learn-activity {
+        padding: 14px;
+    }
+
+    .lf-learn-activity__head {
+        flex-direction: column;
+    }
+
+    .lf-learn-activity__state {
+        justify-content: flex-start;
+    }
+
+    .lf-learn-pager .student-button {
+        flex: 1 1 140px;
+    }
+}

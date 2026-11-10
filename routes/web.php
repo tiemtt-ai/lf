@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\ProfileController as AdminProfileController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Assessment\AssessmentLearnerController;
 use App\Http\Controllers\CustomerRegisterController;
+use App\Http\Controllers\LearnerMyLearningController;
 use App\Http\Controllers\LiveClassAttendanceCheckInController;
 use App\Http\Controllers\LiveClassWhiteboardController;
 use App\Http\Controllers\LiveClassWhiteboardSyncController;
@@ -120,7 +121,7 @@ Route::middleware([
         return redirect()->route(match (auth()->user()->role) {
             'customer_admin' => 'admin.dashboard',
             'teacher' => 'teacher.dashboard',
-            'student' => 'public.home',
+            'student' => 'student.courses.index',
             default => abort(403, 'You do not have permission to access this application.'),
         });
     })->name('dashboard');
@@ -298,8 +299,20 @@ Route::middleware([
     'tenant.user',
     'role:student',
 ])->group(function () {
-    Route::get('/my-courses', [TenantWebsiteController::class, 'myCourses'])
+    // "Khóa học của tôi": self-paced courses, classes and tests of the learner (read only; LF-Navigation § My Courses).
+    Route::get('/my-courses', [LearnerMyLearningController::class, 'index'])
         ->name('student.courses.index');
+    Route::get('/my-courses/{enrollment}', [LearnerMyLearningController::class, 'course'])
+        ->whereNumber('enrollment')->name('student.courses.show');
+    Route::get('/my-courses/classes/{cohort}', [LearnerMyLearningController::class, 'cohort'])
+        ->whereNumber('cohort')->name('student.courses.classes.show');
+    // The lesson page, its Media and progress events (ADR-0030).
+    Route::get('/my-courses/{enrollment}/lessons/{lesson}', [LearnerMyLearningController::class, 'lesson'])
+        ->whereNumber(['enrollment', 'lesson'])->name('student.courses.lessons.show');
+    Route::get('/my-courses/{enrollment}/activities/{activity}/media', [LearnerMyLearningController::class, 'media'])
+        ->whereNumber(['enrollment', 'activity'])->middleware('throttle:60,1,lf-learn-media.')->name('student.courses.activities.media');
+    Route::post('/my-courses/{enrollment}/activities/{activity}/progress', [LearnerMyLearningController::class, 'progress'])
+        ->whereNumber(['enrollment', 'activity'])->middleware('throttle:60,1,lf-learn-progress.')->name('student.courses.activities.progress');
 
     // A learner follows the Whiteboard of a live Session of their Cohort; learners only receive.
     Route::prefix('/my-courses/live-sessions/{session}/board')->name('student.live-sessions.board')

@@ -1,6 +1,6 @@
 # LF-Media.md
 
-Version: 1.22
+Version: 1.23
 
 Document Status: Approved
 
@@ -1326,6 +1326,14 @@ Learning behavior và progress decisions thuộc Track/Course hoặc owning Doma
 
 Course/Version Activity lưu `media_file_id` hoặc Usage mapping. Course giữ
 learning context, Progress và Completion.
+
+Học viên xem Media của Version Activity trong trang bài học
+([ADR-0030](../adr/ADR-0030-Learner-Course-Delivery-And-Progress.md), 2026-11-10):
+`generateLearnerActivitySignedUrl` chỉ cấp signed URL khi
+`VersionActivityAccessService` cho phép, Activity thuộc Version của Enrollment, Usage
+`course_version_activity` active đúng `usage_type`, Media `ready` cùng tenant. Video và âm
+thanh phát trong trang; tài liệu mở tab mới (không mở rộng Whiteboard Rendering Exception).
+Trình phát xin URL mới khi hết hạn. Access log không dùng để tính progress.
 
 ## LiveClass
 

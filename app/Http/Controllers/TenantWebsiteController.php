@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Services\LiveClassWhiteboardService;
 use App\Support\TenantContext;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
@@ -71,21 +70,6 @@ class TenantWebsiteController extends Controller
     public function contact(): View
     {
         return $this->tenantPage('Contact', 'Talk with our team about courses, services or enrollment.');
-    }
-
-    public function myCourses(LiveClassWhiteboardService $whiteboards): View
-    {
-        $customerId = TenantContext::customerId();
-        abort_if(! $customerId, 404);
-
-        return view('tenant.personalized', [
-            ...$this->websiteData(),
-            // A live Session of the learner's Cohort shows "Xem bảng" (ADR-0002 § LiveClass Whiteboard Amendment).
-            'liveSessions' => $whiteboards->learnerLiveSessions((int) $customerId, (int) Auth::id()),
-            'title' => 'My Courses',
-            'description' => 'Enrolled, in-progress, completed and favorite courses, plus purchased services.',
-            'items' => ['Enrolled Courses', 'In Progress Courses', 'Completed Courses', 'Favorite Courses', 'Purchased Services'],
-        ]);
     }
 
     public function learningHistory(): View

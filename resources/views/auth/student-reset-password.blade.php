@@ -2,7 +2,6 @@
 
 @section('title', __('lf.LF_auth_reset_title').' | '.__('lf.LF_common_brand_name'))
 @section('tenant_page_class', 'student-page--login')
-@section('footer_description', __('lf.LF_common_footer_common_copyright'))
 
 @section('content')
     <div class="student-login-shell">

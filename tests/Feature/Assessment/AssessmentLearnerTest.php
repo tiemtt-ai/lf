@@ -205,6 +205,30 @@ class AssessmentLearnerTest extends TestCase
         $this->actingAs($this->student)->get(self::SITE.'/assessments/my')->assertOk()->assertSeeText(__('lf.LF_assessment_learner_retry'));
     }
 
+    public function test_my_courses_lists_the_learners_tests_with_start_and_result(): void
+    {
+        [$quiz] = $this->quiz(['title' => 'Đề trong khóa của tôi']);
+        $registration = $this->register($quiz);
+
+        $current = $this->actingAs($this->student)->get(self::SITE.'/my-courses?tab=exams')->assertOk()->getContent();
+        $this->assertStringContainsString('data-learn-exam="'.$registration.'"', $current);
+        $this->assertStringContainsString('Đề trong khóa của tôi', $current);
+        $this->assertStringContainsString(route('student.assessments.start', $registration), $current);
+
+        $attempt = $this->finishedAttempt($registration);
+        // One attempt allowed: the registration is used up and moves to the second view, with its result.
+        $this->actingAs($this->student)->get(self::SITE.'/my-courses?tab=exams')->assertOk()
+            ->assertDontSee('data-learn-exam="'.$registration.'"', false);
+        $ended = $this->actingAs($this->student)->get(self::SITE.'/my-courses?tab=exams&view=ended')->assertOk()->getContent();
+        $this->assertStringContainsString('data-learn-exam="'.$registration.'"', $ended);
+        $this->assertStringContainsString('/assessments/attempts/'.$attempt.'/result', $ended);
+        $this->assertStringNotContainsString('data-learn-exam-start', $ended);
+
+        $other = $this->createUser($this->customerId, 'student');
+        $this->actingAs($other)->get(self::SITE.'/my-courses?tab=exams&view=ended')->assertOk()
+            ->assertDontSee('data-learn-exam="'.$registration.'"', false);
+    }
+
     // ---- fixtures ----
 
     /** @return array{0: int, 1: array<string, int>} a published quiz with one question of each type (10 points) */

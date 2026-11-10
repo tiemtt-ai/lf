@@ -5,7 +5,7 @@
   "default_locale": "vi",
   "fallback_locale": "en",
   "source_of_truth": "docs/LF-INDEX.md",
-  "document_count": 342,
+  "document_count": 346,
   "documents": [
     {
       "path": "LF-Core-Overview.md",
@@ -1471,6 +1471,118 @@
         "core/LF-Core-Assessment.md",
         "database/assessment/README.md",
         "quality/LF-Assessment-Grader-Assignment-Architecture-Review.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "adr/ADR-0028-Course-Window-Datetime-And-Unlock-UTC.md",
+      "title": "ADR-0028 — Course Window Columns As DATETIME, Lesson Unlock Time In UTC",
+      "area": "adr",
+      "document_type": "adr",
+      "document_status": "Approved",
+      "implementation_status": "Implemented",
+      "metadata_complete": true,
+      "authority": "architecture_decision",
+      "canonical_for": [],
+      "topics": [
+        "course",
+        "datetime",
+        "timezone"
+      ],
+      "keywords": {
+        "vi": [
+          "thời hạn học",
+          "giờ mở bài",
+          "múi giờ"
+        ],
+        "en": [
+          "access window",
+          "unlock time",
+          "utc"
+        ]
+      },
+      "identifiers": [
+        "core_course_enrollments",
+        "unlock_at",
+        "unlock_at_snapshot"
+      ],
+      "related_documents": [
+        "core/LF-Core-Course.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "adr/ADR-0029-Learning-Mapping-Invalidation.md",
+      "title": "ADR-0029 — Marking A Published Learning Mapping As Wrong",
+      "area": "adr",
+      "document_type": "adr",
+      "document_status": "Approved",
+      "implementation_status": "Implemented",
+      "metadata_complete": true,
+      "authority": "architecture_decision",
+      "canonical_for": [],
+      "topics": [
+        "course",
+        "competency",
+        "learning-mapping"
+      ],
+      "keywords": {
+        "vi": [
+          "liên kết năng lực",
+          "đánh dấu sai"
+        ],
+        "en": [
+          "learning mapping",
+          "invalidation"
+        ]
+      },
+      "identifiers": [],
+      "related_documents": [
+        "core/LF-Core-Course.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "adr/ADR-0030-Learner-Course-Delivery-And-Progress.md",
+      "title": "ADR-0030 — Learner Course Delivery And Progress Recording",
+      "area": "adr",
+      "document_type": "adr",
+      "document_status": "Approved",
+      "implementation_status": "Implemented",
+      "metadata_complete": true,
+      "authority": "architecture_decision",
+      "canonical_for": [],
+      "topics": [
+        "course",
+        "learner-portal",
+        "progress",
+        "media"
+      ],
+      "keywords": {
+        "vi": [
+          "trang bài học",
+          "tiến độ học",
+          "khóa học của tôi"
+        ],
+        "en": [
+          "lesson page",
+          "course progress",
+          "my courses"
+        ]
+      },
+      "identifiers": [
+        "core_course_progress",
+        "core_course_lesson_progress",
+        "core_course_activity_progress",
+        "CourseProgressRecorder"
+      ],
+      "related_documents": [
+        "core/LF-Core-Course.md",
+        "business/LF-Navigation.md",
+        "platform/LF-Media.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"
@@ -13996,6 +14108,48 @@
       "related_documents": [
         "tech/LF-Tech-CSS.md",
         "ui-demo/ui-kit-developer/README.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "ui-demo/learner-my-learning-design/README.md",
+      "title": "Học viên — Góc học tập của tôi (thiết kế tĩnh)",
+      "area": "ui-demo",
+      "document_type": "directory_guide",
+      "document_status": "Approved",
+      "implementation_status": "Not Applicable",
+      "metadata_complete": true,
+      "authority": "engineering",
+      "canonical_for": [],
+      "topics": [
+        "static-design",
+        "learner-portal",
+        "my-learning",
+        "b2b-standard"
+      ],
+      "keywords": {
+        "vi": [
+          "thiết kế tĩnh",
+          "khóa học của tôi",
+          "lớp học của tôi",
+          "bài thi của tôi",
+          "giao diện học viên",
+          "B2B chuẩn mk_v2"
+        ],
+        "en": [
+          "static design",
+          "my courses",
+          "my classes",
+          "my exams",
+          "learner portal",
+          "mk_v2 standard B2B"
+        ]
+      },
+      "identifiers": [],
+      "related_documents": [
+        "tech/LF-Tech-CSS.md",
+        "business/LF-Navigation.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"

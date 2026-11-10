@@ -117,6 +117,15 @@ class LiveClassSessionLifecycleService
             if ($session->status === 'live') {
                 DB::afterCommit(fn () => $this->boards->end($customerId, $sessionId));
             }
+
+            // A cancelled or no-show Session no longer counts as attended (ADR-0030 D3).
+            if (in_array($targetStatus, ['cancelled', 'no_show'], true) && $session->version_activity_id) {
+                $enrollmentIds = DB::table('core_liveclass_attendances')
+                    ->where('customer_id', $customerId)->where('session_id', $sessionId)
+                    ->whereIn('status', ['present', 'late'])->pluck('enrollment_id')->map(fn ($id): int => (int) $id)->all();
+                $activityId = (int) $session->version_activity_id;
+                DB::afterCommit(fn () => app(CourseProgressRecorder::class)->attendanceChanged($customerId, $enrollmentIds, $activityId));
+            }
         }, 3);
     }
 }

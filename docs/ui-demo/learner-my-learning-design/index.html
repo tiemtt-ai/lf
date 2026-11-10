@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Khoá học của tôi - Học viên</title>
+<link rel="icon" href="assets/img/mk-logo2.png" type="image/png">
+<link rel="stylesheet" href="assets/student.css?v=1.1">
+<script defer src="assets/student.js?v=1.1"></script>
+</head>
+<body class="standard-b2b-site">
+
+<div class="lmc-demo" role="group" aria-label="Thao tác minh họa">
+  <span>Bản thiết kế · dữ liệu minh họa · "hôm nay" = 10/11/2026 20:00</span>
+  <label><input type="checkbox" id="demo-live"> Có buổi học đang diễn ra</label>
+  <label><input type="checkbox" id="demo-empty"> Danh sách trống</label>
+</div>
+
+<!-- Header: theo layouts/standard-nav (B2B chuẩn) -->
+<header class="sb2b-header">
+  <div class="sb2b-header__inner">
+    <a class="sb2b-brand" href="#" aria-label="Trang chủ"><img src="assets/img/mk-logo2.png" alt="Master Korean"></a>
+    <nav class="sb2b-links" aria-label="Trang chủ">
+      <a href="#">Trang chủ</a>
+      <a href="#">E-Learning</a>
+      <a href="#">MK Live</a>
+      <a href="#">Bài Thi</a>
+      <details class="sb2b-resources">
+        <summary>Học liệu<svg class="sb2b-resources__arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m4.5 7.25 5.5 5.5 5.5-5.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
+        <div class="sb2b-popover">
+          <a href="#">Level Test</a>
+          <a href="#">Từ điển</a>
+          <a href="#">Giáo trình</a>
+        </div>
+      </details>
+    </nav>
+    <div class="sb2b-actions">
+      <details class="sb2b-account">
+        <summary><span class="sb2b-account__icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.2"/><path d="M4.7 20v-1.4a7.3 7.3 0 0 1 14.6 0V20"/></svg></span><span class="sb2b-account__name">Dương Bảo Trân</span><span class="sb2b-chevron" aria-hidden="true"></span></summary>
+        <div class="sb2b-popover">
+          <a href="#mk" data-goto="mk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5c2.7-1.2 5.3-1.2 8 0v14c-2.7-1.2-5.3-1.2-8 0zM20 5.5c-2.7-1.2-5.3-1.2-8 0v14c2.7-1.2 5.3-1.2 8 0z"/></svg><span>Khoá học của tôi</span></a>
+          <a href="#mklive" data-goto="mklive"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 21h8M12 16v5m-2-14 5 3-5 3z"/></svg><span>Lớp học của tôi</span></a>
+          <a href="#exam" data-goto="exam"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4H6a2 2 0 0 0-2 2v14h16V6a2 2 0 0 0-2-2h-3"/><rect x="9" y="2" width="6" height="4" rx="1"/><path d="m8 12 2 2 6-6M8 17h8"/></svg><span>Bài thi của tôi</span></a>
+          <a href="#results" data-goto="results"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 3v17h17M8 16v-4m5 4V8m5 8V5"/></svg><span>Kết quả học tập</span></a>
+          <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="3.2"/><path d="M5 20v-1.4a7 7 0 0 1 14 0V20"/></svg><span>Thông tin cá nhân</span></a>
+          <a class="sb2b-account__logout" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4"/><path d="M14 7l5 5-5 5M9 12h10"/></svg><span>Đăng xuất</span></a>
+        </div>
+      </details>
+      <details class="sb2b-language">
+        <summary aria-label="Tiếng Việt" title="Tiếng Việt"><img src="assets/img/twemoji_flag-vietnam.svg" alt="" aria-hidden="true"><span>VI</span><span class="sb2b-chevron" aria-hidden="true"></span></summary>
+        <div class="sb2b-popover" aria-label="Ngôn ngữ">
+          <a href="#" class="is-current" aria-current="true"><img src="assets/img/twemoji_flag-vietnam.svg" alt="" aria-hidden="true"><span>Tiếng Việt</span></a>
+          <a href="#"><img src="assets/img/twemoji_flag-south-korea.svg" alt="" aria-hidden="true"><span>한국어</span></a>
+          <a href="#"><img src="assets/img/twemoji_flag-united-kingdom.svg" alt="" aria-hidden="true"><span>English</span></a>
+        </div>
+      </details>
+      <details class="sb2b-mobile-menu">
+        <summary aria-label="Menu"><span></span><span></span><span></span></summary>
+        <nav aria-label="Menu mobile">
+          <a href="#">Trang chủ</a><a href="#">E-Learning</a><a href="#">MK Live</a><a href="#">Bài Thi</a>
+          <details class="sb2b-mobile-resources">
+            <summary>Học liệu<svg class="sb2b-resources__arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m4.5 7.25 5.5 5.5 5.5-5.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
+            <a href="#">Level Test</a><a href="#">Từ điển</a><a href="#">Giáo trình</a>
+          </details>
+        </nav>
+      </details>
+    </div>
+  </div>
+</header>
+
+<main style="min-height:70vh">
+  <section class="student-products container" id="page">
+    <nav class="student-products__categories" aria-label="Sản phẩm của tôi">
+      <a href="#mk" data-goto="mk"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5c2.7-1.2 5.3-1.2 8 0v14c-2.7-1.2-5.3-1.2-8 0zM20 5.5c-2.7-1.2-5.3-1.2-8 0v14c2.7-1.2 5.3-1.2 8 0z"/></svg> Khoá học của tôi</a>
+      <a href="#mklive" data-goto="mklive"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 21h8M12 16v5m-2-14 5 3-5 3z"/></svg> Lớp học của tôi</a>
+      <a href="#exam" data-goto="exam"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4H6a2 2 0 0 0-2 2v14h16V6a2 2 0 0 0-2-2h-3"/><rect x="9" y="2" width="6" height="4" rx="1"/><path d="m8 12 2 2 6-6M8 17h8"/></svg> Bài thi của tôi</a>
+      <a href="#results" data-goto="results"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 3v17h17M8 16v-4m5 4V8m5 8V5"/></svg> Kết quả học tập</a>
+    </nav>
+
+    <section class="lf-live" id="live" aria-labelledby="live-title" hidden>
+      <span class="lf-live__dot" aria-hidden="true"></span>
+      <div class="lf-live__copy">
+        <h2 id="live-title">Buổi học đang diễn ra</h2>
+        <p><strong>Bài 1: Bảng chữ cái Hangul – Nguyên âm</strong> · HQ-SC1-K01 – Lớp demo bảng điện tử · 15:00–16:30 · Live online</p>
+      </div>
+      <div class="lf-live__actions"><a href="#" class="lf-live__btn is-primary">Xem bảng</a><a href="#" class="lf-live__btn">Vào phòng họp</a></div>
+    </section>
+
+    <h1 id="page-title"></h1>
+    <p class="student-products__description" id="page-help"></p>
+
+    <div class="student-products__tabbar" id="tabbar">
+      <nav class="student-products__tabs" id="tabs" aria-label="Trạng thái"></nav>
+      <div class="student-exam-filter">
+        <button type="button" id="exam-filter-toggle" class="student-exam-filter__toggle" aria-expanded="false" aria-controls="exam-filter-panel">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18l-7 8v6l-4 2v-8Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+          <span id="filter-label">Lọc</span>
+        </button>
+        <form id="exam-filter-panel" class="student-exam-filter__panel" hidden>
+          <label for="exam-search" id="search-label">Tên khóa học / lớp học</label>
+          <input id="exam-search" type="search" name="q" placeholder="Tìm theo tên…">
+          <label for="exam-category">Danh mục</label>
+          <select id="exam-category" name="exam_category">
+            <option value="">Tất cả danh mục</option>
+            <option>Sơ cấp</option><option>Trung cấp</option><option>TOPIK</option>
+          </select>
+          <div class="student-exam-filter__actions"><a href="#" id="filter-clear">Xóa bộ lọc</a><button type="submit">Áp dụng</button></div>
+        </form>
+      </div>
+    </div>
+    <p class="student-products__description" id="found" hidden></p>
+
+    <div id="list"></div>
+    <p id="student-products-feedback" role="status" aria-live="polite"></p>
+  </section>
+</main>
+
+<!-- Footer: theo footerb2b (B2B chuẩn) -->
+<footer class="sb2b-footer">
+  <div class="sb2b-footer__inner">
+    <div class="sb2b-footer__main">
+      <div class="sb2b-footer__brand">
+        <div class="sb2b-footer__center">
+          <p class="sb2b-footer__company">Học viện Hiệp hội Hàn Quốc Hà Nội</p>
+          <p class="sb2b-footer__address">Địa chỉ: Tòa nhà số 15 Lô 02-C4, Trung Hòa, Cầu Giấy, Hà Nội, Việt Nam</p>
+        </div>
+        <div class="sb2b-footer__identity">
+          <img src="assets/img/footerlogo.png" alt="VISANG Vietnam" width="417" height="72">
+          <div class="sb2b-footer__social">
+            <a href="#" aria-label="Facebook"><svg viewBox="6 2 14 21" fill="currentColor" aria-hidden="true"><path d="M14 21v-8h2.7l.4-3H14V8.1c0-.9.3-1.5 1.6-1.5h1.7V3.9c-.3 0-1.3-.1-2.5-.1-2.5 0-4.2 1.5-4.2 4.3V10H8v3h2.6v8H14Z"/></svg></a>
+            <a href="#" aria-label="YouTube"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="4" fill="currentColor"/><path d="m10 8 6 4-6 4V8Z" fill="#1f3278"/></svg></a>
+          </div>
+        </div>
+      </div>
+      <div class="sb2b-footer__contact">
+        <h2>Thông tin liên hệ</h2>
+        <p>Người đại diện: Nguyễn Văn A</p>
+        <p><a href="#">Số điện thoại: 0243-6886-333</a></p>
+        <p>Email: <a href="#">lienhe@hkca.example</a></p>
+        <p>Thông tin MST: 0100000000</p>
+      </div>
+      <div class="sb2b-footer__support">
+        <h2>Hỗ trợ</h2>
+        <nav class="sb2b-footer__links" aria-label="Hỗ trợ"><a href="#">Hỏi đáp Q&amp;A</a><a href="#">Quy chế hoạt động</a><a href="#">Chính sách bảo mật</a></nav>
+      </div>
+    </div>
+    <p class="sb2b-footer__copyright">Copyright © VISANG Education Group Vietnam Company</p>
+  </div>
+</footer>
+
+<div class="mk-area-button-ai-mess">
+  <button type="button" class="sb2b-ai-shortcut" aria-label="Vào AI Speak" data-tooltip="Vào AI Speak"><img alt="" style="width:72px" src="assets/img/aispeak.svg"></button>
+  <button type="button" class="sb2b-to-top" id="to-top" aria-label="Lên đầu trang"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+</div>
+</body>
+</html>

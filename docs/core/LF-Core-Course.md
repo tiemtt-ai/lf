@@ -1,6 +1,6 @@
 # LF-Core-Course.md
 
-Version: 3.10
+Version: 3.11
 
 Document Status: Approved
 
@@ -1509,6 +1509,31 @@ version_activity_id
 
 Working `template_lesson_id` và `template_activity_id` không được dùng làm
 learning progress source.
+
+## Learner Runtime Amendment — ADR-0030 (Approved 2026-11-10)
+
+[ADR-0030](../adr/ADR-0030-Learner-Course-Delivery-And-Progress.md) cho phép học viên mở
+bài học và cho Course ghi ba bảng progress. Track không tham gia.
+
+* Trang bài học `/my-courses/{enrollment}/lessons/{versionLesson}`. Khóa theo lớp hiển thị
+  Lesson và Activity theo thứ tự của lớp (ADR-0023); khóa tự học theo thứ tự Version.
+* Ghi progress qua `POST /my-courses/{enrollment}/activities/{versionActivity}/progress`
+  (`opened`, `position`, `completed`). Chỉ ghi khi Enrollment `active`, trong hạn học hoặc
+  ôn tập, và `VersionActivityAccessService` cho phép. Mọi context lấy từ Enrollment và
+  Version Activity.
+* Một transaction, khóa dòng Course Progress của Enrollment trước.
+* Ánh xạ `completion_rule` của Version Activity sang progress: `view` → `viewed`,
+  `watch_percent` → `watch_percentage` (video) / `listen_percentage` (audio),
+  `manual` → `manual`, `join` → `attended`. Quiz ngoài phạm vi.
+* "Xem đủ X%": vị trí cao nhất, mỗi lần chỉ tăng tối đa (thời gian thực × 1,5 + 30 giây)
+  kể từ lần ghi trước. Activity đã hoàn thành không quay lại, trừ `attended` (đi theo
+  điểm danh, sửa thành vắng thì quay lại chưa hoàn thành).
+* `attended`: LiveClass ghi `present` / `late` cho Enrollment ở buổi gắn Activity, buổi không
+  `cancelled` / `no_show`; LiveClass gọi Course tính lại sau khi ghi điểm danh.
+* Lesson hoàn thành khi mọi Activity bắt buộc hoàn thành (không có bắt buộc: mọi Activity;
+  không có Activity: khi mở bài). Course Progress tính theo Activity bắt buộc (không có thì
+  theo Lesson) và `completed` khi mọi Lesson hoàn thành. Enrollment không tự đổi trạng thái.
+* Thời gian ôn tập ghi progress như thời gian học. Progress giữ nguyên khi hết hạn.
 
 ---
 

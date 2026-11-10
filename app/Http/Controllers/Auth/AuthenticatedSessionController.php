@@ -83,8 +83,8 @@ class AuthenticatedSessionController extends Controller
         return match ($user->role) {
             'customer_admin' => redirect()->route('admin.dashboard'),
             'teacher' => redirect()->route('teacher.dashboard'),
-            // A phone that opened the attendance QR link before signing in goes back to it.
-            'student' => redirect()->to($this->studentReturn($request) ?? '/'),
+            // A learner lands on "Khóa học của tôi"; a phone that opened the attendance QR link before signing in goes back to it.
+            'student' => redirect()->to($this->studentReturn($request) ?? route('student.courses.index')),
         };
     }
 

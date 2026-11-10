@@ -374,6 +374,57 @@ class MediaService
         ]);
     }
 
+    /**
+     * Media of a Version Activity for the learner's lesson page (ADR-0030 D2). The caller has
+     * already checked the Enrollment; this re-checks the runtime access decision and resolves only
+     * a ready Media File in active use by an Activity of the Enrollment's Version.
+     */
+    public function generateLearnerActivitySignedUrl(int $studentId, int $enrollmentId, int $versionActivityId): string
+    {
+        $customerId = $this->customerId();
+        abort_unless(app(VersionActivityAccessService::class)->decide($studentId, $enrollmentId, $versionActivityId)->allowed, 403);
+
+        $media = DB::table('core_course_template_version_activities as activities')
+            ->join('core_course_enrollments as enrollments', function ($join) use ($customerId, $studentId, $enrollmentId): void {
+                $join->on('enrollments.version_id', '=', 'activities.template_version_id')
+                    ->where('enrollments.customer_id', $customerId)
+                    ->where('enrollments.student_id', $studentId)
+                    ->where('enrollments.id', $enrollmentId);
+            })
+            ->join('media_file_usages as usages', function ($join) use ($customerId): void {
+                $join->on('usages.owner_id', '=', 'activities.id')
+                    ->on('usages.media_file_id', '=', 'activities.media_file_id')
+                    ->where('usages.customer_id', $customerId)
+                    ->where('usages.owner_type', 'course_version_activity')
+                    ->where('usages.status', 'active');
+            })
+            ->join('media_files as media', function ($join) use ($customerId): void {
+                $join->on('media.id', '=', 'activities.media_file_id')
+                    ->where('media.customer_id', $customerId)
+                    ->where('media.status', 'ready');
+            })
+            ->whereColumn('usages.usage_type', 'activities.activity_type')
+            ->where('activities.customer_id', $customerId)
+            ->where('activities.id', $versionActivityId)
+            ->whereIn('activities.activity_type', ['video', 'audio', 'document'])
+            ->first(['media.*', 'activities.activity_type']);
+
+        abort_if(! $media, 404);
+
+        $expiresAt = now()->addMinutes((int) config('media.signed_url_ttl_minutes', 10));
+        // A video plays from its faststart copy when ready, like the board; otherwise the original file.
+        $video = $media->activity_type === 'video' ? app(VideoBoardPreview::class)->readyVariant($customerId, $media) : null;
+        if ($video) {
+            return URL::temporarySignedRoute('media.variants.signed', $expiresAt, [
+                'mediaFile' => $media->id,
+                'variant' => $video->id,
+                'expiration' => $expiresAt->getTimestamp(),
+            ]);
+        }
+
+        return $this->signedUrlForMedia($media, $expiresAt);
+    }
+
     private function shouldUseSignedDeliveryRoute(object $mediaFile): bool
     {
         $disk = config('filesystems.disks.'.$mediaFile->storage_disk);

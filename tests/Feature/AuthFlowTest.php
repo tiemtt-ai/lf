@@ -35,12 +35,11 @@ class AuthFlowTest extends TestCase
         foreach ([
             'customer_admin' => '/admin',
             'teacher' => '/teacher',
-            'student' => '/',
+            // A learner lands on "Khóa học của tôi".
+            'student' => '/my-courses',
         ] as $role => $destination) {
             $user = $this->createUser($customerId, $role, verified: true);
-            $destinationUrl = $destination === '/'
-                ? 'https://tenant-a.localhost'
-                : 'https://tenant-a.localhost'.$destination;
+            $destinationUrl = 'https://tenant-a.localhost'.$destination;
 
             $loginUrl = $role === 'student'
                 ? 'https://tenant-a.localhost/login?experience=student'
@@ -67,8 +66,8 @@ class AuthFlowTest extends TestCase
             ->assertOk()
             ->assertViewIs('auth.student-login')
             ->assertSee('student-login-title', false)
-            ->assertSee('student-header', false)
-            ->assertSee('student-footer', false)
+            ->assertSee('sb2b-header', false)
+            ->assertSee('sb2b-footer', false)
             ->assertDontSee('auth-header-top', false)
             ->assertDontSee('lf-login-header', false);
 
@@ -145,8 +144,8 @@ class AuthFlowTest extends TestCase
 
         $this->get($url)->assertOk()
             ->assertViewIs('auth.student-forgot-password')
-            ->assertSee('student-header', false)
-            ->assertSee('student-footer', false)
+            ->assertSee('sb2b-header', false)
+            ->assertSee('sb2b-footer', false)
             ->assertSee('/login?experience=student', false)
             ->assertDontSee('auth-header-top', false);
 
@@ -171,7 +170,7 @@ class AuthFlowTest extends TestCase
         $url = 'https://tenant-a.localhost/reset-password/'.$token.'?email='.urlencode($user->email).'&experience=student';
 
         $this->get($url)->assertOk()->assertViewIs('auth.student-reset-password')
-            ->assertSee('student-header', false)->assertSee('student-footer', false)
+            ->assertSee('sb2b-header', false)->assertSee('sb2b-footer', false)
             ->assertDontSee('auth-header-top', false);
 
         $this->from($url)->post('https://tenant-a.localhost/reset-password?experience=student', [

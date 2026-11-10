@@ -151,6 +151,24 @@ core_course_activity_progress
 
 ---
 
+## Runtime Writer — ADR-0030 (2026-11-10)
+
+Course runtime (`CourseProgressRecorder`) là nơi duy nhất ghi bảng này, cùng với
+`core_course_lesson_progress` và `core_course_progress`, theo
+[ADR-0030](../../adr/ADR-0030-Learner-Course-Delivery-And-Progress.md). Ánh xạ
+`completion_rule` của Version Activity:
+
+| Version Activity | Bảng này |
+| --- | --- |
+| `view` | `viewed` |
+| `watch_percent` (video) | `watch_percentage` |
+| `watch_percent` (audio) | `listen_percentage` |
+| `manual` | `manual` |
+| `join` | `attended` |
+
+`metadata` chỉ chứa dữ liệu kỹ thuật của lần ghi (`position_recorded_at`, vị trí cao nhất).
+Không có schema change.
+
 ## Runtime Invariants
 
 ```text

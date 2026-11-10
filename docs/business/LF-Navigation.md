@@ -1,12 +1,12 @@
 # LF-Navigation.md
 
-Version: 1.2
+Version: 1.5
 
 Document Status: Approved
 
 Implementation Status: Unknown
 
-Last Updated: 2026-10-11
+Last Updated: 2026-11-10
 
 Document Path: business/LF-Navigation.md
 
@@ -258,8 +258,11 @@ student
 
 ↓
 
-/
+/my-courses
 ```
+
+Một học viên mở link điểm danh QR trước khi đăng nhập thì quay lại trang điểm
+danh đó; còn lại đăng nhập xong vào "Khóa học của tôi" (Owner 2026-11-10).
 
 ---
 
@@ -681,7 +684,7 @@ Student không chuyển sang một portal riêng.
 # Entry Point
 
 ```text
-/
+/my-courses
 ```
 
 ---
@@ -696,29 +699,24 @@ Student không chuyển sang một portal riêng.
 
 # Main Menu
 
+Header, menu và footer của Tenant Website theo giao diện B2B chuẩn
+(`docs/ui-demo/learner-my-learning-design`, Owner duyệt 2026-11-10). Mục nào LF
+chưa có trang thì hiện nhưng khóa, bấm vào chỉ báo "Sắp ra mắt".
+
 ```text
-Home
-
-Courses
-
-Assessments
-
-Services
-
-Teachers
-
-About
-
-Contact
-
-My Courses
-
-Learning History
-
-AI Tutor
-
-Profile
+Thanh menu    Home · Courses · Assessments · Services · Giới thiệu ▾ (About, Teachers, Contact)
+Tài khoản ▾   Khóa học của tôi · Lớp học của tôi · Bài thi của tôi ·
+              Kết quả học tập (khóa) · Learning History · AI Tutor ·
+              Thông tin cá nhân (Profile) · Đăng xuất
+Ngôn ngữ ▾    Tiếng Việt · English
+Khách         thanh menu như trên + Đăng nhập
+Footer        thông tin đơn vị, liên hệ, Hỗ trợ (Hỏi đáp, Quy chế, Chính sách: khóa)
+Nút nổi       AI Speak (khóa), lên đầu trang
 ```
+
+Trong "Khóa học của tôi": ô Kết quả học tập, tab Quan tâm, nút ♡, Đăng ký lại
+khóa hết hạn và Tư vấn 1:1 của lớp đều khóa. "Lọc" tìm theo tên và danh mục
+trong nhóm đang xem; số đếm ở tab không đổi theo bộ lọc.
 
 ---
 
@@ -741,6 +739,38 @@ Completed Courses
 
 Favorite Courses
 ```
+
+## My Courses Read Pages — 2026-11-10
+
+Đợt 1 của giao diện học viên (tham khảo bố cục B2B của mk_v2, dữ liệu và cách
+hiển thị theo LF). Chỉ đọc; không ghi tiến độ, không mở nội dung bài học.
+
+```text
+/my-courses?tab=courses   Khóa học của tôi: Enrollment self_paced
+                          Đang học / Đã hoàn thành / Hết hạn
+/my-courses?tab=classes   Lớp học của tôi: Cohort seat đang active
+                          Đang học / Đã kết thúc (Cohort completed hoặc archived)
+/my-courses?tab=exams     Bài thi của tôi: Quiz registration
+                          Còn hiệu lực / Hết lượt hoặc đã hủy
+/my-courses/{enrollment}          chi tiết khóa: mục lục Version, trạng thái mở
+                                  của từng Lesson theo VersionLessonAccessService
+/my-courses/classes/{cohort}      chi tiết lớp: lịch Session, điểm danh của học viên
+```
+
+Quy tắc:
+
+* Chỉ Enrollment và Cohort seat của chính học viên trong tenant hiện tại; còn lại 404.
+* Enrollment `cancelled` không hiện; Cohort `draft` và seat đã rời lớp không hiện.
+* Nhóm khóa: `completed`, hoặc Course Progress `completed` khi Enrollment còn `active`
+  (ADR-0030 Q2) → Đã hoàn thành; `expired` hoặc đã qua hạn học và ôn tập → Hết hạn;
+  còn lại → Đang học.
+* Chuyên cần = Session có mặt hoặc đi muộn / Session đã diễn ra (bỏ `cancelled`,
+  `no_show`, `draft`). Giờ Session đọc theo `timezone` của chính dòng đó.
+* "Đề thi của tôi" (`/assessments/my`) vẫn giữ lịch sử từng lượt làm.
+* Đợt 2 (ADR-0030): `/my-courses/{enrollment}/lessons/{lesson}` là trang bài học
+  (Activity theo thứ tự lớp, phát video / âm thanh / video nhúng, mở tài liệu ở tab mới,
+  bài trước / bài tiếp); chi tiết khóa có nút "Học tiếp" và liên kết tới bài đang mở.
+* Chưa làm: "Quan tâm" (Favorite, ADR-0030 D4 hoãn), Kết quả học tập.
 
 ---
 

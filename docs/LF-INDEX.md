@@ -377,6 +377,9 @@ docs/adr/
 | [ADR-0025](adr/ADR-0025-Assessment-Simple-Administration.md) | Approved: module Kiểm tra riêng (đề nháp + phiên bản, ngữ liệu, ghi danh từng đề thay Enrollment, chấm tay); sửa một phần ADR-0003 |
 | [ADR-0026](adr/ADR-0026-Assessment-Rubric.md) | Approved: tiêu chí chấm (rubric) cho câu tự luận / nói, chụp khi xuất bản đề, quy đổi điểm; đã triển khai (migration `2026_11_06_000400`) |
 | [ADR-0027](adr/ADR-0027-Assessment-Grader-Assignment-And-Essay-Files.md) | Approved: phân công chấm (Amendment 1.2: giao chấm theo đề ở danh sách Đề / Bài tập, nhận chấm, tự nhận khi lưu điểm) và nộp tệp cho câu tự luận; migration `2026_11_07_000100` |
+| [ADR-0028](adr/ADR-0028-Course-Window-Datetime-And-Unlock-UTC.md) | Approved: cột mốc thời gian của khóa học đổi sang `DATETIME`; `unlock_at` của Lesson lưu theo UTC; không sửa snapshot của Version đã xuất bản |
+| [ADR-0029](adr/ADR-0029-Learning-Mapping-Invalidation.md) | Approved: đánh dấu một liên kết năng lực đã xuất bản là sai — ai làm, ở đâu, ảnh hưởng gì |
+| [ADR-0030](adr/ADR-0030-Learner-Course-Delivery-And-Progress.md) | Approved: trang bài học của học viên, phát Media, ghi tiến độ qua `CourseProgressRecorder`, điểm danh → hoàn thành hoạt động tham gia lớp; Favorite hoãn |
 
 ---
 

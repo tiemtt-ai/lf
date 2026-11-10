@@ -3,6 +3,8 @@
 @import './public/public.css';
 @import './tenant/tenant.css';
 @import './tenant/assessment.css';
+@import './tenant/my-learning.css';
+@import './tenant/student-site.css';
 @import './tenant/theme-default.css';
 
 @tailwind base;

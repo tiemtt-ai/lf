@@ -59,7 +59,7 @@ class LoginExperienceSeparationTest extends TestCase
         $this->from(self::STUDENT_LOGIN)->post(self::STUDENT_LOGIN, [
             'email' => $student->email,
             'password' => 'password123',
-        ])->assertRedirect('https://tenant-a.localhost');
+        ])->assertRedirect('https://tenant-a.localhost/my-courses');
 
         $this->assertAuthenticatedAs($student);
         $this->post('https://tenant-a.localhost/logout')->assertRedirect(self::STUDENT_LOGIN);
@@ -156,7 +156,7 @@ class LoginExperienceSeparationTest extends TestCase
         $this->post('https://tenant-b.localhost/login?experience=student', [
             'email' => $studentB->email,
             'password' => 'password123',
-        ])->assertRedirect('https://tenant-b.localhost');
+        ])->assertRedirect('https://tenant-b.localhost/my-courses');
         $this->assertAuthenticatedAs($studentB);
     }
 

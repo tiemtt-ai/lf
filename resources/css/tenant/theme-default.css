@@ -15,10 +15,12 @@
 }
 
 .lf-student-page {
-    --lf-primary: #625bf6;
+    /* Standard B2B site colours (docs/ui-demo/learner-my-learning-design). */
+    --lf-primary: #4157c8;
     --lf-secondary: #18a999;
-    --lf-bg: #f7f8fc;
-    --lf-radius: 18px;
+    --lf-bg: #f6f8fc;
+    --lf-text: #17284c;
+    --lf-radius: 14px;
     --student-primary: var(--lf-primary);
     --student-secondary: var(--lf-secondary);
     --student-surface-soft: var(--lf-bg);

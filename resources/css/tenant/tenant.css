@@ -1,19 +1,19 @@
 /* Shared tenant website and personalized student experience. */
 .lf-student-page {
-    --student-primary: #625bf6;
-    --student-primary-dark: #4941d9;
-    --student-primary-soft: #eeedff;
+    --student-primary: #4157c8;
+    --student-primary-dark: #3449b5;
+    --student-primary-soft: #eef1ff;
     --student-secondary: #18a999;
     --student-accent: #ffb547;
     --student-danger: #ef6a76;
     --student-info: #4d8dff;
     --student-surface: #ffffff;
-    --student-surface-soft: #f7f8fc;
+    --student-surface-soft: #f6f8fc;
     --student-surface-tint: #f0f5ff;
-    --student-text: #172033;
+    --student-text: #17284c;
     --student-text-soft: #667085;
     --student-text-muted: #98a2b3;
-    --student-border: #e7e9f2;
+    --student-border: #e2e9f3;
     --student-hero-start: #302c73;
     --student-hero-end: #26a9a0;
     --student-ai-start: #171c3f;
@@ -54,13 +54,11 @@
     --student-white-12: rgba(255, 255, 255, .12);
     --student-white-11: rgba(255, 255, 255, .11);
     --student-white-10: rgba(255, 255, 255, .1);
-    --student-primary-wash: rgba(98, 91, 246, .08);
+    --student-primary-wash: rgba(65, 87, 200, .08);
     --student-secondary-wash: rgba(24, 169, 153, .07);
     --student-border-glass: rgba(231, 233, 242, .85);
-    --student-header-shadow: rgba(34, 40, 70, .04);
-    --student-brand-shadow: rgba(98, 91, 246, .24);
-    --student-button-shadow: rgba(98, 91, 246, .2);
-    --student-button-shadow-hover: rgba(98, 91, 246, .26);
+    --student-button-shadow: rgba(65, 87, 200, .18);
+    --student-button-shadow-hover: rgba(65, 87, 200, .24);
     --student-hero-shadow: rgba(58, 53, 139, .2);
     --student-accent-glow-soft: rgba(255, 181, 71, .16);
     --student-accent-glow: rgba(255, 181, 71, .8);
@@ -75,7 +73,7 @@
     margin: 0;
     color: var(--student-text);
     background: var(--student-surface-soft);
-    font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
 }
 
 .lf-student-page [x-cloak] {
@@ -84,235 +82,25 @@
 
 .student-page {
     min-height: 100vh;
-    /* `clip` cuts the wide background glows like `hidden` but is not a scroll container, so the sticky header (and the
-       timer bar of a test) stay on screen. `hidden` remains for browsers without `clip`. */
+    /* `clip` is not a scroll container, so the sticky header (and the timer bar of a test) stay on screen.
+       `hidden` remains for browsers without `clip`. */
     overflow-x: hidden;
     overflow-x: clip;
-    background:
-        radial-gradient(circle at 8% 8%, var(--student-primary-wash), transparent 24rem),
-        radial-gradient(circle at 92% 34%, var(--student-secondary-wash), transparent 22rem),
-        var(--student-surface-soft);
+    background: var(--student-surface-soft);
 }
 
+/* Same content width as the standard B2B header and footer (student-site.css). */
 .student-container {
-    width: min(1240px, calc(100% - 64px));
+    width: min(calc(100% - 48px), 1240px);
     margin: 0 auto;
 }
 
-.student-header {
-    position: sticky;
-    top: 0;
-    z-index: 40;
-    border-bottom: 1px solid var(--student-border-glass);
-    background: var(--student-white-90);
-    box-shadow: 0 4px 24px var(--student-header-shadow);
-    backdrop-filter: blur(18px);
+@media (max-width: 767px) {
+    .student-container {
+        width: calc(100% - 28px);
+    }
 }
 
-.student-header-inner {
-    min-height: 76px;
-    display: flex;
-    align-items: center;
-    gap: 28px;
-}
-
-.student-brand {
-    flex: 0 0 auto;
-    display: inline-flex;
-    align-items: center;
-    gap: 11px;
-    color: var(--student-text);
-}
-
-.student-brand-mark {
-    width: 42px;
-    height: 42px;
-    display: grid;
-    place-items: center;
-    border-radius: 14px;
-    color: var(--student-surface);
-    background: linear-gradient(145deg, var(--student-primary), var(--student-secondary));
-    box-shadow: 0 8px 20px var(--student-brand-shadow);
-    font-size: 16px;
-    font-weight: 800;
-    letter-spacing: -.04em;
-}
-
-.student-brand-copy {
-    display: grid;
-    gap: 1px;
-}
-
-.student-brand-name {
-    font-size: 17px;
-    font-weight: 800;
-    letter-spacing: -.02em;
-    line-height: 1.15;
-}
-
-.student-brand-tenant {
-    max-width: 130px;
-    overflow: hidden;
-    color: var(--student-text-soft);
-    font-size: 11px;
-    line-height: 1.2;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.student-nav {
-    margin-left: auto;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
-.student-nav-link {
-    padding: 10px 11px;
-    border-radius: 10px;
-    color: var(--student-text-soft);
-    font-size: 13px;
-    font-weight: 600;
-    transition: color .2s ease, background .2s ease;
-}
-
-.student-nav-link:hover,
-.student-nav-link.is-active {
-    color: var(--student-primary-dark);
-    background: var(--student-primary-soft);
-}
-
-.student-header-actions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.student-language-switcher {
-    min-width: 40px;
-    min-height: 40px;
-    padding: 0 10px;
-    border: 1px solid var(--student-border);
-    border-radius: 999px;
-    color: var(--student-primary);
-    background: #ffffff;
-    font: inherit;
-    font-weight: 400;
-    cursor: pointer;
-}
-
-.student-icon-button,
-.student-account-trigger,
-.student-mobile-trigger {
-    border: 1px solid var(--student-border);
-    color: var(--student-text);
-    background: var(--student-surface);
-    cursor: pointer;
-}
-
-.student-icon-button {
-    width: 40px;
-    height: 40px;
-    display: grid;
-    place-items: center;
-    border-radius: 12px;
-}
-
-.student-icon-button svg,
-.student-mobile-trigger svg {
-    width: 19px;
-    height: 19px;
-}
-
-.student-dropdown {
-    position: relative;
-}
-
-.student-dropdown-panel {
-    min-width: 190px;
-    padding: 8px;
-    position: absolute;
-    top: calc(100% + 10px);
-    right: 0;
-    z-index: 50;
-    border: 1px solid var(--student-border);
-    border-radius: 14px;
-    background: var(--student-surface);
-    box-shadow: var(--student-shadow-md);
-}
-
-.student-dropdown-label {
-    margin: 4px 8px 8px;
-    color: var(--student-text-muted);
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: .08em;
-    text-transform: uppercase;
-}
-
-.student-dropdown-link {
-    width: 100%;
-    padding: 10px;
-    display: flex;
-    align-items: center;
-    gap: 9px;
-    border: 0;
-    border-radius: 10px;
-    color: var(--student-text-soft);
-    background: transparent;
-    font: inherit;
-    font-size: 13px;
-    text-align: left;
-    cursor: pointer;
-}
-
-.student-dropdown-link:hover,
-.student-dropdown-link.is-current {
-    color: var(--student-primary-dark);
-    background: var(--student-primary-soft);
-}
-
-.student-account-trigger {
-    min-height: 44px;
-    padding: 4px 9px 4px 5px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    border-radius: 14px;
-}
-
-.student-avatar {
-    width: 34px;
-    height: 34px;
-    display: grid;
-    place-items: center;
-    flex: 0 0 auto;
-    border-radius: 11px;
-    color: var(--student-primary-dark);
-    background: var(--student-primary-soft);
-    font-size: 13px;
-    font-weight: 800;
-    text-transform: uppercase;
-}
-
-.student-account-name {
-    max-width: 96px;
-    overflow: hidden;
-    font-size: 13px;
-    font-weight: 700;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.student-chevron {
-    width: 6px;
-    height: 6px;
-    border-right: 1.5px solid var(--student-text-soft);
-    border-bottom: 1.5px solid var(--student-text-soft);
-    transform: rotate(45deg) translateY(-2px);
-}
-
-.student-login-button,
 .student-button {
     min-height: 42px;
     padding: 0 17px;
@@ -331,7 +119,6 @@
     transition: transform .2s ease, background .2s ease, box-shadow .2s ease;
 }
 
-.student-login-button:hover,
 .student-button:hover {
     background: var(--student-primary-dark);
     box-shadow: 0 10px 22px var(--student-button-shadow-hover);
@@ -362,33 +149,6 @@
     padding: 0 13px;
     border-radius: 10px;
     font-size: 12px;
-}
-
-.student-mobile-trigger {
-    width: 42px;
-    height: 42px;
-    display: none;
-    place-items: center;
-    border-radius: 12px;
-}
-
-.student-mobile-menu {
-    display: none;
-    padding: 0 0 14px;
-}
-
-.student-mobile-links {
-    padding: 8px;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 6px;
-    border: 1px solid var(--student-border);
-    border-radius: 16px;
-    background: var(--student-surface);
-}
-
-.student-mobile-links .student-nav-link {
-    padding: 11px 12px;
 }
 
 .student-main {
@@ -1062,47 +822,6 @@
     font-size: 9px;
 }
 
-.student-footer {
-    padding: 28px 0;
-    border-top: 1px solid var(--student-border);
-    background: var(--student-white-72);
-}
-
-.student-footer-inner {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 24px;
-    color: var(--student-text-soft);
-    font-size: 11px;
-}
-
-.student-footer-brand {
-    display: flex;
-    align-items: center;
-    gap: 9px;
-    color: var(--student-text);
-    font-size: 12px;
-    font-weight: 800;
-}
-
-.student-footer-brand .student-brand-mark {
-    width: 30px;
-    height: 30px;
-    border-radius: 10px;
-    font-size: 11px;
-}
-
-.student-footer-links {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 18px;
-}
-
-.student-footer-links a:hover {
-    color: var(--student-primary-dark);
-}
-
 .student-profile-shell {
     width: 100%;
     max-width: 1180px;
@@ -1530,47 +1249,7 @@
     padding-left: 18px;
 }
 
-@media (max-width: 1200px) {
-    .student-container {
-        width: min(100% - 48px, 1120px);
-    }
-
-    .student-header-inner {
-        gap: 16px;
-    }
-
-    .student-nav-link {
-        padding-right: 8px;
-        padding-left: 8px;
-        font-size: 12px;
-    }
-
-    .student-brand-tenant {
-        display: none;
-    }
-}
-
 @media (max-width: 992px) {
-    .student-container {
-        width: min(100% - 40px, 940px);
-    }
-
-    .student-nav {
-        display: none;
-    }
-
-    .student-header-actions {
-        margin-left: auto;
-    }
-
-    .student-mobile-trigger {
-        display: grid;
-    }
-
-    .student-mobile-menu {
-        display: block;
-    }
-
     .student-hero {
         grid-template-columns: minmax(0, 1fr) 300px;
         padding: 28px 30px;
@@ -1594,10 +1273,6 @@
 }
 
 @media (max-width: 768px) {
-    .student-container {
-        width: min(100% - 32px, 720px);
-    }
-
     .student-main {
         padding-top: 24px;
     }
@@ -1644,11 +1319,6 @@
         width: 100%;
     }
 
-    .student-footer-inner {
-        align-items: flex-start;
-        flex-direction: column;
-    }
-
     .student-profile-layout {
         grid-template-columns: 1fr;
     }
@@ -1663,39 +1333,6 @@
 }
 
 @media (max-width: 576px) {
-    .student-container {
-        width: min(100% - 24px, 540px);
-    }
-
-    .student-header-inner {
-        min-height: 68px;
-    }
-
-    .student-brand-copy,
-    .student-account-name,
-    .student-account-trigger .student-chevron {
-        display: none;
-    }
-
-    .student-header-actions {
-        gap: 6px;
-    }
-
-    .student-account-trigger {
-        min-height: 40px;
-        padding: 2px;
-        border: 0;
-    }
-
-    .student-account-trigger .student-avatar {
-        width: 38px;
-        height: 38px;
-    }
-
-    .student-mobile-links {
-        grid-template-columns: 1fr;
-    }
-
     .student-main {
         padding-bottom: 38px;
     }
@@ -1950,13 +1587,11 @@
     }
 }
 
-
 .student-login-shell {
     width: 100%;
     max-width: 480px;
     margin: 0 auto;
 }
-
 
 .student-page--login {
     min-height: 100dvh;
@@ -1969,11 +1604,6 @@
     display: flex;
     align-items: center;
     padding: 40px 0;
-}
-
-.student-page--login .student-header,
-.student-page--login .student-footer {
-    flex-shrink: 0;
 }
 
 .student-login-options {
@@ -2041,73 +1671,6 @@
 
 .student-login-submit {
     width: 100%;
-}
-
-/* Learner course page: live Sessions with "Xem bảng" (ADR-0002 § LiveClass Whiteboard Amendment). */
-.student-live-sessions {
-    margin-bottom: 24px;
-}
-
-.student-live-list {
-    display: grid;
-    gap: 12px;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-}
-
-.student-live-item {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 12px 0;
-    border-top: 1px solid rgba(15, 23, 42, 0.08);
-}
-
-.student-live-item:first-child {
-    border-top: 0;
-}
-
-.student-live-copy {
-    display: grid;
-    gap: 4px;
-    min-width: 0;
-}
-
-.student-live-copy span {
-    color: #64748b;
-    font-size: 14px;
-}
-
-.student-live-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-}
-
-/* In class + remote: the learner says where they are; in class means the QR code on the classroom screen. */
-.student-live-where {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-}
-
-.student-live-where .student-button[aria-pressed="true"] {
-    border-color: var(--student-primary, #4f5bd5);
-    box-shadow: inset 0 0 0 1px var(--student-primary, #4f5bd5);
-}
-
-.student-live-item [x-cloak] {
-    display: none !important;
-}
-
-.student-live-hint {
-    flex-basis: 100%;
-    margin: 0;
-    color: #475569;
-    font-size: 14px;
 }
 
 /* Attendance check-in page opened by the board's QR code (LF-Core-LiveClass § Attendance). */

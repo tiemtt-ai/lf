@@ -3,13 +3,16 @@
 @section('title', __('lf.LF_auth_login_title').' | '.__('lf.LF_common_brand_name'))
 
 @section('tenant_page_class', 'student-page--login')
-@section('footer_description', __('lf.LF_common_footer_common_copyright'))
 
 @section('content')
 <div class="student-login-shell">
     <section class="student-card student-profile-card" aria-labelledby="student-login-title">
         <div class="student-page-heading">
+            <span class="student-login-mark" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.2"/><path d="M4.7 20v-1.4a7.3 7.3 0 0 1 14.6 0V20"/></svg>
+            </span>
             <h1 id="student-login-title">{{ __('lf.LF_auth_login_title') }}</h1>
+            <p>{{ __('lf.LF_auth_login_student_subtitle') }}</p>
         </div>
 
         <x-auth-session-status class="student-alert is-success" :status="session('status')" />
@@ -56,6 +59,10 @@
             </div>
             <button class="student-button student-login-submit" type="submit">{{ __('lf.LF_auth_login_title') }}</button>
         </form>
+        <p class="student-login-foot">
+            {{ __('lf.LF_auth_login_no_account') }}
+            <a href="{{ route('tenant.contact') }}">{{ __('lf.LF_auth_login_contact_center') }}</a>
+        </p>
     </section>
 </div>
 @endsection

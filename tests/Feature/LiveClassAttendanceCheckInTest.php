@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Http\Controllers\LiveClassAttendanceCheckInController;
 use App\Models\User;
+use App\Services\LiveClassSessionLifecycleService;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -189,10 +190,10 @@ class LiveClassAttendanceCheckInTest extends TestCase
         $this->assertSame('2026-07-04 16:00:00',
             (string) DB::table('core_liveclass_attendances')->where('session_id', $session)->value('joined_at'));
 
-        // Without a pending check-in the student sign-in still lands on the home page.
+        // Without a pending check-in the student sign-in lands on "Khóa học của tôi".
         $this->post(self::HOST.'/logout');
         $this->post(self::HOST.'/login?experience=student', ['email' => $student->email, 'password' => 'password123'])
-            ->assertRedirect(self::HOST);
+            ->assertRedirect(self::HOST.'/my-courses');
     }
 
     public function test_only_active_learners_of_the_class_are_recorded(): void
@@ -297,6 +298,36 @@ class LiveClassAttendanceCheckInTest extends TestCase
         $this->actingAs($student)->post($page);
 
         $this->assertSame(0, DB::table('core_liveclass_attendances')->where('session_id', $session)->count());
+    }
+
+    public function test_a_join_activity_follows_attendance_both_ways(): void
+    {
+        $setup = $this->setupClass();
+        $session = $this->liveSession($setup, 'offline');
+        $student = $this->learner($setup);
+        $enrollment = (int) DB::table('core_course_cohort_students')->where('student_id', $student->id)->value('enrollment_id');
+        $progress = fn (): ?string => DB::table('core_course_activity_progress')
+            ->where('enrollment_id', $enrollment)->where('version_activity_id', $setup['liveActivity'])->value('status');
+        $save = fn (string $status) => $this->actingAs($setup['admin'])->put(self::HOST."/admin/course-cohorts/{$setup['cohort']}/sessions/{$session}/attendance",
+            ['attendance' => [['enrollment_id' => $enrollment, 'status' => $status, 'attendance_mode' => 'offline', 'notes' => '']]])->assertRedirect();
+
+        // ADR-0030 D3: the scan completes the Activity and its Lesson.
+        $this->scanAt($setup, $session, $student, '2026-07-04 16:02:00');
+        $this->assertSame('completed', $progress());
+        $this->assertSame(['attended', 'completed'], [
+            DB::table('core_course_activity_progress')->where('enrollment_id', $enrollment)->value('completion_rule'),
+            DB::table('core_course_lesson_progress')->where('enrollment_id', $enrollment)->value('status'),
+        ]);
+
+        $save('absent');
+        $this->assertSame('not_started', $progress());
+        $this->assertSame('not_started', DB::table('core_course_lesson_progress')->where('enrollment_id', $enrollment)->value('status'));
+        $save('late');
+        $this->assertSame('completed', $progress());
+
+        // A cancelled Session no longer counts.
+        app(LiveClassSessionLifecycleService::class)->cancel($setup['customer'], $setup['cohort'], $session, 'Giáo viên ốm');
+        $this->assertSame('not_started', $progress());
     }
 
     private function scanAt(array $setup, int $session, User $student, string $localTime)

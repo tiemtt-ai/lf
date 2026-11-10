@@ -208,7 +208,7 @@ class RoleProfileTest extends TestCase
         $this->post('https://tenant-a.localhost/login?experience=student', [
             'email' => $student->email,
             'password' => 'student-password-456',
-        ])->assertRedirect('https://tenant-a.localhost');
+        ])->assertRedirect('https://tenant-a.localhost/my-courses');
         $this->assertAuthenticatedAs($student->fresh());
     }
 

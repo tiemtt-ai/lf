@@ -8,6 +8,7 @@ use App\Services\CourseCohortContentTree;
 use App\Services\CourseCohortMutationPolicy;
 use App\Services\CourseCohortSessionWindow;
 use App\Services\CourseCohortVersionResolver;
+use App\Services\CourseProgressRecorder;
 use App\Services\LiveClassAttendanceCheckIn;
 use App\Services\LiveClassCohortSessionReadModel;
 use App\Services\LiveClassMeetingProvider;
@@ -35,7 +36,8 @@ class CourseCohortOperationController extends Controller
         private readonly LiveClassSessionLifecycleService $sessionLifecycleService,
         private readonly LiveClassCohortSessionReadModel $sessionReadModel,
         private readonly CourseCohortContentTree $contentTree,
-        private readonly CourseCohortContentReorder $contentReorder
+        private readonly CourseCohortContentReorder $contentReorder,
+        private readonly CourseProgressRecorder $progressRecorder,
     ) {}
 
     public function storeTeacher(Request $request, int $cohort): RedirectResponse
@@ -886,6 +888,7 @@ class CourseCohortOperationController extends Controller
             'attendance.*.loaded_notes' => ['nullable', 'string', 'max:1000'],
         ]);
         $skipped = 0;
+        $changed = [];
 
         $memberships = DB::table('core_course_cohort_students as memberships')
             ->join('core_course_enrollments as enrollments', function ($join) use ($customerId): void {
@@ -896,7 +899,7 @@ class CourseCohortOperationController extends Controller
             ->get(['memberships.student_id', 'memberships.enrollment_id', 'enrollments.status as enrollment_status'])
             ->keyBy('enrollment_id');
 
-        DB::transaction(function () use ($validated, $memberships, $customerId, $session, $sessionRow, $request, &$skipped): void {
+        DB::transaction(function () use ($validated, $memberships, $customerId, $session, $sessionRow, $request, &$skipped, &$changed): void {
             $existing = DB::table('core_liveclass_attendances')
                 ->where('customer_id', $customerId)->where('session_id', $session)->lockForUpdate()
                 ->get(['id', 'enrollment_id', 'status', 'attendance_mode', 'notes'])->keyBy('enrollment_id');
@@ -943,8 +946,12 @@ class CourseCohortOperationController extends Controller
                         'created_at' => now(),
                     ]);
                 }
+                $changed[] = (int) $item['enrollment_id'];
             }
         });
+        // A `join` Activity follows Attendance both ways (ADR-0030 D3).
+        $this->progressRecorder->attendanceChanged($customerId, $changed,
+            $sessionRow->version_activity_id ? (int) $sessionRow->version_activity_id : null);
 
         $message = __('lf.LF_course_cohort_attendance_saved');
         if ($skipped > 0) {
