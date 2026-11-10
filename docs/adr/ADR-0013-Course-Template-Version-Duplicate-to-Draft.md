@@ -1,18 +1,19 @@
 # ADR-0013 — Course Template Version Duplicate to Draft
 
-Version: 1.3
+Version: 1.4
 
 Status: Approved
 
 Implementation Status: Unknown
 
-Last Updated: 2026-08-09
+Last Updated: 2026-11-10
 
 Decision Date: 2026-07-03
 
 Scope Amendment Date: 2026-07-10
 Nested Section Amendment Date: 2026-07-10
 Information Model Amendment Date: 2026-07-12
+Learning Mapping Amendment Date: 2026-11-10
 
 Document Path: adr/ADR-0013-Course-Template-Version-Duplicate-to-Draft.md
 
@@ -195,6 +196,40 @@ It is not reset to `source_working_revision` from the selected Version.
 `updated_at` is set to the operation time. `created_by` and `created_at` remain
 unchanged. `last_version_published_at` remains unchanged because duplicate is
 not a publish event.
+
+# Learning Mapping Decision
+
+Amendment 2026-11-10, approved by the Architecture Owner ("Khôi phục theo
+Version"). This ADR was written before Course Template Mapping Intent existed
+([core_course_template_learning_mapping_intents](../database/course/core_course_template_learning_mapping_intents.md)).
+Duplicate replaces every working Lesson and Activity with new identities, so
+every Intent of the draft would point at a source that no longer exists and the
+next publish would fail closed.
+
+Duplicate therefore restores the Learning Mapping state of the selected Version,
+in the same transaction and under the same Template lock:
+
+* every Mapping Intent of the working draft is removed, AI-origin ones included;
+* each canonical Mapping of the selected Version that is not invalidated becomes
+  one Mapping Intent on the restored working Lesson or Activity, with the same
+  Node, `mapping_role` and `weight`;
+* the Template selects the Framework Version those Mappings belong to, because
+  an Intent must match the Template selection exactly. A Version without
+  Mappings leaves the selection as it is;
+* restored Intents are `origin = manual`, created by the administrator who runs
+  the duplicate. A Mapping that came from an AI proposal keeps its lineage on
+  the immutable canonical Mapping of the source Version; the restored Intent
+  does not point at the proposal, whose Activity identity no longer exists in
+  the draft. Carrying AI provenance over to the restored Intent is deferred by
+  the Owner (2026-11-10) and needs its own decision;
+* an invalidated Mapping is not restored: it was declared wrong;
+* nothing is checked against the current Learning state. A retired Node or a
+  Framework Version that is no longer published is restored as it was and fails
+  the next publish closed, as for any other Intent;
+* a Mapping whose source is not part of the restored structure rejects the
+  duplicate and rolls it back.
+
+No canonical Mapping is created, changed or invalidated by duplicate.
 
 # Optional Reference Fallback
 

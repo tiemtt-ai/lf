@@ -12,8 +12,10 @@ use App\Services\CourseCohortVersionResolver;
 use App\Services\LiveClassCohortScheduleReadModel;
 use App\Services\LiveClassCohortSessionReadModel;
 use App\Services\LiveClassSessionPolicy;
+use App\Services\LiveClassSessionTime;
 use App\Support\CourseType;
 use App\Support\SequentialCodeGenerator;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -596,6 +598,15 @@ class CourseCohortController extends Controller
             if ($scheduleWindowErrors !== []) {
                 throw ValidationException::withMessages(['start_date' => $scheduleWindowErrors]);
             }
+            $sessionWindowError = $this->sessionWindowError(
+                $customerId,
+                $id,
+                $validated['start_date'] ?? null,
+                $validated['end_date'] ?? null
+            );
+            if ($sessionWindowError !== null) {
+                throw ValidationException::withMessages(['start_date' => $sessionWindowError]);
+            }
 
             $values = [
                 'name' => $validated['name'],
@@ -838,6 +849,38 @@ class CourseCohortController extends Controller
         return $schedules->isEmpty()
             ? []
             : [__('lf.LF_course_cohort_validation_schedule_requires_operation')];
+    }
+
+    /**
+     * Every Session that is not cancelled must stay inside the operating period
+     * (core_liveclass_sessions.md, Cohort Schedule Boundary Amendment), so the
+     * dates cannot shrink past one, nor be cleared while the class has any.
+     * Session times are wall-clock in their own timezone; the period is local dates.
+     */
+    private function sessionWindowError(int $customerId, int $cohortId, ?string $startsOn, ?string $endsOn): ?string
+    {
+        $sessions = DB::table('core_liveclass_sessions')
+            ->where('customer_id', $customerId)->where('cohort_id', $cohortId)
+            ->where('status', '!=', 'cancelled')
+            ->orderBy('scheduled_start_at')->orderBy('id')
+            ->get(['title', 'scheduled_start_at', 'scheduled_end_at', 'timezone']);
+        if ($sessions->isEmpty()) {
+            return null;
+        }
+        if (! $startsOn || ! $endsOn) {
+            return __('lf.LF_course_cohort_validation_session_requires_operation');
+        }
+
+        $timezone = config('app.timezone');
+        $from = CarbonImmutable::parse($startsOn, $timezone)->startOfDay()->utc();
+        $to = CarbonImmutable::parse($endsOn, $timezone)->endOfDay()->utc();
+        $outside = $sessions->first(fn (object $session): bool => LiveClassSessionTime::utc($session->scheduled_start_at, $session->timezone)->lt($from)
+            || LiveClassSessionTime::utc($session->scheduled_end_at, $session->timezone)->gt($to));
+
+        return $outside ? __('lf.LF_course_cohort_validation_session_outside_operation', [
+            'title' => $outside->title,
+            'at' => LiveClassSessionTime::utc($outside->scheduled_start_at, $outside->timezone)->setTimezone($timezone)->format('d/m/Y H:i'),
+        ]) : null;
     }
 
     private function cohortValues(array $validated, array $extra = []): array

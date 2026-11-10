@@ -254,6 +254,25 @@ class LiveClassAttendanceCheckInTest extends TestCase
             ->assertOk()->assertSee(__('lf.LF_course_cohort_attendance_checked_in_qr', ['time' => '16:02']));
     }
 
+    public function test_an_unassigned_session_offers_no_code_and_records_no_scan(): void
+    {
+        $setup = $this->setupClass();
+        $session = $this->liveSession($setup, 'offline');
+        $student = $this->learner($setup);
+        $url = $this->codeUrl($setup, $session);
+        // The teacher is taken off after the code was shown: no Attendance until one is assigned again.
+        DB::table('core_liveclass_session_teachers')->where('session_id', $session)->delete();
+        $board = "/admin/course-cohorts/{$setup['cohort']}/sessions/{$session}/board";
+
+        $this->assertStringContainsString('"attendanceCodeUrl":null', $this->boardConfig($setup['admin'], $board));
+        $this->actingAs($setup['admin'])->getJson(self::HOST.$board.'/attendance-code')->assertNotFound();
+        $page = self::HOST."/my-courses/live-sessions/{$session}/check-in";
+        $this->actingAs($student)->get($url);
+        $this->actingAs($student)->post($page);
+
+        $this->assertSame(0, DB::table('core_liveclass_attendances')->where('session_id', $session)->count());
+    }
+
     private function scanAt(array $setup, int $session, User $student, string $localTime)
     {
         Carbon::setTestNow(CarbonImmutable::parse($localTime, self::TZ));

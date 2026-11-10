@@ -358,10 +358,7 @@ class LiveClassWhiteboardService
 
     private function learnerMembership(int $customerId, int $studentId, int $cohortId): ?object
     {
-        return DB::table('core_course_cohort_students')
-            ->where('customer_id', $customerId)->where('cohort_id', $cohortId)
-            ->where('student_id', $studentId)->where('status', 'active')->whereNull('left_at')
-            ->first(['id', 'enrollment_id', 'student_id']);
+        return LearnerCohortSeat::current($customerId, $cohortId, $studentId);
     }
 
     /** An active learner User whose Enrollment for this membership is active and inside its access window now. */

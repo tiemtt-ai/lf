@@ -797,7 +797,8 @@ recurring Schedule persistence:
   unassigned, but every non-cancelled/non-no-show Session must have at least
   one assigned teacher before Cohort activation;
 * an unassigned Session in an already active Cohort cannot accept runtime
-  evidence such as Attendance or Recording until a teacher is assigned;
+  evidence such as Attendance or Recording until a teacher is assigned; this
+  covers QR check-in too: the board offers no code and a scan records nothing;
 * Owner decision 2026-11-04: in a `draft` Cohort, a `scheduled` Session whose
   start has passed, with no teacher and no evidence, may still receive teachers
   through a dedicated action. Other fields and the times stay unchanged, and

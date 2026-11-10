@@ -124,6 +124,7 @@ class CourseTemplateLearningMappingHttpMariaDbTest extends TestCase
     public function test_detaching_framework_clears_draft_selection_and_all_mapping_intents(): void
     {
         $f = $this->fixture('detach-framework');
+        $this->asDraft($f);
         $this->select($f);
         $this->storeLessonMapping($f)->assertSessionHasNoErrors();
         $revision = DB::table('core_course_templates')->where('id', $f['template_id'])->value('working_revision');
@@ -428,6 +429,7 @@ class CourseTemplateLearningMappingHttpMariaDbTest extends TestCase
 
     public function test_the_activity_page_offers_an_admin_only_the_drafts_of_the_selected_framework(): void
     {
+        config(['ai.authoring.ui_enabled' => true]);
         $f = $this->fixture('draft-choice');
         $this->select($f);
         TenantContext::set((object) ['id' => $f['customer_id']]);
@@ -453,6 +455,7 @@ class CourseTemplateLearningMappingHttpMariaDbTest extends TestCase
 
     public function test_a_teacher_is_offered_no_draft_and_a_template_without_a_framework_offers_none(): void
     {
+        config(['ai.authoring.ui_enabled' => true]);
         $f = $this->fixture('draft-teacher');
         $this->select($f);
         TenantContext::set((object) ['id' => $f['customer_id']]);
@@ -493,7 +496,7 @@ class CourseTemplateLearningMappingHttpMariaDbTest extends TestCase
         $html = $this->editPage($f);
 
         $page = "/admin/course-templates/{$f['template_id']}/lessons/{$f['lesson_id']}/activities/{$f['activity_id']}";
-        $this->assertMatchesRegularExpression('#class="course-learning__skill-link" href="[^"]*'.preg_quote($page, '#').'" title="Mở hoạt động">Hoạt động: Activity backlink-flat#', $html);
+        $this->assertMatchesRegularExpression('#class="course-learning__skill-link ui-learning-link" href="[^"]*'.preg_quote($page, '#').'" title="Mở hoạt động">Hoạt động: Activity backlink-flat#', $html);
         $this->assertStringNotContainsString('/ai-authoring/', $html, 'The link is the Activity page, never an API address.');
     }
 
@@ -510,7 +513,7 @@ class CourseTemplateLearningMappingHttpMariaDbTest extends TestCase
             ->assertSessionHasNoErrors();
 
         $this->assertMatchesRegularExpression(
-            '#class="course-learning__skill-link" href="[^"]*'.preg_quote("/admin/course-templates/{$f['template_id']}/sections/{$sectionId}/lessons/{$f['lesson_id']}/activities/{$f['activity_id']}", '#').'"#',
+            '#class="course-learning__skill-link ui-learning-link" href="[^"]*'.preg_quote("/admin/course-templates/{$f['template_id']}/sections/{$sectionId}/lessons/{$f['lesson_id']}/activities/{$f['activity_id']}", '#').'"#',
             $this->editPage($f),
         );
     }
@@ -664,6 +667,7 @@ class CourseTemplateLearningMappingHttpMariaDbTest extends TestCase
     public function test_moving_to_the_chosen_version_removes_all_draft_links(): void
     {
         $f = $this->fixture('upgrade-ok');
+        $this->asDraft($f);
         $this->select($f);
         $this->storeLessonMapping($f, ['weight' => '0.5'])->assertSessionHasNoErrors();
         $original = DB::table('core_course_template_learning_mapping_intents')->where('template_id', $f['template_id'])->firstOrFail();
@@ -675,12 +679,10 @@ class CourseTemplateLearningMappingHttpMariaDbTest extends TestCase
         $this->assertStringNotContainsString('data-course-learning-upgrade-picker', $html);
         $this->assertStringContainsString('<option value="'.$f['framework_id'].':'.$v2.'"', $html);
         $this->assertStringNotContainsString('data-course-learning-upgrade=', $html, 'No target is chosen for the admin (ADR-0016 amendment 1.2).');
-        $this->assertStringNotContainsString('course-learning__change-locked', $html, 'The move picker replaces the locked-change note.');
 
         $html = $this->editPage($f, $v2);
         $this->assertStringContainsString('id="learning-framework-version"', $html);
-        $this->assertStringContainsString('gỡ toàn bộ 1 liên kết năng lực', $html);
-        $this->assertStringContainsString('window.LFConfirm.open', $html);
+        $this->assertStringContainsString('Áp dụng sẽ gỡ 1 liên kết năng lực', $html, 'The change popup warns how many links the move removes.');
         $this->assertSame($f['version_id'], (int) DB::table('core_course_templates')->where('id', $f['template_id'])->value('selected_learning_framework_version_id'), 'A preview changes nothing.');
 
         $this->admin($f)->post($f['host']."/admin/course-templates/{$f['template_id']}/learning-framework/upgrade", [
@@ -701,10 +703,11 @@ class CourseTemplateLearningMappingHttpMariaDbTest extends TestCase
     public function test_only_a_published_version_of_the_same_framework_can_be_previewed(): void
     {
         $f = $this->fixture('upgrade-foreign');
+        $this->asDraft($f);
         $this->select($f);
         $this->storeLessonMapping($f)->assertSessionHasNoErrors();
         $other = $this->fixture('upgrade-foreign-other');
-        $this->assertStringContainsString('course-learning__change-locked', $this->editPage($f), 'With no other Version of this framework nothing is offered.');
+        $this->assertSame(1, preg_match_all('#<option value="\d+:\d+"#', $this->editPage($f)), 'With no other Version of this framework only the current one is listed.');
 
         [$v2] = $this->publishedVersionWith($f, [$this->fixtureDefinition($f)]);
         $html = $this->editPage($f, $other['version_id']);
@@ -716,6 +719,7 @@ class CourseTemplateLearningMappingHttpMariaDbTest extends TestCase
     public function test_a_link_whose_competency_left_the_framework_is_listed_and_removed(): void
     {
         $f = $this->fixture('upgrade-drop');
+        $this->asDraft($f);
         $this->select($f);
         $this->storeLessonMapping($f)->assertSessionHasNoErrors();
         [$v2] = $this->publishedVersionWith($f, [$this->definition($f, 'NEW')]);
@@ -871,6 +875,17 @@ class CourseTemplateLearningMappingHttpMariaDbTest extends TestCase
         $this->actingAs(User::findOrFail($f['admin_id']));
 
         return $this;
+    }
+
+    /**
+     * Select, detach and move to another Version act on a draft Template only (2026-10-31);
+     * the fixture Template is active.
+     *
+     * @param  array<string, mixed>  $f
+     */
+    private function asDraft(array $f): void
+    {
+        DB::table('core_course_templates')->where('id', $f['template_id'])->update(['status' => 'draft']);
     }
 
     /** @param array<string, mixed> $f */

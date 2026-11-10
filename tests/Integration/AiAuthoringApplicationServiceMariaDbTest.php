@@ -248,6 +248,8 @@ class AiAuthoringApplicationServiceMariaDbTest extends TestCase
             'framework_version_id' => $draft, 'node_definition_id' => $node->node_definition_id, 'criteria' => ['level' => 'changed'],
         ]);
         $learning->publishVersion($this->f['admin_id'], $draft);
+        // Changing the selected Version is allowed on a draft Template only.
+        DB::table('core_course_templates')->where('id', $this->f['template_id'])->update(['status' => 'draft']);
         $this->tenantService(CourseTemplateLearningMappingIntentService::class)
             ->select($this->f['admin_id'], $this->f['customer_id'], $this->f['template_id'], $this->f['framework_id'], $draft);
 

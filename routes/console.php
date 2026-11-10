@@ -21,3 +21,6 @@ Schedule::command('ai:authoring-reconcile-erasure')->everyFifteenMinutes()->with
 // Media → Knowledge sync (Knowledge Sync Contract): source of truth for create,
 // stale/archive and delete; the Media events only shorten the delay.
 Schedule::command('ai:knowledge-sync')->everyTenMinutes()->withoutOverlapping(30);
+
+// Expiry is a system-owned Enrollment transition (LF-Core-Course, Enrollment lifecycle).
+Schedule::command('course:expire-enrollments')->everyFiveMinutes()->withoutOverlapping(10);

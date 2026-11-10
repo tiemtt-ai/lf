@@ -2,10 +2,12 @@
 
 namespace App\Services;
 
+use App\Support\CourseTemplateEditable;
 use App\Support\TenantContext;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
 /** Course-owned draft intent; all Learning reads remain behind the Learning read service. */
@@ -257,9 +259,68 @@ final class CourseTemplateLearningMappingIntentService
         });
     }
 
+    /**
+     * A published Version was copied back to the draft (ADR-0013, Learning Mapping
+     * Decision): every working Lesson and Activity has a new identity, so the draft
+     * takes the Mappings of that Version instead of keeping Intents that point at
+     * nothing. The caller holds the Template lock inside its transaction and has
+     * already moved `working_revision`.
+     *
+     * @param  array<int,int>  $lessonMap  Version Lesson id => restored working Lesson id
+     * @param  array<int,int>  $activityMap  Version Activity id => restored working Activity id
+     * @return int how many Intents the draft now has
+     */
+    public function restoreFromVersion(int $actorId, int $customerId, int $templateId, int $courseVersionId, array $lessonMap, array $activityMap): int
+    {
+        // SQLite carries no Learning schema: there is nothing to restore.
+        if (! Schema::hasTable('core_course_template_learning_mapping_intents')) {
+            return 0;
+        }
+        abort_unless(TenantContext::customerId() === $customerId, 403);
+
+        $mappings = $this->learningReads->courseVersionMappings($actorId, $courseVersionId);
+        DB::table('core_course_template_learning_mapping_intents')
+            ->where('customer_id', $customerId)->where('template_id', $templateId)->delete();
+        if ($mappings->isEmpty()) {
+            return 0;
+        }
+
+        $selections = $mappings->map(fn (object $mapping): string => $mapping->framework_id.':'.$mapping->framework_version_id)->unique();
+        $rows = [];
+        $now = now();
+        foreach ($mappings as $mapping) {
+            $lesson = $mapping->source_type === 'course_version_lesson';
+            $sourceId = ($lesson ? $lessonMap : $activityMap)[(int) $mapping->source_id] ?? null;
+            if ($selections->count() !== 1 || $sourceId === null) {
+                throw ValidationException::withMessages(['duplicate' => __('lf.LF_course_template_duplicate_invalid_structure')]);
+            }
+            $rows[] = [
+                'customer_id' => $customerId, 'template_id' => $templateId,
+                'source_type' => $lesson ? 'course_template_lesson' : 'course_template_activity', 'source_id' => $sourceId,
+                'framework_id' => (int) $mapping->framework_id, 'framework_version_id' => (int) $mapping->framework_version_id,
+                'learning_node_id' => (int) $mapping->learning_node_id, 'mapping_role' => $mapping->mapping_role,
+                'weight' => $mapping->weight, 'origin' => 'manual',
+                'created_by' => $actorId, 'updated_by' => $actorId, 'created_at' => $now, 'updated_at' => $now,
+            ];
+        }
+
+        // An Intent must match the Template selection exactly, so the selection moves first.
+        DB::table('core_course_templates')->where('customer_id', $customerId)->where('id', $templateId)->update([
+            'selected_learning_framework_id' => $rows[0]['framework_id'],
+            'selected_learning_framework_version_id' => $rows[0]['framework_version_id'],
+        ]);
+        DB::table('core_course_template_learning_mapping_intents')->insert($rows);
+
+        return count($rows);
+    }
+
     private function template(int $customerId, int $templateId, bool $lock = false): object
     {
-        $row = DB::table('core_course_templates')->where('customer_id', $customerId)->where('id', $templateId)->when($lock, fn ($q) => $q->lockForUpdate())->first();
+        if ($lock) {
+            // Every write locks here, so an archived Template takes no mapping change.
+            return CourseTemplateEditable::lock($customerId, $templateId);
+        }
+        $row = DB::table('core_course_templates')->where('customer_id', $customerId)->where('id', $templateId)->first();
         abort_if(! $row, 404);
 
         return $row;

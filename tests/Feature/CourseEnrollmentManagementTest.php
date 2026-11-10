@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Services\CourseEnrollmentLifecycleService;
 use App\Services\EnrollmentCreationAction;
+use App\Services\EnrollmentEligibilityPolicy;
 use App\Support\SimpleXlsx;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -2129,6 +2130,60 @@ class CourseEnrollmentManagementTest extends TestCase
         $this->assertSame([__('lf.LF_course_enrollment_common_source_admin'), __('lf.LF_course_enrollment_common_active')], [$only[1][8], $only[1][12]]);
 
         $this->actingAs($teacher)->get('https://tenant-a.localhost/admin/course-enrollments/export')->assertForbidden();
+    }
+
+    public function test_expiry_moves_only_cycles_whose_learning_window_has_ended(): void
+    {
+        $customerId = $this->createTenant();
+        $otherCustomerId = $this->createTenant('tenant-b');
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $productId = $this->createProduct($customerId, 'TOPIK Expiry', 'topik-expiry');
+        $versionId = $this->createVersion($customerId, $admin->id);
+        $now = Carbon::parse('2026-11-10 10:00:00');
+        Carbon::setTestNow($now);
+        $cycle = function (array $window, string $status = 'active', ?int $tenant = null) use ($customerId, $productId, $versionId): int {
+            $tenant ??= $customerId;
+            $id = $this->createEnrollment($tenant, $this->createUser($tenant, 'student')->id, $productId, $versionId, $status);
+            if ($window !== []) {
+                DB::table('core_course_enrollments')->where('id', $id)->update($window);
+            }
+
+            return $id;
+        };
+        $accessEnded = ['access_starts_at' => '2026-08-01 00:00:00', 'access_ends_at' => '2026-11-10 10:00:00'];
+
+        $mainWindowOver = $cycle($accessEnded);
+        $suspendedOver = $cycle($accessEnded, 'suspended');
+        $inReview = $cycle($accessEnded + ['review_starts_at' => '2026-11-10 10:00:00', 'review_ends_at' => '2026-12-10 10:00:00']);
+        $reviewOver = $cycle($accessEnded + ['review_starts_at' => '2026-11-10 10:00:00', 'review_ends_at' => '2026-11-10 09:59:59']);
+        $stillLearning = $cycle(['access_starts_at' => '2026-11-01 00:00:00', 'access_ends_at' => '2026-11-10 10:00:01']);
+        $live = $cycle([]);
+        $cancelled = $cycle($accessEnded, 'cancelled');
+        $otherTenant = $cycle($accessEnded, 'active', $otherCustomerId);
+        $cohortId = $this->createCohort($customerId, $productId, $versionId);
+        DB::table('core_course_cohort_students')->insert([
+            'customer_id' => $customerId, 'cohort_id' => $cohortId, 'enrollment_id' => $mainWindowOver,
+            'product_id' => $productId, 'student_id' => DB::table('core_course_enrollments')->where('id', $mainWindowOver)->value('student_id'),
+            'joined_at' => $now, 'status' => 'active', 'created_at' => $now, 'updated_at' => $now,
+        ]);
+
+        $this->artisan('course:expire-enrollments', ['--customer' => (string) $customerId])->assertSuccessful();
+
+        $status = fn (int $id): string => (string) DB::table('core_course_enrollments')->where('id', $id)->value('status');
+        $this->assertSame(
+            ['expired', 'expired', 'active', 'expired', 'active', 'active', 'cancelled', 'active'],
+            array_map($status, [$mainWindowOver, $suspendedOver, $inReview, $reviewOver, $stillLearning, $live, $cancelled, $otherTenant]),
+        );
+        $this->assertSame($now->toDateTimeString(), Carbon::parse(DB::table('core_course_enrollments')->where('id', $mainWindowOver)->value('expired_at'))->toDateTimeString());
+        $this->assertSame('active', DB::table('core_course_cohort_students')->where('enrollment_id', $mainWindowOver)->value('status'), 'Expiry leaves the seat to an explicit Remove.');
+
+        // An expired cycle no longer blocks a new one for the same student and Product.
+        $history = DB::table('core_course_enrollments')->where('id', $mainWindowOver)->get();
+        $this->assertSame('reenrollment_eligible', app(EnrollmentEligibilityPolicy::class)->classifyHistory($history)['status']);
+
+        $this->artisan('course:expire-enrollments')->assertSuccessful();
+        $this->assertSame('expired', $status($otherTenant), 'Without --customer every tenant is handled.');
+        Carbon::setTestNow();
     }
 
     private function prepareBulkSubmission(object $admin, array $studentIds, array $productIds, array $confirmations, array $configuration): string

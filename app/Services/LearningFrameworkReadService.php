@@ -150,6 +150,32 @@ final class LearningFrameworkReadService
             ->keyBy(fn (object $node): int => (int) $node->id);
     }
 
+    /**
+     * The canonical Mappings of one published Course Version that are still in
+     * force, each with the Framework Version its Node belongs to. Read when a
+     * Version is copied back to the draft (ADR-0013, Learning Mapping Decision).
+     *
+     * @return Collection<int, object>
+     */
+    public function courseVersionMappings(int $actorId, int $courseVersionId): Collection
+    {
+        $customerId = $this->customerAdminTenantId($actorId);
+
+        return DB::table('core_learning_node_mappings as mappings')
+            ->join('core_learning_nodes as nodes', function ($join) use ($customerId): void {
+                $join->on('nodes.id', '=', 'mappings.learning_node_id')->where('nodes.customer_id', $customerId);
+            })
+            ->where('mappings.customer_id', $customerId)
+            ->whereIn('mappings.source_type', ['course_version_lesson', 'course_version_activity'])
+            ->where('mappings.source_discriminator', (string) $courseVersionId)
+            ->whereNull('mappings.invalidated_at')
+            ->orderBy('mappings.id')
+            ->get([
+                'mappings.source_type', 'mappings.source_id', 'mappings.learning_node_id', 'mappings.mapping_role',
+                'mappings.weight', 'nodes.framework_id', 'nodes.framework_version_id',
+            ]);
+    }
+
     public function assertPublishedVersionForAuthor(int $actorId, int $frameworkId, int $versionId): void
     {
         $this->assertPublishedVersion($this->customerAdminTenantId($actorId), $frameworkId, $versionId);

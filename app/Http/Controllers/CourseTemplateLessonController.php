@@ -3,10 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Services\CourseTemplateLessonUnlockOrder;
+use App\Support\CourseTemplateEditable;
+use App\Support\CourseTemplateWorkingRevision;
+use App\Support\LessonUnlockTime;
 use App\Support\TenantContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
@@ -203,13 +205,7 @@ class CourseTemplateLessonController extends Controller
             $templateId,
             $sectionId
         ): int {
-            $template = DB::table('core_course_templates')
-                ->where('customer_id', $customerId)
-                ->where('id', $templateId)
-                ->lockForUpdate()
-                ->first();
-
-            abort_if(! $template, 404);
+            $template = CourseTemplateEditable::lock($customerId, $templateId);
 
             if ($sectionId !== null) {
                 $sectionAllowsLessons = DB::table('core_course_template_sections')
@@ -253,6 +249,7 @@ class CourseTemplateLessonController extends Controller
                 $lessonId,
                 $validated
             );
+            CourseTemplateWorkingRevision::bump($customerId, $templateId);
 
             return $lessonId;
         });
@@ -360,6 +357,7 @@ class CourseTemplateLessonController extends Controller
 
         DB::transaction(function () use ($customerId, $templateId, $sectionId, $lessonId, $validated): void {
             $this->lockTemplate($customerId, $templateId);
+            CourseTemplateWorkingRevision::bump($customerId, $templateId);
             $violationsBefore = $this->unlockOrder->violations($customerId, $templateId, $sectionId !== null);
             $validated['sort_order'] ??= $this->findLesson($customerId, $templateId, $sectionId, $lessonId)->sort_order;
             DB::table('core_course_template_lessons')
@@ -441,6 +439,7 @@ class CourseTemplateLessonController extends Controller
             if ($this->deleteBlockReason($customerId, $templateId, $lessonId, $sectionId) !== null) {
                 return false;
             }
+            CourseTemplateWorkingRevision::bump($customerId, $templateId);
             DB::table('core_course_template_lesson_prerequisites')
                 ->where('customer_id', $customerId)
                 ->where('template_id', $templateId)
@@ -540,6 +539,7 @@ class CourseTemplateLessonController extends Controller
                 !== collect($lessonIds)->sort()->values()->all()) {
                 return false;
             }
+            CourseTemplateWorkingRevision::bump($customerId, $templateId);
 
             $violationsBefore = $this->unlockOrder->violations($customerId, $templateId, $sectionId !== null);
             $now = now();
@@ -580,11 +580,7 @@ class CourseTemplateLessonController extends Controller
 
     private function lockTemplate(int $customerId, int $templateId): void
     {
-        abort_if(! DB::table('core_course_templates')
-            ->where('customer_id', $customerId)
-            ->where('id', $templateId)
-            ->lockForUpdate()
-            ->exists(), 404);
+        CourseTemplateEditable::lock($customerId, $templateId);
     }
 
     private function validatedData(
@@ -801,7 +797,7 @@ class CourseTemplateLessonController extends Controller
             'prerequisite_match' => $validated['prerequisite_match'] ?? null,
             'unlock_after_lesson_id' => null,
             'unlock_at' => isset($validated['unlock_at'])
-                ? Carbon::parse($validated['unlock_at'])->format('Y-m-d H:i:s')
+                ? LessonUnlockTime::fromLocalInput((string) $validated['unlock_at'])
                 : null,
         ], $extra);
     }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\CourseTemplateVersionMediaAuthorizer;
+use App\Support\MediaInlineHeaders;
 use App\Support\TenantContext;
 use Illuminate\Support\Facades\Storage;
 
@@ -35,7 +36,7 @@ class CourseTemplateVersionMediaPreviewController extends Controller
                 $media->display_name,
                 '\\"'
             ).'"',
-        ];
+        ] + MediaInlineHeaders::for($media->mime_type);
 
         if (config('filesystems.disks.'.$media->storage_disk.'.driver') === 'local') {
             return response()->file(Storage::disk($media->storage_disk)->path($media->storage_key), $headers);

@@ -6,7 +6,7 @@ Document Status: Approved
 
 Implementation Status: Unknown
 
-Last Updated: 2026-11-09
+Last Updated: 2026-11-10
 
 Document Path: core/LF-Core-Course.md
 
@@ -310,7 +310,11 @@ archived
 
 Create and normal edit expose only `draft`, `active` and `inactive`.
 `archived` is entered only through the dedicated Admin archive action. Only an
-`inactive` Template may be archived. Archived Templates are read-only.
+`inactive` Template may be archived. Archived Templates are read-only. The
+server enforces this on the locked Template row for every working-draft write:
+Template fields, Sections, Lessons, Activities, teacher assignment and role, and
+Learning Mapping Intents. Removing a teacher assignment stays allowed because it
+only takes access away.
 
 Only an `active` Template may publish a new Version. Publish validates the
 locked working Template inside its transaction and does not change the working
@@ -723,6 +727,8 @@ Duplicate:
   prerequisites;
 * sets the working Template status to `draft`;
 * increments the existing `working_revision`;
+* restores the Learning Mapping Intents of the selected Version and the
+  Framework Version they belong to (ADR-0013, Learning Mapping Decision);
 * does not create or modify a published Version;
 * does not create a Template, Product or second draft;
 * does not change Product, Enrollment, Progress or Completion.
@@ -1054,6 +1060,19 @@ Membership; a current Membership continues to consume Cohort capacity for every
 Enrollment status until an explicit Membership Remove or Transfer action.
 Runtime access requires an active Enrollment, and Cohort Add/Transfer accepts
 only active Enrollments.
+
+Expiry automation: the scheduled `course:expire-enrollments` command (every five
+minutes) moves an `active` or `suspended` Enrollment to `expired` once its
+learning window has ended, i.e. `review_ends_at` when set, otherwise
+`access_ends_at`, compared half-open (`end <= now`). It sets `expired_at` to the
+run time. An Enrollment with no window (every `live_online_course` Enrollment)
+never expires. Cohort Membership is not touched.
+
+Because a cancelled or expired cycle keeps its Membership, Cohort Add/Transfer
+also rejects an Enrollment whose student already holds a current seat in the
+same Cohort through another Enrollment; the admin removes the old seat first
+(roster Sync may do both in one save). A learner's seat lookup prefers the seat
+of an active Enrollment, then the newest.
 
 ## Enrollment Relationship
 

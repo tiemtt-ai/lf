@@ -221,6 +221,10 @@ TIMESTAMP NULL
 
 Ngày mở khóa nếu dùng date_based.
 
+Lưu theo UTC, vì runtime so `unlock_at_snapshot` như UTC instant
+(LF-Core-Course, `date_based`). Admin nhập và xem theo timezone của app; giá trị
+form được đổi sang UTC khi lưu và đổi lại khi hiển thị.
+
 ## ADR-0015 Amendment
 
 [ADR-0015](../../adr/ADR-0015-Course-Lesson-Multiple-Prerequisites.md),

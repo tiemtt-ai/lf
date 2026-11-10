@@ -497,6 +497,11 @@ Thời điểm enrollment hết hạn.
 
 Có thể trùng với `access_ends_at`, nhưng tách riêng để lưu trạng thái thực tế.
 
+Được ghi bởi lệnh định kỳ `course:expire-enrollments` khi Enrollment `active`
+hoặc `suspended` hết cửa sổ học (`review_ends_at`, nếu không có thì
+`access_ends_at`); giá trị là thời điểm lệnh chạy. Enrollment không có cửa sổ
+học không bao giờ hết hạn (LF-Core-Course, Enrollment lifecycle).
+
 ---
 
 ### metadata

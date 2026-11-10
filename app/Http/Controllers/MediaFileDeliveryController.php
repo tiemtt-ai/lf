@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\MediaInlineHeaders;
 use App\Support\TenantContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -28,7 +29,7 @@ class MediaFileDeliveryController extends Controller
             'Accept-Ranges' => 'bytes',
             'Content-Type' => $file->mime_type,
             'Content-Disposition' => $this->inlineDisposition((string) $file->display_name),
-        ];
+        ] + MediaInlineHeaders::for($file->mime_type);
 
         if ($this->isLocalDisk($file->storage_disk)) {
             return response()->file(

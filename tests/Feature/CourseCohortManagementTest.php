@@ -2231,6 +2231,41 @@ class CourseCohortManagementTest extends TestCase
         $this->assertDatabaseCount('core_liveclass_replays', 0);
     }
 
+    public function test_cohort_operating_period_cannot_shrink_past_a_session_or_be_cleared_under_one(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $cohortId = $this->createCohortWithOperatingPeriod($customerId, status: 'draft');
+        DB::table('core_course_cohorts')->where('id', $cohortId)->update([
+            'product_id' => $this->createProduct($customerId, 'Period Product', 'period-product'),
+            'version_id' => $this->createVersion($customerId, $admin->id, 'Period Version'),
+        ]);
+        $cohortUrl = "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}";
+        $session = fn (string $date, string $status) => DB::table('core_liveclass_sessions')->insertGetId([
+            'customer_id' => $customerId, 'cohort_id' => $cohortId, 'session_type' => 'operational',
+            'template_version_id' => DB::table('core_course_cohorts')->where('id', $cohortId)->value('version_id'),
+            'title' => 'Moved session', 'session_no' => $status === 'cancelled' ? 2 : 1, 'delivery_mode' => 'online',
+            'scheduled_start_at' => "{$date} 16:00:00", 'scheduled_end_at' => "{$date} 17:30:00",
+            'timezone' => 'Asia/Ho_Chi_Minh', 'status' => $status, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $session('2026-08-20', 'scheduled');
+        // A cancelled Session no longer needs a place in the period.
+        $session('2026-08-30', 'cancelled');
+        $outside = __('lf.LF_course_cohort_validation_session_outside_operation', ['title' => 'Moved session', 'at' => '20/08/2026 16:00']);
+
+        $this->actingAs($admin)->put($cohortUrl, $this->validCohortData(['end_date' => '2026-08-10']))
+            ->assertSessionHasErrors(['start_date' => $outside]);
+        $this->actingAs($admin)->put($cohortUrl, $this->validCohortData(['start_date' => '2026-08-21']))
+            ->assertSessionHasErrors(['start_date' => $outside]);
+        $this->actingAs($admin)->put($cohortUrl, $this->validCohortData(['start_date' => null, 'end_date' => null]))
+            ->assertSessionHasErrors('start_date');
+        $this->assertDatabaseHas('core_course_cohorts', ['id' => $cohortId, 'start_date' => '2026-08-01', 'end_date' => '2026-08-31']);
+
+        $this->actingAs($admin)->put($cohortUrl, $this->validCohortData(['start_date' => '2026-08-20', 'end_date' => '2026-08-20']))
+            ->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('core_course_cohorts', ['id' => $cohortId, 'start_date' => '2026-08-20', 'end_date' => '2026-08-20']);
+    }
+
     public function test_schedule_update_replaces_children_atomically_without_touching_sessions(): void
     {
         $customerId = $this->createTenant();

@@ -157,13 +157,16 @@ class CourseTemplateVersionDuplicatingService
                 $lessonPrerequisites,
                 $now
             );
-            $this->restoreActivities(
+            $activityMap = $this->restoreActivities(
                 $customerId,
                 $templateId,
                 $activities,
                 $lessonMap,
                 $now
             );
+            // The old Lessons and Activities are gone: the draft takes the Learning Mappings of this Version.
+            $restoredMappings = app(CourseTemplateLearningMappingIntentService::class)
+                ->restoreFromVersion($actorId, $customerId, $templateId, $versionId, $lessonMap, $activityMap);
             // Detach only after the restored draft holds its own usages: a
             // detach that leaves a file with no active activity usage cancels
             // its pending processing, which a file reused by the restored
@@ -191,6 +194,7 @@ class CourseTemplateVersionDuplicatingService
                         'sections' => $sections->count(),
                         'lessons' => $lessons->count(),
                         'activities' => $activities->count(),
+                        'learning_mappings' => $restoredMappings,
                     ],
                 ], JSON_THROW_ON_ERROR),
                 'ip_address' => $ipAddress,
@@ -818,7 +822,7 @@ class CourseTemplateVersionDuplicatingService
         Collection $activities,
         array $lessonMap,
         $now
-    ): void {
+    ): array {
         $map = [];
         $uploadedTypes = ['video', 'audio', 'document'];
         $versionUsages = DB::table('media_file_usages')
@@ -901,6 +905,8 @@ class CourseTemplateVersionDuplicatingService
                 ->where('customer_id', $customerId)->where('id', $draftLessonId)
                 ->update(['duration_seconds' => $duration, 'updated_at' => $now]);
         }
+
+        return $map;
     }
 
     private function categoryId(

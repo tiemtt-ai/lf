@@ -13,9 +13,11 @@ use App\Services\CourseTemplateVersionDuplicatingService;
 use App\Services\CourseTemplateVersionMediaPresenter;
 use App\Services\DocumentBoardPreview;
 use App\Services\MediaService;
+use App\Services\MediaShareService;
 use App\Services\MediaThumbnailPresenter;
 use App\Services\TrustedVideoUrlService;
 use App\Support\AuditLog;
+use App\Support\CourseTemplateEditable;
 use App\Support\CourseTemplateStatus;
 use App\Support\CourseType;
 use App\Support\ListReturnUrl;
@@ -435,10 +437,12 @@ class CourseTemplateController extends Controller
         $validated['course_type'] ??= $template->course_type;
 
         DB::transaction(function () use ($customerId, $id, $request, $validated, $template): void {
+            // The check above is UX; this one runs on the locked row, so an Archive committed meanwhile
+            // is never undone and two saves never lose a revision step.
+            $locked = CourseTemplateEditable::lock($customerId, $id);
             // A legacy `scheduled` Template submitted as `blended` is the same type (ADR-0022 Amendment 1.1).
             if (! CourseType::same($validated['course_type'], $template->course_type)) {
-                // Serialize with Activity writes and Product binding, then check against the locked graph.
-                DB::table('core_course_templates')->where('customer_id', $customerId)->where('id', $id)->lockForUpdate()->first();
+                // Serialized with Activity writes and Product binding by the lock above; check against the locked graph.
                 app(CourseTemplateCourseTypeService::class)->assertCanChange($customerId, $id, $validated['course_type']);
             }
             $categoryChanged = (int) $validated['category_id'] !== (int) $template->category_id;
@@ -454,7 +458,7 @@ class CourseTemplateController extends Controller
             $values = $this->withoutMissingSeoValues(
                 $request,
                 $this->templateValues($validated, [
-                    'working_revision' => (int) $template->working_revision + 1,
+                    'working_revision' => (int) $locked->working_revision + 1,
                     'updated_at' => now(),
                 ])
             );
@@ -661,7 +665,10 @@ class CourseTemplateController extends Controller
             $this->validationRules($customerId, $templateId)
         );
 
-        $validator->after(function ($validator) use ($input, $request): void {
+        $validator->after(function ($validator) use ($input, $request, $customerId, $template): void {
+            foreach ($this->introductionMediaTeacherMayNotPick($request, $customerId, $input, $template) as $field) {
+                $validator->errors()->add($field, __('validation.exists', ['attribute' => str_replace('_', ' ', $field)]));
+            }
             $source = $input['intro_video_source'] ?? null;
             if ($source === 'upload' && ! $request->hasFile('intro_video_file') && empty($input['intro_video_media_file_id'])) {
                 $validator->errors()->add('intro_video_media_file_id', __('validation.required'));
@@ -689,6 +696,35 @@ class CourseTemplateController extends Controller
         }
 
         return $validated;
+    }
+
+    /**
+     * Introduction Media a teacher sent but may not pick (ADR-0021 D2): a teacher
+     * picks only their own Media and Media shared with them. The Media already in
+     * the slot stays allowed, so a teacher working on a Template an admin filled
+     * in can still save the form (D5). Admins pick any Media of the tenant.
+     *
+     * @return list<string> the refused fields
+     */
+    private function introductionMediaTeacherMayNotPick(Request $request, int $customerId, array $input, ?object $template): array
+    {
+        $user = $request->user();
+        if ($user?->role !== 'teacher') {
+            return [];
+        }
+
+        $refused = [];
+        foreach (['intro_image_media_file_id', 'intro_video_media_file_id', 'intro_document_media_file_id'] as $field) {
+            $mediaId = (int) ($input[$field] ?? 0);
+            if ($mediaId < 1 || ($template && (int) $template->{$field} === $mediaId)) {
+                continue;
+            }
+            if (! app(MediaShareService::class)->visibleToTeacher($customerId, (int) $user->id)->where('media_files.id', $mediaId)->exists()) {
+                $refused[] = $field;
+            }
+        }
+
+        return $refused;
     }
 
     private function hasIntroductionVideoReplacement(

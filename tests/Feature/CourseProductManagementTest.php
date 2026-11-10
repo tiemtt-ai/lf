@@ -1301,6 +1301,36 @@ class CourseProductManagementTest extends TestCase
         $this->assertDatabaseHas('core_course_products', ['id' => $productId, 'access_duration_days' => null, 'review_duration_days' => null]);
     }
 
+    public function test_the_product_form_cannot_switch_a_used_product_to_another_course_type(): void
+    {
+        // Same rule as the Item form above, through PUT /course-products/{id} (ADR-0022).
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $this->actingAs($admin);
+        [$categoryId, $templateId] = $this->createProductV2CategoryAndTemplate($customerId, $admin->id);
+        $blendedId = $this->createVersion($customerId, $admin->id, 'Class Version', templateId: $templateId);
+        $selfPacedId = $this->createVersion($customerId, $admin->id, 'Self-paced Version', templateId: $templateId, versionNumber: 2);
+        DB::table('core_course_template_versions')->where('id', $selfPacedId)->update(['course_type_snapshot' => 'self_paced']);
+        $productId = $this->createProduct($customerId, 'Used Class Product', 'used-class-product', status: 'active');
+        DB::table('core_course_products')->where('id', $productId)->update(['category_id' => $categoryId, 'access_duration_days' => 30]);
+        $itemId = $this->createProductItem($customerId, $productId, $blendedId);
+        DB::table('core_course_cohorts')->insert([
+            'customer_id' => $customerId, 'product_id' => $productId, 'version_id' => $blendedId, 'name' => 'Class',
+            'status' => 'draft', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $put = fn (int $versionId) => $this->put("https://tenant-a.localhost/admin/course-products/{$productId}",
+            $this->validProductV2Data($categoryId, $templateId, [
+                'title' => 'Used Class Product', 'status' => 'active', 'template_version_id' => $versionId,
+                'access_duration_days' => 30,
+            ]));
+
+        $put($selfPacedId)->assertSessionHasErrors(['template_version_id' => __('lf.LF_course_type_product_version_mismatch', [
+            'current' => __(CourseType::labelKey('blended')),
+            'target' => __(CourseType::labelKey('self_paced')),
+        ])]);
+        $this->assertSame($blendedId, (int) DB::table('core_course_product_items')->where('id', $itemId)->value('version_id'));
+    }
+
     public function test_same_template_active_version_rule_is_tenant_isolated(): void
     {
         $customerId = $this->createTenant();

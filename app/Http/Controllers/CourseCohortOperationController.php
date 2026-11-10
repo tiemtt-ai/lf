@@ -8,6 +8,7 @@ use App\Services\CourseCohortContentTree;
 use App\Services\CourseCohortMutationPolicy;
 use App\Services\CourseCohortSessionWindow;
 use App\Services\CourseCohortVersionResolver;
+use App\Services\LiveClassAttendanceCheckIn;
 use App\Services\LiveClassCohortSessionReadModel;
 use App\Services\LiveClassMeetingProvider;
 use App\Services\LiveClassSessionLifecycleService;
@@ -1265,10 +1266,7 @@ class CourseCohortOperationController extends Controller
     private function sessionHasAssignedTeacher(int $customerId, object $session): bool
     {
         return (bool) $session->primary_teacher_id
-            || DB::table('core_liveclass_session_teachers')
-                ->where('customer_id', $customerId)
-                ->where('session_id', $session->id)
-                ->exists();
+            || LiveClassAttendanceCheckIn::sessionHasTeacher($customerId, (int) $session->id);
     }
 
     private function cohort(int $customerId, int $id): object

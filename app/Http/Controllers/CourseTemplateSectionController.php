@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Services\CourseTemplateLessonUnlockOrder;
+use App\Support\CourseTemplateEditable;
+use App\Support\CourseTemplateWorkingRevision;
 use App\Support\TenantContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -72,13 +74,7 @@ class CourseTemplateSectionController extends Controller
             $customerId,
             $templateId
         ): void {
-            $template = DB::table('core_course_templates')
-                ->where('customer_id', $customerId)
-                ->where('id', $templateId)
-                ->lockForUpdate()
-                ->first();
-
-            abort_if(! $template, 404);
+            $template = CourseTemplateEditable::lock($customerId, $templateId);
 
             $validated['display_order'] ??= $this->nextDisplayOrder(
                 $customerId,
@@ -95,6 +91,7 @@ class CourseTemplateSectionController extends Controller
                     'updated_at' => $now,
                 ])
             );
+            CourseTemplateWorkingRevision::bump($customerId, $templateId);
         });
 
         $structureUrl = route(
@@ -170,6 +167,7 @@ class CourseTemplateSectionController extends Controller
 
         DB::transaction(function () use ($customerId, $templateId, $sectionId, $validated): void {
             $this->lockTemplate($customerId, $templateId);
+            CourseTemplateWorkingRevision::bump($customerId, $templateId);
             $current = $this->findSection($customerId, $templateId, $sectionId);
             $parentChanged = (int) $current->parent_section_id !== (int) ($validated['parent_section_id'] ?? 0);
             // Without an order a Section stays where it is, or goes last under a new parent.
@@ -254,6 +252,7 @@ class CourseTemplateSectionController extends Controller
                 !== collect($sectionIds)->sort()->values()->all()) {
                 return false;
             }
+            CourseTemplateWorkingRevision::bump($customerId, $templateId);
 
             $violationsBefore = $this->unlockOrder->violations($customerId, $templateId, true);
             $now = now();
@@ -306,6 +305,7 @@ class CourseTemplateSectionController extends Controller
             if ($this->deleteBlockReason($customerId, $templateId, $sectionId) !== null) {
                 return false;
             }
+            CourseTemplateWorkingRevision::bump($customerId, $templateId);
             DB::table('core_course_template_sections')
                 ->where('customer_id', $customerId)
                 ->where('template_id', $templateId)
@@ -351,11 +351,7 @@ class CourseTemplateSectionController extends Controller
 
     private function lockTemplate(int $customerId, int $templateId): void
     {
-        abort_if(! DB::table('core_course_templates')
-            ->where('customer_id', $customerId)
-            ->where('id', $templateId)
-            ->lockForUpdate()
-            ->exists(), 404);
+        CourseTemplateEditable::lock($customerId, $templateId);
     }
 
     private function validatedData(

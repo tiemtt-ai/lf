@@ -9,6 +9,8 @@ use App\Services\MediaService;
 use App\Services\MediaShareService;
 use App\Services\TrustedVideoUrlService;
 use App\Services\VideoSttQualification;
+use App\Support\CourseTemplateEditable;
+use App\Support\CourseTemplateWorkingRevision;
 use App\Support\CourseType;
 use App\Support\TenantContext;
 use App\Support\UploadLimit;
@@ -377,6 +379,7 @@ class CourseTemplateActivityController extends Controller
                 !== collect($activityIds)->sort()->values()->all()) {
                 return false;
             }
+            CourseTemplateWorkingRevision::bump($customerId, $templateId);
 
             $now = now();
 
@@ -528,6 +531,7 @@ class CourseTemplateActivityController extends Controller
                 $uploadedMedia
             );
             $this->recalculateLessonDuration($customerId, $templateId, $lessonId);
+            CourseTemplateWorkingRevision::bump($customerId, $templateId);
 
             return $activityId;
         });
@@ -682,6 +686,7 @@ class CourseTemplateActivityController extends Controller
 
         DB::transaction(function () use ($request, $customerId, $templateId, $lessonId, $activityId, $validated, $activity): void {
             $this->lockTemplate($customerId, $templateId);
+            CourseTemplateWorkingRevision::bump($customerId, $templateId);
             $this->assertSingleLiveClass($validated, $customerId, $templateId, $lessonId, $activityId);
             DB::table('core_course_template_activities')
                 ->where('customer_id', $customerId)
@@ -760,6 +765,7 @@ class CourseTemplateActivityController extends Controller
 
         DB::transaction(function () use ($customerId, $templateId, $lessonId, $activityId): void {
             $this->lockTemplate($customerId, $templateId);
+            CourseTemplateWorkingRevision::bump($customerId, $templateId);
             $usages = DB::table('media_file_usages')
                 ->where('customer_id', $customerId)
                 ->where('owner_type', 'course_activity')
@@ -809,11 +815,7 @@ class CourseTemplateActivityController extends Controller
 
     private function lockTemplate(int $customerId, int $templateId): void
     {
-        abort_if(! DB::table('core_course_templates')
-            ->where('customer_id', $customerId)
-            ->where('id', $templateId)
-            ->lockForUpdate()
-            ->exists(), 404);
+        CourseTemplateEditable::lock($customerId, $templateId);
     }
 
     private function validatedData(

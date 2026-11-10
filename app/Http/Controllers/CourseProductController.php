@@ -520,16 +520,7 @@ class CourseProductController extends Controller
                     'version_id' => __('lf.LF_course_product_item_validation_published_version'),
                 ]);
             }
-            // ADR-0022: a Product already used by learners or a class keeps its course type.
-            $currentType = $item->version_id ? DB::table('core_course_template_versions')
-                ->where('customer_id', $customerId)->where('id', $item->version_id)->value('course_type_snapshot') : null;
-            if ($currentType !== null && ! CourseType::same($currentType, $version->course_type_snapshot)
-                && $this->templateChangePolicy->hasUsage($customerId, $productId)) {
-                throw ValidationException::withMessages(['version_id' => __('lf.LF_course_type_product_version_mismatch', [
-                    'current' => __(CourseType::labelKey($currentType)),
-                    'target' => __(CourseType::labelKey((string) $version->course_type_snapshot)),
-                ])]);
-            }
+            $this->assertUsedProductKeepsCourseType($customerId, $productId, $item->version_id, (string) $version->course_type_snapshot, 'version_id');
             $durations = DB::table('core_course_products')->where('customer_id', $customerId)->where('id', $productId)
                 ->first(['access_duration_days']);
             if (CourseType::usesAccessDuration($version->course_type_snapshot) && ! $durations?->access_duration_days) {
@@ -1411,6 +1402,10 @@ class CourseProductController extends Controller
             if ((int) $item->template_id === (int) $validated['template_id']) {
                 if (! empty($validated['template_version_id'])
                     && (int) $item->version_id !== (int) $validated['template_version_id']) {
+                    // Same rule as the Item form: the Version switch must not change a used Product's course type.
+                    $this->assertUsedProductKeepsCourseType($customerId, $productId, $item->version_id, (string) DB::table('core_course_template_versions')
+                        ->where('customer_id', $customerId)->where('id', (int) $validated['template_version_id'])
+                        ->value('course_type_snapshot'), 'template_version_id');
                     DB::table('core_course_product_items')
                         ->where('customer_id', $customerId)
                         ->where('product_id', $productId)
@@ -1478,6 +1473,20 @@ class CourseProductController extends Controller
             && (int) $product->category_id === (int) ($validated['category_id'] ?? 0)
             && ($submittedVersionId === null || $submittedVersionId === ''
                 || (int) $item->version_id === (int) $submittedVersionId);
+    }
+
+    /** ADR-0022: a Product already used by learners or a class keeps its course type. */
+    private function assertUsedProductKeepsCourseType(int $customerId, int $productId, mixed $currentVersionId, string $targetType, string $field): void
+    {
+        $currentType = $currentVersionId ? DB::table('core_course_template_versions')
+            ->where('customer_id', $customerId)->where('id', $currentVersionId)->value('course_type_snapshot') : null;
+        if ($currentType !== null && ! CourseType::same($currentType, $targetType)
+            && $this->templateChangePolicy->hasUsage($customerId, $productId)) {
+            throw ValidationException::withMessages([$field => __('lf.LF_course_type_product_version_mismatch', [
+                'current' => __(CourseType::labelKey($currentType)),
+                'target' => __(CourseType::labelKey($targetType)),
+            ])]);
+        }
     }
 
     private function assertEligibleTemplateVersionBinding(

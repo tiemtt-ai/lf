@@ -91,6 +91,10 @@ core_course_cohort_students
 * Capacity được kiểm tra trong transaction sau khi lock Cohort parent row.
 * Server phải kiểm tra lại cùng tenant, Product, Version, duplicate protection
   và Enrollment status trong transaction khi thêm hoặc chuyển membership.
+* Duplicate protection gồm cả cùng `student_id`: không thêm hoặc chuyển một
+  Enrollment vào Cohort mà học viên đó đã có membership `active` qua Enrollment
+  khác (ví dụ Enrollment cũ đã huỷ hoặc hết hạn). Gỡ membership cũ trước; Sync
+  roster xử lý gỡ trước rồi mới thêm trong cùng transaction.
 * Activation Cohort phải revalidate toàn bộ membership. Nếu bất kỳ Enrollment
   nào không còn `active` hoặc sai tenant/Product/Version, activation thất bại,
   Cohort giữ nguyên `draft` và membership không bị tự động xóa.

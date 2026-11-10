@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\CourseTemplateEditable;
 use App\Support\TenantContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -54,11 +55,7 @@ class CourseTemplateTeacherController extends Controller
             $templateId
         );
         DB::transaction(function () use ($customerId, $templateId, $validated, $request): void {
-            DB::table('core_course_templates')
-                ->where('customer_id', $customerId)
-                ->where('id', $templateId)
-                ->lockForUpdate()
-                ->first();
+            CourseTemplateEditable::lock($customerId, $templateId);
             $now = now();
             // A teacher removed earlier keeps their row (one per Template and teacher): assigning them again
             // reactivates it with the new role, keeping its place in the list.
@@ -145,14 +142,17 @@ class CourseTemplateTeacherController extends Controller
             $assignmentId
         );
 
-        DB::table('core_course_template_teachers')
-            ->where('customer_id', $customerId)
-            ->where('template_id', $templateId)
-            ->where('id', $assignmentId)
-            ->update([
-                'role' => $validated['role'],
-                'updated_at' => now(),
-            ]);
+        DB::transaction(function () use ($customerId, $templateId, $assignmentId, $validated): void {
+            CourseTemplateEditable::lock($customerId, $templateId);
+            DB::table('core_course_template_teachers')
+                ->where('customer_id', $customerId)
+                ->where('template_id', $templateId)
+                ->where('id', $assignmentId)
+                ->update([
+                    'role' => $validated['role'],
+                    'updated_at' => now(),
+                ]);
+        });
 
         if ($request->expectsJson()) {
             return $this->backToTeachers($request, $templateId, 'lf.LF_course_template_teacher_common_updated');

@@ -1,12 +1,12 @@
 # Table: core_course_template_learning_mapping_intents
 
-Version: 1.2
+Version: 1.3
 
 Document Status: Approved
 
 Implementation Status: Implemented
 
-Last Updated: 2026-09-15
+Last Updated: 2026-11-10
 
 Approval Date: 2026-08-23
 
@@ -89,6 +89,16 @@ while the Template has Intents, and each Intent is composite-FK-bound to that
 exact selection. Canonical Mapping is immutable after promotion and is
 corrected by the approved invalidation lifecycle in
 `core_learning_node_mappings`.
+
+## Duplicate Published Version To Draft
+
+Amendment 2026-11-10 ([ADR-0013](../../adr/ADR-0013-Course-Template-Version-Duplicate-to-Draft.md),
+Learning Mapping Decision). Duplicate removes every Intent of the draft and
+recreates one `manual` Intent for each non-invalidated canonical Mapping of the
+selected Course Version, on the restored working Lesson or Activity, after
+setting the Template selection to the Framework Version of those Mappings. The
+Course owner service writes the Intents; the Mappings are read through the
+Learning read service. No schema change.
 
 ## Step 7 integration amendment — Frozen / Not Implemented, 2026-09-15
 

@@ -5,6 +5,7 @@ namespace Tests\Integration;
 use App\Models\User;
 use App\Services\CourseTemplateLearningMappingIntentService;
 use App\Services\CourseTemplatePublishingService;
+use App\Services\CourseTemplateVersionDuplicatingService;
 use App\Services\LearningFrameworkAuthoringService;
 use App\Services\LearningMappingPromotionService;
 use App\Support\TenantContext;
@@ -213,6 +214,77 @@ class CourseTemplateLearningMappingPromotionMariaDbTest extends TestCase
             [(string) $first->id, (string) $second->id],
             $mappings->pluck('source_discriminator')->all()
         );
+    }
+
+    // ------------------------------------------------- Duplicate to draft
+
+    public function test_duplicating_a_version_to_the_draft_restores_its_mappings_as_intents(): void
+    {
+        $f = $this->fixture('restore');
+        $this->mapLesson($f, 'teaches', '0.75');
+        $this->mapActivity($f, 'practices', null);
+        $version = $this->publish($f);
+
+        // The draft moved on since: no selection and no Intent any more.
+        DB::table('core_course_template_learning_mapping_intents')->where('template_id', $f['template_id'])->delete();
+        DB::table('core_course_templates')->where('id', $f['template_id'])
+            ->update(['selected_learning_framework_id' => null, 'selected_learning_framework_version_id' => null]);
+
+        $this->duplicate($f, (int) $version->id);
+
+        $template = DB::table('core_course_templates')->where('id', $f['template_id'])->first();
+        $this->assertSame([$f['framework_id'], $f['version_id']],
+            [(int) $template->selected_learning_framework_id, (int) $template->selected_learning_framework_version_id]);
+        $lessonId = (int) DB::table('core_course_template_lessons')->where('template_id', $f['template_id'])->sole()->id;
+        $activityId = (int) DB::table('core_course_template_activities')->where('template_id', $f['template_id'])->sole()->id;
+        $this->assertNotSame($f['lesson_id'], $lessonId, 'Duplicate gives the working Lesson a new identity.');
+        $intents = DB::table('core_course_template_learning_mapping_intents')
+            ->where('customer_id', $f['customer_id'])->where('template_id', $f['template_id'])->get()->keyBy('source_type');
+        $this->assertCount(2, $intents);
+        $this->assertSame([$lessonId, $f['node_id'], 'teaches', '0.750000', 'manual', $f['admin_id']], [
+            (int) $intents['course_template_lesson']->source_id, (int) $intents['course_template_lesson']->learning_node_id,
+            $intents['course_template_lesson']->mapping_role, $intents['course_template_lesson']->weight,
+            $intents['course_template_lesson']->origin, (int) $intents['course_template_lesson']->created_by,
+        ]);
+        $this->assertSame([$activityId, $f['node_id'], 'practices', null], [
+            (int) $intents['course_template_activity']->source_id, (int) $intents['course_template_activity']->learning_node_id,
+            $intents['course_template_activity']->mapping_role, $intents['course_template_activity']->weight,
+        ]);
+
+        // The restored draft publishes, and the new Version carries the same Mappings.
+        $before = DB::table('core_learning_node_mappings')->where('customer_id', $f['customer_id'])->orderBy('id')->get();
+        DB::table('core_course_templates')->where('id', $f['template_id'])->update(['status' => 'active']);
+        $second = $this->publish($f);
+        $after = DB::table('core_learning_node_mappings')->where('customer_id', $f['customer_id'])->orderBy('id')->get();
+        $this->assertCount(4, $after);
+        $this->assertEquals($before->all(), $after->take(2)->all(), 'Duplicate and publish leave the Mappings of the source Version untouched.');
+        $this->assertSame([(string) $second->id, (string) $second->id], $after->skip(2)->pluck('source_discriminator')->all());
+    }
+
+    public function test_duplicating_drops_orphaned_intents_and_skips_invalidated_or_absent_mappings(): void
+    {
+        $f = $this->fixture('restore-none');
+        $bare = $this->publish($f);
+        $this->mapLesson($f);
+        $this->mapActivity($f);
+        $mapped = $this->publish($f);
+
+        // A Mapping declared wrong is not brought back.
+        DB::table('core_learning_node_mappings')->where('customer_id', $f['customer_id'])
+            ->where('source_type', 'course_version_lesson')->where('source_discriminator', (string) $mapped->id)
+            ->update(['invalidated_at' => now(), 'invalidated_by' => $f['admin_id'], 'invalidation_reason' => 'Wrong competency.']);
+        $this->duplicate($f, (int) $mapped->id);
+        $intents = DB::table('core_course_template_learning_mapping_intents')->where('template_id', $f['template_id'])->get();
+        $this->assertSame(['course_template_activity'], $intents->pluck('source_type')->all());
+
+        // A Version without Mappings: the Intents of the replaced content go, the selection stays.
+        $this->duplicate($f, (int) $bare->id);
+        $this->assertDatabaseMissing('core_course_template_learning_mapping_intents', ['template_id' => $f['template_id']]);
+        $template = DB::table('core_course_templates')->where('id', $f['template_id'])->first();
+        $this->assertSame($f['version_id'], (int) $template->selected_learning_framework_version_id);
+        DB::table('core_course_templates')->where('id', $f['template_id'])->update(['status' => 'active']);
+        $this->publish($f);
+        $this->assertSame(2, DB::table('core_learning_node_mappings')->where('customer_id', $f['customer_id'])->count());
     }
 
     // ----------------------------------------------------------- Tenant scope
@@ -453,6 +525,14 @@ class CourseTemplateLearningMappingPromotionMariaDbTest extends TestCase
             'source_type' => $sourceType, 'source_id' => $sourceId,
             'learning_node_id' => $f['node_id'], 'mapping_role' => $role, 'weight' => $weight,
         ]);
+    }
+
+    /** @param array<string, mixed> $f */
+    private function duplicate(array $f, int $versionId): void
+    {
+        TenantContext::set((object) ['id' => $f['customer_id']]);
+        app(CourseTemplateVersionDuplicatingService::class)
+            ->duplicateToDraft($f['customer_id'], $f['template_id'], $versionId, $f['admin_id'], null);
     }
 
     /** @param array<string, mixed> $f */

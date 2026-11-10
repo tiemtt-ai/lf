@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Services\MediaMetadataProbe;
 use App\Services\MediaService;
+use App\Services\MediaShareService;
+use App\Support\MediaInlineHeaders;
 use App\Support\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -1374,6 +1376,79 @@ class CourseMediaIntegrationTest extends TestCase
         $this->actingAs($otherAdmin)
             ->get("https://tenant-b.localhost/admin/course-templates/{$template->id}/media/image/{$mediaId}")
             ->assertNotFound();
+    }
+
+    public function test_a_teacher_picks_only_own_or_shared_media_as_template_introduction_media(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $teacher = $this->createUser($customerId, 'teacher');
+        $private = $this->createMediaFile($customerId, $admin->id, 'document', 'private.pdf', 'application/pdf');
+        $shared = $this->createMediaFile($customerId, $admin->id, 'document', 'shared.pdf', 'application/pdf');
+        $own = $this->createMediaFile($customerId, $teacher->id, 'document', 'own.pdf', 'application/pdf');
+        app(MediaShareService::class)->apply($admin, $customerId, $shared, 'teachers', [$teacher->id]);
+        $url = 'https://tenant-a.localhost/teacher/course-templates';
+        $data = fn (array $overrides): array => $this->validTemplateData(['intro_image_file' => null] + $overrides);
+
+        // Creating: a Media of someone else that was not shared is refused and gets no usage.
+        $this->actingAs($teacher)->post($url, $data(['title' => 'Refused', 'intro_document_media_file_id' => $private]))
+            ->assertSessionHasErrors('intro_document_media_file_id');
+        $this->assertDatabaseMissing('core_course_templates', ['title' => 'Refused']);
+        $this->assertDatabaseMissing('media_file_usages', ['media_file_id' => $private]);
+
+        // Own and shared Media are accepted.
+        $this->actingAs($teacher)->post($url, $data(['title' => 'Mine', 'intro_document_media_file_id' => $own]))->assertSessionHasNoErrors();
+        $template = DB::table('core_course_templates')->where('title', 'Mine')->sole();
+        $this->assertSame($own, (int) $template->intro_document_media_file_id);
+        $this->actingAs($teacher)->put("{$url}/{$template->id}", $data(['title' => 'Mine', 'intro_document_media_file_id' => $shared]))
+            ->assertSessionHasNoErrors();
+
+        // Updating to a private Media is refused too, and the preview of it stays closed.
+        $this->actingAs($teacher)->put("{$url}/{$template->id}", $data(['title' => 'Mine', 'intro_document_media_file_id' => $private]))
+            ->assertSessionHasErrors('intro_document_media_file_id');
+        $this->assertDatabaseMissing('media_file_usages', ['media_file_id' => $private]);
+        $this->actingAs($teacher)->get(route('teacher.course-templates.media.preview', [$template->id, 'document', $private]))
+            ->assertNotFound();
+
+        // A Media an admin put in the slot stays: the assigned teacher saves the form with it.
+        $this->actingAs($admin)->put("https://tenant-a.localhost/admin/course-templates/{$template->id}",
+            $data(['title' => 'Mine', 'intro_document_media_file_id' => $private]))->assertSessionHasNoErrors();
+        $this->actingAs($teacher)->put("{$url}/{$template->id}", $data(['title' => 'Mine renamed', 'intro_document_media_file_id' => $private]))
+            ->assertSessionHasNoErrors();
+        $this->assertSame('Mine renamed', DB::table('core_course_templates')->where('id', $template->id)->value('title'));
+    }
+
+    public function test_an_svg_is_served_sandboxed_so_its_scripts_never_run_on_the_tenant_origin(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $svg = UploadedFile::fake()->createWithContent(
+            'cover.svg',
+            '<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><script>alert(1)</script></svg>'
+        );
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-templates',
+            $this->validTemplateData(['title' => 'Svg Cover', 'intro_image_file' => $svg]))->assertSessionHasNoErrors();
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-templates',
+            $this->validTemplateData(['title' => 'Png Cover']))->assertSessionHasNoErrors();
+        $sandbox = "sandbox; default-src 'none'; style-src 'unsafe-inline'";
+
+        $svgTemplate = DB::table('core_course_templates')->where('title', 'Svg Cover')->sole();
+        $svgMedia = DB::table('media_files')->where('id', $svgTemplate->intro_image_media_file_id)->sole();
+        $this->assertSame('image/svg+xml', $svgMedia->mime_type);
+        $this->actingAs($admin)->get(route('admin.course-templates.media.preview', [$svgTemplate->id, 'image', $svgMedia->id]))
+            ->assertOk()->assertHeader('Content-Security-Policy', $sandbox)->assertHeader('X-Content-Type-Options', 'nosniff');
+        $this->get(app(MediaService::class)->generateSignedUrl((int) $svgMedia->id))
+            ->assertOk()->assertHeader('Content-Security-Policy', $sandbox)->assertHeader('X-Content-Type-Options', 'nosniff');
+
+        // A picture the browser only displays is not sandboxed.
+        $pngTemplate = DB::table('core_course_templates')->where('title', 'Png Cover')->sole();
+        $this->actingAs($admin)->get(route('admin.course-templates.media.preview', [$pngTemplate->id, 'image', $pngTemplate->intro_image_media_file_id]))
+            ->assertOk()->assertHeaderMissing('Content-Security-Policy')->assertHeader('X-Content-Type-Options', 'nosniff');
+
+        $this->assertSame(['X-Content-Type-Options' => 'nosniff'], MediaInlineHeaders::for('application/pdf'));
+        $this->assertSame(['X-Content-Type-Options' => 'nosniff'], MediaInlineHeaders::for('video/mp4'));
+        $this->assertArrayHasKey('Content-Security-Policy', MediaInlineHeaders::for('text/html; charset=utf-8'));
+        $this->assertArrayHasKey('Content-Security-Policy', MediaInlineHeaders::for(null));
     }
 
     public function test_course_template_preview_rejects_wrong_purpose_detached_archived_and_unrelated_usage(): void

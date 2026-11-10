@@ -8,7 +8,7 @@
     $selectedPrerequisites = collect($selectedPrerequisiteIds ?? [])->map(fn ($id) => (string) $id)->all();
     $selectedPrerequisiteMatch = $formLesson?->prerequisite_match ?? 'all';
     $unlockAt = $formLesson?->unlock_at
-        ? \Illuminate\Support\Carbon::parse($formLesson->unlock_at)->format('Y-m-d\TH:i')
+        ? \App\Support\LessonUnlockTime::toLocal((string) $formLesson->unlock_at)
         : null;
     $selectAttributes = 'data-ui-kit-select data-ui-empty-label="'.e(__('lf.LF_course_template_lesson_dialog_no_options')).'" data-ui-clear-label="'.e(__('lf.LF_common_button_clear')).'"';
 @endphp

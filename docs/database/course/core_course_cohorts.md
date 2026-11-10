@@ -559,8 +559,11 @@ be greater than or equal to `start_date`.
 
 A Cohort may own many Schedules. Every Schedule application range must be fully
 contained in this operating period. Updating these dates must fail if the new
-range does not contain every existing Schedule. The update must never truncate,
-rewrite or delete a Schedule and must never create or mutate a Session.
+range does not contain every existing Schedule, or every Session that is not
+`cancelled` (each compared as an instant in its own timezone against the local
+dates), and the period cannot be cleared while the Cohort has such a Session.
+The update must never truncate, rewrite or delete a Schedule and must never
+create or mutate a Session.
 
 The Cohort operating period must not be inferred or backfilled from Schedule,
 Product, Enrollment, lifecycle timestamps or the current date. Schedule keeps

@@ -41,7 +41,7 @@
         ['label' => __('lf.LF_course_template_lesson_common_type'), 'value' => __('lf.LF_course_template_lesson_common_role_'.($item->lesson_type ?: 'regular'))],
         ['label' => __('lf.LF_course_template_lesson_common_preview'), 'value' => $yesNo($item->is_preview)],
         ['label' => __('lf.LF_course_template_lesson_common_unlock_rule'), 'value' => __('lf.LF_course_template_lesson_common_unlock_'.($item->unlock_rule_snapshot ?: 'none'))],
-        $item->unlock_at_snapshot ? ['label' => __('lf.LF_course_template_lesson_common_unlock_at'), 'value' => \Illuminate\Support\Carbon::parse($item->unlock_at_snapshot)->format('d/m/Y H:i')] : null,
+        $item->unlock_at_snapshot ? ['label' => __('lf.LF_course_template_lesson_common_unlock_at'), 'value' => \App\Support\LessonUnlockTime::toLocal((string) $item->unlock_at_snapshot, 'd/m/Y H:i')] : null,
         $item->prerequisite_titles !== [] ? ['label' => __('lf.LF_course_template_lesson_common_unlock_after_lessons'), 'value' => implode(', ', $item->prerequisite_titles), 'wide' => true] : null,
     ])->filter()->values()]);
 @endphp

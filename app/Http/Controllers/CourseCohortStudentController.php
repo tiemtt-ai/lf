@@ -336,9 +336,17 @@ class CourseCohortStudentController extends Controller
                 ValidationException::withMessages(['enrollment_ids' => __('lf.LF_course_type_cohort_legacy_self_paced')])
             );
 
+            // Removals go first: swapping a student's old seat for their new
+            // Enrollment in one save must not count the old seat as taken.
+            if ($removeIds) {
+                DB::table('core_course_cohort_students')
+                    ->where('customer_id', $customerId)->where('cohort_id', $cohort)
+                    ->where('status', 'active')->whereIn('enrollment_id', $removeIds)
+                    ->update(['status' => 'removed', 'left_at' => now(), 'updated_at' => now()]);
+            }
+
             // Capacity was already validated once for the whole selection above,
-            // so the per-row check is skipped here rather than re-run against
-            // counts that do not yet reflect the removals below.
+            // so the per-row check is skipped here.
             $this->applyMembershipBatch(
                 $customerId,
                 $lockedCohort,
@@ -349,12 +357,14 @@ class CourseCohortStudentController extends Controller
             );
 
             if ($removeIds) {
-                DB::table('core_course_cohort_students')
-                    ->where('customer_id', $customerId)->where('cohort_id', $cohort)
-                    ->where('status', 'active')->whereIn('enrollment_id', $removeIds)
-                    ->update(['status' => 'removed', 'left_at' => now(), 'updated_at' => now()]);
-                $this->closeBoardsAfterCommit($customerId, (int) $cohort, $currentMemberships->only($removeIds)
-                    ->pluck('student_id')->map(fn ($studentId): int => (int) $studentId)->all());
+                // A student who only changed Enrollment stays in the class and keeps the board.
+                $stillSeated = DB::table('core_course_cohort_students')
+                    ->where('customer_id', $customerId)->where('cohort_id', $cohort)->where('status', 'active')
+                    ->pluck('student_id')->map(fn ($studentId): int => (int) $studentId)->all();
+                $this->closeBoardsAfterCommit($customerId, (int) $cohort, array_values(array_diff(
+                    $currentMemberships->only($removeIds)->pluck('student_id')->map(fn ($studentId): int => (int) $studentId)->all(),
+                    $stillSeated
+                )));
             }
         }, 3);
 
@@ -636,6 +646,29 @@ class CourseCohortStudentController extends Controller
             ->exists();
     }
 
+    /**
+     * The student already holds a seat in this Cohort through another Enrollment.
+     *
+     * Enrollment transitions never touch Membership, so a cancelled or expired
+     * cycle keeps its seat until an explicit Remove. A re-enrollment of the same
+     * student must not take a second seat next to it: remove the old one first.
+     */
+    private function studentSeatedThroughAnotherEnrollment(
+        int $customerId,
+        object $cohort,
+        object $enrollment,
+        ?int $ignoreMembershipId = null
+    ): bool {
+        return DB::table('core_course_cohort_students')
+            ->where('customer_id', $customerId)
+            ->where('cohort_id', $cohort->id)
+            ->where('student_id', $enrollment->student_id)
+            ->where('enrollment_id', '!=', $enrollment->id)
+            ->where('status', 'active')
+            ->when($ignoreMembershipId, fn ($query) => $query->where('id', '!=', $ignoreMembershipId))
+            ->exists();
+    }
+
     private function activeStudentExists(int $customerId, int $studentId): bool
     {
         return DB::table('users')
@@ -713,6 +746,7 @@ class CourseCohortStudentController extends Controller
             (int) $cohort->product_id !== (int) $enrollment->product_id => __('lf.LF_course_cohort_student_validation_product_mismatch'),
             (int) $cohort->version_id !== (int) $enrollment->version_id => __('lf.LF_course_cohort_student_validation_version_mismatch'),
             $this->activeMembershipExists($customerId, $enrollment->id, $ignoreMembershipId) => __('lf.LF_course_cohort_student_validation_duplicate'),
+            $this->studentSeatedThroughAnotherEnrollment($customerId, $cohort, $enrollment, $ignoreMembershipId) => __('lf.LF_course_cohort_student_validation_student_already_seated'),
             default => null,
         };
     }
@@ -891,6 +925,15 @@ class CourseCohortStudentController extends Controller
                     ->whereColumn('memberships.enrollment_id', 'enrollments.id')
                     ->where('memberships.customer_id', $customerId)
                     ->where('memberships.status', 'active');
+            })
+            // A student who still holds a seat here through an earlier Enrollment is not offered again.
+            ->whereNotExists(function ($query) use ($customerId, $cohort): void {
+                $query->selectRaw('1')
+                    ->from('core_course_cohort_students as seats')
+                    ->whereColumn('seats.student_id', 'enrollments.student_id')
+                    ->where('seats.customer_id', $customerId)
+                    ->where('seats.cohort_id', $cohort->id)
+                    ->where('seats.status', 'active');
             })
             ->select(
                 'enrollments.id',

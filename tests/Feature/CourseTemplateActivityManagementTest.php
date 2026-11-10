@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
@@ -411,6 +412,129 @@ class CourseTemplateActivityManagementTest extends TestCase
             'id' => $lessonId,
             'duration_seconds' => 0,
         ]);
+    }
+
+    public function test_every_structure_change_moves_the_working_revision_that_publish_checks(): void
+    {
+        [$customerId, $templateId, $lessonId] = $this->createDirectHierarchy();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $base = "https://tenant-a.localhost/admin/course-templates/{$templateId}";
+        $revision = fn (): int => (int) DB::table('core_course_templates')->where('id', $templateId)->value('working_revision');
+        $expected = $revision();
+        $moved = function (string $step) use (&$expected, $revision): void {
+            $this->assertSame(++$expected, $revision(), $step);
+        };
+        $unmoved = function (string $step) use (&$expected, $revision): void {
+            $this->assertSame($expected, $revision(), $step);
+        };
+        $section = ['parent_section_id' => null, 'allows_lessons' => 1, 'title' => 'Part', 'description' => null, 'display_order' => 1];
+        $lesson = ['title' => 'Extra', 'short_description' => null, 'description' => null, 'sort_order' => 2, 'is_preview' => 0,
+            'lesson_type' => 'regular', 'unlock_rule' => 'none', 'unlock_after_lesson_id' => null, 'unlock_at' => null];
+        $this->actingAs($admin);
+
+        // The page the admin reviews before publishing shows this revision.
+        $opened = $revision();
+
+        $this->post("{$base}/lessons/{$lessonId}/activities", $this->validActivityData(['title' => 'One']))->assertRedirect();
+        $moved('activity created');
+        $this->post("{$base}/lessons/{$lessonId}/activities", $this->validActivityData(['title' => 'Two']))->assertRedirect();
+        $moved('second activity created');
+        [$one, $two] = DB::table('core_course_template_activities')->where('template_id', $templateId)->orderBy('id')->pluck('id')->all();
+        $this->put("{$base}/lessons/{$lessonId}/activities/{$one}", $this->validActivityData(['title' => 'One, edited']))->assertSessionHasNoErrors();
+        $moved('activity updated');
+        $this->patchJson("{$base}/lessons/{$lessonId}/activities/reorder", ['activity_ids' => [$two, $one]])->assertOk();
+        $moved('activities reordered');
+        $this->patchJson("{$base}/lessons/{$lessonId}/activities/reorder", ['activity_ids' => [$two]])->assertStatus(409);
+        $unmoved('a refused reorder changes nothing');
+        $this->delete("{$base}/lessons/{$lessonId}/activities/{$two}")->assertRedirect();
+        $moved('activity deleted');
+
+        $this->post("{$base}/lessons", $lesson)->assertRedirect();
+        $moved('lesson created');
+        $extra = (int) DB::table('core_course_template_lessons')->where('template_id', $templateId)->where('title', 'Extra')->value('id');
+        $this->put("{$base}/lessons/{$extra}", ['title' => 'Extra, edited'] + $lesson)->assertSessionHasNoErrors();
+        $moved('lesson updated');
+        $this->patchJson("{$base}/lessons/reorder", ['lesson_ids' => [$extra, $lessonId]])->assertOk();
+        $moved('lessons reordered');
+        $this->delete("{$base}/lessons/{$lessonId}")->assertSessionHasErrors();
+        $unmoved('a lesson that still has an activity is not deleted');
+        $this->delete("{$base}/lessons/{$extra}")->assertSessionHasNoErrors();
+        $moved('lesson deleted');
+
+        $this->post("{$base}/sections", $section)->assertRedirect();
+        $moved('section created');
+        $this->post("{$base}/sections", ['title' => 'Part two', 'display_order' => 2] + $section)->assertRedirect();
+        $moved('second section created');
+        [$first, $second] = DB::table('core_course_template_sections')->where('template_id', $templateId)->orderBy('id')->pluck('id')->all();
+        $this->put("{$base}/sections/{$first}", ['title' => 'Part, edited'] + $section)->assertSessionHasNoErrors();
+        $moved('section updated');
+        $this->patchJson("{$base}/sections/reorder", ['section_ids' => [$second, $first]])->assertOk();
+        $moved('sections reordered');
+        $this->delete("{$base}/sections/{$second}")->assertSessionHasNoErrors();
+        $moved('section deleted');
+
+        // The page opened before these edits can no longer publish them unseen.
+        $this->post("{$base}/publish", ['working_revision' => $opened])
+            ->assertSessionHasErrors(['publish' => __('lf.LF_course_template_publish_stale')]);
+        $this->assertDatabaseMissing('core_course_template_versions', ['template_id' => $templateId]);
+    }
+
+    public function test_a_date_based_unlock_typed_in_local_time_is_stored_in_utc_and_shown_back_locally(): void
+    {
+        [$customerId, $templateId] = $this->createDirectHierarchy();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $base = "https://tenant-a.localhost/admin/course-templates/{$templateId}";
+        $this->actingAs($admin);
+
+        $this->post("{$base}/lessons", ['title' => 'Opens on a date', 'short_description' => null, 'description' => null,
+            'sort_order' => 2, 'is_preview' => 0, 'lesson_type' => 'regular', 'unlock_rule' => 'date_based',
+            'unlock_after_lesson_id' => null, 'unlock_at' => '2026-12-01T08:00'])->assertSessionHasNoErrors();
+        $lesson = DB::table('core_course_template_lessons')->where('template_id', $templateId)->where('title', 'Opens on a date')->first();
+
+        // 08:00 in Asia/Ho_Chi_Minh is 01:00 UTC, the instant the runtime compares (LF-Core-Course, date_based).
+        $this->assertSame('2026-12-01 01:00:00', Carbon::parse($lesson->unlock_at)->format('Y-m-d H:i:s'));
+        $this->get("{$base}/lessons/{$lesson->id}/edit", ['X-Requested-With' => 'XMLHttpRequest'])->assertOk()
+            ->assertSee('name="unlock_at" value="2026-12-01T08:00"', false);
+    }
+
+    public function test_an_archived_template_takes_no_structure_or_teacher_change(): void
+    {
+        [$customerId, $templateId, $lessonId] = $this->createDirectHierarchy();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $teacher = $this->createUser($customerId, 'teacher');
+        $assigned = $this->createUser($customerId, 'teacher');
+        $base = "https://tenant-a.localhost/admin/course-templates/{$templateId}";
+        $this->actingAs($admin);
+        $this->post("{$base}/lessons/{$lessonId}/activities", $this->validActivityData(['title' => 'Kept']))->assertRedirect();
+        $activityId = (int) DB::table('core_course_template_activities')->where('template_id', $templateId)->value('id');
+        $this->post("{$base}/teachers", ['teacher_id' => $assigned->id, 'role' => 'primary'])->assertSessionHasNoErrors();
+        $assignmentId = (int) DB::table('core_course_template_teachers')->where('template_id', $templateId)->value('id');
+        DB::table('core_course_templates')->where('id', $templateId)->update(['status' => 'archived']);
+        $before = DB::table('core_course_templates')->where('id', $templateId)->value('working_revision');
+        $readOnly = ['template' => __('lf.LF_course_template_status_archived_readonly')];
+        $section = ['parent_section_id' => null, 'allows_lessons' => 1, 'title' => 'Part', 'description' => null, 'display_order' => 1];
+        $lesson = ['title' => 'Extra', 'short_description' => null, 'description' => null, 'sort_order' => 2, 'is_preview' => 0,
+            'lesson_type' => 'regular', 'unlock_rule' => 'none', 'unlock_after_lesson_id' => null, 'unlock_at' => null];
+
+        $this->post("{$base}/lessons/{$lessonId}/activities", $this->validActivityData(['title' => 'New']))->assertSessionHasErrors($readOnly);
+        $this->put("{$base}/lessons/{$lessonId}/activities/{$activityId}", $this->validActivityData(['title' => 'Edited']))->assertSessionHasErrors($readOnly);
+        $this->patchJson("{$base}/lessons/{$lessonId}/activities/reorder", ['activity_ids' => [$activityId]])->assertStatus(422);
+        $this->delete("{$base}/lessons/{$lessonId}/activities/{$activityId}")->assertSessionHasErrors($readOnly);
+        $this->post("{$base}/lessons", $lesson)->assertSessionHasErrors($readOnly);
+        $this->put("{$base}/lessons/{$lessonId}", ['title' => 'Edited'] + $lesson)->assertSessionHasErrors($readOnly);
+        $this->post("{$base}/sections", $section)->assertSessionHasErrors($readOnly);
+        $this->post("{$base}/teachers", ['teacher_id' => $teacher->id, 'role' => 'assistant'])->assertSessionHasErrors($readOnly);
+        $this->put("{$base}/teachers/{$assignmentId}", ['role' => 'assistant'])->assertSessionHasErrors($readOnly);
+
+        $this->assertSame(['Kept'], DB::table('core_course_template_activities')->where('template_id', $templateId)->pluck('title')->all());
+        $this->assertSame(1, DB::table('core_course_template_lessons')->where('template_id', $templateId)->count());
+        $this->assertSame(0, DB::table('core_course_template_sections')->where('template_id', $templateId)->count());
+        $this->assertSame(['primary'], DB::table('core_course_template_teachers')->where('template_id', $templateId)->pluck('role')->all());
+        $this->assertSame($before, DB::table('core_course_templates')->where('id', $templateId)->value('working_revision'));
+
+        // Taking a teacher's access away stays possible.
+        $this->delete("{$base}/teachers/{$assignmentId}")->assertSessionHasNoErrors();
+        $this->assertSame('inactive', DB::table('core_course_template_teachers')->where('id', $assignmentId)->value('status'));
     }
 
     public function test_admin_and_teacher_can_create_activities_for_direct_lessons(): void

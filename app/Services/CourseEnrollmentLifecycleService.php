@@ -271,6 +271,40 @@ class CourseEnrollmentLifecycleService
         }, 3);
     }
 
+    /**
+     * Expiry is a system-owned transition (LF-Core-Course, Enrollment lifecycle).
+     *
+     * An `active` or `suspended` cycle whose learning window has ended (the review
+     * window when there is one, else the main access window; both half-open) becomes
+     * `expired`. A cycle without a window, such as every live Enrollment, never
+     * expires. Cohort Membership is left alone, as for every Enrollment transition.
+     */
+    public function expireEndedLearningCycles(int $customerId, CarbonInterface $now): int
+    {
+        $ended = fn ($query) => $query->where('customer_id', $customerId)
+            ->whereIn('status', ['active', 'suspended'])
+            ->where(fn ($query) => $query
+                ->where(fn ($query) => $query->whereNotNull('review_ends_at')->where('review_ends_at', '<=', $now))
+                ->orWhere(fn ($query) => $query->whereNull('review_ends_at')
+                    ->whereNotNull('access_ends_at')->where('access_ends_at', '<=', $now)));
+
+        $expired = 0;
+        DB::table('core_course_enrollments')->where($ended)->orderBy('id')
+            ->chunkById(200, function ($rows) use ($customerId, $now, $ended, &$expired): void {
+                $expired += DB::transaction(function () use ($customerId, $now, $ended, $rows): int {
+                    // Re-read under lock: an admin may have cancelled or changed one meanwhile.
+                    $ids = DB::table('core_course_enrollments')->where($ended)
+                        ->whereIn('id', $rows->pluck('id'))->orderBy('id')->lockForUpdate()->pluck('id');
+
+                    return $ids->isEmpty() ? 0 : DB::table('core_course_enrollments')
+                        ->where('customer_id', $customerId)->whereIn('id', $ids)
+                        ->update(['status' => 'expired', 'expired_at' => $now, 'updated_at' => $now]);
+                }, 3);
+            });
+
+        return $expired;
+    }
+
     private function transition(int $customerId, int $id, string $target, array $sources): void
     {
         DB::transaction(function () use ($customerId, $id, $target, $sources): void {

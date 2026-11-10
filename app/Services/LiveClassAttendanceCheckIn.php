@@ -30,10 +30,23 @@ final class LiveClassAttendanceCheckIn
         return (bool) config('liveclass.attendance_enabled');
     }
 
-    /** Whether this board offers the QR code: the presenter of an in-room Session, with attendance on. */
+    /** Whether this board offers the QR code: the presenter of an in-room Session that has a teacher, with attendance on. */
     public static function offeredOn(LiveClassBoardContext $context): bool
     {
-        return self::enabled() && $context->canPresent && in_array($context->deliveryMode, self::DELIVERY_MODES, true);
+        return self::enabled() && $context->canPresent && in_array($context->deliveryMode, self::DELIVERY_MODES, true)
+            && self::sessionHasTeacher($context->customerId, $context->sessionId);
+    }
+
+    /**
+     * An unassigned Session in an active Cohort takes no runtime evidence such as
+     * Attendance until a teacher is assigned (LF-Core-LiveClass, Session setup).
+     */
+    public static function sessionHasTeacher(int $customerId, int $sessionId): bool
+    {
+        return DB::table('core_liveclass_sessions')->where('customer_id', $customerId)->where('id', $sessionId)
+            ->whereNotNull('primary_teacher_id')->exists()
+            || DB::table('core_liveclass_session_teachers')->where('customer_id', $customerId)
+                ->where('session_id', $sessionId)->exists();
     }
 
     /**
@@ -95,7 +108,8 @@ final class LiveClassAttendanceCheckIn
         $session = DB::table('core_liveclass_sessions')
             ->where('customer_id', $context->customerId)->where('id', $context->sessionId)
             ->first(['id', 'delivery_mode', 'scheduled_start_at', 'scheduled_end_at', 'actual_start_at', 'timezone', 'version_activity_id']);
-        if (! $session || ! in_array($session->delivery_mode, self::DELIVERY_MODES, true)) {
+        if (! $session || ! in_array($session->delivery_mode, self::DELIVERY_MODES, true)
+            || ! self::sessionHasTeacher($context->customerId, (int) $session->id)) {
             return ['result' => 'not_offered'];
         }
 
@@ -116,10 +130,7 @@ final class LiveClassAttendanceCheckIn
         }
         $status = $at->gt($start->addMinutes(max(0, (int) config('liveclass.late_after_minutes', 10)))) ? 'late' : 'present';
 
-        $membership = DB::table('core_course_cohort_students')
-            ->where('customer_id', $context->customerId)->where('cohort_id', $context->cohortId)
-            ->where('student_id', $context->userId)->where('status', 'active')->whereNull('left_at')
-            ->first(['enrollment_id']);
+        $membership = LearnerCohortSeat::current($context->customerId, $context->cohortId, $context->userId);
         abort_unless($membership, 404);
 
         return DB::transaction(function () use ($context, $session, $membership, $status, $at): array {

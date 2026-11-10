@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use Illuminate\Support\Carbon;
+use App\Support\LessonUnlockTime;
 use Illuminate\Support\Collection;
 
 class CourseTemplateVersionDetailPresenter
@@ -96,6 +96,7 @@ class CourseTemplateVersionDetailPresenter
 
     private function date(string $value): string
     {
-        return Carbon::parse($value)->timezone(config('app.timezone'))->format('d/m/Y H:i T');
+        // Unlock times are stored in UTC.
+        return LessonUnlockTime::toLocal($value, 'd/m/Y H:i T');
     }
 }

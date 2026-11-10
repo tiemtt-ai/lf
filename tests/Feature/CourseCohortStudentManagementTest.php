@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Services\LearnerCohortSeat;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -739,6 +740,49 @@ class CourseCohortStudentManagementTest extends TestCase
         $this->actingAs($admin)->get($url)->assertOk()
             ->assertDontSeeText($warning)
             ->assertDontSeeText(__('lf.LF_course_cohort_student_holds_seat'));
+    }
+
+    public function test_a_re_enrolled_student_takes_no_second_seat_next_to_the_old_one(): void
+    {
+        [$customerId, $admin, $student, $productId, $versionId] = $this->learningContext();
+        $cohortId = $this->createCohort($customerId, $productId, $versionId, capacity: 5);
+        $oldEnrollmentId = $this->createEnrollment($customerId, $student->id, $productId, $versionId);
+        $oldSeatId = $this->createMembership($customerId, $cohortId, $oldEnrollmentId, $productId, $student->id);
+        // The old cycle ended; Enrollment transitions leave its seat in place.
+        DB::table('core_course_enrollments')->where('id', $oldEnrollmentId)->update(['status' => 'cancelled']);
+        $newEnrollmentId = $this->createEnrollment($customerId, $student->id, $productId, $versionId);
+        $base = "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/students";
+        $seated = __('lf.LF_course_cohort_student_validation_student_already_seated');
+
+        $this->actingAs($admin)->post($base, ['enrollment_ids' => [$newEnrollmentId]])
+            ->assertSessionHasErrors(['enrollment_ids.0' => $seated]);
+        $this->actingAs($admin)->put($base, ['enrollment_ids' => [$oldEnrollmentId, $newEnrollmentId]])
+            ->assertSessionHasErrors(['enrollment_ids.0' => $seated]);
+        $this->assertSame(0, DB::table('core_course_cohort_students')->where('enrollment_id', $newEnrollmentId)->count());
+        $this->actingAs($admin)->getJson($base.'/search')->assertOk()
+            ->assertJsonMissing(['id' => $newEnrollmentId]);
+
+        // Swapping the old seat for the new Enrollment in one save is allowed: the removal goes first.
+        $this->actingAs($admin)->put($base, ['enrollment_ids' => [$newEnrollmentId]])->assertSessionHasNoErrors();
+        $this->assertSame('removed', DB::table('core_course_cohort_students')->where('id', $oldSeatId)->value('status'));
+        $this->assertSame(1, DB::table('core_course_cohort_students')->where('cohort_id', $cohortId)
+            ->where('student_id', $student->id)->where('status', 'active')->count());
+    }
+
+    public function test_a_learner_with_two_seats_from_older_data_is_found_through_the_active_enrollment(): void
+    {
+        [$customerId, , $student, $productId, $versionId] = $this->learningContext();
+        $cohortId = $this->createCohort($customerId, $productId, $versionId);
+        $activeEnrollmentId = $this->createEnrollment($customerId, $student->id, $productId, $versionId);
+        $endedEnrollmentId = $this->createEnrollment($customerId, $student->id, $productId, $versionId);
+        DB::table('core_course_enrollments')->where('id', $endedEnrollmentId)->update(['status' => 'expired']);
+        $activeSeatId = $this->createMembership($customerId, $cohortId, $activeEnrollmentId, $productId, $student->id);
+        // The ended cycle's seat is the newer row, so "newest" alone would pick it.
+        $this->createMembership($customerId, $cohortId, $endedEnrollmentId, $productId, $student->id);
+
+        $seat = LearnerCohortSeat::current($customerId, $cohortId, $student->id);
+
+        $this->assertSame([$activeSeatId, $activeEnrollmentId], [(int) $seat->id, (int) $seat->enrollment_id]);
     }
 
     public function test_sync_rejects_a_form_opened_before_the_roster_changed(): void
