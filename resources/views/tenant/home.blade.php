@@ -1,104 +1,99 @@
 @extends('layouts.tenant')
 
 @section('title', ($tenant?->name ?? 'Tenant').' | '.__('lf.LF_common_brand_student_name'))
+@section('tenant_page_class', 'has-page-hero lf-home-page')
+
+{{-- Tenant home in the standard B2B look (mk_v2 b2b/home): banner, suggested courses, suggested classes, AI Speak,
+     benefits. Temporary by Owner's request (2026-11-11); every block is full width, so it lives in page_hero. --}}
+@section('page_hero')
+@php
+    $home = fn (string $file) => asset('assets/student/home/'.$file);
+    $more = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>';
+    $benefits = ['brand.svg', 'roadmap.svg', 'message.svg', 'play-b2b.svg', 'cskh.svg', 'bag_home.svg'];
+@endphp
+    <section class="sb2b-default-banner" aria-label="{{ __('lf.LF_home_b2b_banner_title') }}">
+        <div class="sb2b-default-banner__inner">
+            <div class="sb2b-default-banner__copy">
+                <span>{{ __('lf.LF_catalog_eyebrow') }}</span>
+                <h1>{{ __('lf.LF_home_b2b_banner_title') }}<br><em>{{ __('lf.LF_home_b2b_banner_highlight') }}</em></h1>
+                <p>{{ __('lf.LF_home_b2b_banner_description') }}</p>
+            </div>
+            <svg class="sb2b-default-banner__art" viewBox="0 0 400 300" fill="none" aria-hidden="true">
+                <circle cx="210" cy="150" r="130" fill="#ffffff" fill-opacity=".08"/>
+                <circle cx="330" cy="55" r="18" fill="#b8eb76"/>
+                <rect x="60" y="62" width="275" height="176" rx="18" fill="#edf3ff" transform="rotate(-6 60 62)"/>
+                <rect x="83" y="86" width="229" height="125" rx="10" fill="#4157c8" transform="rotate(-6 83 86)"/>
+                <path d="m179 116 43 24-43 24v-48Z" fill="#b8eb76"/>
+                <path d="M37 245h314" stroke="#b8eb76" stroke-width="12" stroke-linecap="round"/>
+                <path d="M250 214c-23-11-43-9-61-1v53c19-9 39-9 61 1 22-10 42-10 61-1v-53c-18-8-38-10-61 1Z" fill="white"/>
+                <path d="M250 214v53m-48-39 32-2m-32 16 32-2m32-14 32 2m-32 12 32 2" stroke="#4157c8" stroke-width="4" stroke-linecap="round"/>
+                <path d="m65 30 5 12 12 5-12 5-5 12-5-12-12-5 12-5Z" fill="#b8eb76"/>
+            </svg>
+        </div>
+    </section>
+
+    <section class="sb2b-home-popular">
+        <div class="lf-home__inner">
+            @foreach ([
+                ['courses', $courses, 'self_paced', 'LF_home_b2b_courses_title', 'LF_home_b2b_courses_description', 'LF_course_catalog_empty'],
+                ['classes', $classes, 'class', 'LF_home_b2b_classes_title', 'LF_home_b2b_classes_description', 'LF_home_b2b_classes_empty'],
+            ] as [$key, $items, $type, $titleKey, $descriptionKey, $emptyKey])
+                <div class="lf-home__block" data-home-block="{{ $key }}">
+                    <div class="sb2b-home-popular__intro">
+                        <h2>{{ __('lf.'.$titleKey) }}</h2>
+                        <p>{{ __('lf.'.$descriptionKey) }}</p>
+                    </div>
+                    @if ($items->isEmpty())
+                        <div class="sb2b-flat-catalog__empty" role="status">{{ __('lf.'.$emptyKey) }}</div>
+                    @else
+                        <div class="student-products__grid student-products__grid--courses">
+                            @foreach ($items as $course)
+                                @include('tenant.partials.course-card', compact('course'))
+                            @endforeach
+                        </div>
+                        <div class="sb2b-home-popular__more">
+                            <a class="sb2b-home-popular__more-link" href="{{ route('tenant.courses.index', ['type' => $type]) }}">{{ __('lf.LF_home_b2b_more') }} {!! $more !!}</a>
+                        </div>
+                    @endif
+                </div>
+            @endforeach
+        </div>
+    </section>
+
+    <section class="sb2b-home-ai-feature">
+        <div class="sb2b-home-ai-feature__panel">
+            <img class="recommend-img" src="{{ $home('ai-speak-phone.png') }}" alt="" loading="lazy">
+            <div class="discovery">
+                <h2 class="text-discovery">{!! __('lf.LF_home_b2b_ai_title', ['highlight' => '<span class="text-blue">'.e(__('lf.LF_home_b2b_ai_highlight')).'</span>']) !!}</h2>
+                <div class="sb2b-home-ai-feature__details">
+                    <p>{{ __('lf.LF_home_b2b_ai_description') }}</p>
+                    <ul>
+                        <li>{{ __('lf.LF_home_b2b_ai_item_1') }}</li>
+                        <li>{{ __('lf.LF_home_b2b_ai_item_2') }}</li>
+                        <li>{{ __('lf.LF_home_b2b_ai_item_3') }}</li>
+                    </ul>
+                </div>
+                <button type="button" class="btn-discovery" data-coming-soon aria-disabled="true">{{ __('lf.LF_home_b2b_ai_explore') }}</button>
+            </div>
+        </div>
+    </section>
+
+    <section class="sb2b-home-benefits" aria-labelledby="sb2b-home-benefits-title">
+        <div class="sb2b-home-benefits__heading">
+            <h2 id="sb2b-home-benefits-title">{{ __('lf.LF_home_b2b_benefits_title', ['tenant' => $tenant->name]) }}</h2>
+            <p>{{ __('lf.LF_home_b2b_benefits_description') }}</p>
+        </div>
+        <div class="sb2b-home-benefits__grid">
+            @foreach ($benefits as $index => $iconFile)
+                <article class="sb2b-home-benefits__card">
+                    <span class="sb2b-home-benefits__icon"><img src="{{ $home($iconFile) }}" alt=""></span>
+                    <h3>{{ __('lf.LF_home_b2b_benefit_'.($index + 1).'_title') }}</h3>
+                    <p>{{ __('lf.LF_home_b2b_benefit_'.($index + 1).'_description') }}</p>
+                </article>
+            @endforeach
+        </div>
+    </section>
+@endsection
 
 @section('content')
-    <section class="student-hero tenant-banner">
-        <div class="student-hero-content">
-            <p class="student-eyebrow">
-                <span class="student-eyebrow-dot"></span>
-                {{ $studentMode ? __('lf.LF_home_student_banner_welcome', ['name' => auth()->user()->name]) : __('lf.LF_home_public_banner_eyebrow') }}
-            </p>
-            <h1>{{ $studentMode ? __('lf.LF_home_student_banner_title') : __('lf.LF_home_public_banner_title') }}</h1>
-            <p class="student-hero-copy">
-                {{ __('lf.LF_home_public_banner_description', ['tenant' => $tenant->name]) }}
-            </p>
-            <div class="student-hero-actions">
-                <a class="student-button" href="{{ route('tenant.courses.index') }}">{{ __('lf.LF_home_public_explore_courses') }}</a>
-                <a class="student-button is-light" href="{{ route('public.services') }}">{{ __('lf.LF_home_public_view_services') }}</a>
-            </div>
-        </div>
-    </section>
-
-    @if ($studentMode)
-        <section class="tenant-personalized-section" aria-labelledby="personalized-heading">
-            <div class="student-section-header">
-                <div>
-                    <p class="student-eyebrow">{{ __('lf.LF_home_student_personalized') }}</p>
-                    <h2 class="student-section-title" id="personalized-heading">{{ __('lf.LF_home_student_continue_learning') }}</h2>
-                </div>
-                <a class="student-text-link" href="{{ route('student.courses.index') }}">{{ __('lf.LF_navigation_menu_student_my_courses') }}</a>
-            </div>
-
-            <div class="student-stat-grid">
-                <article class="student-card student-stat-card">
-                    <div><p class="student-stat-value">72%</p><p class="student-stat-label">{{ __('lf.LF_home_student_continue_learning') }}</p></div>
-                </article>
-                <article class="student-card student-stat-card">
-                    <div><p class="student-stat-value">3</p><p class="student-stat-label">{{ __('lf.LF_navigation_menu_student_my_courses') }}</p></div>
-                </article>
-                <article class="student-card student-stat-card">
-                    <div><p class="student-stat-value">2</p><p class="student-stat-label">{{ __('lf.LF_home_student_upcoming_activities') }}</p></div>
-                </article>
-                <article class="student-card student-stat-card">
-                    <div><p class="student-stat-value">1</p><p class="student-stat-label">{{ __('lf.LF_home_student_pending_assessments') }}</p></div>
-                </article>
-            </div>
-
-            <article class="student-card tenant-ai-recommendation">
-                <div>
-                    <p class="student-profile-card-label">{{ __('lf.LF_home_student_ai_recommendations') }}</p>
-                    <h3>{{ __('lf.LF_home_student_ai_title') }}</h3>
-                    <p>{{ __('lf.LF_home_student_ai_description') }}</p>
-                </div>
-                <a class="student-button is-outline" href="{{ route('student.ai-tutor') }}">{{ __('lf.LF_home_student_ask_ai_tutor') }}</a>
-            </article>
-        </section>
-    @endif
-
-    <section class="student-card student-section tenant-section">
-        <div class="student-section-header">
-            <div>
-                <p class="student-profile-card-label">{{ __('lf.LF_home_public_featured_courses') }}</p>
-                <h2 class="student-section-title">{{ __('lf.LF_home_public_courses_title') }}</h2>
-            </div>
-            <a class="student-text-link" href="{{ route('tenant.courses.index') }}">{{ __('lf.LF_home_public_view_all_courses') }}</a>
-        </div>
-        <div class="tenant-course-grid">
-            @forelse ($courses as $course)
-                @include('tenant.partials.course-card', compact('course'))
-            @empty
-                <p class="student-section-copy" role="status">{{ __('lf.LF_course_catalog_empty') }}</p>
-            @endforelse
-        </div>
-    </section>
-
-    <section class="tenant-feature-grid">
-        <article class="student-card student-section">
-            <p class="student-profile-card-label">{{ __('lf.LF_home_public_featured_services') }}</p>
-            <h2 class="student-section-title">{{ __('lf.LF_home_public_services_title') }}</h2>
-            <p class="student-section-copy">{{ __('lf.LF_home_public_services_description') }}</p>
-            <a class="student-text-link" href="{{ route('public.services') }}">{{ __('lf.LF_home_public_explore_services') }}</a>
-        </article>
-        <article class="student-card student-section">
-            <p class="student-profile-card-label">{{ __('lf.LF_navigation_menu_public_teachers') }}</p>
-            <h2 class="student-section-title">{{ __('lf.LF_home_public_teachers_title') }}</h2>
-            <p class="student-section-copy">{{ __('lf.LF_home_public_teachers_description') }}</p>
-            <a class="student-text-link" href="{{ route('tenant.teachers') }}">{{ __('lf.LF_home_public_meet_teachers') }}</a>
-        </article>
-        <article class="student-card student-section">
-            <p class="student-profile-card-label">{{ __('lf.LF_home_public_news') }}</p>
-            <h2 class="student-section-title">{{ __('lf.LF_home_public_news_title') }}</h2>
-            <p class="student-section-copy">{{ __('lf.LF_home_public_news_description') }}</p>
-        </article>
-    </section>
-
-    <section class="student-card tenant-contact-cta">
-        <div>
-            <p class="student-profile-card-label">{{ __('lf.LF_home_public_contact_cta') }}</p>
-            <h2>{{ __('lf.LF_home_public_contact_title') }}</h2>
-            <p>{{ __('lf.LF_home_public_contact_description') }}</p>
-        </div>
-        <a class="student-button" href="{{ route('tenant.contact') }}">{{ __('lf.LF_home_public_contact_us') }}</a>
-    </section>
 @endsection

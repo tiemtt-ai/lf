@@ -39,10 +39,11 @@ class TenantWebsiteUiTest extends TestCase
             ->assertSeeText(__('lf.LF_navigation_menu_public_about'))
             ->assertSeeText(__('lf.LF_navigation_menu_public_contact'))
             ->assertSeeText(__('lf.LF_navigation_menu_guest_login'))
-            ->assertSeeText(__('lf.LF_home_public_featured_courses'))
-            ->assertSeeText(__('lf.LF_home_public_featured_services'))
-            ->assertSeeText(__('lf.LF_home_public_news'))
-            ->assertSeeText(__('lf.LF_home_public_contact_cta'))
+            ->assertSeeText(__('lf.LF_home_b2b_courses_title'))
+            ->assertSeeText(__('lf.LF_home_b2b_classes_title'))
+            ->assertSeeText(__('lf.LF_home_b2b_classes_empty'))
+            ->assertSeeText(__('lf.LF_home_b2b_benefits_title', ['tenant' => 'Tenant A']))
+            ->assertSeeText('Tiếng Hàn sơ cấp')
             ->assertDontSeeText(__('lf.LF_navigation_menu_student_learning_history'))
             ->assertSeeText(__('lf.LF_course_card_guest_login_register_purchase'));
 
@@ -59,19 +60,14 @@ class TenantWebsiteUiTest extends TestCase
         $this->actingAs($student)
             ->get('https://tenant-a.localhost/')
             ->assertOk()
-            ->assertSeeText(__('lf.LF_home_public_featured_courses'))
-            ->assertSeeText(__('lf.LF_home_public_featured_services'))
+            ->assertSeeText(__('lf.LF_home_b2b_courses_title'))
+            ->assertSeeText(__('lf.LF_home_b2b_classes_title'))
             ->assertSeeText(__('lf.LF_navigation_menu_public_teachers'))
-            ->assertSeeText(__('lf.LF_home_public_news'))
             ->assertSeeText(__('lf.LF_navigation_menu_student_my_courses'))
             ->assertSeeText(__('lf.LF_navigation_menu_student_learning_history'))
             ->assertSeeText(__('lf.LF_navigation_menu_student_ai_tutor'))
             ->assertSeeText(__('lf.LF_navigation_menu_student_profile'))
             ->assertSeeText(__('lf.LF_navigation_menu_student_logout'))
-            ->assertSeeText(__('lf.LF_home_student_continue_learning'))
-            ->assertSeeText(__('lf.LF_home_student_upcoming_activities'))
-            ->assertSeeText(__('lf.LF_home_student_pending_assessments'))
-            ->assertSeeText(__('lf.LF_home_student_ai_recommendations'))
             ->assertSee('href="https://tenant-a.localhost/profile"', false)
             ->assertSee('action="https://tenant-a.localhost/logout"', false);
     }
@@ -181,6 +177,34 @@ class TenantWebsiteUiTest extends TestCase
 
         $this->actingAs($student)->get('https://tenant-a.localhost/courses/'.$closed['slug'])->assertOk()
             ->assertSeeText(__('lf.LF_course_card_public_registration_closed'));
+    }
+
+    public function test_the_catalogue_filters_by_name_and_type_and_shows_the_learners_progress(): void
+    {
+        $customerId = $this->createTenant();
+        $student = $this->createUser($customerId, 'student');
+        $grammar = $this->createCatalogCourse($customerId, 'Ngữ pháp sơ cấp');
+        $speaking = $this->createCatalogCourse($customerId, 'Luyện nói theo lớp');
+        DB::table('core_course_template_versions')->where('id', $speaking['version'])->update(['course_type_snapshot' => 'scheduled']);
+        $enrollment = DB::table('core_course_enrollments')->insertGetId([
+            'customer_id' => $customerId, 'product_id' => $grammar['product'], 'version_id' => $grammar['version'],
+            'student_id' => $student->id, 'source' => 'admin', 'enrolled_at' => now()->subDays(40), 'status' => 'active',
+            'access_starts_at' => now()->subDays(40), 'access_ends_at' => now()->subDays(10),
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->get('https://tenant-a.localhost/courses?q=ngữ pháp')->assertOk()
+            ->assertSeeText('Ngữ pháp sơ cấp')->assertDontSeeText('Luyện nói theo lớp');
+        $this->get('https://tenant-a.localhost/courses?type=class')->assertOk()
+            ->assertSeeText('Luyện nói theo lớp')->assertDontSeeText('Ngữ pháp sơ cấp');
+        $this->get('https://tenant-a.localhost/courses?q=không có')->assertOk()
+            ->assertSeeText(__('lf.LF_course_catalog_filter_empty'));
+        $this->get('https://tenant-a.localhost/courses?type=other')->assertStatus(302);
+
+        // An Enrollment past its access window reads "Đã hết hạn" and offers no way in.
+        $html = $this->actingAs($student)->get('https://tenant-a.localhost/courses')->assertOk()
+            ->assertSeeText(__('lf.LF_course_card_status_expired'))->getContent();
+        $this->assertStringNotContainsString('/my-courses/'.$enrollment.'"', $html);
     }
 
     public function test_students_mark_courses_quan_tam_without_enrolling(): void

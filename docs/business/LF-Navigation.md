@@ -704,7 +704,9 @@ Header, menu và footer của Tenant Website theo giao diện B2B chuẩn
 chưa có trang thì hiện nhưng khóa, bấm vào chỉ báo "Sắp ra mắt".
 
 ```text
-Thanh menu    Home · Courses · Assessments · Services · Giới thiệu ▾ (About, Teachers, Contact)
+Thanh menu    Home · Khóa học (/courses?type=self_paced) · Lớp học (/courses?type=class) ·
+              Bài thi (Assessments) · Services · Giới thiệu ▾ (About, Teachers, Contact)
+              Khóa học và Lớp học là hai cách lọc của Courses, không thêm route (Owner 2026-11-11).
 Tài khoản ▾   Khóa học của tôi · Lớp học của tôi · Bài thi của tôi ·
               Kết quả học tập · Learning History · AI Tutor ·
               Thông tin cá nhân (Profile) · Đăng xuất
@@ -798,6 +800,19 @@ Quy tắc:
 > chạy. Học viên đã có Enrollment (khác `cancelled`) thấy "Vào học" tới Khóa học của tôi
 > hoặc lớp. Chưa có luồng tự đăng ký/mua: nút "Đăng ký" hiện "Sắp ra mắt" khi còn trong
 > thời gian đăng ký; học viên bấm ♡ để đánh dấu "Quan tâm" (ADR-0030 D4).
+>
+> 2026-11-11 (giao diện B2B chuẩn của mk_v2, Owner yêu cầu): `/courses` và `/assessments` có
+> banner kèm ô tìm theo tên, hàng chip lọc và lưới thẻ; `/courses` lọc bằng `q`, `category`,
+> `type=self_paced|class`, 12 thẻ mỗi trang. Thẻ khóa học theo Enrollment của học viên: đang
+> học → tiến độ và "Vào học"; `pending`/`suspended` → nhãn trạng thái, không có nút; `expired`
+> hoặc đã qua hạn học và ôn tập → "Đã hết hạn" và "Đăng ký" (Sắp ra mắt); chưa ghi danh → học
+> phí và "Đăng ký" (Sắp ra mắt). `/courses/{slug}` có ảnh, 4 ô thông tin (Giáo viên, Hình thức,
+> Thời hạn học, Thời lượng), trạng thái kèm nút, và 3 tab Danh sách bài học / Giới thiệu / Giáo
+> viên. Cách ghi danh không đổi; trang chỉ đọc.
+>
+> Trang chủ tenant `/` tạm thời theo trang chủ B2B chuẩn (Owner 2026-11-11): banner, Khóa học
+> đề xuất (4 khóa tự học), Lớp học đề xuất (4 khóa theo lớp), AI Speak (khóa), "Vì sao chọn
+> <tenant>?". Khối số liệu cá nhân, dịch vụ, tin tức và liên hệ của bản cũ đã bỏ khỏi trang.
 
 ---
 

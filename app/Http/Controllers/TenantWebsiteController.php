@@ -4,13 +4,17 @@ namespace App\Http\Controllers;
 
 use App\Services\TenantCourseCatalogService;
 use App\Support\TenantContext;
+use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 
 class TenantWebsiteController extends Controller
 {
     /** Course cards shown on the tenant home page. */
-    private const HOME_COURSE_LIMIT = 6;
+    private const HOME_COURSE_LIMIT = 4;
+
+    private const CATALOG_PAGE_SIZE = 12;
 
     public function __construct(private readonly TenantCourseCatalogService $catalog) {}
 
@@ -20,19 +24,37 @@ class TenantWebsiteController extends Controller
             return view('pages.home');
         }
 
+        $all = $this->catalog->courses(TenantContext::customerId(), $this->studentId());
+
         return view('tenant.home', [
             ...$this->websiteData(),
-            'courses' => $this->catalog->courses(TenantContext::customerId(), $this->studentId(), self::HOME_COURSE_LIMIT),
+            'courses' => $this->catalog->filter($all, type: 'self_paced')->take(self::HOME_COURSE_LIMIT),
+            'classes' => $this->catalog->filter($all, type: 'class')->take(self::HOME_COURSE_LIMIT),
         ]);
     }
 
-    public function courses(): View
+    public function courses(Request $request): View
     {
         $this->requireTenant();
+        $validated = $request->validate([
+            'q' => ['nullable', 'string', 'max:120'],
+            'category' => ['nullable', 'string', 'max:255'],
+            'type' => ['nullable', 'in:self_paced,class'],
+            'page' => ['nullable', 'integer', 'min:1'],
+        ]);
+        $filters = ['q' => trim($validated['q'] ?? ''), 'category' => $validated['category'] ?? null, 'type' => $validated['type'] ?? null];
+
+        $all = $this->catalog->courses(TenantContext::customerId(), $this->studentId());
+        $found = $this->catalog->filter($all, $filters['q'], $filters['category'], $filters['type']);
+        $page = (int) ($validated['page'] ?? 1);
+        $courses = (new LengthAwarePaginator($found->forPage($page, self::CATALOG_PAGE_SIZE)->values(), $found->count(), self::CATALOG_PAGE_SIZE, $page,
+            ['path' => $request->url()]))->withQueryString();
 
         return view('tenant.courses.index', [
             ...$this->websiteData(),
-            'courses' => $this->catalog->courses(TenantContext::customerId(), $this->studentId()),
+            'courses' => $courses,
+            'categories' => $all->pluck('category')->filter()->unique()->sort()->values(),
+            'filters' => $filters,
         ]);
     }
 

@@ -1786,15 +1786,3 @@
     flex-shrink: 0;
 }
 
-/* "Quan tâm" shows catalogue cards inside .student-products, whose B2B rule paints every link black. */
-.standard-b2b-site .student-favorite-grid .student-course-title a {
-    color: var(--student-text);
-}
-
-.standard-b2b-site .student-favorite-grid .student-button {
-    color: var(--student-surface);
-}
-
-.standard-b2b-site .student-favorite-grid .student-button.is-outline {
-    color: var(--student-primary-dark);
-}

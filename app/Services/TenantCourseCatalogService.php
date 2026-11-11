@@ -44,6 +44,25 @@ class TenantCourseCatalogService
         return $this->present($customerId, $studentId, $products)->take($limit ?? self::LIMIT)->values();
     }
 
+    /**
+     * Narrows catalogue cards the way the page filters them: title keyword, category name and
+     * "tự học" / "theo lớp" (`self_paced` or `class`). Unknown values filter nothing.
+     *
+     * @param  Collection<int, object>  $courses
+     * @return Collection<int, object>
+     */
+    public function filter(Collection $courses, string $keyword = '', ?string $category = null, ?string $type = null): Collection
+    {
+        $keyword = mb_strtolower(trim($keyword));
+
+        return $courses
+            ->when($keyword !== '', fn (Collection $rows) => $rows->filter(fn (object $course): bool => str_contains(mb_strtolower((string) $course->title), $keyword)))
+            ->when(filled($category), fn (Collection $rows) => $rows->where('category', $category))
+            ->when($type === 'self_paced', fn (Collection $rows) => $rows->where('course_type', CourseType::SELF_PACED))
+            ->when($type === 'class', fn (Collection $rows) => $rows->where('course_type', '!=', CourseType::SELF_PACED))
+            ->values();
+    }
+
     /** One visible Product by slug with its Version outline; null when it is not on the catalogue. */
     public function course(int $customerId, ?int $studentId, string $slug): ?object
     {
@@ -63,12 +82,12 @@ class TenantCourseCatalogService
             ->get(['id', 'title_snapshot as title']);
         $bySection = $lessons->groupBy('version_section_id');
         $course->outline = $sections
-            ->map(fn (object $section): object => (object) ['title' => $section->title, 'lessons' => $bySection->get($section->id, collect())->pluck('title')->all()])
+            ->map(fn (object $section): object => (object) ['title' => $section->title, 'lessons' => $bySection->get($section->id, collect())->values()->all()])
             ->filter(fn (object $section): bool => $section->lessons !== [])
             ->values();
         $orphans = $lessons->reject(fn (object $lesson): bool => $sections->contains('id', $lesson->version_section_id));
         if ($orphans->isNotEmpty()) {
-            $course->outline->push((object) ['title' => null, 'lessons' => $orphans->pluck('title')->all()]);
+            $course->outline->push((object) ['title' => null, 'lessons' => $orphans->values()->all()]);
         }
         $course->duration_seconds = (int) $lessons->sum('duration_seconds');
 
@@ -241,8 +260,14 @@ class TenantCourseCatalogService
             ->whereIn('enrollments.product_id', $productIds)
             ->where('enrollments.status', '!=', 'cancelled')
             ->orderByDesc('enrollments.id')
-            ->get(['enrollments.id', 'enrollments.product_id', 'enrollments.status', 'versions.course_type_snapshot as course_type'])
+            ->get(['enrollments.id', 'enrollments.product_id', 'enrollments.status', 'enrollments.access_starts_at',
+                'enrollments.access_ends_at', 'enrollments.review_ends_at', 'versions.course_type_snapshot as course_type'])
             ->unique('product_id');
+        $progress = DB::table('core_course_progress')
+            ->where('customer_id', $customerId)->where('student_id', $studentId)
+            ->whereIn('enrollment_id', $rows->pluck('id'))
+            ->pluck('progress_percentage', 'enrollment_id');
+        $now = Carbon::now();
         $seats = DB::table('core_course_cohort_students as seats')
             ->join('core_course_cohorts as cohorts', function ($join) use ($customerId): void {
                 $join->on('cohorts.id', '=', 'seats.cohort_id')->where('cohorts.customer_id', $customerId);
@@ -253,9 +278,18 @@ class TenantCourseCatalogService
             ->orderByDesc('seats.id')
             ->pluck('seats.cohort_id', 'seats.enrollment_id');
 
-        return $rows->mapWithKeys(function (object $row) use ($seats): array {
+        return $rows->mapWithKeys(function (object $row) use ($seats, $progress, $now): array {
             $isClass = in_array($row->course_type, CourseType::COHORT_VALUES, true);
             $cohortId = $seats[$row->id] ?? null;
+            $windowEnd = $row->review_ends_at ?? $row->access_ends_at;
+            $row->progress = (int) round((float) ($progress[$row->id] ?? 0));
+            // What the card says about the learner's Enrollment; the same split as "Khóa học của tôi".
+            $row->state = match (true) {
+                in_array($row->status, ['pending', 'suspended'], true) => $row->status,
+                $row->status === 'expired', ! $isClass && $windowEnd && $now->gte(Carbon::parse($windowEnd)) => 'expired',
+                $row->status === 'completed' => 'completed',
+                default => 'learning',
+            };
             $row->url = match (true) {
                 ! $isClass => route('student.courses.show', $row->id),
                 $cohortId !== null => route('student.courses.classes.show', $cohortId),

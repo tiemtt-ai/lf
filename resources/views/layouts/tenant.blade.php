@@ -15,11 +15,16 @@
         $currentUser = auth()->user();
         $studentMode = $currentUser?->role === 'student';
         $img = fn (string $file) => asset('assets/student/'.$file);
+        // "Khóa học" (tự học) and "Lớp học" are the two filtered views of the catalogue `/courses` (LF-Navigation § Main Menu).
+        $courseMenu = request()->routeIs('tenant.courses.*')
+            ? (trim($__env->yieldContent('course_menu')) ?: (request()->query('type') === 'class' ? 'classes' : 'courses'))
+            : null;
         $links = [
-            ['label' => __('lf.LF_navigation_menu_public_home'), 'route' => 'public.home', 'active' => 'public.home'],
-            ['label' => __('lf.LF_navigation_menu_public_courses'), 'route' => 'tenant.courses.index', 'active' => 'tenant.courses.*'],
-            ['label' => __('lf.LF_navigation_menu_public_assessments'), 'route' => 'tenant.assessments', 'active' => $studentMode && ! $__env->hasSection('student_course_context') ? ['tenant.assessments', 'student.assessments.*'] : 'tenant.assessments'],
-            ['label' => __('lf.LF_navigation_menu_public_services'), 'route' => 'public.services', 'active' => 'public.services'],
+            ['label' => __('lf.LF_navigation_menu_public_home'), 'url' => route('public.home'), 'on' => request()->routeIs('public.home')],
+            ['label' => __('lf.LF_navigation_menu_public_courses'), 'url' => route('tenant.courses.index', ['type' => 'self_paced']), 'on' => $courseMenu === 'courses'],
+            ['label' => __('lf.LF_navigation_menu_public_classes'), 'url' => route('tenant.courses.index', ['type' => 'class']), 'on' => $courseMenu === 'classes'],
+            ['label' => __('lf.LF_navigation_menu_public_assessments'), 'url' => route('tenant.assessments'), 'on' => request()->routeIs($studentMode && ! $__env->hasSection('student_course_context') ? ['tenant.assessments', 'student.assessments.*'] : 'tenant.assessments')],
+            ['label' => __('lf.LF_navigation_menu_public_services'), 'url' => route('public.services'), 'on' => request()->routeIs('public.services')],
         ];
         $more = [
             ['label' => __('lf.LF_navigation_menu_public_about'), 'route' => 'public.about', 'active' => 'public.about'],
@@ -55,8 +60,8 @@
 
                 <nav class="sb2b-links" aria-label="{{ __('lf.LF_navigation_label_tenant_navigation') }}">
                     @foreach ($links as $item)
-                        <a @class(['is-active' => request()->routeIs($item['active'])]) href="{{ route($item['route']) }}"
-                           @if (request()->routeIs($item['active'])) aria-current="page" @endif>{{ $item['label'] }}</a>
+                        <a @class(['is-active' => $item['on']]) href="{{ $item['url'] }}"
+                           @if ($item['on']) aria-current="page" @endif>{{ $item['label'] }}</a>
                     @endforeach
                     <details class="sb2b-resources">
                         <summary @class(['is-active' => $moreActive])>{{ __('lf.LF_student_site_more') }}{!! $arrow !!}</summary>
@@ -137,7 +142,7 @@
                         <summary aria-label="{{ __('lf.LF_common_navigation_common_open_menu') }}"><span></span><span></span><span></span></summary>
                         <nav aria-label="{{ __('lf.LF_navigation_label_tenant_mobile_navigation') }}">
                             @foreach ($links as $item)
-                                <a @class(['is-active' => request()->routeIs($item['active'])]) href="{{ route($item['route']) }}">{{ $item['label'] }}</a>
+                                <a @class(['is-active' => $item['on']]) href="{{ $item['url'] }}">{{ $item['label'] }}</a>
                             @endforeach
                             <details class="sb2b-mobile-resources" @if ($moreActive) open @endif>
                                 <summary>{{ __('lf.LF_student_site_more') }}{!! $arrow !!}</summary>
@@ -152,6 +157,7 @@
         </header>
 
         <main class="student-main">
+            @yield('page_hero')
             <div class="student-container">
                 @yield('content')
             </div>
