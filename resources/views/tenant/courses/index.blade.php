@@ -9,9 +9,13 @@
         <p>{{ __('lf.LF_course_message_public_catalog_description') }}</p>
     </header>
 
-    <div class="tenant-course-grid">
-        @foreach ($courses as $course)
-            @include('tenant.partials.course-card', compact('course'))
-        @endforeach
-    </div>
+    @if ($courses->isEmpty())
+        <div class="student-card student-section" role="status"><p>{{ __('lf.LF_course_catalog_empty') }}</p></div>
+    @else
+        <div class="tenant-course-grid">
+            @foreach ($courses as $course)
+                @include('tenant.partials.course-card', compact('course'))
+            @endforeach
+        </div>
+    @endif
 @endsection

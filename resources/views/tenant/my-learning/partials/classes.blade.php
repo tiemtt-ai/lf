@@ -5,6 +5,32 @@
 <div class="my-course-list">
     <div class="course-group">
         @foreach ($items as $class)
+            @if ($class->awaiting_class)
+                {{-- Enrolled in a class course, no class yet: nothing to open until the academy places the learner. --}}
+                @php
+                    $title = $class->product_title ?: $class->version_title;
+                    $category = \App\Services\LearnerMyLearningService::levelLabel($class->level) ?: $class->category;
+                @endphp
+                <article class="my-course-card" data-learn-awaiting="{{ $class->enrollment_id }}">
+                    <span class="my-course-thumb my-course-thumb--letter" aria-hidden="true"><span>{{ mb_strtoupper(mb_substr(trim($title), 0, 1)) }}</span></span>
+                    <div class="my-course-content">
+                        <div class="my-course-tags">
+                            @if ($category)<span>{{ $category }}</span>@endif
+                            <span>{{ __('lf.LF_my_learning_class_awaiting') }}</span>
+                        </div>
+                        <h3>{{ $title }}</h3>
+                        <p>{{ __('lf.LF_my_learning_class_awaiting_help') }}</p>
+                        <p>{{ __('lf.LF_course_enrollment_common_enrolled_at') }}: {{ $day($class->enrolled_at) }}</p>
+                    </div>
+                    <div class="my-course-actions">
+                        <span class="btn-enter-class" aria-disabled="true">
+                            <span class="btn-enter-icon" aria-hidden="true">⏳</span>
+                            <span class="btn-enter-text">{{ __('lf.LF_my_learning_class_awaiting') }}</span>
+                        </span>
+                    </div>
+                </article>
+                @continue
+            @endif
             @php
                 $title = $class->product_title ?: $class->version_title;
                 $url = route('student.courses.classes.show', $class->cohort_id);

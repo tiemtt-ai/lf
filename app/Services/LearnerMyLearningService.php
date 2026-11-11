@@ -231,15 +231,46 @@ class LearnerMyLearningService
         $now = Carbon::now();
 
         $rows->each(function (object $row) use ($teachers, $sessions, $attended, $now): void {
+            $row->awaiting_class = false;
             $row->teachers = $teachers->get($row->cohort_id, collect())->all();
             $this->summarizeSessions($row, $sessions->get($row->cohort_id, collect()), (int) ($attended[$row->enrollment_id] ?? 0), $now);
             $row->group = in_array($row->cohort_status, ['completed', 'archived'], true) ? 'completed' : 'current';
         });
 
         return [
-            'current' => $rows->where('group', 'current')->values(),
+            'current' => $this->awaitingClass($customerId, $studentId)->concat($rows->where('group', 'current'))->values(),
             'completed' => $rows->where('group', 'completed')->values(),
         ];
+    }
+
+    /**
+     * Class-course Enrollments still in their cycle but without a seat in a visible Cohort: the learner sees
+     * them as "Đang chờ xếp lớp" instead of nowhere (Owner 2026-11-11).
+     *
+     * @return Collection<int, object>
+     */
+    private function awaitingClass(int $customerId, int $studentId): Collection
+    {
+        return $this->enrollmentQuery($customerId, $studentId)
+            ->whereIn('versions.course_type_snapshot', CourseType::COHORT_VALUES)
+            ->whereIn('enrollments.status', EnrollmentEligibilityPolicy::NON_TERMINAL)
+            ->whereNotExists(fn ($query) => $query->from('core_course_cohort_students as seats')
+                ->join('core_course_cohorts as cohorts', function ($join) use ($customerId): void {
+                    $join->on('cohorts.id', '=', 'seats.cohort_id')->where('cohorts.customer_id', $customerId);
+                })
+                ->whereColumn('seats.enrollment_id', 'enrollments.id')
+                ->where('seats.customer_id', $customerId)
+                ->where('seats.status', 'active')->whereNull('seats.left_at')
+                ->where('cohorts.status', '!=', 'draft'))
+            ->orderByDesc('enrollments.enrolled_at')->orderByDesc('enrollments.id')
+            ->limit(50)
+            ->get()
+            ->each(function (object $row): void {
+                $row->awaiting_class = true;
+                $row->enrollment_id = $row->id;
+                $row->name = null;
+                $row->group = 'current';
+            });
     }
 
     /** One Cohort of the learner with every Session and the learner's attendance; null when they have no seat. */
@@ -385,7 +416,7 @@ class LearnerMyLearningService
     }
 
     /** @return Collection<int, Collection<int, string>> active Template teachers per Template */
-    private function templateTeachers(int $customerId, array $templateIds): Collection
+    public function templateTeachers(int $customerId, array $templateIds): Collection
     {
         if ($templateIds === []) {
             return collect();

@@ -761,6 +761,9 @@ Quy tắc:
 
 * Chỉ Enrollment và Cohort seat của chính học viên trong tenant hiện tại; còn lại 404.
 * Enrollment `cancelled` không hiện; Cohort `draft` và seat đã rời lớp không hiện.
+* Enrollment khóa theo lớp (`scheduled`, `blended`) còn `pending`/`active`/`suspended` mà
+  chưa có seat active ở Cohort khác `draft` hiện ở Lớp học → Đang học với nhãn
+  "Đang chờ xếp lớp", không có liên kết (Owner 2026-11-11).
 * Nhóm khóa: `completed`, hoặc Course Progress `completed` khi Enrollment còn `active`
   (ADR-0030 Q2) → Đã hoàn thành; `expired` hoặc đã qua hạn học và ôn tập → Hết hạn;
   còn lại → Đang học.
@@ -779,6 +782,14 @@ Quy tắc:
 ```text
 /courses/{id}
 ```
+
+> 2026-11-11: `/courses`, `/courses/{slug}` và mục khóa học ở trang chủ tenant đọc dữ liệu
+> thật (`TenantCourseCatalogService`), thay dữ liệu giả. Chỉ Product `active`, `public`,
+> trong `available_from`/`available_until`, gắn một Version `published`; nội dung, mục lục,
+> giáo viên lấy từ Version; giá bán theo `CourseProductV2::sellingPrice` khi khuyến mại đang
+> chạy. Học viên đã có Enrollment (khác `cancelled`) thấy "Vào học" tới Khóa học của tôi
+> hoặc lớp. Chưa có luồng tự đăng ký/mua: nút "Đăng ký" hiện "Sắp ra mắt" khi còn trong
+> thời gian đăng ký; "Quan tâm" vẫn hoãn (ADR-0030 D4).
 
 ---
 

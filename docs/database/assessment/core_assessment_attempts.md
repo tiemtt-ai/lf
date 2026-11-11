@@ -1,12 +1,12 @@
 # Table: core_assessment_attempts
 
-Version: 2.0
+Version: 2.1
 
 Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-11-06
+Last Updated: 2026-11-11
 
 Document Path: database/assessment/core_assessment_attempts.md
 
@@ -36,7 +36,9 @@ Một lần học viên làm một phiên bản đề, theo
 * `deadline_at = started_at + duration_minutes` của phiên bản; NULL khi không
   giới hạn. Sau hạn (cộng khoảng trễ mạng ngắn theo cấu hình), server không nhận
   câu trả lời mới và kết thúc lần làm với `submit_reason = timeout` khi học viên
-  quay lại hoặc khi tác vụ định kỳ quét.
+  quay lại hoặc khi tác vụ định kỳ `assessment:close-overdue` (mỗi phút) quét.
+  Lần làm kết thúc vì hết giờ có `submitted_at = deadline_at` (không phải lúc
+  đóng) và `time_spent_seconds` bằng thời lượng đề (ADR-0025 Amendment 1.3).
 * **Nộp**: `submitted_at`, tự chấm các câu tự chấm từ snapshot; nếu không có câu
   cần chấm tay thì `status = graded`, `grading_status = not_required`; ngược lại
   `status = submitted`, `grading_status = pending`.
@@ -73,7 +75,7 @@ Một lần học viên làm một phiên bản đề, theo
 | submit_reason | VARCHAR(20) NULL | Học viên nộp / hết giờ. |
 | started_at | TIMESTAMP NOT NULL | Bắt đầu (giờ server). |
 | deadline_at | TIMESTAMP NULL | Hạn nộp (giờ server). |
-| submitted_at | TIMESTAMP NULL | Thời điểm nộp. |
+| submitted_at | TIMESTAMP NULL | Thời điểm nộp; hết giờ thì là `deadline_at`. |
 | graded_at | TIMESTAMP NULL | Thời điểm chấm xong. |
 | time_spent_seconds | INT UNSIGNED NULL | `submitted_at - started_at`. |
 | score | DECIMAL(10,2) NULL | Tổng điểm. |

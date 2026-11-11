@@ -95,6 +95,8 @@ Ràng buộc đã có hiệu lực:
 * MediaService có thêm `generateLearnerActivitySignedUrl(enrollmentId, versionActivityId)`.
   Hàm chỉ cấp URL khi tất cả điều kiện sau đúng, trong cùng một truy vấn:
   * `VersionActivityAccessService` cho phép;
+  * `VersionLessonAccessService` cho phép Lesson chứa Activity (bổ sung 2026-11-11: trước đó
+    Activity mở trong Lesson bị khóa vẫn lấy được URL);
   * Activity thuộc `enrollment.version_id`;
   * có Usage `course_version_activity` đang active, đúng `usage_type`;
   * Media `ready`, cùng tenant.

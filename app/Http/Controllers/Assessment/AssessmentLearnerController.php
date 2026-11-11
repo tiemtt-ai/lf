@@ -11,6 +11,7 @@ use App\Services\Assessment\AssessmentQuizService as Quizzes;
 use App\Services\MediaService;
 use App\Support\TenantContext;
 use App\Support\UploadLimit;
+use DateTimeInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -110,7 +111,7 @@ final class AssessmentLearnerController extends Controller
             'tenant' => TenantContext::customer(),
             'attempt' => $attempt,
             'version' => $version,
-            ...$this->paper($customerId, $version, $answers, false),
+            ...$this->paper($customerId, $version, $answers, false, $this->mediaExpiry($attempt)),
             'answers' => $answers,
             'attachments' => $this->attachmentsByQuestion($customerId, $answers),
             'maxAttachments' => Attempts::MAX_ATTACHMENTS,
@@ -211,6 +212,22 @@ final class AssessmentLearnerController extends Controller
         $this->fileQuestion($customerId, $attempt, $questionId);
 
         return $this->fileList($customerId, $id, $questionId);
+    }
+
+    /**
+     * Fresh links to the media of the attempt's version (JSON). The take page asks again when a link it holds has
+     * expired, e.g. a listening audio played late in an untimed exercise (ADR-0025 Amendment 1.3, D10b).
+     */
+    public function media(Request $request, int $id): JsonResponse
+    {
+        $customerId = $this->customerId();
+        $attempt = $this->learner->attempt($customerId, (int) $request->user()->id, $id);
+        if ($attempt->status !== 'in_progress') {
+            return $this->closed($id);
+        }
+        $version = $this->version($customerId, $attempt);
+
+        return response()->json(['urls' => $this->mediaUrls($customerId, $version, $this->mediaExpiry($attempt))]);
     }
 
     /**
@@ -373,7 +390,7 @@ final class AssessmentLearnerController extends Controller
      *
      * @return array<string, mixed>
      */
-    private function paper(int $customerId, object $version, $answers, bool $reveal): array
+    private function paper(int $customerId, object $version, $answers, bool $reveal, ?DateTimeInterface $mediaExpiresAt = null): array
     {
         $questions = $this->attempts->versionQuestions($customerId, (int) $version->id)->map(function (object $question) use ($answers, $reveal): object {
             $snapshot = json_decode((string) $question->question_snapshot, true) ?: [];
@@ -397,17 +414,45 @@ final class AssessmentLearnerController extends Controller
                 'answered' => $this->answered($question, $answers->get($question->id)),
             ];
         });
-        $passages = collect(json_decode((string) $version->passages_snapshot, true) ?: []);
-        $ids = $questions->flatMap(fn (object $question) => collect($question->media)->pluck('media_file_id'))
-            ->merge($passages->flatMap(fn (array $passage) => collect($passage['media'] ?? [])->pluck('media_file_id')))->unique();
 
         return [
             'questions' => $questions,
             'sections' => collect(json_decode((string) $version->sections_snapshot, true) ?: [])->keyBy('key'),
-            'passages' => $passages,
-            'mediaUrls' => DB::table('media_files')->where('customer_id', $customerId)->whereIn('id', $ids)->where('status', 'ready')->pluck('id')
-                ->mapWithKeys(fn ($mediaId) => [(int) $mediaId => $this->media->generateSignedUrl((int) $mediaId)])->all(),
+            'passages' => collect(json_decode((string) $version->passages_snapshot, true) ?: []),
+            'mediaUrls' => $this->mediaUrls($customerId, $version, $mediaExpiresAt),
         ];
+    }
+
+    /**
+     * Signed links (media id => url) to every ready file the version shows, its questions' and its passages'.
+     *
+     * @return array<int, string>
+     */
+    private function mediaUrls(int $customerId, object $version, ?DateTimeInterface $expiresAt): array
+    {
+        $ids = $this->attempts->versionQuestions($customerId, (int) $version->id)
+            ->flatMap(fn (object $question) => collect(json_decode((string) $question->question_snapshot, true)['media'] ?? [])->pluck('media_file_id'))
+            ->merge(collect(json_decode((string) $version->passages_snapshot, true) ?: [])
+                ->flatMap(fn (array $passage) => collect($passage['media'] ?? [])->pluck('media_file_id')))
+            ->unique();
+
+        return DB::table('media_files')->where('customer_id', $customerId)->whereIn('id', $ids)->where('status', 'ready')->pluck('id')
+            ->mapWithKeys(fn ($mediaId) => [(int) $mediaId => $this->media->generateSignedUrl((int) $mediaId, $expiresAt)])->all();
+    }
+
+    /**
+     * How long the take page's media links last: a timed attempt's links last until its deadline and grace, so a
+     * listening audio still plays at the end (D10b); never shorter than the usual link. Untimed: the usual link, and
+     * the page asks for fresh ones (media()) when one has expired.
+     */
+    private function mediaExpiry(object $attempt): ?DateTimeInterface
+    {
+        if ($attempt->deadline_at === null) {
+            return null;
+        }
+        $deadline = strtotime((string) $attempt->deadline_at) + (int) config('assessment.deadline_grace_seconds', 30);
+
+        return now()->setTimestamp(max($deadline, now()->addMinutes((int) config('media.signed_url_ttl_minutes', 10))->getTimestamp()));
     }
 
     private function answered(object $question, ?object $answer): bool

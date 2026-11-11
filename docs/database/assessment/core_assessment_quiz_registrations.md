@@ -1,12 +1,12 @@
 # Table: core_assessment_quiz_registrations
 
-Version: 1.0
+Version: 1.1
 
 Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-11-06
+Last Updated: 2026-11-11
 
 Document Path: database/assessment/core_assessment_quiz_registrations.md
 
@@ -36,6 +36,10 @@ Trang "Đề thi của tôi" đọc từ bảng này.
   đầu lần làm bài. Bắt đầu lần làm bài khoá dòng ghi danh, kiểm tra
   `attempts_used < max_attempts`, tăng `attempts_used`, cùng một transaction.
   Dùng hết lượt (và không còn lần làm bài `in_progress`) thì chuyển `exhausted`.
+  Xuất bản phiên bản mới cũng kiểm lại: ghi danh `active` đã dùng đủ
+  `max_attempts` mới (và không có lần làm `in_progress`) chuyển `exhausted` ngay,
+  để học viên đăng ký lại hoặc được cấp lại (ADR-0025 Amendment 1.3). Lưu trữ đề
+  không đổi trạng thái ghi danh; khôi phục thì làm tiếp.
 * Huỷ đặt `status = cancelled`, `cancelled_at`, `cancelled_by`; chặn bắt đầu lần
   làm bài mới; không xoá hay đổi lần làm bài đã có. Không xoá cứng ghi danh.
 * Allowed `status`: `active`, `exhausted`, `cancelled`.

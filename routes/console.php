@@ -24,3 +24,6 @@ Schedule::command('ai:knowledge-sync')->everyTenMinutes()->withoutOverlapping(30
 
 // Expiry is a system-owned Enrollment transition (LF-Core-Course, Enrollment lifecycle).
 Schedule::command('course:expire-enrollments')->everyFiveMinutes()->withoutOverlapping(10);
+
+// Time-out of attempts the student left open (ADR-0025 Amendment 1.3, D10a); local database only.
+Schedule::command('assessment:close-overdue')->everyMinute()->withoutOverlapping(5);

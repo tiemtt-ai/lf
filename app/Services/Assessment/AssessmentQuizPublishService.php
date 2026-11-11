@@ -155,9 +155,30 @@ final class AssessmentQuizPublishService
                 'updated_by' => $user->id,
                 'updated_at' => $now,
             ]);
+            $this->exhaustUsedUp($customerId, $quizId, (int) $quiz->max_attempts, $now);
 
             return $versionId;
         });
+    }
+
+    /**
+     * A new version may give fewer attempts (D8): active registrations that have used them all, with no attempt still
+     * open, become exhausted now; otherwise they would stay active with nothing left, and neither re-registering nor a
+     * grant could replace them. An open attempt is closed by submit(), which exhausts the registration then.
+     */
+    private function exhaustUsedUp(int $customerId, int $quizId, int $maxAttempts, mixed $now): void
+    {
+        $ids = DB::table(AssessmentRegistrationService::TABLE.' as r')
+            ->where('r.customer_id', $customerId)->where('r.quiz_id', $quizId)->where('r.status', 'active')
+            ->where('r.attempts_used', '>=', $maxAttempts)
+            ->whereNotExists(fn ($query) => $query->from(AssessmentAttemptService::TABLE.' as a')
+                ->whereColumn('a.quiz_registration_id', 'r.id')->where('a.customer_id', $customerId)->where('a.status', 'in_progress'))
+            ->lockForUpdate()->pluck('r.id');
+
+        if ($ids->isNotEmpty()) {
+            DB::table(AssessmentRegistrationService::TABLE)->where('customer_id', $customerId)->whereIn('id', $ids)
+                ->update(['status' => 'exhausted', 'updated_at' => $now]);
+        }
     }
 
     /** published → archived: no new registrations (registration closes); what learners already have stays. */

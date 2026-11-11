@@ -404,6 +404,46 @@ if (timer && labels.remaining !== '') {
     window.setInterval(render, 1000);
 }
 
+// ---- Media links expire (ADR-0025 Amendment 1.3, D10b): when an image, audio or video fails, fetch fresh links
+// once and resume where the student was. A second failure of the same file within a minute is left as it is. ----
+
+let refreshing = null;
+const refreshedAt = new Map();
+
+const freshUrls = () => {
+    refreshing ??= fetch(labels.mediaUrl, { credentials: 'same-origin', headers: { Accept: 'application/json' } })
+        .then(async (response) => {
+            const data = await response.json().catch(() => ({}));
+            if (response.status === 409 && data.redirect) leaveFor(data.redirect);
+            return response.ok ? (data.urls || {}) : {};
+        })
+        .catch(() => ({}))
+        .finally(() => { window.setTimeout(() => { refreshing = null; }, 0); });
+    return refreshing;
+};
+
+root.addEventListener('error', async (event) => {
+    const element = event.target;
+    if (! (element instanceof HTMLElement) || ! element.matches('[data-exam-media]') || ! labels.mediaUrl) return;
+    const id = element.dataset.examMedia;
+    if (Date.now() - (refreshedAt.get(id) || 0) < 60000) return;
+    refreshedAt.set(id, Date.now());
+
+    const url = (await freshUrls())[id];
+    if (! url) return;
+    const playable = element instanceof HTMLMediaElement;
+    const position = playable ? element.currentTime : 0;
+    const wasPlaying = playable && ! element.paused;
+    element.src = url;
+    if (playable) {
+        element.addEventListener('loadedmetadata', () => {
+            if (position > 0) element.currentTime = position;
+            if (wasPlaying) element.play().catch(() => {});
+        }, { once: true });
+        element.load();
+    }
+}, true);
+
 // ---- Submit: confirm (with the count of unanswered questions), then post the whole form. ----
 
 const dialog = root.querySelector('[data-exam-confirm]');

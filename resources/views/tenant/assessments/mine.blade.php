@@ -42,7 +42,11 @@
                     <div class="lf-exam-row__main">
                         <div class="lf-exam-card__top">
                             <span @class(['student-badge', 'is-green' => $registration->assessment_type === 'exercise'])>{{ __('lf.LF_assessment_quiz_type_'.($registration->assessment_type ?? 'exam')) }}</span>
-                            <span @class(['lf-exam-state', 'is-'.$registration->status])>{{ __('lf.LF_assessment_registration_status_'.$registration->status) }}</span>
+                            @if ($registration->status === 'active' && $registration->quiz_status === 'archived' && ! $open)
+                                <span class="lf-exam-state is-cancelled">{{ __('lf.LF_my_learning_exam_quiz_archived') }}</span>
+                            @else
+                                <span @class(['lf-exam-state', 'is-'.$registration->status])>{{ __('lf.LF_assessment_registration_status_'.$registration->status) }}</span>
+                            @endif
                         </div>
                         <h2 id="registration-{{ $registration->id }}" class="lf-exam-card__title">{{ $registration->title ?? '—' }}</h2>
                         <ul class="lf-exam-facts">

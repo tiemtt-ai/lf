@@ -345,6 +345,7 @@ Route::middleware([
             Route::get('/attempts/{id}', 'show')->name('attempts.show');
             Route::post('/attempts/{id}/answers', 'save')->name('attempts.save');
             Route::post('/attempts/{id}/recordings/{questionId}', 'record')->name('attempts.record');
+            Route::get('/attempts/{id}/media', 'media')->middleware('throttle:30,1,lf-asm-media.')->name('attempts.media');
             Route::get('/attempts/{id}/files/{questionId}', 'files')->name('attempts.files.index');
             Route::post('/attempts/{id}/files/{questionId}', 'attach')->name('attempts.files.store');
             Route::delete('/attempts/{id}/files/{questionId}/{mediaId}', 'detach')->name('attempts.files.destroy');

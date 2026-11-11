@@ -65,9 +65,11 @@
             <a class="student-text-link" href="{{ route('tenant.courses.index') }}">{{ __('lf.LF_home_public_view_all_courses') }}</a>
         </div>
         <div class="tenant-course-grid">
-            @foreach ($courses as $course)
+            @forelse ($courses as $course)
                 @include('tenant.partials.course-card', compact('course'))
-            @endforeach
+            @empty
+                <p class="student-section-copy" role="status">{{ __('lf.LF_course_catalog_empty') }}</p>
+            @endforelse
         </div>
     </section>
 

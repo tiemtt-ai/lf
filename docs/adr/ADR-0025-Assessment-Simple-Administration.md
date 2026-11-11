@@ -1,12 +1,12 @@
 # ADR-0025 — Assessment Simple Administration
 
-Version: 1.2
+Version: 1.3
 
 Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-11-07
+Last Updated: 2026-11-11
 
 Proposal Date: 2026-11-06
 
@@ -350,6 +350,45 @@ bốc ngẫu nhiên, người soạn xem lại rồi lưu thành đề cố đ�
 * Đề mà mỗi lượt làm một bộ câu khác (luật ghép lưu trong đề, bốc lúc học viên
   bắt đầu): cần bảng mới và đổi cách snapshot, thống kê; phải có ADR riêng.
 * Bốc ngẫu nhiên ngữ liệu; lọc theo chủ đề (tag) — `topics` vẫn hoãn (D3).
+
+---
+
+# Amendment 1.3 — Lượt, hết giờ và link media khi làm bài (Approved 2026-11-11)
+
+Review luồng học viên ngày 2026-11-11 thấy ba chỗ hở; Owner duyệt "Duyệt theo đề
+xuất, làm luôn". Không có bảng, cột hay migration mới.
+
+## D8a — Xuất bản lại kiểm lại số lượt
+
+* Ghi danh chỉ chuyển `exhausted` lúc nộp bài, nên phiên bản mới giảm
+  `max_attempts` để lại ghi danh `active` không còn lượt: học viên không làm
+  được, không đăng ký lại được, và "Cấp đề" bỏ qua họ.
+* Khi xuất bản, mọi ghi danh `active` của đề đã dùng đủ `max_attempts` mới và
+  không có lần làm `in_progress` chuyển `exhausted` trong cùng transaction. Lần
+  làm đang mở thì khi nộp ghi danh chuyển `exhausted` như cũ (D8).
+* Lưu trữ đề không đổi trạng thái ghi danh (khôi phục thì làm tiếp); thẻ bài thi
+  của học viên hiện "Đề đã ngừng".
+
+## D10a — Hết giờ đóng bằng tác vụ định kỳ, nộp tại hạn
+
+* Lệnh `assessment:close-overdue` chạy mỗi phút, đóng mọi lần làm
+  `in_progress` đã quá `deadline_at` cộng khoảng trễ (`submit_reason = timeout`),
+  không đợi học viên quay lại. Trước đây bài bỏ dở nằm mãi ở "Đang làm": không
+  vào Chờ chấm, thiếu trong Thống kê, ghi danh không hết lượt.
+* Lần làm kết thúc vì hết giờ có `submitted_at = deadline_at` và
+  `time_spent_seconds` bằng thời lượng đề, dù được đóng muộn bao lâu. `graded_at`
+  vẫn là lúc chấm.
+
+## D10b — Link media khi làm bài
+
+* Link ký của ảnh / audio / video trong đề mặc định sống 10 phút, nên câu Nghe ở
+  cuối đề 60 phút không phát được.
+* Đề có giờ: link sống đến `deadline_at` cộng khoảng trễ (không ngắn hơn link
+  thường). Đề không giới hạn giờ: link thường; khi một tệp lỗi, trang làm bài
+  xin link mới (`GET .../attempts/{id}/media`, chỉ khi lần làm còn mở) và phát
+  tiếp từ chỗ dừng.
+* Đánh đổi đã chấp nhận: link của đề có giờ sống lâu hơn nên có thể bị chia sẻ
+  trong lúc thi.
 
 ---
 

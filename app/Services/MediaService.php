@@ -383,6 +383,11 @@ class MediaService
     {
         $customerId = $this->customerId();
         abort_unless(app(VersionActivityAccessService::class)->decide($studentId, $enrollmentId, $versionActivityId)->allowed, 403);
+        // A locked Lesson shows none of its Activities (ADR-0030 D1), so its Media is refused too.
+        $versionLessonId = DB::table('core_course_template_version_activities')
+            ->where('customer_id', $customerId)->where('id', $versionActivityId)->value('version_lesson_id');
+        abort_unless($versionLessonId
+            && app(VersionLessonAccessService::class)->decide($studentId, $enrollmentId, (int) $versionLessonId)->allowed, 403);
 
         $media = DB::table('core_course_template_version_activities as activities')
             ->join('core_course_enrollments as enrollments', function ($join) use ($customerId, $studentId, $enrollmentId): void {

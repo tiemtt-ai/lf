@@ -1546,8 +1546,41 @@
 .tenant-detail-grid {
     margin-top: 28px;
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: 16px;
+}
+
+.tenant-course-card .student-badge {
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.tenant-course-card .student-badge s {
+    margin-right: 4px;
+    opacity: 0.6;
+    font-weight: 500;
+}
+
+.tenant-course-description {
+    white-space: pre-line;
+}
+
+.tenant-course-outline {
+    margin-top: 24px;
+    padding: 34px;
+}
+
+.tenant-course-outline h3 {
+    margin: 20px 0 8px;
+    font-size: 16px;
+}
+
+.tenant-course-outline ol {
+    margin: 0;
+    padding-left: 22px;
+    display: grid;
+    gap: 6px;
+    color: var(--student-text-soft);
 }
 
 .tenant-detail-grid div {

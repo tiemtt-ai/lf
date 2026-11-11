@@ -205,6 +205,102 @@ class AssessmentLearnerTest extends TestCase
         $this->actingAs($this->student)->get(self::SITE.'/assessments/my')->assertOk()->assertSeeText(__('lf.LF_assessment_learner_retry'));
     }
 
+    public function test_overdue_attempts_are_closed_by_the_scheduled_task_at_their_deadline(): void
+    {
+        [$quiz] = $this->quiz(['title' => 'Đề bỏ dở', 'duration_minutes' => '10']);
+        $registration = $this->register($quiz);
+        $this->actingAs($this->student)->post(self::SITE.'/assessments/registrations/'.$registration.'/start');
+        $attempt = DB::table('core_assessment_attempts')->sole();
+
+        // Within the deadline and its grace nothing is touched.
+        $this->travel(10)->minutes();
+        $this->artisan('assessment:close-overdue')->expectsOutput('Timed out 0 attempt(s).')->assertSuccessful();
+        $this->assertSame('in_progress', DB::table('core_assessment_attempts')->value('status'));
+
+        // The student never comes back; days later the task closes it, dated at its deadline.
+        $this->travel(3)->days();
+        $this->artisan('assessment:close-overdue')->expectsOutput('Timed out 1 attempt(s).')->assertSuccessful();
+        $closed = DB::table('core_assessment_attempts')->sole();
+        $this->assertSame(['graded', 'timeout', 600], [$closed->status, $closed->submit_reason, (int) $closed->time_spent_seconds]);
+        $this->assertSame(strtotime((string) $attempt->deadline_at), strtotime((string) $closed->submitted_at));
+        $this->assertSame('exhausted', DB::table('core_assessment_quiz_registrations')->where('id', $registration)->value('status'));
+        $this->artisan('assessment:close-overdue')->expectsOutput('Timed out 0 attempt(s).')->assertSuccessful();
+    }
+
+    public function test_republishing_with_fewer_attempts_exhausts_registrations_that_used_them_all(): void
+    {
+        [$quiz] = $this->quiz(['title' => 'Đề hai lượt', 'max_attempts' => '2']);
+        $used = $this->register($quiz);
+        $this->finishedAttempt($used);
+        $busy = $this->createUser($this->customerId, 'student', 'Học viên đang làm');
+        $this->actingAs($busy)->post(self::SITE.'/assessments/'.$quiz.'/register');
+        $busyRegistration = (int) DB::table('core_assessment_quiz_registrations')->where('student_id', $busy->id)->value('id');
+        $this->actingAs($busy)->post(self::SITE.'/assessments/registrations/'.$busyRegistration.'/start');
+        $fresh = $this->createUser($this->customerId, 'student', 'Học viên chưa làm');
+        $this->actingAs($fresh)->post(self::SITE.'/assessments/'.$quiz.'/register');
+
+        $this->actingAs($this->admin)->putJson(self::ADMIN.'/quizzes/'.$quiz, [
+            'title' => 'Đề hai lượt', 'assessment_type' => 'exam', 'max_attempts' => '1', 'pass_score_percentage' => '60', 'show_result_mode' => 'immediately',
+        ], self::AJAX)->assertSuccessful();
+        $this->actingAs($this->admin)->post(self::ADMIN.'/quizzes/'.$quiz.'/publish')->assertSessionHasNoErrors();
+
+        $status = fn (int $studentId) => DB::table('core_assessment_quiz_registrations')->where('student_id', $studentId)->orderBy('id')->pluck('status')->all();
+        $this->assertSame(['exhausted'], $status($this->student->id));
+        // An open attempt finishes first; its submit exhausts the registration as before.
+        $this->assertSame(['active'], $status($busy->id));
+        $this->assertSame(['active'], $status($fresh->id));
+
+        // No longer stuck: the student registers again and gets the new version's attempt.
+        $this->register($quiz);
+        $this->assertSame(['exhausted', 'active'], $status($this->student->id));
+    }
+
+    public function test_an_archived_quiz_shows_as_discontinued_and_keeps_the_registration(): void
+    {
+        [$quiz] = $this->quiz(['title' => 'Đề sẽ ngừng']);
+        $registration = $this->register($quiz);
+        $this->actingAs($this->admin)->post(self::ADMIN.'/quizzes/'.$quiz.'/archive')->assertSessionHasNoErrors();
+
+        $this->assertSame('active', DB::table('core_assessment_quiz_registrations')->where('id', $registration)->value('status'));
+        $this->actingAs($this->student)->get(self::SITE.'/assessments/my')->assertOk()->assertSeeText(__('lf.LF_my_learning_exam_quiz_archived'));
+        $this->actingAs($this->student)->get(self::SITE.'/my-courses?tab=exams')->assertOk()->assertSeeText(__('lf.LF_my_learning_exam_quiz_archived'));
+    }
+
+    public function test_media_links_of_a_timed_attempt_last_until_its_deadline_and_can_be_renewed(): void
+    {
+        [$quiz] = $this->quiz(['title' => 'Đề Nghe 60 phút', 'duration_minutes' => '60']);
+        $this->actingAs($this->admin)->post(self::ADMIN.'/questions', [
+            'question_type' => 'single_choice', 'status' => 'published', 'default_points' => '1', 'prompt' => 'Nhìn hình',
+            'options' => [['text' => 'A', 'correct' => 1], ['text' => 'B', 'correct' => 0]],
+            'prompt_image_file' => UploadedFile::fake()->image('hinh.png', 40, 30),
+        ], self::AJAX)->assertCreated();
+        $question = (int) DB::table('core_assessment_questions')->max('id');
+        $media = (int) DB::table('core_assessment_question_media')->where('question_id', $question)->value('media_file_id');
+        $this->assertSame('ready', DB::table('media_files')->where('id', $media)->value('status'));
+        $section = (int) DB::table('core_assessment_quiz_sections')->where('quiz_id', $quiz)->value('id');
+        $this->actingAs($this->admin)->postJson(self::ADMIN.'/quizzes/'.$quiz.'/questions', ['quiz_section_id' => $section, 'question_ids' => [$question]], self::AJAX)->assertCreated();
+        $this->actingAs($this->admin)->post(self::ADMIN.'/quizzes/'.$quiz.'/publish')->assertSessionHasNoErrors();
+
+        $registration = $this->register($quiz);
+        $this->actingAs($this->student)->post(self::SITE.'/assessments/registrations/'.$registration.'/start');
+        $attempt = DB::table('core_assessment_attempts')->sole();
+        $deadline = strtotime((string) $attempt->deadline_at) + 30;
+
+        $page = $this->actingAs($this->student)->get(self::SITE.'/assessments/attempts/'.$attempt->id)->assertOk()
+            ->assertSee('data-exam-media="'.$media.'"', false)->getContent();
+        $this->assertMatchesRegularExpression('/data-exam-media="'.$media.'" src="[^"]*expires='.$deadline.'/', html_entity_decode($page));
+
+        $renew = self::SITE.'/assessments/attempts/'.$attempt->id.'/media';
+        $urls = $this->actingAs($this->student)->getJson($renew, self::AJAX)->assertOk()->json('urls');
+        $this->assertSame([(string) $media], array_map('strval', array_keys($urls)));
+        $this->assertStringContainsString('expires='.$deadline, $urls[$media]);
+        $other = $this->createUser($this->customerId, 'student');
+        $this->actingAs($other)->getJson($renew, self::AJAX)->assertNotFound();
+
+        $this->actingAs($this->student)->post(self::SITE.'/assessments/attempts/'.$attempt->id.'/submit', ['answers' => []]);
+        $this->actingAs($this->student)->getJson($renew, self::AJAX)->assertStatus(409);
+    }
+
     public function test_my_courses_lists_the_learners_tests_with_start_and_result(): void
     {
         [$quiz] = $this->quiz(['title' => 'Đề trong khóa của tôi']);

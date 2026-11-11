@@ -185,6 +185,32 @@ class LearnerMyLearningTest extends TestCase
         $this->actingAs($this->student)->get(self::HOST.'/my-courses/classes/'.$draft)->assertNotFound();
     }
 
+    public function test_a_class_course_without_a_class_shows_as_awaiting_placement(): void
+    {
+        [$product, $version] = $this->course($this->customer, 'Lớp tối giao tiếp', 'scheduled');
+        $waiting = $this->enroll($this->student, $product, $version);
+        [$draftProduct, $draftVersion] = $this->course($this->customer, 'Lớp sáng chờ mở', 'blended');
+        $inDraft = $this->enroll($this->student, $draftProduct, $draftVersion);
+        $this->seat($this->cohort($draftProduct, $draftVersion, 'Lớp nháp', 'draft'), $inDraft, $this->student, $draftProduct);
+        [$seatedProduct, $seatedVersion] = $this->course($this->customer, 'Lớp đã xếp', 'scheduled');
+        $seated = $this->enroll($this->student, $seatedProduct, $seatedVersion);
+        $this->seat($this->cohort($seatedProduct, $seatedVersion, 'Lớp A1', 'active'), $seated, $this->student, $seatedProduct);
+        [$cancelledProduct, $cancelledVersion] = $this->course($this->customer, 'Lớp đã huỷ', 'scheduled');
+        $cancelled = $this->enroll($this->student, $cancelledProduct, $cancelledVersion, ['status' => 'cancelled']);
+        $other = $this->user($this->customer, 'student');
+        $foreign = $this->enroll($other, $product, $version);
+
+        $html = $this->actingAs($this->student)->get(self::HOST.'/my-courses?tab=classes')->assertOk()
+            ->assertSee('Lớp tối giao tiếp')->assertSee('Đang chờ xếp lớp')->getContent();
+        $this->assertSame([$inDraft, $waiting], array_values(array_unique($this->ids($html, 'data-learn-awaiting'))));
+        $this->assertNotContains($cancelled, $this->ids($html, 'data-learn-awaiting'));
+        $this->assertNotContains($foreign, $this->ids($html, 'data-learn-awaiting'));
+        $this->assertNotContains($seated, $this->ids($html, 'data-learn-awaiting'));
+        $this->actingAs($this->student)->get(self::HOST.'/my-courses?tab=classes&q=t%E1%BB%91i')->assertOk()
+            ->assertSee('Lớp tối giao tiếp')->assertDontSee('Lớp sáng chờ mở');
+        $this->actingAs($this->student)->get(self::HOST.'/my-courses?tab=courses')->assertOk()->assertDontSee('Lớp tối giao tiếp');
+    }
+
     public function test_the_page_is_for_students_only(): void
     {
         $this->get(self::HOST.'/my-courses')->assertRedirect();
@@ -323,6 +349,16 @@ class LearnerMyLearningTest extends TestCase
         $this->actingAs($this->student)->getJson($url($detached))->assertNotFound();
         $this->actingAs($this->user($this->customer, 'student'))->getJson($url($document))->assertForbidden();
         $this->assertSame(0, DB::table('core_course_activity_progress')->count(), 'reading the URL records nothing');
+
+        // An open Activity inside a locked Lesson: the lesson page refuses it, and so does its Media.
+        $lockedLesson = $this->lesson($version, 'Bài 2', 2, ['unlock_rule_snapshot' => 'previous_lesson_completed', 'unlock_after_version_lesson_id' => $lesson]);
+        $insideLocked = $this->activity($version, $lockedLesson, 'Tài liệu bài 2', 'document', 1, ['media_file_id' => $media]);
+        DB::table('media_file_usages')->insert([
+            'customer_id' => $this->customer, 'media_file_id' => $media, 'owner_type' => 'course_version_activity', 'owner_id' => $insideLocked,
+            'usage_type' => 'document', 'status' => 'active', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $this->actingAs($this->student)->get($this->lessonUrl($enrollment, $lockedLesson))->assertForbidden();
+        $this->actingAs($this->student)->getJson($url($insideLocked))->assertForbidden();
     }
 
     public function test_a_class_course_follows_the_class_order_and_needs_the_class(): void

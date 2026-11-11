@@ -6,6 +6,7 @@ use App\Services\MediaService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 /**
  * Attempts of the Kiểm tra module (ADR-0025 D8, D10): starting from a registration, saving answers, submitting with
@@ -320,13 +321,17 @@ final class AssessmentAttemptService
             }
 
             $this->gradeBlank($customerId, $attemptId, $blank, $now);
+            // A time-out ends the attempt at its deadline, however late it is closed (ADR-0025 Amendment 1.3, D10a).
+            $submittedAt = $reason === 'timeout' && $attempt->deadline_at !== null
+                ? $now->copy()->setTimestamp(min($now->getTimestamp(), strtotime((string) $attempt->deadline_at)))
+                : $now;
             DB::table(self::TABLE)->where('customer_id', $customerId)->where('id', $attemptId)->update([
                 'status' => $pending ? 'submitted' : 'graded',
                 'grading_status' => $pending ? 'pending' : 'not_required',
                 'submit_reason' => $reason,
-                'submitted_at' => $now,
+                'submitted_at' => $submittedAt,
                 'graded_at' => $pending ? null : $now,
-                'time_spent_seconds' => max(0, $now->getTimestamp() - strtotime((string) $attempt->started_at)),
+                'time_spent_seconds' => max(0, $submittedAt->getTimestamp() - strtotime((string) $attempt->started_at)),
                 'updated_at' => $now,
             ]);
             $this->recalculate($customerId, $attemptId);
@@ -334,6 +339,35 @@ final class AssessmentAttemptService
 
             return DB::table(self::TABLE)->find($attemptId);
         });
+    }
+
+    /**
+     * Ends (time out) every open attempt past its deadline and grace, so an attempt the student left never stays
+     * "in progress" (ADR-0025 Amendment 1.3, D10a). Run by assessment:close-overdue; one attempt failing does not stop
+     * the rest, and an attempt closed meanwhile by the student is skipped.
+     *
+     * @return int attempts closed
+     */
+    public function closeOverdue(?int $customerId = null, int $limit = 500): int
+    {
+        $cutoff = now()->subSeconds((int) config('assessment.deadline_grace_seconds', 30));
+        $closed = 0;
+
+        DB::table(self::TABLE)->where('status', 'in_progress')->whereNotNull('deadline_at')->where('deadline_at', '<', $cutoff)
+            ->when($customerId !== null, fn ($query) => $query->where('customer_id', $customerId))
+            ->orderBy('id')->limit($limit)->get(['id', 'customer_id'])
+            ->each(function (object $attempt) use (&$closed): void {
+                try {
+                    $this->submit((int) $attempt->customer_id, (int) $attempt->id, 'timeout');
+                    $closed++;
+                } catch (ValidationException) {
+                    // Closed by the student or a page load in the meantime.
+                } catch (Throwable $e) {
+                    report($e);
+                }
+            });
+
+        return $closed;
     }
 
     /** score, score_percentage and passed from the current answer scores. Call inside a transaction. */

@@ -2,38 +2,47 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\TenantCourseCatalogService;
 use App\Support\TenantContext;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 
 class TenantWebsiteController extends Controller
 {
+    /** Course cards shown on the tenant home page. */
+    private const HOME_COURSE_LIMIT = 6;
+
+    public function __construct(private readonly TenantCourseCatalogService $catalog) {}
+
     public function home(): View
     {
         if (TenantContext::customerId() === null) {
             return view('pages.home');
         }
 
-        return view('tenant.home', $this->websiteData());
+        return view('tenant.home', [
+            ...$this->websiteData(),
+            'courses' => $this->catalog->courses(TenantContext::customerId(), $this->studentId(), self::HOME_COURSE_LIMIT),
+        ]);
     }
 
     public function courses(): View
     {
         $this->requireTenant();
 
-        return view('tenant.courses.index', $this->websiteData());
+        return view('tenant.courses.index', [
+            ...$this->websiteData(),
+            'courses' => $this->catalog->courses(TenantContext::customerId(), $this->studentId()),
+        ]);
     }
 
     public function course(string $slug): View
     {
         $this->requireTenant();
-
-        $data = $this->websiteData();
-        $course = collect($data['courses'])->firstWhere('slug', $slug);
-
+        $course = $this->catalog->course(TenantContext::customerId(), $this->studentId(), $slug);
         abort_if($course === null, 404);
 
-        return view('tenant.courses.show', [...$data, 'course' => $course]);
+        return view('tenant.courses.show', [...$this->websiteData(), 'course' => $course]);
     }
 
     public function services(): View
@@ -110,43 +119,18 @@ class TenantWebsiteController extends Controller
 
     private function websiteData(): array
     {
-        $studentMode = Auth::check() && Auth::user()->role === 'student';
-
         return [
             'tenant' => TenantContext::customer(),
-            'studentMode' => $studentMode,
-            'courses' => [
-                [
-                    'slug' => 'korean-communication',
-                    'title' => 'Practical Korean Communication',
-                    'teacher' => 'Min-jun Lee',
-                    'summary' => 'Build confident speaking skills for everyday and workplace situations.',
-                    'price' => '$79',
-                    'progress' => 72,
-                    'enrolled' => $studentMode,
-                    'favorite' => false,
-                ],
-                [
-                    'slug' => 'topik-grammar',
-                    'title' => 'TOPIK II Grammar Foundations',
-                    'teacher' => 'Seo-yeon Kim',
-                    'summary' => 'Master essential grammar patterns with guided practice and assessments.',
-                    'price' => '$59',
-                    'progress' => 0,
-                    'enrolled' => false,
-                    'favorite' => $studentMode,
-                ],
-                [
-                    'slug' => 'business-english',
-                    'title' => 'Business English Essentials',
-                    'teacher' => 'Alex Morgan',
-                    'summary' => 'Communicate clearly in meetings, presentations and professional writing.',
-                    'price' => 'Free',
-                    'progress' => 0,
-                    'enrolled' => false,
-                    'favorite' => false,
-                ],
-            ],
+            'studentMode' => $this->studentId() !== null,
         ];
+    }
+
+    /** The signed-in learner of this tenant, if any; staff browse the catalogue like a visitor. */
+    private function studentId(): ?int
+    {
+        $user = Auth::user();
+
+        return $user && $user->role === 'student' && (int) $user->customer_id === (int) TenantContext::customerId()
+            ? (int) $user->id : null;
     }
 }

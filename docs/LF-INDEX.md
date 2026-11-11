@@ -374,7 +374,7 @@ docs/adr/
 | [ADR-0022](adr/ADR-0022-Course-Type-On-Template.md) | Approved: loại khóa học thuộc Course Template và Version; Product bỏ `offering_type`; Cohort chỉ dùng khóa học theo lớp. Amendment 1.1 (2026-11-09): chỉ còn Tự học / Theo lớp (`scheduled` cũ đọc như Theo lớp) |
 | [ADR-0023](adr/ADR-0023-Cohort-Content-Order.md) | Approved: thứ tự Lesson và Activity riêng của lớp, ngày theo vị trí, khóa lịch đã qua, hủy buổi thì dời các bài sau |
 | [ADR-0024](adr/ADR-0024-Cohort-Owned-Content.md) | Archived: Owner rút 2026-11-05; lớp không có bản nội dung riêng |
-| [ADR-0025](adr/ADR-0025-Assessment-Simple-Administration.md) | Approved: module Kiểm tra riêng (đề nháp + phiên bản, ngữ liệu, ghi danh từng đề thay Enrollment, chấm tay); sửa một phần ADR-0003 |
+| [ADR-0025](adr/ADR-0025-Assessment-Simple-Administration.md) | Approved: module Kiểm tra riêng (đề nháp + phiên bản, ngữ liệu, ghi danh từng đề thay Enrollment, chấm tay); sửa một phần ADR-0003; Amendment 1.3: xuất bản lại kiểm lại lượt, tác vụ đóng bài hết giờ, link media sống đến hạn |
 | [ADR-0026](adr/ADR-0026-Assessment-Rubric.md) | Approved: tiêu chí chấm (rubric) cho câu tự luận / nói, chụp khi xuất bản đề, quy đổi điểm; đã triển khai (migration `2026_11_06_000400`) |
 | [ADR-0027](adr/ADR-0027-Assessment-Grader-Assignment-And-Essay-Files.md) | Approved: phân công chấm (Amendment 1.2: giao chấm theo đề ở danh sách Đề / Bài tập, nhận chấm, tự nhận khi lưu điểm) và nộp tệp cho câu tự luận; migration `2026_11_07_000100` |
 | [ADR-0028](adr/ADR-0028-Course-Window-Datetime-And-Unlock-UTC.md) | Approved: cột mốc thời gian của khóa học đổi sang `DATETIME`; `unlock_at` của Lesson lưu theo UTC; không sửa snapshot của Version đã xuất bản |

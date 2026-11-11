@@ -11,6 +11,7 @@
 @endphp
 <div class="lf-exam-take" data-exam-attempt
      data-save-url="{{ route('student.assessments.attempts.save', $attempt->id) }}"
+     data-media-url="{{ route('student.assessments.attempts.media', $attempt->id) }}"
      data-record-url="{{ route('student.assessments.attempts.record', [$attempt->id, '__QUESTION__']) }}"
      data-files-url="{{ route('student.assessments.attempts.files.store', [$attempt->id, '__QUESTION__']) }}"
      data-label-files-remove="{{ __('lf.LF_assessment_learner_files_remove') }}"

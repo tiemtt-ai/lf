@@ -12,6 +12,7 @@
             $last = $registration->attempts->where('status', '!=', 'in_progress')->last();
             $badge = match (true) {
                 $registration->status !== 'active' => __('lf.LF_assessment_registration_status_'.$registration->status),
+                $registration->quiz_status === 'archived' && ! $open => __('lf.LF_my_learning_exam_quiz_archived'),
                 $left === 0 && ! $open => __('lf.LF_my_learning_exam_used_up'),
                 default => __('lf.LF_my_learning_exam_in_use'),
             };
