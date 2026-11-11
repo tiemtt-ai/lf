@@ -1,6 +1,6 @@
 @extends('layouts.tenant')
 
-@section('title', __('lf.LF_auth_login_title').' | '.__('lf.LF_common_brand_name'))
+@section('title', __('lf.LF_auth_login_title').' | '.__('lf.LF_common_brand_student_name'))
 
 @section('tenant_page_class', 'student-page--login')
 

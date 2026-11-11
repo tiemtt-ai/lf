@@ -26,7 +26,7 @@
     $daysLeft = $windowEnd ? max(0, (int) ceil(now()->diffInMinutes(\Illuminate\Support\Carbon::parse($windowEnd), false) / 1440)) : null;
 @endphp
 
-@section('title', $title.' | '.($tenant?->name ?? 'LF'))
+@section('title', $title.' | '.($tenant?->name ?? __('lf.LF_common_brand_student_name')))
 
 @section('content')
     <a class="lf-learn-back" href="{{ route('student.courses.index') }}"><span aria-hidden="true">←</span> {{ __('lf.LF_my_learning_back') }}</a>

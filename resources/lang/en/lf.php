@@ -39,6 +39,8 @@ return [
     'LF_media_processing_invalid' => 'The transcription output did not pass timing or format validation. The source file remains usable; try transcribing it again.',
     'LF_media_processing_extraction' => 'Video audio extraction failed or its output exceeded the processing limit. Transcript/captions cannot be created; check the audio track or split the video.',
     'LF_common_brand_name' => 'LearnForge',
+    // Temporary brand on the student website (Owner 2026-11-11); restore by pointing the views back to LF_common_brand_name.
+    'LF_common_brand_student_name' => 'MK',
     'LF_common_language_vi' => 'Vietnamese',
     'LF_common_language_ko' => 'Korean',
     'LF_common_language_en' => 'English',

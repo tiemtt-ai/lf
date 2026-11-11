@@ -1,6 +1,6 @@
 @extends('layouts.tenant')
 
-@section('title', $version->title.' | '.($tenant?->name ?? 'LF'))
+@section('title', $version->title.' | '.($tenant?->name ?? __('lf.LF_common_brand_student_name')))
 
 @section('content')
 @php

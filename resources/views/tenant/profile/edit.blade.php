@@ -1,6 +1,6 @@
 @extends('layouts.tenant')
 
-@section('title', __('lf.LF_profile_title_student_profile').' | '.__('lf.LF_common_brand_name'))
+@section('title', __('lf.LF_profile_title_student_profile').' | '.__('lf.LF_common_brand_student_name'))
 
 @section('content')
     <div class="student-profile-shell">

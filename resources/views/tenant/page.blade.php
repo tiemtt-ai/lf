@@ -1,6 +1,6 @@
 @extends('layouts.tenant')
 
-@section('title', $title.' | '.($tenant?->name ?? 'LF'))
+@section('title', $title.' | '.($tenant?->name ?? __('lf.LF_common_brand_student_name')))
 
 @section('content')
     <header class="student-page-heading tenant-page-heading">

@@ -1,6 +1,6 @@
 @extends('layouts.tenant')
 
-@section('title', __('lf.LF_my_learning_tab_'.$tab).' | '.($tenant?->name ?? 'LF'))
+@section('title', __('lf.LF_my_learning_tab_'.$tab).' | '.($tenant?->name ?? __('lf.LF_common_brand_student_name')))
 
 {{-- "Khóa học của tôi" in the standard B2B look (docs/ui-demo/learner-my-learning-design). --}}
 @section('content')

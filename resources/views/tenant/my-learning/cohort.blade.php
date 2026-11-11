@@ -5,7 +5,7 @@
     $courseTitle = $class->product_title ?: $class->version_title;
 @endphp
 
-@section('title', $class->name.' | '.($tenant?->name ?? 'LF'))
+@section('title', $class->name.' | '.($tenant?->name ?? __('lf.LF_common_brand_student_name')))
 
 @section('content')
     <a class="lf-learn-back" href="{{ route('student.courses.index', ['tab' => 'classes']) }}"><span aria-hidden="true">←</span> {{ __('lf.LF_my_learning_back_classes') }}</a>

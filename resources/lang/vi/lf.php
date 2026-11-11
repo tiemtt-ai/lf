@@ -39,6 +39,8 @@ return [
     'LF_media_processing_invalid' => 'Kết quả phiên âm chưa vượt qua kiểm tra mốc thời gian hoặc định dạng. Tệp gốc vẫn dùng được; hãy thử phiên âm lại.',
     'LF_media_processing_extraction' => 'Không thể tách audio từ video hoặc audio tách ra vượt giới hạn xử lý. Chưa thể tạo transcript/phụ đề; hãy kiểm tra track âm thanh hoặc chia nhỏ video.',
     'LF_common_brand_name' => 'LearnForge',
+    // Temporary brand on the student website (Owner 2026-11-11); restore by pointing the views back to LF_common_brand_name.
+    'LF_common_brand_student_name' => 'MK',
     'LF_common_language_vi' => 'Tiếng Việt',
     'LF_common_language_ko' => 'Tiếng Hàn',
     'LF_common_language_en' => 'English',

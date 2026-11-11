@@ -1,6 +1,6 @@
 @extends('layouts.tenant')
 
-@section('title', ($tenant?->name ?? 'Tenant').' | LF')
+@section('title', ($tenant?->name ?? 'Tenant').' | '.__('lf.LF_common_brand_student_name'))
 
 @section('content')
     <section class="student-hero tenant-banner">

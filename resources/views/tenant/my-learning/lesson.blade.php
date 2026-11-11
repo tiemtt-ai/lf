@@ -15,7 +15,7 @@
     $messages = ['failed' => __('lf.LF_my_learning_activity_failed')];
 @endphp
 
-@section('title', $lesson->title.' | '.($tenant?->name ?? 'LF'))
+@section('title', $lesson->title.' | '.($tenant?->name ?? __('lf.LF_common_brand_student_name')))
 
 @section('content')
     <a class="lf-learn-back" href="{{ route('student.courses.show', $course->id) }}"><span aria-hidden="true">←</span> {{ $courseTitle }}</a>

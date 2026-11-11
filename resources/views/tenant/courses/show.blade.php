@@ -1,6 +1,6 @@
 @extends('layouts.tenant')
 
-@section('title', $course['title'].' | '.($tenant?->name ?? 'LF'))
+@section('title', $course['title'].' | '.($tenant?->name ?? __('lf.LF_common_brand_student_name')))
 
 @section('content')
     <article class="student-card student-section tenant-course-detail">
