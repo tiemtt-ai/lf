@@ -13,6 +13,7 @@
         default => __('lf.LF_my_learning_lock_other'),
     };
     $messages = ['failed' => __('lf.LF_my_learning_activity_failed')];
+    $trim = fn ($value) => rtrim(rtrim(number_format((float) $value, 2, '.', ''), '0'), '.');
 @endphp
 
 @section('title', $lesson->title.' | '.($tenant?->name ?? __('lf.LF_common_brand_student_name')))
@@ -138,11 +139,56 @@
                                 <a class="student-text-link" href="{{ route('student.courses.classes.show', $course->cohort_id) }}">{{ __('lf.LF_my_learning_course_open_class') }}</a>
                             @endif
                         @endif
+                    @elseif ($activity->activity_type === 'quiz' && ($card = $quizCards->get($activity->id)) && $card->version)
+                        {{-- ADR-0032 D4: the frozen quiz version, attempts and what the learner may see of each. --}}
+                        <div class="lf-learn-quiz" data-learn-quiz="{{ $activity->id }}">
+                            <p class="lf-learn-lesson__meta">
+                                {{ __('lf.LF_my_learning_quiz_questions', ['count' => (int) $card->version->question_count]) }}
+                                · {{ $card->version->duration_minutes ? __('lf.LF_my_learning_quiz_minutes', ['minutes' => (int) $card->version->duration_minutes]) : __('lf.LF_my_learning_quiz_untimed') }}
+                                · <span data-learn-quiz-attempts>{{ __('lf.LF_my_learning_quiz_attempts', ['used' => $card->used, 'max' => $card->max]) }}</span>
+                            </p>
+                            @if ($card->open)
+                                <form method="POST" action="{{ route('student.courses.activities.attempts.store', [$course->id, $activity->id]) }}">
+                                    @csrf
+                                    <button type="submit" class="student-button" data-learn-quiz-start>{{ __('lf.LF_my_learning_quiz_resume') }} <span aria-hidden="true">→</span></button>
+                                </form>
+                            @elseif ($card->left > 0)
+                                <form method="POST" action="{{ route('student.courses.activities.attempts.store', [$course->id, $activity->id]) }}">
+                                    @csrf
+                                    <button type="submit" class="student-button" data-learn-quiz-start>{{ $card->used > 0 ? __('lf.LF_my_learning_quiz_retry') : __('lf.LF_my_learning_quiz_start') }} <span aria-hidden="true">→</span></button>
+                                </form>
+                            @else
+                                <p class="lf-learn-activity__note">{{ __('lf.LF_my_learning_quiz_no_attempts') }}</p>
+                            @endif
+                            @error('attempt')
+                                <p class="student-alert is-danger" role="alert">{{ $message }}</p>
+                            @enderror
+                            @if ($card->finished->isNotEmpty())
+                                <ul class="lf-learn-quiz__attempts" aria-label="{{ __('lf.LF_my_learning_quiz_history') }}">
+                                    @foreach ($card->finished as $attempt)
+                                        <li data-learn-quiz-attempt="{{ $attempt->id }}">
+                                            <span>{{ __('lf.LF_my_learning_quiz_attempt_no', ['no' => $attempt->attempt_no]) }}</span>
+                                            @if ($attempt->visible['score'])
+                                                <strong>{{ $trim($attempt->score) }} / {{ $trim($attempt->max_score) }} ({{ $trim($attempt->score_percentage) }}%)</strong>
+                                                @if ($attempt->status !== 'graded')
+                                                    <span class="lf-learn-badge is-orange">{{ __('lf.LF_my_learning_results_waiting') }}</span>
+                                                @endif
+                                            @elseif ($attempt->status !== 'graded')
+                                                <span class="lf-learn-badge is-orange">{{ __('lf.LF_my_learning_results_waiting') }}</span>
+                                            @else
+                                                <span class="lf-learn-badge">{{ __('lf.LF_my_learning_results_not_published') }}</span>
+                                            @endif
+                                            <a class="student-text-link" href="{{ route('student.assessments.attempts.result', $attempt->id) }}">{{ __('lf.LF_my_learning_quiz_view_result') }}</a>
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            @endif
+                        </div>
                     @else
                         <p class="lf-learn-activity__locked">{{ __('lf.LF_my_learning_activity_unavailable') }}</p>
                     @endif
 
-                    @if ($activity->allowed && $activity->progress_rule === 'manual' && $activity->activity_type !== 'quiz')
+                    @if ($activity->allowed && $activity->progress_rule === 'manual')
                         <div class="lf-learn-activity__actions" x-show="! completed" @if ($activity->progress_status === 'completed') x-cloak @endif>
                             <button type="button" class="student-button is-outline" x-on:click="markDone()" x-bind:disabled="busy" data-learn-mark-done>
                                 {{ __('lf.LF_my_learning_activity_mark_done') }}

@@ -118,6 +118,7 @@ final class AssessmentLearnerController extends Controller
             'attachmentAccept' => '.'.implode(',.', self::ATTACHMENT_EXTENSIONS),
             'remainingSeconds' => $attempt->deadline_at ? max(0, strtotime((string) $attempt->deadline_at) - now()->getTimestamp()) : null,
             'uploadLimitBytes' => UploadLimit::effectiveKilobytes() * 1024,
+            'course' => $this->courseContext($customerId, $attempt, $version),
         ]);
     }
 
@@ -365,7 +366,10 @@ final class AssessmentLearnerController extends Controller
             ->where('f.customer_id', $customerId)->whereIn('f.answer_id', $answers->pluck('id'))
             ->where('f.file_role', 'speaking_recording')->where('m.status', 'ready')
             ->get(['f.answer_id', 'f.media_file_id'])->keyBy('answer_id');
-        $registration = DB::table('core_assessment_quiz_registrations')->where('id', $attempt->quiz_registration_id)->first();
+        $registration = $attempt->quiz_registration_id
+            ? DB::table('core_assessment_quiz_registrations')->where('id', $attempt->quiz_registration_id)->first()
+            : null;
+        $course = $this->courseContext($customerId, $attempt, $version);
 
         return view('tenant.assessments.result', [
             'tenant' => TenantContext::customer(),
@@ -377,6 +381,7 @@ final class AssessmentLearnerController extends Controller
             'fileUrls' => $files->map(fn (object $file) => $this->media->generateSignedUrl((int) $file->media_file_id)),
             'attachments' => $this->attachmentsByQuestion($customerId, $answers),
             'canRetry' => $registration && $registration->status === 'active',
+            'course' => $course,
             // Điểm từng tiêu chí of the current grading (ADR-0026 D6), shown with the teacher's feedback.
             'rubricScores' => $visible['feedback'] ? DB::table(Attempts::GRADINGS_TABLE)->where('customer_id', $customerId)
                 ->where('attempt_id', $id)->where('is_current', true)->whereNotNull('rubric_result')->pluck('rubric_result', 'answer_id')
@@ -526,6 +531,31 @@ final class AssessmentLearnerController extends Controller
             'kind' => Attempts::attachmentKind($file),
             'url' => $file->status === 'ready' ? $this->media->generateSignedUrl((int) $file->media_file_id) : null,
         ]);
+    }
+
+    /**
+     * Where a course attempt goes back to: its lesson, and starting another attempt there when one is left (ADR-0032 D4).
+     *
+     * @return array{back: string, retry: ?string}|null
+     */
+    private function courseContext(int $customerId, object $attempt, object $version): ?array
+    {
+        if (! $attempt->enrollment_id || ! $attempt->version_activity_id) {
+            return null;
+        }
+        $lessonId = DB::table('core_course_template_version_activities')->where('customer_id', $customerId)
+            ->where('id', $attempt->version_activity_id)->value('version_lesson_id');
+        $used = DB::table(Attempts::TABLE)->where('customer_id', $customerId)->where('enrollment_id', $attempt->enrollment_id)
+            ->where('version_activity_id', $attempt->version_activity_id)->count();
+        $active = DB::table('core_course_enrollments')->where('customer_id', $customerId)
+            ->where('id', $attempt->enrollment_id)->value('status') !== 'cancelled';
+
+        return [
+            'back' => route('student.courses.lessons.show', [$attempt->enrollment_id, $lessonId]),
+            'retry' => $active && $used < (int) $version->max_attempts
+                ? route('student.courses.activities.attempts.store', [$attempt->enrollment_id, $attempt->version_activity_id])
+                : null,
+        ];
     }
 
     private function version(int $customerId, object $attempt): object

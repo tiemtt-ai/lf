@@ -338,10 +338,25 @@ class CourseTemplateActivityManagementTest extends TestCase
         $teacher = $this->createUser($customerId, 'teacher');
         $colleague = $this->createUser($customerId, 'teacher');
         $this->assignCreator($customerId, $templateId, $teacher->id);
-        $quiz = fn (string $title, string $status, User $owner, int $tenant = 0): int => DB::table('core_assessment_quizzes')->insertGetId([
-            'customer_id' => $tenant ?: $customerId, 'created_by' => $owner->id, 'title' => $title, 'assessment_type' => 'exam',
-            'duration_minutes' => 45, 'status' => $status, 'created_at' => now(), 'updated_at' => now(),
-        ]);
+        // A Quiz that is not a draft has a published version (chk_asm_qz_version on MariaDB).
+        $quiz = function (string $title, string $status, User $owner, int $tenant = 0) use ($customerId): int {
+            $tenant = $tenant ?: $customerId;
+            $id = DB::table('core_assessment_quizzes')->insertGetId([
+                'customer_id' => $tenant, 'created_by' => $owner->id, 'title' => $title, 'assessment_type' => 'exam',
+                'duration_minutes' => 45, 'status' => 'draft', 'created_at' => now(), 'updated_at' => now(),
+            ]);
+            if ($status !== 'draft') {
+                $version = DB::table('core_assessment_quiz_versions')->insertGetId([
+                    'customer_id' => $tenant, 'quiz_id' => $id, 'version_no' => 1, 'title' => $title, 'assessment_type' => 'exam',
+                    'duration_minutes' => 45, 'max_attempts' => 1, 'show_result_mode' => 'immediately', 'total_points' => 10,
+                    'question_count' => 1, 'sections_snapshot' => '[]', 'published_by' => $owner->id, 'published_at' => now(),
+                    'created_at' => now(), 'updated_at' => now(),
+                ]);
+                DB::table('core_assessment_quizzes')->where('id', $id)->update(['status' => $status, 'current_version_id' => $version]);
+            }
+
+            return $id;
+        };
         $own = $quiz('Own published', 'published', $teacher);
         $ownDraft = $quiz('Own draft', 'draft', $teacher);
         $ownArchived = $quiz('Own archived', 'archived', $teacher);

@@ -169,6 +169,13 @@ Course runtime (`CourseProgressRecorder`) là nơi duy nhất ghi bảng này, c
 `metadata` chỉ chứa dữ liệu kỹ thuật của lần ghi (`position_recorded_at`, vị trí cao nhất).
 Không có schema change.
 
+Amendment 2026-11-11 (Approved, [ADR-0032](../../adr/ADR-0032-Course-Quiz-Activity.md)) —
+Quiz Activity: `submit` → `submitted` (hoàn thành khi nộp), `pass` → `passed`
+(hoàn thành khi một lần `graded` có `score_percentage >= completion_threshold`),
+`manual` → `manual`. `attempt_count` = số lần làm của Enrollment + Activity;
+`score`, `max_score`, `passed` theo lần `graded` có phần trăm cao nhất. Đã hoàn
+thành thì không thu hồi khi chấm lại. Không có schema change.
+
 ## Runtime Invariants
 
 ```text

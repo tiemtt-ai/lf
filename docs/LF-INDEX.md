@@ -379,7 +379,9 @@ docs/adr/
 | [ADR-0027](adr/ADR-0027-Assessment-Grader-Assignment-And-Essay-Files.md) | Approved: phân công chấm (Amendment 1.2: giao chấm theo đề ở danh sách Đề / Bài tập, nhận chấm, tự nhận khi lưu điểm) và nộp tệp cho câu tự luận; migration `2026_11_07_000100` |
 | [ADR-0028](adr/ADR-0028-Course-Window-Datetime-And-Unlock-UTC.md) | Approved: cột mốc thời gian của khóa học đổi sang `DATETIME`; `unlock_at` của Lesson lưu theo UTC; không sửa snapshot của Version đã xuất bản |
 | [ADR-0029](adr/ADR-0029-Learning-Mapping-Invalidation.md) | Approved: đánh dấu một liên kết năng lực đã xuất bản là sai — ai làm, ở đâu, ảnh hưởng gì |
-| [ADR-0030](adr/ADR-0030-Learner-Course-Delivery-And-Progress.md) | Approved: trang bài học của học viên, phát Media, ghi tiến độ qua `CourseProgressRecorder`, điểm danh → hoàn thành hoạt động tham gia lớp; Favorite hoãn |
+| [ADR-0030](adr/ADR-0030-Learner-Course-Delivery-And-Progress.md) | Approved: trang bài học của học viên, phát Media, ghi tiến độ qua `CourseProgressRecorder`, điểm danh → hoàn thành hoạt động tham gia lớp; Quan tâm (Favorite, D4) làm 2026-11-11 |
+| [ADR-0031](adr/ADR-0031-Learner-Learning-Results.md) | Approved: "Kết quả học tập" của học viên (`/my-courses?tab=results`), chỉ đọc; điểm theo luật hiển thị D12 của ADR-0025 |
+| [ADR-0032](adr/ADR-0032-Course-Quiz-Activity.md) | Approved: Quiz Activity trong khóa học; chốt phiên bản đề, lần làm theo Enrollment, tiến độ `submitted` / `passed` |
 
 ---
 

@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\ProfileController as AdminProfileController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Assessment\AssessmentLearnerController;
 use App\Http\Controllers\CustomerRegisterController;
+use App\Http\Controllers\LearnerCourseFavoriteController;
 use App\Http\Controllers\LearnerMyLearningController;
 use App\Http\Controllers\LiveClassAttendanceCheckInController;
 use App\Http\Controllers\LiveClassWhiteboardController;
@@ -306,6 +307,11 @@ Route::middleware([
         ->whereNumber('enrollment')->name('student.courses.show');
     Route::get('/my-courses/classes/{cohort}', [LearnerMyLearningController::class, 'cohort'])
         ->whereNumber('cohort')->name('student.courses.classes.show');
+    // "Quan tâm" of a Course Product (ADR-0030 D4).
+    Route::post('/my-courses/favorites/{product}', [LearnerCourseFavoriteController::class, 'store'])
+        ->whereNumber('product')->middleware('throttle:60,1,lf-learn-favorite.')->name('student.courses.favorites.store');
+    Route::delete('/my-courses/favorites/{product}', [LearnerCourseFavoriteController::class, 'destroy'])
+        ->whereNumber('product')->middleware('throttle:60,1,lf-learn-favorite.')->name('student.courses.favorites.destroy');
     // The lesson page, its Media and progress events (ADR-0030).
     Route::get('/my-courses/{enrollment}/lessons/{lesson}', [LearnerMyLearningController::class, 'lesson'])
         ->whereNumber(['enrollment', 'lesson'])->name('student.courses.lessons.show');
@@ -313,6 +319,9 @@ Route::middleware([
         ->whereNumber(['enrollment', 'activity'])->middleware('throttle:60,1,lf-learn-media.')->name('student.courses.activities.media');
     Route::post('/my-courses/{enrollment}/activities/{activity}/progress', [LearnerMyLearningController::class, 'progress'])
         ->whereNumber(['enrollment', 'activity'])->middleware('throttle:60,1,lf-learn-progress.')->name('student.courses.activities.progress');
+    // A Quiz Activity: start or resume its attempt (ADR-0032).
+    Route::post('/my-courses/{enrollment}/activities/{activity}/attempts', [LearnerMyLearningController::class, 'startQuiz'])
+        ->whereNumber(['enrollment', 'activity'])->middleware('throttle:30,1,lf-learn-quiz.')->name('student.courses.activities.attempts.store');
 
     // A learner follows the Whiteboard of a live Session of their Cohort; learners only receive.
     Route::prefix('/my-courses/live-sessions/{session}/board')->name('student.live-sessions.board')

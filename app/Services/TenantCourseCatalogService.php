@@ -12,7 +12,8 @@ use Illuminate\Support\Facades\DB;
  * Read model of the tenant website catalogue (`/courses`, `/courses/{slug}`): Course Products that are
  * `active`, `public`, inside their display window and bound to a published Version. Content comes from
  * that published Version (Course Guardrails Rule 3); the learner's own Enrollment, when there is one,
- * links to "Khóa học của tôi". It never writes.
+ * links to "Khóa học của tôi", and the Products they marked "Quan tâm" (ADR-0030 D4) carry `favorite`.
+ * It never writes.
  */
 class TenantCourseCatalogService
 {
@@ -74,21 +75,75 @@ class TenantCourseCatalogService
         return $course;
     }
 
+    /**
+     * "Quan tâm" of the learner, last marked first (ADR-0030 D4): Products still `active` that are on the catalogue
+     * or that the learner is enrolled in (a private Product they study stays listed).
+     *
+     * @return Collection<int, object>
+     */
+    public function favorites(int $customerId, int $studentId): Collection
+    {
+        $ids = DB::table('core_course_favorites')->where('customer_id', $customerId)->where('student_id', $studentId)
+            ->orderByDesc('created_at')->orderByDesc('id')->limit(self::LIMIT)->pluck('product_id')->map(fn ($id) => (int) $id);
+        if ($ids->isEmpty()) {
+            return collect();
+        }
+
+        $enrolled = $this->learnerEnrollments($customerId, $studentId, $ids->all());
+        $products = $this->activeProducts($customerId)->whereIn('products.id', $ids)->get()
+            ->filter(fn (object $product): bool => $enrolled->has((int) $product->id) || $this->listed($product))
+            ->sortBy(fn (object $product): int => $ids->search((int) $product->id))->values();
+
+        return $this->present($customerId, $studentId, $products);
+    }
+
+    /** @return Collection<int, int> Product ids the learner marked "Quan tâm" */
+    public function favoriteIds(int $customerId, int $studentId): Collection
+    {
+        return DB::table('core_course_favorites')->where('customer_id', $customerId)->where('student_id', $studentId)
+            ->pluck('product_id')->map(fn ($id) => (int) $id);
+    }
+
+    /** Whether a learner may mark the Product "Quan tâm": active, and on the catalogue or enrolled in (D4). */
+    public function favoritable(int $customerId, int $studentId, int $productId): bool
+    {
+        $product = $this->activeProducts($customerId)->where('products.id', $productId)->first();
+
+        return $product !== null
+            && ($this->listed($product) || $this->learnerEnrollments($customerId, $studentId, [$productId])->isNotEmpty());
+    }
+
+    /** On the catalogue: public and inside its display window (the published Version is checked by present()). */
+    private function listed(object $product): bool
+    {
+        $now = Carbon::now();
+
+        return $product->visibility === 'public'
+            && (! $product->available_from || Carbon::parse($product->available_from)->lte($now))
+            && (! $product->available_until || Carbon::parse($product->available_until)->gt($now));
+    }
+
     private function visibleProducts(int $customerId)
     {
         $now = Carbon::now()->format('Y-m-d H:i:s');
 
+        return $this->activeProducts($customerId)
+            ->where('products.visibility', 'public')
+            ->where(fn ($query) => $query->whereNull('products.available_from')->orWhere('products.available_from', '<=', $now))
+            ->where(fn ($query) => $query->whereNull('products.available_until')->orWhere('products.available_until', '>', $now));
+    }
+
+    private function activeProducts(int $customerId)
+    {
         return DB::table('core_course_products as products')
             ->where('products.customer_id', $customerId)
             ->where('products.status', 'active')
-            ->where('products.visibility', 'public')
-            ->where(fn ($query) => $query->whereNull('products.available_from')->orWhere('products.available_from', '<=', $now))
-            ->where(fn ($query) => $query->whereNull('products.available_until')->orWhere('products.available_until', '>', $now))
             ->select('products.id', 'products.slug', 'products.title', 'products.short_description', 'products.description',
                 'products.uses_custom_description', 'products.price', 'products.currency', 'products.promotion_enabled',
                 'products.discount_type', 'products.discount_value', 'products.sale_starts_at', 'products.sale_ends_at',
                 'products.status', 'products.registration_starts_at', 'products.registration_ends_at',
-                'products.access_duration_days', 'products.review_duration_days', 'products.is_featured');
+                'products.access_duration_days', 'products.review_duration_days', 'products.is_featured',
+                'products.visibility', 'products.available_from', 'products.available_until');
     }
 
     /**
@@ -116,11 +171,12 @@ class TenantCourseCatalogService
             ->groupBy('template_version_id')->selectRaw('template_version_id, COUNT(*) as total')
             ->pluck('total', 'template_version_id');
         $enrollments = $studentId ? $this->learnerEnrollments($customerId, $studentId, $products->pluck('id')->all()) : collect();
+        $favorites = $studentId ? $this->favoriteIds($customerId, $studentId) : collect();
         $now = Carbon::now();
 
         return $products
             ->filter(fn (object $product): bool => $versions->has($bindings->get($product->id)?->version_id))
-            ->map(function (object $product) use ($bindings, $versions, $teachers, $lessonCounts, $enrollments, $now): object {
+            ->map(function (object $product) use ($bindings, $versions, $teachers, $lessonCounts, $enrollments, $favorites, $now): object {
                 $version = $versions->get($bindings->get($product->id)->version_id);
                 $custom = (bool) $product->uses_custom_description;
                 $selling = $this->promotionRunning($product, $now)
@@ -151,6 +207,7 @@ class TenantCourseCatalogService
                     'is_featured' => (bool) $product->is_featured,
                     'enrollment' => $enrollment,
                     'learn_url' => $enrollment?->url,
+                    'favorite' => $favorites->contains((int) $product->id),
                 ];
             })
             ->values();

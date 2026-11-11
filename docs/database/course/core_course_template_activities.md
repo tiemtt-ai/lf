@@ -242,6 +242,14 @@ chọn được mọi đề của tenant. Đề đã gắn trước đó mà nay
 lưu lại không đổi. Template chứa Quiz vẫn bị chặn publish; đóng băng phiên bản đề vào
 Version Activity thuộc phần Course Integration làm sau.
 
+Amendment 2026-11-11 (Approved, [ADR-0032](../../adr/ADR-0032-Course-Quiz-Activity.md)):
+publish nhận Quiz khi đề cùng tenant, `published`, có `current_version_id` (không
+`archived`), và chốt phiên bản đó vào Version Activity. Thêm khóa ngoại
+`FOREIGN KEY fk_ccta_quiz (assessment_quiz_id, customer_id) REFERENCES
+core_assessment_quizzes (id, customer_id) ON DELETE RESTRICT`. Đề chỉ xóa được khi
+chưa từng xuất bản và picker chỉ nhận đề đã xuất bản, nên khóa ngoại không chặn luồng
+xóa nào đang có.
+
 ---
 
 ## Learning Metadata

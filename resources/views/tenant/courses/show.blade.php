@@ -53,6 +53,9 @@
                 @elseif ($studentMode && $course->registration_open)
                     <button type="button" class="student-button" data-coming-soon aria-disabled="true">{{ __('lf.LF_course_card_student_register') }}</button>
                 @endif
+                @if ($studentMode)
+                    @include('tenant.partials.favorite-button', ['productId' => $course->id, 'favorite' => $course->favorite, 'labeled' => true])
+                @endif
             @endguest
         </div>
         @if (! $course->enrollment)

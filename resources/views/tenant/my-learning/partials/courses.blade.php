@@ -46,7 +46,7 @@
                             <span class="sb2b-course-category">{{ $category }}</span>
                         @endif
                         <span class="{{ $statusClass }}">{{ $statusLabel }}</span>
-                        <button type="button" class="student-products__like" data-coming-soon aria-disabled="true" aria-label="{{ __('lf.LF_my_learning_favorite') }}"></button>
+                        @include('tenant.partials.favorite-button', ['productId' => (int) $course->product_id, 'favorite' => $favoriteIds->contains((int) $course->product_id)])
                     </div>
                     <a @class(['student-course-card__primary-link' => $course->group === 'current']) href="{{ $url }}">
                         <h5 class="card-title line-2">{{ $title }}</h5>

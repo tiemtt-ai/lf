@@ -13,11 +13,13 @@ use Illuminate\Support\Facades\DB;
  */
 class CourseProgressRecorder
 {
-    /** Version Activity completion rule → Activity Progress completion rule. Quiz is out of scope. */
+    /** Version Activity completion rule → Activity Progress completion rule (ADR-0030 D3, ADR-0032 D3). */
     private const RULES = [
         'view' => 'viewed',
         'manual' => 'manual',
         'join' => 'attended',
+        'submit' => 'submitted',
+        'pass' => 'passed',
     ];
 
     public const EVENTS = ['opened', 'position', 'completed'];
@@ -45,7 +47,8 @@ class CourseProgressRecorder
             return null;
         }
         $activity = $this->activity($customerId, $versionActivityId);
-        if (! $activity || $activity->activity_type === 'quiz'
+        // A quiz moves through its attempts (quizChanged); only its manual rule takes a learner event.
+        if (! $activity || ($activity->activity_type === 'quiz' && $activity->completion_rule !== 'manual')
             || ! $this->lessonAccess->decide($studentId, $enrollmentId, (int) $activity->version_lesson_id)->allowed) {
             return null;
         }
@@ -181,6 +184,71 @@ class CourseProgressRecorder
         }
     }
 
+    /**
+     * The Module Kiểm tra calls this after a course attempt started, was submitted or (re)graded (ADR-0032 D3). It reads
+     * every attempt of the Enrollment on the Activity: `attempt_count`, the best graded score, and completion by the
+     * Activity's rule. Completion is never taken back.
+     */
+    public function quizChanged(int $customerId, int $enrollmentId, int $versionActivityId): void
+    {
+        $activity = $this->activity($customerId, $versionActivityId);
+        if (! $activity || $activity->activity_type !== 'quiz') {
+            return;
+        }
+
+        DB::transaction(function () use ($customerId, $enrollmentId, $activity): void {
+            $enrollment = $this->enrollment($customerId, $enrollmentId);
+            if (! $enrollment || $enrollment->status === 'cancelled' || (int) $enrollment->version_id !== (int) $activity->template_version_id) {
+                return;
+            }
+            // Read attempts only once the Course Progress lock is held, so the newest change wins.
+            $course = $this->lockCourse($customerId, $enrollment);
+            $attempts = DB::table('core_assessment_attempts')
+                ->where('customer_id', $customerId)->where('enrollment_id', $enrollment->id)->where('version_activity_id', $activity->id)
+                ->get(['status', 'started_at', 'submitted_at', 'graded_at', 'score', 'max_score', 'score_percentage']);
+            if ($attempts->isEmpty()) {
+                return;
+            }
+            $lesson = $this->lessonRow($customerId, $enrollment, $course, (int) $activity->version_lesson_id);
+            $row = $this->activityRow($customerId, $enrollment, $course, $lesson, $activity);
+            $done = $attempts->where('status', '!=', 'in_progress');
+            $graded = $attempts->where('status', 'graded');
+            $best = $graded->sortByDesc(fn (object $attempt): float => (float) $attempt->score_percentage)->first();
+            $threshold = (float) ($activity->completion_threshold ?? 100);
+            $passed = $best ? (float) $best->score_percentage >= $threshold : null;
+            $complete = $row->status === 'completed' || match ($activity->completion_rule) {
+                'submit' => $done->isNotEmpty(),
+                'pass' => (bool) $passed,
+                default => false,
+            };
+            $now = Carbon::now();
+            $first = $attempts->min('started_at');
+
+            DB::table('core_course_activity_progress')->where('id', $row->id)->update([
+                'attempt_count' => $attempts->count(),
+                'score' => $best?->score,
+                'max_score' => $best?->max_score,
+                'passed' => $passed,
+                'submitted_at' => $done->max('submitted_at'),
+                'graded_at' => $graded->max('graded_at'),
+                'first_accessed_at' => $row->first_accessed_at ?? $first,
+                'last_accessed_at' => $now,
+                'started_at' => $row->started_at ?? $first,
+                'status' => $complete ? 'completed' : 'in_progress',
+                'completed_at' => $complete ? ($row->completed_at ?? $now) : null,
+                'progress_percentage' => $complete ? 100 : $row->progress_percentage,
+                'updated_at' => $now,
+            ]);
+            DB::table('core_course_progress')->where('id', $course->id)->update([
+                'last_version_activity_id' => $activity->id,
+                'last_version_lesson_id' => $activity->version_lesson_id,
+                'last_accessed_at' => $now,
+                'started_at' => $course->started_at ?? $first,
+            ]);
+            $this->recalculate($customerId, $enrollment, $course->id);
+        }, 3);
+    }
+
     /** Version Activity completion rule as the progress tables name it. */
     public static function progressRule(object $activity): string
     {
@@ -223,8 +291,7 @@ class CourseProgressRecorder
             ->get(['id', 'version_section_id', 'sort_order']);
         $activities = DB::table('core_course_template_version_activities')
             ->where('customer_id', $customerId)->where('template_version_id', $enrollment->version_id)
-            ->where('activity_type', '!=', 'quiz')
-            ->get(['id', 'version_lesson_id', 'is_required'])
+            ->get(['id', 'version_lesson_id', 'is_required', 'activity_type'])
             ->groupBy('version_lesson_id');
         $done = DB::table('core_course_activity_progress')
             ->where('customer_id', $customerId)->where('enrollment_id', $enrollment->id)->where('status', 'completed')
@@ -237,7 +304,7 @@ class CourseProgressRecorder
             ->selectRaw("lesson_progress_id, SUM(total_learning_seconds) as seconds, SUM(CASE WHEN status <> 'not_started' THEN 1 ELSE 0 END) as started")
             ->get()->keyBy('lesson_progress_id');
 
-        $totals = ['lessons' => 0, 'lessons_done' => 0, 'activities' => 0, 'activities_done' => 0, 'required' => 0, 'required_done' => 0, 'seconds' => 0];
+        $totals = ['lessons' => 0, 'lessons_done' => 0, 'activities' => 0, 'activities_done' => 0, 'required' => 0, 'required_done' => 0, 'assessments' => 0, 'assessments_done' => 0, 'seconds' => 0];
         foreach ($lessons as $lesson) {
             /** @var Collection<int, object> $items */
             $items = $activities->get($lesson->id, collect());
@@ -255,6 +322,10 @@ class CourseProgressRecorder
             $totals['activities_done'] += $completedCount;
             $totals['required'] += $required->count();
             $totals['required_done'] += $requiredDone;
+            // Assessments = required Quiz Activities (ADR-0032).
+            $quizzes = $required->filter(fn (object $a): bool => $a->activity_type === 'quiz');
+            $totals['assessments'] += $quizzes->count();
+            $totals['assessments_done'] += $quizzes->filter(fn (object $a): bool => $done->has($a->id))->count();
 
             if (! $row) {
                 continue;
@@ -290,6 +361,8 @@ class CourseProgressRecorder
             'total_activities' => $totals['activities'],
             'required_activities_completed' => $totals['required_done'],
             'required_activities_total' => $totals['required'],
+            'assessment_completed' => $totals['assessments_done'],
+            'assessment_total' => $totals['assessments'],
             'total_learning_seconds' => $totals['seconds'],
             'status' => $complete ? 'completed' : 'in_progress',
             'completed_at' => $complete ? ($course->completed_at ?? $now) : null,

@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Services\CourseTemplatePublishingService;
 use App\Services\CourseTemplatePublishReadinessService;
 use App\Services\MediaService;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -1411,7 +1412,7 @@ class CourseTemplatePublishingTest extends TestCase
         $this->assertContains('activity_completion', $service->evaluate($customerId, $service->load($customerId, $templateId))->blockers()->pluck('code')->all());
     }
 
-    public function test_publish_loader_detects_cross_tenant_children_and_blocks_quiz_until_immutable_binding_exists(): void
+    public function test_publish_loader_detects_cross_tenant_children_and_blocks_a_missing_quiz(): void
     {
         $customerId = $this->createTenant();
         $otherCustomerId = $this->createTenant('tenant-b');
@@ -1433,11 +1434,16 @@ class CourseTemplatePublishingTest extends TestCase
         $readiness = $service->evaluate($customerId, $service->load($customerId, $templateId));
         $this->assertContains('activity', $readiness->blockers()->pluck('code')->all());
 
+        // A quiz never published has no version to freeze (ADR-0032 D1).
+        $draftQuiz = DB::table('core_assessment_quizzes')->insertGetId([
+            'customer_id' => $customerId, 'created_by' => $admin->id, 'title' => 'Draft', 'assessment_type' => 'exam', 'max_attempts' => 1,
+            'show_result_mode' => 'immediately', 'status' => 'draft', 'registration_open' => false, 'created_at' => now(), 'updated_at' => now(),
+        ]);
         DB::table('core_course_template_activities')->where('id', $activityId)->update([
             'customer_id' => $customerId,
             'template_id' => $templateId,
             'activity_type' => 'quiz',
-            'assessment_quiz_id' => 999999,
+            'assessment_quiz_id' => $draftQuiz,
             'completion_rule' => 'submit',
         ]);
         DB::table('media_file_usages')->where('owner_type', 'course_activity')->where('owner_id', $activityId)->delete();
@@ -1450,11 +1456,51 @@ class CourseTemplatePublishingTest extends TestCase
             ->assertSessionHasErrors('publish');
         $this->assertDatabaseMissing('core_course_template_versions', ['template_id' => $templateId]);
 
-        DB::table('core_course_template_activities')->where('id', $activityId)->update(['assessment_quiz_id' => 0]);
+        DB::table('core_course_template_activities')->where('id', $activityId)->update(['assessment_quiz_id' => null]);
         $this->assertSame(
             ['activity_source', 'activity_quiz_unavailable'],
             $service->evaluate($customerId, $service->load($customerId, $templateId))->blockers()->pluck('code')->all()
         );
+    }
+
+    public function test_a_quiz_activity_publishes_with_the_quiz_version_current_at_publish(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, $admin->id, 'Quiz Course');
+        $lessonId = $this->createLesson($customerId, $templateId, null, 'Quiz Lesson', 0, $admin->id);
+        $activityId = $this->createActivity($customerId, $templateId, $lessonId, 'Final Quiz', 0, $admin->id);
+        DB::table('media_file_usages')->where('owner_type', 'course_activity')->where('owner_id', $activityId)->delete();
+        $quizId = DB::table('core_assessment_quizzes')->insertGetId([
+            'customer_id' => $customerId, 'created_by' => $admin->id, 'title' => 'Final', 'assessment_type' => 'exam', 'max_attempts' => 2,
+            'show_result_mode' => 'hidden', 'status' => 'draft', 'registration_open' => false, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $versionId = DB::table('core_assessment_quiz_versions')->insertGetId([
+            'customer_id' => $customerId, 'quiz_id' => $quizId, 'version_no' => 1, 'title' => 'Final', 'assessment_type' => 'exam',
+            'max_attempts' => 2, 'show_result_mode' => 'hidden', 'total_points' => 10, 'question_count' => 5, 'sections_snapshot' => '[]',
+            'published_by' => $admin->id, 'published_at' => now(), 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('core_course_template_activities')->where('id', $activityId)->update([
+            'activity_type' => 'quiz', 'assessment_quiz_id' => $quizId, 'completion_rule' => 'pass', 'completion_threshold' => 60,
+        ]);
+        $service = app(CourseTemplatePublishReadinessService::class);
+        $blockers = fn (): array => $service->evaluate($customerId, $service->load($customerId, $templateId))->blockers()->pluck('code')->all();
+
+        // A quiz never published, or archived, cannot be frozen (ADR-0032 D1).
+        $this->assertSame(['activity_quiz_unavailable'], $blockers());
+        DB::table('core_assessment_quizzes')->where('id', $quizId)->update(['status' => 'archived', 'current_version_id' => $versionId]);
+        $this->assertSame(['activity_quiz_unavailable'], $blockers());
+        DB::table('core_assessment_quizzes')->where('id', $quizId)->update(['status' => 'published']);
+        // "Pass" would reveal a hidden result, and a quiz is never a preview.
+        $this->assertSame(['activity_quiz_rules'], $blockers());
+        DB::table('core_course_template_activities')->where('id', $activityId)->update(['completion_rule' => 'submit', 'completion_threshold' => null, 'is_preview' => true]);
+        $this->assertSame(['activity_quiz_rules'], $blockers());
+        DB::table('core_course_template_activities')->where('id', $activityId)->update(['is_preview' => false]);
+        $this->assertSame([], $blockers());
+
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-templates/{$templateId}/publish")->assertSessionHasNoErrors();
+        $snapshot = DB::table('core_course_template_version_activities')->where('source_template_activity_id', $activityId)->sole();
+        $this->assertSame(['quiz', $quizId, $versionId], [$snapshot->activity_type, (int) $snapshot->assessment_quiz_id_snapshot, (int) $snapshot->assessment_quiz_version_id_snapshot]);
     }
 
     public function test_publish_and_duplicate_preserve_documented_duplicate_content_order_values(): void
@@ -3084,7 +3130,22 @@ class CourseTemplatePublishingTest extends TestCase
             ['estimated_lesson_count', '2.5', 'template_estimated_lesson_count'],
         ] as [$field, $value, $code]) {
             $original = DB::table('core_course_templates')->where('id', $templateId)->value($field);
-            DB::table('core_course_templates')->where('id', $templateId)->update([$field => $value]);
+            try {
+                DB::table('core_course_templates')->where('id', $templateId)->update([$field => $value]);
+            } catch (QueryException) {
+                // MariaDB refuses the value itself (column width, CHECK, UNSIGNED): nothing to publish.
+                $this->assertNotSame('sqlite', DB::connection()->getDriverName(), $field);
+
+                continue;
+            }
+            $stored = DB::table('core_course_templates')->where('id', $templateId)->value($field);
+            if ($value !== null && (string) $stored !== (string) $value) {
+                // MariaDB rounds a fractional string into an INT column: the stored value is no longer the bad one.
+                $this->assertNotSame('sqlite', DB::connection()->getDriverName(), $field);
+                DB::table('core_course_templates')->where('id', $templateId)->update([$field => $original]);
+
+                continue;
+            }
             $readiness = $service->evaluate($customerId, $service->load($customerId, $templateId));
             $this->assertContains($code, $readiness->blockers()->pluck('code')->all(), $field);
             DB::table('core_course_templates')->where('id', $templateId)->update([$field => $original]);
@@ -3649,6 +3710,11 @@ class CourseTemplatePublishingTest extends TestCase
             ->where('template_id', $templateId)
             ->delete();
 
+        // Nested sections point at their parent (fk_ccts_parent on MariaDB).
+        DB::table('core_course_template_sections')
+            ->where('customer_id', $customerId)
+            ->where('template_id', $templateId)
+            ->update(['parent_section_id' => null]);
         DB::table('core_course_template_sections')
             ->where('customer_id', $customerId)
             ->where('template_id', $templateId)

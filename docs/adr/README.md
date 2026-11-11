@@ -77,7 +77,9 @@ Số ADR không được tái sử dụng hoặc đổi để lấp khoảng tr�
 | [ADR-0027](ADR-0027-Assessment-Grader-Assignment-And-Essay-Files.md) | Phân công chấm (theo danh mục, theo đề, giao từng bài, nhận chấm) và nộp tệp cho câu tự luận; mở lại phần hoãn của ADR-0025 | Approved |
 | [ADR-0028](ADR-0028-Course-Window-Datetime-And-Unlock-UTC.md) | Cột mốc thời gian của khóa học đổi TIMESTAMP → DATETIME (lỗi 2038); giờ mở khoá bài học đã lưu chuyển sang UTC; không sửa Version đã xuất bản | Approved |
 | [ADR-0029](ADR-0029-Learning-Mapping-Invalidation.md) | Admin đánh dấu liên kết năng lực đã xuất bản là sai (lý do bắt buộc, không xoá, không hoàn tác); teacher judgment bỏ liên kết đó từ lần sau | Approved |
-| [ADR-0030](ADR-0030-Learner-Course-Delivery-And-Progress.md) | Học viên mở bài học (video, âm thanh, video nhúng, tài liệu) và ghi tiến độ Activity / Lesson / Course; Quan tâm hoãn; Quiz Activity ngoài phạm vi | Approved |
+| [ADR-0030](ADR-0030-Learner-Course-Delivery-And-Progress.md) | Học viên mở bài học (video, âm thanh, video nhúng, tài liệu) và ghi tiến độ Activity / Lesson / Course; Quan tâm (D4) làm 2026-11-11; Quiz Activity ngoài phạm vi | Approved |
+| [ADR-0031](ADR-0031-Learner-Learning-Results.md) | "Kết quả học tập" của học viên: tab trong Khóa học của tôi, tổng hợp và bảng cho khóa, lớp, bài thi; không lộ điểm chưa công bố | Approved |
+| [ADR-0032](ADR-0032-Course-Quiz-Activity.md) | Quiz Activity trong khóa học: chốt phiên bản đề khi publish, lần làm theo Enrollment, hoàn thành theo nộp / ngưỡng Activity | Approved |
 
 ---
 

@@ -135,6 +135,9 @@
                             <td class="mk-text-cell" data-label="{{ __('lf.LF_assessment_registration_quiz') }}">
                                 {{ $attempt->quiz_title }}
                                 <p class="ui-caption">{{ __('lf.LF_assessment_quiz_version_number', ['number' => $attempt->version_no]) }} · {{ __('lf.LF_assessment_result_attempt_no', ['number' => $attempt->attempt_no]) }}</p>
+                                @if ($attempt->enrollment_id)
+                                    <p class="ui-caption" data-result-course>{{ __('lf.LF_assessment_result_course_source', ['course' => $attempt->course_title ?? '—']) }}</p>
+                                @endif
                             </td>
                             <td class="mk-text-cell ui-asm-nowrap" data-label="{{ __('lf.LF_assessment_result_submitted_at') }}">
                                 {{ $attempt->submitted_at ? \Illuminate\Support\Carbon::parse($attempt->submitted_at)->format('d/m/Y H:i') : '—' }}

@@ -91,13 +91,19 @@ class LearnerMyLearningTest extends TestCase
         $this->assertMatchesRegularExpression('#data-learn-view="current">\s*'.preg_quote(__('lf.LF_my_learning_view_courses_current')).'\s*<span class="student-products__tab-count">2</span>#', $html);
         $this->assertSame([$second, $first], $this->ids($this->actingAs($this->student)->get(self::HOST.'/my-courses')->getContent(), 'data-learn-course'));
 
-        // Favourites, learning results, 1:1 advice and AI Speak are shown but only say "coming soon".
+        // 1:1 advice and AI Speak are shown but only say "coming soon". "Quan tâm" of courses works (ADR-0030 D4); the
+        // classes and tests tabs keep it locked. "Kết quả học tập" opens its page (ADR-0031).
         $this->assertStringContainsString('data-coming-soon-message="'.__('lf.LF_student_site_coming_soon').'"', $html);
-        $locked = fn (string $label): int => preg_match_all('#data-coming-soon[^>]*>(?:(?!</button>).)*'.preg_quote($label, '#').'#s', $html);
-        $this->assertSame(2, $locked(__('lf.LF_student_site_my_results')));
-        $this->assertSame(1, $locked(__('lf.LF_my_learning_view_favorite')));
-        $this->assertGreaterThanOrEqual(1, preg_match_all('#class="student-products__like" data-coming-soon#', $html));
-        $this->assertSame(1, $locked('aispeak.svg'));
+        $locked = fn (string $label, string $page): int => preg_match_all('#\sdata-coming-soon[\s>][^>]*>?(?:(?!</button>).)*'.preg_quote($label, '#').'#s', $page);
+        $this->assertSame(0, $locked(__('lf.LF_student_site_my_results'), $html));
+        $this->assertSame(0, $locked(__('lf.LF_my_learning_view_favorite'), $html));
+        $this->assertStringContainsString('data-learn-view="favorite"', $html);
+        $this->assertSame(0, preg_match_all('#class="student-products__like" data-coming-soon#', $html));
+        // One heart per card; the filter kept one card.
+        $this->assertSame(1, preg_match_all('#data-favorite="\d+" aria-pressed="false"#', $html));
+        $this->assertSame(1, $locked('aispeak.svg', $html));
+        $exams = $this->actingAs($this->student)->get(self::HOST.'/my-courses?tab=exams')->assertOk()->getContent();
+        $this->assertSame(1, $locked(__('lf.LF_my_learning_view_favorite'), $exams));
     }
 
     public function test_course_detail_shows_each_lesson_with_its_runtime_access_decision(): void
@@ -253,7 +259,7 @@ class LearnerMyLearningTest extends TestCase
         $document = $this->activity($version, $lesson, 'Tài liệu', 'document', 1);
         $manual = $this->activity($version, $lesson, 'Tự luyện', 'document', 2, ['completion_rule' => 'manual']);
         $video = $this->activity($version, $lesson, 'Video', 'video', 3, ['completion_rule' => 'watch_percent', 'completion_threshold' => 80, 'duration_seconds' => 600]);
-        $quiz = $this->activity($version, $lesson, 'Kiểm tra', 'quiz', 4, ['completion_rule' => 'quiz_pass']);
+        $quiz = $this->activity($version, $lesson, 'Kiểm tra', 'quiz', 4, ['completion_rule' => 'submit', 'is_required' => 0]);
         $enrollment = $this->enroll($this->student, $product, $version, ['access_starts_at' => '2026-07-01 00:00:00', 'access_ends_at' => '2026-07-21 00:00:00']);
         $send = fn (int $activity, array $data) => $this->actingAs($this->student)->postJson($this->progressUrl($enrollment, $activity), $data);
 
@@ -275,10 +281,11 @@ class LearnerMyLearningTest extends TestCase
         $row = $this->activityRow($enrollment, $video);
         $this->assertSame(['watch_percentage', 110], [$row->completion_rule, (int) $row->total_learning_seconds]);
 
-        // A quiz is not recorded here; the Lesson and the Course count only the other Activities.
+        // A quiz moves only through its attempts (ADR-0032 D3); an optional one does not hold the Lesson back.
         $send($quiz, ['event' => 'opened'])->assertForbidden();
+        $send($quiz, ['event' => 'completed'])->assertForbidden();
         $lessonRow = DB::table('core_course_lesson_progress')->where('enrollment_id', $enrollment)->sole();
-        $this->assertSame(['completed', 3, 3], [$lessonRow->status, (int) $lessonRow->completed_activities, (int) $lessonRow->total_activities]);
+        $this->assertSame(['completed', 3, 4], [$lessonRow->status, (int) $lessonRow->completed_activities, (int) $lessonRow->total_activities]);
         $course = DB::table('core_course_progress')->where('enrollment_id', $enrollment)->sole();
         $this->assertSame(['completed', 100, $video, $lesson], [$course->status, (int) $course->progress_percentage, (int) $course->last_version_activity_id, (int) $course->last_version_lesson_id]);
         // A course finished by its progress moves to "Đã hoàn thành" (ADR-0030 Q2).
@@ -392,6 +399,54 @@ class LearnerMyLearningTest extends TestCase
 
     // ---- fixtures ----
 
+    public function test_learning_results_summarise_the_learners_courses_and_classes(): void
+    {
+        // A self-paced course: one of two lessons done, 1 h 5 min of learning.
+        [$product, $version] = $this->course($this->customer, 'Sơ cấp tự học', 'self_paced');
+        $first = $this->lesson($version, 'Bài 1', 1);
+        $this->lesson($version, 'Bài 2', 2);
+        $document = $this->activity($version, $first, 'Tài liệu', 'document', 1);
+        $enrollment = $this->enroll($this->student, $product, $version, ['access_starts_at' => '2026-07-01 00:00:00', 'access_ends_at' => '2026-07-21 00:00:00']);
+        $this->actingAs($this->student)->postJson($this->progressUrl($enrollment, $document), ['event' => 'opened'])->assertOk();
+        DB::table('core_course_progress')->where('enrollment_id', $enrollment)->update(['total_learning_seconds' => 3900]);
+
+        // A class: two sessions held, present at one.
+        [$classProduct, $classVersion] = $this->course($this->customer, 'Giao tiếp', 'blended');
+        $cohort = $this->cohort($classProduct, $classVersion, 'Lớp A', 'active');
+        $classEnrollment = $this->enroll($this->student, $classProduct, $classVersion);
+        $this->seat($cohort, $classEnrollment, $this->student, $classProduct);
+        $present = $this->liveSession($cohort, $classVersion, 'Buổi 1', '2026-07-03 19:00:00', '2026-07-03 21:00:00', 'completed');
+        $this->liveSession($cohort, $classVersion, 'Buổi 2', '2026-07-06 19:00:00', '2026-07-06 21:00:00', 'completed');
+        $this->liveSession($cohort, $classVersion, 'Buổi 3', '2026-07-13 19:00:00', '2026-07-13 21:00:00');
+        DB::table('core_liveclass_attendances')->insert([
+            'customer_id' => $this->customer, 'session_id' => $present, 'enrollment_id' => $classEnrollment, 'user_id' => $this->student->id,
+            'status' => 'present', 'attendance_mode' => 'onsite', 'joined_at' => '2026-07-03 19:01:00', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        // Someone else's course stays out.
+        $other = $this->user($this->customer, 'student');
+        $foreign = $this->enroll($other, $product, $version);
+
+        $page = $this->actingAs($this->student)->get(self::HOST.'/my-courses?tab=results')->assertOk()
+            ->assertSee('data-learn-tab="results"', false)->assertSee('data-results-summary="courses"', false)->getContent();
+        $this->assertSame([$enrollment], $this->ids($page, 'data-results-row'));
+        $this->assertStringNotContainsString('data-results-row="'.$foreign.'"', $page);
+        $this->assertMatchesRegularExpression('#'.preg_quote(__('lf.LF_my_learning_results_lessons_done')).'</dt>\s*<dd><strong>1/2</strong> <span>50%</span>#', $page);
+        $this->assertStringContainsString(__('lf.LF_my_learning_results_hours', ['hours' => 1, 'minutes' => 5]), $page);
+        $this->assertMatchesRegularExpression('#data-results-view="classes">\s*'.preg_quote(__('lf.LF_my_learning_results_view_classes')).'\s*<span class="student-products__tab-count">1</span>#', $page);
+
+        $classes = $this->actingAs($this->student)->get(self::HOST.'/my-courses?tab=results&view=classes')->assertOk()->getContent();
+        $this->assertSame([$cohort], $this->ids($classes, 'data-results-row'));
+        $this->assertMatchesRegularExpression('#'.preg_quote(__('lf.LF_my_learning_results_attendance')).'</dt>\s*<dd><strong>50%</strong>#', $classes);
+        $this->assertStringContainsString(__('lf.LF_my_learning_results_absent_count', ['count' => 1]), $classes);
+        $this->assertMatchesRegularExpression('#data-results-row="'.$cohort.'">.*?<td>2/3</td>\s*<td>1</td>\s*<td>1</td>#s', $classes);
+
+        // The account menu and the hub tile lead here; nothing about results is locked any more.
+        $this->assertStringContainsString('href="'.self::HOST.'/my-courses?tab=results"', $page);
+        $this->assertDoesNotMatchRegularExpression('#\sdata-coming-soon[\s>][^>]*>?(?:(?!</button>).)*'.preg_quote(__('lf.LF_student_site_my_results'), '#').'#s', $page);
+        $this->actingAs($this->user($this->customer, 'teacher'))->get(self::HOST.'/my-courses?tab=results')->assertForbidden();
+    }
+
     private function lessonUrl(int $enrollment, int $lesson): string
     {
         return self::HOST.'/my-courses/'.$enrollment.'/lessons/'.$lesson;
@@ -410,6 +465,9 @@ class LearnerMyLearningTest extends TestCase
     private function activity(int $version, int $lesson, string $title, string $type, int $order, array $extra = []): int
     {
         static $source = 95000;
+        if ($type === 'quiz' && ! isset($extra['assessment_quiz_version_id_snapshot'])) {
+            $extra += $this->quizSnapshot();
+        }
 
         return DB::table('core_course_template_version_activities')->insertGetId($extra + [
             'customer_id' => $this->customer, 'template_version_id' => $version, 'version_lesson_id' => $lesson,
@@ -417,6 +475,23 @@ class LearnerMyLearningTest extends TestCase
             'sort_order' => $order, 'is_required' => true, 'completion_rule' => 'view', 'unlock_rule_snapshot' => 'none',
             'created_at' => now(), 'updated_at' => now(),
         ]);
+    }
+
+    /** A published quiz version for a Quiz Activity (ADR-0032 D1; MariaDB checks the pair). */
+    private function quizSnapshot(): array
+    {
+        $quiz = DB::table('core_assessment_quizzes')->insertGetId([
+            'customer_id' => $this->customer, 'created_by' => $this->student->id, 'title' => 'Quiz', 'assessment_type' => 'exam', 'max_attempts' => 1,
+            'show_result_mode' => 'immediately', 'status' => 'draft', 'registration_open' => false, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $version = DB::table('core_assessment_quiz_versions')->insertGetId([
+            'customer_id' => $this->customer, 'quiz_id' => $quiz, 'version_no' => 1, 'title' => 'Quiz', 'assessment_type' => 'exam',
+            'max_attempts' => 1, 'show_result_mode' => 'immediately', 'total_points' => 1, 'question_count' => 1, 'sections_snapshot' => '[]',
+            'published_by' => $this->student->id, 'published_at' => now(), 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('core_assessment_quizzes')->where('id', $quiz)->update(['status' => 'published', 'current_version_id' => $version]);
+
+        return ['assessment_quiz_id_snapshot' => $quiz, 'assessment_quiz_version_id_snapshot' => $version];
     }
 
     private function mediaFile(string $name, string $type, string $mime): int

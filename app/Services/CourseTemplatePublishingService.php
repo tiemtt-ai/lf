@@ -404,8 +404,20 @@ class CourseTemplatePublishingService
             ->whereIn('owner_id', $activities->pluck('id'))
             ->whereIn('usage_type', $uploadedTypes)
             ->get()->groupBy('owner_id');
+        // ADR-0032 D1: freeze the quiz's current version; the shared lock keeps it from being archived or republished
+        // until this Version is written.
+        $quizIds = $activities->where('activity_type', 'quiz')->pluck('assessment_quiz_id')->filter()->unique();
+        $quizzes = $quizIds->isEmpty() ? collect() : DB::table('core_assessment_quizzes')
+            ->where('customer_id', $customerId)->whereIn('id', $quizIds)->sharedLock()
+            ->get(['id', 'status', 'current_version_id'])->keyBy('id');
 
         foreach ($activities as $activity) {
+            $quiz = $activity->activity_type === 'quiz' ? $quizzes->get((int) $activity->assessment_quiz_id) : null;
+            if ($activity->activity_type === 'quiz' && (! $quiz || $quiz->status !== 'published' || ! $quiz->current_version_id)) {
+                throw ValidationException::withMessages(['publish' => __('lf.LF_course_template_publish_integrity_activity_quiz_unavailable', [
+                    'activity' => $activity->title, 'lesson' => '',
+                ])]);
+            }
             $this->assertMapped(
                 $lessonMap,
                 $activity->template_lesson_id,
@@ -435,7 +447,8 @@ class CourseTemplatePublishingService
                 'media_file_id' => $mediaUsage?->media_file_id,
                 'external_video_url_snapshot' => $activity->external_video_url,
                 'live_class_url_snapshot' => $activity->live_class_url,
-                'assessment_quiz_id_snapshot' => $activity->assessment_quiz_id,
+                'assessment_quiz_id_snapshot' => $quiz?->id,
+                'assessment_quiz_version_id_snapshot' => $quiz?->current_version_id,
                 'duration_seconds' => $activity->duration_seconds,
                 'estimated_duration_seconds_snapshot' => $activity->estimated_duration_seconds,
                 'available_anytime' => $activity->available_anytime,

@@ -5,7 +5,7 @@
   "default_locale": "vi",
   "fallback_locale": "en",
   "source_of_truth": "docs/LF-INDEX.md",
-  "document_count": 346,
+  "document_count": 348,
   "documents": [
     {
       "path": "LF-Core-Overview.md",
@@ -1583,6 +1583,92 @@
         "core/LF-Core-Course.md",
         "business/LF-Navigation.md",
         "platform/LF-Media.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "adr/ADR-0031-Learner-Learning-Results.md",
+      "title": "ADR-0031 — Learner Learning Results",
+      "area": "adr",
+      "document_type": "adr",
+      "document_status": "Approved",
+      "implementation_status": "Implemented",
+      "metadata_complete": true,
+      "authority": "architecture_decision",
+      "canonical_for": [],
+      "topics": [
+        "course",
+        "learner-portal",
+        "progress",
+        "assessment",
+        "attendance"
+      ],
+      "keywords": {
+        "vi": [
+          "kết quả học tập",
+          "chuyên cần",
+          "điểm bài thi"
+        ],
+        "en": [
+          "learning results",
+          "attendance",
+          "test scores"
+        ]
+      },
+      "identifiers": [
+        "LearnerResultsService",
+        "core_course_progress",
+        "core_liveclass_attendances",
+        "core_assessment_attempts"
+      ],
+      "related_documents": [
+        "adr/ADR-0030-Learner-Course-Delivery-And-Progress.md",
+        "adr/ADR-0025-Assessment-Simple-Administration.md",
+        "business/LF-Navigation.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "adr/ADR-0032-Course-Quiz-Activity.md",
+      "title": "ADR-0032 — Course Quiz Activity",
+      "area": "adr",
+      "document_type": "adr",
+      "document_status": "Approved",
+      "implementation_status": "Implemented",
+      "metadata_complete": true,
+      "authority": "architecture_decision",
+      "canonical_for": [],
+      "topics": [
+        "course",
+        "assessment",
+        "progress",
+        "learner-portal"
+      ],
+      "keywords": {
+        "vi": [
+          "bài kiểm tra trong khóa",
+          "hoạt động quiz",
+          "chốt phiên bản đề"
+        ],
+        "en": [
+          "quiz activity",
+          "course quiz",
+          "quiz version snapshot"
+        ]
+      },
+      "identifiers": [
+        "assessment_quiz_version_id_snapshot",
+        "core_assessment_attempts",
+        "core_course_template_version_activities",
+        "CourseProgressRecorder"
+      ],
+      "related_documents": [
+        "adr/ADR-0025-Assessment-Simple-Administration.md",
+        "adr/ADR-0030-Learner-Course-Delivery-And-Progress.md",
+        "database/assessment/core_assessment_attempts.md",
+        "database/course/core_course_template_version_activities.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"

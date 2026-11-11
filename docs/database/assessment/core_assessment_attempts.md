@@ -125,6 +125,46 @@ FOREIGN KEY (user_id) REFERENCES users(id);
 Khoá ngoại tới Enrollment / Product / Template Version / Version Activity thêm
 khi làm phần gắn khoá học. Phiên bản thuộc đúng `quiz_id` do ứng dụng kiểm.
 
+## Amendment 2026-11-11 (Approved, [ADR-0032](../../adr/ADR-0032-Course-Quiz-Activity.md)) — lần làm trong khóa học
+
+* Nguồn quyền Enrollment: `enrollment_id`, `product_id`, `template_version_id`
+  (= `version_id` của Enrollment), `version_activity_id` đều có giá trị;
+  `quiz_registration_id` NULL. `quiz_id` / `quiz_version_id` lấy từ
+  `assessment_quiz_id_snapshot` / `assessment_quiz_version_id_snapshot` của Version
+  Activity; `user_id` = `student_id` của Enrollment. Ứng dụng kiểm Product,
+  Template Version khớp Enrollment và Version Activity thuộc Template Version đó.
+* **Bắt đầu**: khóa dòng Enrollment; trả lại lần `in_progress` của cùng
+  Enrollment + Version Activity nếu có; nếu không, kiểm số lần đã có
+  `< max_attempts` của phiên bản đã chốt; `attempt_no` = số lần đã có + 1. Không có
+  bộ đếm riêng.
+* Lần làm có nguồn ghi danh để NULL cả bốn cột ngữ cảnh khóa học.
+* Học viên đọc lần làm của mình theo `user_id`; luật chấm như cũ (ADR-0027).
+
+```sql
+CHECK chk_asm_att_course_ctx (
+    enrollment_id IS NULL
+    OR (product_id IS NOT NULL AND template_version_id IS NOT NULL AND version_activity_id IS NOT NULL)
+);
+CHECK chk_asm_att_registration_ctx (
+    quiz_registration_id IS NULL
+    OR (product_id IS NULL AND template_version_id IS NULL AND version_activity_id IS NULL)
+);
+UNIQUE uk_asm_att_enrollment_no (customer_id, enrollment_id, version_activity_id, attempt_no);
+UNIQUE uk_asm_att_enrollment_open (customer_id, enrollment_id, version_activity_id, in_progress_flag);
+FOREIGN KEY fk_asm_att_enrollment (enrollment_id, customer_id)
+    REFERENCES core_course_enrollments (id, customer_id) ON DELETE RESTRICT;
+FOREIGN KEY fk_asm_att_version_activity (version_activity_id, customer_id)
+    REFERENCES core_course_template_version_activities (id, customer_id) ON DELETE RESTRICT;
+FOREIGN KEY fk_asm_att_product (product_id) REFERENCES core_course_products (id) ON DELETE RESTRICT;
+FOREIGN KEY fk_asm_att_template_version (template_version_id)
+    REFERENCES core_course_template_versions (id) ON DELETE RESTRICT;
+```
+
+`uk_asm_att_enrollment_open` cũng là chỉ mục tra cứu theo Enrollment + Activity.
+Product và Template Version dùng khóa ngoại một cột vì hai bảng chưa có
+`UNIQUE (id, customer_id)`; tenant được giữ qua khóa ngoại Enrollment và kiểm ứng
+dụng. Dữ liệu hiện có không có lần làm gắn khóa học.
+
 ## Sample Data
 
 `id=3000, customer_id=1, quiz_id=2000, quiz_version_id=2500, quiz_registration_id=2700, user_id=100, attempt_no=1, status=submitted, grading_status=pending, submit_reason=student, started_at=2026-11-10T02:00:00Z, deadline_at=2026-11-10T03:00:00Z, submitted_at=2026-11-10T02:45:00Z, time_spent_seconds=2700, score=62.50, max_score=100.00`

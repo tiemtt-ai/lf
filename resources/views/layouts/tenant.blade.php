@@ -18,7 +18,7 @@
         $links = [
             ['label' => __('lf.LF_navigation_menu_public_home'), 'route' => 'public.home', 'active' => 'public.home'],
             ['label' => __('lf.LF_navigation_menu_public_courses'), 'route' => 'tenant.courses.index', 'active' => 'tenant.courses.*'],
-            ['label' => __('lf.LF_navigation_menu_public_assessments'), 'route' => 'tenant.assessments', 'active' => $studentMode ? ['tenant.assessments', 'student.assessments.*'] : 'tenant.assessments'],
+            ['label' => __('lf.LF_navigation_menu_public_assessments'), 'route' => 'tenant.assessments', 'active' => $studentMode && ! $__env->hasSection('student_course_context') ? ['tenant.assessments', 'student.assessments.*'] : 'tenant.assessments'],
             ['label' => __('lf.LF_navigation_menu_public_services'), 'route' => 'public.services', 'active' => 'public.services'],
         ];
         $more = [
@@ -82,10 +82,9 @@
                                         {!! $icon($hubTab) !!}<span>{{ __('lf.LF_my_learning_tab_'.$hubTab) }}</span>
                                     </a>
                                 @endforeach
-                                <button type="button" class="sb2b-popover__locked" data-coming-soon aria-disabled="true">
+                                <a @class(['is-active' => $learningTab === 'results']) href="{{ route('student.courses.index', ['tab' => 'results']) }}">
                                     {!! $icon('results') !!}<span>{{ __('lf.LF_student_site_my_results') }}</span>
-                                    <span class="sb2b-soon">{{ __('lf.LF_student_site_coming_soon_badge') }}</span>
-                                </button>
+                                </a>
                                 <a @class(['is-active' => request()->routeIs('student.learning-history')]) href="{{ route('student.learning-history') }}">
                                     {!! $icon('history') !!}<span>{{ __('lf.LF_navigation_menu_student_learning_history') }}</span>
                                 </a>

@@ -1,12 +1,12 @@
 # ADR-0030 — Learner Course Delivery And Progress Recording
 
-Version: 1.0
+Version: 1.1
 
 Status: Approved
 
 Implementation Status: Implemented
 
-Last Updated: 2026-11-10
+Last Updated: 2026-11-11
 
 Proposal Date: 2026-11-10
 
@@ -168,10 +168,11 @@ Version Activity dùng từ vựng của Template; bảng progress dùng từ v�
 * Lesson Progress `completed` là đầu vào của điều kiện mở bài hiện có (ADR-0015). Không đổi
   cách `VersionLessonAccessService` đọc.
 
-## D4. Quan tâm (Favorite) — hoãn
+## D4. Quan tâm (Favorite) — đã làm 2026-11-11
 
-Owner chọn Q4 = B: chưa làm trong Đợt 2. Thiết kế dưới đây giữ để làm sau, khi trang
-danh sách khóa học công khai dùng dữ liệu thật:
+Owner chọn Q4 = B: chưa làm trong Đợt 2, làm khi trang danh sách khóa học công khai dùng
+dữ liệu thật. Điều kiện đó đạt ngày 2026-11-11 (`TenantCourseCatalogService`); Owner bảo
+"làm tiếp việc còn lại" và D4 được làm đúng thiết kế dưới đây:
 
 ```text
 POST   /my-courses/favorites/{product}
@@ -182,6 +183,10 @@ DELETE /my-courses/favorites/{product}
   bấm hai lần không lỗi.
 * Favorite không đồng nghĩa Enrollment (Guardrails Rule 6). Tab "Quan tâm" của "Khóa học
   của tôi" liệt kê Product đã đánh dấu, có hoặc chưa ghi danh.
+* Làm rõ khi triển khai: "Product `active` của tenant" nghĩa là Product đang trên catalogue
+  (`public`, trong thời gian hiển thị) hoặc Product học viên đang có Enrollment khác
+  `cancelled` (khóa riêng đang học vẫn đánh dấu được). Bỏ đánh dấu luôn được, kể cả khi
+  Product đã rời catalogue. Tab Quan tâm chỉ hiện Product còn thỏa điều kiện này.
 
 ## D5. Không đổi
 
@@ -272,3 +277,19 @@ Owner duyệt 2026-11-10 ("Duyệt theo đề xuất"), chọn đúng các đề
   (`test_a_join_activity_follows_attendance_both_ways`), `tests/js/learner-lesson.test.mjs`,
   `tests/Integration/CourseProgressRecorderMariaDbTest.php` (bốn sự kiện đồng thời, chạy trên
   MariaDB 11.4 tạm).
+
+# Implementation record — 2026-11-11 (D4 Quan tâm)
+
+* `POST` / `DELETE /my-courses/favorites/{product}` (`LearnerCourseFavoriteController`,
+  chỉ học viên của tenant): `insertOrIgnore` với `source = website`, không tạo Enrollment;
+  trả JSON cho script, form thường thì quay lại trang.
+* `TenantCourseCatalogService::favoritable`, `favorites` (mới đánh dấu trước),
+  `favoriteIds`; thẻ catalogue có `favorite`.
+* Nút ♡ (`tenant/partials/favorite-button`) trên thẻ `/courses` và trang chủ, trang chi
+  tiết khóa học (có chữ "Quan tâm / Bỏ quan tâm") và thẻ khóa ở "Khóa học của tôi";
+  `student-site.js` gửi nền và đổi mọi nút của cùng Product. Khách và nhân viên không thấy nút.
+* "Khóa học của tôi" › Khóa học có tab "Quan tâm" (`view=favorite`) hiện thẻ catalogue.
+  Lớp học và Bài thi vẫn khóa "Quan tâm" và ♡ (đề thi không phải Product).
+* Test: `tests/Feature/TenantWebsiteUiTest.php` (`test_students_mark_courses_quan_tam_without_enrolling`,
+  `test_quan_tam_is_for_the_tenants_own_students_only`), `tests/Feature/LearnerMyLearningTest.php`;
+  chạy cả trên MariaDB 11.4 tạm.

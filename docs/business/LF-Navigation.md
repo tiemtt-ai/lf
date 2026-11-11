@@ -706,7 +706,7 @@ chưa có trang thì hiện nhưng khóa, bấm vào chỉ báo "Sắp ra mắt"
 ```text
 Thanh menu    Home · Courses · Assessments · Services · Giới thiệu ▾ (About, Teachers, Contact)
 Tài khoản ▾   Khóa học của tôi · Lớp học của tôi · Bài thi của tôi ·
-              Kết quả học tập (khóa) · Learning History · AI Tutor ·
+              Kết quả học tập · Learning History · AI Tutor ·
               Thông tin cá nhân (Profile) · Đăng xuất
 Ngôn ngữ ▾    Tiếng Việt · English
 Khách         thanh menu như trên + Đăng nhập
@@ -714,8 +714,10 @@ Footer        thông tin đơn vị, liên hệ, Hỗ trợ (Hỏi đáp, Quy ch
 Nút nổi       AI Speak (khóa), lên đầu trang
 ```
 
-Trong "Khóa học của tôi": ô Kết quả học tập, tab Quan tâm, nút ♡, Đăng ký lại
-khóa hết hạn và Tư vấn 1:1 của lớp đều khóa. "Lọc" tìm theo tên và danh mục
+Trong "Khóa học của tôi": Đăng ký lại khóa hết hạn, Tư vấn 1:1 của lớp, tab Quan tâm và
+nút ♡ của Lớp học / Bài thi đều khóa. Ô và mục menu "Kết quả học tập" mở
+`/my-courses?tab=results` từ 2026-11-11 (ADR-0031). Quan tâm của Khóa học dùng
+được từ 2026-11-11 (ADR-0030 D4). "Lọc" tìm theo tên và danh mục
 trong nhóm đang xem; số đếm ở tab không đổi theo bộ lọc.
 
 ---
@@ -773,7 +775,13 @@ Quy tắc:
 * Đợt 2 (ADR-0030): `/my-courses/{enrollment}/lessons/{lesson}` là trang bài học
   (Activity theo thứ tự lớp, phát video / âm thanh / video nhúng, mở tài liệu ở tab mới,
   bài trước / bài tiếp); chi tiết khóa có nút "Học tiếp" và liên kết tới bài đang mở.
-* Chưa làm: "Quan tâm" (Favorite, ADR-0030 D4 hoãn), Kết quả học tập.
+* "Quan tâm" (ADR-0030 D4, 2026-11-11): `/my-courses?tab=courses&view=favorite` hiện thẻ
+  catalogue của Product đã đánh dấu (đang trên catalogue hoặc đang ghi danh), mới đánh dấu
+  trước; nút ♡ ở thẻ `/courses`, trang chủ, trang chi tiết và thẻ khóa của tôi. Không tạo
+  Enrollment.
+* "Kết quả học tập" (ADR-0031, 2026-11-11): `/my-courses?tab=results&view=courses|classes|exams`,
+  mỗi nhóm một thẻ tổng hợp và một bảng; cùng phạm vi và cách tính chuyên cần như trên. Điểm
+  bài thi chỉ dùng lần làm học viên được xem điểm (ADR-0025 D12), còn lại "Chưa công bố".
 
 ---
 
@@ -789,7 +797,7 @@ Quy tắc:
 > giáo viên lấy từ Version; giá bán theo `CourseProductV2::sellingPrice` khi khuyến mại đang
 > chạy. Học viên đã có Enrollment (khác `cancelled`) thấy "Vào học" tới Khóa học của tôi
 > hoặc lớp. Chưa có luồng tự đăng ký/mua: nút "Đăng ký" hiện "Sắp ra mắt" khi còn trong
-> thời gian đăng ký; "Quan tâm" vẫn hoãn (ADR-0030 D4).
+> thời gian đăng ký; học viên bấm ♡ để đánh dấu "Quan tâm" (ADR-0030 D4).
 
 ---
 

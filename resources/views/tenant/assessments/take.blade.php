@@ -2,7 +2,15 @@
 
 @section('title', $version->title.' | '.($tenant?->name ?? __('lf.LF_common_brand_student_name')))
 
+{{-- A course quiz belongs to "Khóa học của tôi", not to the "Bài đánh giá" menu (ADR-0032 D4). --}}
+@if ($course)
+    @section('student_course_context', '1')
+@endif
+
 @section('content')
+@if ($course)
+    <a class="lf-exam-back" href="{{ $course['back'] }}">← {{ __('lf.LF_my_learning_quiz_back_lesson') }}</a>
+@endif
 @php
     $trim = fn ($value) => rtrim(rtrim(number_format((float) $value, 2, '.', ''), '0'), '.');
     $lastSection = null;

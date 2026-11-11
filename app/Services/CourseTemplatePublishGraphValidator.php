@@ -228,6 +228,7 @@ class CourseTemplatePublishGraphValidator
             ->whereIn('usages.owner_id', $activities->pluck('id'))
             ->select('usages.owner_id', 'usages.customer_id as usage_customer_id', 'usages.media_file_id', 'usages.usage_type', 'usages.status as usage_status', 'media.id as resolved_media_id', 'media.customer_id as media_customer_id', 'media.file_type', 'media.mime_type', 'media.extension', 'media.status as media_status')
             ->get()->groupBy('owner_id');
+        $quizzes = $this->quizzes($customerId, $activities);
         $parents = [];
         foreach ($activities as $activity) {
             $lesson = $lessons->get($activity->template_lesson_id);
@@ -291,7 +292,13 @@ class CourseTemplatePublishGraphValidator
                 $this->add($issues, 'activity_source', 'content', $context, $fragment);
             }
             if ($type === 'quiz') {
-                $this->add($issues, 'activity_quiz_unavailable', 'content', $context, $fragment);
+                // ADR-0032 D1: the quiz must be published now, since publish freezes its current version.
+                $quiz = $quizzes->get((int) $activity->assessment_quiz_id);
+                if (! $quiz || $quiz->status !== 'published' || ! $quiz->current_version_id) {
+                    $this->add($issues, 'activity_quiz_unavailable', 'content', $context, $fragment);
+                } elseif ((bool) $activity->is_preview || ($activity->completion_rule === 'pass' && $quiz->show_result_mode === 'hidden')) {
+                    $this->add($issues, 'activity_quiz_rules', 'content', $context, $fragment);
+                }
             }
 
             $activityMedia = $mediaByActivity->get($activity->id, collect());
@@ -594,6 +601,7 @@ class CourseTemplatePublishGraphValidator
             $code === 'activity' && isset($context['activity']) => 'lf.LF_course_template_publish_integrity_activity_context',
             $code === 'activity_source' && isset($context['activity']) => 'lf.LF_course_template_publish_integrity_activity_source_context',
             $code === 'activity_quiz_unavailable' && isset($context['activity']) => 'lf.LF_course_template_publish_integrity_activity_quiz_unavailable',
+            $code === 'activity_quiz_rules' && isset($context['activity']) => 'lf.LF_course_template_publish_integrity_activity_quiz_rules',
             $code === 'activity_completion' && isset($context['activity']) => 'lf.LF_course_template_publish_integrity_activity_completion_context',
             $code === 'activity_unlock' && isset($context['activity']) => 'lf.LF_course_template_publish_integrity_activity_unlock_context',
             $code === 'activity_course_type' => 'lf.LF_course_template_publish_integrity_activity_course_type_context',
@@ -606,6 +614,22 @@ class CourseTemplatePublishGraphValidator
             $context,
             $fragment,
         ));
+    }
+
+    /** Quizzes the Quiz Activities point at, with the result mode of their current version (ADR-0032 D1). */
+    private function quizzes(int $customerId, Collection $activities): Collection
+    {
+        $ids = $activities->where('activity_type', 'quiz')->pluck('assessment_quiz_id')->filter()->map(fn ($id): int => (int) $id)->unique();
+        if ($ids->isEmpty()) {
+            return collect();
+        }
+
+        return DB::table('core_assessment_quizzes as z')
+            ->leftJoin('core_assessment_quiz_versions as v', function ($join): void {
+                $join->on('v.id', '=', 'z.current_version_id')->on('v.customer_id', '=', 'z.customer_id');
+            })
+            ->where('z.customer_id', $customerId)->whereIn('z.id', $ids)
+            ->get(['z.id', 'z.status', 'z.current_version_id', 'v.show_result_mode'])->keyBy('id');
     }
 
     private function lessonFragment(object $lesson): string

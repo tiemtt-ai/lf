@@ -301,6 +301,32 @@ class AssessmentLearnerTest extends TestCase
         $this->actingAs($this->student)->getJson($renew, self::AJAX)->assertStatus(409);
     }
 
+    public function test_learning_results_never_show_a_score_the_student_may_not_see_yet(): void
+    {
+        // Shown at once (2 / 10 while the essay waits), and hidden until graded.
+        [$shown] = $this->quiz(['title' => 'Đề công bố ngay', 'show_result_mode' => 'immediately']);
+        [$hidden] = $this->quiz(['title' => 'Đề chờ chấm', 'show_result_mode' => 'after_grading']);
+        $shownAttempt = $this->finishedAttempt($this->register($shown));
+        $hiddenAttempt = $this->finishedAttempt($this->register($hidden));
+        $this->assertSame(['submitted', 'submitted'], DB::table('core_assessment_attempts')->orderBy('id')->pluck('status')->all());
+
+        $page = $this->actingAs($this->student)->get(self::SITE.'/my-courses?tab=results&view=exams')->assertOk()
+            ->assertSee('data-results-summary="exams"', false)->getContent();
+        $this->assertMatchesRegularExpression('#'.preg_quote(__('lf.LF_my_learning_results_exams_submitted')).'</dt>\s*<dd><strong>2/2</strong>#', $page);
+        // Only the published score counts in the average.
+        $this->assertMatchesRegularExpression('#'.preg_quote(__('lf.LF_my_learning_results_average_latest')).'</dt>\s*<dd><strong>20%</strong>#', $page);
+        $this->assertStringContainsString('/assessments/attempts/'.$shownAttempt.'/result">2 / 10 (20%)</a>', $page);
+        $this->assertMatchesRegularExpression('#/assessments/attempts/'.$hiddenAttempt.'/result" class="student-results__note">'
+            .preg_quote(__('lf.LF_my_learning_results_not_published'), '#').'#', $page);
+        // Latest and best of the shown test; the hidden test's row carries no score at all.
+        $this->assertSame(2, substr_count($page, '2 / 10 (20%)'));
+        $hiddenRegistration = (int) DB::table('core_assessment_quiz_registrations')->where('quiz_id', $hidden)->value('id');
+        $this->assertMatchesRegularExpression('#data-results-row="'.$hiddenRegistration.'">((?!</tr>).)*</tr>#s', $page);
+        preg_match('#data-results-row="'.$hiddenRegistration.'">((?!</tr>).)*</tr>#s', $page, $row);
+        $this->assertStringNotContainsString('/ 10', $row[0]);
+        $this->assertStringNotContainsString('%', $row[0]);
+    }
+
     public function test_my_courses_lists_the_learners_tests_with_start_and_result(): void
     {
         [$quiz] = $this->quiz(['title' => 'Đề trong khóa của tôi']);

@@ -4,11 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Services\Assessment\AssessmentLearnerService;
 use App\Services\CourseProgressRecorder;
+use App\Services\LearnerCourseQuizService;
 use App\Services\LearnerMyLearningService;
+use App\Services\LearnerResultsService;
 use App\Services\LiveClassWhiteboardService;
 use App\Services\MediaService;
+use App\Services\TenantCourseCatalogService;
 use App\Support\TenantContext;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -22,8 +26,12 @@ class LearnerMyLearningController extends Controller
 {
     public const TABS = ['courses', 'classes', 'exams'];
 
+    /** "Kết quả học tập" (ADR-0031): one more hub tile, with its own page. */
+    public const RESULTS_TAB = 'results';
+
     private const VIEWS = [
-        'courses' => ['current', 'completed', 'expired'],
+        // `favorite` is "Quan tâm": Products, enrolled or not (ADR-0030 D4).
+        'courses' => ['current', 'completed', 'expired', 'favorite'],
         'classes' => ['current', 'completed'],
         'exams' => ['current', 'ended'],
     ];
@@ -33,18 +41,24 @@ class LearnerMyLearningController extends Controller
         private readonly LiveClassWhiteboardService $whiteboards,
         private readonly AssessmentLearnerService $assessments,
         private readonly CourseProgressRecorder $progress,
+        private readonly TenantCourseCatalogService $catalog,
+        private readonly LearnerResultsService $results,
+        private readonly LearnerCourseQuizService $quizzes,
     ) {}
 
     public function index(Request $request): View
     {
         $customerId = $this->customerId();
         $studentId = (int) $request->user()->id;
+        if ($request->query('tab') === self::RESULTS_TAB) {
+            return $this->results($customerId, $studentId, (string) $request->query('view'));
+        }
         $tab = in_array($request->query('tab'), self::TABS, true) ? $request->query('tab') : 'courses';
         $views = self::VIEWS[$tab];
         $view = in_array($request->query('view'), $views, true) ? $request->query('view') : $views[0];
 
         $groups = match ($tab) {
-            'courses' => $this->learning->courses($customerId, $studentId),
+            'courses' => $this->learning->courses($customerId, $studentId) + ['favorite' => $this->catalog->favorites($customerId, $studentId)],
             'classes' => $this->learning->classes($customerId, $studentId),
             'exams' => $this->examGroups($customerId, $studentId),
         };
@@ -66,8 +80,26 @@ class LearnerMyLearningController extends Controller
             'views' => $views,
             'groups' => $groups,
             'items' => $items,
+            'favoriteIds' => $tab === 'courses' ? $this->catalog->favoriteIds($customerId, $studentId) : collect(),
             'filter' => ['q' => $search, 'category' => $category, 'categories' => $categories,
                 'count' => ($search !== '' ? 1 : 0) + ($category !== '' ? 1 : 0)],
+        ]);
+    }
+
+    /** "Kết quả học tập": courses, classes or tests of the learner, each with a summary and a table (ADR-0031). */
+    private function results(int $customerId, int $studentId, string $view): View
+    {
+        $view = in_array($view, LearnerResultsService::VIEWS, true) ? $view : LearnerResultsService::VIEWS[0];
+        $all = collect(LearnerResultsService::VIEWS)->mapWithKeys(fn (string $name): array => [$name => $this->results->{$name}($customerId, $studentId)]);
+
+        return view('tenant.my-learning.results', [
+            'tenant' => TenantContext::customer(),
+            'liveSessions' => $this->whiteboards->learnerLiveSessions($customerId, $studentId),
+            'tab' => self::RESULTS_TAB,
+            'view' => $view,
+            'counts' => $all->map(fn (array $result): int => $result['rows']->count())->all(),
+            'rows' => $all[$view]['rows'],
+            'summary' => $all[$view]['summary'],
         ]);
     }
 
@@ -94,6 +126,7 @@ class LearnerMyLearningController extends Controller
             'tenant' => TenantContext::customer(),
             'lesson' => $page,
             'course' => $page->course,
+            'quizCards' => $this->quizzes->cards($customerId, $studentId, $enrollment, $page->activities),
             'liveSessions' => $page->course->cohort_id
                 ? $this->whiteboards->learnerLiveSessions($customerId, $studentId)->where('cohort_id', $page->course->cohort_id)->values()
                 : collect(),
@@ -122,6 +155,15 @@ class LearnerMyLearningController extends Controller
         return response()->json(['progress' => $this->progressPayload($row)]);
     }
 
+    /** Starts or resumes the attempt of a Quiz Activity (ADR-0032 D2), then opens the Kiểm tra attempt page. */
+    public function startQuiz(Request $request, int $enrollment, int $activity): RedirectResponse
+    {
+        $attempt = $this->quizzes->start($this->customerId(), (int) $request->user()->id, $enrollment, $activity);
+        abort_if($attempt === null, 403, __('lf.LF_my_learning_lesson_locked'));
+
+        return redirect()->route('student.assessments.attempts.show', $attempt->id);
+    }
+
     public function cohort(Request $request, int $cohort): View
     {
         $customerId = $this->customerId();
@@ -142,7 +184,8 @@ class LearnerMyLearningController extends Controller
     private function title(string $tab, object $item): string
     {
         return match ($tab) {
-            'courses' => (string) ($item->product_title ?: $item->version_title),
+            // A "Quan tâm" item is a catalogue card (title), the others are Enrollments.
+            'courses' => (string) (($item->product_title ?? null) ?: ($item->version_title ?? $item->title)),
             'classes' => $item->name.' '.($item->product_title ?: $item->version_title),
             'exams' => (string) $item->title,
         };

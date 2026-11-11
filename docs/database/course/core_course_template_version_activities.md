@@ -96,6 +96,37 @@ the four `available_*` snapshots must agree with the parent Version
 `live_class` Activity; `scheduled` → `available_anytime = 0`; `blended` →
 current rules. Publish fails closed on any inconsistency.
 
+Amendment 2026-11-11 (Approved, [ADR-0032](../../adr/ADR-0032-Course-Quiz-Activity.md)) —
+Quiz binding:
+
+| Field | Type | Null / Default | Meaning |
+| --- | --- | --- | --- |
+| `assessment_quiz_version_id_snapshot` | BIGINT UNSIGNED | nullable, after `assessment_quiz_id_snapshot` | Phiên bản đề (`current_version_id`) chốt lúc publish; bất biến. |
+
+* `assessment_quiz_id_snapshot` thôi là cột dự phòng: Quiz Activity có cả đề và
+  phiên bản; phiên bản thuộc đúng đề (ứng dụng kiểm lúc publish). Activity khác
+  để NULL cả hai.
+* Quiz Activity có `is_preview = 0`. `completion_rule` ∈ `submit`, `pass`,
+  `manual`; `pass` cần `completion_threshold` 1–100 và đề có
+  `show_result_mode <> 'hidden'`.
+
+```sql
+UNIQUE uk_cctva_tenant (id, customer_id);
+CHECK chk_cctva_quiz_ref (
+    (activity_type = 'quiz') = (assessment_quiz_version_id_snapshot IS NOT NULL)
+    AND (assessment_quiz_id_snapshot IS NULL) = (assessment_quiz_version_id_snapshot IS NULL)
+);
+FOREIGN KEY fk_cctva_quiz (assessment_quiz_id_snapshot, customer_id)
+    REFERENCES core_assessment_quizzes (id, customer_id) ON DELETE RESTRICT;
+FOREIGN KEY fk_cctva_quiz_version (assessment_quiz_version_id_snapshot, customer_id)
+    REFERENCES core_assessment_quiz_versions (id, customer_id) ON DELETE RESTRICT;
+```
+
+Đây là ngoại lệ có duyệt của luật "generic cross-domain reference không dùng FK":
+phiên bản đề là tài sản bất biến của Assessment nên khóa ngoại tenant được phép.
+Dữ liệu hiện có không có Version Activity `quiz`, nên CHECK áp dụng không cần
+chuyển dữ liệu.
+
 # Suggested Indexes
 
 ```sql

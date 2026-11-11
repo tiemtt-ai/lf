@@ -1717,3 +1717,84 @@
     font-size: 1.25rem;
     font-weight: 600;
 }
+
+/* "Quan tâm" (ADR-0030 D4): the heart of the B2B cards, also on catalogue cards and the course detail page. */
+.standard-b2b-site .student-favorite {
+    display: inline-flex;
+    margin: 0;
+}
+
+.standard-b2b-site .student-favorite .student-products__like {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border: 0;
+    border-radius: 7px;
+    background: transparent var(--sb2b-heart) center / 21px no-repeat;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.standard-b2b-site .student-favorite .student-products__like.is-liked {
+    background-image: var(--sb2b-heart-on);
+}
+
+.standard-b2b-site .student-favorite .student-products__like:hover,
+.standard-b2b-site .student-favorite .student-products__like:focus-visible {
+    background-color: #edf2ff;
+    outline: 2px solid #c8d5fb;
+    outline-offset: 2px;
+}
+
+.standard-b2b-site .student-favorite .student-products__like[aria-busy="true"] {
+    opacity: 0.5;
+    cursor: wait;
+}
+
+.standard-b2b-site .student-favorite .student-products__like.is-labeled {
+    width: auto;
+    height: auto;
+    min-height: 44px;
+    padding: 10px 16px 10px 40px;
+    border: 1px solid #d6e1f3;
+    border-radius: 8px;
+    background-position: 13px center;
+    color: #53627a;
+    font: inherit;
+    font-weight: 600;
+}
+
+.tenant-course-actions .student-favorite {
+    margin-left: auto;
+    align-self: center;
+}
+
+/* The B2B card rules place their heart absolutely (top/right); a catalogue card is also a .student-course-card. */
+.standard-b2b-site .student-favorite button.student-products__like {
+    position: static;
+    top: auto;
+    right: auto;
+}
+
+/* On a "Khóa học của tôi" card the heart sits above the card-wide link. */
+.standard-b2b-site .student-course-card .sb2b-course-badges .student-favorite {
+    position: relative;
+    z-index: 2;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+/* "Quan tâm" shows catalogue cards inside .student-products, whose B2B rule paints every link black. */
+.standard-b2b-site .student-favorite-grid .student-course-title a {
+    color: var(--student-text);
+}
+
+.standard-b2b-site .student-favorite-grid .student-button {
+    color: var(--student-surface);
+}
+
+.standard-b2b-site .student-favorite-grid .student-button.is-outline {
+    color: var(--student-primary-dark);
+}

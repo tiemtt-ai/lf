@@ -153,6 +153,8 @@ final class AssessmentResultController extends Controller
     {
         return $this->withHolder($this->grading->scoped($customerId, $user))
             ->leftJoin(Quizzes::VERSIONS_TABLE.' as v', 'v.id', '=', 'a.quiz_version_id')
+            // A course attempt shows its course (ADR-0032 D5).
+            ->leftJoin('core_course_products as cp', fn ($join) => $join->on('cp.id', '=', 'a.product_id')->on('cp.customer_id', '=', 'a.customer_id'))
             ->when($filters['tab'] === 'pending', fn ($query) => $query->where('a.grading_status', 'pending'))
             ->tap(fn ($query) => $this->graderFilter($query, $user, $filters['grader']))
             ->when($filters['keyword'] !== '', fn ($query) => $query->where(fn ($query) => $query
@@ -161,7 +163,7 @@ final class AssessmentResultController extends Controller
             ->when($filters['quiz_id'], fn ($query, $id) => $query->where('a.quiz_id', $id))
             ->when($filters['status'], fn ($query, $status) => $query->where('a.status', $status))
             ->select('a.*', 'z.title as quiz_title', 'z.created_by as quiz_created_by', 's.name as student_name', 's.email as student_email',
-                'v.version_no', 'v.pass_score_percentage', 'ga.assigned_to_user_id as holder_id', 'ga.status as holder_status', 'gu.name as holder_name')
+                'v.version_no', 'v.pass_score_percentage', 'cp.title as course_title', 'ga.assigned_to_user_id as holder_id', 'ga.status as holder_status', 'gu.name as holder_name')
             ->orderByRaw("CASE WHEN a.grading_status = 'pending' THEN 0 ELSE 1 END")
             ->orderByDesc('a.submitted_at')
             ->orderByDesc('a.id');

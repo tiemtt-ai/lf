@@ -2,6 +2,7 @@
 
 namespace App\Services\Assessment;
 
+use App\Services\CourseProgressRecorder;
 use App\Services\MediaService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -9,7 +10,8 @@ use Illuminate\Validation\ValidationException;
 use Throwable;
 
 /**
- * Attempts of the Kiểm tra module (ADR-0025 D8, D10): starting from a registration, saving answers, submitting with
+ * Attempts of the Kiểm tra module (ADR-0025 D8, D10): starting from a registration or, for a Quiz Activity of a course,
+ * from the Enrollment (ADR-0032 D2), saving answers, submitting with
  * server-side automatic grading, and the score totals that manual grading recalculates. Everything is graded from the
  * frozen version snapshot, never from the editable bank.
  *
@@ -27,6 +29,69 @@ final class AssessmentAttemptService
 
     /** Files per essay answer when the question allows them (ADR-0027 D5). */
     public const MAX_ATTACHMENTS = 3;
+
+    /**
+     * Starts (or resumes) a course attempt on a Quiz Activity (ADR-0032 D2), on the quiz version frozen when the course
+     * was published. Locks the Enrollment so attempts are counted once. The caller has already checked that the learner
+     * may learn the Activity now (VersionActivityAccessService / VersionLessonAccessService).
+     */
+    public function startForActivity(int $customerId, int $studentId, int $enrollmentId, int $versionActivityId): object
+    {
+        $attempt = DB::transaction(function () use ($customerId, $studentId, $enrollmentId, $versionActivityId): object {
+            $enrollment = DB::table('core_course_enrollments')->where('customer_id', $customerId)
+                ->where('student_id', $studentId)->where('id', $enrollmentId)->lockForUpdate()->first();
+            abort_if(! $enrollment, 404);
+            $activity = DB::table('core_course_template_version_activities')->where('customer_id', $customerId)
+                ->where('template_version_id', $enrollment->version_id)->where('id', $versionActivityId)
+                ->where('activity_type', 'quiz')->first();
+            abort_if(! $activity || ! $activity->assessment_quiz_version_id_snapshot, 404);
+            if ($enrollment->status === 'cancelled') {
+                throw ValidationException::withMessages(['attempt' => __('lf.LF_assessment_attempt_error_registration')]);
+            }
+
+            $open = DB::table(self::TABLE)->where('customer_id', $customerId)->where('enrollment_id', $enrollmentId)
+                ->where('version_activity_id', $versionActivityId)->where('status', 'in_progress')->first();
+            if ($open) {
+                return $open;
+            }
+
+            $version = DB::table(AssessmentQuizService::VERSIONS_TABLE)->where('customer_id', $customerId)
+                ->where('id', $activity->assessment_quiz_version_id_snapshot)->where('quiz_id', $activity->assessment_quiz_id_snapshot)->first();
+            if (! $version) {
+                throw ValidationException::withMessages(['attempt' => __('lf.LF_assessment_attempt_error_quiz')]);
+            }
+            $used = DB::table(self::TABLE)->where('customer_id', $customerId)->where('enrollment_id', $enrollmentId)
+                ->where('version_activity_id', $versionActivityId)->count();
+            if ($used >= (int) $version->max_attempts) {
+                throw ValidationException::withMessages(['attempt' => __('lf.LF_assessment_attempt_error_no_attempts')]);
+            }
+
+            $now = now();
+            $id = DB::table(self::TABLE)->insertGetId([
+                'customer_id' => $customerId,
+                'quiz_id' => $version->quiz_id,
+                'quiz_version_id' => $version->id,
+                'enrollment_id' => $enrollmentId,
+                'product_id' => $enrollment->product_id,
+                'template_version_id' => $enrollment->version_id,
+                'version_activity_id' => $versionActivityId,
+                'user_id' => $enrollment->student_id,
+                'attempt_no' => $used + 1,
+                'status' => 'in_progress',
+                'grading_status' => 'not_required',
+                'started_at' => $now,
+                'deadline_at' => $version->duration_minutes ? $now->copy()->addMinutes((int) $version->duration_minutes) : null,
+                'max_score' => $version->total_points,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+
+            return DB::table(self::TABLE)->find($id);
+        });
+        $this->courseProgress($attempt);
+
+        return $attempt;
+    }
 
     /**
      * Starts (or resumes) an attempt on the quiz's current version. Locks the registration so attempts are counted once.
@@ -277,6 +342,9 @@ final class AssessmentAttemptService
     {
         return DB::transaction(function () use ($customerId, $attemptId, $reason): object {
             $attempt = $this->lockOpen($customerId, $attemptId, false);
+            if ($reason === 'student') {
+                $this->assertEnrollmentKept($customerId, $attempt);
+            }
             $now = now();
             $questions = DB::table(AssessmentQuizPublishService::VERSION_QUESTIONS_TABLE)
                 ->where('customer_id', $customerId)->where('quiz_version_id', $attempt->quiz_version_id)->orderBy('sort_order')->get();
@@ -335,7 +403,9 @@ final class AssessmentAttemptService
                 'updated_at' => $now,
             ]);
             $this->recalculate($customerId, $attemptId);
-            $this->markExhausted($customerId, (int) $attempt->quiz_registration_id);
+            if ($attempt->quiz_registration_id) {
+                $this->markExhausted($customerId, (int) $attempt->quiz_registration_id);
+            }
 
             return DB::table(self::TABLE)->find($attemptId);
         });
@@ -387,6 +457,20 @@ final class AssessmentAttemptService
                 : null,
             'updated_at' => now(),
         ]);
+        $this->courseProgress($attempt);
+    }
+
+    /**
+     * A course attempt moves the learner's Activity Progress (ADR-0032 D3) once its own transaction has committed, so
+     * the Course Progress locks are never taken while the attempt row is held.
+     */
+    private function courseProgress(object $attempt): void
+    {
+        if (! $attempt->enrollment_id || ! $attempt->version_activity_id) {
+            return;
+        }
+        DB::afterCommit(fn () => app(CourseProgressRecorder::class)
+            ->quizChanged((int) $attempt->customer_id, (int) $attempt->enrollment_id, (int) $attempt->version_activity_id));
     }
 
     /** Snapshot-based automatic grading of one objective answer (no partial credit). */
@@ -448,8 +532,20 @@ final class AssessmentAttemptService
         if ($attempt->status !== 'in_progress' || ($checkDeadline && $late)) {
             throw ValidationException::withMessages(['attempt' => __('lf.LF_assessment_attempt_error_closed')]);
         }
+        if ($checkDeadline) {
+            $this->assertEnrollmentKept($customerId, $attempt);
+        }
 
         return $attempt;
+    }
+
+    /** A course attempt takes no answer once its Enrollment is cancelled; only the timeout still closes it (ADR-0032 D2). */
+    private function assertEnrollmentKept(int $customerId, object $attempt): void
+    {
+        if ($attempt->enrollment_id && DB::table('core_course_enrollments')->where('customer_id', $customerId)
+            ->where('id', $attempt->enrollment_id)->value('status') === 'cancelled') {
+            throw ValidationException::withMessages(['attempt' => __('lf.LF_assessment_attempt_error_registration')]);
+        }
     }
 
     /** @param  array<string, mixed>  $values */

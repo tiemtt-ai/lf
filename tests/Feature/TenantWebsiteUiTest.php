@@ -183,6 +183,77 @@ class TenantWebsiteUiTest extends TestCase
             ->assertSeeText(__('lf.LF_course_card_public_registration_closed'));
     }
 
+    public function test_students_mark_courses_quan_tam_without_enrolling(): void
+    {
+        $customerId = $this->createTenant();
+        $student = $this->createUser($customerId, 'student');
+        $public = $this->createCatalogCourse($customerId, 'Khoá công khai');
+        $private = $this->createCatalogCourse($customerId, 'Khoá riêng chưa học', ['visibility' => 'private']);
+        $studied = $this->createCatalogCourse($customerId, 'Khoá riêng đang học', ['visibility' => 'private']);
+        $inactive = $this->createCatalogCourse($customerId, 'Khoá ngừng bán', ['status' => 'inactive']);
+        $enrollment = DB::table('core_course_enrollments')->insertGetId([
+            'customer_id' => $customerId, 'product_id' => $studied['product'], 'version_id' => $studied['version'],
+            'student_id' => $student->id, 'source' => 'admin', 'enrolled_at' => now(), 'status' => 'active',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $url = fn (array $course) => 'https://tenant-a.localhost/my-courses/favorites/'.$course['product'];
+        $json = ['Accept' => 'application/json', 'X-Requested-With' => 'XMLHttpRequest'];
+
+        // Marking twice keeps one row and never enrolls.
+        $this->actingAs($student)->postJson($url($public), [], $json)->assertOk()->assertExactJson(['favorite' => true]);
+        $this->actingAs($student)->postJson($url($public), [], $json)->assertOk();
+        $this->assertSame(1, DB::table('core_course_favorites')->where('product_id', $public['product'])->count());
+        $this->assertSame('website', DB::table('core_course_favorites')->value('source'));
+        $this->assertFalse(DB::table('core_course_enrollments')->where('product_id', $public['product'])->exists());
+
+        // Only an active Product on the catalogue, or one the learner studies.
+        $this->actingAs($student)->postJson($url($private), [], $json)->assertNotFound();
+        $this->actingAs($student)->postJson($url($inactive), [], $json)->assertNotFound();
+        $this->actingAs($student)->post($url($studied))->assertRedirect();
+
+        $catalogue = $this->actingAs($student)->get('https://tenant-a.localhost/courses')->assertOk()->getContent();
+        $this->assertMatchesRegularExpression('#data-catalog-course="'.$public['product'].'".*?data-favorite="'.$public['product'].'" aria-pressed="true"#s', $catalogue);
+        $this->actingAs($student)->get('https://tenant-a.localhost/courses/'.$public['slug'])->assertOk()
+            ->assertSee('aria-pressed="true"', false)->assertSeeText(__('lf.LF_my_learning_favorite_remove'));
+        $this->actingAs($student)->get('https://tenant-a.localhost/my-courses?tab=courses')->assertOk()
+            ->assertSee('data-learn-course="'.$enrollment.'"', false)
+            ->assertSee('data-favorite="'.$studied['product'].'" aria-pressed="true"', false);
+
+        $favorites = $this->actingAs($student)->get('https://tenant-a.localhost/my-courses?tab=courses&view=favorite')->assertOk()
+            ->assertSee('data-learn-view="favorite"', false)->getContent();
+        $this->assertStringContainsString('data-catalog-course="'.$public['product'].'"', $favorites);
+        $this->assertStringContainsString('data-catalog-course="'.$studied['product'].'"', $favorites);
+        $this->assertStringNotContainsString('Khoá riêng chưa học', $favorites);
+        // Last marked first.
+        $this->assertLessThan(strpos($favorites, 'Khoá công khai'), strpos($favorites, 'Khoá riêng đang học'));
+
+        // Unmarking is always allowed, also twice.
+        $this->actingAs($student)->deleteJson($url($public), [], $json)->assertOk()->assertExactJson(['favorite' => false]);
+        $this->actingAs($student)->deleteJson($url($public), [], $json)->assertOk();
+        $this->assertSame([$studied['product']], DB::table('core_course_favorites')->pluck('product_id')->map(fn ($id) => (int) $id)->all());
+        $this->actingAs($student)->get('https://tenant-a.localhost/my-courses?tab=courses&view=favorite')->assertOk()
+            ->assertDontSee('data-catalog-course="'.$public['product'].'"', false);
+    }
+
+    public function test_quan_tam_is_for_the_tenants_own_students_only(): void
+    {
+        $customerId = $this->createTenant();
+        $course = $this->createCatalogCourse($customerId, 'Khoá công khai');
+        $otherTenant = DB::table('saas_customers')->insertGetId([
+            'name' => 'Tenant B', 'slug' => 'tenant-b', 'subdomain' => 'tenant-b', 'status' => 'active', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $outsider = $this->createUser($otherTenant, 'student');
+
+        $this->post('https://tenant-a.localhost/my-courses/favorites/'.$course['product'])->assertRedirect();
+        $this->actingAs($this->createUser($customerId, 'teacher'))
+            ->postJson('https://tenant-a.localhost/my-courses/favorites/'.$course['product'])->assertStatus(403);
+        $this->actingAs($outsider)->postJson('https://tenant-b.localhost/my-courses/favorites/'.$course['product'])->assertNotFound();
+        $this->assertFalse(DB::table('core_course_favorites')->exists());
+
+        // Visitors and staff see no heart.
+        $this->get('https://tenant-a.localhost/courses')->assertOk()->assertDontSee('data-favorite-form', false);
+    }
+
     /** @return array{product: int, version: int, slug: string} */
     private function createCatalogCourse(int $customerId, string $title, array $product = [], string $versionStatus = 'published'): array
     {

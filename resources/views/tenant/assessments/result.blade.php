@@ -2,6 +2,11 @@
 
 @section('title', __('lf.LF_assessment_learner_result_title').' | '.$version->title)
 
+{{-- A course quiz belongs to "Khóa học của tôi", not to the "Bài đánh giá" menu (ADR-0032 D4). --}}
+@if ($course)
+    @section('student_course_context', '1')
+@endif
+
 @section('content')
 @php
     $trim = fn ($value) => rtrim(rtrim(number_format((float) $value, 2, '.', ''), '0'), '.');
@@ -10,7 +15,11 @@
     $lastPassage = null;
     $graded = $attempt->status === 'graded';
 @endphp
-    <a class="lf-exam-back" href="{{ route('student.assessments.mine') }}">← {{ __('lf.LF_assessment_learner_tab_mine') }}</a>
+    @if ($course)
+        <a class="lf-exam-back" href="{{ $course['back'] }}">← {{ __('lf.LF_my_learning_quiz_back_lesson') }}</a>
+    @else
+        <a class="lf-exam-back" href="{{ route('student.assessments.mine') }}">← {{ __('lf.LF_assessment_learner_tab_mine') }}</a>
+    @endif
 
     @if (session('success'))
         <div class="student-alert is-success" role="status">{{ session('success') }}</div>
@@ -56,7 +65,17 @@
         </dl>
 
         <div class="tenant-course-actions">
-            <a class="student-button is-outline" href="{{ route('student.assessments.mine') }}">{{ __('lf.LF_assessment_learner_tab_mine') }}</a>
+            @if ($course)
+                <a class="student-button is-outline" href="{{ $course['back'] }}">{{ __('lf.LF_my_learning_quiz_back_lesson') }}</a>
+                @if ($course['retry'])
+                    <form method="POST" action="{{ $course['retry'] }}">
+                        @csrf
+                        <button class="student-button" type="submit">{{ __('lf.LF_assessment_learner_retry') }}</button>
+                    </form>
+                @endif
+            @else
+                <a class="student-button is-outline" href="{{ route('student.assessments.mine') }}">{{ __('lf.LF_assessment_learner_tab_mine') }}</a>
+            @endif
             @if ($canRetry)
                 <form method="POST" action="{{ route('student.assessments.start', $attempt->quiz_registration_id) }}">
                     @csrf

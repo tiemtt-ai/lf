@@ -5073,6 +5073,56 @@
           ],
           "unique": true,
           "type": "btree"
+        },
+        {
+          "columns": [
+            "enrollment_id",
+            "customer_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "product_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "template_version_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "version_activity_id",
+            "customer_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "enrollment_id",
+            "version_activity_id",
+            "attempt_no"
+          ],
+          "unique": true,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "enrollment_id",
+            "version_activity_id",
+            "in_progress_flag"
+          ],
+          "unique": true,
+          "type": "btree"
         }
       ],
       "foreign_keys": [
@@ -5136,6 +5186,54 @@
           ],
           "on_update": "restrict",
           "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "enrollment_id",
+            "customer_id"
+          ],
+          "foreign_table": "core_course_enrollments",
+          "foreign_columns": [
+            "id",
+            "customer_id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "product_id"
+          ],
+          "foreign_table": "core_course_products",
+          "foreign_columns": [
+            "id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "template_version_id"
+          ],
+          "foreign_table": "core_course_template_versions",
+          "foreign_columns": [
+            "id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "version_activity_id",
+            "customer_id"
+          ],
+          "foreign_table": "core_course_template_version_activities",
+          "foreign_columns": [
+            "id",
+            "customer_id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
         }
       ],
       "checks": [
@@ -5162,6 +5260,12 @@
         },
         {
           "expression": "`score_percentage` is null or `score_percentage` >= 0 and `score_percentage` <= 100"
+        },
+        {
+          "expression": "`enrollment_id` is null or `product_id` is not null and `template_version_id` is not null and `version_activity_id` is not null"
+        },
+        {
+          "expression": "`quiz_registration_id` is null or `product_id` is null and `template_version_id` is null and `version_activity_id` is null"
         }
       ],
       "triggers": [],
@@ -18583,6 +18687,14 @@
           ],
           "unique": false,
           "type": "btree"
+        },
+        {
+          "columns": [
+            "assessment_quiz_id",
+            "customer_id"
+          ],
+          "unique": false,
+          "type": "btree"
         }
       ],
       "foreign_keys": [
@@ -18626,6 +18738,19 @@
           "foreign_table": "core_course_template_activities",
           "foreign_columns": [
             "id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "assessment_quiz_id",
+            "customer_id"
+          ],
+          "foreign_table": "core_assessment_quizzes",
+          "foreign_columns": [
+            "id",
+            "customer_id"
           ],
           "on_update": "restrict",
           "on_delete": "restrict"
@@ -20182,6 +20307,15 @@
           "unsigned": false,
           "auto_increment": false,
           "generated": null
+        },
+        {
+          "name": "assessment_quiz_version_id_snapshot",
+          "type": "bigint",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
         }
       ],
       "primary_key": [
@@ -20290,6 +20424,30 @@
           ],
           "unique": true,
           "type": "btree"
+        },
+        {
+          "columns": [
+            "assessment_quiz_id_snapshot",
+            "customer_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "assessment_quiz_version_id_snapshot",
+            "customer_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "id",
+            "customer_id"
+          ],
+          "unique": true,
+          "type": "btree"
         }
       ],
       "foreign_keys": [
@@ -20347,11 +20505,40 @@
           ],
           "on_update": "restrict",
           "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "assessment_quiz_id_snapshot",
+            "customer_id"
+          ],
+          "foreign_table": "core_assessment_quizzes",
+          "foreign_columns": [
+            "id",
+            "customer_id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "assessment_quiz_version_id_snapshot",
+            "customer_id"
+          ],
+          "foreign_table": "core_assessment_quiz_versions",
+          "foreign_columns": [
+            "id",
+            "customer_id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
         }
       ],
       "checks": [
         {
           "expression": "json_valid(`metadata`)"
+        },
+        {
+          "expression": "`activity_type` = 'quiz' = (`assessment_quiz_version_id_snapshot` is not null) and `assessment_quiz_id_snapshot` is null = (`assessment_quiz_version_id_snapshot` is null)"
         }
       ],
       "triggers": [],
