@@ -730,6 +730,35 @@ class LiveClassWhiteboardTest extends TestCase
         $this->assertStringContainsString('data-live-meeting', $html);
     }
 
+    public function test_a_live_session_past_its_scheduled_end_is_completed_by_the_sweep(): void
+    {
+        Event::fake([LiveClassWhiteboardBroadcast::class]);
+        $setup = $this->setupClass();
+        // 16:00 on the Sessions' own clock. One Session ended at 15:30, one ends at 17:00, one is still only scheduled.
+        Carbon::setTestNow(Carbon::parse('2026-07-04 16:00:00', 'Asia/Ho_Chi_Minh'));
+        $over = $this->liveSession($setup, 'Over', '2026-07-04 14:00:00', '2026-07-04 15:30:00', status: 'live', teacher: $setup['teacher']);
+        $running = $this->liveSession($setup, 'Running', '2026-07-04 15:00:00', '2026-07-04 17:00:00', status: 'live', teacher: $setup['teacher']);
+        $planned = $this->liveSession($setup, 'Planned', '2026-07-04 13:00:00', '2026-07-04 14:00:00', teacher: $setup['teacher']);
+        $this->actingAs($setup['teacher'])->postJson(self::HOST."/teacher/live-sessions/{$over}/board/presence", ['client_id' => 'teacher-tab-1'])->assertOk();
+
+        $this->artisan('liveclass:complete-overdue')->expectsOutput('Completed 1 overdue session(s).')->assertSuccessful();
+
+        $row = DB::table('core_liveclass_sessions')->find($over);
+        $this->assertSame('completed', $row->status);
+        $this->assertSame('2026-07-04 15:30:00', (string) $row->actual_end_at);
+        $this->assertSame('live', DB::table('core_liveclass_sessions')->where('id', $running)->value('status'));
+        $this->assertSame('scheduled', DB::table('core_liveclass_sessions')->where('id', $planned)->value('status'));
+        $this->assertTrue(Event::dispatched(LiveClassWhiteboardBroadcast::class,
+            fn ($event): bool => $event->name === 'board.ended' && $event->sessionId === $over)->isNotEmpty());
+        $this->assertFalse(Cache::has("lf-wb:{$setup['customer']}:{$over}:lock"));
+
+        // Another tenant's filter touches nothing; a second run finds nothing left.
+        Carbon::setTestNow(Carbon::parse('2026-07-04 17:30:00', 'Asia/Ho_Chi_Minh'));
+        $this->artisan('liveclass:complete-overdue', ['--customer' => $setup['customer'] + 999])->expectsOutput('Completed 0 overdue session(s).');
+        $this->artisan('liveclass:complete-overdue')->expectsOutput('Completed 1 overdue session(s).');
+        $this->assertSame('completed', DB::table('core_liveclass_sessions')->where('id', $running)->value('status'));
+    }
+
     public function test_every_way_out_of_live_ends_the_board_and_clears_its_state(): void
     {
         Event::fake([LiveClassWhiteboardBroadcast::class]);

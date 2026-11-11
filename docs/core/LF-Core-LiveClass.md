@@ -1,12 +1,12 @@
 # LF-Core-LiveClass.md
 
-Version: 2.24
+Version: 2.25
 
 Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-11-10
+Last Updated: 2026-11-11
 
 Document Path: core/LF-Core-LiveClass.md
 
@@ -1097,6 +1097,13 @@ Giáo viên được phân công tự bắt đầu (`scheduled → live`) và k�
 (`live → completed`) buổi của mình qua `LiveClassSessionLifecycleService`, theo bảng
 chuyển trạng thái hiện có. Server từ chối bắt đầu ngoài ngày dự kiến của buổi theo
 múi giờ đã lưu của buổi. Huỷ buổi và đánh dấu vắng (`no_show`) vẫn là việc của admin.
+
+**Hết giờ là kết thúc (Owner 2026-11-11).** Buổi `live` đã qua `scheduled_end_at` (theo múi
+giờ của buổi) được hệ thống tự chuyển sang `completed` bằng lệnh
+`liveclass:complete-overdue` chạy mỗi phút, đi qua cùng lifecycle service; `actual_end_at`
+ghi bằng giờ kết thúc dự kiến (không sớm hơn `actual_start_at`). Chỉ áp dụng cho Cohort
+`active`. Buổi còn `scheduled` mà đã qua giờ không bị đổi: huỷ và `no_show` vẫn là việc
+của admin.
 
 Mọi lần Session rời `live` (kết thúc, huỷ, vắng) hoặc Cohort rời `active` đều đi qua
 một điểm chung trong lifecycle service: xoá cache và khoá trình chiếu, phát sự kiện

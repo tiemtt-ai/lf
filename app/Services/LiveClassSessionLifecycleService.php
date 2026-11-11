@@ -2,8 +2,11 @@
 
 namespace App\Services;
 
+use Carbon\CarbonInterface;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 /**
  * Canonical Session status machine.
@@ -44,6 +47,45 @@ class LiveClassSessionLifecycleService
         $this->transition($customerId, $cohortId, $sessionId, 'completed');
     }
 
+    /**
+     * Ends every `live` Session whose scheduled end has passed (Owner 2026-11-11: the timetable decides when a
+     * Session is over). The Session is recorded as ended at its scheduled end, not at the moment the sweep ran.
+     * Only Sessions of an `active` Cohort: leaving `active` already closes the others' Whiteboards.
+     *
+     * @return int Sessions completed
+     */
+    public function completeOverdue(?int $customerId = null, ?CarbonInterface $now = null): int
+    {
+        $now ??= now();
+        // `scheduled_end_at` is wall-clock in the Session's own timezone; the SQL bound only prefilters (UTC+14).
+        $sessions = DB::table('core_liveclass_sessions as sessions')
+            ->join('core_course_cohorts as cohorts', function ($join): void {
+                $join->on('cohorts.id', '=', 'sessions.cohort_id')->on('cohorts.customer_id', '=', 'sessions.customer_id');
+            })
+            ->where('sessions.status', 'live')->where('cohorts.status', 'active')
+            ->where('sessions.scheduled_end_at', '<=', $now->copy()->utc()->addHours(14)->format('Y-m-d H:i:s'))
+            ->when($customerId !== null, fn ($query) => $query->where('sessions.customer_id', $customerId))
+            ->orderBy('sessions.id')
+            ->get(['sessions.id', 'sessions.customer_id', 'sessions.cohort_id', 'sessions.scheduled_end_at', 'sessions.timezone']);
+
+        $completed = 0;
+        foreach ($sessions as $session) {
+            $end = Carbon::parse((string) $session->scheduled_end_at, $session->timezone ?: config('app.timezone'));
+            if ($end->gt($now)) {
+                continue;
+            }
+            try {
+                $this->transition((int) $session->customer_id, (int) $session->cohort_id, (int) $session->id, 'completed',
+                    endedAt: (string) $session->scheduled_end_at);
+                $completed++;
+            } catch (ValidationException|HttpException) {
+                // Ended, cancelled or its Cohort left `active` since the read: nothing left to do for it.
+            }
+        }
+
+        return $completed;
+    }
+
     public function cancel(int $customerId, int $cohortId, int $sessionId, ?string $reason = null): void
     {
         $this->transition($customerId, $cohortId, $sessionId, 'cancelled', $reason);
@@ -59,9 +101,10 @@ class LiveClassSessionLifecycleService
         int $cohortId,
         int $sessionId,
         string $targetStatus,
-        ?string $reason = null
+        ?string $reason = null,
+        ?string $endedAt = null
     ): void {
-        DB::transaction(function () use ($customerId, $cohortId, $sessionId, $targetStatus, $reason): void {
+        DB::transaction(function () use ($customerId, $cohortId, $sessionId, $targetStatus, $reason, $endedAt): void {
             $cohort = DB::table('core_course_cohorts')
                 ->where('customer_id', $customerId)->where('id', $cohortId)
                 ->lockForUpdate()->first(['id', 'status']);
@@ -102,7 +145,8 @@ class LiveClassSessionLifecycleService
                 $values['actual_start_at'] = $sessionClock;
             }
             if ($targetStatus === 'completed' && ! $session->actual_end_at) {
-                $values['actual_end_at'] = $sessionClock;
+                // A Session ended by its timetable never ends before it started (a late start past the scheduled end).
+                $values['actual_end_at'] = $endedAt !== null ? max($endedAt, (string) ($session->actual_start_at ?? $endedAt)) : $sessionClock;
             }
             if (in_array($targetStatus, ['cancelled', 'no_show'], true)) {
                 $values['cancellation_reason'] = $reason;
