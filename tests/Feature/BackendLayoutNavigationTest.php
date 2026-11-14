@@ -960,6 +960,17 @@ class BackendLayoutNavigationTest extends TestCase
         $this->assertMatchesRegularExpression('/aria-expanded="true"[^>]*data-active-parent="true"/', $html);
         $this->assertMatchesRegularExpression('/<div id="sidebar-group-1" class="admin-nav__children" x-show="[^"]+"\s*>/', $html);
         $this->assertMatchesRegularExpression('/<div id="sidebar-group-\d+" class="admin-nav__children" x-show="[^"]+"\s*style="display: none;"\s*>/', $html);
+        // The icon rail gets the same shell classes Alpine binds, and the open menu keeps room for its own scrollbar.
+        $this->assertStringContainsString("document.getElementById('admin-shell')?.classList.toggle('is-collapsed', isRail);", $html);
+        $this->assertStringContainsString(':root:not(.is-backend-sidebar-collapsed) #admin-app .admin-shell:not(.is-collapsed) > .admin-sidebar { scrollbar-gutter: stable; }', file_get_contents(base_path('resources/css/admin/admin-layout.css')));
+
+        // Top bar and logo images are there at the first paint: the flag is inline SVG, the logos are preloaded.
+        $this->assertMatchesRegularExpression('/<svg width="24" height="16" aria-hidden="true" focusable="false" class="admin-language-flag" xmlns="http:\/\/www.w3.org\/2000\/svg" viewBox="0 0 30 20">/', $html);
+        $this->assertStringNotContainsString('assets/admin/flag-', $html);
+        $this->assertMatchesRegularExpression('/<link rel="preload" as="image" href="[^"]+\/assets\/admin\/brand-logo.png"/', $html);
+        $this->assertStringContainsString('decoding="sync"', $html);
+
+        $this->get('https://tenant-a.localhost/admin/login')->assertDontSee('assets/admin/flag-', false);
     }
 
     public function test_admin_users_list_follows_the_ui_kit_list_contract(): void

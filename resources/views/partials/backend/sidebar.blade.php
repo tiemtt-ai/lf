@@ -1,8 +1,8 @@
 <aside id="backend-sidebar" class="admin-sidebar" x-ref="sidebar" aria-label="{{ $navigationLabel }}">
     <div class="admin-sidebar__brand">
         <a href="{{ route($dashboardRoute) }}" aria-label="{{ $dashboardLabel }}">
-            <img class="admin-brand-image" src="{{ asset('assets/admin/brand-logo.png') }}" alt="Master Korean" width="180" height="67">
-            <img class="admin-brand-symbol" src="{{ asset('assets/admin/brand-symbol.png') }}" alt="Master Korean" width="40" height="36">
+            <img class="admin-brand-image" src="{{ asset('assets/admin/brand-logo.png') }}" alt="Master Korean" width="180" height="67" decoding="sync" fetchpriority="high">
+            <img class="admin-brand-symbol" src="{{ asset('assets/admin/brand-symbol.png') }}" alt="Master Korean" width="40" height="36" decoding="sync">
         </a>
         <button type="button" class="admin-icon-button admin-close" x-ref="drawerClose"
                 x-bind:hidden="! drawerOpen" hidden x-on:click="closeDrawer()"
@@ -53,10 +53,16 @@
             @endif
         @endforeach
     </nav>
-    {{-- Runs before the first paint: open the groups the user left open (same storage as backendSidebar()),
-         so the menu is drawn once in its final shape instead of jumping when Alpine starts. --}}
+    {{-- Runs before the first paint: give the shell the classes backendSidebar() will bind and open the groups
+         the user left open (same storage), so the menu is drawn once in its final shape instead of jumping when Alpine starts. --}}
     <script>
         (() => {
+            const isRail = document.documentElement.classList.contains('is-backend-sidebar-collapsed')
+                && ! window.matchMedia('(max-width: 680px)').matches;
+
+            document.getElementById('admin-app')?.classList.toggle('is-sidebar-collapsed', isRail);
+            document.getElementById('admin-shell')?.classList.toggle('is-collapsed', isRail);
+
             let openGroups = {};
 
             try {

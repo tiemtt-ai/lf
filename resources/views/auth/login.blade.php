@@ -21,7 +21,7 @@
                 <button class="lf-login-language-trigger" type="button" x-ref="languageTrigger"
                         aria-controls="login-language-options" aria-expanded="false" x-bind:aria-expanded="open.toString()"
                         x-on:click="open = ! open" aria-label="{{ __('lf.LF_common_language_switch') }}">
-                    <img class="lf-login-language-flag" src="{{ asset('assets/admin/flag-'.app()->getLocale().'.svg') }}" alt="" width="24" height="16">
+                    <x-language-flag :locale="app()->getLocale()" class="lf-login-language-flag" />
                     <span>{{ strtoupper(app()->getLocale()) }}</span>
                     <span class="lf-login-language-caret" aria-hidden="true"></span>
                 </button>
@@ -31,7 +31,7 @@
                         <form method="POST" action="{{ route('language.update', ['locale' => $locale]) }}">
                             @csrf
                             <button type="submit" class="lf-login-language-option" lang="{{ $locale }}" aria-label="{{ __('lf.LF_common_language_'.$locale) }}">
-                                <img class="lf-login-language-flag" src="{{ asset('assets/admin/flag-'.$locale.'.svg') }}" alt="" width="24" height="16">
+                                <x-language-flag :locale="$locale" class="lf-login-language-flag" />
                                 <span>{{ strtoupper($locale) }}</span>
                             </button>
                         </form>

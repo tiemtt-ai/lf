@@ -28,7 +28,7 @@
                     x-bind:aria-expanded="(open === 'language').toString()"
                     x-on:click="open = open === 'language' ? null : 'language'"
                     aria-label="{{ __('lf.LF_common_language_switch') }}">
-                <img class="admin-language-flag" src="{{ asset('assets/admin/flag-'.app()->getLocale().'.svg') }}" alt="" width="24" height="16">
+                <x-language-flag :locale="app()->getLocale()" class="admin-language-flag" />
                 <span id="current-language">{{ strtoupper(app()->getLocale()) }}</span>
                 <span class="admin-language-caret" aria-hidden="true"></span>
             </button>
@@ -38,7 +38,7 @@
                     <form method="POST" action="{{ route('language.update', ['locale' => $locale]) }}">
                         @csrf
                         <button type="submit" class="admin-dropdown-row admin-language-option" lang="{{ $locale }}" aria-label="{{ __('lf.LF_common_language_'.$locale) }}">
-                            <img class="admin-language-flag" src="{{ asset('assets/admin/flag-'.$locale.'.svg') }}" alt="" width="24" height="16">
+                            <x-language-flag :locale="$locale" class="admin-language-flag" />
                             <span>{{ strtoupper($locale) }}</span>
                         </button>
                     </form>

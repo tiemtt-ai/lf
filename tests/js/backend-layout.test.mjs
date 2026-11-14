@@ -6,8 +6,9 @@ import vm from 'node:vm';
 const app = fs.readFileSync(new URL('../../resources/js/app.js', import.meta.url), 'utf8');
 const source = app.slice(app.indexOf('window.backendSidebar ='), app.indexOf('window.courseTemplateSectionCollapse ='));
 
-function shell({ mobile = false, saved = null, unavailableStorage = false } = {}) {
+function shell({ mobile = false, saved = null, unavailableStorage = false, groups = null } = {}) {
     const stored = new Map(saved === null ? [] : [['lf.backend.sidebar.collapsed', saved]]);
+    if (groups !== null) stored.set('lf.backend.sidebar.groups', groups);
     const listeners = new Set();
     const query = { matches: mobile, addEventListener: (_, callback) => listeners.add(callback), removeEventListener: (_, callback) => listeners.delete(callback) };
     const context = {
@@ -112,4 +113,22 @@ test('active submenu can close and collapsed group expands on activation', () =>
     view.state.toggleSidebarGroup('courses');
     assert.equal(view.state.sidebarCollapsed, false);
     assert.equal(view.state.isSidebarGroupOpen('courses'), true);
+});
+
+test('a group opened because its page was active stays open on pages of other groups', () => {
+    const coursePage = shell();
+    coursePage.state.registerSidebarGroup('courses', true);
+    coursePage.state.registerSidebarGroup('assessments', false);
+
+    const assessmentPage = shell({ groups: coursePage.stored.get('lf.backend.sidebar.groups') });
+    assessmentPage.state.registerSidebarGroup('courses', false);
+    assessmentPage.state.registerSidebarGroup('assessments', true);
+    assert.equal(assessmentPage.state.isSidebarGroupOpen('courses'), true);
+    assert.equal(assessmentPage.state.isSidebarGroupOpen('assessments'), true);
+
+    // A group the user folds stays folded until its own page is opened again.
+    assessmentPage.state.toggleSidebarGroup('courses');
+    const next = shell({ groups: assessmentPage.stored.get('lf.backend.sidebar.groups') });
+    next.state.registerSidebarGroup('courses', false);
+    assert.equal(next.state.isSidebarGroupOpen('courses'), false);
 });

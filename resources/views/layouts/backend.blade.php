@@ -20,6 +20,9 @@
             document.documentElement.classList.toggle('is-backend-sidebar-collapsed', shouldCollapse);
         })();
     </script>
+    {{-- Fetch the shell logos with the stylesheets so they are there at the first paint instead of blinking in. --}}
+    <link rel="preload" as="image" href="{{ asset('assets/admin/brand-logo.png') }}" fetchpriority="high">
+    <link rel="preload" as="image" href="{{ asset('assets/admin/brand-symbol.png') }}">
     @vite(['resources/css/backend.css', 'resources/js/app.js'])
 @endsection
 

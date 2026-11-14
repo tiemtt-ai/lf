@@ -290,6 +290,10 @@ html { scrollbar-gutter: stable; }
     :root.is-backend-sidebar-collapsed #admin-app .admin-brand-symbol { display: block; }
 }
 :root.is-backend-sidebar-initializing #admin-app * { transition: none !important; }
+/* A long open menu gets its own scrollbar; keep its room so the logo and labels never slide. The icon rail is too narrow for it. */
+@media (min-width: 681px) {
+    :root:not(.is-backend-sidebar-collapsed) #admin-app .admin-shell:not(.is-collapsed) > .admin-sidebar { scrollbar-gutter: stable; }
+}
 @media (pointer: coarse) {
     #admin-app .admin-top-button, #admin-app .admin-dropdown-row { min-height: 44px; }
 }

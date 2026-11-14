@@ -230,7 +230,10 @@ window.backendSidebar = () => ({
 
     registerSidebarGroup(groupKey, isActive) {
         if (isActive) {
-            this.sidebarGroups[groupKey] = true;
+            // Remember it: leaving for another group must not fold this one and shift the menu under the pointer.
+            if (this.sidebarGroups[groupKey] !== true) {
+                this.setSidebarGroupOpen(groupKey, true);
+            }
         } else if (this.sidebarGroups[groupKey] === undefined) {
             this.sidebarGroups[groupKey] = false;
         }
