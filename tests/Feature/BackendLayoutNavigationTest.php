@@ -940,6 +940,28 @@ class BackendLayoutNavigationTest extends TestCase
         $this->assertStringContainsString('#admin-app .admin-header{flex-shrink:0;position:sticky;top:0;z-index:40}', $css);
     }
 
+    public function test_tab_reloads_keep_the_shell_still(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+
+        // Tabs are full page loads: a short tab must not drop the scrollbar and shift everything sideways.
+        $this->assertStringContainsString('html { scrollbar-gutter: stable; }', file_get_contents(base_path('resources/css/admin/admin-layout.css')));
+        $this->assertStringContainsString('html:has(.standard-b2b-site) { scrollbar-gutter: stable; }', file_get_contents(base_path('resources/css/tenant/student-site.css')));
+
+        // The menu is drawn in its final shape before Alpine starts: the active group open, the others closed,
+        // and remembered groups opened by an inline script that reads the same storage as backendSidebar().
+        $html = $this->actingAs($admin)
+            ->get('https://tenant-a.localhost/admin/course-templates')
+            ->assertOk()
+            ->assertSee("localStorage.getItem('lf.backend.sidebar.groups')", false)
+            ->getContent();
+
+        $this->assertMatchesRegularExpression('/aria-expanded="true"[^>]*data-active-parent="true"/', $html);
+        $this->assertMatchesRegularExpression('/<div id="sidebar-group-1" class="admin-nav__children" x-show="[^"]+"\s*>/', $html);
+        $this->assertMatchesRegularExpression('/<div id="sidebar-group-\d+" class="admin-nav__children" x-show="[^"]+"\s*style="display: none;"\s*>/', $html);
+    }
+
     public function test_admin_users_list_follows_the_ui_kit_list_contract(): void
     {
         $customerId = $this->createTenant();

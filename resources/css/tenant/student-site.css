@@ -3,6 +3,9 @@
    `.standard-b2b-site` so they never reach the admin. The LF section at the end covers what the design does not have:
    forms in the menus, locked "Sắp ra mắt" items, the guest login button and the status message. */
 
+/* Tabs such as /my-courses?tab=… reload the page; keep the scrollbar gutter so the header does not slide sideways. */
+html:has(.standard-b2b-site) { scrollbar-gutter: stable; }
+
 /* Bootstrap defaults the design relies on (Tailwind preflight resets them). */
 .standard-b2b-site .sb2b-header,
 .standard-b2b-site .sb2b-footer,

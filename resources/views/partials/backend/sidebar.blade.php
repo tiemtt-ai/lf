@@ -32,7 +32,8 @@
                         <span class="admin-nav__label">{{ $item['label'] }}</span>
                         <x-backend-icon name="chevron-down" class="admin-nav__chevron" />
                     </button>
-                    <div id="{{ $groupKey }}" class="admin-nav__children" x-show="isSidebarGroupOpen('{{ $groupKey }}')">
+                    <div id="{{ $groupKey }}" class="admin-nav__children" x-show="isSidebarGroupOpen('{{ $groupKey }}')"
+                         @unless ($isGroupActive) style="display: none;" @endunless>
                         @foreach ($children as $child)
                             <a class="admin-nav__child" href="{{ route($child['route']) }}"
                                @if ($child['active'] && request()->routeIs($child['active'])) aria-current="page" @endif>{{ $child['label'] }}</a>
@@ -52,4 +53,25 @@
             @endif
         @endforeach
     </nav>
+    {{-- Runs before the first paint: open the groups the user left open (same storage as backendSidebar()),
+         so the menu is drawn once in its final shape instead of jumping when Alpine starts. --}}
+    <script>
+        (() => {
+            let openGroups = {};
+
+            try {
+                openGroups = JSON.parse(window.localStorage.getItem('lf.backend.sidebar.groups') || '{}') || {};
+            } catch (error) {
+                openGroups = {};
+            }
+
+            document.querySelectorAll('#backend-sidebar .admin-nav__group > [aria-controls]').forEach((button) => {
+                const panel = document.getElementById(button.getAttribute('aria-controls'));
+                const isOpen = button.dataset.activeParent === 'true' || openGroups[panel.id] === true;
+
+                panel.style.display = isOpen ? '' : 'none';
+                button.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            });
+        })();
+    </script>
 </aside>

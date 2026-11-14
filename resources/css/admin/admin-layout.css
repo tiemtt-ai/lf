@@ -55,6 +55,9 @@
 }
 
 [x-cloak] { display: none !important; }
+/* Tabs reload the page; a short tab has no scrollbar, a long one does. Reserving the gutter keeps
+   the header, menu and content from sliding sideways when switching tabs or locking scroll for a dialog. */
+html { scrollbar-gutter: stable; }
 /* Admin/Teacher shell from docs/ui-demo/admin-layout-developer. CRUD demo rules are excluded. */
 
 #admin-app{--nav-primary:#485cc7;--nav-tint:#f0f2fc;--nav-border:#e8ebf1;overflow:clip;color-scheme:light}
