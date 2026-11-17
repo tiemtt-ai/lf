@@ -2527,7 +2527,9 @@
 .lf-admin-ui .ui-ai-status small { color: var(--ui-muted); font-size: 12px; }
 .lf-admin-ui .ui-tag-auto { display: inline-flex; align-items: center; gap: 3px; padding: 0 6px; border-radius: 999px; background: var(--ui-success-soft); color: var(--ui-success); font-size: 11px; font-weight: 500; line-height: 18px; }
 .lf-admin-ui .ui-tag-auto .ui-icon { width: 11px; height: 11px; }
-.lf-admin-ui .ui-modal:has(.ui-library-view) { position: relative; }
+/* Only outside the top layer: an open modal is already `position: fixed`, which holds the library view. Overriding it there
+   turns the popup into `absolute`, so it is placed from the top of the page and slides out of view once the page is scrolled. */
+.lf-admin-ui .ui-modal:not(:modal):has(.ui-library-view) { position: relative; }
 .lf-admin-ui .ui-library-view { position: absolute; inset: 0; z-index: 20; display: flex; flex-direction: column; background: var(--ui-white); }
 .lf-admin-ui .ui-library-view[x-cloak] { display: none; }
 .lf-admin-ui .ui-library-view__header { gap: 10px; justify-content: flex-start; }
