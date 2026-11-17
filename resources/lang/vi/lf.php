@@ -2024,6 +2024,7 @@ return [
     'LF_course_template_activity_quiz_questions' => '{0} Chưa có câu|{1} :count câu|[2,*] :count câu',
     'LF_course_template_activity_quiz_minutes' => ':count phút',
     'LF_course_template_activity_quiz_untimed' => 'Không giới hạn giờ',
+    'LF_course_template_activity_quiz_picker_hint' => 'Chỉ hiện đề đã xuất bản mà bạn được dùng.',
     'LF_course_template_activity_quiz_picker_title' => 'Chọn đề kiểm tra',
     'LF_course_template_activity_quiz_picker_search' => 'Tìm theo tên đề',
     'LF_course_template_activity_quiz_picker_all_types' => 'Mọi loại',

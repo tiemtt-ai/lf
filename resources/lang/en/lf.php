@@ -2024,6 +2024,7 @@ return [
     'LF_course_template_activity_quiz_questions' => '{0} No questions|{1} :count question|[2,*] :count questions',
     'LF_course_template_activity_quiz_minutes' => ':count min',
     'LF_course_template_activity_quiz_untimed' => 'No time limit',
+    'LF_course_template_activity_quiz_picker_hint' => 'Only published assessments you may use are listed.',
     'LF_course_template_activity_quiz_picker_title' => 'Choose an assessment',
     'LF_course_template_activity_quiz_picker_search' => 'Search by title',
     'LF_course_template_activity_quiz_picker_all_types' => 'All types',

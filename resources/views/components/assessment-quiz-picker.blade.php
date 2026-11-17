@@ -6,7 +6,7 @@
     user may use (an admin: the tenant's; a teacher: their own). Escape and Back return to the form; the search box and
     type filter have no name, so nothing here is submitted with the form.
 --}}
-<section class="ui-library-view" role="region" aria-labelledby="ui-quiz-pick-title" x-cloak data-quiz-picker
+<section class="ui-library-view ui-quiz-pick" role="region" aria-labelledby="ui-quiz-pick-title" x-cloak data-quiz-picker
          x-data="{
              open: false, loading: false, keyword: '', type: '', items: [], pending: null, timer: null, seq: 0,
              get pendingItem() { return this.items.find(item => item.id === this.pending) ?? null; },
@@ -58,7 +58,7 @@
         </button>
         <div>
             <h3 id="ui-quiz-pick-title">{{ __('lf.LF_course_template_activity_quiz_picker_title') }}</h3>
-            <p class="ui-caption">{{ __('lf.LF_course_template_activity_quiz_hint') }}</p>
+            <p class="ui-caption">{{ __('lf.LF_course_template_activity_quiz_picker_hint') }}</p>
         </div>
         <button type="button" class="ui-modal__close cursor-interaction" data-ui-dialog-form-cancel aria-label="{{ __('lf.LF_common_button_close') }}">×</button>
     </header>
@@ -111,18 +111,16 @@
                     <span class="ui-library-pick__main">
                         <span class="ui-library-pick__name" x-text="item.name" x-bind:title="item.name"></span>
                         <span class="ui-library-pick__meta">
-                            <span x-text="item.type"></span>
-                            <span class="ui-library-pick__dot" aria-hidden="true"></span>
                             <span x-text="item.questions"></span>
                             <span class="ui-library-pick__dot" aria-hidden="true"></span>
                             <span x-text="item.duration"></span>
-                        </span>
-                        <span class="ui-library-pick__meta">
-                            <span x-show="item.category" x-text="item.category"></span>
                             <span class="ui-library-pick__dot" aria-hidden="true" x-show="item.category"></span>
+                            <span x-show="item.category" x-text="item.category"></span>
+                            <span class="ui-library-pick__dot" aria-hidden="true"></span>
                             <span x-text="item.owner"></span>
                         </span>
                     </span>
+                    <span class="ui-quiz-pick__type" x-text="item.type"></span>
                 </div>
             </template>
         </div>
@@ -132,6 +130,9 @@
         <span class="ui-caption ui-library-pick__selected" role="status"
               x-text="pendingItem ? @js(__('lf.LF_course_template_activity_quiz_picker_selected', ['name' => '__NAME__'])).replace('__NAME__', pendingItem.name) : @js(__('lf.LF_course_template_activity_quiz_picker_none_selected'))"></span>
         <button type="button" class="ui-button cursor-interaction" x-on:click="back()">{{ __('lf.LF_common_button_cancel') }}</button>
-        <button type="button" class="ui-button ui-button--primary cursor-interaction" x-bind:disabled="! pendingItem" x-on:click="confirm()" data-quiz-confirm>{{ __('lf.LF_course_template_activity_quiz_picker_select') }}</button>
+        <button type="button" class="ui-button ui-button--primary cursor-interaction" x-bind:disabled="! pendingItem" x-on:click="confirm()" data-quiz-confirm>
+            <x-backend-icon name="check" class="ui-icon" />
+            <span>{{ __('lf.LF_course_template_activity_quiz_picker_select') }}</span>
+        </button>
     </footer>
 </section>
