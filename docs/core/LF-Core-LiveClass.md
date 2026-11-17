@@ -156,6 +156,15 @@ người dùng. Đội ngũ canonical nằm tại
 Đổi lịch Session phải tái kiểm tra availability của tất cả giáo viên trước khi
 ghi schedule change.
 
+### Giáo viên chính tự vận hành lớp — 2026-11-17
+
+[ADR-0033](../adr/ADR-0033-Teacher-Permissions-And-Tenant-Owner.md) D7: giáo viên có quyền
+`class.manage` tạo lớp và vận hành lớp mà mình là `primary_teacher` đang hoạt động (sửa
+thông tin, lịch học, buổi học, thứ tự nội dung, kích hoạt, kết thúc); `class.delete` xoá
+lớp nháp chưa có học viên trong cùng phạm vi. Người tạo lớp tự thành giáo viên chính, nên
+tạo lớp bắt buộc có ngày bắt đầu và kết thúc. Ghi danh, phân công giáo viên của lớp, bộ quy
+tắc điểm danh và lưu trữ vẫn chỉ quản trị làm. Mọi thao tác này kiểm tra phạm vi ở máy chủ.
+
 Khoảng lịch của Session phải nằm hoàn toàn trong thời gian vận hành Cohort.
 Ngày bắt đầu tối thiểu là ngày lớn hơn giữa `cohort.start_date` và ngày hiện
 tại; ngày kết thúc tối đa là cuối ngày `cohort.end_date`. Cùng boundary phải
@@ -932,7 +941,8 @@ quản lý `/admin/attendance-policies` (mục "Quy tắc điểm danh" trong nh
 chọn bộ quy tắc ở popup sửa lớp, mã QR đọc mốc từ bộ của lớp, nút Điểm danh, vào phòng
 họp, mở bảng, điểm danh tay của giáo viên (`/teacher/cohorts/{cohort}/attendance`, mở từ
 "Lớp của tôi"), lịch sử sửa và tự ghi vắng (`liveclass:mark-absent`, mỗi phút). Tất cả vẫn
-sau công tắc `LIVECLASS_ATTENDANCE_ENABLED`; mặc định còn tắt cho tới khi Owner thử xong.
+sau công tắc `LIVECLASS_ATTENDANCE_ENABLED`; mặc định bật từ 2026-11-17 (Owner quyết định 11), đặt
+`false` để tắt.
 Phần này thay danh sách "Đợt sau" của mục mã QR ở trên, trừ "buổi học trực tiếp tự hoàn
 thành theo điểm danh" đã có theo ADR-0030.
 

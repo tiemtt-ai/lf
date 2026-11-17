@@ -300,9 +300,9 @@ migration.
 Approved: 2026-11-17 (Owner decision on the business proposal, questions 1–10).
 The Owner approved the data design (the Database documents named below) on the
 same day and gave the go-ahead to start coding. Parts A and B and the review
-additions are implemented (2026-11-17), all still behind
-`liveclass.attendance_enabled`, whose default stays off until the Owner has tried
-the feature. The Architecture Review so far is a self-check against the
+additions are implemented (2026-11-17), all behind
+`liveclass.attendance_enabled`, which defaults to on since 2026-11-17 (Owner
+decision 11). The Architecture Review so far is a self-check against the
 Guardrails, not an independent review.
 
 Implementation notes (2026-11-17):
@@ -429,7 +429,8 @@ rules and "counts toward attendance" on an Activity are later amendments.
   A teacher or administrator can still correct the result afterwards.
 * **Switch.** Everything stays behind `liveclass.attendance_enabled`. Once this
   amendment is implemented and tried, the switch defaults to on (Owner decision
-  9).
+  9). Done 2026-11-17 (Owner decision 11): the default is on; a deployment can
+  still turn it off with `LIVECLASS_ATTENDANCE_ENABLED=false`.
 
 ### Review additions — confirmed by the Owner on 2026-11-17
 

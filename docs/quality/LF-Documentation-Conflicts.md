@@ -655,6 +655,7 @@ Verification Evidence: config/liveclass.php `attendance_enabled` mặc định f
 Related ADR/Review/Issue/PR: DOC-CONFLICT-0008
 Notes: Cố ý KHÔNG dùng RESOLVED. Điều kiện thiếu (`enrollments.status = 'active'`) vẫn chưa được thêm vào saveAttendance — chỉ có đường tới nó bị đóng. Bật lại cờ mà chưa sửa sẽ làm lỗi ghi evidence cho learning cycle đã đóng quay lại nguyên vẹn; đây là điều kiện chặn bắt buộc của pha phát triển tab Điểm danh. Câu hỏi `suspended` có được điểm danh hay không vẫn chưa chốt.
 Verification Evidence (2026-11-09): tests/Feature/LiveClassAttendanceCheckInTest
+Update (2026-11-17): cờ `attendance_enabled` mặc định bật (Owner quyết định 11, ADR-0002 § Attendance Policy And Recording Amendment). `phpunit.xml` vẫn ghim `false` để test chạy độc lập với `.env`; test nào cần điểm danh tự bật cờ.
 ```
 
 ---

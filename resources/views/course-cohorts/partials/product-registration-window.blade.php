@@ -11,7 +11,7 @@
         @else
             {{ $registrationStart ?: '—' }} <span aria-hidden="true">→</span> {{ $registrationEnd ?: '—' }}
         @endif
-        @if (! empty($cohort->product_id))
+        @if (! empty($cohort->product_id) && ($cohortAdmin ?? true))
             <a href="{{ route('admin.course-products.edit', $cohort->product_id) }}" class="ui-enroll-link ui-cohort-version-link" target="_blank" rel="noopener" aria-label="{{ __('lf.LF_course_cohort_product_registration_edit_new_tab') }}">
                 <x-backend-icon name="square-pen" class="ui-icon" />{{ __('lf.LF_course_cohort_product_registration_edit') }}
             </a>

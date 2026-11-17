@@ -1,10 +1,10 @@
 # Table: saas_teacher_permission_groups
 
-Version: 1.0
+Version: 1.1
 
 Document Status: Approved
 
-Implementation Status: Not Implemented
+Implementation Status: Implemented
 
 Last Updated: 2026-11-17
 
@@ -17,7 +17,8 @@ giáo viên. Nghiệp vụ nằm ở
 [ADR-0033](../../adr/ADR-0033-Teacher-Permissions-And-Tenant-Owner.md) D3–D4 (Owner duyệt
 nghiệp vụ 2026-11-17).
 
-Owner duyệt thiết kế dữ liệu ngày 2026-11-17. Chưa có migration: Owner được hỏi trước khi bắt đầu code.
+Owner duyệt thiết kế dữ liệu ngày 2026-11-17. Migration:
+`2026_11_17_000400_create_teacher_permissions`.
 
 ## Relationships
 
@@ -56,15 +57,15 @@ Owner duyệt thiết kế dữ liệu ngày 2026-11-17. Chưa có migration: Ow
 
 ```sql
 PRIMARY KEY (id);
-UNIQUE (customer_id, name);
-UNIQUE (customer_id, is_default);
-UNIQUE (id, customer_id);
+UNIQUE uk_stpg_customer_name (customer_id, name);
+UNIQUE uk_stpg_customer_default (customer_id, is_default);
+UNIQUE uk_stpg_id_customer (id, customer_id);
 
-FOREIGN KEY (customer_id) REFERENCES saas_customers (id) ON UPDATE RESTRICT ON DELETE RESTRICT;
-FOREIGN KEY (created_by) REFERENCES users (id) ON UPDATE RESTRICT ON DELETE RESTRICT;
-FOREIGN KEY (updated_by) REFERENCES users (id) ON UPDATE RESTRICT ON DELETE RESTRICT;
+FOREIGN KEY fk_stpg_customer (customer_id) REFERENCES saas_customers (id) ON UPDATE RESTRICT ON DELETE RESTRICT;
+FOREIGN KEY fk_stpg_created_by (created_by) REFERENCES users (id) ON UPDATE RESTRICT ON DELETE RESTRICT;
+FOREIGN KEY fk_stpg_updated_by (updated_by) REFERENCES users (id) ON UPDATE RESTRICT ON DELETE RESTRICT;
 
-CHECK (is_default = 1);
+CONSTRAINT chk_stpg_is_default CHECK (is_default = 1);
 ```
 
 ## Column On `users`
@@ -74,10 +75,10 @@ CHECK (is_default = 1);
 ```text
 users.teacher_permission_group_id BIGINT UNSIGNED NULL
 
-FOREIGN KEY (teacher_permission_group_id, customer_id)
+FOREIGN KEY fk_users_permission_group (teacher_permission_group_id, customer_id)
     REFERENCES saas_teacher_permission_groups (id, customer_id)
     ON UPDATE RESTRICT ON DELETE RESTRICT;
-INDEX (teacher_permission_group_id, customer_id);
+INDEX idx_users_permission_group_customer (teacher_permission_group_id, customer_id);
 ```
 
 * `NULL` nghĩa là nhóm mặc định của trung tâm, nên giáo viên đang có không cần chuyển dữ

@@ -386,7 +386,7 @@ class CourseCohortOperationController extends Controller
 
     public function storeSession(Request $request, int $cohort): RedirectResponse
     {
-        $customerId = $this->authorizeAdmin($request);
+        $customerId = $this->authorizeCohortManager($request, $cohort);
         $cohortRow = $this->setupCohort($customerId, $cohort);
         $this->assertRunsInClass($customerId, $cohortRow);
         abort_if(! $cohortRow->version_id, 422);
@@ -513,7 +513,7 @@ class CourseCohortOperationController extends Controller
 
     public function updateSession(Request $request, int $cohort, int $session): RedirectResponse
     {
-        $customerId = $this->authorizeAdmin($request);
+        $customerId = $this->authorizeCohortManager($request, $cohort);
         $cohortRow = $this->setupCohort($customerId, $cohort);
         abort_if(! $cohortRow->version_id, 422);
 
@@ -603,7 +603,7 @@ class CourseCohortOperationController extends Controller
 
     public function updateSchedule(Request $request, int $cohort, int $session): RedirectResponse
     {
-        $customerId = $this->authorizeAdmin($request);
+        $customerId = $this->authorizeCohortManager($request, $cohort);
         $this->setupCohort($customerId, $cohort);
         $validated = $request->validate([
             'scheduled_start_at' => ['required', 'date'],
@@ -667,7 +667,7 @@ class CourseCohortOperationController extends Controller
     public function reorderLessons(Request $request, int $cohort): JsonResponse
     {
         abort_unless($request->expectsJson(), 404);
-        $customerId = $this->authorizeAdmin($request);
+        $customerId = $this->authorizeCohortManager($request, $cohort);
         $cohortRow = $this->reorderableCohort($customerId, $cohort);
         $validated = $request->validate([
             'version_section_id' => ['nullable', 'integer'],
@@ -691,7 +691,7 @@ class CourseCohortOperationController extends Controller
     public function reorderActivities(Request $request, int $cohort, int $lesson): JsonResponse
     {
         abort_unless($request->expectsJson(), 404);
-        $customerId = $this->authorizeAdmin($request);
+        $customerId = $this->authorizeCohortManager($request, $cohort);
         $cohortRow = $this->reorderableCohort($customerId, $cohort);
         $validated = $request->validate([
             'activity_ids' => ['required', 'array', 'min:1'],
@@ -776,7 +776,7 @@ class CourseCohortOperationController extends Controller
 
     public function assignSessionTeachers(Request $request, int $cohort, int $session): RedirectResponse
     {
-        $customerId = $this->authorizeAdmin($request);
+        $customerId = $this->authorizeCohortManager($request, $cohort);
         $this->setupCohort($customerId, $cohort);
 
         if ($request->has('teacher_ids')) {
@@ -840,7 +840,7 @@ class CourseCohortOperationController extends Controller
 
     public function cancelSession(Request $request, int $cohort, int $session): RedirectResponse
     {
-        $customerId = $this->authorizeAdmin($request);
+        $customerId = $this->authorizeCohortManager($request, $cohort);
         $validated = $request->validate(['reason' => ['nullable', 'string', 'max:1000']]);
         // ADR-0023 §9: cancelling a programme session moves its lesson and the later ones one position down, in one transaction.
         $shifted = DB::transaction(function () use ($customerId, $cohort, $session, $validated, $request): bool {
@@ -855,7 +855,7 @@ class CourseCohortOperationController extends Controller
 
     public function markSessionNoShow(Request $request, int $cohort, int $session): RedirectResponse
     {
-        $customerId = $this->authorizeAdmin($request);
+        $customerId = $this->authorizeCohortManager($request, $cohort);
         $validated = $request->validate(['reason' => ['nullable', 'string', 'max:1000']]);
         $this->sessionLifecycleService->markNoShow($customerId, $cohort, $session, $validated['reason'] ?? null);
 
@@ -1263,7 +1263,7 @@ class CourseCohortOperationController extends Controller
 
     private function tab(int $cohort, string $tab, array $query = []): RedirectResponse
     {
-        return redirect()->route('admin.course-cohorts.show', array_merge([
+        return redirect()->route($this->cohortArea().'.show', array_merge([
             'id' => $cohort,
             'tab' => $tab,
         ], $query));

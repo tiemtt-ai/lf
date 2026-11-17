@@ -14,7 +14,7 @@
     </button>
     <dialog id="{{ $linkDialogId }}" x-ref="linkDialog" class="ui-modal" data-columns="1" aria-labelledby="{{ $linkDialogId }}-title"
             x-on:cancel="if (submitting) $event.preventDefault()">
-        <form method="POST" action="{{ route('admin.course-cohorts.sessions.meeting-link', [$cohort->id, $session->id]) }}" class="ui-modal__form" novalidate
+        <form method="POST" action="{{ route($routePrefix.'.sessions.meeting-link', [$cohort->id, $session->id]) }}" class="ui-modal__form" novalidate
               x-on:submit="if (submitting) { $event.preventDefault(); return } submitting = true">
             @csrf @method('PUT')
             <input type="hidden" name="meeting_link_session_id" value="{{ $session->id }}">

@@ -39,8 +39,6 @@ class CourseCohortController extends Controller
         'archived',
     ];
 
-    private string $cohortRoutePrefix = 'admin.course-cohorts';
-
     public function __construct(
         private readonly CourseCohortVersionResolver $versionResolver,
         private readonly CourseCohortLifecycleService $lifecycleService,
@@ -117,31 +115,34 @@ class CourseCohortController extends Controller
             'cohorts' => $cohorts,
             'keyword' => $keyword,
             'status' => $status,
-            'routePrefix' => $this->routePrefix($request),
+            'routePrefix' => $this->cohortArea(),
         ]);
     }
 
     public function create(Request $request): View
     {
-        $this->authorizeAdmin($request);
+        $this->authorizeCohortCreator($request);
 
         $customerId = $this->customerId();
 
         return view('course-cohorts.create', [
             'products' => $this->versionResolver->eligibleProducts($customerId),
-            'cohortTabs' => $this->cohortTabs(null, $this->routePrefix($request), 'overview'),
-            'routePrefix' => $this->routePrefix($request),
+            'cohortTabs' => $this->cohortTabs(null, $this->cohortArea(), 'overview'),
+            'routePrefix' => $this->cohortArea(),
+            ...$this->areaViewData(),
         ]);
     }
 
     public function store(Request $request)
     {
-        $this->authorizeAdmin($request);
+        $this->authorizeCohortCreator($request);
 
         $customerId = $this->customerId();
         $validated = $this->validatedCreateData($request, $customerId);
+        // A teacher creating a class becomes its primary teacher (ADR-0033 D7), for the whole operating period.
+        $primaryTeacherId = $this->inTeacherCohortArea() ? (int) $request->user()->id : null;
 
-        $cohortId = DB::transaction(function () use ($customerId, $validated): int {
+        $cohortId = DB::transaction(function () use ($customerId, $validated, $primaryTeacherId): int {
             // Serialises Cohort creation per tenant. SequentialCodeGenerator
             // derives the next code by reading the current maximum and has no
             // lock of its own, so without this two concurrent creates would
@@ -153,7 +154,7 @@ class CourseCohortController extends Controller
             abort_unless(in_array($version->course_type, CourseType::COHORT_VALUES, true), 422, __('lf.LF_course_type_cohort_product_not_allowed'));
             $now = now();
 
-            return DB::table('core_course_cohorts')->insertGetId(
+            $cohortId = DB::table('core_course_cohorts')->insertGetId(
                 $this->cohortValues(array_merge($validated, [
                     'description' => null,
                     'status' => 'draft',
@@ -166,16 +167,32 @@ class CourseCohortController extends Controller
                     'updated_at' => $now,
                 ])
             );
+            if ($primaryTeacherId !== null) {
+                DB::table('core_course_cohort_teachers')->insert([
+                    'customer_id' => $customerId,
+                    'cohort_id' => $cohortId,
+                    'teacher_id' => $primaryTeacherId,
+                    'role' => 'primary_teacher',
+                    'assigned_from' => $validated['start_date'],
+                    'assigned_to' => $validated['end_date'],
+                    'status' => 'active',
+                    'created_by' => $primaryTeacherId,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ]);
+            }
+
+            return $cohortId;
         }, 3);
 
         return redirect()
-            ->route('admin.course-cohorts.show', $cohortId)
-            ->with('success', __('lf.LF_course_cohort_common_created'));
+            ->route($this->cohortArea().'.show', $cohortId)
+            ->with('success', __($primaryTeacherId === null ? 'lf.LF_course_cohort_common_created' : 'lf.LF_course_cohort_common_created_teacher'));
     }
 
     public function show(Request $request, int $id): View
     {
-        $this->authorizeAdmin($request);
+        $this->authorizeCohortManager($request, $id);
         $customerId = $this->customerId();
         $cohort = $this->findCohort($customerId, $id);
         $requestedTab = in_array($request->query('tab'), [
@@ -195,14 +212,14 @@ class CourseCohortController extends Controller
         $scheduleCount = (int) DB::table('core_liveclass_schedules')
             ->where('customer_id', $customerId)->where('cohort_id', $id)->count();
 
-        $tabs = $this->cohortTabs($cohort, $routePrefix = $this->routePrefix($request), $requestedTab, [
+        $tabs = $this->cohortTabs($cohort, $routePrefix = $this->cohortArea(), $requestedTab, [
             'students' => $activeMembershipCount,
             'schedules' => $scheduleCount,
             'sessions' => $cohortSessions->count(),
             'attendance_eligible' => $eligibleAttendanceSessions->count(),
             'recordings' => $recordingCount,
         ]);
-        $activeTab = collect($tabs)->firstWhere('key', $requestedTab)['accessible'] ? $requestedTab : 'overview';
+        $activeTab = (collect($tabs)->firstWhere('key', $requestedTab)['accessible'] ?? false) ? $requestedTab : 'overview';
 
         $tabData = match ($activeTab) {
             'students' => $this->studentTabData($request, $customerId, $id, $cohort),
@@ -250,6 +267,7 @@ class CourseCohortController extends Controller
                 : [],
             'cohortTabs' => $tabs,
             'routePrefix' => $routePrefix,
+            ...$this->areaViewData(),
         ]));
     }
 
@@ -536,19 +554,19 @@ class CourseCohortController extends Controller
 
     public function edit(Request $request, int $id): RedirectResponse
     {
-        $this->authorizeAdmin($request);
+        $this->authorizeCohortManager($request, $id);
 
         $customerId = $this->customerId();
         $cohort = $this->findCohort($customerId, $id);
-        if ($request->query('tab') === 'students') {
-            return redirect()->route('admin.course-cohorts.show', [
+        if ($request->query('tab') === 'students' && ! $this->inTeacherCohortArea()) {
+            return redirect()->route($this->cohortArea().'.show', [
                 'id' => $cohort->id,
                 'tab' => 'students',
                 'manage' => 1,
             ]);
         }
 
-        return redirect()->route($this->routePrefix($request).'.show', [
+        return redirect()->route($this->cohortArea().'.show', [
             'id' => $cohort->id,
             'edit' => 1,
         ]);
@@ -556,7 +574,7 @@ class CourseCohortController extends Controller
 
     public function update(Request $request, int $id)
     {
-        $this->authorizeAdmin($request);
+        $this->authorizeCohortManager($request, $id);
 
         $customerId = $this->customerId();
         $cohort = $this->findCohort($customerId, $id);
@@ -636,25 +654,25 @@ class CourseCohortController extends Controller
         }, 3);
 
         return redirect()
-            ->route($this->routePrefix($request).'.show', $id)
+            ->route($this->cohortArea().'.show', $id)
             ->with('success', __('lf.LF_course_cohort_common_updated'));
     }
 
     public function activate(Request $request, int $id)
     {
-        $this->authorizeAdmin($request);
+        $this->authorizeCohortManager($request, $id);
         $this->lifecycleService->activate($this->customerId(), $id);
 
-        return redirect()->route($this->routePrefix($request).'.show', $id)
+        return redirect()->route($this->cohortArea().'.show', $id)
             ->with('success', __('lf.LF_course_cohort_lifecycle_activated'));
     }
 
     public function complete(Request $request, int $id)
     {
-        $this->authorizeAdmin($request);
+        $this->authorizeCohortManager($request, $id);
         $this->lifecycleService->complete($this->customerId(), $id);
 
-        return redirect()->route($this->routePrefix($request).'.show', $id)
+        return redirect()->route($this->cohortArea().'.show', $id)
             ->with('success', __('lf.LF_course_cohort_lifecycle_completed'));
     }
 
@@ -665,22 +683,25 @@ class CourseCohortController extends Controller
         $this->lifecycleService->archive($this->customerId(), $id);
 
         return redirect()
-            ->route($this->routePrefix($request).'.show', $id)
+            ->route($this->cohortArea().'.show', $id)
             ->with('success', __('lf.LF_course_cohort_lifecycle_archived'));
     }
 
     public function bulkDestroy(Request $request)
     {
-        $this->authorizeAdmin($request);
-
         $validated = $request->validate([
             'ids' => ['required', 'array', 'min:1', 'max:100'],
             'ids.*' => ['required', 'integer', 'distinct'],
         ]);
         $ids = array_map('intval', $validated['ids']);
+        foreach ($ids as $id) {
+            $this->authorizeCohortManager($request, $id, 'class.delete');
+        }
+        // The teacher's own primary assignment does not keep their empty draft alive (ADR-0033 D7).
+        $ownPrimaryTeacherId = $this->inTeacherCohortArea() ? (int) $request->user()->id : null;
 
         try {
-            $this->lifecycleService->destroyEmptyDrafts($this->customerId(), $ids);
+            $this->lifecycleService->destroyEmptyDrafts($this->customerId(), $ids, $ownPrimaryTeacherId);
         } catch (ValidationException $exception) {
             $blocked = $exception->errors()['lifecycle'][0];
 
@@ -693,7 +714,21 @@ class CourseCohortController extends Controller
 
         return $request->expectsJson()
             ? response()->json(['message' => $message])
-            : redirect()->route($this->routePrefix($request).'.index')->with('success', $message);
+            : redirect($this->areaViewData()['cohortIndexUrl'])->with('success', $message);
+    }
+
+    /**
+     * What differs between the admin's and the teacher's class pages (ADR-0033 D7): the teacher's list is "Lớp của
+     * tôi", and the admin-only controls (enrolment, class teachers, attendance policy, archive) are not drawn.
+     */
+    private function areaViewData(): array
+    {
+        $teacher = $this->inTeacherCohortArea();
+
+        return [
+            'cohortAdmin' => ! $teacher,
+            'cohortIndexUrl' => route($teacher ? 'teacher.cohorts.index' : 'admin.course-cohorts.index'),
+        ];
     }
 
     private function cohortFieldLabels(): array
@@ -765,7 +800,11 @@ class CourseCohortController extends Controller
         ], ['attendance_policy_id.exists' => __('lf.LF_attendance_policy_cohort_invalid')], $this->cohortFieldLabels());
 
         $validator->after(function ($validator) use ($request, $customerId, $cohort, $input): void {
-            foreach (['customer_id', 'version_id', 'teacher_id'] as $managed) {
+            // The attendance policy stays with admins (ADR-0033 D7).
+            $managedFields = $this->inTeacherCohortArea()
+                ? ['customer_id', 'version_id', 'teacher_id', 'attendance_policy_id']
+                : ['customer_id', 'version_id', 'teacher_id'];
+            foreach ($managedFields as $managed) {
                 if ($request->has($managed)) {
                     $validator->errors()->add($managed, __('lf.LF_course_cohort_validation_managed'));
                 }
@@ -976,6 +1015,11 @@ class CourseCohortController extends Controller
                 default => 'LF_course_cohort_tab_recordings_locked_active',
             }],
         ];
+
+        // Recordings stay with admins (ADR-0033 D7).
+        if ($this->inTeacherCohortArea()) {
+            unset($definitions['recordings']);
+        }
 
         return collect($definitions)->map(function (array $state, string $key) use ($cohort, $routePrefix, $activeTab, $historical, $counts): array {
             [$accessible, $lockedReasonKey] = $state;

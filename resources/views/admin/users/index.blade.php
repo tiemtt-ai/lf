@@ -18,6 +18,9 @@
         'student' => __('lf.LF_common_role_student_student'),
     ];
     $roleLabel = mb_strtolower($roleLabels[$role]);
+    // Only the owner creates admins or touches another admin's account (ADR-0033 D2).
+    $mayCreate = $role !== 'customer_admin' || $isOwner;
+    $ownerOnly = __('lf.LF_admin_user_error_owner_only');
     $selectAttributes = 'data-ui-kit-select data-ui-empty-label="'.e(__('lf.LF_course_category_index_no_options')).'" data-ui-clear-label="'.e(__('lf.LF_admin_user_clear_filters')).'"';
 @endphp
 
@@ -82,11 +85,13 @@
             </form>
 
             <div class="mk-table-top__actions" data-ui-live-region="toolbar">
-                <button type="button" class="ui-button ui-button--outline cursor-interaction" data-ui-dialog-form-open
-                        data-url="{{ route('admin.users.create', ['role' => $role]) }}" aria-haspopup="dialog">
-                    <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
-                    {{ __('lf.LF_admin_user_create_'.$role) }}
-                </button>
+                @if ($mayCreate)
+                    <button type="button" class="ui-button ui-button--outline cursor-interaction" data-ui-dialog-form-open
+                            data-url="{{ route('admin.users.create', ['role' => $role]) }}" aria-haspopup="dialog">
+                        <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+                        {{ __('lf.LF_admin_user_create_'.$role) }}
+                    </button>
+                @endif
                 <a class="ui-button ui-button--outline cursor-interaction" download
                    href="{{ route('admin.users.export', array_filter(['role' => $role, 'keyword' => $keyword, 'status' => $status])) }}">
                     <x-backend-icon name="file-output" class="ui-icon" />
@@ -120,7 +125,11 @@
                     <tr>
                         <td class="mk-sequence" data-label="{{ __('lf.table_no') }}">{{ $users->firstItem() + $loop->index }}</td>
                         <td class="mk-text-cell" data-label="{{ __('lf.LF_common_label_name') }}">
-                            <span class="mk-name-line"><span class="mk-name-text">{{ $user->name }}</span></span>
+                            <span class="mk-name-line"><span class="mk-name-text">{{ $user->name }}</span>
+                                @if ((int) $user->id === $ownerId)
+                                    <span class="ui-status ui-status--active">{{ __('lf.LF_admin_user_owner_badge') }}</span>
+                                @endif
+                            </span>
                         </td>
                         <td class="mk-text-cell mk-text-cell--nowrap" data-label="{{ __('lf.LF_common_label_email') }}">{{ $user->email }}</td>
                         <td @class(['mk-text-cell', 'mk-text-cell--nowrap', 'mk-na' => ! $user->phone]) data-label="{{ __('lf.LF_common_label_phone') }}">{{ $user->phone ?: '-' }}</td>
@@ -130,6 +139,12 @@
                             </span>
                         </td>
                         <td class="ux-action-cell" data-label="{{ __('lf.table_actions') }}">
+                            @php $manageable = in_array((int) $user->id, $manageableIds, true); @endphp
+                            @if (! $manageable)
+                                <span class="ux-row-edit is-disabled" tabindex="0" role="img" aria-label="{{ $ownerOnly }}" data-tooltip="{{ $ownerOnly }}" data-tooltip-align="end">
+                                    <x-backend-icon name="square-pen" class="ui-icon" />
+                                </span>
+                            @else
                             <button type="button" class="ux-row-edit cursor-interaction" data-ui-dialog-form-open aria-haspopup="dialog"
                                     data-url="{{ route('admin.users.edit', $user->id) }}"
                                     aria-label="{{ __('lf.action_edit') }}: {{ $user->name }}" data-tooltip="{{ __('lf.action_edit') }}">
@@ -140,6 +155,18 @@
                                     aria-label="{{ __('lf.LF_admin_user_action_reset_password') }}: {{ $user->name }}" data-tooltip="{{ __('lf.LF_admin_user_action_reset_password') }}">
                                 <x-backend-icon name="lock" class="ui-icon" />
                             </button>
+                            @if ($isOwner && $user->role === 'customer_admin' && $user->status === 'active' && (int) $user->id !== $ownerId)
+                                <form method="POST" class="ui-cohort-row-form" action="{{ route('admin.users.transfer-ownership', $user->id) }}"
+                                      data-lf-confirm="{{ __('lf.LF_admin_user_owner_transfer_confirm', ['name' => $user->name]) }}"
+                                      data-lf-confirm-label="{{ __('lf.LF_admin_user_owner_transfer') }}">
+                                    @csrf
+                                    <button type="submit" class="ux-row-edit cursor-interaction"
+                                            aria-label="{{ __('lf.LF_admin_user_owner_transfer') }}: {{ $user->name }}" data-tooltip="{{ __('lf.LF_admin_user_owner_transfer') }}" data-tooltip-align="end">
+                                        <x-backend-icon name="user-cog" class="ui-icon" />
+                                    </button>
+                                </form>
+                            @endif
+                            @endif
                         </td>
                     </tr>
                 @empty
@@ -148,7 +175,7 @@
                             <div role="status">
                                 <strong>{{ $hasActiveFilters ? __('lf.LF_admin_user_filter_empty') : __('lf.LF_admin_user_empty', ['role' => $roleLabel]) }}</strong>
                                 <p class="ui-caption">{{ $hasActiveFilters ? __('lf.LF_admin_user_filter_empty_help') : __('lf.LF_admin_user_empty_help', ['role' => $roleLabel]) }}</p>
-                                @if (! $hasActiveFilters)
+                                @if (! $hasActiveFilters && $mayCreate)
                                     <button type="button" class="ui-button ui-button--outline cursor-interaction" data-ui-dialog-form-open
                                             data-url="{{ route('admin.users.create', ['role' => $role]) }}" aria-haspopup="dialog">
                                         {{ __('lf.LF_admin_user_create_'.$role) }}

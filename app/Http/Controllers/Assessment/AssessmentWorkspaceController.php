@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Assessment;
 
 use App\Http\Controllers\Controller;
+use App\Services\TeacherPermissions;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -28,8 +29,12 @@ final class AssessmentWorkspaceController extends Controller
     public function home(Request $request): RedirectResponse
     {
         $area = $request->user()->role === 'teacher' ? 'teacher' : 'admin';
+        // A teacher who only grades starts at the results (ADR-0033 D3).
+        $permissions = app(TeacherPermissions::class);
+        abort_unless($permissions->may($request->user(), 'assessment.authoring', 'assessment.grading'), 403, __('lf.LF_teacher_permission_denied'));
+        $section = $permissions->may($request->user(), 'assessment.authoring') ? 'questions' : 'results';
 
-        return redirect()->route($area.'.assessments.questions.index');
+        return redirect()->route($area.'.assessments.'.$section.'.index');
     }
 
     public function placeholder(string $section): View

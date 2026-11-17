@@ -19,10 +19,12 @@ use App\Services\Ai\UnavailableAuthoringProposalProvider;
 use App\Services\Ai\UnavailableEmbeddingProvider;
 use App\Services\Ai\UnavailableVectorStore;
 use App\Services\Ai\UnavailableVisionInterpretationProvider;
+use App\Services\TeacherPermissions;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
@@ -83,6 +85,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // ADR-0033 D6: buttons and menu entries ask the same check point as the routes (`teacher.may`).
+        Blade::if('teacherMay', fn (string ...$keys): bool => app(TeacherPermissions::class)->may(auth()->user(), ...$keys));
+
         RateLimiter::for('password-reset', function (Request $request) {
             $email = Str::lower((string) $request->input('email'));
             $host = Str::lower($request->getHost());

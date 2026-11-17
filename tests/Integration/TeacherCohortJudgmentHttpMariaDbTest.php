@@ -56,6 +56,33 @@ class TeacherCohortJudgmentHttpMariaDbTest extends TestCase
         $this->assertStringContainsString('role="tooltip"', $html);
     }
 
+    public function test_my_classes_puts_running_classes_first_and_filters_by_status(): void
+    {
+        $f = $this->fixture('filter');
+        $archived = $this->cohort($f, 'Archived cohort', mapped: true);
+        $draft = $this->cohort($f, 'Draft cohort', mapped: true);
+        DB::table('core_course_cohorts')->where('id', $archived)->update(['status' => 'archived']);
+        DB::table('core_course_cohorts')->where('id', $draft)->update(['status' => 'draft']);
+        $url = $f['host'].'/teacher/cohorts';
+
+        $html = $this->as($f['teacher_id'])->get($url)->assertOk()->getContent();
+        $active = strpos($html, 'data-teacher-cohort="'.$f['cohort_id'].'"');
+        $this->assertTrue($active < strpos($html, 'data-teacher-cohort="'.$draft.'"'), 'Running classes come first.');
+        $this->assertTrue(strpos($html, 'data-teacher-cohort="'.$draft.'"') < strpos($html, 'data-teacher-cohort="'.$archived.'"'), 'Archived classes come last.');
+        $this->assertStringContainsString('data-teacher-cohort-filter', $html);
+        $this->assertStringContainsString('href="'.$url.'?status=archived"', $html);
+        $this->assertStringNotContainsString('?status=completed', $html, 'A status without classes has no tab.');
+
+        $html = $this->as($f['teacher_id'])->get($url.'?status=archived')->assertOk()->getContent();
+        $this->assertStringContainsString('data-teacher-cohort="'.$archived.'"', $html);
+        $this->assertStringNotContainsString('data-teacher-cohort="'.$f['cohort_id'].'"', $html);
+        $this->assertStringNotContainsString('data-teacher-cohort="'.$draft.'"', $html);
+
+        $html = $this->as($f['teacher_id'])->get($url.'?status=nope')->assertOk()->getContent();
+        $this->assertStringContainsString('data-teacher-cohort="'.$f['cohort_id'].'"', $html, 'An unknown status shows every class.');
+        $this->assertStringContainsString('data-teacher-cohort="'.$archived.'"', $html);
+    }
+
     public function test_the_judgment_page_lists_mapped_competencies_first_with_their_lessons(): void
     {
         $f = $this->fixture('page');

@@ -6,7 +6,7 @@
 @section('page_title_hidden', '1')
 
 @section('page_back')
-    <x-page-back-link :href="route($routePrefix.'.index')" :label="__('lf.LF_course_cohort_common_back_to_cohorts')" />
+    <x-page-back-link :href="$cohortIndexUrl" :label="__('lf.LF_course_cohort_common_back_to_cohorts')" />
 @endsection
 
 @section('vite')
@@ -16,7 +16,7 @@
 
 @section('content')
 <div class="lf-admin-ui lf-admin-ui--list ui-cohort">
-    <x-ui-list-head :title="__('lf.LF_course_cohort_common_create')" :text="__('lf.LF_course_cohort_create_description')" />
+    <x-ui-list-head :title="__('lf.LF_course_cohort_common_create')" :text="__($cohortAdmin ? 'lf.LF_course_cohort_create_description' : 'lf.LF_course_cohort_create_description_teacher')" />
 
     @if ($errors->any())
         <div class="admin-alert admin-alert-danger" role="alert">

@@ -230,9 +230,13 @@ class MediaService
         }
     }
 
-    public function generateVersionActivitySignedUrls(int $versionId, array $activityIds): array
+    /**
+     * `$callerAuthorized`: the caller already checked access to this Version through its own scope, e.g. the class
+     * pages a primary teacher manages (ADR-0033 D7). Otherwise only an admin gets the links.
+     */
+    public function generateVersionActivitySignedUrls(int $versionId, array $activityIds, bool $callerAuthorized = false): array
     {
-        abort_unless(request()->user()?->role === 'customer_admin', 403);
+        abort_unless($callerAuthorized || request()->user()?->role === 'customer_admin', 403);
         $customerId = $this->customerId();
 
         return DB::table('core_course_template_version_activities as activities')

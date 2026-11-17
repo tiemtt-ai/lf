@@ -3,6 +3,7 @@
     <div class="ui-cohort-session-tree">
         @include('course-template-versions.partials.content-structure', $contentTree['structure'] + [
             'sessionTree' => $contentTree + [
+                'routePrefix' => $routePrefix,
                 'canReorder' => $cohort->is_mutable && $sessionAcceptsNew,
                 'appliedLessonIds' => $appliedLessonIds,
                 'firstAppliedLessonId' => $firstAppliedLessonId,

@@ -6,11 +6,12 @@ Document Path: database/saas/saas_customers.md
 
 Tenant/Customer root identity and lifecycle record.
 
-## Tenant Owner Amendment — 2026-11-17 (Approved, chưa có migration)
+## Tenant Owner Amendment — 2026-11-17 (Approved, Implemented)
 
 [ADR-0033](../../adr/ADR-0033-Teacher-Permissions-And-Tenant-Owner.md) D2 (Owner duyệt
 nghiệp vụ 2026-11-17). Thêm cột `owner_user_id`. Owner duyệt schema ngày 2026-11-17; khoá ngoại ghép dưới đây
-thay khoá ngoại đơn sau lượt rà soát và được Owner duyệt lại cùng ngày.
+thay khoá ngoại đơn sau lượt rà soát và được Owner duyệt lại cùng ngày. Migration:
+`2026_11_17_000400_create_teacher_permissions`.
 
 ```text
 owner_user_id BIGINT UNSIGNED NULL

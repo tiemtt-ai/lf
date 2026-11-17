@@ -54,6 +54,10 @@
                 ['label' => __('lf.LF_navigation_menu_admin_my_account'), 'route' => 'admin.my-account.edit', 'icon' => 'user'],
             ];
         $attendanceMenu = (bool) config('liveclass.attendance_enabled');
+        // A teacher sees the entries of the work their permission group allows (ADR-0033 D6).
+        $teacherPermissions = app(\App\Services\TeacherPermissions::class);
+        $mayAuthor = $isTeacher && $teacherPermissions->may($portalUser, 'assessment.authoring');
+        $mayResults = $isTeacher && $teacherPermissions->may($portalUser, 'assessment.authoring', 'assessment.grading');
         $portalMenu = $isTeacher
             ? [
                 ['label' => __('lf.LF_navigation_menu_teacher_dashboard'), 'route' => 'teacher.dashboard', 'active' => 'teacher.dashboard', 'visible' => true, 'icon' => 'home'],
@@ -64,16 +68,16 @@
                 ]],
                 // One "Lớp học" group for the teacher's classes and their live Sessions (Owner 2026-11-17).
                 ['label' => __('lf.LF_navigation_group_teacher_classes'), 'route' => null, 'active' => null, 'visible' => true, 'icon' => 'users', 'children' => [
-                    ['label' => __('lf.LF_navigation_menu_teacher_cohorts'), 'route' => 'teacher.cohorts.index', 'active' => 'teacher.cohorts.*', 'visible' => true],
+                    ['label' => __('lf.LF_navigation_menu_teacher_cohorts'), 'route' => 'teacher.cohorts.index', 'active' => ['teacher.cohorts.*', 'teacher.course-cohorts.*'], 'visible' => true],
                     ['label' => __('lf.LF_navigation_menu_teacher_live_sessions'), 'route' => 'teacher.live-sessions.index', 'active' => 'teacher.live-sessions.*', 'visible' => true],
                 ]],
-                ['label' => __('lf.LF_navigation_group_assessment'), 'route' => null, 'active' => null, 'visible' => true, 'icon' => 'file-check', 'children' => [
-                    ['label' => __('lf.LF_navigation_menu_assessment_questions'), 'route' => 'teacher.assessments.questions.index', 'active' => 'teacher.assessments.questions.*', 'visible' => true],
-                    ['label' => __('lf.LF_navigation_menu_assessment_passages'), 'route' => 'teacher.assessments.passages.index', 'active' => 'teacher.assessments.passages.*', 'visible' => true],
-                    ['label' => __('lf.LF_navigation_menu_assessment_rubrics'), 'route' => 'teacher.assessments.rubrics.index', 'active' => 'teacher.assessments.rubrics.*', 'visible' => true],
-                    ['label' => __('lf.LF_navigation_menu_assessment_quizzes'), 'route' => 'teacher.assessments.quizzes.index', 'active' => 'teacher.assessments.quizzes.*', 'visible' => true],
-                    ['label' => __('lf.LF_navigation_menu_assessment_registrations'), 'route' => 'teacher.assessments.registrations.index', 'active' => 'teacher.assessments.registrations.*', 'visible' => true],
-                    ['label' => __('lf.LF_navigation_menu_assessment_results'), 'route' => 'teacher.assessments.results.index', 'active' => 'teacher.assessments.results.*', 'visible' => true],
+                ['label' => __('lf.LF_navigation_group_assessment'), 'route' => null, 'active' => null, 'visible' => $mayResults, 'icon' => 'file-check', 'children' => [
+                    ['label' => __('lf.LF_navigation_menu_assessment_questions'), 'route' => 'teacher.assessments.questions.index', 'active' => 'teacher.assessments.questions.*', 'visible' => $mayAuthor],
+                    ['label' => __('lf.LF_navigation_menu_assessment_passages'), 'route' => 'teacher.assessments.passages.index', 'active' => 'teacher.assessments.passages.*', 'visible' => $mayAuthor],
+                    ['label' => __('lf.LF_navigation_menu_assessment_rubrics'), 'route' => 'teacher.assessments.rubrics.index', 'active' => 'teacher.assessments.rubrics.*', 'visible' => $mayAuthor],
+                    ['label' => __('lf.LF_navigation_menu_assessment_quizzes'), 'route' => 'teacher.assessments.quizzes.index', 'active' => 'teacher.assessments.quizzes.*', 'visible' => $mayAuthor],
+                    ['label' => __('lf.LF_navigation_menu_assessment_registrations'), 'route' => 'teacher.assessments.registrations.index', 'active' => 'teacher.assessments.registrations.*', 'visible' => $mayAuthor],
+                    ['label' => __('lf.LF_navigation_menu_assessment_results'), 'route' => 'teacher.assessments.results.index', 'active' => 'teacher.assessments.results.*', 'visible' => $mayResults],
                 ]],
             ]
             : [
@@ -105,6 +109,7 @@
                 // belongs to the signed-in person (Owner 2026-11-17).
                 ['label' => __('lf.LF_navigation_group_admin_management'), 'route' => null, 'active' => null, 'visible' => true, 'icon' => 'cog', 'children' => [
                     ['label' => __('lf.LF_navigation_menu_admin_users'), 'route' => 'admin.users.index', 'active' => 'admin.users.*', 'visible' => true],
+                    ['label' => __('lf.LF_navigation_menu_admin_teacher_permissions'), 'route' => 'admin.teacher-permissions.index', 'active' => 'admin.teacher-permissions.*', 'visible' => true],
                     ['label' => __('lf.LF_navigation_menu_admin_organization'), 'route' => 'admin.organization.edit', 'active' => 'admin.organization.*', 'visible' => true],
                 ]],
             ];

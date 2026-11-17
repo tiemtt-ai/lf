@@ -91,11 +91,13 @@
             :confirm-title="__('lf.LF_course_template_bulk_delete_title')" :confirm-message="__('lf.LF_course_template_bulk_delete_confirm', ['count' => ':count'])"
             :confirm-label="__('lf.LF_course_template_bulk_delete')">
             <x-slot:create>
+                @teacherMay('content.template.create')
                 <button type="button" class="ui-button ui-button--outline cursor-interaction"
                 data-ui-dialog-form-open data-ui-dialog-form-for="template-list" data-url="{{ route($routePrefix.'.create') }}" aria-haspopup="dialog">
             <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
             {{ __('lf.LF_course_template_common_create_short') }}
         </button>
+                @endteacherMay
             </x-slot:create>
         </x-ui-list-toolbar>
         </div>
@@ -172,12 +174,14 @@
                             <div role="status">
                                 <strong>{{ $hasActiveFilters ? __('lf.LF_course_template_filter_empty') : __('lf.LF_course_template_common_empty') }}</strong>
                                 <p class="ui-caption">{{ $hasActiveFilters ? __('lf.LF_course_template_filter_empty_help') : __('lf.LF_course_template_empty_help') }}</p>
+                                @teacherMay('content.template.create')
                                 @unless ($hasActiveFilters)
                                     <button type="button" class="ui-button ui-button--outline cursor-interaction"
                                             data-ui-dialog-form-open data-url="{{ route($routePrefix.'.create') }}" aria-haspopup="dialog">
                                         {{ __('lf.LF_course_template_common_create_short') }}
                                     </button>
                                 @endunless
+                                @endteacherMay
                             </div>
                         </td>
                     </tr>

@@ -47,7 +47,7 @@
         <footer class="ui-modal__footer">
             <span></span>
             <button type="button" class="ui-button cursor-interaction" x-on:click="closeDetail()">{{ __('lf.LF_common_button_close') }}</button>
-            <a class="ui-button ui-button--primary cursor-interaction" :href="detail?.detail_url">{{ __('lf.LF_course_cohort_student_view_full_enrollment') }}</a>
+            <a class="ui-button ui-button--primary cursor-interaction" x-show="detail?.detail_url" :href="detail?.detail_url">{{ __('lf.LF_course_cohort_student_view_full_enrollment') }}</a>
         </footer>
     </div>
 </dialog>

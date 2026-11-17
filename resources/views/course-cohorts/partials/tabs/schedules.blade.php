@@ -17,7 +17,7 @@
                         <span></span>
                         <button type="button" class="ui-button cursor-interaction" x-on:click="$root.close()">{{ __('lf.LF_common_button_close') }}</button>
                         <a class="ui-button ui-button--primary cursor-interaction"
-                           href="{{ route('admin.course-cohorts.show', [$cohort->id, 'tab' => 'sessions', 'applied' => implode(',', session('schedule_applied')['session_ids'])]) }}">{{ __('lf.LF_course_cohort_schedule_applied_view') }}</a>
+                           href="{{ route($routePrefix.'.show', [$cohort->id, 'tab' => 'sessions', 'applied' => implode(',', session('schedule_applied')['session_ids'])]) }}">{{ __('lf.LF_course_cohort_schedule_applied_view') }}</a>
                     </footer>
                 </dialog>
             @endif
@@ -46,7 +46,7 @@
             @if ($cohort->is_mutable && ! $hasOperatingPeriod)
                 <div class="ui-banner ui-cohort-tab-notice" role="status">
                     <span class="ui-banner__text">{{ __('lf.LF_course_cohort_schedule_operation_required') }}</span>
-                    <a class="ui-button ui-button--sm ui-button--outline cursor-interaction" href="{{ route('admin.course-cohorts.edit', $cohort->id) }}">{{ __('lf.LF_course_cohort_schedule_operation_action') }}</a>
+                    <a class="ui-button ui-button--sm ui-button--outline cursor-interaction" href="{{ route($routePrefix.'.edit', $cohort->id) }}">{{ __('lf.LF_course_cohort_schedule_operation_action') }}</a>
                 </div>
             @elseif ($cohort->is_mutable && ! $scheduleAcceptsNew && $schedules->total() > 0)
                 <div class="ui-banner ui-cohort-tab-notice" role="status">
@@ -57,7 +57,7 @@
             @if ($canAddSchedule)
                 @include('course-cohort-schedules.partials.form', [
                     'mode' => 'create',
-                    'action' => route('admin.course-cohorts.schedules.store', $cohort->id),
+                    'action' => route($routePrefix.'.schedules.store', $cohort->id),
                     'schedule' => null,
                     'slots' => collect(),
                     'exclusions' => collect(),
@@ -68,7 +68,7 @@
             @if ($scheduleFormMode === 'edit' && $cohort->is_mutable && $hasOperatingPeriod)
                 @include('course-cohort-schedules.partials.form', [
                     'mode' => 'edit',
-                    'action' => route('admin.course-cohorts.schedules.update', [$cohort->id, $scheduleFormSchedule->id]),
+                    'action' => route($routePrefix.'.schedules.update', [$cohort->id, $scheduleFormSchedule->id]),
                     'schedule' => $scheduleFormSchedule,
                     'slots' => $scheduleFormSlots,
                     'exclusions' => $scheduleFormExclusions,
@@ -112,7 +112,7 @@
                         <tr>
                             <td class="mk-sequence" data-label="{{ __('lf.table_no') }}">{{ $schedules->firstItem() + $loop->index }}</td>
                             <td class="mk-text-cell" data-label="{{ __('lf.LF_course_cohort_schedule_list_name') }}">
-                                <a class="ui-cohort-schedule-name cursor-interaction" href="{{ route('admin.course-cohorts.show', ['id' => $cohort->id, 'tab' => 'schedules', 'schedule_form' => 'view', 'schedule_id' => $schedule->id]) }}">{{ $schedule->name }}</a>
+                                <a class="ui-cohort-schedule-name cursor-interaction" href="{{ route($routePrefix.'.show', ['id' => $cohort->id, 'tab' => 'schedules', 'schedule_form' => 'view', 'schedule_id' => $schedule->id]) }}">{{ $schedule->name }}</a>
                                 @if ($schedule->timezone !== config('app.timezone'))
                                     <span class="ui-caption ui-framework-description">{{ $schedule->timezone }}</span>
                                 @endif
@@ -152,13 +152,13 @@
                             </td>
                             <td class="ux-action-cell" data-label="{{ __('lf.table_actions') }}">
                                 <a class="ux-row-edit cursor-interaction"
-                                   href="{{ route('admin.course-cohorts.show', ['id' => $cohort->id, 'tab' => 'schedules', 'schedule_form' => 'view', 'schedule_id' => $schedule->id]) }}"
+                                   href="{{ route($routePrefix.'.show', ['id' => $cohort->id, 'tab' => 'schedules', 'schedule_form' => 'view', 'schedule_id' => $schedule->id]) }}"
                                    aria-label="{{ __('lf.LF_common_button_view') }}: {{ $schedule->name }}" data-tooltip="{{ __('lf.LF_common_button_view') }}">
                                     <x-backend-icon name="eye" class="ui-icon" />
                                 </a>
                                 @if ($cohort->is_mutable)
                                     <a class="ux-row-edit cursor-interaction"
-                                       href="{{ route('admin.course-cohorts.show', ['id' => $cohort->id, 'tab' => 'schedules', 'schedule_form' => 'edit', 'schedule_id' => $schedule->id]) }}"
+                                       href="{{ route($routePrefix.'.show', ['id' => $cohort->id, 'tab' => 'schedules', 'schedule_form' => 'edit', 'schedule_id' => $schedule->id]) }}"
                                        aria-label="{{ __('lf.LF_common_button_edit') }}: {{ $schedule->name }}" data-tooltip="{{ __('lf.LF_common_button_edit') }}">
                                         <x-backend-icon name="square-pen" class="ui-icon" />
                                     </a>

@@ -17,8 +17,9 @@
      data-msg-session-expired="{{ __('lf.LF_course_category_dialog_session_expired') }}">
     @php
         $hasActiveFilters = $keyword !== '' || $status;
-        // Only admins manage categories; a teacher reads the list (and picks a category in the Template form).
-        $canManage = str_starts_with($routePrefix, 'admin');
+        // Admins manage categories, and teachers holding `content.category.manage` (ADR-0033 D3); any other teacher
+        // reads the list (and picks a category in the Template form).
+        $canManage = app(\App\Services\TeacherPermissions::class)->may(auth()->user(), 'content.category.manage');
     @endphp
 
     <x-ui-list-toasts />

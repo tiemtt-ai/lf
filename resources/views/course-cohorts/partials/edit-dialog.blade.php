@@ -50,7 +50,7 @@
                             <span class="ui-field__label">{{ __('lf.LF_course_cohort_create_content_version') }}</span>
                             <div class="ui-enroll-readonly ui-cohort-version">
                                 <span>{{ str_replace(':code', $cohort->version_code, __('lf.LF_course_cohort_create_version_prefix')) }}</span>
-                                @if ($cohort->version_template_id)
+                                @if ($cohort->version_template_id && ($cohortAdmin ?? true))
                                     <a href="{{ route('admin.course-templates.versions.show', [$cohort->version_template_id, $cohort->version_id]) }}" class="ui-enroll-link ui-cohort-version-link" target="_blank" rel="noopener" aria-label="{{ __('lf.LF_product_v2_view_version_new_tab') }}">
                                         <x-backend-icon name="eye" class="ui-icon" />{{ __('lf.LF_course_product_item_common_view_version') }}
                                     </a>
@@ -87,6 +87,8 @@
                         <p class="ui-caption">{{ __('lf.LF_course_cohort_default_meeting_url_help') }}</p>
                         @if ($editRetry) @error('default_meeting_url')<p class="ui-field__error" x-show="showErrors">{{ $message }}</p>@enderror @endif
                     </div>
+                    {{-- The attendance policy stays with admins (ADR-0033 D7). --}}
+                    @if ($cohortAdmin ?? true)
                     @php
                         $defaultPolicy = $attendancePolicies->firstWhere('is_default', 1);
                         $savedPolicy = (string) ($cohort->attendance_policy_id ?? '');
@@ -103,6 +105,7 @@
                             <a href="{{ route('admin.attendance-policies.index') }}">{{ __('lf.LF_attendance_policy_title') }}</a></p>
                         @if ($editRetry) @error('attendance_policy_id')<p class="ui-field__error" x-show="showErrors">{{ $message }}</p>@enderror @endif
                     </div>
+                    @endif
                     <div class="ui-field ui-field--full">
                         <label class="ui-field__label" for="cohort-edit-notes">{{ __('lf.LF_course_cohort_common_notes') }}</label>
                         <textarea id="cohort-edit-notes" name="notes" rows="3" data-original="{{ $cohort->notes }}" placeholder="{{ __('lf.LF_course_cohort_create_notes_placeholder') }}">{{ $editValue('notes', $cohort->notes) }}</textarea>

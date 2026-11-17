@@ -458,9 +458,10 @@ class LiveClassAttendanceCheckInTest extends TestCase
             ->assertSee(LiveClassAttendancePolicies::DEFAULT_NAME)
             // The whole policy can be read in a popup, and the menu groups the teacher's two class pages.
             ->assertSee('data-attendance-policy-dialog', false)
-            ->assertSeeText(__('lf.LF_attendance_policy_field_auto_absent_after_minutes'))
-            ->assertSeeText(__('lf.LF_attendance_policy_recording_system'))
-            ->assertSeeText(trans_choice('lf.LF_attendance_policy_days', 7, ['count' => 7]))
+            ->assertSeeText(__('lf.LF_teacher_attendance_rules_open'))
+            ->assertSeeText(__('lf.LF_teacher_attendance_rules_auto_absent'))
+            ->assertSeeText(__('lf.LF_teacher_attendance_rules_offline_system'))
+            ->assertSeeText(__('lf.LF_teacher_attendance_rules_edit_value', ['value' => trans_choice('lf.LF_attendance_policy_days', 7, ['count' => 7])]))
             ->assertSee('<a class="admin-nav__child" href="'.self::HOST.'/teacher/cohorts"', false)
             ->assertSee('<a class="admin-nav__child" href="'.self::HOST.'/teacher/live-sessions"', false);
 

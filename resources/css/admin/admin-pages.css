@@ -5131,75 +5131,14 @@
 }
 
 /* Teacher "Lớp của tôi" and cohort competency judgment (Course Scope Amendment 2026-10-11). */
-.teacher-cohorts {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-}
-
-.teacher-cohorts__intro {
-    margin: 0;
-    color: var(--admin-text-muted);
-    font-size: 14px;
-}
-
-.teacher-cohorts__card,
 .teacher-judgment__skills,
 .teacher-judgment__students {
     margin: 0;
 }
 
-.teacher-cohorts__card {
-    padding: 18px 20px;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px 20px;
-    align-items: center;
-    justify-content: space-between;
-    max-width: none;
-}
-
-.teacher-cohorts__main {
-    display: flex;
-    flex: 1 1 420px;
-    flex-direction: column;
-    gap: 6px;
-    min-width: 0;
-}
-
-.teacher-cohorts__title-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    align-items: center;
-}
-
-.teacher-cohorts__title {
-    margin: 0;
-    color: var(--admin-text);
-    font-size: 17px;
-    font-weight: 600;
-    overflow-wrap: anywhere;
-}
-
-.teacher-cohorts__meta,
 .teacher-judgment__meta {
     color: var(--admin-control-text);
     font-size: 14px;
-}
-
-.teacher-cohorts__basis {
-    display: inline-flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    align-items: center;
-    color: #1b7a4b;
-    font-size: 13px;
-}
-
-.teacher-cohorts__blocked {
-    color: #8f5b00;
-    font-size: 13px;
 }
 
 .teacher-judgment {
@@ -5477,7 +5416,6 @@
 }
 
 @media (max-width: 767px) {
-    .teacher-cohorts__card .btn,
     .teacher-judgment__form-actions .btn {
         width: 100%;
     }

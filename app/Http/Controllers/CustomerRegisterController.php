@@ -80,6 +80,9 @@ class CustomerRegisterController extends Controller
                 'updated_at' => now(),
             ]);
 
+            // The first admin is the tenant owner (ADR-0033 D2), written in the transaction that creates the tenant.
+            DB::table('saas_customers')->where('id', $customerId)->update(['owner_user_id' => $userId]);
+
             $user = DB::table('users')->where('id', $userId)->first();
 
             AuditLog::record(

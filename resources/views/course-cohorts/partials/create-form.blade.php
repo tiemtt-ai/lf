@@ -7,7 +7,7 @@
             : __('lf.LF_course_cohort_product_registration_unlimited'),
         'registrationEnded' => $product->registration_ends_at && \Illuminate\Support\Carbon::parse($product->registration_ends_at)->isPast(),
         'versionCode' => $product->version_code,
-        'viewUrl' => route('admin.course-templates.versions.show', [$product->template_id, $product->version_id]),
+        'viewUrl' => ($cohortAdmin ?? true) ? route('admin.course-templates.versions.show', [$product->template_id, $product->version_id]) : null,
         'lessonCount' => (int) $product->lesson_count,
         'activityCount' => (int) $product->activity_count,
     ]]);
@@ -56,7 +56,7 @@
                         · <span x-text="@js(__('lf.LF_course_cohort_create_activity_count')).replace(':count', selectedVersion.activityCount)"></span>
                     </span>
                     </span>
-                    <a :href="selectedVersion.viewUrl" class="ui-enroll-link ui-cohort-version-link" target="_blank" rel="noopener" aria-label="{{ __('lf.LF_product_v2_view_version_new_tab') }}">
+                    <a x-show="selectedVersion.viewUrl" :href="selectedVersion.viewUrl" class="ui-enroll-link ui-cohort-version-link" target="_blank" rel="noopener" aria-label="{{ __('lf.LF_product_v2_view_version_new_tab') }}">
                         <x-backend-icon name="eye" class="ui-icon" />{{ __('lf.LF_course_product_item_common_view_version') }}
                     </a>
                 </span>
@@ -99,7 +99,7 @@
 </div>
 
 <footer class="ui-cohort-form__actions">
-    <a href="{{ route($routePrefix.'.index') }}" class="ui-button cursor-interaction">{{ __('lf.LF_common_button_cancel') }}</a>
+    <a href="{{ $cohortIndexUrl }}" class="ui-button cursor-interaction">{{ __('lf.LF_common_button_cancel') }}</a>
     <button type="submit" class="ui-button ui-button--primary cursor-interaction" x-bind:disabled="submitting" aria-live="polite">
         <span x-show="!submitting">{{ __('lf.LF_course_cohort_create_and_continue') }}</span>
         <span x-show="submitting" x-cloak>{{ __('lf.LF_course_cohort_create_submitting') }}</span>

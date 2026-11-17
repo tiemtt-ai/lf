@@ -2,7 +2,7 @@
 <dialog x-ref="sessionDialog" class="ui-modal ui-cohort-session-modal" data-columns="2" aria-labelledby="session_form_title"
         x-on:close="sessionDialogClosed()" x-on:cancel="if (submitting) $event.preventDefault()">
     <form method="POST" class="ui-modal__form course-cohort-session-form"
-          action="{{ route('admin.course-cohorts.sessions.store', $cohort->id) }}"
+          action="{{ route($routePrefix.'.sessions.store', $cohort->id) }}"
           x-bind:action="editingId ? updateUrl.replace('__SESSION__', editingId) : storeUrl"
           x-on:submit="submitForm($event)">
         @csrf

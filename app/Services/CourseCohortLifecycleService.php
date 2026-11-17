@@ -52,9 +52,13 @@ class CourseCohortLifecycleService
      *
      * @param  array<int, int>  $cohortIds
      */
-    public function destroyEmptyDrafts(int $customerId, array $cohortIds): void
+    /**
+     * `$ownPrimaryTeacherId`: a teacher deleting their own drafts (ADR-0033 D7); their active primary assignment is
+     * not a record of the class and goes with it. Every other assignment still blocks.
+     */
+    public function destroyEmptyDrafts(int $customerId, array $cohortIds, ?int $ownPrimaryTeacherId = null): void
     {
-        DB::transaction(function () use ($customerId, $cohortIds): void {
+        DB::transaction(function () use ($customerId, $cohortIds, $ownPrimaryTeacherId): void {
             $cohorts = DB::table('core_course_cohorts')
                 ->where('customer_id', $customerId)
                 ->whereIn('id', $cohortIds)
@@ -68,10 +72,14 @@ class CourseCohortLifecycleService
                 throw ValidationException::withMessages(['lifecycle' => __('lf.LF_course_cohort_delete_blocked_status')]);
             }
 
-            if ($this->cohortIdsWithRecords($customerId, $cohortIds) !== []) {
+            $ownAssignments = $ownPrimaryTeacherId === null ? null : DB::table('core_course_cohort_teachers')
+                ->where('customer_id', $customerId)->whereIn('cohort_id', $cohortIds)
+                ->where('teacher_id', $ownPrimaryTeacherId)->where('role', 'primary_teacher')->where('status', 'active');
+            if ($this->cohortIdsWithRecords($customerId, $cohortIds, $ownAssignments?->clone()->pluck('id')->all() ?? []) !== []) {
                 throw ValidationException::withMessages(['lifecycle' => __('lf.LF_course_cohort_delete_blocked_records')]);
             }
 
+            $ownAssignments?->delete();
             DB::table('core_course_cohorts')
                 ->where('customer_id', $customerId)
                 ->whereIn('id', $cohortIds)
@@ -83,7 +91,7 @@ class CourseCohortLifecycleService
      * @param  array<int, int>  $cohortIds
      * @return array<int, int>
      */
-    public function cohortIdsWithRecords(int $customerId, array $cohortIds): array
+    public function cohortIdsWithRecords(int $customerId, array $cohortIds, array $ignoredAssignmentIds = []): array
     {
         // A seat transferred out still names this Cohort as its origin (FK restrict), so it is a record too.
         $transferredOut = DB::table('core_course_cohort_students')
@@ -96,6 +104,7 @@ class CourseCohortLifecycleService
             ->flatMap(fn (string $table) => DB::table($table)
                 ->where('customer_id', $customerId)
                 ->whereIn('cohort_id', $cohortIds)
+                ->when($table === 'core_course_cohort_teachers' && $ignoredAssignmentIds !== [], fn ($query) => $query->whereNotIn('id', $ignoredAssignmentIds))
                 ->distinct()
                 ->pluck('cohort_id'))
             ->concat($transferredOut)

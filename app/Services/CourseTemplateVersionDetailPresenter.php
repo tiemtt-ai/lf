@@ -12,12 +12,12 @@ class CourseTemplateVersionDetailPresenter
         private readonly TrustedVideoUrlService $trustedVideos,
     ) {}
 
-    public function present(int $versionId, Collection $lessons, Collection $activities): array
+    public function present(int $versionId, Collection $lessons, Collection $activities, bool $callerAuthorized = false): array
     {
         $lessonTitles = $lessons->pluck('title_snapshot', 'id');
         $activityTitles = $activities->pluck('title_snapshot', 'id');
         $activityLessons = $activities->pluck('version_lesson_id', 'id');
-        $mediaUrls = $this->mediaService->generateVersionActivitySignedUrls($versionId, $activities->whereNotNull('media_file_id')->pluck('id')->all());
+        $mediaUrls = $this->mediaService->generateVersionActivitySignedUrls($versionId, $activities->whereNotNull('media_file_id')->pluck('id')->all(), $callerAuthorized);
         $presentedActivities = $activities->mapWithKeys(function ($activity) use ($activityTitles, $activityLessons, $mediaUrls) {
             $minutes = $activity->estimated_duration_seconds_snapshot ? intdiv($activity->estimated_duration_seconds_snapshot, 60) : null;
             $availability = collect([

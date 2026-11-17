@@ -31,7 +31,8 @@ final class TeacherCohortReadService
             ->whereExists(fn ($query) => $query->selectRaw('1')->from('core_course_cohort_teachers as assignments')
                 ->whereColumn('assignments.cohort_id', 'cohorts.id')->whereColumn('assignments.customer_id', 'cohorts.customer_id')
                 ->where('assignments.teacher_id', $teacherId)->where('assignments.status', 'active'))
-            ->orderByRaw("CASE WHEN cohorts.status = 'active' THEN 0 ELSE 1 END")
+            // Running classes first, then drafts being prepared, then finished ones.
+            ->orderByRaw("CASE cohorts.status WHEN 'active' THEN 0 WHEN 'draft' THEN 1 WHEN 'completed' THEN 2 ELSE 3 END")
             ->orderByDesc('cohorts.start_date')->orderBy('cohorts.name')
             ->get(['cohorts.id', 'cohorts.name', 'cohorts.status', 'cohorts.start_date', 'cohorts.end_date', 'cohorts.version_id', 'products.title as product_title'])
             ->map(function (object $cohort) use ($customerId, $teacherId, $today): object {

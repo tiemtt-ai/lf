@@ -37,7 +37,7 @@ final class LiveClassSessionOperationsController extends Controller
     /** The administrator's general edit closes at the planned start; the meeting link alone stays open until the end. */
     public function adminMeetingLink(Request $request, int $cohort, int $session): RedirectResponse
     {
-        $customerId = $this->authorizeAdmin($request);
+        $customerId = $this->authorizeCohortManager($request, $cohort);
         $row = DB::table('core_liveclass_sessions')->where('customer_id', $customerId)->where('cohort_id', $cohort)
             ->where('id', $session)->first() ?? abort(404);
         abort_unless(DB::table('core_course_cohorts')->where('customer_id', $customerId)->where('id', $cohort)
@@ -45,7 +45,7 @@ final class LiveClassSessionOperationsController extends Controller
         $request->replace($request->only(['meeting_url']));
 
         return $this->apply($request, $customerId, $row,
-            redirect()->route('admin.course-cohorts.show', ['id' => $cohort, 'tab' => 'sessions']), 'sessionMeetingLink');
+            redirect()->route($this->cohortArea().'.show', ['id' => $cohort, 'tab' => 'sessions']), 'sessionMeetingLink');
     }
 
     private function apply(Request $request, int $customerId, object $session, RedirectResponse $back, string $bag): RedirectResponse

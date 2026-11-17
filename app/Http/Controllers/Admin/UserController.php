@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\TenantOwner;
 use App\Support\AuditLog;
 use App\Support\TenantContext;
 use App\Support\XlsxDownload;
@@ -14,10 +15,13 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\ValidationException;
 
 class UserController extends Controller
 {
     private const ROLES = ['customer_admin', 'teacher', 'student'];
+
+    public function __construct(private readonly TenantOwner $owner) {}
 
     public function index(Request $request)
     {
@@ -35,12 +39,20 @@ class UserController extends Controller
             ->paginate(10)
             ->withQueryString();
 
+        // Only the owner touches another admin's account (ADR-0033 D2).
+        $isOwner = $this->owner->is($request->user());
+
         return view('admin.users.index', [
             'users' => $users,
             'role' => $role,
             'roleCounts' => $roleCounts,
             'keyword' => $keyword,
             'status' => $status,
+            'ownerId' => $this->owner->id((int) $customerId),
+            'isOwner' => $isOwner,
+            'manageableIds' => $users->getCollection()
+                ->filter(fn (object $user): bool => $this->owner->mayManage($request->user(), $user, $isOwner))
+                ->map(fn (object $user): int => (int) $user->id)->values()->all(),
         ]);
     }
 
@@ -107,9 +119,13 @@ class UserController extends Controller
         $role = in_array($request->query('role'), ['customer_admin', 'teacher', 'student'], true)
             ? $request->query('role')
             : 'customer_admin';
+        $isOwner = $this->owner->is($request->user());
+        abort_if($role === 'customer_admin' && ! $isOwner, 403, __('lf.LF_admin_user_error_owner_only'));
 
         // The users list opens this form as a UI Kit popup (XHR); the full page stays for direct visits.
-        return view($request->ajax() ? 'admin.users.dialog' : 'admin.users.create', ['role' => $role, 'user' => null]);
+        return view($request->ajax() ? 'admin.users.dialog' : 'admin.users.create', [
+            'role' => $role, 'user' => null, 'mayChooseAdmin' => $isOwner, 'isOwnerAccount' => false,
+        ]);
     }
 
     public function store(Request $request)
@@ -125,6 +141,7 @@ class UserController extends Controller
         ]);
 
         $customerId = TenantContext::customerId();
+        $this->ensureMayGrantAdmin($request, null);
 
         DB::transaction(function () use ($request, $customerId): void {
             $userId = DB::table('users')->insertGetId([
@@ -151,6 +168,8 @@ class UserController extends Controller
                 $userId,
                 after: $this->auditFields($user)
             );
+            // A tenant without an owner yet takes its first admin.
+            $this->owner->id($customerId);
         });
 
         if ($request->expectsJson()) {
@@ -173,8 +192,14 @@ class UserController extends Controller
             ->first();
 
         abort_if(! $user, 404);
+        $this->ensureMayManage($request, $user);
 
-        return view($request->ajax() ? 'admin.users.dialog' : 'admin.users.edit', ['user' => $user, 'role' => $user->role]);
+        return view($request->ajax() ? 'admin.users.dialog' : 'admin.users.edit', [
+            'user' => $user, 'role' => $user->role,
+            'mayChooseAdmin' => $this->owner->is($request->user()) || $user->role === 'customer_admin',
+            // The owner is never demoted, not even by themself.
+            'isOwnerAccount' => $this->owner->id((int) $user->customer_id) === (int) $user->id,
+        ]);
     }
 
     public function editPassword(Request $request, $id)
@@ -187,6 +212,7 @@ class UserController extends Controller
             ->first();
 
         abort_if(! $user, 404);
+        $this->ensureMayManage($request, $user);
 
         return view('admin.users.password-dialog', ['user' => $user]);
     }
@@ -222,6 +248,12 @@ class UserController extends Controller
                 ->first();
 
             abort_if(! $user, 404);
+            $this->ensureMayManage($request, $user);
+            $this->ensureMayGrantAdmin($request, $user);
+
+            if ($request->role !== 'customer_admin' && $this->owner->id($customerId) === (int) $user->id) {
+                return ['blocked' => 'owner', 'email_changed' => false];
+            }
 
             if (
                 $request->role !== 'customer_admin'
@@ -242,6 +274,10 @@ class UserController extends Controller
                 'email_verified_at' => $emailChanged ? null : $user->email_verified_at,
                 'updated_at' => now(),
             ];
+            // The permission group only means something for a teacher (saas_teacher_permission_groups § Column On users).
+            if ($request->role !== 'teacher') {
+                $attributes['teacher_permission_group_id'] = null;
+            }
 
             DB::table('users')
                 ->where('id', $id)
@@ -276,6 +312,10 @@ class UserController extends Controller
 
             return ['blocked' => false, 'email_changed' => $emailChanged];
         });
+
+        if ($result['blocked'] === 'owner') {
+            return $this->roleError($request, __('lf.LF_admin_user_error_owner_demote'));
+        }
 
         if ($result['blocked'] && $request->expectsJson()) {
             return response()->json(['message' => 'The given data was invalid.', 'errors' => ['role' => [__('lf.LF_admin_user_error_last_admin')]]], 422);
@@ -318,6 +358,7 @@ class UserController extends Controller
             ->first();
 
         abort_if(! $user, 404);
+        $this->ensureMayManage($request, $user);
 
         $isOwnAccount = (int) $user->id === (int) auth()->id();
         $passwordRules = ['required', 'confirmed', Password::defaults()];
@@ -421,6 +462,7 @@ class UserController extends Controller
                 ->first();
 
             abort_if(! $user, 404);
+            $this->ensureMayManage($request, $user);
 
             $newStatus = $user->status === 'active'
                 ? 'inactive'
@@ -428,7 +470,7 @@ class UserController extends Controller
 
             if (
                 $newStatus === 'inactive'
-                && $this->isLastActiveCustomerAdmin($user, $customerId)
+                && ($this->isLastActiveCustomerAdmin($user, $customerId) || $this->owner->id($customerId) === (int) $user->id)
             ) {
                 return true;
             }
@@ -460,6 +502,45 @@ class UserController extends Controller
 
         return back()
             ->with('success', 'Status updated.');
+    }
+
+    /** Hands the owner role to another active admin (ADR-0033 D2): the owner only, after a confirmation. */
+    public function transferOwnership(Request $request, $id)
+    {
+        $customerId = TenantContext::customerId();
+        abort_unless($this->owner->is($request->user()), 403, __('lf.LF_admin_user_error_owner_only'));
+
+        $done = DB::transaction(function () use ($request, $id, $customerId): bool {
+            $this->lockTenant($customerId);
+
+            return $this->owner->transfer($request, $customerId, (int) $id);
+        });
+
+        return $done
+            ? redirect()->route('admin.users.index', ['role' => 'customer_admin'])->with('success', __('lf.LF_admin_user_owner_transferred'))
+            : back()->withErrors(['owner' => __('lf.LF_admin_user_error_owner_target')]);
+    }
+
+    /** Another admin's account is the owner's alone (ADR-0033 D2). */
+    private function ensureMayManage(Request $request, object $target): void
+    {
+        abort_unless($this->owner->mayManage($request->user(), $target), 403, __('lf.LF_admin_user_error_owner_only'));
+    }
+
+    /** Creating an admin, or promoting someone to admin, is the owner's alone (ADR-0033 D2). */
+    private function ensureMayGrantAdmin(Request $request, ?object $target): void
+    {
+        $grants = $request->role === 'customer_admin' && ($target === null || $target->role !== 'customer_admin');
+        if ($grants && ! $this->owner->is($request->user())) {
+            throw ValidationException::withMessages(['role' => __('lf.LF_admin_user_error_owner_only')]);
+        }
+    }
+
+    private function roleError(Request $request, string $message)
+    {
+        return $request->expectsJson()
+            ? response()->json(['message' => 'The given data was invalid.', 'errors' => ['role' => [$message]]], 422)
+            : back()->withErrors(['role' => $message])->withInput();
     }
 
     private function lockTenant(?int $customerId): void

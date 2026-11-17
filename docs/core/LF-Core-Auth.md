@@ -806,7 +806,7 @@ customer_id
 
 ---
 
-# Teacher Permissions — 2026-11-17 (Approved, chưa triển khai)
+# Teacher Permissions — 2026-11-17 (Approved, Implemented)
 
 [ADR-0033](../adr/ADR-0033-Teacher-Permissions-And-Tenant-Owner.md). Thứ tự kiểm tra của
 một request trong khu giáo viên:
@@ -815,8 +815,12 @@ một request trong khu giáo viên:
 ResolveTenant → Authentication → role:teacher → quyền của nhóm (nếu việc đó thuộc bảy quyền) → phân công
 ```
 
-* Quyền được kiểm tra ở máy chủ tại một điểm chung; ẩn nút không thay cho kiểm tra này.
+* Quyền được kiểm tra ở máy chủ tại một điểm chung (`TeacherPermissions::may()`, middleware
+  `teacher.may:<khoá>`); ẩn nút không thay cho kiểm tra này.
 * Thiếu quyền trả 403 cho request ghi; mục menu và nút tương ứng không hiện.
+* Màn Lớp học mở cho giáo viên (ADR-0033 D7): ngoài khoá `class.manage` hay `class.delete`,
+  bước phân công là "giáo viên chính đang hoạt động của lớp" (trừ tạo lớp). Ghi danh, phân
+  công giáo viên của lớp, bộ quy tắc điểm danh và lưu trữ vẫn chỉ `role:customer_admin`.
 * Quản trị không đi qua bước quyền của nhóm. Riêng thao tác tạo hoặc thay đổi tài khoản quản
   trị (kể cả nâng một người dùng lên quản trị) chỉ Chủ trung tâm làm được.
 

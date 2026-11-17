@@ -124,7 +124,7 @@
         <div class="course-template-activity-list" id="course-version-lesson-{{ $lesson->id }}-activity-list"
              @if ($activityTabs !== []) role="tabpanel" x-bind:aria-labelledby="'course-version-lesson-{{ $lesson->id }}-tab-' + phase" @endif
              @if ($activitiesReorderable)
-                 data-reorder-url="{{ route('admin.course-cohorts.content.activities.reorder', [$cohort->id, $lesson->id]) }}"
+                 data-reorder-url="{{ route(($sessionTree['routePrefix'] ?? 'admin.course-cohorts').'.content.activities.reorder', [$cohort->id, $lesson->id]) }}"
                  data-reorder-field="activity_ids"
                  data-reorder-reload
                  data-msg-saved="{{ __('lf.LF_course_template_activity_reorder_saved') }}"

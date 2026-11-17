@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Services\LearningCourseCompetencyReadService;
 use App\Services\TeacherCohortReadService;
 use App\Services\TeacherJudgmentService;
+use App\Services\TeacherPermissions;
 use App\Support\TenantContext;
 use DomainException;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -32,7 +33,25 @@ final class TeacherCohortJudgmentController extends Controller
 
     public function index(Request $request): View
     {
-        return view('teacher-cohorts.index', ['cohorts' => $this->cohorts->cohorts((int) $request->user()->id)]);
+        $permissions = app(TeacherPermissions::class);
+        $teacher = $request->user();
+
+        $all = $this->cohorts->cohorts((int) $teacher->id);
+        // Status filter: one tab per status the teacher has classes in; an unknown status shows them all.
+        $statusCounts = $all->countBy('status')->sortBy(fn (int $count, string $status): int => ['active' => 0, 'draft' => 1, 'completed' => 2][$status] ?? 3);
+        $requested = $request->query('status');
+        $status = is_string($requested) && $statusCounts->has($requested) ? $requested : null;
+
+        // ADR-0033 D7: the classes this teacher is the primary teacher of open on the shared class pages.
+        return view('teacher-cohorts.index', [
+            'cohorts' => $status === null ? $all : $all->where('status', $status)->values(),
+            'totalCohorts' => $all->count(),
+            'statusCounts' => $statusCounts,
+            'status' => $status,
+            'mayCreateCohort' => $permissions->may($teacher, 'class.manage'),
+            'mayDeleteCohort' => $permissions->may($teacher, 'class.delete'),
+            'primaryCohortIds' => $permissions->primaryCohortIds($teacher),
+        ]);
     }
 
     public function show(Request $request, int $cohort): View

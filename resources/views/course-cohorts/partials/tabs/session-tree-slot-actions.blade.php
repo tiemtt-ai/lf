@@ -6,18 +6,20 @@
     $slotEditable = $slotEditable ?? true;
     $sessionEndsLifecycleOpen = in_array($session->status, ['scheduled', 'live'], true);
     // Session status là thao tác vận hành nên chỉ mở khi lớp đang hoạt động.
+    // Bắt đầu, kết thúc buổi và mở bảng ở đây là của quản trị; giáo viên làm ở Buổi học trực tiếp (ADR-0033 D7).
+    $cohortAdminArea = $cohortAdmin ?? true;
     $sessionLifecycle = $cohort->status !== 'active' || $slotProposal ? [] : array_filter([
         // Buổi chưa có giáo viên không bắt đầu được (LiveClassSessionLifecycleService).
-        'start' => $session->status === 'scheduled' && collect($session->teacher_ids ?? [])->isNotEmpty(),
-        'complete' => $session->status === 'live',
+        'start' => $cohortAdminArea && $session->status === 'scheduled' && collect($session->teacher_ids ?? [])->isNotEmpty(),
+        'complete' => $cohortAdminArea && $session->status === 'live',
         'cancel' => $sessionEndsLifecycleOpen,
         'no-show' => $sessionEndsLifecycleOpen,
     ]);
 @endphp
 <button type="button" class="ux-row-edit cursor-interaction" aria-haspopup="dialog"
         aria-label="{{ __('lf.LF_course_cohort_session_details') }}: {{ $session->title }}" data-tooltip="{{ __('lf.LF_course_cohort_session_details') }}"
-        @foreach (array_keys($sessionLifecycle) as $action) data-lifecycle-{{ $action }}="{{ route('admin.course-cohorts.sessions.'.$action, [$cohort->id, $session->id]) }}" @endforeach
-        @if ($cohort->status === 'active' && ! $slotProposal && $session->status === 'live') data-board-url="{{ route('admin.course-cohorts.sessions.board', [$cohort->id, $session->id]) }}" @endif
+        @foreach (array_keys($sessionLifecycle) as $action) data-lifecycle-{{ $action }}="{{ route($routePrefix.'.sessions.'.$action, [$cohort->id, $session->id]) }}" @endforeach
+        @if ($cohortAdminArea && $cohort->status === 'active' && ! $slotProposal && $session->status === 'live') data-board-url="{{ route($routePrefix.'.sessions.board', [$cohort->id, $session->id]) }}" @endif
         x-on:click="openDetail(@js($session), $el)">
     <x-backend-icon name="eye" class="ui-icon" />
 </button>

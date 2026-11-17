@@ -1504,7 +1504,8 @@
 .lf-admin-ui .ux-row-delete { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--ui-invalid); vertical-align: middle; }
 .lf-admin-ui .ux-row-delete:hover:not(:disabled) { background: var(--ui-danger-soft); }
 .lf-admin-ui .ux-row-delete:disabled { color: var(--ui-color-a0a6b1); cursor: not-allowed; }
-.lf-admin-ui .ux-row-delete.is-disabled { color: var(--ui-color-a0a6b1); cursor: not-allowed; }
+.lf-admin-ui .ux-row-delete.is-disabled,
+.lf-admin-ui .ux-row-edit.is-disabled { color: var(--ui-color-a0a6b1); cursor: not-allowed; }
 .lf-admin-ui .ux-row-delete:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--ui-color-c8526018); }
 .lf-admin-ui :is(#catalog-tag-add,[data-ui-tag-add])::before,
 .lf-admin-ui [data-modal-tag-add]::before {
@@ -3897,22 +3898,92 @@
 }
 
 /* Attendance roster shared by the Cohort tab and the teacher page (liveclass-attendance/partials/roster). */
-.lf-admin-ui .ui-attendance-col-status { width: 168px; }
-.lf-admin-ui .ui-attendance-col-mode { width: 148px; }
+.lf-admin-ui .ui-attendance-col-status { width: 200px; }
+.lf-admin-ui .ui-attendance-col-mode { width: 168px; }
+/* The status and mode pickers open their list over the rows: where the table fits, nothing clips it. Without the
+   scroll the table is held to the card's width, so a long name or e-mail wraps instead of spilling out. Narrower, the
+   table keeps its horizontal scroll. */
+@media (min-width: 1024px) {
+    .lf-admin-ui .mk-table-scroll.ui-attendance-roster { overflow: visible; }
+    .lf-admin-ui .ui-attendance-roster > table { min-width: 0; table-layout: fixed; }
+    .lf-admin-ui .ui-attendance-roster td { overflow-wrap: anywhere; }
+    .lf-admin-ui.ui-teacher-attendance > .mk-section, .lf-admin-ui .mk-section.ui-cohort-attendance { overflow: visible; }
+}
 .lf-admin-ui .ui-attendance-actions { display: flex; justify-content: flex-end; margin-top: 12px; }
 .lf-admin-ui .ui-attendance-history { margin-top: 16px; font-size: 14px; }
 .lf-admin-ui .ui-attendance-history summary { color: var(--ui-primary); cursor: pointer; }
 .lf-admin-ui .ui-attendance-history ul { display: grid; gap: 6px; margin: 8px 0 0; padding: 0; list-style: none; }
 .lf-admin-ui .ui-attendance-history li { padding: 6px 10px; border-radius: var(--ui-control-radius); background: var(--ui-color-f7f8fa); }
-.lf-admin-ui .ui-attendance-session { max-width: 420px; margin-bottom: 12px; }
-/* The teacher page puts the roster straight into a list card: what is not the full-width table keeps the card's side gap. */
-.lf-admin-ui.ui-teacher-attendance .mk-section > :is(.ui-attendance-session, p.ui-caption, .ui-banner, .ui-attendance-history, .mk-empty) { margin-inline: 24px; }
+.lf-admin-ui .ui-attendance-session { max-width: 560px; margin-bottom: 12px; }
+.lf-admin-ui.ui-teacher-attendance .ui-attendance-session { margin-top: 18px; }
+/* The teacher page and the Cohort tab put the roster straight into a list card: what is not the full-width table keeps
+   the card's side gap. */
+.lf-admin-ui :is(.ui-teacher-attendance .mk-section, .mk-section.ui-cohort-attendance) > :is(.ui-attendance-session, p.ui-caption, .ui-banner, .ui-attendance-history, .mk-empty) { margin-inline: 24px; }
 .lf-admin-ui.ui-teacher-attendance .mk-section > p.ui-caption { margin-bottom: 12px; }
-.lf-admin-ui.ui-teacher-attendance .ui-attendance-actions { padding: 0 24px 16px; }
-.lf-admin-ui.ui-teacher-attendance .ui-attendance-history { margin-bottom: 16px; }
+.lf-admin-ui :is(.ui-teacher-attendance, .ui-cohort-attendance) .ui-attendance-actions { padding: 0 24px 16px; }
+.lf-admin-ui :is(.ui-teacher-attendance, .ui-cohort-attendance) .ui-attendance-history { margin-bottom: 16px; }
+.lf-admin-ui .ui-cohort-attendance .ui-attendance-session { margin-top: 18px; }
+.lf-admin-ui .ui-cohort-attendance .ui-summary-head .ui-caption { margin: 2px 0 0; }
+.lf-admin-ui .mk-section.ui-cohort-attendance > .ui-banner { margin-top: 0; margin-bottom: 12px; }
+.lf-admin-ui.ui-teacher-attendance [data-attendance-policy-open] { white-space: nowrap; }
+@media (max-width: 640px) {
+    .lf-admin-ui :is(.ui-teacher-attendance, .ui-cohort-attendance) .ui-summary-head { flex-direction: column; align-items: stretch; }
+    .lf-admin-ui :is(.ui-teacher-attendance, .ui-cohort-attendance) .ui-summary-head .mk-table-top__actions { margin-left: 0; }
+    .lf-admin-ui :is(.ui-teacher-attendance .mk-section, .mk-section.ui-cohort-attendance) > :is(.ui-attendance-session, p.ui-caption, .ui-banner, .ui-attendance-history, .mk-empty) { margin-inline: 16px; }
+}
 /* The read-only policy of a class on the teacher attendance page. */
+/* Phân quyền (ADR-0033): the group list reuses the attendance policy list and "apply" popup styles. */
+.lf-admin-ui .ui-teacher-permission-col-name { width: 26%; }
+.lf-admin-ui .ui-teacher-permission-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.lf-admin-ui .ui-teacher-permission-tag { display: inline-flex; align-items: center; min-height: 26px; padding: 2px 10px; border-radius: 999px; background: var(--ui-color-f0f2f6); color: var(--ui-text); font-size: 13px; line-height: 1.4; }
+.lf-admin-ui .ui-teacher-permission-keys { display: grid; gap: 14px; margin: 18px 0 0; padding: 0; border: 0; }
+.lf-admin-ui .ui-teacher-permission-keys > legend { margin-bottom: 10px; }
+.lf-admin-ui .ui-teacher-permission-area h4 { margin: 0 0 6px; color: var(--ui-muted); font-size: 13px; font-weight: 500; }
+.lf-admin-ui .ui-teacher-permission-area__rows { border: 1px solid var(--ui-color-e6e8ee); border-radius: 10px; }
+.lf-admin-ui .ui-teacher-permission-area__rows > .ui-switch-row { align-items: center; padding: 12px 16px; }
+.lf-admin-ui .ui-teacher-permission-area__rows > .ui-switch-row + .ui-switch-row { border-top: 1px solid var(--ui-color-e6e8ee); }
+.lf-admin-ui .ui-teacher-permission-area__rows .ui-switch-row__text { gap: 2px; }
+.lf-admin-ui .ui-attendance-policy-apply__filters.ui-teacher-permission-filters { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); }
+/* Teacher "Lớp của tôi": one row per class inside the list section. */
+.lf-admin-ui .ui-teacher-cohort { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; padding: 18px 22px; border-bottom: 1px solid var(--ui-color-e6e8ee); }
+.lf-admin-ui .ui-teacher-cohort:last-child { border-bottom: 0; }
+.lf-admin-ui .ui-teacher-cohort__main { display: flex; flex: 1 1 420px; flex-direction: column; gap: 4px; min-width: 0; }
+.lf-admin-ui .ui-teacher-cohort__title-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.lf-admin-ui .ui-teacher-cohort__title { margin: 0; color: var(--ui-text); font-size: 16px; font-weight: 600; line-height: 24px; overflow-wrap: anywhere; }
+.lf-admin-ui .ui-teacher-cohort__role { display: inline-flex; align-items: center; padding: 1px 10px; border: 1px solid var(--ui-border); border-radius: 999px; color: var(--ui-muted); font-size: 12px; line-height: 18px; white-space: nowrap; }
+.lf-admin-ui .ui-teacher-cohort__meta { margin: 0; color: var(--ui-text); font-size: 14px; line-height: 20px; }
+.lf-admin-ui .ui-teacher-cohort__note { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0; color: var(--ui-muted); font-size: 13px; line-height: 18px; }
+.lf-admin-ui .ui-teacher-cohort__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.lf-admin-ui .ui-teacher-cohort__actions form { margin: 0; }
+.lf-admin-ui .ui-teacher-cohorts .ui-summary-head:has(+ .ui-teacher-cohort-filter) { border-bottom: 0; padding-bottom: 4px; }
+.lf-admin-ui .ui-teacher-cohort-filter { margin: 0; padding: 0 22px; overflow-x: auto; scrollbar-width: none; }
+.lf-admin-ui .ui-teacher-cohort-filter .ui-tabs__tab { display: inline-flex; align-items: center; font-size: 14px; text-decoration: none; }
+.lf-admin-ui .ui-teacher-cohort-filter .ui-tabs__tab:hover { color: var(--ui-text); }
+.lf-admin-ui .ui-teacher-cohort-filter .ui-tabs__tab[aria-current=page] { color: var(--ui-primary); }
+.lf-admin-ui .ui-teacher-cohort-filter .ui-tabs__tab[aria-current=page]::after { content: ''; position: absolute; right: 12px; bottom: 0; left: 12px; height: 2px; background: var(--ui-primary); }
+.lf-admin-ui .ui-teacher-cohort-filter .ui-tabs__tab[aria-current=page] .ui-tab-count { background: var(--ui-color-eef0fb); color: var(--ui-primary); }
+@media (max-width: 640px) { .lf-admin-ui .ui-teacher-cohort-filter { padding: 0 8px; } .lf-admin-ui .ui-teacher-cohort-filter .ui-tabs__tab { padding: 8px 8px; } .lf-admin-ui .ui-teacher-cohort-filter .ui-tabs__tab[aria-current=page]::after { right: 6px; left: 6px; } }
+.lf-admin-ui .ui-teacher-cohort-empty { display: grid; gap: 4px; padding: 28px 22px; text-align: center; }
+.lf-admin-ui .ui-teacher-cohort-empty p { margin: 0; }
+@media (max-width: 640px) {
+    .lf-admin-ui .ui-teacher-cohort { padding: 16px; }
+    .lf-admin-ui .ui-teacher-cohort__actions, .lf-admin-ui .ui-teacher-cohort__actions form { width: 100%; }
+    .lf-admin-ui .ui-teacher-cohort__actions .ui-button { width: 100%; }
+}
+.lf-admin-ui .ui-teacher-permission-fixed { margin-top: 16px; padding: 18px 22px; }
+.lf-admin-ui .ui-teacher-permission-fixed h2 { margin: 0 0 8px; font-size: 16px; }
+.lf-admin-ui .ui-teacher-permission-fixed p { margin: 4px 0 0; }
+@media (max-width: 640px) {
+    .lf-admin-ui .ui-attendance-policy-apply__filters.ui-teacher-permission-filters { grid-template-columns: 1fr; }
+}
 .lf-admin-ui .ui-attendance-policy-view { display: grid; gap: 0; margin: 0; }
 .lf-admin-ui .ui-attendance-policy-view > div { display: flex; justify-content: space-between; gap: 16px; padding: 8px 0; border-bottom: 1px solid var(--ui-color-eceef3); font-size: 14px; }
 .lf-admin-ui .ui-attendance-policy-view > div:last-child { border-bottom: 0; }
 .lf-admin-ui .ui-attendance-policy-view dt { color: var(--ui-muted); }
 .lf-admin-ui .ui-attendance-policy-view dd { margin: 0; font-weight: 500; text-align: right; }
+/* Teacher attendance page: the class's rules in plain words, grouped; long values sit left of a fixed label column. */
+.lf-admin-ui .ui-modal.ui-teacher-attendance-rules { --modal-width: 600px; }
+.lf-admin-ui .ui-teacher-attendance-rules .ui-modal__body { display: grid; gap: 14px; }
+.lf-admin-ui .ui-teacher-attendance-rules__group h4 { margin: 0 0 2px; color: var(--ui-text); font-size: 14px; font-weight: 600; }
+.lf-admin-ui .ui-teacher-attendance-rules .ui-attendance-policy-view > div { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); }
+.lf-admin-ui .ui-teacher-attendance-rules .ui-attendance-policy-view dd { text-align: left; }

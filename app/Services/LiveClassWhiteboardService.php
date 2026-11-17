@@ -45,6 +45,7 @@ class LiveClassWhiteboardService
     public function teacherSessions(int $customerId, int $teacherId): Collection
     {
         $teacherActive = $this->teacherIsActive($customerId, $teacherId);
+        $mayOperate = app(TeacherPermissions::class)->may(DB::table('users')->where('customer_id', $customerId)->where('id', $teacherId)->first(), 'class.operate');
 
         return $this->sessionQuery($customerId)
             ->join('core_liveclass_session_teachers as assignments', function ($join) use ($customerId, $teacherId): void {
@@ -60,14 +61,15 @@ class LiveClassWhiteboardService
             ->filter(fn (object $session): bool => $session->status === 'live'
                 || $this->localDate($session->scheduled_start_at, $session->timezone) >= $this->today($session->timezone))
             ->take(100)
-            ->map(function (object $session) use ($teacherActive): object {
+            ->map(function (object $session) use ($teacherActive, $mayOperate): object {
                 $presenter = $teacherActive && $this->windowCovers($session);
                 $session->is_today = $this->isPlannedToday($session);
                 $session->can_start = $presenter && $session->status === 'scheduled' && $session->is_today;
                 $session->can_open = $presenter && $session->status === 'live';
                 $session->can_complete = $session->can_open;
                 // What this teacher may change of the Session's operational part (ADR-0002 § Teacher Session Operations).
-                $editable = $presenter ? $this->sessionOperations->editable((int) $session->customer_id, $session) : ['place' => false, 'link' => false];
+                // Without `class.operate` the teacher still teaches the Session, but changes nothing of it (ADR-0033 D3).
+                $editable = $presenter && $mayOperate ? $this->sessionOperations->editable((int) $session->customer_id, $session) : ['place' => false, 'link' => false];
                 $session->can_edit_place = $editable['place'];
                 $session->can_edit_link = $editable['link'];
 

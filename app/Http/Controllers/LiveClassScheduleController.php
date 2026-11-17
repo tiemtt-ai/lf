@@ -17,8 +17,6 @@ class LiveClassScheduleController extends Controller
 {
     use AuthorizesCourseCohortAdmin;
 
-    private string $cohortRoutePrefix = 'admin.course-cohorts';
-
     public function __construct(
         private readonly LiveClassSchedulePreviewService $previewService,
         private readonly LiveClassScheduleService $scheduleService,
@@ -27,11 +25,11 @@ class LiveClassScheduleController extends Controller
 
     public function create(Request $request, int $cohort): RedirectResponse
     {
-        $customerId = $this->authorizeAdmin($request);
+        $customerId = $this->authorizeCohortManager($request, $cohort);
         $cohortRow = $this->cohort($customerId, $cohort);
         abort_unless(CourseCohortMutationPolicy::canMutate($cohortRow), 403);
 
-        return redirect()->route('admin.course-cohorts.show', [
+        return redirect()->route($this->cohortArea().'.show', [
             'id' => $cohort,
             'tab' => 'schedules',
             'schedule_form' => 'create',
@@ -56,11 +54,11 @@ class LiveClassScheduleController extends Controller
 
     public function show(Request $request, int $cohort, int $schedule): RedirectResponse
     {
-        $customerId = $this->authorizeAdmin($request);
+        $customerId = $this->authorizeCohortManager($request, $cohort);
         $this->cohort($customerId, $cohort);
         $this->schedule($customerId, $cohort, $schedule);
 
-        return redirect()->route('admin.course-cohorts.show', [
+        return redirect()->route($this->cohortArea().'.show', [
             'id' => $cohort,
             'tab' => 'schedules',
             'schedule_form' => 'view',
@@ -70,12 +68,12 @@ class LiveClassScheduleController extends Controller
 
     public function edit(Request $request, int $cohort, int $schedule): RedirectResponse
     {
-        $customerId = $this->authorizeAdmin($request);
+        $customerId = $this->authorizeCohortManager($request, $cohort);
         $cohortRow = $this->cohort($customerId, $cohort);
         abort_unless(CourseCohortMutationPolicy::canMutate($cohortRow), 403);
         $this->schedule($customerId, $cohort, $schedule);
 
-        return redirect()->route('admin.course-cohorts.show', [
+        return redirect()->route($this->cohortArea().'.show', [
             'id' => $cohort,
             'tab' => 'schedules',
             'schedule_form' => 'edit',
@@ -135,7 +133,7 @@ class LiveClassScheduleController extends Controller
         $sessionIds = $created !== [] ? $created : DB::table('core_liveclass_session_schedule_origins')
             ->where('customer_id', $this->customerId())->where('schedule_id', $schedule)
             ->orderBy('session_id')->pluck('session_id')->map(fn ($id): int => (int) $id)->all();
-        $redirect = redirect()->route('admin.course-cohorts.show', ['id' => $cohort, 'tab' => 'schedules']);
+        $redirect = redirect()->route($this->cohortArea().'.show', ['id' => $cohort, 'tab' => 'schedules']);
 
         return $sessionIds === []
             ? $redirect->with('success', __($message))

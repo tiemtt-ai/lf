@@ -8,6 +8,7 @@ use App\Services\CourseCohortLifecycleService;
 use App\Services\LiveClassCohortSessionReadModel;
 use App\Services\LiveClassScheduleSessionGenerator;
 use App\Services\LiveClassWhiteboardService;
+use App\Services\TeacherPermissions;
 use App\Support\SimpleXlsx;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -44,19 +45,14 @@ class CourseCohortManagementTest extends TestCase
 
     public function test_admin_course_cohort_routes_exist_and_teacher_routes_do_not(): void
     {
-        foreach ([
-            'index',
-            'create',
-            'store',
-            'show',
-            'edit',
-            'update',
-            'activate',
-            'complete',
-            'archive',
-        ] as $route) {
+        foreach (['index', 'archive', 'teachers.store', 'students.sync', 'sessions.start', 'sessions.attendance'] as $route) {
             $this->assertTrue(Route::has("admin.course-cohorts.{$route}"));
             $this->assertFalse(Route::has("teacher.course-cohorts.{$route}"));
+        }
+        // The pages a primary teacher shares with admins (ADR-0033 D7).
+        foreach (['create', 'store', 'show', 'edit', 'update', 'activate', 'complete', 'bulk-destroy', 'schedules.store', 'sessions.store', 'sessions.cancel'] as $route) {
+            $this->assertTrue(Route::has("admin.course-cohorts.{$route}"));
+            $this->assertTrue(Route::has("teacher.course-cohorts.{$route}"));
         }
     }
 
@@ -392,9 +388,8 @@ class CourseCohortManagementTest extends TestCase
                 ->assertForbidden();
         }
 
-        $this->actingAs($teacher)
-            ->get('https://tenant-a.localhost/teacher/course-cohorts')
-            ->assertNotFound();
+        // A teacher has no class list of their own: Lớp của tôi is it (the URI only takes DELETE, ADR-0033 D7).
+        $this->assertContains($this->actingAs($teacher)->get('https://tenant-a.localhost/teacher/course-cohorts')->status(), [404, 405]);
     }
 
     public function test_cross_tenant_teacher_product_and_version_are_rejected(): void
@@ -2846,6 +2841,245 @@ class CourseCohortManagementTest extends TestCase
     /**
      * @return array{0: int, 1: User, 2: int}
      */
+    public function test_a_primary_teacher_with_class_manage_creates_and_runs_their_class(): void
+    {
+        $host = 'https://tenant-a.localhost';
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $this->createProduct($customerId, 'TOPIK Beginner', 'topik-beginner');
+        $this->createVersion($customerId, $admin->id);
+        $manager = $this->teacherWithKeys($customerId, ['class.manage', 'class.delete']);
+        $colleague = $this->teacherWithKeys($customerId, ['class.manage']);
+        $plain = $this->createUser($customerId, 'teacher');
+
+        // Without class.manage there is no way in.
+        $this->actingAs($plain)->get($host.'/teacher/cohorts')->assertOk()->assertDontSee('data-teacher-cohort-create', false);
+        $this->actingAs($plain)->get($host.'/teacher/course-cohorts/create')->assertForbidden();
+        $this->actingAs($plain)->post($host.'/teacher/course-cohorts', $this->validCohortData())->assertForbidden();
+
+        $this->actingAs($manager)->get($host.'/teacher/cohorts')->assertOk()->assertSee('data-teacher-cohort-create', false);
+        // A tampered status filter shows every class instead of failing.
+        $this->actingAs($manager)->get($host.'/teacher/cohorts?status[]=active')->assertOk();
+        $this->actingAs($manager)->get($host.'/teacher/course-cohorts/create')->assertOk()
+            ->assertSee($host.'/teacher/course-cohorts', false)->assertDontSee($host.'/admin/', false)
+            ->assertSeeText(__('lf.LF_course_cohort_create_description_teacher'));
+        // A teacher cannot name another primary teacher, nor skip the operating period.
+        $this->actingAs($manager)->post($host.'/teacher/course-cohorts', $this->validCohortData(['end_date' => null]))
+            ->assertSessionHasErrors('end_date');
+        $this->actingAs($manager)->post($host.'/teacher/course-cohorts', $this->validCohortData(['name' => 'Lớp của giáo viên']))
+            ->assertRedirect($host.'/teacher/course-cohorts/1')
+            ->assertSessionHas('success', __('lf.LF_course_cohort_common_created_teacher'));
+        $cohortId = 1;
+        $this->assertDatabaseHas('core_course_cohort_teachers', [
+            'customer_id' => $customerId, 'cohort_id' => $cohortId, 'teacher_id' => $manager->id, 'role' => 'primary_teacher',
+            'status' => 'active', 'assigned_from' => '2026-08-01', 'assigned_to' => '2026-08-31', 'created_by' => $manager->id,
+        ]);
+        // "Lớp của tôi" reads the learning tables, which SQLite does not build; its Quản lý and Xoá buttons are checked in the browser.
+
+        // The shared pages, without the admin-only controls.
+        foreach (['', '?tab=students', '?tab=teachers', '?tab=schedules', '?tab=sessions', '?tab=recordings'] as $tab) {
+            $this->actingAs($manager)->get($host.'/teacher/course-cohorts/'.$cohortId.$tab)->assertOk()
+                ->assertDontSee($host.'/admin/', false)
+                ->assertDontSee('/archive', false)
+                ->assertDontSee('/students/edit', false)->assertDontSee('cohort-teacher-assignment-form', false)
+                ->assertDontSee('attendance_policy_id', false);
+        }
+        $this->actingAs($manager)->get($host.'/teacher/course-cohorts/'.$cohortId.'?tab=schedules')
+            ->assertSee($host.'/teacher/course-cohorts/'.$cohortId.'/schedules', false);
+
+        $this->actingAs($manager)->put($host.'/teacher/course-cohorts/'.$cohortId, [
+            'name' => 'Đổi tên', 'capacity' => '', 'start_date' => '2026-08-01', 'end_date' => '2026-08-30',
+        ])->assertRedirect($host.'/teacher/course-cohorts/'.$cohortId);
+        $this->assertDatabaseHas('core_course_cohorts', ['id' => $cohortId, 'name' => 'Đổi tên', 'end_date' => '2026-08-30']);
+        // The primary assignment follows the period, as it does for an admin.
+        $this->assertDatabaseHas('core_course_cohort_teachers', ['cohort_id' => $cohortId, 'teacher_id' => $manager->id, 'assigned_to' => '2026-08-30']);
+        $this->actingAs($manager)->put($host.'/teacher/course-cohorts/'.$cohortId, [
+            'name' => 'Đổi tên', 'capacity' => '', 'start_date' => '2026-08-01', 'end_date' => '2026-08-30', 'attendance_policy_id' => '',
+        ])->assertSessionHasErrors('attendance_policy_id');
+
+        $this->actingAs($manager)->post($host.'/teacher/course-cohorts/'.$cohortId.'/schedules', $this->validScheduleData(['ends_on' => '2026-08-30']))
+            ->assertRedirect();
+        $this->assertSame(1, DB::table('core_liveclass_schedules')->where('cohort_id', $cohortId)->count());
+        $this->actingAs($manager)->post($host.'/teacher/course-cohorts/'.$cohortId.'/sessions',
+            $this->operationalPayload('Buổi riêng', '2026-08-05 19:00', '2026-08-05 21:00'))->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('core_liveclass_sessions', ['cohort_id' => $cohortId, 'title' => 'Buổi riêng']);
+        $this->actingAs($manager)->get($host.'/teacher/course-cohorts/'.$cohortId.'/students/export')->assertOk();
+
+        // Admin-only work has no teacher route.
+        foreach ([['post', '/archive'], ['post', '/teachers'], ['put', '/students']] as [$method, $path]) {
+            $this->assertContains($this->actingAs($manager)->{$method}($host.'/teacher/course-cohorts/'.$cohortId.$path, [])->status(), [404, 405]);
+        }
+        $this->assertSame(1, DB::table('core_course_cohort_teachers')->where('cohort_id', $cohortId)->count());
+        $this->assertSame('draft', DB::table('core_course_cohorts')->where('id', $cohortId)->value('status'));
+
+        // Another teacher with the key but not this class's primary teacher, and the admin.
+        $this->actingAs($colleague)->get($host.'/teacher/course-cohorts/'.$cohortId)->assertForbidden();
+        $this->actingAs($colleague)->put($host.'/teacher/course-cohorts/'.$cohortId, ['name' => 'X', 'capacity' => '', 'start_date' => '2026-08-01', 'end_date' => '2026-08-30'])->assertForbidden();
+        $this->actingAs($colleague)->post($host.'/teacher/course-cohorts/'.$cohortId.'/schedules', $this->validScheduleData())->assertForbidden();
+        $this->actingAs($colleague)->get($host.'/teacher/course-cohorts/'.$cohortId.'/students/export')->assertForbidden();
+        $this->actingAs($admin)->get($host.'/admin/course-cohorts/'.$cohortId)->assertOk()
+            ->assertSee($host.'/admin/course-cohorts/'.$cohortId.'/activate', false);
+
+        // Losing the key closes the class pages; the class stays.
+        DB::table('users')->where('id', $manager->id)->update(['teacher_permission_group_id' => null]);
+        $this->actingAs($manager)->get($host.'/teacher/course-cohorts/'.$cohortId)->assertForbidden();
+        $this->assertDatabaseHas('core_course_cohorts', ['id' => $cohortId]);
+    }
+
+    public function test_a_primary_teacher_with_class_delete_deletes_only_their_empty_drafts(): void
+    {
+        $host = 'https://tenant-a.localhost';
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $this->createProduct($customerId, 'TOPIK Beginner', 'topik-beginner');
+        $this->createVersion($customerId, $admin->id);
+        $manager = $this->teacherWithKeys($customerId, ['class.manage', 'class.delete']);
+        $noDelete = $this->teacherWithKeys($customerId, ['class.manage']);
+        foreach (['Lớp trống', 'Lớp có lịch', 'Lớp khác'] as $name) {
+            $this->actingAs($name === 'Lớp khác' ? $noDelete : $manager)
+                ->post($host.'/teacher/course-cohorts', $this->validCohortData(['name' => $name]))->assertSessionHasNoErrors();
+        }
+        [$empty, $scheduled, $other] = DB::table('core_course_cohorts')->orderBy('id')->pluck('id')->all();
+        $this->actingAs($manager)->post($host.'/teacher/course-cohorts/'.$scheduled.'/schedules', $this->validScheduleData())->assertRedirect();
+
+        $this->actingAs($noDelete)->delete($host.'/teacher/course-cohorts', ['ids' => [$other]])->assertForbidden();
+        $this->actingAs($manager)->delete($host.'/teacher/course-cohorts', ['ids' => [$other]])->assertForbidden();
+        $this->actingAs($manager)->from($host.'/teacher/cohorts')->delete($host.'/teacher/course-cohorts', ['ids' => [$scheduled]])
+            ->assertSessionHasErrors('lifecycle');
+        $this->actingAs($manager)->delete($host.'/teacher/course-cohorts', ['ids' => [$empty]])
+            ->assertRedirect($host.'/teacher/cohorts');
+        $this->assertDatabaseMissing('core_course_cohorts', ['id' => $empty]);
+        $this->assertDatabaseMissing('core_course_cohort_teachers', ['cohort_id' => $empty]);
+        $this->assertDatabaseHas('core_course_cohorts', ['id' => $scheduled]);
+
+        // For an admin, an assigned teacher still keeps a draft alive.
+        $this->actingAs($admin)->deleteJson($host.'/admin/course-cohorts', ['ids' => [$other]])->assertStatus(409);
+    }
+
+    public function test_a_primary_teacher_activates_and_completes_their_class_but_never_archives_it(): void
+    {
+        $host = 'https://tenant-a.localhost';
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $this->createProduct($customerId, 'TOPIK Beginner', 'topik-beginner');
+        $this->createVersion($customerId, $admin->id);
+        $manager = $this->teacherWithKeys($customerId, ['class.manage']);
+        $colleague = $this->teacherWithKeys($customerId, ['class.manage']);
+        $this->actingAs($manager)->post($host.'/teacher/course-cohorts', $this->validCohortData())->assertSessionHasNoErrors();
+        $cohortId = (int) DB::table('core_course_cohorts')->value('id');
+        $page = $host.'/teacher/course-cohorts/'.$cohortId;
+
+        $this->actingAs($manager)->get($page)->assertOk()
+            ->assertSee($page.'/activate', false)->assertDontSee($page.'/archive', false);
+        $this->actingAs($colleague)->post($page.'/activate')->assertForbidden();
+        $this->actingAs($manager)->post($page.'/activate')->assertRedirect($page)
+            ->assertSessionHas('success', __('lf.LF_course_cohort_lifecycle_activated'));
+        $this->assertSame('active', DB::table('core_course_cohorts')->where('id', $cohortId)->value('status'));
+
+        $this->actingAs($manager)->get($page)->assertOk()->assertSee($page.'/complete', false);
+        $this->actingAs($colleague)->post($page.'/complete')->assertForbidden();
+        $this->actingAs($manager)->post($page.'/complete')->assertRedirect($page);
+        $this->assertSame('completed', DB::table('core_course_cohorts')->where('id', $cohortId)->value('status'));
+
+        // Archiving stays with admins: no button, no route.
+        $this->actingAs($manager)->get($page)->assertOk()->assertDontSee('/archive', false);
+        $this->assertContains($this->actingAs($manager)->post($page.'/archive')->status(), [404, 405]);
+        $this->actingAs($admin)->get($host.'/admin/course-cohorts/'.$cohortId)->assertOk()
+            ->assertSee($host.'/admin/course-cohorts/'.$cohortId.'/archive', false);
+
+        // Without class.manage the lifecycle is closed too.
+        DB::table('users')->where('id', $manager->id)->update(['teacher_permission_group_id' => null]);
+        DB::table('core_course_cohorts')->where('id', $cohortId)->update(['status' => 'draft']);
+        $this->actingAs($manager)->post($page.'/activate')->assertForbidden();
+    }
+
+    public function test_class_manage_and_class_delete_never_reach_another_tenants_class(): void
+    {
+        $hostA = 'https://tenant-a.localhost';
+        $hostB = 'https://tenant-b.localhost';
+        $customerId = $this->createTenant();
+        $otherCustomerId = $this->createTenant('tenant-b');
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $this->createProduct($customerId, 'TOPIK Beginner', 'topik-beginner');
+        $this->createVersion($customerId, $admin->id);
+        $manager = $this->teacherWithKeys($customerId, ['class.manage', 'class.delete']);
+        $this->actingAs($manager)->post($hostA.'/teacher/course-cohorts', $this->validCohortData(['name' => 'Lớp tenant A']))
+            ->assertSessionHasNoErrors();
+        $cohortId = (int) DB::table('core_course_cohorts')->value('id');
+
+        // A teacher of tenant B with both keys; even a stray primary row of tenant B naming that id opens nothing (ADR-0033 D6).
+        $outsider = $this->teacherWithKeys($otherCustomerId, ['class.manage', 'class.delete']);
+        DB::table('core_course_cohort_teachers')->insert([
+            'customer_id' => $otherCustomerId, 'cohort_id' => $cohortId, 'teacher_id' => $outsider->id,
+            'role' => 'primary_teacher', 'status' => 'active', 'assigned_from' => '2026-08-01',
+            'created_by' => $outsider->id, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        foreach ([$hostA, $hostB] as $host) {
+            $page = $host.'/teacher/course-cohorts/'.$cohortId;
+            $this->assertNotSame(200, $this->actingAs($outsider)->get($page)->status());
+            $this->actingAs($outsider)->put($page, ['name' => 'X', 'capacity' => '', 'start_date' => '2026-08-01', 'end_date' => '2026-08-30']);
+            $this->actingAs($outsider)->post($page.'/schedules', $this->validScheduleData());
+            $this->actingAs($outsider)->post($page.'/activate');
+            $this->actingAs($outsider)->delete($host.'/teacher/course-cohorts', ['ids' => [$cohortId]]);
+        }
+
+        $this->assertDatabaseHas('core_course_cohorts', ['id' => $cohortId, 'name' => 'Lớp tenant A', 'status' => 'draft']);
+        $this->assertSame(0, DB::table('core_liveclass_schedules')->count());
+        $this->assertDatabaseHas('core_course_cohort_teachers', ['cohort_id' => $cohortId, 'teacher_id' => $manager->id, 'status' => 'active']);
+    }
+
+    public function test_the_primary_teacher_reads_the_attendance_tab_and_records_on_my_classes(): void
+    {
+        config(['liveclass.attendance_enabled' => true]);
+        $host = 'https://tenant-a.localhost';
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $this->createProduct($customerId, 'TOPIK Beginner', 'topik-beginner');
+        $this->createVersion($customerId, $admin->id);
+        $manager = $this->teacherWithKeys($customerId, ['class.manage', 'class.operate']);
+        $this->actingAs($manager)->post($host.'/teacher/course-cohorts', $this->validCohortData())->assertSessionHasNoErrors();
+        $cohort = DB::table('core_course_cohorts')->first();
+        DB::table('core_course_cohorts')->where('id', $cohort->id)->update(['status' => 'active']);
+        $sessionId = DB::table('core_liveclass_sessions')->insertGetId([
+            'customer_id' => $customerId, 'cohort_id' => $cohort->id, 'template_version_id' => $cohort->version_id,
+            'session_type' => 'operational', 'title' => 'Buổi đã học', 'session_no' => 1, 'delivery_mode' => 'online',
+            'scheduled_start_at' => now()->subHours(3), 'scheduled_end_at' => now()->subHours(2),
+            'timezone' => config('app.timezone'), 'status' => 'completed', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->actingAs($manager)->get($host.'/teacher/course-cohorts/'.$cohort->id.'?tab=attendance')->assertOk()
+            ->assertViewHas('activeTab', 'attendance')
+            ->assertSee('id="attendance_session_id"', false)
+            ->assertSeeText(__('lf.LF_course_cohort_attendance_read_only_teacher'))
+            ->assertSee($host.'/teacher/course-cohorts/'.$cohort->id.'/attendance/export', false)
+            ->assertDontSee('data-attendance-form', false)
+            ->assertDontSee($host.'/admin/', false);
+
+        $this->actingAs($admin)->get($host.'/admin/course-cohorts/'.$cohort->id.'?tab=attendance')->assertOk()
+            ->assertSee($host.'/admin/course-cohorts/'.$cohort->id.'/sessions/'.$sessionId.'/attendance', false)
+            ->assertDontSeeText(__('lf.LF_course_cohort_attendance_read_only_teacher'));
+    }
+
+    /** @param  list<string>  $keys */
+    private function teacherWithKeys(int $customerId, array $keys): User
+    {
+        $teacher = $this->createUser($customerId, 'teacher');
+        $permissions = app(TeacherPermissions::class);
+        $permissions->defaultGroup($customerId);
+        $groupId = DB::table(TeacherPermissions::GROUPS_TABLE)->insertGetId([
+            'customer_id' => $customerId, 'name' => 'Nhóm '.uniqid(), 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        foreach ($keys as $key) {
+            DB::table(TeacherPermissions::GRANTS_TABLE)->insert([
+                'customer_id' => $customerId, 'permission_group_id' => $groupId, 'permission_key' => $key, 'created_at' => now(),
+            ]);
+        }
+        DB::table('users')->where('id', $teacher->id)->update(['teacher_permission_group_id' => $groupId]);
+
+        return $teacher;
+    }
+
     private function lifecycleCohort(): array
     {
         $customerId = $this->createTenant();
@@ -4041,7 +4275,7 @@ class CourseCohortManagementTest extends TestCase
 
     public function test_attendance_and_recording_are_locked_at_the_server_while_unfinished(): void
     {
-        // Mặc định của config/liveclass.php là khóa. Test này không bật cờ.
+        // phpunit.xml ghim cả hai cờ về tắt (mặc định của config đã bật điểm danh từ 2026-11-17). Test này kiểm lúc cờ tắt.
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
         $teacher = $this->createUser($customerId, 'teacher');

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Assessment;
 
 use App\Http\Controllers\Controller;
+use App\Services\TeacherPermissions;
 use App\Models\User;
 use App\Services\Assessment\AssessmentAttemptService as Attempts;
 use App\Services\Assessment\AssessmentGraderService as Graders;
@@ -198,6 +199,9 @@ final class AssessmentResultController extends Controller
         $user = $request->user();
         $attempt = $this->grading->find($customerId, $user, $id);
         [$canGrade, $holder] = $this->grading->gradeRight($customerId, $user, $attempt);
+        // A teacher without `assessment.grading` reads the attempt only (ADR-0033 D3).
+        $mayGrade = app(TeacherPermissions::class)->may($user, 'assessment.grading');
+        $canGrade = $canGrade && $mayGrade;
         $version = DB::table(Quizzes::VERSIONS_TABLE)->where('customer_id', $customerId)->where('id', $attempt->quiz_version_id)->first();
         $answers = DB::table(Attempts::ANSWERS_TABLE)->where('customer_id', $customerId)->where('attempt_id', $id)
             ->get()->keyBy('quiz_version_question_id');
@@ -232,7 +236,7 @@ final class AssessmentResultController extends Controller
             'canGrade' => $canGrade,
             'holder' => $this->graders->holders($customerId, [$id])->get($id),
             'activeHolder' => $holder,
-            'canClaim' => $user->role === 'teacher' && ! $holder && $attempt->grading_status === 'pending' && $attempt->status !== 'in_progress',
+            'canClaim' => $user->role === 'teacher' && $mayGrade && ! $holder && $attempt->grading_status === 'pending' && $attempt->status !== 'in_progress',
             'canRelease' => $holder && ((int) $holder->user_id === (int) $user->id
                 || $this->graders->managesQuiz($user, (object) ['created_by' => $attempt->quiz_created_by])),
             'routePrefix' => $this->routePrefix($request),

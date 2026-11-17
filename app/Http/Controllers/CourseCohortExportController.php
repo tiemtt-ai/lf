@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\AuthorizesCourseCohortAdmin;
 use App\Services\LiveClassCohortSessionReadModel;
 use App\Services\LiveClassSessionPolicy;
-use App\Support\TenantContext;
 use App\Support\XlsxDownload;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -16,6 +16,9 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class CourseCohortExportController extends Controller
 {
+    // An admin, or the class's primary teacher with class.manage (ADR-0033 D7).
+    use AuthorizesCourseCohortAdmin;
+
     private const ATTENDANCE_STATUSES = ['registered', 'present', 'late', 'absent', 'excused'];
 
     public function __construct(
@@ -26,7 +29,7 @@ class CourseCohortExportController extends Controller
     /** Active students of the Cohort, as the Học viên tab lists them (keyword filter included). */
     public function students(Request $request, int $id): Response
     {
-        $customerId = $this->customerId($request);
+        $customerId = $this->authorizeCohortManager($request, $id);
         $cohort = $this->findCohort($customerId, $id);
         $keyword = trim((string) $request->query('student_keyword', ''));
 
@@ -72,7 +75,7 @@ class CourseCohortExportController extends Controller
     {
         abort_unless((bool) config('liveclass.attendance_enabled'), 404);
 
-        $customerId = $this->customerId($request);
+        $customerId = $this->authorizeCohortManager($request, $id);
         $cohort = $this->findCohort($customerId, $id);
         $sessions = $this->sessionReadModel->forCohort($customerId, $id)
             ->filter(fn (object $session): bool => $this->sessionPolicy->canRecordAttendance($session, now()))
@@ -150,14 +153,5 @@ class CourseCohortExportController extends Controller
         abort_if(! $cohort, 404);
 
         return $cohort;
-    }
-
-    private function customerId(Request $request): int
-    {
-        abort_unless($request->user()?->role === 'customer_admin', 403);
-        $customerId = TenantContext::customerId();
-        abort_if(! $customerId, 404);
-
-        return $customerId;
     }
 }

@@ -56,7 +56,8 @@ class CourseCohortContentTree
                 'lessonsBySection' => $tree['lessonsBySection'],
                 'activitiesByLesson' => $tree['activitiesByLesson'],
                 'presentedActivities' => $versionId && $tree['activities']->isNotEmpty()
-                    ? $this->presenter->present($versionId, $tree['lessons'], $tree['activities'])['presentedActivities']
+                    // The class pages check their own scope (admin or the class's primary teacher, ADR-0033 D7).
+                    ? $this->presenter->present($versionId, $tree['lessons'], $tree['activities'], true)['presentedActivities']
                     : collect(),
             ],
             'sessionsByActivity' => $placedSessions->groupBy('version_activity_id'),

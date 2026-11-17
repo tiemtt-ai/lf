@@ -40,89 +40,98 @@ Route::prefix('assessments')->name('assessments.')->group(function () use ($asse
         Route::post('/categories/{id}/toggle-status', [AssessmentCategoryController::class, 'toggleStatus'])->whereNumber('id')->name('categories.toggle-status');
     }
 
-    // Admins manage every question of the tenant, teachers their own (the service scopes each query).
-    Route::get('/questions', [AssessmentQuestionController::class, 'index'])->name('questions.index');
-    Route::get('/questions/create', [AssessmentQuestionController::class, 'create'])->name('questions.create');
-    Route::post('/questions', [AssessmentQuestionController::class, 'store'])->name('questions.store');
-    Route::delete('/questions', [AssessmentQuestionController::class, 'bulkDestroy'])->name('questions.bulk-destroy');
-    // Nhập / Xuất Excel câu hỏi: popup, import (all rows or none), the template file and export in the same columns.
-    Route::get('/questions/import', [AssessmentQuestionImportController::class, 'create'])->name('questions.import.create');
-    Route::post('/questions/import', [AssessmentQuestionImportController::class, 'store'])->name('questions.import.store');
-    Route::get('/questions/import/template', [AssessmentQuestionImportController::class, 'template'])->name('questions.import.template');
-    Route::get('/questions/export', [AssessmentQuestionImportController::class, 'export'])->name('questions.export');
-    Route::get('/questions/{id}/edit', [AssessmentQuestionController::class, 'edit'])->whereNumber('id')->name('questions.edit');
-    Route::put('/questions/{id}', [AssessmentQuestionController::class, 'update'])->whereNumber('id')->name('questions.update');
+    // Soạn và giao đề (ADR-0033 D3 `assessment.authoring`): questions, passages, rubrics, quizzes and registrations.
+    Route::middleware('teacher.may:assessment.authoring')->group(function (): void {
+        // Admins manage every question of the tenant, teachers their own (the service scopes each query).
+        Route::get('/questions', [AssessmentQuestionController::class, 'index'])->name('questions.index');
+        Route::get('/questions/create', [AssessmentQuestionController::class, 'create'])->name('questions.create');
+        Route::post('/questions', [AssessmentQuestionController::class, 'store'])->name('questions.store');
+        Route::delete('/questions', [AssessmentQuestionController::class, 'bulkDestroy'])->name('questions.bulk-destroy');
+        // Nhập / Xuất Excel câu hỏi: popup, import (all rows or none), the template file and export in the same columns.
+        Route::get('/questions/import', [AssessmentQuestionImportController::class, 'create'])->name('questions.import.create');
+        Route::post('/questions/import', [AssessmentQuestionImportController::class, 'store'])->name('questions.import.store');
+        Route::get('/questions/import/template', [AssessmentQuestionImportController::class, 'template'])->name('questions.import.template');
+        Route::get('/questions/export', [AssessmentQuestionImportController::class, 'export'])->name('questions.export');
+        Route::get('/questions/{id}/edit', [AssessmentQuestionController::class, 'edit'])->whereNumber('id')->name('questions.edit');
+        Route::put('/questions/{id}', [AssessmentQuestionController::class, 'update'])->whereNumber('id')->name('questions.update');
 
-    Route::get('/passages', [AssessmentPassageController::class, 'index'])->name('passages.index');
-    Route::get('/passages/create', [AssessmentPassageController::class, 'create'])->name('passages.create');
-    Route::post('/passages', [AssessmentPassageController::class, 'store'])->name('passages.store');
-    Route::delete('/passages', [AssessmentPassageController::class, 'bulkDestroy'])->name('passages.bulk-destroy');
-    Route::get('/passages/{id}', [AssessmentPassageController::class, 'show'])->whereNumber('id')->name('passages.show');
-    Route::get('/passages/{id}/edit', [AssessmentPassageController::class, 'edit'])->whereNumber('id')->name('passages.edit');
-    Route::put('/passages/{id}', [AssessmentPassageController::class, 'update'])->whereNumber('id')->name('passages.update');
-    Route::post('/passages/{id}/questions/{questionId}/move', [AssessmentPassageController::class, 'moveQuestion'])
-        ->whereNumber(['id', 'questionId'])->name('passages.questions.move');
+        Route::get('/passages', [AssessmentPassageController::class, 'index'])->name('passages.index');
+        Route::get('/passages/create', [AssessmentPassageController::class, 'create'])->name('passages.create');
+        Route::post('/passages', [AssessmentPassageController::class, 'store'])->name('passages.store');
+        Route::delete('/passages', [AssessmentPassageController::class, 'bulkDestroy'])->name('passages.bulk-destroy');
+        Route::get('/passages/{id}', [AssessmentPassageController::class, 'show'])->whereNumber('id')->name('passages.show');
+        Route::get('/passages/{id}/edit', [AssessmentPassageController::class, 'edit'])->whereNumber('id')->name('passages.edit');
+        Route::put('/passages/{id}', [AssessmentPassageController::class, 'update'])->whereNumber('id')->name('passages.update');
+        Route::post('/passages/{id}/questions/{questionId}/move', [AssessmentPassageController::class, 'moveQuestion'])
+            ->whereNumber(['id', 'questionId'])->name('passages.questions.move');
 
-    // Tiêu chí chấm (ADR-0026): admins manage every rubric, teachers their own and use the admins' too.
-    Route::get('/rubrics', [AssessmentRubricController::class, 'index'])->name('rubrics.index');
-    Route::get('/rubrics/create', [AssessmentRubricController::class, 'create'])->name('rubrics.create');
-    Route::post('/rubrics', [AssessmentRubricController::class, 'store'])->name('rubrics.store');
-    Route::delete('/rubrics', [AssessmentRubricController::class, 'bulkDestroy'])->name('rubrics.bulk-destroy');
-    Route::get('/rubrics/{id}/edit', [AssessmentRubricController::class, 'edit'])->whereNumber('id')->name('rubrics.edit');
-    Route::put('/rubrics/{id}', [AssessmentRubricController::class, 'update'])->whereNumber('id')->name('rubrics.update');
-    Route::post('/rubrics/{id}/toggle-status', [AssessmentRubricController::class, 'toggleStatus'])->whereNumber('id')->name('rubrics.toggle-status');
+        // Tiêu chí chấm (ADR-0026): admins manage every rubric, teachers their own and use the admins' too.
+        Route::get('/rubrics', [AssessmentRubricController::class, 'index'])->name('rubrics.index');
+        Route::get('/rubrics/create', [AssessmentRubricController::class, 'create'])->name('rubrics.create');
+        Route::post('/rubrics', [AssessmentRubricController::class, 'store'])->name('rubrics.store');
+        Route::delete('/rubrics', [AssessmentRubricController::class, 'bulkDestroy'])->name('rubrics.bulk-destroy');
+        Route::get('/rubrics/{id}/edit', [AssessmentRubricController::class, 'edit'])->whereNumber('id')->name('rubrics.edit');
+        Route::put('/rubrics/{id}', [AssessmentRubricController::class, 'update'])->whereNumber('id')->name('rubrics.update');
+        Route::post('/rubrics/{id}/toggle-status', [AssessmentRubricController::class, 'toggleStatus'])->whereNumber('id')->name('rubrics.toggle-status');
 
-    Route::get('/quizzes', [AssessmentQuizController::class, 'index'])->name('quizzes.index');
-    Route::get('/quizzes/create', [AssessmentQuizController::class, 'create'])->name('quizzes.create');
-    Route::post('/quizzes', [AssessmentQuizController::class, 'store'])->name('quizzes.store');
-    Route::delete('/quizzes', [AssessmentQuizController::class, 'bulkDestroy'])->name('quizzes.bulk-destroy');
-    // Giao chấm (ADR-0027 Amendment 1.2): name the graders of one or many quizzes from the list (or the quiz page).
-    Route::get('/quizzes/graders', [AssessmentQuizController::class, 'gradersDialog'])->name('quizzes.graders.create');
-    Route::put('/quizzes/graders', [AssessmentQuizController::class, 'saveGraders'])->name('quizzes.graders.store');
-    Route::get('/quizzes/{id}/edit', [AssessmentQuizController::class, 'edit'])->whereNumber('id')->name('quizzes.edit');
-    Route::put('/quizzes/{id}', [AssessmentQuizController::class, 'update'])->whereNumber('id')->name('quizzes.update');
+        Route::get('/quizzes', [AssessmentQuizController::class, 'index'])->name('quizzes.index');
+        Route::get('/quizzes/create', [AssessmentQuizController::class, 'create'])->name('quizzes.create');
+        Route::post('/quizzes', [AssessmentQuizController::class, 'store'])->name('quizzes.store');
+        Route::delete('/quizzes', [AssessmentQuizController::class, 'bulkDestroy'])->name('quizzes.bulk-destroy');
+        // Giao chấm (ADR-0027 Amendment 1.2): name the graders of one or many quizzes from the list (or the quiz page).
+        Route::get('/quizzes/graders', [AssessmentQuizController::class, 'gradersDialog'])->name('quizzes.graders.create');
+        Route::put('/quizzes/graders', [AssessmentQuizController::class, 'saveGraders'])->name('quizzes.graders.store');
+        Route::get('/quizzes/{id}/edit', [AssessmentQuizController::class, 'edit'])->whereNumber('id')->name('quizzes.edit');
+        Route::put('/quizzes/{id}', [AssessmentQuizController::class, 'update'])->whereNumber('id')->name('quizzes.update');
 
-    // The quiz page: sections, chosen questions (step 2) and publishing / lifecycle (step 3).
-    Route::controller(AssessmentQuizBuilderController::class)->prefix('/quizzes/{id}')->whereNumber(['id', 'sectionId', 'itemId'])
-        ->name('quizzes.')->group(function (): void {
-            Route::get('/', 'show')->name('show');
-            Route::get('/sections/create', 'createSection')->name('sections.create');
-            Route::post('/sections', 'storeSection')->name('sections.store');
-            Route::get('/sections/{sectionId}/edit', 'editSection')->name('sections.edit');
-            Route::put('/sections/{sectionId}', 'updateSection')->name('sections.update');
-            Route::delete('/sections/{sectionId}', 'destroySection')->name('sections.destroy');
-            Route::post('/sections/{sectionId}/move', 'moveSection')->name('sections.move');
-            Route::get('/questions/pick', 'pickQuestions')->name('questions.pick');
-            Route::post('/questions', 'addQuestions')->name('questions.add');
-            // Ghép tự động (ADR-0025 D6a): the popup, and a preview that saves nothing (confirmed through questions.add).
-            Route::get('/questions/auto', 'autoQuestions')->name('questions.auto');
-            Route::post('/questions/auto/preview', 'autoPreview')->name('questions.auto-preview');
-            Route::delete('/questions', 'removeItems')->name('questions.remove');
-            Route::get('/questions/{itemId}/edit', 'editItem')->name('questions.edit');
-            Route::put('/questions/{itemId}', 'updateItem')->name('questions.update');
-            Route::post('/questions/{itemId}/move', 'moveItem')->name('questions.move');
-            Route::post('/publish', 'publish')->name('publish');
-            Route::post('/archive', 'archive')->name('archive');
-            Route::post('/restore', 'restore')->name('restore');
-            Route::post('/registration', 'registration')->name('registration');
-        });
+        // The quiz page: sections, chosen questions (step 2) and publishing / lifecycle (step 3).
+        Route::controller(AssessmentQuizBuilderController::class)->prefix('/quizzes/{id}')->whereNumber(['id', 'sectionId', 'itemId'])
+            ->name('quizzes.')->group(function (): void {
+                Route::get('/', 'show')->name('show');
+                Route::get('/sections/create', 'createSection')->name('sections.create');
+                Route::post('/sections', 'storeSection')->name('sections.store');
+                Route::get('/sections/{sectionId}/edit', 'editSection')->name('sections.edit');
+                Route::put('/sections/{sectionId}', 'updateSection')->name('sections.update');
+                Route::delete('/sections/{sectionId}', 'destroySection')->name('sections.destroy');
+                Route::post('/sections/{sectionId}/move', 'moveSection')->name('sections.move');
+                Route::get('/questions/pick', 'pickQuestions')->name('questions.pick');
+                Route::post('/questions', 'addQuestions')->name('questions.add');
+                // Ghép tự động (ADR-0025 D6a): the popup, and a preview that saves nothing (confirmed through questions.add).
+                Route::get('/questions/auto', 'autoQuestions')->name('questions.auto');
+                Route::post('/questions/auto/preview', 'autoPreview')->name('questions.auto-preview');
+                Route::delete('/questions', 'removeItems')->name('questions.remove');
+                Route::get('/questions/{itemId}/edit', 'editItem')->name('questions.edit');
+                Route::put('/questions/{itemId}', 'updateItem')->name('questions.update');
+                Route::post('/questions/{itemId}/move', 'moveItem')->name('questions.move');
+                Route::post('/publish', 'publish')->name('publish');
+                Route::post('/archive', 'archive')->name('archive');
+                Route::post('/restore', 'restore')->name('restore');
+                Route::post('/registration', 'registration')->name('registration');
+            });
 
-    // Ghi danh: grant a published quiz to students, cancel; never deleted.
-    Route::get('/registrations', [AssessmentRegistrationController::class, 'index'])->name('registrations.index');
-    Route::get('/registrations/create', [AssessmentRegistrationController::class, 'create'])->name('registrations.create');
-    Route::post('/registrations', [AssessmentRegistrationController::class, 'store'])->name('registrations.store');
-    Route::delete('/registrations', [AssessmentRegistrationController::class, 'bulkCancel'])->name('registrations.bulk-cancel');
+        // Ghi danh: grant a published quiz to students, cancel; never deleted.
+        Route::get('/registrations', [AssessmentRegistrationController::class, 'index'])->name('registrations.index');
+        Route::get('/registrations/create', [AssessmentRegistrationController::class, 'create'])->name('registrations.create');
+        Route::post('/registrations', [AssessmentRegistrationController::class, 'store'])->name('registrations.store');
+        Route::delete('/registrations', [AssessmentRegistrationController::class, 'bulkCancel'])->name('registrations.bulk-cancel');
 
-    // Kết quả & Chấm bài: attempts read from their frozen version; essay / speaking graded by hand.
-    Route::get('/results', [AssessmentResultController::class, 'index'])->name('results.index');
-    Route::get('/results/export', [AssessmentResultController::class, 'export'])->name('results.export');
-    Route::get('/results/statistics', [AssessmentResultController::class, 'statistics'])->name('results.statistics');
-    // Nhận chấm (teacher), Trả lại (holder, admin, quiz creator) (ADR-0027 D3, Amendment 1.2).
-    Route::post('/results/{id}/claim', [AssessmentResultController::class, 'claim'])->whereNumber('id')->name('results.claim');
-    Route::post('/results/{id}/release', [AssessmentResultController::class, 'release'])->whereNumber('id')->name('results.release');
-    Route::get('/results/{id}', [AssessmentResultController::class, 'show'])->whereNumber('id')->name('results.show');
-    Route::post('/results/{id}/answers/{answerId}/grade', [AssessmentResultController::class, 'grade'])
-        ->whereNumber(['id', 'answerId'])->name('results.grade');
+    });
+
+    // Kết quả & Chấm bài: attempts read from their frozen version; essay / speaking graded by hand. Reading them belongs
+    // to whoever gives tests or grades; claiming and grading to `assessment.grading` (ADR-0033 D3).
+    Route::middleware('teacher.may:assessment.authoring,assessment.grading')->group(function (): void {
+        Route::get('/results', [AssessmentResultController::class, 'index'])->name('results.index');
+        Route::get('/results/export', [AssessmentResultController::class, 'export'])->name('results.export');
+        Route::get('/results/statistics', [AssessmentResultController::class, 'statistics'])->name('results.statistics');
+        // Nhận chấm (teacher), Trả lại (holder, admin, quiz creator) (ADR-0027 D3, Amendment 1.2).
+        Route::post('/results/{id}/release', [AssessmentResultController::class, 'release'])->whereNumber('id')->name('results.release');
+        Route::get('/results/{id}', [AssessmentResultController::class, 'show'])->whereNumber('id')->name('results.show');
+    });
+    Route::middleware('teacher.may:assessment.grading')->group(function (): void {
+        Route::post('/results/{id}/claim', [AssessmentResultController::class, 'claim'])->whereNumber('id')->name('results.claim');
+        Route::post('/results/{id}/answers/{answerId}/grade', [AssessmentResultController::class, 'grade'])
+            ->whereNumber(['id', 'answerId'])->name('results.grade');
+    });
 
     foreach ($assessmentPlaceholders as $section) {
         Route::get('/'.$section, [AssessmentWorkspaceController::class, 'placeholder'])

@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\OrganizationController;
 use App\Http\Controllers\Admin\ProfileController as AdminProfileController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Assessment\AssessmentLearnerController;
+use App\Http\Controllers\CourseCohortController;
 use App\Http\Controllers\CustomerRegisterController;
 use App\Http\Controllers\LearnerCourseFavoriteController;
 use App\Http\Controllers\LearnerMyLearningController;
@@ -17,6 +18,7 @@ use App\Http\Controllers\MediaFileDeliveryController;
 use App\Http\Controllers\PublicSiteController;
 use App\Http\Controllers\RoleProfileController;
 use App\Http\Controllers\TeacherCohortAttendanceController;
+use App\Http\Controllers\TeacherPermissionGroupController;
 use App\Http\Controllers\TeacherCohortJudgmentController;
 use App\Http\Controllers\TenantWebsiteController;
 use App\Support\TenantContext;
@@ -193,6 +195,20 @@ Route::middleware([
     Route::post('/users/{id}/toggle-status', [UserController::class, 'toggleStatus'])
         ->name('users.toggle-status');
 
+    // The owner hands the role to another active admin (ADR-0033 D2).
+    Route::post('/users/{id}/transfer-ownership', [UserController::class, 'transferOwnership'])
+        ->whereNumber('id')->name('users.transfer-ownership');
+
+    // Phân quyền: the teachers' permission groups (ADR-0033 D4–D5).
+    Route::get('/teacher-permissions', [TeacherPermissionGroupController::class, 'index'])->name('teacher-permissions.index');
+    Route::post('/teacher-permissions', [TeacherPermissionGroupController::class, 'store'])->name('teacher-permissions.store');
+    Route::put('/teacher-permissions/{group}', [TeacherPermissionGroupController::class, 'update'])
+        ->whereNumber('group')->name('teacher-permissions.update');
+    Route::delete('/teacher-permissions/{group}', [TeacherPermissionGroupController::class, 'destroy'])
+        ->whereNumber('group')->name('teacher-permissions.destroy');
+    Route::put('/teacher-permissions/{group}/teachers', [TeacherPermissionGroupController::class, 'assign'])
+        ->whereNumber('group')->name('teacher-permissions.assign');
+
     $registerCourseProductRoutes = true;
     $registerCourseTemplateLifecycleRoutes = true;
     require __DIR__.'/modules/course.php';
@@ -237,12 +253,19 @@ Route::middleware([
     // Manual attendance by the Cohort's teachers (ADR-0002 § Attendance Policy And Recording Amendment, part B).
     Route::get('/cohorts/{cohort}/attendance', [TeacherCohortAttendanceController::class, 'show'])->whereNumber('cohort')->name('cohorts.attendance');
     Route::put('/cohorts/{cohort}/sessions/{session}/attendance', [TeacherCohortAttendanceController::class, 'save'])
-        ->whereNumber(['cohort', 'session'])->name('cohorts.attendance.save');
+        ->whereNumber(['cohort', 'session'])->middleware('teacher.may:class.operate')->name('cohorts.attendance.save');
+
+    // A class's primary teacher manages it on the admin's class pages (ADR-0033 D7). Deleting needs class.delete;
+    // the controllers check the class scope.
+    Route::delete('/course-cohorts', [CourseCohortController::class, 'bulkDestroy'])
+        ->middleware('teacher.may:class.delete')->name('course-cohorts.bulk-destroy');
+    Route::middleware('teacher.may:class.manage')->group(__DIR__.'/modules/course-cohort-manage.php');
 
     // Live Sessions and their Whiteboard (ADR-0002 § LiveClass Whiteboard Amendment).
     Route::get('/live-sessions', [LiveClassWhiteboardController::class, 'teacherIndex'])->name('live-sessions.index');
     // The Session's own teachers change its meeting link, room, address and attendance tool (ADR-0002 § Teacher Session Operations Amendment).
-    Route::put('/live-sessions/{session}', [LiveClassSessionOperationsController::class, 'teacherUpdate'])->whereNumber('session')->name('live-sessions.update');
+    Route::put('/live-sessions/{session}', [LiveClassSessionOperationsController::class, 'teacherUpdate'])->whereNumber('session')
+        ->middleware('teacher.may:class.operate')->name('live-sessions.update');
     Route::post('/live-sessions/{session}/start', [LiveClassWhiteboardController::class, 'teacherStart'])->whereNumber('session')->name('live-sessions.start');
     Route::post('/live-sessions/{session}/complete', [LiveClassWhiteboardController::class, 'teacherComplete'])->whereNumber('session')->name('live-sessions.complete');
     Route::get('/live-sessions/{session}/board', [LiveClassWhiteboardController::class, 'teacherBoard'])->whereNumber('session')->name('live-sessions.board');
@@ -270,7 +293,6 @@ Route::middleware([
 
     $registerCourseProductRoutes = false;
     $registerCourseTemplateLifecycleRoutes = false;
-    $registerCategoryManagement = false;
     $registerTemplateTeacherManagement = false;
     require __DIR__.'/modules/course.php';
 

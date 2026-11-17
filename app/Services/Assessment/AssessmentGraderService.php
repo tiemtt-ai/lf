@@ -2,6 +2,7 @@
 
 namespace App\Services\Assessment;
 
+use App\Services\TeacherPermissions;
 use App\Models\User;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
@@ -22,10 +23,16 @@ final class AssessmentGraderService
 
     public const ASSIGNMENTS_TABLE = 'core_assessment_grading_assignments';
 
-    /** Active teachers of the tenant: the only people who can be named as graders or hold an attempt. */
+    /**
+     * Active teachers of the tenant holding `assessment.grading` (ADR-0033 D3): the only people who can be named as
+     * graders or hold an attempt.
+     */
     public function teachers(int $customerId): Builder
     {
-        return DB::table('users')->where('customer_id', $customerId)->where('role', 'teacher')->where('status', 'active');
+        return app(TeacherPermissions::class)->constrainHolders(
+            DB::table('users')->where('customer_id', $customerId)->where('role', 'teacher')->where('status', 'active'),
+            $customerId, 'assessment.grading',
+        );
     }
 
     /** @return list<int> the quizzes a teacher is named on */

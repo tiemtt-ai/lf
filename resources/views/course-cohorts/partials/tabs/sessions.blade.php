@@ -59,7 +59,7 @@
          rescheduleStartError: @js($rescheduleHasErrors ? $errors->first('scheduled_start_at') : ''),
          rescheduleSubmitting: false,
          assignSession: @js($assignOldSession), assignTeacherIds: @js($assignHasErrors ? $uniqueTeacherIds(old('teacher_ids', [])) : []), assignSubmitting: false, showAssignErrors: true,
-         assignUrl: @js(route('admin.course-cohorts.sessions.teachers', [$cohort->id, '__SESSION__'])),
+         assignUrl: @js(route($routePrefix.'.sessions.teachers', [$cohort->id, '__SESSION__'])),
          sessionType: @js($formHasErrors ? old('session_type', 'curriculum') : 'curriculum'),
          lessonId: @js($formHasErrors ? (string) old('version_lesson_id', '') : ''),
          openedActivityId: @js($formHasErrors ? (string) old('opened_version_activity_id', '') : ''),
@@ -96,9 +96,9 @@
              'assigned_from' => $teacher->assigned_from,
              'assigned_to' => $teacher->assigned_to, 'name' => $teacher->name, 'phone' => $teacher->phone, 'email' => $teacher->email,
          ])->values()),
-         storeUrl: @js(route('admin.course-cohorts.sessions.store', $cohort->id)),
-         updateUrl: @js(route('admin.course-cohorts.sessions.update', [$cohort->id, '__SESSION__'])),
-         rescheduleUrl: @js(route('admin.course-cohorts.sessions.schedule', [$cohort->id, '__SESSION__'])),
+         storeUrl: @js(route($routePrefix.'.sessions.store', $cohort->id)),
+         updateUrl: @js(route($routePrefix.'.sessions.update', [$cohort->id, '__SESSION__'])),
+         rescheduleUrl: @js(route($routePrefix.'.sessions.schedule', [$cohort->id, '__SESSION__'])),
          init() {
              if (@js($rescheduleHasErrors && $rescheduleOldSession)) { this.previousStart = this.rescheduleStart; this.$nextTick(() => this.$refs.rescheduleDialog?.showModal()) }
              else if (@js($formHasErrors)) this.showSessionDialog()
@@ -387,7 +387,7 @@
             @elseif ($cohort->is_mutable && ! $sessionWindow)
                 <div class="ui-banner ui-cohort-tab-notice" role="status">
                     <span class="ui-banner__text">{{ __('lf.LF_course_cohort_session_schedule_cohort_period_required') }}</span>
-                    <a class="ui-button ui-button--sm ui-button--outline cursor-interaction" href="{{ route('admin.course-cohorts.edit', $cohort->id) }}">{{ __('lf.LF_course_cohort_schedule_operation_action') }}</a>
+                    <a class="ui-button ui-button--sm ui-button--outline cursor-interaction" href="{{ route($routePrefix.'.edit', $cohort->id) }}">{{ __('lf.LF_course_cohort_schedule_operation_action') }}</a>
                 </div>
             @elseif ($cohort->is_mutable && ! $sessionWindowOpen)
                 <div class="ui-banner ui-cohort-tab-notice" role="status">

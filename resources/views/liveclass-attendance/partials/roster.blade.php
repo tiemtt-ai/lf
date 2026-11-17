@@ -24,7 +24,7 @@
     $modeLabel = fn (?string $mode): string => $mode ? __('lf.LF_course_cohort_session_mode_'.$mode) : '—';
 @endphp
 @if ($action)<form method="POST" action="{{ $action }}" data-attendance-form>@csrf @method('PUT')@endif
-    <div class="mk-table-scroll" role="region" aria-label="{{ __('lf.LF_course_cohort_attendance_title') }}" tabindex="0">
+    <div class="mk-table-scroll ui-attendance-roster" role="region" aria-label="{{ __('lf.LF_course_cohort_attendance_title') }}" tabindex="0">
         <table>
             <colgroup>
                 <col class="mk-col-sequence">
@@ -61,7 +61,8 @@
                     </td>
                     @if ($action)
                         <td class="mk-text-cell" data-label="{{ __('lf.LF_course_cohort_attendance_status') }}">
-                            <select name="attendance[{{ $index }}][status]" aria-label="{{ __('lf.LF_course_cohort_attendance_status') }}: {{ $row->student_name }}">
+                            <label class="ui-sr-only" for="attendance-status-{{ $index }}">{{ __('lf.LF_course_cohort_attendance_status') }}: {{ $row->student_name }}</label>
+                            <select id="attendance-status-{{ $index }}" name="attendance[{{ $index }}][status]" data-ui-kit-select>
                                 {{-- "Not recorded yet" is offered only while there is no result: a result cannot be taken back. --}}
                                 @if ($current === 'registered')<option value="registered" selected>{{ __('lf.LF_course_cohort_attendance_status_registered') }}</option>@endif
                                 @foreach ($manualStatuses as $status)
@@ -71,15 +72,17 @@
                             @error("attendance.{$index}.status")<p class="ui-field__error" role="alert">{{ $message }}</p>@enderror
                         </td>
                         <td class="mk-text-cell" data-label="{{ __('lf.LF_course_cohort_attendance_mode') }}">
-                            <select name="attendance[{{ $index }}][attendance_mode]" aria-label="{{ __('lf.LF_course_cohort_attendance_mode') }}: {{ $row->student_name }}">
-                                <option value="">—</option>
+                            <label class="ui-sr-only" for="attendance-mode-{{ $index }}">{{ __('lf.LF_course_cohort_attendance_mode') }}: {{ $row->student_name }}</label>
+                            <select id="attendance-mode-{{ $index }}" name="attendance[{{ $index }}][attendance_mode]" data-ui-kit-select
+                                    data-ui-clear-label="{{ __('lf.LF_course_cohort_attendance_mode_clear') }}">
+                                <option value="">{{ __('lf.LF_course_cohort_attendance_mode_none') }}</option>
                                 @foreach (['online', 'offline'] as $mode)
                                     <option value="{{ $mode }}" @selected($row->attendance_mode === $mode)>{{ __('lf.LF_course_cohort_session_mode_'.$mode) }}</option>
                                 @endforeach
                             </select>
                         </td>
                         <td class="mk-text-cell" data-label="{{ __('lf.LF_course_cohort_attendance_notes') }}">
-                            <input name="attendance[{{ $index }}][notes]" maxlength="1000" value="{{ $row->notes }}" aria-label="{{ __('lf.LF_course_cohort_attendance_notes') }}: {{ $row->student_name }}">
+                            <input name="attendance[{{ $index }}][notes]" maxlength="1000" value="{{ $row->notes }}" placeholder="{{ __('lf.LF_course_cohort_attendance_notes_placeholder') }}" aria-label="{{ __('lf.LF_course_cohort_attendance_notes') }}: {{ $row->student_name }}">
                         </td>
                     @else
                         <td class="mk-text-cell" data-label="{{ __('lf.LF_course_cohort_attendance_status') }}">{{ __('lf.LF_course_cohort_attendance_status_'.$current) }}</td>

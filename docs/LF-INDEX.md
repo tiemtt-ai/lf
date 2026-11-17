@@ -382,7 +382,7 @@ docs/adr/
 | [ADR-0030](adr/ADR-0030-Learner-Course-Delivery-And-Progress.md) | Approved: trang bài học của học viên, phát Media, ghi tiến độ qua `CourseProgressRecorder`, điểm danh → hoàn thành hoạt động tham gia lớp; Quan tâm (Favorite, D4) làm 2026-11-11 |
 | [ADR-0031](adr/ADR-0031-Learner-Learning-Results.md) | Approved: "Kết quả học tập" của học viên (`/my-courses?tab=results`), chỉ đọc; điểm theo luật hiển thị D12 của ADR-0025 |
 | [ADR-0032](adr/ADR-0032-Course-Quiz-Activity.md) | Approved: Quiz Activity trong khóa học; chốt phiên bản đề, lần làm theo Enrollment, tiến độ `submitted` / `passed` |
-| [ADR-0033](adr/ADR-0033-Teacher-Permissions-And-Tenant-Owner.md) | Approved: phân quyền giáo viên theo nhóm quyền, bảy quyền cố định; Chủ trung tâm giữa các quản trị. Bảng: [saas_teacher_permission_groups.md](database/saas/saas_teacher_permission_groups.md), [saas_teacher_permission_grants.md](database/saas/saas_teacher_permission_grants.md) |
+| [ADR-0033](adr/ADR-0033-Teacher-Permissions-And-Tenant-Owner.md) | Approved, đã triển khai đủ ba đợt 2026-11-17: phân quyền giáo viên theo nhóm quyền, bảy quyền cố định; D7 giáo viên chính tự vận hành lớp; Chủ trung tâm giữa các quản trị. Bảng: [saas_teacher_permission_groups.md](database/saas/saas_teacher_permission_groups.md), [saas_teacher_permission_grants.md](database/saas/saas_teacher_permission_grants.md) |
 
 ---
 

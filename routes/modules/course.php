@@ -3,7 +3,6 @@
 use App\Http\Controllers\CourseActivityMediaPreviewController;
 use App\Http\Controllers\CourseCategoryController;
 use App\Http\Controllers\CourseCohortController;
-use App\Http\Controllers\CourseCohortExportController;
 use App\Http\Controllers\CourseCohortOperationController;
 use App\Http\Controllers\CourseCohortStudentController;
 use App\Http\Controllers\CourseEnrollmentController;
@@ -19,8 +18,6 @@ use App\Http\Controllers\CourseTemplateTeacherController;
 use App\Http\Controllers\CourseTemplateVersionMediaPreviewController;
 use App\Http\Controllers\LiveClassAttendanceCheckInController;
 use App\Http\Controllers\LiveClassAttendancePolicyController;
-use App\Http\Controllers\LiveClassScheduleController;
-use App\Http\Controllers\LiveClassSessionOperationsController;
 use App\Http\Controllers\LiveClassWhiteboardController;
 use App\Http\Controllers\LiveClassWhiteboardSyncController;
 use Illuminate\Support\Facades\Route;
@@ -30,8 +27,9 @@ require __DIR__.'/ai-authoring.php';
 Route::get('/course-categories', [CourseCategoryController::class, 'index'])
     ->name('course-categories.index');
 
-// Managing categories (create, edit, status, delete) is for admins; a teacher only reads the list and picks a category in the Template form.
-if ($registerCategoryManagement ?? true) {
+// Managing categories (create, edit, status, delete): admins, and teachers holding `content.category.manage`
+// (ADR-0033 D3). Without it a teacher only reads the list and picks a category in the Template form.
+Route::middleware('teacher.may:content.category.manage')->group(function (): void {
     Route::get('/course-categories/create', [CourseCategoryController::class, 'create'])
         ->name('course-categories.create');
 
@@ -49,8 +47,7 @@ if ($registerCategoryManagement ?? true) {
 
     Route::delete('/course-categories', [CourseCategoryController::class, 'bulkDestroy'])
         ->name('course-categories.bulk-destroy');
-
-}
+});
 
 if ($registerCourseProductRoutes ?? false) {
     Route::get('/course-cohorts', [CourseCohortController::class, 'index'])
@@ -69,33 +66,7 @@ if ($registerCourseProductRoutes ?? false) {
     Route::put('/attendance-policies/{policy}/cohorts', [LiveClassAttendancePolicyController::class, 'apply'])
         ->whereNumber('policy')->name('attendance-policies.apply');
 
-    Route::get('/course-cohorts/create', [CourseCohortController::class, 'create'])
-        ->name('course-cohorts.create');
-
-    Route::post('/course-cohorts', [CourseCohortController::class, 'store'])
-        ->name('course-cohorts.store');
-
-    Route::get('/course-cohorts/{id}', [CourseCohortController::class, 'show'])
-        ->name('course-cohorts.show');
-
-    // Excel downloads of one Cohort: the Học viên tab roster and the Điểm danh grid.
-    Route::get('/course-cohorts/{id}/students/export', [CourseCohortExportController::class, 'students'])
-        ->whereNumber('id')->name('course-cohorts.students.export');
-
-    Route::get('/course-cohorts/{id}/attendance/export', [CourseCohortExportController::class, 'attendance'])
-        ->whereNumber('id')->name('course-cohorts.attendance.export');
-
-    Route::get('/course-cohorts/{id}/edit', [CourseCohortController::class, 'edit'])
-        ->name('course-cohorts.edit');
-
-    Route::put('/course-cohorts/{id}', [CourseCohortController::class, 'update'])
-        ->name('course-cohorts.update');
-
-    Route::post('/course-cohorts/{id}/activate', [CourseCohortController::class, 'activate'])
-        ->name('course-cohorts.activate');
-
-    Route::post('/course-cohorts/{id}/complete', [CourseCohortController::class, 'complete'])
-        ->name('course-cohorts.complete');
+    require __DIR__.'/course-cohort-manage.php';
 
     Route::delete('/course-cohorts', [CourseCohortController::class, 'bulkDestroy'])
         ->name('course-cohorts.bulk-destroy');
@@ -109,42 +80,10 @@ if ($registerCourseProductRoutes ?? false) {
         ->name('course-cohorts.teachers.update');
     Route::delete('/course-cohorts/{cohort}/teachers/{assignment}', [CourseCohortOperationController::class, 'removeTeacher'])
         ->name('course-cohorts.teachers.destroy');
-    Route::get('/course-cohorts/{cohort}/schedules/create', [LiveClassScheduleController::class, 'create'])
-        ->name('course-cohorts.schedules.create');
-    Route::post('/course-cohorts/{cohort}/schedules/preview', [LiveClassScheduleController::class, 'preview'])
-        ->name('course-cohorts.schedules.preview');
-    Route::post('/course-cohorts/{cohort}/schedules', [LiveClassScheduleController::class, 'store'])
-        ->name('course-cohorts.schedules.store');
-    Route::get('/course-cohorts/{cohort}/schedules/{schedule}', [LiveClassScheduleController::class, 'show'])
-        ->name('course-cohorts.schedules.show');
-    Route::get('/course-cohorts/{cohort}/schedules/{schedule}/edit', [LiveClassScheduleController::class, 'edit'])
-        ->name('course-cohorts.schedules.edit');
-    Route::put('/course-cohorts/{cohort}/schedules/{schedule}', [LiveClassScheduleController::class, 'update'])
-        ->name('course-cohorts.schedules.update');
-    Route::patch('/course-cohorts/{cohort}/content/lessons/order', [CourseCohortOperationController::class, 'reorderLessons'])
-        ->name('course-cohorts.content.lessons.reorder');
-    Route::patch('/course-cohorts/{cohort}/content/lessons/{lesson}/activities/order', [CourseCohortOperationController::class, 'reorderActivities'])
-        ->name('course-cohorts.content.activities.reorder');
-    Route::post('/course-cohorts/{cohort}/sessions', [CourseCohortOperationController::class, 'storeSession'])
-        ->name('course-cohorts.sessions.store');
-    Route::put('/course-cohorts/{cohort}/sessions/{session}', [CourseCohortOperationController::class, 'updateSession'])
-        ->name('course-cohorts.sessions.update');
-    Route::put('/course-cohorts/{cohort}/sessions/{session}/schedule', [CourseCohortOperationController::class, 'updateSchedule'])
-        ->name('course-cohorts.sessions.schedule');
-    // The meeting link stays editable after the planned start, until the planned end (ADR-0002 § Teacher Session Operations Amendment).
-    Route::put('/course-cohorts/{cohort}/sessions/{session}/meeting-link', [LiveClassSessionOperationsController::class, 'adminMeetingLink'])
-        ->whereNumber(['cohort', 'session'])->name('course-cohorts.sessions.meeting-link');
-
-    Route::put('/course-cohorts/{cohort}/sessions/{session}/teachers', [CourseCohortOperationController::class, 'assignSessionTeachers'])
-        ->name('course-cohorts.sessions.teachers');
     Route::post('/course-cohorts/{cohort}/sessions/{session}/start', [CourseCohortOperationController::class, 'startSession'])
         ->name('course-cohorts.sessions.start');
     Route::post('/course-cohorts/{cohort}/sessions/{session}/complete', [CourseCohortOperationController::class, 'completeSession'])
         ->name('course-cohorts.sessions.complete');
-    Route::post('/course-cohorts/{cohort}/sessions/{session}/cancel', [CourseCohortOperationController::class, 'cancelSession'])
-        ->name('course-cohorts.sessions.cancel');
-    Route::post('/course-cohorts/{cohort}/sessions/{session}/no-show', [CourseCohortOperationController::class, 'markSessionNoShow'])
-        ->name('course-cohorts.sessions.no-show');
     // Whiteboard of a live Session (ADR-0002 § LiveClass Whiteboard Amendment).
     Route::get('/course-cohorts/{cohort}/sessions/{session}/board', [LiveClassWhiteboardController::class, 'adminBoard'])
         ->whereNumber(['cohort', 'session'])->name('course-cohorts.sessions.board');
@@ -168,7 +107,6 @@ if ($registerCourseProductRoutes ?? false) {
         ->name('course-cohorts.sessions.attendance');
     Route::post('/course-cohorts/{cohort}/sessions/{session}/recordings', [CourseCohortOperationController::class, 'storeRecording'])
         ->name('course-cohorts.sessions.recordings.store');
-
     Route::get('/course-cohorts/{cohort}/students/create', [CourseCohortStudentController::class, 'create'])
         ->name('course-cohorts.students.create');
 
@@ -304,10 +242,13 @@ if ($registerCourseProductRoutes ?? false) {
 Route::get('/course-templates', [CourseTemplateController::class, 'index'])
     ->name('course-templates.index');
 
+// Creating a Template is `content.template.create` for a teacher (ADR-0033 D3); admins always pass.
 Route::get('/course-templates/create', [CourseTemplateController::class, 'create'])
+    ->middleware('teacher.may:content.template.create')
     ->name('course-templates.create');
 
 Route::post('/course-templates', [CourseTemplateController::class, 'store'])
+    ->middleware('teacher.may:content.template.create')
     ->name('course-templates.store');
 
 Route::get('/course-templates/{id}', [CourseTemplateController::class, 'show'])

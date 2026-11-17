@@ -38,9 +38,13 @@
             <label class="ui-field__label" for="user-form-role"><span class="ui-field__required" aria-hidden="true">*</span>{{ __('lf.LF_common_label_role') }}</label>
             <select id="user-form-role" name="role" required {!! $selectAttributes !!}>
                 @foreach (['customer_admin' => 'LF_common_role_admin_customer_admin', 'teacher' => 'LF_common_role_teacher_teacher', 'student' => 'LF_common_role_student_student'] as $value => $key)
+                    {{-- Only the owner grants the admin role; the owner keeps it (ADR-0033 D2). --}}
+                    @continue($value === 'customer_admin' && ! ($mayChooseAdmin ?? true))
+                    @continue($value !== 'customer_admin' && ($isOwnerAccount ?? false))
                     <option value="{{ $value }}" @selected($selectedRole === $value)>{{ __('lf.'.$key) }}</option>
                 @endforeach
             </select>
+            @if ($isOwnerAccount ?? false)<p class="ui-caption">{{ __('lf.LF_admin_user_owner_role_help') }}</p>@endif
         </div>
         @unless ($isEdit)
             <div class="ui-field">

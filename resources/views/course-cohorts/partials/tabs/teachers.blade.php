@@ -42,7 +42,7 @@
                 </div>
                 <div class="mk-table-top__actions">
                     <span class="ui-caption">{{ trans_choice('lf.LF_course_cohort_teacher_count', $teachers->count(), ['count' => $teachers->count()]) }}</span>
-                    @if ($cohort->is_mutable)
+                    @if ($cohort->is_mutable && ($cohortAdmin ?? true))
                         <button type="button" class="ui-button ui-button--outline cursor-interaction" aria-haspopup="dialog" x-on:click="open = true">
                             {{ __('lf.LF_course_cohort_teacher_assign') }}
                         </button>
@@ -50,10 +50,10 @@
                 </div>
             </div>
 
-            @if ($cohort->is_mutable)
+            @if ($cohort->is_mutable && ($cohortAdmin ?? true))
                 <dialog x-ref="assignDialog" class="ui-modal ui-cohort-teacher-modal" data-columns="2" aria-labelledby="cohort-teacher-assign-title"
                         x-on:close="open = false" x-on:cancel="if (submitting) $event.preventDefault()">
-                    <form id="cohort-teacher-assignment-form" method="POST" action="{{ route('admin.course-cohorts.teachers.store', $cohort->id) }}"
+                    <form id="cohort-teacher-assignment-form" method="POST" action="{{ route($routePrefix.'.teachers.store', $cohort->id) }}"
                           class="ui-modal__form" x-ref="assignForm" novalidate
                           x-on:submit="if (submitting) { $event.preventDefault(); return } submitting = true">
                         @csrf
@@ -140,7 +140,7 @@
                                 {{ $teacher->assigned_to ? \Illuminate\Support\Carbon::parse($teacher->assigned_to)->format('d/m/Y') : '—' }}
                             </td>
                             <td class="ux-action-cell" data-label="{{ __('lf.table_actions') }}">
-                                @if ($cohort->is_mutable)
+                                @if ($cohort->is_mutable && ($cohortAdmin ?? true))
                                     <button type="button" class="ux-row-edit cursor-interaction" aria-haspopup="dialog"
                                             aria-label="{{ __('lf.LF_common_button_edit') }}: {{ $teacher->teacher_name }}"
                                             data-tooltip="{{ __('lf.LF_common_button_edit') }}"
@@ -148,7 +148,7 @@
                                         <x-backend-icon name="square-pen" class="ui-icon" />
                                     </button>
                                     <form method="POST" class="ui-cohort-row-form"
-                                          action="{{ route('admin.course-cohorts.teachers.destroy', [$cohort->id, $teacher->id]) }}"
+                                          action="{{ route($routePrefix.'.teachers.destroy', [$cohort->id, $teacher->id]) }}"
                                           data-lf-confirm="{{ __('lf.LF_course_cohort_teacher_remove_confirm', ['name' => $teacher->teacher_name]) }}"
                                           data-lf-confirm-tone="danger"
                                           data-lf-confirm-label="{{ __('lf.LF_common_button_remove') }}">
@@ -198,7 +198,7 @@
                                                 </button>
                                             @endif
                                             <div class="course-cohort-teacher-removal-error__actions">
-                                                <a class="ui-button ui-button--primary ui-button--sm cursor-interaction" href="{{ route('admin.course-cohorts.show', $cohort->id) }}?tab=sessions">
+                                                <a class="ui-button ui-button--primary ui-button--sm cursor-interaction" href="{{ route($routePrefix.'.show', $cohort->id) }}?tab=sessions">
                                                     {{ __('lf.LF_course_cohort_teacher_remove_reassign', ['count' => $blockedSessions->count()]) }}
                                                 </a>
                                             </div>
@@ -214,7 +214,7 @@
                 </table>
             </div>
 
-            @if ($cohort->is_mutable)
+            @if ($cohort->is_mutable && ($cohortAdmin ?? true))
                 @foreach ($teachers as $assignment)
                     @include('course-cohorts.partials.tabs.teacher-edit-dialog')
                 @endforeach

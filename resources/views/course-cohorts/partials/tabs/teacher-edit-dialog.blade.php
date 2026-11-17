@@ -31,7 +31,7 @@
      x-init="if (@js($editRetry)) $refs.editDialog.showModal()">
     <dialog id="{{ $editId }}" x-ref="editDialog" class="ui-modal ui-cohort-teacher-modal" data-columns="2" aria-labelledby="{{ $editId }}-title"
             x-on:close="discard()" x-on:cancel="if (submitting) $event.preventDefault()">
-        <form method="POST" action="{{ route('admin.course-cohorts.teachers.update', [$cohort->id, $assignment->id]) }}"
+        <form method="POST" action="{{ route($routePrefix.'.teachers.update', [$cohort->id, $assignment->id]) }}"
               class="ui-modal__form" x-ref="editForm"
               x-on:submit="if (submitting) { $event.preventDefault(); return } submitting = true">
             @csrf

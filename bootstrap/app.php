@@ -4,6 +4,7 @@ use App\Http\Middleware\RequireRootDomain;
 use App\Http\Middleware\RequireTenantUser;
 use App\Http\Middleware\ResolveTenant;
 use App\Http\Middleware\RoleMiddleware;
+use App\Http\Middleware\TeacherMay;
 use App\Http\Middleware\SetLocale;
 use App\Support\LoginExperience;
 use Illuminate\Database\QueryException;
@@ -35,6 +36,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'tenant' => ResolveTenant::class,
             'tenant.user' => RequireTenantUser::class,
             'role' => RoleMiddleware::class,
+            'teacher.may' => TeacherMay::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

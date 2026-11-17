@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Services\CourseCohortMutationPolicy;
 use App\Services\CourseCohortVersionResolver;
+use App\Services\TeacherPermissions;
 use App\Support\TenantContext;
 use DateTimeZone;
 use Illuminate\Foundation\Http\FormRequest;
@@ -17,7 +18,11 @@ class LiveClassScheduleRequest extends FormRequest
     public function authorize(): bool
     {
         $customerId = TenantContext::customerId();
-        if (! $customerId || $this->user()?->role !== 'customer_admin') {
+        if (! $customerId) {
+            return false;
+        }
+        // The same rule as the other class pages (ADR-0033 D7).
+        if (! app(TeacherPermissions::class)->managesCohortFromRoute($this->user(), (int) $this->route('cohort'), $this->route()?->getName())) {
             return false;
         }
 

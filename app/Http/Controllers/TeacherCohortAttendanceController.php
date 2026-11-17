@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Services\LiveClassAttendanceCheckIn;
 use App\Services\LiveClassAttendancePolicies;
 use App\Services\LiveClassAttendanceRecorder;
+use App\Services\TeacherPermissions;
 use App\Services\LiveClassSessionPolicy;
 use App\Support\TenantContext;
 use Carbon\CarbonImmutable;
@@ -45,7 +46,9 @@ final class TeacherCohortAttendanceController extends Controller
             'history' => $selected ? $this->recorder->history($customerId, (int) $selected->id) : collect(),
             'attendanceTool' => $selected ? LiveClassAttendanceRecorder::tool($selected) : 'board',
             'closesAt' => $closesAt,
-            'editable' => $selected !== null && $cohortRow->status === 'active' && CarbonImmutable::now()->utc()->lte($closesAt),
+            // Without `class.operate` the page only reads (ADR-0033 D3).
+            'mayOperate' => $mayOperate = app(TeacherPermissions::class)->may($request->user(), 'class.operate'),
+            'editable' => $mayOperate && $selected !== null && $cohortRow->status === 'active' && CarbonImmutable::now()->utc()->lte($closesAt),
         ]);
     }
 

@@ -1,6 +1,6 @@
 # LF-Navigation.md
 
-Version: 1.6
+Version: 1.7
 
 Document Status: Approved
 
@@ -46,8 +46,15 @@ Document Path: business/LF-Navigation.md
 > `Users` (`admin.users.index`) and `Tổ chức` / `Organization`
 > (`admin.organization.edit`). Neither is a row of the account dropdown any more;
 > the dropdown keeps `Tài khoản của tôi` and `Đăng xuất`. This replaces the
-> earlier placement of both in the dropdown. `Phân quyền` / `Permissions` joins
-> this group as its second child when ADR-0033 is implemented (not yet).
+> earlier placement of both in the dropdown. `Phân quyền` / `Permissions`
+> (`admin.teacher-permissions.index`, `/admin/teacher-permissions`) is its second
+> child (ADR-0033, 2026-11-17). A teacher's menu shows only what their permission
+> group allows: without `assessment.authoring` the `Kiểm tra` children Câu hỏi,
+> Ngữ liệu, Tiêu chí chấm, Đề and Ghi danh are hidden; `Kết quả` stays for
+> `assessment.authoring` or `assessment.grading`; with neither, the whole group
+> is hidden. Without `content.template.create` the Template list has no create
+> button. With `content.category.manage` the teacher's `Danh mục khoá học` page
+> carries the same add, edit, switch and delete controls as the admin's.
 > Teacher sidebar (Owner 2026-11-17): `Lớp của tôi` and `Buổi học trực tiếp` are
 > the two children of one group `Lớp học` / `Classes`, whether attendance is on
 > or off. The teacher has no policies page: the attendance page of a class shows
@@ -61,6 +68,14 @@ Document Path: business/LF-Navigation.md
 > `student.live-sessions.attend` (the "Điểm danh" button). No sidebar entry is
 > added for any role, and all of it is absent while
 > `liveclass.attendance_enabled` is off.
+
+> Class self-management (ADR-0033 D7, Owner 2026-11-17, implemented): with
+> `class.manage`, `Lớp của tôi` carries a `Tạo lớp` button
+> (`teacher.course-cohorts.create`), and each class where the teacher is the active
+> primary teacher carries `Quản lý lớp` (`teacher.course-cohorts.show`), the admin class
+> pages under the teacher prefix, activation and completion included, without the
+> admin-only controls (Ghi danh, giáo viên của lớp, quy tắc điểm danh, lưu trữ, bản ghi). With `class.delete` a draft card also
+> carries `Xoá lớp`. Their back link and the highlighted menu entry are `Lớp của tôi`.
 
 > Teacher Judgment amendment (2026-10-11, Owner): the Teacher sidebar adds
 > `Lớp của tôi` / `My classes` (`teacher.cohorts.index`), listing only cohorts

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Services\MediaService;
 use App\Services\MediaThumbnailPresenter;
+use App\Services\TeacherPermissions;
 use App\Support\TenantContext;
 use App\Support\UploadLimit;
 use Illuminate\Database\QueryException;
@@ -662,10 +663,8 @@ class CourseCategoryController extends Controller
 
     private function authorizeCategoryAccess(object $category): void
     {
-        $user = request()->user();
-
-        // Teachers have no category management routes; this is the second lock behind them.
-        abort_unless($user?->role === 'customer_admin', 403);
+        // The second lock behind the routes: admins, and teachers holding `content.category.manage` (ADR-0033 D3).
+        abort_unless(app(TeacherPermissions::class)->may(request()->user(), 'content.category.manage'), 403);
     }
 
     private function customerId(): int

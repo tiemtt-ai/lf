@@ -1,4 +1,5 @@
-{{-- Status changes for the identity card: they concern the whole class, unlike the per-tab actions. --}}
+{{-- Status changes for the identity card: they concern the whole class, unlike the per-tab actions.
+     The primary teacher activates and completes; archiving stays with admins (ADR-0033 D7). --}}
 @if ($cohort->status === 'draft')
     <div class="course-cohort-activation-action">
         @include('course-cohorts.partials.kit-lifecycle-action', [
@@ -13,6 +14,7 @@
             'disabled' => $activationIssues !== [],
         ])
     </div>
+    @if ($cohortAdmin ?? true)
     @include('course-cohorts.partials.kit-lifecycle-action', [
         'dialogId' => 'cohort-archive',
         'action' => route($routePrefix.'.archive', $cohort->id),
@@ -26,6 +28,7 @@
         'confirmClass' => 'ui-button ui-button--danger-outline cursor-interaction',
         'confirmLabel' => __('lf.LF_course_cohort_lifecycle_archive_confirm'),
     ])
+    @endif
 @elseif ($cohort->status === 'active')
     @include('course-cohorts.partials.kit-lifecycle-action', [
         'dialogId' => 'cohort-complete',
@@ -39,6 +42,7 @@
         'confirmLabel' => __('lf.LF_course_cohort_lifecycle_complete_confirm'),
     ])
 @elseif ($cohort->status === 'completed')
+    @if ($cohortAdmin ?? true)
     @include('course-cohorts.partials.kit-lifecycle-action', [
         'dialogId' => 'cohort-archive',
         'action' => route($routePrefix.'.archive', $cohort->id),
@@ -49,4 +53,5 @@
         'confirmClass' => 'ui-button ui-button--danger-outline cursor-interaction',
         'confirmLabel' => __('lf.LF_course_cohort_lifecycle_archive_confirm'),
     ])
+    @endif
 @endif

@@ -1,6 +1,6 @@
 # LF-Core-User.md
 
-Version: 1.3
+Version: 1.4
 
 Document Status: Approved
 
@@ -746,7 +746,7 @@ customer_admin
 
 ---
 
-# Teacher Permissions And Tenant Owner — 2026-11-17 (Approved, chưa triển khai)
+# Teacher Permissions And Tenant Owner — 2026-11-17 (Approved, Implemented)
 
 Nguồn: [ADR-0033](../adr/ADR-0033-Teacher-Permissions-And-Tenant-Owner.md). Ba vai trò giữ
 nguyên.
@@ -770,6 +770,8 @@ nguyên.
   còn giáo viên, kể cả đã khoá, không xoá được.
 * Nhóm mặc định giữ đúng những gì giáo viên làm được trước ngày 2026-11-17.
 * Quyền quyết định loại việc; phân công vẫn quyết định làm ở Template, lớp, buổi nào.
+* Có `class.manage`, giáo viên tạo lớp và tự vận hành lớp mình là giáo viên chính; học
+  viên và đội giáo viên của lớp vẫn do quản trị (ADR-0033 D7).
 * Luôn có: xem và dạy những gì được phân công (bắt đầu buổi, mở bảng, hiện mã QR), đánh
   giá năng lực học viên, hồ sơ cá nhân. Media đi theo việc soạn, không là quyền riêng.
   Không bao giờ cấp: Người

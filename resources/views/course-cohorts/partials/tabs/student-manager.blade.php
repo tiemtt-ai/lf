@@ -18,7 +18,7 @@
 @endphp
 <dialog x-ref="manageDialog" class="ui-modal" data-columns="2" aria-labelledby="cohort-student-manager-title" x-on:close="formOpen = false">
 <form id="cohort-student-manager-form" method="POST"
-      action="{{ route('admin.course-cohorts.students.sync', $cohort->id) }}"
+      action="{{ route($routePrefix.'.students.sync', $cohort->id) }}"
       class="ui-modal__form course-cohort-student-inline-form"
       x-data="{
           query: '', selectedQuery: '', results: [], page: 1, lastPage: 1, selectedPage: 1,
@@ -85,7 +85,7 @@
               const token = ++this.requestToken
               this.loading = true
               try {
-                  const response = await fetch(`${@js(route('admin.course-cohorts.students.search', $cohort->id))}?q=${encodeURIComponent(this.query.trim())}&page=${page}&manage=1`, { headers: { Accept: 'application/json' } })
+                  const response = await fetch(`${@js(route($routePrefix.'.students.search', $cohort->id))}?q=${encodeURIComponent(this.query.trim())}&page=${page}&manage=1`, { headers: { Accept: 'application/json' } })
                   if (token !== this.requestToken) return
                   const payload = response.ok ? await response.json() : { data: [], pagination: { current_page: 1, last_page: 1 } }
                   if (token !== this.requestToken) return

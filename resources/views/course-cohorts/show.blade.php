@@ -6,7 +6,7 @@
 @section('page_title_hidden', '1')
 
 @section('page_back')
-    <x-page-back-link :href="route($routePrefix.'.index')" :label="__('lf.LF_course_cohort_common_back_to_cohorts')" />
+    <x-page-back-link :href="$cohortIndexUrl" :label="__('lf.LF_course_cohort_common_back_to_cohorts')" />
 @endsection
 
 @section('vite')
@@ -118,21 +118,21 @@
                 <p class="ui-caption">{{ __('lf.LF_course_cohort_tab_students_detail_note') }}</p>
             </div>
             <div class="mk-table-top__actions">
-                @if ($cohort->is_mutable)
+                @if ($cohort->is_mutable && $cohortAdmin)
                     <button type="button" class="ui-button ui-button--outline cursor-interaction"
                             aria-haspopup="dialog" x-on:click="formOpen = true">
                         {{ __('lf.LF_course_cohort_student_manage_heading') }}
                     </button>
                 @endif
                 <a class="ui-button ui-button--outline cursor-interaction" download
-                   href="{{ route('admin.course-cohorts.students.export', array_filter(['id' => $cohort->id, 'student_keyword' => $studentKeyword])) }}">
+                   href="{{ route($routePrefix.'.students.export', array_filter(['id' => $cohort->id, 'student_keyword' => $studentKeyword])) }}">
                     <x-backend-icon name="file-output" class="ui-icon" />
                     {{ __('lf.LF_export_excel') }}
                 </a>
             </div>
         </div>
 
-        @if ($cohort->is_mutable)
+        @if ($cohort->is_mutable && $cohortAdmin)
             @include('course-cohorts.partials.tabs.student-manager')
         @endif
 
@@ -207,7 +207,7 @@
                                         'access_ends_at' => $student->access_ends_at ? \Illuminate\Support\Carbon::parse($student->access_ends_at)->format('d/m/Y H:i') : '—',
                                         'review_starts_at' => $student->review_starts_at ? \Illuminate\Support\Carbon::parse($student->review_starts_at)->format('d/m/Y H:i') : '—',
                                         'review_ends_at' => $student->review_ends_at ? \Illuminate\Support\Carbon::parse($student->review_ends_at)->format('d/m/Y H:i') : '—',
-                                        'detail_url' => route('admin.course-enrollments.show', $student->enrollment_id),
+                                        'detail_url' => $cohortAdmin ? route('admin.course-enrollments.show', $student->enrollment_id) : null,
                                         'current' => true,
                                     ]), $event)">
                                 <x-backend-icon name="eye" class="ui-icon" />

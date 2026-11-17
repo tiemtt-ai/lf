@@ -1,10 +1,10 @@
 # Table: saas_teacher_permission_grants
 
-Version: 1.0
+Version: 1.1
 
 Document Status: Approved
 
-Implementation Status: Not Implemented
+Implementation Status: Implemented
 
 Last Updated: 2026-11-17
 
@@ -17,7 +17,8 @@ Nghiệp vụ nằm ở
 [ADR-0033](../../adr/ADR-0033-Teacher-Permissions-And-Tenant-Owner.md) D3–D4 (Owner duyệt
 nghiệp vụ 2026-11-17).
 
-Owner duyệt thiết kế dữ liệu ngày 2026-11-17. Chưa có migration: Owner được hỏi trước khi bắt đầu code.
+Owner duyệt thiết kế dữ liệu ngày 2026-11-17. Migration:
+`2026_11_17_000400_create_teacher_permissions`.
 
 ## Relationships
 
@@ -41,18 +42,18 @@ Owner duyệt thiết kế dữ liệu ngày 2026-11-17. Chưa có migration: Ow
 | id | BIGINT UNSIGNED PK AUTO_INCREMENT | Khoá chính. |
 | customer_id | BIGINT UNSIGNED NOT NULL | Trung tâm sở hữu. |
 | permission_group_id | BIGINT UNSIGNED NOT NULL | Nhóm được cấp quyền. |
-| permission_key | VARCHAR(100) NOT NULL | Khoá quyền, ví dụ `class.create`. |
+| permission_key | VARCHAR(100) NOT NULL | Khoá quyền, ví dụ `class.manage`. |
 | created_at | TIMESTAMP NULL | Thời điểm cấp. |
 
 ## Constraints
 
 ```sql
 PRIMARY KEY (id);
-UNIQUE (permission_group_id, permission_key);
-INDEX (customer_id, permission_key);
+UNIQUE uk_stpgr_group_key (permission_group_id, permission_key);
+INDEX idx_stpgr_customer_key (customer_id, permission_key);
 
-FOREIGN KEY (customer_id) REFERENCES saas_customers (id) ON UPDATE RESTRICT ON DELETE RESTRICT;
-FOREIGN KEY (permission_group_id, customer_id)
+FOREIGN KEY fk_stpgr_customer (customer_id) REFERENCES saas_customers (id) ON UPDATE RESTRICT ON DELETE RESTRICT;
+FOREIGN KEY fk_stpgr_group (permission_group_id, customer_id)
     REFERENCES saas_teacher_permission_groups (id, customer_id)
     ON UPDATE RESTRICT ON DELETE CASCADE;
 ```

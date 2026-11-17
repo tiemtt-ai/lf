@@ -1,6 +1,6 @@
 {{-- Attributes of a lesson list in a class's programme: a group of more than one lesson can be reordered, saved for this class only. --}}
 @if ($sessionTree['canReorder'] && $orderLessons->count() > 1)
-    data-reorder-url="{{ route('admin.course-cohorts.content.lessons.reorder', array_filter(['cohort' => $cohort->id, 'version_section_id' => $orderSectionId])) }}"
+    data-reorder-url="{{ route(($sessionTree['routePrefix'] ?? 'admin.course-cohorts').'.content.lessons.reorder', array_filter(['cohort' => $cohort->id, 'version_section_id' => $orderSectionId])) }}"
     data-reorder-field="lesson_ids"
     data-reorder-reload
     data-order-number=".course-template-lesson-number"
