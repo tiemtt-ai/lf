@@ -1,12 +1,12 @@
 # Table: core_course_cohort_teachers
 
-Version: 1.5
+Version: 1.6
 
 Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-11-10
+Last Updated: 2026-11-17
 
 Document Path: database/course/core_course_cohort_teachers.md
 
@@ -99,6 +99,83 @@ Thao tác sửa không thay đổi `core_liveclass_session_teachers`. Với vai 
 một Session thuộc nhóm chặn của Assignment Deactivation Policy rơi ra ngoài
 khoảng phụ trách, và phải liệt kê đầy đủ các Session đó. Kiểm tra chạy trong
 cùng transaction, sau khi lock dòng Cohort.
+
+## Value Constraint Amendment — 2026-11-17
+
+Approved: 2026-11-17 bởi LearnForge Architecture Owner, cả ba ràng buộc. Owner
+xác nhận không cần ADR: amendment chỉ ép vocabulary và luật đã Approved, không
+đổi Foundation.
+
+Implementation Status: Deployed on the development database `learnforge_db`
+(migration `2026_11_17_000100_add_value_checks_to_course_cohort_teachers`);
+production not authorized.
+
+### Lý do
+
+Ngày 2026-11-17, một dòng dữ liệu demo trên `learnforge_db` được ghi tay với
+`role = 'primary'` (vocabulary của `core_course_template_teachers`, không phải
+của bảng này). Cột `role` là `varchar(50)` không có ràng buộc nên dòng đó được
+chấp nhận. Hậu quả: tab Giáo viên của Lớp học hiện khóa ngôn ngữ thô, Cohort
+không được coi là có giáo viên chính, và `assigned_to` bị bỏ trống. Validation
+ở tầng HTTP (`Rule::in`) chỉ bảo vệ đường ghi qua form; seed, lệnh và ghi trực
+tiếp vào DB đi vòng qua nó.
+
+### Ràng buộc
+
+Ba ràng buộc CHECK. Chúng chỉ ép các giá trị và luật **đã Approved** ở mục
+Fields và Rules; không thêm, bớt hay đổi nghĩa giá trị nào.
+
+```sql
+ALTER TABLE core_course_cohort_teachers
+    ADD CONSTRAINT chk_core_course_cohort_teachers_role
+        CHECK (role IN ('primary_teacher', 'teacher', 'assistant')),
+    ADD CONSTRAINT chk_core_course_cohort_teachers_status
+        CHECK (status IN ('active', 'inactive')),
+    ADD CONSTRAINT chk_core_course_cohort_teachers_period
+        CHECK (assigned_from IS NULL OR assigned_to IS NULL OR assigned_from <= assigned_to);
+```
+
+Ngoài phạm vi, vẫn do tầng ứng dụng bảo đảm trong transaction như hiện nay:
+
+- tối đa một `primary_teacher` đang `active` mỗi Cohort;
+- khoảng phụ trách của `primary_teacher` bằng khoảng vận hành của Cohort;
+- khoảng phụ trách không vượt ngoài khoảng vận hành của Cohort.
+
+Ba luật này cần so với dòng khác hoặc bảng khác nên CHECK không biểu diễn được.
+
+### Điều kiện trước migration
+
+Migration phải dừng (fail-closed) nếu còn dòng vi phạm; không tự sửa dữ liệu.
+Câu kiểm tra phải trả về 0 dòng trên mọi môi trường trước khi chạy:
+
+```sql
+SELECT id, customer_id, cohort_id, role, status, assigned_from, assigned_to
+FROM core_course_cohort_teachers
+WHERE role NOT IN ('primary_teacher', 'teacher', 'assistant')
+   OR status NOT IN ('active', 'inactive')
+   OR (assigned_from IS NOT NULL AND assigned_to IS NOT NULL AND assigned_from > assigned_to);
+```
+
+Trạng thái `learnforge_db` ngày 2026-11-17, sau khi sửa dòng demo nói trên:
+0 dòng vi phạm (3 dòng, đều `primary_teacher` / `active`).
+
+### Triển khai và kiểm chứng
+
+- Migration chỉ thêm ràng buộc khi driver là `mysql`/`mariadb`, theo cách các
+  migration CHECK hiện có; `down()` gỡ đúng ba ràng buộc này.
+- SQLite bỏ qua CHECK, nên phải kiểm trên một instance MariaDB 11.4 tạm bằng
+  test `tests/Integration/*MariaDb*`: ghi `role = 'primary'`, `status` lạ và
+  khoảng ngày ngược đều bị từ chối; ba giá trị hợp lệ được chấp nhận.
+- Chạy `php artisan schema:drift --docs-only` và
+  `php artisan schema:drift --connection=mysql`.
+- Sao lưu `learnforge_db` trước khi migrate.
+
+Kết quả 2026-11-17 trên MariaDB 11.4.12 tạm:
+`tests/Integration/CourseCohortTeacherValueChecksMariaDbTest.php` PASS; `down()`
+gỡ đủ ba ràng buộc và `up()` thêm lại được; `up()` dừng khi còn một dòng
+`role = 'primary'` và không thêm ràng buộc nào. Ba biểu thức đã ghi vào
+`LF-SCHEMA-CONTRACT.json`; `schema:drift --connection=mysql` PASS trên instance
+tạm và trên `learnforge_db`.
 
 ## Indexes
 

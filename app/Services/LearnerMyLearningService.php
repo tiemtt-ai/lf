@@ -449,7 +449,7 @@ class LearnerMyLearningService
             ->where('assignments.customer_id', $customerId)
             ->whereIn('assignments.cohort_id', array_unique($cohortIds))
             ->where('assignments.status', 'active')
-            ->orderByRaw("CASE assignments.role WHEN 'primary' THEN 0 ELSE 1 END")->orderBy('assignments.id')
+            ->orderByRaw("CASE assignments.role WHEN 'primary_teacher' THEN 0 WHEN 'teacher' THEN 1 ELSE 2 END")->orderBy('assignments.id')
             ->get(['assignments.cohort_id', 'users.name'])
             ->groupBy('cohort_id')
             ->map(fn (Collection $rows): Collection => $rows->pluck('name')->unique()->values());

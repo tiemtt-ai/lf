@@ -143,10 +143,14 @@ class LearnerMyLearningTest extends TestCase
         $teacher = $this->user($this->customer, 'teacher', 'Thầy Minh');
         [$product, $version] = $this->course($this->customer, 'Sơ cấp 1A', 'blended');
         $cohort = $this->cohort($product, $version, 'Lớp A', 'active');
-        DB::table('core_course_cohort_teachers')->insert([
-            'customer_id' => $this->customer, 'cohort_id' => $cohort, 'teacher_id' => $teacher->id, 'role' => 'primary',
-            'status' => 'active', 'created_at' => now(), 'updated_at' => now(),
-        ]);
+        // The assistant is assigned first; the primary teacher is still named first.
+        $assistant = $this->user($this->customer, 'teacher', 'Cô Lan');
+        foreach ([[$assistant, 'assistant'], [$teacher, 'primary_teacher']] as [$person, $role]) {
+            DB::table('core_course_cohort_teachers')->insert([
+                'customer_id' => $this->customer, 'cohort_id' => $cohort, 'teacher_id' => $person->id, 'role' => $role,
+                'status' => 'active', 'created_at' => now(), 'updated_at' => now(),
+            ]);
+        }
         $enrollment = $this->enroll($this->student, $product, $version);
         $this->seat($cohort, $enrollment, $this->student, $product);
 
@@ -172,7 +176,7 @@ class LearnerMyLearningTest extends TestCase
 
         $list = $this->actingAs($this->student)->get(self::HOST.'/my-courses?tab=classes')->assertOk()->getContent();
         $this->assertSame([$cohort], $this->ids($list, 'data-learn-class'));
-        $this->assertStringContainsString('Thầy Minh', $list);
+        $this->assertStringContainsString('Thầy Minh, Cô Lan', $list);
         $this->assertStringContainsString(__('lf.LF_my_learning_class_attendance').': 50%', $list);
         $this->assertStringContainsString(__('lf.LF_my_learning_class_sessions', ['held' => 2, 'total' => 3]), $list);
         $done = $this->actingAs($this->student)->get(self::HOST.'/my-courses?tab=classes&view=completed')->assertOk()->getContent();

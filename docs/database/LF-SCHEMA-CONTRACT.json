@@ -13349,7 +13349,17 @@
           "on_delete": "restrict"
         }
       ],
-      "checks": [],
+      "checks": [
+        {
+          "expression": "`role` in ('primary_teacher','teacher','assistant')"
+        },
+        {
+          "expression": "`status` in ('active','inactive')"
+        },
+        {
+          "expression": "`assigned_from` is null or `assigned_to` is null or `assigned_from` <= `assigned_to`"
+        }
+      ],
       "triggers": [],
       "views": []
     },

@@ -3314,6 +3314,8 @@
 .lf-admin-ui .ui-cohort-schedule-detail__weekday { color: var(--ui-muted); font-size: 12px; }
 .lf-admin-ui .ui-cohort-schedule-detail__week li.is-on .ui-cohort-schedule-detail__weekday { color: var(--ui-primary); font-weight: 500; }
 .lf-admin-ui .ui-cohort-schedule-detail__weektime { font-size: 14px; line-height: 20px; }
+/* The duration takes its own line: beside the time it broke mid-phrase ("1 giờ" / "30 phút") in a narrow day cell. */
+.lf-admin-ui .ui-cohort-schedule-detail__weektime .ui-caption { display: block; }
 .lf-admin-ui .ui-cohort-schedule-detail__views { display: inline-flex; overflow: hidden; border: 1px solid var(--ui-border); border-radius: var(--ui-control-radius); }
 .lf-admin-ui .ui-cohort-schedule-detail__views button { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 4px 12px; border: 0; background: var(--ui-white); color: var(--ui-muted); font: 14px/20px var(--ui-font-family); }
 .lf-admin-ui .ui-cohort-schedule-detail__views button + button { border-left: 1px solid var(--ui-border); }

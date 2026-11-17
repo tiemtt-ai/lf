@@ -54,7 +54,7 @@
                 <dialog x-ref="assignDialog" class="ui-modal ui-cohort-teacher-modal" data-columns="2" aria-labelledby="cohort-teacher-assign-title"
                         x-on:close="open = false" x-on:cancel="if (submitting) $event.preventDefault()">
                     <form id="cohort-teacher-assignment-form" method="POST" action="{{ route('admin.course-cohorts.teachers.store', $cohort->id) }}"
-                          class="ui-modal__form" x-ref="assignForm"
+                          class="ui-modal__form" x-ref="assignForm" novalidate
                           x-on:submit="if (submitting) { $event.preventDefault(); return } submitting = true">
                         @csrf
                         <header class="ui-modal__header">
@@ -77,7 +77,7 @@
                                     <label class="ui-field__label" for="teacher_role"><span class="ui-field__required" aria-hidden="true">*</span>{{ __('lf.LF_course_cohort_teacher_role') }}</label>
                                     <select id="teacher_role" name="role" data-ui-kit-select x-model="role" required>
                                         @foreach (['primary_teacher', 'teacher', 'assistant'] as $role)
-                                            <option value="{{ $role }}" @disabled($role === 'primary_teacher' && ! $hasOperatingPeriod)>{{ __('lf.LF_course_cohort_teacher_role_'.$role) }}</option>
+                                            <option value="{{ $role }}" @selected($assignOld('role', $defaultRole) === $role) @disabled($role === 'primary_teacher' && ! $hasOperatingPeriod)>{{ __('lf.LF_course_cohort_teacher_role_'.$role) }}</option>
                                         @endforeach
                                     </select>
                                     @error('role')<p class="ui-field__error" role="alert" x-show="showErrors">{{ $message }}</p>@enderror
