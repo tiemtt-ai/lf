@@ -50,6 +50,8 @@ trò chuyện mà không sở hữu Progress của Course hoặc tài sản Medi
 | Bảng | Mô tả |
 |------|------|
 | **core_liveclass_attendances** | Bằng chứng tham dự của học viên |
+| **core_liveclass_attendance_policies** | Bộ quy tắc điểm danh của trung tâm, gán cho lớp |
+| **core_liveclass_attendance_changes** | Lịch sử sửa điểm danh, chỉ thêm |
 | **core_liveclass_chat_logs** | Lịch sử tương tác trong phiên học |
 
 ---

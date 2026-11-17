@@ -6,6 +6,34 @@ Document Path: database/saas/saas_customers.md
 
 Tenant/Customer root identity and lifecycle record.
 
+## Tenant Owner Amendment — 2026-11-17 (Approved, chưa có migration)
+
+[ADR-0033](../../adr/ADR-0033-Teacher-Permissions-And-Tenant-Owner.md) D2 (Owner duyệt
+nghiệp vụ 2026-11-17). Thêm cột `owner_user_id`. Owner duyệt schema ngày 2026-11-17; khoá ngoại ghép dưới đây
+thay khoá ngoại đơn sau lượt rà soát và được Owner duyệt lại cùng ngày.
+
+```text
+owner_user_id BIGINT UNSIGNED NULL
+INDEX idx_sc_owner_user (owner_user_id, id)
+FOREIGN KEY fk_sc_owner_user (owner_user_id, id) REFERENCES users (id, customer_id)
+    ON UPDATE RESTRICT ON DELETE RESTRICT
+```
+
+* Khoá ngoại ghép dựa trên `uk_users_id_customer` đã có: schema tự bảo đảm Chủ trung tâm
+  là người dùng của chính trung tâm đó. Vai trò và trạng thái vẫn do ứng dụng kiểm tra.
+
+* Chủ trung tâm: `customer_admin` đang hoạt động duy nhất được quản lý các quản trị khác và
+  được chuyển vai trò này.
+* Migration điền quản trị đang hoạt động được tạo sớm nhất của từng trung tâm. `NULL` chỉ
+  còn ở trung tâm chưa có quản trị nào; ứng dụng coi quản trị đầu tiên được tạo là Chủ
+  trung tâm và ghi cột này lúc đó.
+* Ứng dụng bảo đảm người được ghi có vai trò `customer_admin` và đang hoạt động; không
+  khoá và không hạ vai trò người này. Luồng đăng ký trung tâm ghi cột này trong cùng
+  transaction tạo quản trị đầu tiên.
+* Đổi Chủ trung tâm khi người này mất quyền truy cập do đội vận hành LF làm ngoài ứng
+  dụng, có ghi `saas_audit_logs`.
+* Mỗi lần chuyển ghi `saas_audit_logs`.
+
 ## Relationships
 
 `Customer 1 → N Settings / Domains / Members / Invitations / Audit Logs`;

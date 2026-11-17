@@ -1,12 +1,12 @@
 # LF-Navigation.md
 
-Version: 1.5
+Version: 1.6
 
 Document Status: Approved
 
 Implementation Status: Unknown
 
-Last Updated: 2026-11-10
+Last Updated: 2026-11-17
 
 Document Path: business/LF-Navigation.md
 
@@ -31,6 +31,36 @@ Document Path: business/LF-Navigation.md
 > confirmation. Immutable Origin, not timestamp coincidence, supplies the
 > Schedule relationship. Cohort Attendance and Recordings/Replay aggregate
 > records from the Cohort's concrete Sessions only.
+
+> Attendance Policy amendment (2026-11-17, Owner; ADR-0002 § Attendance Policy
+> And Recording Amendment): with `liveclass.attendance_enabled` on, the Admin
+> entry `Lớp học` / `Cohorts` is a group with two children, in this order:
+> `Danh sách lớp học` / `Class list` (`admin.course-cohorts.index`) and
+> `Quy tắc điểm danh` / `Attendance policies` (`admin.attendance-policies.index`,
+> `/admin/attendance-policies`). With the switch off the policies have no effect,
+> so `Lớp học` stays the single entry it was. The Cohort list carries no button
+> to the policies page; the Cohort edit popup keeps a link under its policy
+> field. Only `customer_admin` reaches the page.
+> Admin management group (Owner 2026-11-17): the last entry of the Admin sidebar
+> is the group `Quản trị` / `Administration` with the children `Người dùng` /
+> `Users` (`admin.users.index`) and `Tổ chức` / `Organization`
+> (`admin.organization.edit`). Neither is a row of the account dropdown any more;
+> the dropdown keeps `Tài khoản của tôi` and `Đăng xuất`. This replaces the
+> earlier placement of both in the dropdown. `Phân quyền` / `Permissions` joins
+> this group as its second child when ADR-0033 is implemented (not yet).
+> Teacher sidebar (Owner 2026-11-17): `Lớp của tôi` and `Buổi học trực tiếp` are
+> the two children of one group `Lớp học` / `Classes`, whether attendance is on
+> or off. The teacher has no policies page: the attendance page of a class shows
+> the policy in use and opens the whole policy, read-only, from `Xem đầy đủ`.
+> Teacher: each card of `Lớp của tôi` gains `Điểm danh`
+> (`teacher.cohorts.attendance`, `/teacher/cohorts/{cohort}/attendance`), and each
+> row of `Buổi học trực tiếp` gains `Sửa` for the Session's own teachers
+> (`teacher.live-sessions.update`). Learner: the Session card of the learner pages
+> appears from the policy's opening time and posts to
+> `student.live-sessions.meeting` ("Vào phòng họp") and
+> `student.live-sessions.attend` (the "Điểm danh" button). No sidebar entry is
+> added for any role, and all of it is absent while
+> `liveclass.attendance_enabled` is off.
 
 > Teacher Judgment amendment (2026-10-11, Owner): the Teacher sidebar adds
 > `Lớp của tôi` / `My classes` (`teacher.cohorts.index`), listing only cohorts

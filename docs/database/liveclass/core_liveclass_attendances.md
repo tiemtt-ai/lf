@@ -29,6 +29,38 @@ ADR-0002 § Attendance Check-In Amendment. No column or migration.
 * Only an Enrollment with `status = active` is recorded, by a scan or by a manual
   save.
 
+## Policy And Online Entry Amendment — 2026-11-17
+
+ADR-0002 § Attendance Policy And Recording Amendment (Owner approved the business rules
+on 2026-11-17). No column and no migration on this table. Implemented 2026-11-17
+(`LiveClassAttendanceRecorder`), behind `liveclass.attendance_enabled`.
+
+* The opening time and the late and absent thresholds come from the Cohort's
+  [attendance policy](core_liveclass_attendance_policies.md), no longer from
+  `liveclass.late_after_minutes`.
+* "Vào phòng họp" writes `attendance_mode = online`, `attendance_source = system`,
+  `joined_at` (server time) and `status` `present`, `late` or `absent`. An entry
+  after the absent threshold is stored as `absent` **with** its `joined_at`.
+* The "Điểm danh" button of an in-room Session
+  (`core_liveclass_sessions.attendance_tool = button`) writes the same values as
+  "Vào phòng họp" but with `attendance_mode = offline`. `offline` + `system` is
+  therefore a QR scan or a button press, told apart by the Session's tool.
+* A learner opening the Whiteboard of an `online` Session writes the same values
+  as "Vào phòng họp" (`online` + `system`). Opening the board of an `offline` or
+  `hybrid` Session writes nothing. In a `hybrid` Session an in-room check-in by a
+  learner already recorded as `online` updates only `attendance_mode` to
+  `offline`; it keeps `joined_at` and `status`, and adds a `system` row to the
+  change history.
+* A QR scan after the absent threshold is refused and writes nothing.
+* Automatic absence writes `status = absent`, `attendance_source = system`,
+  `joined_at = NULL`, for a member with no row or a `registered` row.
+* A teacher with an active assignment to the Cohort may write manual attendance
+  within the policy's edit window; `customer_admin` always may. A manual row is
+  never replaced by a scan, an online entry or automatic absence.
+* Every manual write, and every change of an existing result, adds a row to
+  [core_liveclass_attendance_changes](core_liveclass_attendance_changes.md) in the
+  same transaction.
+
 ## Purpose
 
 Ghi nhận trạng thái và thời lượng một học viên tham gia một LiveClass Session.

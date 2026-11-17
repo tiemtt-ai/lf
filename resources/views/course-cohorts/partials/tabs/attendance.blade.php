@@ -4,6 +4,18 @@
             <header class="admin-form-section-header">
                 <h2 class="admin-form-section-title">{{ __('lf.LF_course_cohort_attendance_title') }}</h2>
                 <p class="admin-form-section-help">{{ __('lf.LF_course_cohort_attendance_help') }}</p>
+                @php
+                    // The policy this class uses: its own, else the tenant default.
+                    $attendancePolicy = $attendancePolicies->firstWhere('id', $cohort->attendance_policy_id) ?? $attendancePolicies->firstWhere('is_default', 1);
+                @endphp
+                @if ($attendancePolicy)
+                    <p class="admin-form-section-help" data-attendance-policy>
+                        {{ __('lf.LF_attendance_policy_in_use', ['name' => $attendancePolicy->name]) }}
+                        {{ __('lf.LF_attendance_policy_summary_opens', ['value' => trans_choice('lf.LF_attendance_policy_minutes', (int) $attendancePolicy->opens_before_minutes, ['count' => (int) $attendancePolicy->opens_before_minutes])]) }}
+                        · {{ __('lf.LF_attendance_policy_summary_late', ['value' => trans_choice('lf.LF_attendance_policy_minutes', (int) $attendancePolicy->late_after_minutes, ['count' => (int) $attendancePolicy->late_after_minutes])]) }}
+                        · {{ __('lf.LF_attendance_policy_summary_absent', ['value' => $attendancePolicy->absent_after_minutes === null ? __('lf.LF_attendance_policy_unlimited') : trans_choice('lf.LF_attendance_policy_minutes', (int) $attendancePolicy->absent_after_minutes, ['count' => (int) $attendancePolicy->absent_after_minutes])]) }}.
+                    </p>
+                @endif
             </header>
             @if ($sessions->isNotEmpty())
                 <div class="mk-table-top__actions">
@@ -26,39 +38,13 @@
         </section>
         @if ($selectedSessionId)
             <section class="admin-form-standard-section">
-                @if ($cohort->status === 'active')
-                <form method="POST" action="{{ route('admin.course-cohorts.sessions.attendance', [$cohort->id, $selectedSessionId]) }}">
-                    @csrf @method('PUT')
-                    <div class="admin-table-wrap"><table class="table">
-                        <thead><tr><th>{{ __('lf.LF_course_cohort_student_common_student') }}</th><th>{{ __('lf.LF_course_cohort_attendance_status') }}</th><th>{{ __('lf.LF_course_cohort_attendance_mode') }}</th><th>{{ __('lf.LF_course_cohort_attendance_notes') }}</th></tr></thead>
-                        <tbody>
-                        @foreach ($attendance as $index => $row)
-                            <tr>
-                                <td><strong>{{ $row->student_name }}</strong><br><span class="lf-secondary-text">{{ $row->student_email }}</span>@if ($row->joined_at && $row->attendance_source === 'system')<br><span class="lf-secondary-text" data-attendance-checked-in>{{ __('lf.LF_course_cohort_attendance_checked_in_qr', ['time' => \Illuminate\Support\Carbon::parse($row->joined_at)->format('H:i')]) }}</span>@endif<input type="hidden" name="attendance[{{ $index }}][enrollment_id]" value="{{ $row->enrollment_id }}"><input type="hidden" name="attendance[{{ $index }}][loaded_status]" value="{{ $row->attendance_status ?: 'registered' }}"><input type="hidden" name="attendance[{{ $index }}][loaded_mode]" value="{{ $row->attendance_mode }}"><input type="hidden" name="attendance[{{ $index }}][loaded_notes]" value="{{ $row->notes }}"></td>
-                                <td><select name="attendance[{{ $index }}][status]" class="lf-form-control">@foreach(['registered','present','late','absent','excused'] as $status)<option value="{{ $status }}" @selected(($row->attendance_status ?: 'registered') === $status)>{{ __('lf.LF_course_cohort_attendance_status_'.$status) }}</option>@endforeach</select></td>
-                                <td><select name="attendance[{{ $index }}][attendance_mode]" class="lf-form-control"><option value="">—</option><option value="online" @selected($row->attendance_mode === 'online')>{{ __('lf.LF_course_cohort_session_mode_online') }}</option><option value="offline" @selected($row->attendance_mode === 'offline')>{{ __('lf.LF_course_cohort_session_mode_offline') }}</option></select></td>
-                                <td><input name="attendance[{{ $index }}][notes]" class="lf-form-control" value="{{ $row->notes }}"></td>
-                            </tr>
-                        @endforeach
-                        </tbody>
-                    </table></div>
-                    <div class="admin-form-footer" data-actions-align="end"><div class="admin-form-footer-primary"><button type="submit" class="btn btn-primary">{{ __('lf.LF_course_cohort_attendance_save') }}</button></div></div>
-                </form>
-                @else
-                    <div class="admin-table-wrap"><table class="table">
-                        <thead><tr><th>{{ __('lf.LF_course_cohort_student_common_student') }}</th><th>{{ __('lf.LF_course_cohort_attendance_status') }}</th><th>{{ __('lf.LF_course_cohort_attendance_mode') }}</th><th>{{ __('lf.LF_course_cohort_attendance_notes') }}</th></tr></thead>
-                        <tbody>
-                        @foreach ($attendance as $row)
-                            <tr>
-                                <td><strong>{{ $row->student_name }}</strong><br><span class="lf-secondary-text">{{ $row->student_email }}</span></td>
-                                <td>{{ __('lf.LF_course_cohort_attendance_status_'.($row->attendance_status ?: 'registered')) }}</td>
-                                <td>{{ $row->attendance_mode ? __('lf.LF_course_cohort_session_mode_'.$row->attendance_mode) : '—' }}</td>
-                                <td>{{ $row->notes ?: '—' }}</td>
-                            </tr>
-                        @endforeach
-                        </tbody>
-                    </table></div>
-                @endif
+                @include('liveclass-attendance.partials.roster', [
+                    'attendance' => $attendance,
+                    'history' => $attendanceHistory,
+                    'attendanceTool' => $attendanceTool,
+                    'action' => $cohort->status === 'active'
+                        ? route('admin.course-cohorts.sessions.attendance', [$cohort->id, $selectedSessionId]) : null,
+                ])
             </section>
         @else
             <div class="course-cohort-empty-state">{{ __('lf.LF_course_cohort_attendance_empty') }}</div>

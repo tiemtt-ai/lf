@@ -88,7 +88,11 @@ class BackendLayoutNavigationTest extends TestCase
             ->assertOk()
             ->assertSee('class="backend-sidebar-icon admin-icon"', false)
             ->assertSee('data-sidebar-icon="home"', false)
-            ->assertSee('data-sidebar-icon="users"', false)
+            // The teacher's classes and live Sessions are the two children of one "Lớp học" group (Owner 2026-11-17).
+            ->assertDontSee('data-sidebar-icon="users"', false)
+            ->assertSeeText(__('lf.LF_navigation_group_teacher_classes'))
+            ->assertSee('<a class="admin-nav__child" href="https://tenant-a.localhost/teacher/cohorts"', false)
+            ->assertSee('<a class="admin-nav__child" href="https://tenant-a.localhost/teacher/live-sessions"', false)
             ->assertDontSee('x-on:click="handleSidebarNavigation($event)"', false);
     }
 
@@ -225,8 +229,13 @@ class BackendLayoutNavigationTest extends TestCase
         $adminSidebar = $this->backendSidebarHtml($adminHtml);
 
         $this->assertStringNotContainsString(__('lf.LF_navigation_group_admin_account_organization'), $adminSidebar);
-        $this->assertStringNotContainsString(__('lf.LF_navigation_menu_admin_organization'), $adminSidebar);
-        $this->assertStringNotContainsString(__('lf.LF_navigation_menu_admin_users'), $adminSidebar);
+        // Users and Organization are the children of the sidebar group "Quản trị" (Owner 2026-11-17), no longer rows of
+        // the account dropdown, which keeps what belongs to the signed-in person.
+        $this->assertStringContainsString(__('lf.LF_navigation_group_admin_management'), $adminSidebar);
+        $this->assertStringContainsString('<a class="admin-nav__child" href="https://tenant-a.localhost/admin/users"', $adminSidebar);
+        $this->assertStringContainsString('<a class="admin-nav__child" href="https://tenant-a.localhost/admin/organization"', $adminSidebar);
+        $this->assertDoesNotMatchRegularExpression('/class="admin-dropdown-row" href="[^"]*\/admin\/(users|organization)"/', $adminHtml);
+        $this->assertMatchesRegularExpression('/class="admin-dropdown-row" href="[^"]*\/admin\/my-account"/', $adminHtml);
         $this->assertStringNotContainsString(__('lf.LF_navigation_menu_admin_my_account'), $adminSidebar);
 
         $teacherHtml = $this->actingAs($teacher)

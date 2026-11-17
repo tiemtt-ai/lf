@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Support\LiveClassBoardContext;
 use Carbon\CarbonImmutable;
-use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -21,20 +20,33 @@ final class LiveClassAttendanceCheckIn
     /** A code is accepted for two windows (at most 60 seconds) plus this margin for slow networks. */
     public const GRACE_SECONDS = 5;
 
-    public const OPENS_BEFORE_MINUTES = 15;
-
     public const DELIVERY_MODES = ['offline', 'hybrid'];
+
+    public function __construct(
+        private readonly LiveClassAttendancePolicies $policies,
+        private readonly LiveClassAttendanceRecorder $recorder,
+    ) {}
 
     public static function enabled(): bool
     {
         return (bool) config('liveclass.attendance_enabled');
     }
 
-    /** Whether this board offers the QR code: the presenter of an in-room Session that has a teacher, with attendance on. */
+    /**
+     * Whether this board offers the QR code: the presenter of an in-room Session that has a teacher, with attendance
+     * on, whose attendance tool is the board, in a Cohort whose policy lets the system record in-room entries.
+     */
     public static function offeredOn(LiveClassBoardContext $context): bool
     {
-        return self::enabled() && $context->canPresent && in_array($context->deliveryMode, self::DELIVERY_MODES, true)
-            && self::sessionHasTeacher($context->customerId, $context->sessionId);
+        if (! self::enabled() || ! $context->canPresent || ! in_array($context->deliveryMode, self::DELIVERY_MODES, true)
+            || ! self::sessionHasTeacher($context->customerId, $context->sessionId)) {
+            return false;
+        }
+        $recorder = app(LiveClassAttendanceRecorder::class);
+        $session = $recorder->session($context->customerId, $context->sessionId);
+
+        return $session !== null && $recorder->offers(
+            app(LiveClassAttendancePolicies::class)->forCohort($context->customerId, $context->cohortId), $session, 'qr');
     }
 
     /**
@@ -50,20 +62,27 @@ final class LiveClassAttendanceCheckIn
     }
 
     /**
-     * The current code and how long until the board should fetch the next one.
+     * The current code and how long until the board should fetch the next one. Past the policy's absent threshold
+     * no code is issued (`closed`): a learner arriving that late is recorded by the teacher by hand.
      *
-     * @return array{code: string, refresh_in: int}
+     * @return array{code: string|null, refresh_in: int, closed: bool}
      */
     public function issue(LiveClassBoardContext $context, ?CarbonImmutable $now = null): array
     {
         abort_unless(self::offeredOn($context), 404);
-        $seconds = ($now ?? CarbonImmutable::now())->getTimestamp();
+        $now ??= CarbonImmutable::now();
+        $seconds = $now->getTimestamp();
         $window = intdiv($seconds, self::WINDOW_SECONDS);
+        $session = $this->session($context);
+        if ($session && $this->timing($context, $session)->isPastAbsentThreshold($now->utc())) {
+            return ['code' => null, 'refresh_in' => 60, 'closed' => true];
+        }
 
         // Short on purpose: fewer characters make a QR code with fewer, bigger cells, readable from further away.
         return [
             'code' => base_convert((string) $window, 10, 36).'.'.$this->signature($context->customerId, $context->sessionId, $window),
             'refresh_in' => self::WINDOW_SECONDS - ($seconds % self::WINDOW_SECONDS),
+            'closed' => false,
         ];
     }
 
@@ -98,86 +117,31 @@ final class LiveClassAttendanceCheckIn
      * Records the check-in of an authorized learner (`learnerContext` already
      * checked membership, account, Enrollment and that the Session is live).
      * `$receivedAt` is when the server received the code, even when the learner
-     * signed in afterwards. `result` is recorded, already, not_offered,
-     * too_early or too_late.
+     * signed in afterwards. The rules and the `result` values are those of
+     * {@see LiveClassAttendanceRecorder::enter()}.
      *
      * @return array{result: string, status?: string, joined_at?: string|null}
      */
     public function record(LiveClassBoardContext $context, CarbonImmutable $receivedAt): array
     {
-        $session = DB::table('core_liveclass_sessions')
-            ->where('customer_id', $context->customerId)->where('id', $context->sessionId)
-            ->first(['id', 'delivery_mode', 'scheduled_start_at', 'scheduled_end_at', 'actual_start_at', 'timezone', 'version_activity_id']);
-        if (! $session || ! in_array($session->delivery_mode, self::DELIVERY_MODES, true)
-            || ! self::sessionHasTeacher($context->customerId, (int) $session->id)) {
+        $session = $this->session($context);
+        if (! $session) {
             return ['result' => 'not_offered'];
         }
-
-        $plannedStart = LiveClassSessionTime::utc((string) $session->scheduled_start_at, $session->timezone);
-        $plannedEnd = LiveClassSessionTime::utc((string) $session->scheduled_end_at, $session->timezone);
-        $at = $receivedAt->utc();
-        if ($at->lt($plannedStart->subMinutes(self::OPENS_BEFORE_MINUTES))) {
-            return ['result' => 'too_early'];
-        }
-        if ($at->gt($plannedEnd)) {
-            return ['result' => 'too_late'];
-        }
-
-        $start = $plannedStart;
-        if ($session->actual_start_at) {
-            $actual = LiveClassSessionTime::utc((string) $session->actual_start_at, $session->timezone);
-            $start = $actual->gt($start) ? $actual : $start;
-        }
-        $status = $at->gt($start->addMinutes(max(0, (int) config('liveclass.late_after_minutes', 10)))) ? 'late' : 'present';
-
         $membership = LearnerCohortSeat::current($context->customerId, $context->cohortId, $context->userId);
         abort_unless($membership, 404);
 
-        $result = DB::transaction(function () use ($context, $session, $membership, $status, $at): array {
-            $key = [
-                'customer_id' => $context->customerId,
-                'session_id' => $context->sessionId,
-                'enrollment_id' => (int) $membership->enrollment_id,
-            ];
-            $existing = DB::table('core_liveclass_attendances')->where($key)->lockForUpdate()
-                ->first(['id', 'status', 'joined_at', 'attendance_source']);
-            if ($existing && ($existing->joined_at !== null
-                || ($existing->attendance_source === 'manual' && $existing->status !== 'registered'))) {
-                return ['result' => 'already', 'status' => (string) $existing->status,
-                    'joined_at' => $existing->joined_at ? (string) $existing->joined_at : null];
-            }
+        return $this->recorder->enter($session, $membership, 'qr', $receivedAt);
+    }
 
-            $joinedAt = $at->setTimezone(config('app.timezone'))->format('Y-m-d H:i:s');
-            $values = [
-                'user_id' => $context->userId,
-                'version_activity_id' => $session->version_activity_id,
-                'status' => $status,
-                'attendance_mode' => 'offline',
-                'attendance_source' => 'system',
-                'joined_at' => $joinedAt,
-                'recorded_by' => null,
-                'updated_at' => now(),
-            ];
-            if ($existing) {
-                DB::table('core_liveclass_attendances')->where('id', $existing->id)->update($values);
-            } else {
-                try {
-                    DB::table('core_liveclass_attendances')->insert($key + $values + ['created_at' => now()]);
-                } catch (UniqueConstraintViolationException) {
-                    // A second scan of the same learner won the race: the first one counts.
-                    return ['result' => 'already', 'status' => $status, 'joined_at' => null];
-                }
-            }
+    private function session(LiveClassBoardContext $context): ?object
+    {
+        return $this->recorder->session($context->customerId, $context->sessionId);
+    }
 
-            return ['result' => 'recorded', 'status' => $status, 'joined_at' => $joinedAt];
-        });
-        if ($result['result'] === 'recorded') {
-            // A `join` Activity completes when the learner is present (ADR-0030 D3).
-            app(CourseProgressRecorder::class)->attendanceChanged($context->customerId,
-                [(int) $membership->enrollment_id], $session->version_activity_id ? (int) $session->version_activity_id : null);
-        }
-
-        return $result;
+    private function timing(LiveClassBoardContext $context, object $session): LiveClassAttendanceTiming
+    {
+        return LiveClassAttendanceTiming::of($this->policies->forCohort($context->customerId, $context->cohortId), $session);
     }
 
     private function signature(int $customerId, int $sessionId, int $window): string

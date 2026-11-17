@@ -72,6 +72,7 @@
          scheduleMax: @js($sessionWindow ? $sessionWindow['max']->format('Y-m-d\TH:i') : ''),
          provider: @js($formHasErrors ? old('online_provider', '') : ''), meetingUrl: @js($formHasErrors ? old('meeting_url', '') : ''), meetingDefault: '',
          roomName: @js($formHasErrors ? old('room_name', '') : ''), address: @js($formHasErrors ? old('address', '') : ''),
+         attendanceTool: @js($formHasErrors ? old('attendance_tool', 'board') : 'board'),
          statusLabels: @js(collect(['scheduled', 'live', 'completed', 'cancelled', 'no_show'])->mapWithKeys(fn ($status) => [$status => __('lf.LF_course_cohort_session_status_'.$status)])),
          typeLabels: @js(collect(['curriculum', 'operational'])->mapWithKeys(fn ($type) => [$type => __('lf.LF_course_cohort_session_type_'.$type)])),
          modeLabels: @js(collect(['online', 'offline', 'hybrid'])->mapWithKeys(fn ($mode) => [$mode => __('lf.LF_course_cohort_session_mode_'.$mode)])),
@@ -191,7 +192,7 @@
              this.editingId = null; this.editingSession = null; this.sessionType = 'curriculum'; this.lessonId = ''; this.activityId = ''; this.openedActivityId = ''
              this.title = ''; this.titleDirty = false; this.mode = 'online'; this.teacherIds = []
              this.startsAt = ''; this.endsAt = ''; this.previousStart = ''; this.provider = ''; this.meetingUrl = ''; this.meetingDefault = ''
-             this.roomName = ''; this.address = ''; this.submitting = false; this.meetingLinkCopied = false
+             this.roomName = ''; this.address = ''; this.attendanceTool = 'board'; this.submitting = false; this.meetingLinkCopied = false
              this.scheduleOrigin = null; this.originalStart = ''; this.originalEnd = ''; this.scheduleReason = ''; this.defaultTeachersPending = false; this.editingProgramme = false
              this.clearTimeError(this.$refs.sessionStart)
              this.clearTimeError(this.$refs.sessionEnd)
@@ -222,6 +223,7 @@
              this.provider = item.online_provider || ''; this.meetingUrl = item.meeting_url_snapshot || ''
              this.meetingDefault = this.curriculumMeetingUrl()
              this.roomName = item.room_name_snapshot || ''; this.address = item.address_snapshot || ''
+             this.attendanceTool = item.attendance_tool || 'board'
              this.showSessionDialog()
          },
          // Opens the lesson's session with its date from the Schedule. Changing the date keeps the occurrence and audits the move.

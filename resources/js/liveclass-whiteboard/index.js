@@ -128,7 +128,7 @@ Alpine.data('lfWhiteboard', () => ({
     clockOffset: null,
     listenAsked: false,
     // Attendance QR code (LF-Core-LiveClass § Attendance, Điểm danh bằng mã QR), refreshed while the dialog is open.
-    attendance: { svg: '', checkedIn: 0, learners: null, failed: false },
+    attendance: { svg: '', checkedIn: 0, learners: null, failed: false, closed: false },
     attendanceTimer: 0,
     // The code over the whole screen, for the back of a big room; remembered while the board is open.
     attendanceLarge: false,
@@ -843,7 +843,8 @@ Alpine.data('lfWhiteboard', () => ({
                 throw new Error(String(response.status));
             }
             const data = await response.json();
-            this.attendance = { svg: data.svg, checkedIn: data.checked_in, learners: data.learners, failed: false };
+            // `closed`: past the class's absent threshold, no code is issued any more.
+            this.attendance = { svg: data.svg || '', checkedIn: data.checked_in, learners: data.learners, failed: false, closed: Boolean(data.closed) };
             next = Math.max(1, Number(data.refresh_in) || 30);
         } catch {
             this.attendance = { ...this.attendance, svg: '', failed: true };

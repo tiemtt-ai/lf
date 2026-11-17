@@ -1,12 +1,12 @@
 # LF-Core-Course.md
 
-Version: 3.11
+Version: 3.12
 
 Document Status: Approved
 
 Implementation Status: Unknown
 
-Last Updated: 2026-11-10
+Last Updated: 2026-11-17
 
 Document Path: core/LF-Core-Course.md
 
@@ -437,6 +437,23 @@ when none is declared.
 >   lớp như trước. Hình thức tại lớp / trực tuyến và link phòng họp được chọn khi
 >   xếp lịch cho lớp. Bỏ hẳn `live_class_url` để sau, khi lớp học có link phòng
 >   họp mặc định.
+
+> Amendment 2026-11-17 (Owner approved, đã triển khai 2026-11-17) — thời điểm của "Buổi
+> học trực tiếp":
+>
+> * Activity `live_class` luôn và chỉ là `during_session`. Quy tắc "một hoặc nhiều thời
+>   điểm theo buổi học" không còn áp dụng cho loại này. Căn cứ: tài liệu nghiệp vụ
+>   "Nghiệp vụ luồng học tập lớp MK" (2026-11-16) mục 2.4.
+> * Form thay nhóm chọn thời điểm bằng một dòng cố định "Trong buổi học".
+> * Backend từ chối `before_session`, `after_session` và `anytime` khi tạo hoặc sửa
+>   Activity loại này (lỗi ở `learning_phases`); Publish readiness chặn Template còn
+>   Activity `live_class` khai báo thời điểm khác (mã `activity_live_class_phase`, nêu tên
+>   Activity và Lesson).
+> * Version đã xuất bản giữ nguyên. Không thêm cột và không thêm ràng buộc database
+>   (Owner quyết 2026-11-17), cùng cách với luật "mỗi Lesson một `live_class`".
+> * Trước khi áp dụng ở một môi trường, đếm Activity `live_class` đang khai báo
+>   `before_session` hoặc `after_session`. Trên database dev ngày 2026-11-17 không có dòng
+>   nào (8 Activity đang soạn, 8 Version Activity).
 Existing Activities default to `anytime`. Activity `sort_order` controls only
 display order and does not define availability.
 
@@ -559,6 +576,9 @@ bản (Product, Cohort, Enrollment, runtime quyền học) đọc loại của *
 Backend kiểm tra khi tạo/sửa Activity, khi đổi loại Template, khi nhân bản
 Version về draft và trong Publish readiness (Activity không khớp loại là lỗi
 chặn xuất bản).
+
+Riêng Activity `live_class`: ở mọi loại khóa học cho phép nó, lựa chọn hợp lệ duy nhất là
+`during_session` (Amendment 2026-11-17 ở trên).
 
 ### Vai trò Template và Product
 

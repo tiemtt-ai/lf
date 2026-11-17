@@ -100,6 +100,7 @@ final class LiveClassWhiteboardController extends Controller
     public function studentBoard(Request $request, int $session): View
     {
         $context = $this->whiteboards->learnerContext($this->customerId(), (int) $request->user()->id, $session);
+        $this->whiteboards->recordBoardEntry($context);
 
         return $this->board($request, $context,
             route('student.courses.index'),

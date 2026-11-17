@@ -145,6 +145,23 @@ class CourseTemplatePublishingTest extends TestCase
                 $this->actingAs($admin)->from($editUrl)->post($publishUrl)->assertSessionHasErrors();
                 $this->assertDatabaseMissing('core_course_template_versions', ['template_id' => $templateId]);
                 DB::table('core_course_template_activities')->whereIn('id', $liveIds)->delete();
+                // A live session set to a phase other than "during the session" (data from before that rule) blocks publish.
+                $earlyLiveId = DB::table('core_course_template_activities')->insertGetId([
+                    'customer_id' => $customerId, 'template_id' => $templateId, 'template_lesson_id' => $lessonId,
+                    'title' => 'Early live', 'sort_order' => 1, 'activity_type' => 'live_class',
+                    'duration_seconds' => 0, 'estimated_duration_seconds' => 600, 'is_required' => true,
+                    'completion_rule' => 'join', 'is_preview' => false, 'unlock_rule' => 'none',
+                    'available_anytime' => false, 'available_before_session' => true, 'available_during_session' => true,
+                    'created_by' => $admin->id, 'created_at' => now(), 'updated_at' => now(),
+                ]);
+                $this->actingAs($admin)->get($editUrl)->assertOk()
+                    ->assertSee('data-readiness-code="activity_live_class_phase"', false)
+                    ->assertSee(__('lf.LF_course_template_publish_integrity_activity_live_class_phase', [
+                        'activity' => 'Early live', 'lesson' => ucfirst($status).' Lesson',
+                    ]));
+                $this->actingAs($admin)->from($editUrl)->post($publishUrl)->assertSessionHasErrors();
+                $this->assertDatabaseMissing('core_course_template_versions', ['template_id' => $templateId]);
+                DB::table('core_course_template_activities')->where('id', $earlyLiveId)->delete();
                 DB::table('core_course_templates')->where('id', $templateId)->update(['course_type' => 'self_paced']);
 
                 $this->actingAs($admin)

@@ -876,13 +876,21 @@ class CourseTemplateActivityController extends Controller
                 );
             }
 
-            // A live class is scheduled with the session, so it cannot be "anytime"; any session phase is allowed.
+            // A live class is scheduled with the session, so it cannot be "anytime".
             if ($request->input('activity_type') === 'live_class'
                 && is_array($phases)
                 && in_array('anytime', $phases, true)) {
                 $validator->errors()->add(
                     'learning_phases',
                     __('lf.LF_course_template_activity_learning_availability_live_class_not_anytime')
+                );
+            } elseif ($request->input('activity_type') === 'live_class'
+                && is_array($phases)
+                && array_values(array_unique($phases)) !== ['during_session']) {
+                // It is taught during the session and nowhere else (LF-Core-Course § Amendment 2026-11-17).
+                $validator->errors()->add(
+                    'learning_phases',
+                    __('lf.LF_course_template_activity_learning_availability_live_class_during_only')
                 );
             }
         });

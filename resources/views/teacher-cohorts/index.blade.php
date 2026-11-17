@@ -34,6 +34,9 @@
                         <span class="teacher-cohorts__blocked">{{ __('lf.LF_teacher_cohorts_blocked_'.$cohort->blocked_reason) }}</span>
                     @endif
                 </div>
+                @if (\App\Services\LiveClassAttendanceCheckIn::enabled())
+                    <a class="btn btn-secondary" href="{{ route('teacher.cohorts.attendance', $cohort->id) }}" data-teacher-attendance>{{ __('lf.LF_teacher_attendance_open') }}</a>
+                @endif
                 @if ($cohort->blocked_reason === null)
                     <a class="btn btn-primary" href="{{ route('teacher.cohorts.show', $cohort->id) }}">{{ __('lf.LF_teacher_cohorts_judge') }}</a>
                 @elseif ($cohort->bases->isNotEmpty())

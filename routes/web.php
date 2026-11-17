@@ -8,12 +8,15 @@ use App\Http\Controllers\CustomerRegisterController;
 use App\Http\Controllers\LearnerCourseFavoriteController;
 use App\Http\Controllers\LearnerMyLearningController;
 use App\Http\Controllers\LiveClassAttendanceCheckInController;
+use App\Http\Controllers\LiveClassAttendanceEntryController;
+use App\Http\Controllers\LiveClassSessionOperationsController;
 use App\Http\Controllers\LiveClassWhiteboardController;
 use App\Http\Controllers\LiveClassWhiteboardSyncController;
 use App\Http\Controllers\MediaFileController;
 use App\Http\Controllers\MediaFileDeliveryController;
 use App\Http\Controllers\PublicSiteController;
 use App\Http\Controllers\RoleProfileController;
+use App\Http\Controllers\TeacherCohortAttendanceController;
 use App\Http\Controllers\TeacherCohortJudgmentController;
 use App\Http\Controllers\TenantWebsiteController;
 use App\Support\TenantContext;
@@ -231,9 +234,15 @@ Route::middleware([
     Route::get('/cohorts', [TeacherCohortJudgmentController::class, 'index'])->name('cohorts.index');
     Route::get('/cohorts/{cohort}/judgments', [TeacherCohortJudgmentController::class, 'show'])->whereNumber('cohort')->name('cohorts.show');
     Route::post('/cohorts/{cohort}/judgments', [TeacherCohortJudgmentController::class, 'store'])->whereNumber('cohort')->name('cohorts.judgments.store');
+    // Manual attendance by the Cohort's teachers (ADR-0002 § Attendance Policy And Recording Amendment, part B).
+    Route::get('/cohorts/{cohort}/attendance', [TeacherCohortAttendanceController::class, 'show'])->whereNumber('cohort')->name('cohorts.attendance');
+    Route::put('/cohorts/{cohort}/sessions/{session}/attendance', [TeacherCohortAttendanceController::class, 'save'])
+        ->whereNumber(['cohort', 'session'])->name('cohorts.attendance.save');
 
     // Live Sessions and their Whiteboard (ADR-0002 § LiveClass Whiteboard Amendment).
     Route::get('/live-sessions', [LiveClassWhiteboardController::class, 'teacherIndex'])->name('live-sessions.index');
+    // The Session's own teachers change its meeting link, room, address and attendance tool (ADR-0002 § Teacher Session Operations Amendment).
+    Route::put('/live-sessions/{session}', [LiveClassSessionOperationsController::class, 'teacherUpdate'])->whereNumber('session')->name('live-sessions.update');
     Route::post('/live-sessions/{session}/start', [LiveClassWhiteboardController::class, 'teacherStart'])->whereNumber('session')->name('live-sessions.start');
     Route::post('/live-sessions/{session}/complete', [LiveClassWhiteboardController::class, 'teacherComplete'])->whereNumber('session')->name('live-sessions.complete');
     Route::get('/live-sessions/{session}/board', [LiveClassWhiteboardController::class, 'teacherBoard'])->whereNumber('session')->name('live-sessions.board');
@@ -338,6 +347,11 @@ Route::middleware([
 
     Route::post('/my-courses/live-sessions/{session}/check-in', [LiveClassAttendanceCheckInController::class, 'store'])
         ->whereNumber('session')->middleware('throttle:20,1,lf-checkin-store.')->name('student.live-sessions.check-in.store');
+    // The learner's own entries that write Attendance (ADR-0002 § Attendance Policy And Recording Amendment, part B).
+    Route::post('/my-courses/live-sessions/{session}/meeting', [LiveClassAttendanceEntryController::class, 'meeting'])
+        ->whereNumber('session')->middleware('throttle:20,1,lf-entry-meeting.')->name('student.live-sessions.meeting');
+    Route::post('/my-courses/live-sessions/{session}/attend', [LiveClassAttendanceEntryController::class, 'attend'])
+        ->whereNumber('session')->middleware('throttle:20,1,lf-entry-attend.')->name('student.live-sessions.attend');
 
     Route::get('/learning-history', [TenantWebsiteController::class, 'learningHistory'])
         ->name('student.learning-history');

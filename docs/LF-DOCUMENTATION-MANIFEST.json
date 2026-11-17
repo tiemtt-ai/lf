@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
-  "generated_or_updated_at": "2026-11-08",
+  "generated_or_updated_at": "2026-11-17",
   "root": "docs",
   "default_locale": "vi",
   "fallback_locale": "en",
   "source_of_truth": "docs/LF-INDEX.md",
-  "document_count": 348,
+  "document_count": 353,
   "documents": [
     {
       "path": "LF-Core-Overview.md",
@@ -1669,6 +1669,51 @@
         "adr/ADR-0030-Learner-Course-Delivery-And-Progress.md",
         "database/assessment/core_assessment_attempts.md",
         "database/course/core_course_template_version_activities.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "adr/ADR-0033-Teacher-Permissions-And-Tenant-Owner.md",
+      "title": "ADR-0033 — Teacher Permissions And Tenant Owner",
+      "area": "adr",
+      "document_type": "adr",
+      "document_status": "Approved",
+      "implementation_status": "Not Implemented",
+      "metadata_complete": true,
+      "authority": "architecture_decision",
+      "canonical_for": [],
+      "topics": [
+        "auth",
+        "permission",
+        "teacher",
+        "tenant"
+      ],
+      "keywords": {
+        "vi": [
+          "phân quyền",
+          "nhóm quyền",
+          "giáo viên",
+          "chủ trung tâm",
+          "quản trị"
+        ],
+        "en": [
+          "permissions",
+          "permission group",
+          "teacher",
+          "tenant owner",
+          "administrator"
+        ]
+      },
+      "identifiers": [
+        "ADR-0033",
+        "saas_teacher_permission_groups",
+        "saas_teacher_permission_grants"
+      ],
+      "related_documents": [
+        "adr/ADR-0007-SaaS-Tenant-Foundation.md",
+        "core/LF-Core-User.md",
+        "core/LF-Core-Auth.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"
@@ -6117,6 +6162,90 @@
       "routing_source": "LF-INDEX.md"
     },
     {
+      "path": "database/liveclass/core_liveclass_attendance_changes.md",
+      "title": "Table: core_liveclass_attendance_changes",
+      "area": "database",
+      "document_type": "table_schema",
+      "document_status": "Approved",
+      "implementation_status": "Implemented",
+      "metadata_complete": true,
+      "authority": "database",
+      "canonical_for": [],
+      "topics": [
+        "liveclass",
+        "attendance"
+      ],
+      "keywords": {
+        "vi": [
+          "lược đồ bảng",
+          "tài liệu cơ sở dữ liệu",
+          "lớp học trực tiếp",
+          "điểm danh",
+          "tham dự",
+          "lịch sử sửa điểm danh"
+        ],
+        "en": [
+          "table schema",
+          "database documentation",
+          "live class",
+          "attendance",
+          "attendance edit history"
+        ]
+      },
+      "identifiers": [
+        "core_liveclass_attendance_changes"
+      ],
+      "related_documents": [
+        "database/liveclass/README.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "database/liveclass/core_liveclass_attendance_policies.md",
+      "title": "Table: core_liveclass_attendance_policies",
+      "area": "database",
+      "document_type": "table_schema",
+      "document_status": "Approved",
+      "implementation_status": "Partial",
+      "metadata_complete": true,
+      "authority": "database",
+      "canonical_for": [],
+      "topics": [
+        "liveclass",
+        "attendance"
+      ],
+      "keywords": {
+        "vi": [
+          "lược đồ bảng",
+          "tài liệu cơ sở dữ liệu",
+          "lớp học trực tiếp",
+          "điểm danh",
+          "tham dự",
+          "bộ quy tắc điểm danh",
+          "mốc muộn",
+          "mốc vắng"
+        ],
+        "en": [
+          "table schema",
+          "database documentation",
+          "live class",
+          "attendance",
+          "attendance policy",
+          "late threshold",
+          "absent threshold"
+        ]
+      },
+      "identifiers": [
+        "core_liveclass_attendance_policies"
+      ],
+      "related_documents": [
+        "database/liveclass/README.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
       "path": "database/liveclass/core_liveclass_attendances.md",
       "title": "Table: core_liveclass_attendances",
       "area": "database",
@@ -8273,6 +8402,82 @@
       },
       "identifiers": [
         "saas_customers"
+      ],
+      "related_documents": [
+        "database/saas/README.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "database/saas/saas_teacher_permission_grants.md",
+      "title": "Table: saas_teacher_permission_grants",
+      "area": "database",
+      "document_type": "table_schema",
+      "document_status": "Approved",
+      "implementation_status": "Not Implemented",
+      "metadata_complete": true,
+      "authority": "database",
+      "canonical_for": [],
+      "topics": [
+        "saas",
+        "permission",
+        "teacher"
+      ],
+      "keywords": {
+        "vi": [
+          "lược đồ bảng",
+          "tài liệu cơ sở dữ liệu",
+          "quyền được cấp",
+          "nhóm quyền"
+        ],
+        "en": [
+          "table schema",
+          "database documentation",
+          "permission grant",
+          "permission group"
+        ]
+      },
+      "identifiers": [
+        "saas_teacher_permission_grants"
+      ],
+      "related_documents": [
+        "database/saas/README.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "database/saas/saas_teacher_permission_groups.md",
+      "title": "Table: saas_teacher_permission_groups",
+      "area": "database",
+      "document_type": "table_schema",
+      "document_status": "Approved",
+      "implementation_status": "Not Implemented",
+      "metadata_complete": true,
+      "authority": "database",
+      "canonical_for": [],
+      "topics": [
+        "saas",
+        "permission",
+        "teacher"
+      ],
+      "keywords": {
+        "vi": [
+          "lược đồ bảng",
+          "tài liệu cơ sở dữ liệu",
+          "nhóm quyền",
+          "giáo viên"
+        ],
+        "en": [
+          "table schema",
+          "database documentation",
+          "permission group",
+          "teacher"
+        ]
+      },
+      "identifiers": [
+        "saas_teacher_permission_groups"
       ],
       "related_documents": [
         "database/saas/README.md"

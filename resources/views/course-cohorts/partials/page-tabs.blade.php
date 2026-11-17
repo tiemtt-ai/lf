@@ -9,7 +9,8 @@
      x-init="$nextTick(() => $refs.tabs.querySelector('[aria-current=page]')?.scrollIntoView({ behavior: 'auto', block: 'nearest', inline: 'nearest' }))">
     <nav x-ref="tabs" @class(['course-template-tabs', 'course-cohort-detail-tabs', $navClass ?? null]) aria-label="{{ __('lf.LF_course_cohort_common_tabs') }}">
         @foreach ($cohortTabs as $tab)
-            @continue(in_array($tab['key'], ['attendance', 'recordings'], true))
+            {{-- Recordings is still unfinished and stays out. Attendance shows once it is switched on (config/liveclass.php). --}}
+            @continue($tab['key'] === 'recordings' || ($tab['key'] === 'attendance' && ! config('liveclass.attendance_enabled')))
             <span class="sr-only">{{ $tab['key'] === 'overview' && $overviewNote ? $overviewNote : $tab['note'] }}</span>
             @if ($tab['accessible'] && $tab['route'])
                 <a @class(['course-template-tab', 'is-active' => $activeKey === $tab['key']])

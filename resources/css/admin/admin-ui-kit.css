@@ -1504,6 +1504,7 @@
 .lf-admin-ui .ux-row-delete { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--ui-invalid); vertical-align: middle; }
 .lf-admin-ui .ux-row-delete:hover:not(:disabled) { background: var(--ui-danger-soft); }
 .lf-admin-ui .ux-row-delete:disabled { color: var(--ui-color-a0a6b1); cursor: not-allowed; }
+.lf-admin-ui .ux-row-delete.is-disabled { color: var(--ui-color-a0a6b1); cursor: not-allowed; }
 .lf-admin-ui .ux-row-delete:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--ui-color-c8526018); }
 .lf-admin-ui :is(#catalog-tag-add,[data-ui-tag-add])::before,
 .lf-admin-ui [data-modal-tag-add]::before {
@@ -2480,6 +2481,8 @@
 .lf-admin-ui .ui-chip:has(input:checked) { border-color: var(--ui-primary); background: var(--ui-color-eef0fb); color: var(--ui-primary); font-weight: 500; }
 .lf-admin-ui .ui-chip:has(input:checked) .ui-chip__check { display: block; }
 .lf-admin-ui .ui-chip:has(input:disabled) { opacity: .5; cursor: not-allowed; }
+/* A choice the form fixes (a live session is always during the session): it reads as chosen, not as unavailable. */
+.lf-admin-ui .ui-chip.is-fixed:has(input:checked) { opacity: 1; cursor: default; }
 .lf-admin-ui .ui-option-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .lf-admin-ui .ui-option-card { position: relative; display: flex; align-items: flex-start; gap: 10px; padding: 12px; border: 1px solid var(--ui-color-e6e8ee); border-radius: 10px; background: var(--ui-white); cursor: pointer; }
 .lf-admin-ui .ui-option-card:hover { border-color: var(--ui-border); }
@@ -3867,3 +3870,49 @@
 
 /* Quiz Activity: the chosen Quiz and the button that opens its picker. */
 .lf-admin-ui .ui-quiz-choice { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+
+/* Attendance policies (LF-Core-LiveClass § Bộ quy tắc điểm danh): the list and its "Áp dụng cho lớp" popup. */
+.lf-admin-ui .ui-attendance-policy-col-count { width: 96px; }
+.lf-admin-ui .ui-attendance-policy-col-action { width: 132px; }
+.lf-admin-ui.ui-attendance-policies .mk-name-text + .ui-status { margin-left: 8px; }
+.lf-admin-ui.ui-attendance-policies .ux-action-cell > :is(a, span, form) { display: inline-flex; vertical-align: middle; }
+.lf-admin-ui .ui-attendance-policy-modal .ui-check { min-height: 28px; margin-top: 4px; }
+.lf-admin-ui .ui-attendance-policy-modal .ui-field__label .ui-status,
+.lf-admin-ui .ui-attendance-policy-modal .ui-switch-row__text .ui-status { margin-left: 6px; }
+.lf-admin-ui .ui-attendance-policy-apply__filters { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr); gap: 8px; margin-bottom: 12px; }
+.lf-admin-ui .ui-attendance-policy-apply__list { display: grid; gap: 6px; max-height: 320px; margin: 0; padding: 0; overflow-y: auto; list-style: none; }
+.lf-admin-ui .ui-attendance-policy-apply__row { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 8px 12px; border: 1px solid var(--ui-border); border-radius: var(--ui-control-radius); background: var(--ui-white); cursor: pointer; }
+.lf-admin-ui .ui-attendance-policy-apply__row:has(input:checked) { border-color: var(--ui-border-hover); background: var(--ui-color-eef0fb); }
+.lf-admin-ui .ui-attendance-policy-apply__row.is-locked { cursor: not-allowed; }
+/* A Cohort already on the default policy: a locked, visibly ticked box (same treatment as .ui-learning-node). */
+.lf-admin-ui .ui-attendance-policy-apply__row input:disabled:checked { border-color: var(--ui-color-c0c5cf); }
+.lf-admin-ui .ui-attendance-policy-apply__row input:disabled:checked::after { border-color: var(--ui-muted); }
+.lf-admin-ui .ui-attendance-policy-apply__copy { display: grid; min-width: 0; }
+.lf-admin-ui .ui-attendance-policy-apply__copy b { overflow: hidden; font-size: 14px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+.lf-admin-ui .ui-attendance-policy-apply__copy small { color: var(--ui-muted); font-size: 12px; }
+.lf-admin-ui .ui-attendance-policy-apply__summary { margin-top: 12px; padding: 10px 12px; border-radius: var(--ui-control-radius); background: var(--ui-color-f7f8fa); font-size: 14px; }
+.lf-admin-ui .ui-attendance-policy-apply__summary p { margin: 4px 0 0; }
+@media (max-width: 640px) {
+    .lf-admin-ui .ui-attendance-policy-apply__filters { grid-template-columns: 1fr; }
+}
+
+/* Attendance roster shared by the Cohort tab and the teacher page (liveclass-attendance/partials/roster). */
+.lf-admin-ui .ui-attendance-col-status { width: 168px; }
+.lf-admin-ui .ui-attendance-col-mode { width: 148px; }
+.lf-admin-ui .ui-attendance-actions { display: flex; justify-content: flex-end; margin-top: 12px; }
+.lf-admin-ui .ui-attendance-history { margin-top: 16px; font-size: 14px; }
+.lf-admin-ui .ui-attendance-history summary { color: var(--ui-primary); cursor: pointer; }
+.lf-admin-ui .ui-attendance-history ul { display: grid; gap: 6px; margin: 8px 0 0; padding: 0; list-style: none; }
+.lf-admin-ui .ui-attendance-history li { padding: 6px 10px; border-radius: var(--ui-control-radius); background: var(--ui-color-f7f8fa); }
+.lf-admin-ui .ui-attendance-session { max-width: 420px; margin-bottom: 12px; }
+/* The teacher page puts the roster straight into a list card: what is not the full-width table keeps the card's side gap. */
+.lf-admin-ui.ui-teacher-attendance .mk-section > :is(.ui-attendance-session, p.ui-caption, .ui-banner, .ui-attendance-history, .mk-empty) { margin-inline: 24px; }
+.lf-admin-ui.ui-teacher-attendance .mk-section > p.ui-caption { margin-bottom: 12px; }
+.lf-admin-ui.ui-teacher-attendance .ui-attendance-actions { padding: 0 24px 16px; }
+.lf-admin-ui.ui-teacher-attendance .ui-attendance-history { margin-bottom: 16px; }
+/* The read-only policy of a class on the teacher attendance page. */
+.lf-admin-ui .ui-attendance-policy-view { display: grid; gap: 0; margin: 0; }
+.lf-admin-ui .ui-attendance-policy-view > div { display: flex; justify-content: space-between; gap: 16px; padding: 8px 0; border-bottom: 1px solid var(--ui-color-eceef3); font-size: 14px; }
+.lf-admin-ui .ui-attendance-policy-view > div:last-child { border-bottom: 0; }
+.lf-admin-ui .ui-attendance-policy-view dt { color: var(--ui-muted); }
+.lf-admin-ui .ui-attendance-policy-view dd { margin: 0; font-weight: 500; text-align: right; }

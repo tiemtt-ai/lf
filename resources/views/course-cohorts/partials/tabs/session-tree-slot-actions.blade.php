@@ -42,6 +42,9 @@
         <x-backend-icon name="square-pen" class="ui-icon" />
     </button>
 @endif
+@if (($session->can_edit_link ?? false) && ! $slotProposal)
+    @include('course-cohorts.partials.tabs.session-meeting-link', ['session' => $session])
+@endif
 @if ($session->can_assign_teachers)
     <button type="button" class="ux-row-edit cursor-interaction" aria-haspopup="dialog"
             aria-label="{{ __('lf.LF_course_cohort_session_assign_teachers') }}: {{ $session->title }}" data-tooltip="{{ __('lf.LF_course_cohort_session_assign_teachers') }}"

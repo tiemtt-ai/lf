@@ -111,6 +111,16 @@
                     <input id="address" name="address" maxlength="2000" x-model="address" placeholder="{{ __('lf.LF_course_cohort_session_address_placeholder') }}">
                     @error('address')<p class="ui-field__error" role="alert" x-show="showFormErrors">{{ $message }}</p>@enderror
                 </div>
+                <div class="ui-field ui-field--full" x-show="(mode === 'offline' || mode === 'hybrid')" x-cloak>
+                    <label class="ui-field__label" for="attendance_tool">{{ __('lf.LF_course_cohort_session_attendance_tool') }}</label>
+                    <select id="attendance_tool" name="attendance_tool" x-model="attendanceTool" x-bind:disabled="mode === 'online'">
+                        @foreach (\App\Services\LiveClassSessionOperations::ATTENDANCE_TOOLS as $tool)
+                            <option value="{{ $tool }}">{{ __('lf.LF_course_cohort_session_attendance_tool_'.$tool) }}</option>
+                        @endforeach
+                    </select>
+                    <p class="ui-caption">{{ __('lf.LF_course_cohort_session_attendance_tool_help') }}</p>
+                    @error('attendance_tool')<p class="ui-field__error" role="alert" x-show="showFormErrors">{{ $message }}</p>@enderror
+                </div>
                 <div class="ui-field ui-field--full" x-show="mode !== 'online'" x-cloak>
                     <label class="ui-check">
                         <input type="checkbox" x-bind:checked="mode === 'hybrid'" x-on:change="mode = $event.target.checked ? 'hybrid' : 'offline'">

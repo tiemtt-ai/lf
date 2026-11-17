@@ -2,6 +2,41 @@
 
 Document Path: database/liveclass/core_liveclass_sessions.md
 
+## Attendance Tool Amendment — 2026-11-17 (Approved)
+
+[ADR-0002](../../adr/ADR-0002-LiveClass-Foundation.md) § Attendance Policy And Recording
+Amendment (Owner quyết 2026-11-17: LF có nút Điểm danh). Thêm cột `attendance_tool`.
+Owner duyệt schema ngày 2026-11-17. Migration: `2026_11_17_000300_create_liveclass_attendance_changes`
+(ràng buộc `chk_lcs_attendance_tool`).
+
+```text
+attendance_tool VARCHAR(20) NULL
+CHECK (attendance_tool IS NULL OR attendance_tool IN ('board', 'button'))
+```
+
+* Công cụ điểm danh của buổi tại lớp, và của người ở lớp trong buổi `hybrid`: `board` là
+  mã QR trên bảng điện tử, `button` là nút "Điểm danh" học viên tự bấm trên trang lớp.
+* `NULL` nghĩa là `board`, nên các buổi đang có giữ nguyên hành vi và không cần chuyển dữ
+  liệu.
+* Buổi `online` không dùng cột này; backend lưu `NULL`.
+* Đổi được theo quy tắc sửa buổi chung: buổi `scheduled`, chưa bắt đầu, chưa có điểm danh
+  hay bản ghi, chưa tới giờ bắt đầu dự kiến. Quản trị đổi ở form buổi học của lớp; giáo
+  viên của buổi đổi ở khu giáo viên (ADR-0002 § Teacher Session Operations Amendment).
+* Bộ quy tắc của lớp đặt `offline_recording = manual` thì cột này không có tác dụng.
+
+## Teacher Edit Amendment — 2026-11-17 (Approved, đã triển khai)
+
+[ADR-0002](../../adr/ADR-0002-LiveClass-Foundation.md) § Teacher Session Operations
+Amendment (Owner duyệt 2026-11-17). Không thêm cột.
+
+* Giáo viên và trợ giảng có dòng trong `core_liveclass_session_teachers` của buổi được sửa
+  `meeting_url_snapshot`, `room_name_snapshot`, `address_snapshot` và `attendance_tool`.
+* `delivery_mode`, `scheduled_start_at`, `scheduled_end_at`, đội ngũ giảng dạy và trạng
+  thái vẫn chỉ `customer_admin` đổi.
+* `meeting_url_snapshot` đổi được đến `scheduled_end_at`, kể cả khi `status = live`. Các
+  cột còn lại theo quy tắc sửa buổi chung.
+* Mỗi lần sửa ghi `saas_audit_logs` với giá trị trước và sau.
+
 ## Session Status And Time Convention Amendment — 2026-08-10
 
 Approved: 2026-08-10 bởi LearnForge Architecture Owner.

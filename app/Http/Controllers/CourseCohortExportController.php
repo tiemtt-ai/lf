@@ -66,7 +66,7 @@ class CourseCohortExportController extends Controller
 
     /**
      * One row per active student, one column per Session the Điểm danh tab offers; a Session not marked yet reads
-     * as the tab shows it (Dự kiến). Totals and the attendance rate (present + late over those Sessions) close the row.
+     * as the tab shows it (Chưa điểm danh). Totals and the attendance rate (present + late over those Sessions) close the row.
      */
     public function attendance(Request $request, int $id): Response
     {

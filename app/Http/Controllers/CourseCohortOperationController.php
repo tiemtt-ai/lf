@@ -8,11 +8,12 @@ use App\Services\CourseCohortContentTree;
 use App\Services\CourseCohortMutationPolicy;
 use App\Services\CourseCohortSessionWindow;
 use App\Services\CourseCohortVersionResolver;
-use App\Services\CourseProgressRecorder;
 use App\Services\LiveClassAttendanceCheckIn;
+use App\Services\LiveClassAttendanceRecorder;
 use App\Services\LiveClassCohortSessionReadModel;
 use App\Services\LiveClassMeetingProvider;
 use App\Services\LiveClassSessionLifecycleService;
+use App\Services\LiveClassSessionOperations;
 use App\Services\LiveClassSessionOriginService;
 use App\Services\LiveClassSessionOverlap;
 use App\Services\LiveClassSessionPolicy;
@@ -37,7 +38,7 @@ class CourseCohortOperationController extends Controller
         private readonly LiveClassCohortSessionReadModel $sessionReadModel,
         private readonly CourseCohortContentTree $contentTree,
         private readonly CourseCohortContentReorder $contentReorder,
-        private readonly CourseProgressRecorder $progressRecorder,
+        private readonly LiveClassAttendanceRecorder $attendanceRecorder,
     ) {}
 
     public function storeTeacher(Request $request, int $cohort): RedirectResponse
@@ -887,71 +888,8 @@ class CourseCohortOperationController extends Controller
             'attendance.*.loaded_mode' => ['nullable', Rule::in(['online', 'offline'])],
             'attendance.*.loaded_notes' => ['nullable', 'string', 'max:1000'],
         ]);
-        $skipped = 0;
-        $changed = [];
-
-        $memberships = DB::table('core_course_cohort_students as memberships')
-            ->join('core_course_enrollments as enrollments', function ($join) use ($customerId): void {
-                $join->on('enrollments.id', '=', 'memberships.enrollment_id')->where('enrollments.customer_id', '=', $customerId);
-            })
-            ->where('memberships.customer_id', $customerId)->where('memberships.cohort_id', $cohort)
-            ->where('memberships.status', 'active')
-            ->get(['memberships.student_id', 'memberships.enrollment_id', 'enrollments.status as enrollment_status'])
-            ->keyBy('enrollment_id');
-
-        DB::transaction(function () use ($validated, $memberships, $customerId, $session, $sessionRow, $request, &$skipped, &$changed): void {
-            $existing = DB::table('core_liveclass_attendances')
-                ->where('customer_id', $customerId)->where('session_id', $session)->lockForUpdate()
-                ->get(['id', 'enrollment_id', 'status', 'attendance_mode', 'notes'])->keyBy('enrollment_id');
-            foreach ($validated['attendance'] as $item) {
-                abort_unless($memberships->has($item['enrollment_id']), 422);
-                $values = [
-                    'status' => $item['status'],
-                    'attendance_mode' => $item['attendance_mode'] ?? null,
-                    'notes' => ($item['notes'] ?? '') === '' ? null : $item['notes'],
-                ];
-                if (array_key_exists('loaded_status', $item)
-                    && $values['status'] === ($item['loaded_status'] ?? 'registered')
-                    && $values['attendance_mode'] === ($item['loaded_mode'] ?? null)
-                    && $values['notes'] === (($item['loaded_notes'] ?? '') === '' ? null : $item['loaded_notes'])) {
-                    continue;
-                }
-                // Only an active Enrollment is recorded (DOC-CONFLICT-0011); the others are left as they are.
-                if ($memberships->get($item['enrollment_id'])->enrollment_status !== 'active') {
-                    $skipped++;
-
-                    continue;
-                }
-                $row = $existing->get($item['enrollment_id']);
-                // An unchanged row keeps its source, mode and check-in time (a QR scan stays a scan).
-                if ($row ? ((string) $row->status === $values['status'] && $row->attendance_mode === $values['attendance_mode']
-                        && (($row->notes ?? '') === '' ? null : $row->notes) === $values['notes'])
-                    : ($values['status'] === 'registered' && $values['attendance_mode'] === null && $values['notes'] === null)) {
-                    continue;
-                }
-                $values += [
-                    'user_id' => $memberships->get($item['enrollment_id'])->student_id,
-                    'version_activity_id' => $sessionRow->version_activity_id,
-                    'attendance_source' => 'manual',
-                    'recorded_by' => $request->user()->id,
-                    'updated_at' => now(),
-                ];
-                if ($row) {
-                    DB::table('core_liveclass_attendances')->where('id', $row->id)->update($values);
-                } else {
-                    DB::table('core_liveclass_attendances')->insert($values + [
-                        'customer_id' => $customerId,
-                        'session_id' => $session,
-                        'enrollment_id' => $item['enrollment_id'],
-                        'created_at' => now(),
-                    ]);
-                }
-                $changed[] = (int) $item['enrollment_id'];
-            }
-        });
-        // A `join` Activity follows Attendance both ways (ADR-0030 D3).
-        $this->progressRecorder->attendanceChanged($customerId, $changed,
-            $sessionRow->version_activity_id ? (int) $sessionRow->version_activity_id : null);
+        ['skipped' => $skipped] = $this->attendanceRecorder->saveManual($customerId, $cohort, $sessionRow,
+            $validated['attendance'], (int) $request->user()->id);
 
         $message = __('lf.LF_course_cohort_attendance_saved');
         if ($skipped > 0) {
@@ -1018,6 +956,7 @@ class CourseCohortOperationController extends Controller
             'facility_name' => ['nullable', 'string', 'max:255'],
             'room_name' => ['nullable', 'string', 'max:255', 'required_if:delivery_mode,offline,hybrid'],
             'address' => ['nullable', 'string', 'max:2000'],
+            'attendance_tool' => ['nullable', Rule::in(LiveClassSessionOperations::ATTENDANCE_TOOLS)],
         ];
     }
 
@@ -1084,6 +1023,8 @@ class CourseCohortOperationController extends Controller
             'facility_name_snapshot' => $offline ? ($validated['facility_name'] ?? null) : null,
             'room_name_snapshot' => $offline ? ($validated['room_name'] ?? null) : null,
             'address_snapshot' => $offline ? ($validated['address'] ?? null) : null,
+            // How learners in the room check in: the QR code on the board, or the "Điểm danh" button. Online Sessions have none.
+            'attendance_tool' => $offline ? ($validated['attendance_tool'] ?? 'board') : null,
         ];
     }
 

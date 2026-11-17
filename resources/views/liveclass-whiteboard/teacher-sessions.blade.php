@@ -121,7 +121,10 @@
                                                 {{ __('lf.LF_liveclass_whiteboard_complete') }}
                                             </button>
                                         @endif
-                                        @if (! $session->can_start && ! $session->can_open && ! $meetingUrl)
+                                        @if ($session->can_edit_place || $session->can_edit_link)
+                                            @include('liveclass-whiteboard.partials.session-operations', ['session' => $session])
+                                        @endif
+                                        @if (! $session->can_start && ! $session->can_open && ! $meetingUrl && ! $session->can_edit_place && ! $session->can_edit_link)
                                             <span class="ui-caption">—</span>
                                         @endif
                                     </div>

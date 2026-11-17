@@ -7,7 +7,11 @@
      x-data="{
          submitting: false, showErrors: @js($editRetry),
          discard() {
-             for (const field of this.$refs.editForm.querySelectorAll('[data-original]')) field.value = field.dataset.original
+             for (const field of this.$refs.editForm.querySelectorAll('[data-original]')) {
+                 field.value = field.dataset.original
+                 // The kit select redraws its control on change.
+                 if (field.tagName === 'SELECT') field.dispatchEvent(new Event('change', { bubbles: true }))
+             }
              // The kit date field shows dd/mm/yyyy and keeps the submitted yyyy-mm-dd in its hidden sibling.
              for (const field of this.$refs.editForm.querySelectorAll('[data-original-date]')) {
                  const iso = field.dataset.originalDate
@@ -82,6 +86,22 @@
                                placeholder="https://meet.google.com/abc-defg-hij" data-cohort-default-meeting>
                         <p class="ui-caption">{{ __('lf.LF_course_cohort_default_meeting_url_help') }}</p>
                         @if ($editRetry) @error('default_meeting_url')<p class="ui-field__error" x-show="showErrors">{{ $message }}</p>@enderror @endif
+                    </div>
+                    @php
+                        $defaultPolicy = $attendancePolicies->firstWhere('is_default', 1);
+                        $savedPolicy = (string) ($cohort->attendance_policy_id ?? '');
+                    @endphp
+                    <div class="ui-field ui-field--full">
+                        <label class="ui-field__label" for="cohort-edit-attendance_policy_id">{{ __('lf.LF_attendance_policy_cohort_field') }}</label>
+                        <select id="cohort-edit-attendance_policy_id" name="attendance_policy_id" data-ui-kit-select data-original="{{ $savedPolicy }}">
+                            <option value="" @selected((string) $editValue('attendance_policy_id', $savedPolicy) === '')>{{ __('lf.LF_attendance_policy_cohort_default_option', ['name' => $defaultPolicy?->name ?? \App\Services\LiveClassAttendancePolicies::DEFAULT_NAME]) }}</option>
+                            @foreach ($attendancePolicies->whereNull('is_default') as $attendancePolicy)
+                                <option value="{{ $attendancePolicy->id }}" @selected((string) $editValue('attendance_policy_id', $savedPolicy) === (string) $attendancePolicy->id)>{{ $attendancePolicy->name }}</option>
+                            @endforeach
+                        </select>
+                        <p class="ui-caption">{{ __('lf.LF_attendance_policy_cohort_help') }}
+                            <a href="{{ route('admin.attendance-policies.index') }}">{{ __('lf.LF_attendance_policy_title') }}</a></p>
+                        @if ($editRetry) @error('attendance_policy_id')<p class="ui-field__error" x-show="showErrors">{{ $message }}</p>@enderror @endif
                     </div>
                     <div class="ui-field ui-field--full">
                         <label class="ui-field__label" for="cohort-edit-notes">{{ __('lf.LF_course_cohort_common_notes') }}</label>

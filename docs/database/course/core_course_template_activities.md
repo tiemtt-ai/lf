@@ -1,12 +1,12 @@
 # Table: core_course_template_activities
 
-Version: 1.4
+Version: 1.5
 
 Document Status: Approved
 
 Implementation Status: Unknown
 
-Last Updated: 2026-11-10
+Last Updated: 2026-11-17
 
 Document Path: database/course/core_course_template_activities.md
 
@@ -104,6 +104,10 @@ core_course_template_activities
 * `anytime` không được kết hợp với các thời điểm theo buổi học.
 * Activity `live_class` không được chọn `anytime`; chọn một hay nhiều thời điểm
   theo buổi học, mặc định `during_session` khi không khai báo.
+* Amendment 2026-11-17 (Owner approved, đã triển khai 2026-11-17): Activity `live_class` luôn và
+  chỉ là `during_session`; backend từ chối giá trị khác khi tạo, sửa và trong Publish
+  readiness. Không thêm ràng buộc database. Chi tiết ở
+  [LF-Core-Course](../../core/LF-Core-Course.md) § Amendment 2026-11-17.
 * Activity hiện có mặc định `anytime`.
 * Amendment 2026-11-01 (Approved,
   [ADR-0022](../../adr/ADR-0022-Course-Type-On-Template.md)): lựa chọn hợp lệ bị

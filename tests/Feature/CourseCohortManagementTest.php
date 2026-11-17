@@ -1858,7 +1858,8 @@ class CourseCohortManagementTest extends TestCase
         $detail = $this->actingAs($admin)
             ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=attendance")
             ->assertOk();
-        $detail->assertDontSeeText(__('lf.LF_course_cohort_tab_attendance'))
+        // Attendance shows once it is switched on (locked while the class is a draft); Recordings stays out, unfinished.
+        $detail->assertSeeText(__('lf.LF_course_cohort_tab_attendance'))
             ->assertDontSeeText(__('lf.LF_course_cohort_tab_recordings'))
             ->assertSeeText(__('lf.LF_course_cohort_tab_students_detail_note'))
             ->assertSeeText(__('lf.LF_course_cohort_tab_overview_detail_note'))
@@ -2699,6 +2700,26 @@ class CourseCohortManagementTest extends TestCase
         $this->assertSame(1, $queries->filter(
             fn (string $sql): bool => str_contains($sql, 'from "core_liveclass_sessions" as "sessions"')
         )->count(), 'Danh sách Session chỉ được nạp một lần trong mỗi request.');
+    }
+
+    public function test_an_in_room_session_stores_its_attendance_tool_and_an_online_one_has_none(): void
+    {
+        [$customerId, $admin, $cohortId] = $this->lifecycleCohort();
+        $url = "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions";
+        $payload = fn (string $title, array $extra) => $extra + $this->operationalPayload($title, '2026-08-10 19:00:00', '2026-08-10 21:00:00');
+        $tool = fn (string $title) => DB::table('core_liveclass_sessions')->where('customer_id', $customerId)->where('title', $title)->value('attendance_tool');
+
+        $this->actingAs($admin)->post($url, $payload('Button class', ['delivery_mode' => 'offline', 'room_name' => 'P201', 'attendance_tool' => 'button']))
+            ->assertSessionHasNoErrors();
+        $this->actingAs($admin)->post($url, $payload('Board class', ['delivery_mode' => 'hybrid', 'room_name' => 'P202',
+            'scheduled_start_at' => '2026-08-11 19:00:00', 'scheduled_end_at' => '2026-08-11 21:00:00']))->assertSessionHasNoErrors();
+        // An online Session has nobody in the room: a tool sent for it is not kept.
+        $this->actingAs($admin)->post($url, $payload('Online class', ['attendance_tool' => 'button',
+            'scheduled_start_at' => '2026-08-12 19:00:00', 'scheduled_end_at' => '2026-08-12 21:00:00']))->assertSessionHasNoErrors();
+        $this->assertSame(['button', 'board', null], [$tool('Button class'), $tool('Board class'), $tool('Online class')]);
+
+        $this->actingAs($admin)->post($url, $payload('Bad tool', ['delivery_mode' => 'offline', 'room_name' => 'P203', 'attendance_tool' => 'qr',
+            'scheduled_start_at' => '2026-08-13 19:00:00', 'scheduled_end_at' => '2026-08-13 21:00:00']))->assertSessionHasErrors('attendance_tool');
     }
 
     public function test_session_lifecycle_transitions_follow_the_canonical_map(): void

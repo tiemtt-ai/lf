@@ -1,12 +1,12 @@
 # LF-Core-User.md
 
-Version: 1.2
+Version: 1.3
 
 Document Status: Approved
 
 Implementation Status: Unknown
 
-Last Updated: 2026-08-13
+Last Updated: 2026-11-17
 
 Document Path: core/LF-Core-User.md
 
@@ -746,7 +746,44 @@ customer_admin
 
 ---
 
+# Teacher Permissions And Tenant Owner — 2026-11-17 (Approved, chưa triển khai)
+
+Nguồn: [ADR-0033](../adr/ADR-0033-Teacher-Permissions-And-Tenant-Owner.md). Ba vai trò giữ
+nguyên.
+
+**Giữa các quản trị**
+
+* Mọi quản trị quản lý đầy đủ giáo viên và học viên của trung tâm, không phụ thuộc ai tạo
+  tài khoản.
+* Mỗi trung tâm có đúng một Chủ trung tâm. Quản trị thường chỉ xem tài khoản quản trị
+  khác. Chỉ Chủ trung tâm tạo tài khoản quản trị, nâng một người dùng lên quản trị, sửa hồ
+  sơ, khoá, đổi vai trò, đặt lại mật khẩu của quản trị khác, và chuyển vai trò Chủ trung
+  tâm.
+* Chủ trung tâm không bị khoá và không bị hạ vai trò. Chốt chặn "quản trị cuối cùng còn
+  hoạt động" giữ nguyên.
+* Chủ trung tâm mất quyền truy cập: đội vận hành LF đổi ngoài ứng dụng, có ghi audit.
+
+**Quyền của giáo viên**
+
+* Bảy quyền cố định (ADR-0033 D3), cấp theo nhóm quyền có tên; mỗi giáo viên thuộc một
+  nhóm, để trống là nhóm mặc định. Đổi sang vai trò khác thì nhóm được xoá về trống. Nhóm
+  còn giáo viên, kể cả đã khoá, không xoá được.
+* Nhóm mặc định giữ đúng những gì giáo viên làm được trước ngày 2026-11-17.
+* Quyền quyết định loại việc; phân công vẫn quyết định làm ở Template, lớp, buổi nào.
+* Luôn có: xem và dạy những gì được phân công (bắt đầu buổi, mở bảng, hiện mã QR), đánh
+  giá năng lực học viên, hồ sơ cá nhân. Media đi theo việc soạn, không là quyền riêng.
+  Không bao giờ cấp: Người
+  dùng, Tổ chức, Phân quyền, Sản phẩm, Ghi danh, Quy tắc điểm danh.
+
+**Cấu hình trên giao diện:** chỉ tập quyền của nhóm và nhóm của giáo viên. Quy tắc giữa các
+quản trị và hai danh sách "luôn có", "không bao giờ cấp" là cố định.
+
+---
+
 # Future RBAC
+
+> Phần quyền của giáo viên đã được quyết ở mục trên (ADR-0033). Mục này còn lại cho các
+> hướng chưa quyết.
 
 Hiện tại:
 

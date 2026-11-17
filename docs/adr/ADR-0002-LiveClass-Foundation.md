@@ -295,6 +295,231 @@ migration.
 * **Switch.** Everything above, the board button included, stays behind
   `liveclass.attendance_enabled`.
 
+## Attendance Policy And Recording Amendment — 2026-11-17
+
+Approved: 2026-11-17 (Owner decision on the business proposal, questions 1–10).
+The Owner approved the data design (the Database documents named below) on the
+same day and gave the go-ahead to start coding. Parts A and B and the review
+additions are implemented (2026-11-17), all still behind
+`liveclass.attendance_enabled`, whose default stays off until the Owner has tried
+the feature. The Architecture Review so far is a self-check against the
+Guardrails, not an independent review.
+
+Implementation notes (2026-11-17):
+
+* The Cohort's foreign key is the pair `(attendance_policy_id, customer_id)`, so
+  the schema itself keeps a Cohort on a policy of its own tenant.
+* Automatic absence looks back 7 days from now (so a scheduler that was down
+  catches up) and never before `liveclass.auto_absent_from`
+  (`LIVECLASS_AUTO_ABSENT_FROM`, UTC, default `2026-11-18 00:00:00`). It runs
+  every minute as `liveclass:mark-absent`. A `hybrid` Session is skipped only when
+  the policy leaves both in-room and online recording to the teacher.
+* The late-start evaluation (review addition 1) runs when the Session goes live
+  and touches only online entries recorded by the system.
+* Entries are written by one service, `LiveClassAttendanceRecorder`; the thresholds
+  are computed by `LiveClassAttendanceTiming`.
+
+Source: the Owner's business document "Nghiệp vụ luồng học tập lớp MK" (2026-11-16),
+applied to LearnForge with three Owner decisions of 2026-11-17: content stays in
+the Template and its immutable published Version, a Cohort only reads it; there is
+no Klass delivery; the "one device, one learner" rule is postponed. Apart from
+these, the Owner wants the attendance rules to follow the source document closely. This amendment
+covers the attendance policy and the remaining attendance phases listed as "later
+phases" in § Attendance Check-In Amendment. Make-up attendance, the joined-date
+rules and "counts toward attendance" on an Activity are later amendments.
+
+### A. Attendance policy
+
+* **What it is.** A named set of attendance thresholds owned by one tenant:
+  `core_liveclass_attendance_policies`. A Cohort points to one policy through
+  `core_course_cohorts.attendance_policy_id`; `NULL` means the tenant's default
+  policy. Each tenant has exactly one default policy.
+* **Why a table.** `saas_customer_settings` stores single keyed values. It cannot
+  hold several named sets or be assigned to a Cohort.
+* **Settings and defaults.** Opens before the planned start: 15 minutes. Late
+  after: 10 minutes. Absent after: 30 minutes, or no limit. Automatic absence: 30
+  minutes after the planned end. Count from the actual start: on. How the entry
+  time is recorded, separately for in-room and online: by the system, or by the
+  teacher by hand. Make-up: on, no limit. Teacher edit window: 7 days after the
+  Session.
+* **Who manages it.** `customer_admin` creates, edits and deletes policies and
+  assigns them to Cohorts. A teacher only reads the policy of their Cohort. The
+  default policy and a policy assigned to a Cohort cannot be deleted.
+* **Effect of a change.** Editing a policy or assigning another one affects only
+  results written afterwards. A stored Attendance result is never recalculated.
+* **QR check-in.** The opening time and the late threshold come from the Cohort's
+  policy and replace `liveclass.late_after_minutes` and the fixed 15 minutes. A
+  scan after the absent threshold is refused and the board stops showing the
+  code; the teacher records that learner by hand. With in-room recording set to
+  "by hand", the board does not offer the code. The code itself is unchanged: it
+  still changes every 30 seconds (Owner kept this on 2026-11-17).
+* **Not adopted from the source document.** Klass and its exceptions; the
+  per-device rule (postponed).
+* **Time.** Thresholds are compared in the Session's time zone against server
+  time, as today.
+
+### B. Online entry, manual attendance, edit history, automatic absence
+
+* **"Vào phòng họp".** On the learner's class page the meeting link is replaced
+  by a button that records the entry on the server and then opens the meeting.
+  It applies to an `online` Session and to the remote learners of a `hybrid`
+  Session. It is accepted from the policy's opening time until the planned end,
+  for a Session that is not cancelled, and does not require the teacher to have
+  started the Session. The learner must pass the same checks as for the QR code.
+  The row gets `attendance_mode = online`, `attendance_source = system`,
+  `joined_at` = server time, and `status` `present`, `late` or `absent` by the
+  policy's thresholds. After the absent threshold the learner still enters, the
+  result is `absent`, the entry time is kept, and the page warns them first.
+  Only the first entry counts; a result set by hand is not overwritten. With
+  online recording set to "by hand" the button opens the meeting and records
+  nothing. The system knows only that the button was pressed, not that the
+  learner stayed in the meeting.
+* **Opening the Whiteboard as a learner** (Owner decision 2026-11-17). Unlike the
+  source system, a LearnForge learner watches the board in their own account,
+  without the meeting link. The server cannot tell where a learner is — a learner
+  in the room may watch the board on a laptop — so it decides by the Session's
+  `delivery_mode`, which the centre sets:
+  - `online`: nobody is in the room, so opening the board records the entry
+    exactly like "Vào phòng họp". Whichever comes first counts; the other changes
+    nothing.
+  - `offline` and `hybrid`: opening the board is never attendance, for anyone.
+    § Attendance Check-In Amendment stays as written for these modes. In a
+    `hybrid` Session a remote learner enters through "Vào phòng họp"; a learner
+    in the room scans the QR code or presses the "Điểm danh" button.
+
+  In a `hybrid` Session a learner recorded as `online` (through "Vào phòng họp")
+  who later checks in inside the room keeps the earliest `joined_at` and the
+  `status` already written; only `attendance_mode` changes to `offline`.
+
+  The board opens only while the Session is `live`, so an early learner enters
+  through "Vào phòng họp". With online recording set to "by hand", opening the
+  board records nothing. This replaces "opening, watching or drawing on the board
+  is still not attendance" for `online` Sessions only.
+* **"Điểm danh" button** (Owner decision 2026-11-17, replacing answer 3 of the
+  proposal). An in-room Session uses one attendance tool, stored in
+  `core_liveclass_sessions.attendance_tool`: `board` (the QR code on the
+  Whiteboard, the default and the meaning of `NULL`) or `button`. With `button`
+  the learner presses "Điểm danh" on their class page and the teacher opens
+  nothing; the board does not offer the code. The button follows the rules of
+  "Vào phòng họp" — window, learner checks, first press only, no need for the
+  Session to be started, `absent` with the entry time kept after the absent
+  threshold, a warning first — except that it writes `attendance_mode = offline`
+  and always counts from the planned start. In a `hybrid` Session the tool
+  applies to learners in the room; remote learners use "Vào phòng họp". The
+  system cannot tell that the learner is in the room; the per-device rule that
+  limits this is postponed.
+* **Manual attendance.** `customer_admin` on every Cohort, as today, and every
+  teacher with an active assignment to the Cohort, on a new screen in the
+  teacher area. Values: `present`, `late`, `absent`, `excused`, with a note.
+  `excused` is set only by hand. A teacher may record and correct from the
+  Session's start until the policy's edit window ends; `customer_admin` has no
+  limit. A result set by hand is final: a scan, an online entry and automatic
+  absence never replace it.
+* **Edit history.** `core_liveclass_attendance_changes` receives one append-only
+  row whenever an existing result changes, and for every manual write: who, when,
+  from which status and mode to which, and the note. The first write made by the
+  system is not a history row. `customer_admin` and the Cohort's teachers read
+  it on the attendance screen.
+* **Automatic absence.** A scheduled command writes `absent`, source `system`,
+  for each active Cohort member with an active Enrollment that has no result
+  (no row, or `registered`) once the planned end plus the policy's delay has
+  passed. It skips a cancelled Session, any learner who already has a result,
+  and a Session whose delivery mode is set to manual recording. Until then the
+  learner sees "Chờ ghi nhận điểm danh" and the teacher sees "Chưa điểm danh".
+  A teacher or administrator can still correct the result afterwards.
+* **Switch.** Everything stays behind `liveclass.attendance_enabled`. Once this
+  amendment is implemented and tried, the switch defaults to on (Owner decision
+  9).
+
+### Review additions — confirmed by the Owner on 2026-11-17
+
+The rules below were added when the proposal was reviewed for ambiguity. The Owner
+confirmed all seven on 2026-11-17. Rule 2 replaces "opening, watching or drawing
+on the board is still not attendance" of § Attendance Check-In Amendment for
+`online` Sessions.
+
+1. **Late start after an early entry.** When the teacher starts the Session later
+   than planned and the policy counts from the actual start, results that the
+   system wrote before that moment are evaluated once more against the new
+   start. Manual results are not touched. Each changed result adds a `system` row
+   to the edit history.
+2. **Opening the Whiteboard as a learner**, as written in part B: an entry in an
+   `online` Session only. The Owner first confirmed it for `hybrid` too and
+   narrowed it the same day, because a learner in the room may watch the board on
+   a laptop. In a `hybrid` Session an in-room action (QR scan or "Điểm danh"
+   button) after an `online` entry changes only `attendance_mode` to `offline`.
+3. **Manual values.** Manual attendance offers `present`, `late`, `absent`,
+   `excused`. A result cannot be set back to `registered`; the Cohort attendance
+   tab stops offering it.
+4. **Teacher edit window.** `teacher_edit_days` × 24 hours, counted from the
+   planned end of the Session.
+5. **Early end.** When the teacher completes the Session before the planned end,
+   every way of recording an entry closes at that moment.
+6. **Edit history scope.** The first write by the system is not a history row; the
+   Cohort's teachers may read the history.
+7. **Automatic absence guards.** The command skips a Session that ended before the
+   deployment value `liveclass.auto_absent_from`, and a member whose Cohort
+   `joined_at` is later than the Session's planned end.
+
+Learner-facing page: the Session card appears from the policy's opening time, not
+only while the Session is `live`, so that "Vào phòng họp" and the "Điểm danh"
+button can be pressed before the teacher starts (Owner decision 7 of the
+proposal).
+
+### Database documents (approved 2026-11-17)
+
+* `database/liveclass/core_liveclass_attendance_policies.md` (new table);
+* `database/liveclass/core_liveclass_attendance_changes.md` (new table);
+* `database/course/core_course_cohorts.md` § Attendance Policy Amendment (new
+  column);
+* `database/liveclass/core_liveclass_attendances.md` § Policy And Online Entry
+  Amendment (no column);
+* `database/liveclass/core_liveclass_sessions.md` § Attendance Tool Amendment (new
+  column).
+
+Implementation order (Owner decision 10): the documents together, then code for
+part A, then code for part B.
+
+---
+
+## Teacher Session Operations Amendment — 2026-11-17
+
+Approved: 2026-11-17 (Owner decision on the proposal "Gắn buổi học trực tiếp trong
+LF", questions 3–5). Implemented 2026-11-17. No table or migration of its own; the
+attendance tool column comes with the attendance migration. A stored meeting link
+that is not an http(s) URL is never echoed back into the edit field.
+
+Until now only `customer_admin` could change a Session of a Cohort, and nobody could
+change anything once the planned start had passed. In the source system a teacher
+configures their own sessions. In LearnForge the content belongs to the Template,
+so what a teacher may change is the operational part of the Session only.
+
+* **Who.** A teacher or assistant assigned to that Session
+  (`core_liveclass_session_teachers`), within their own tenant. Not every teacher
+  of the Cohort. `customer_admin` keeps full authority over every Session.
+* **What a teacher may change.** The meeting link, the room name, the address, and
+  the attendance tool (`core_liveclass_sessions.attendance_tool`).
+* **What stays with `customer_admin`.** The delivery mode, the date and time, the
+  teaching team, cancelling and no-show. Rescheduling must check the other
+  teachers' availability and there is no learner notification yet.
+* **When.** The existing edit rule: the Session is `scheduled`, has not been
+  started, has no Attendance, Recording or Replay, and its planned start is in the
+  future.
+* **Meeting link exception.** The meeting link alone may be changed until the
+  planned end, also while the Session is `live`, by `customer_admin` and by the
+  Session's teachers. A broken link during class could not be replaced before.
+* **Where.** The teacher area, page "Buổi học trực tiếp": an edit action on the
+  Session row, with a form that holds only the fields above. The server checks the
+  role, the tenant and the Session assignment; it does not trust the request.
+* **Audit.** Every such change, by a teacher or by `customer_admin`, writes a row
+  to `saas_audit_logs` with the values before and after. The schedule change
+  history is unchanged.
+* **Attendance tool.** It follows the same edit rule; this replaces "while the
+  Session has no attendance result" in § Attendance Policy And Recording
+  Amendment.
+
+---
+
 ## Automatic Session Generation Amendment
 
 Approved: 2026-11-05 (Owner decision)

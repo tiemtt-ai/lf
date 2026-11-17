@@ -1,12 +1,12 @@
 # LF-Core-LiveClass.md
 
-Version: 2.25
+Version: 2.27
 
 Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-11-11
+Last Updated: 2026-11-17
 
 Document Path: core/LF-Core-LiveClass.md
 
@@ -830,6 +830,25 @@ recurring Schedule persistence:
 
 ---
 
+## Giáo viên sửa phần vận hành của buổi — 2026-11-17 (Approved, đã triển khai)
+
+Owner duyệt ngày 2026-11-17. Nguồn chi tiết: ADR-0002 § Teacher Session Operations
+Amendment. Không thêm bảng, cột hay migration.
+
+* **Ai:** giáo viên và trợ giảng được phân công vào chính buổi đó. Quản trị trung tâm vẫn
+  sửa được mọi buổi.
+* **Giáo viên sửa được:** link phòng họp, phòng học, địa chỉ, công cụ điểm danh.
+* **Chỉ quản trị sửa:** hình thức, ngày giờ, giáo viên của buổi, huỷ buổi.
+* **Khi nào:** theo quy tắc sửa buổi hiện có: buổi `scheduled`, chưa bắt đầu, chưa có
+  điểm danh hay bản ghi, và chưa tới giờ bắt đầu dự kiến.
+* **Riêng link phòng họp:** sửa được đến giờ kết thúc dự kiến, kể cả khi buổi đang
+  `live`, cho cả quản trị và giáo viên của buổi.
+* **Ở đâu:** khu giáo viên, trang "Buổi học trực tiếp", nút "Sửa" trên dòng của buổi.
+* **Ghi vết:** mỗi lần sửa, của giáo viên hay quản trị, ghi một dòng vào
+  `saas_audit_logs` kèm giá trị trước và sau.
+
+---
+
 # Attendance
 
 `core_liveclass_attendances` ghi nhận sự tham gia của một Enrollment trong một
@@ -904,6 +923,156 @@ Không thêm bảng, cột hay migration. Mọi phần dưới đây chỉ chạ
 * **Đợt sau:** ghi lần bấm "Vào phòng họp", tự ghi vắng 30 phút sau giờ kết thúc, lưu lịch
   sử sửa, số phút muộn theo trung tâm (cần duyệt Database docs), màn hình điểm danh cho
   giáo viên, và buổi học trực tiếp tự hoàn thành theo điểm danh.
+
+## Bộ quy tắc điểm danh và các cách ghi còn lại — 2026-11-17 (Approved, đã triển khai)
+
+Owner duyệt đề xuất nghiệp vụ ngày 2026-11-17. Nguồn chi tiết: ADR-0002 § Attendance
+Policy And Recording Amendment. Đã triển khai ngày 2026-11-17: bộ quy tắc điểm danh, màn
+quản lý `/admin/attendance-policies` (mục "Quy tắc điểm danh" trong nhóm menu "Lớp học"), ô
+chọn bộ quy tắc ở popup sửa lớp, mã QR đọc mốc từ bộ của lớp, nút Điểm danh, vào phòng
+họp, mở bảng, điểm danh tay của giáo viên (`/teacher/cohorts/{cohort}/attendance`, mở từ
+"Lớp của tôi"), lịch sử sửa và tự ghi vắng (`liveclass:mark-absent`, mỗi phút). Tất cả vẫn
+sau công tắc `LIVECLASS_ATTENDANCE_ENABLED`; mặc định còn tắt cho tới khi Owner thử xong.
+Phần này thay danh sách "Đợt sau" của mục mã QR ở trên, trừ "buổi học trực tiếp tự hoàn
+thành theo điểm danh" đã có theo ADR-0030.
+
+Tự ghi vắng chỉ xét các buổi kết thúc trong 7 ngày gần nhất và không trước
+`liveclass.auto_absent_from` (UTC, mặc định `2026-11-18 00:00:00`). Buổi `hybrid` chỉ bị
+bỏ qua khi bộ quy tắc đặt ghi tay cho cả buổi tại lớp lẫn buổi trực tuyến.
+
+Owner muốn quy tắc điểm danh theo sát tài liệu nguồn (MK Live). Khác biệt còn lại: LF
+không có Klass, quy tắc "một thiết bị một học viên" được hoãn, và mã QR đổi mỗi 30 giây.
+Nội dung vẫn nằm ở Template; lớp chỉ đọc.
+
+**Bộ quy tắc điểm danh** (`core_liveclass_attendance_policies`)
+
+* Mỗi trung tâm có các bộ có tên và đúng một bộ mặc định. Lớp chọn một bộ ở
+  `core_course_cohorts.attendance_policy_id`; để trống là dùng bộ mặc định.
+* Thiết lập và mặc định: mở trước giờ học 15 phút; muộn sau 10 phút; vắng sau 30 phút
+  hoặc không giới hạn; tự ghi vắng 30 phút sau buổi; tính từ lúc giáo viên thực sự bắt
+  đầu (bật); cách ghi giờ vào lớp cho buổi tại lớp và buổi trực tuyến (hệ thống tự ghi
+  hoặc giáo viên ghi tay); học bù (bật, không giới hạn); hạn sửa của giáo viên 7 ngày.
+* Quản trị trung tâm tạo, sửa, xoá và gán cho lớp. Giáo viên chỉ xem. Bộ mặc định và bộ
+  đang gán cho lớp không xoá được.
+* Gán cho lớp ở form lớp, hoặc ở cửa sổ "Áp dụng cho lớp" của từng bộ: tìm theo mã hoặc
+  tên, tick chọn, xem tóm tắt thay đổi rồi xác nhận. Bỏ tick là đưa lớp về bộ mặc định.
+* Kết quả theo mốc: vào đến hết mốc muộn là `present`; sau mốc muộn đến hết mốc vắng là
+  `late`; sau mốc vắng thì tuỳ cách ghi (mã QR bị từ chối, các cách khác ghi `absent`).
+* Sửa bộ hoặc đổi bộ của lớp chỉ áp dụng cho kết quả ghi sau đó. Kết quả đã ghi không
+  bị tính lại.
+* Mã QR lấy mốc mở sớm và mốc muộn từ bộ của lớp. Sau mốc vắng, mã ẩn và lần quét bị từ
+  chối; giáo viên ghi tay. Bộ đặt "giáo viên ghi tay" cho buổi tại lớp thì bảng không
+  hiện mã. Mã vẫn đổi mỗi 30 giây.
+* Thiết lập học bù được lưu nhưng chưa có hiệu lực cho tới khi nghiệp vụ học bù được
+  duyệt. Form vẫn hiện chúng, kèm ghi chú "chưa áp dụng" (Owner quyết 2026-11-17).
+
+**Vào phòng họp** (buổi `online`, và người ở xa của buổi `hybrid`)
+
+* Trang lớp của học viên có nút "Vào phòng họp" thay cho link. Bấm là ghi giờ vào lớp
+  theo giờ server rồi mở phòng họp.
+* Bấm được từ mốc mở sớm đến giờ kết thúc dự kiến, khi buổi chưa bị huỷ. Không cần giáo
+  viên bấm "Bắt đầu" trước. Điều kiện về học viên giống mã QR.
+* Ghi `attendance_mode = online`, `attendance_source = system`, `joined_at`, và
+  `present`, `late` hoặc `absent` theo các mốc. Vào sau mốc vắng vẫn vào được, kết quả là
+  `absent`, giờ vào được giữ, trang báo trước cho học viên.
+* Chỉ tính lần đầu. Kết quả ghi tay không bị đổi. Bộ đặt "giáo viên ghi tay" cho buổi
+  trực tuyến thì nút chỉ mở phòng họp.
+* Hệ thống chỉ biết học viên đã bấm nút, không biết họ có ở trong phòng họp hay không.
+
+**Mở bảng điện tử trong tài khoản học viên**
+
+Ở LF học viên xem bảng ngay trong tài khoản của mình, không cần qua link phòng họp.
+Server không biết học viên ngồi ở đâu (người ở lớp cũng có thể mở bảng trên laptop), nên
+quy tắc dựa vào loại buổi mà trung tâm đã đặt (Owner quyết 2026-11-17):
+
+| Loại buổi | Mở bảng | Cách được điểm danh |
+| --- | --- | --- |
+| `offline` | Không tính, với bất kỳ ai | Quét mã QR hoặc bấm nút Điểm danh |
+| `online` | Ghi `online`, như bấm "Vào phòng họp"; lần nào trước thì tính lần đó | Mở bảng hoặc "Vào phòng họp" |
+| `hybrid` | Không tính, với bất kỳ ai | Người ở xa: "Vào phòng họp". Người ở lớp: mã QR hoặc nút Điểm danh |
+
+* Buổi `hybrid`: học viên đã được ghi `online` (qua "Vào phòng họp") rồi mới quét mã hoặc
+  bấm nút Điểm danh thì giữ giờ vào sớm nhất và trạng thái đã ghi, chỉ đổi hình thức sang
+  `offline`.
+* Bảng chỉ mở được khi buổi đang `live`. Học viên vào sớm đi qua nút "Vào phòng họp".
+* Bộ quy tắc đặt "giáo viên ghi tay" cho buổi trực tuyến thì mở bảng không ghi gì.
+* Quy tắc "mở hoặc xem bảng không phải là điểm danh" của mục mã QR vẫn áp dụng cho buổi
+  `offline` và `hybrid`.
+
+**Nút Điểm danh** (buổi tại lớp)
+
+* Mỗi buổi tại lớp dùng một công cụ điểm danh, lưu ở
+  `core_liveclass_sessions.attendance_tool`: `board` (mã QR trên bảng điện tử, mặc định)
+  hoặc `button`. Chọn ở form buổi học của lớp.
+* Với `button`, học viên tự bấm "Điểm danh" trên trang lớp; giáo viên không cần mở gì và
+  bảng không hiện mã QR.
+* Quy tắc giống "Vào phòng họp": cùng khoảng thời gian, cùng điều kiện về học viên, chỉ
+  tính lần đầu, không cần giáo viên bấm "Bắt đầu", bấm sau mốc vắng vẫn được nhưng ghi
+  `absent` kèm giờ vào và có dòng báo trước. Khác ở chỗ ghi `attendance_mode = offline`
+  và luôn tính mốc từ giờ trên lịch.
+* Buổi `hybrid`: công cụ áp dụng cho người ở lớp; người ở xa bấm "Vào phòng họp".
+* Bộ quy tắc đặt "giáo viên ghi tay" cho buổi tại lớp thì không có mã QR và không có nút.
+* Hệ thống không biết học viên có thật sự ở trong phòng học hay không. Quy tắc "một
+  thiết bị một học viên" để hạn chế việc này đang được hoãn.
+
+**Điểm danh tay**
+
+* Quản trị trung tâm ở mọi lớp. Giáo viên đang được phân công vào lớp, ở màn Điểm danh
+  của khu giáo viên.
+* Ghi `present`, `late`, `absent`, `excused` kèm ghi chú. `excused` chỉ ghi bằng tay.
+* Giáo viên ghi và sửa từ giờ bắt đầu buổi đến hết hạn sửa của bộ quy tắc. Quản trị
+  không giới hạn.
+* Kết quả ghi tay là kết quả sau cùng.
+* Màn hình hiện tên bộ quy tắc, các mốc chính, giờ vào, hình thức và nguồn. Học viên
+  chưa có kết quả và chưa hết thời gian chờ hiện "Chưa điểm danh".
+* Trang Điểm danh của giáo viên có nút "Xem đầy đủ" mở toàn bộ bộ quy tắc của lớp, chỉ
+  đọc (Owner quyết 2026-11-17). Giáo viên không có trang quản lý bộ quy tắc.
+
+**Lịch sử sửa** (`core_liveclass_attendance_changes`)
+
+* Mỗi lần một kết quả đã có bị đổi, và mỗi lần ghi tay, lưu một dòng chỉ-thêm: ai, lúc
+  nào, từ trạng thái và hình thức nào sang trạng thái và hình thức nào, ghi chú.
+* Lần ghi đầu tiên của hệ thống không tạo dòng lịch sử.
+
+**Tự ghi vắng**
+
+* Lệnh định kỳ ghi `absent`, nguồn `system`, cho học viên đang trong lớp, Enrollment
+  `active`, chưa có kết quả, khi đã qua giờ kết thúc dự kiến cộng thời gian chờ.
+* Bỏ qua buổi bị huỷ, học viên đã có kết quả, và buổi mà bộ quy tắc đặt ghi tay cho hình
+  thức đó.
+* Trong lúc chờ học viên thấy "Chờ ghi nhận điểm danh".
+
+**Bổ sung khi rà soát** (Owner xác nhận cả bảy điểm ngày 2026-11-17)
+
+1. Giáo viên bấm "Bắt đầu" trễ hơn lịch thì kết quả hệ thống đã ghi trước lúc đó được xét
+   lại một lần theo mốc mới. Kết quả ghi tay không bị xét lại.
+2. Quy tắc "Mở bảng điện tử trong tài khoản học viên" ở trên: chỉ tính ở buổi `online`.
+   Owner xác nhận lúc đầu cho cả `hybrid`, rồi thu hẹp trong cùng ngày. Buổi `hybrid`: quét
+   mã hoặc bấm nút Điểm danh sau khi đã được ghi `online` chỉ đổi hình thức sang `offline`.
+3. Điểm danh tay chỉ có bốn giá trị; không đưa được kết quả về `registered`.
+4. Hạn sửa của giáo viên tính tròn N × 24 giờ từ giờ kết thúc dự kiến của buổi.
+5. Giáo viên kết thúc buổi sớm thì mọi cách ghi giờ vào lớp đóng từ lúc đó.
+6. Lần ghi đầu tiên của hệ thống không tạo dòng lịch sử; giáo viên của lớp xem được
+   lịch sử.
+7. Tự ghi vắng bỏ qua buổi kết thúc trước `liveclass.auto_absent_from` và học viên có
+   `joined_at` của lớp sau giờ kết thúc dự kiến của buổi.
+
+Thẻ buổi học trên trang học viên hiện từ mốc mở sớm, không chỉ khi buổi `live`.
+
+**Điều hệ thống không biết**
+
+* "Vào phòng họp": chỉ biết học viên đã bấm nút, không biết họ có vào phòng họp hay ở lại
+  bao lâu.
+* Mở bảng điện tử: chỉ biết học viên đã mở bảng, không biết họ ngồi ở đâu. Vì vậy chỉ
+  tính ở buổi `online`, nơi không ai ở lớp.
+* Nút Điểm danh: không biết học viên có ở trong phòng học.
+* Mã QR: người ở xa quét được nếu giáo viên chia sẻ màn hình có mã qua phòng họp; giáo
+  viên cần thu mã vào góc hoặc đóng mã khi chia sẻ màn hình.
+
+**Chữ hiển thị trạng thái** (Owner quyết 2026-11-17, theo tài liệu nguồn): `registered` là
+"Chưa điểm danh", `present` "Có mặt", `late` "Muộn", `absent` "Vắng", `excused` "Có phép".
+Trước đó giao diện dùng "Dự kiến", "Đi muộn", "Vắng có phép". Giá trị lưu trong database
+không đổi.
 
 ---
 

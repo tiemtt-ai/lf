@@ -323,6 +323,7 @@ class CourseCohortContentReorder
             'facility_name_snapshot' => $session?->facility_name_snapshot,
             'room_name_snapshot' => $session?->room_name_snapshot,
             'address_snapshot' => $session?->address_snapshot,
+            'attendance_tool' => $session?->attendance_tool,
             'room_id' => $session?->room_id,
         ];
     }

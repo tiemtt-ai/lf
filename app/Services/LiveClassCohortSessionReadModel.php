@@ -114,6 +114,10 @@ class LiveClassCohortSessionReadModel
                 $sessionsWithEvidence->contains((int) $session->id),
                 $now
             );
+            // The general edit closes at the planned start; the meeting link alone stays editable until the planned end.
+            $session->can_edit_link = ! $session->can_edit && $cohortStatus === 'active'
+                && in_array($session->delivery_mode, ['online', 'hybrid'], true) && in_array($session->status, ['scheduled', 'live'], true)
+                && LiveClassSessionTime::utc($session->scheduled_end_at, $session->timezone)->gte($now);
             $session->can_reschedule = $this->sessionPolicy->canReschedule($session, $now);
             $session->position_lock_reason = $this->sessionPolicy->positionLockReason(
                 $session,

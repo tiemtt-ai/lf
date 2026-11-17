@@ -30,3 +30,7 @@ Schedule::command('assessment:close-overdue')->everyMinute()->withoutOverlapping
 
 // A live Session is over when its timetable says so (LF-Core-LiveClass § Bắt đầu và kết thúc buổi); local database only.
 Schedule::command('liveclass:complete-overdue')->everyMinute()->withoutOverlapping(5);
+
+// Learners without a result are marked absent once the Session's planned end plus the policy's delay has passed
+// (LF-Core-LiveClass § Tự ghi vắng); local database only.
+Schedule::command('liveclass:mark-absent')->everyMinute()->withoutOverlapping(5);

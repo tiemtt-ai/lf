@@ -41,6 +41,8 @@ hàng được cô lập.
 |------|------|
 | **saas_customer_domains** | Danh mục đăng ký chuẩn cho miền của yêu cầu |
 | **saas_customer_settings** | Các thiết lập cấu hình tenant |
+| **saas_teacher_permission_groups** | Nhóm quyền của giáo viên trong trung tâm (chưa có migration) |
+| **saas_teacher_permission_grants** | Quyền được cấp cho từng nhóm quyền (chưa có migration) |
 
 ---
 

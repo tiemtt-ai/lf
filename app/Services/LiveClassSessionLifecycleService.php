@@ -40,6 +40,10 @@ class LiveClassSessionLifecycleService
     public function start(int $customerId, int $cohortId, int $sessionId): void
     {
         $this->transition($customerId, $cohortId, $sessionId, 'live');
+        // A late start moves the attendance thresholds: learners who entered before the teacher are evaluated again.
+        if (LiveClassAttendanceCheckIn::enabled()) {
+            app(LiveClassAttendanceRecorder::class)->reevaluateAfterStart($customerId, $sessionId);
+        }
     }
 
     public function complete(int $customerId, int $cohortId, int $sessionId): void

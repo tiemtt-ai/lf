@@ -369,6 +369,18 @@ class CourseTemplatePublishGraphValidator
                 'course_type' => __(CourseType::labelKey($courseType)),
             ], $lesson ? $this->lessonFragment($lesson) : null);
         }
+        // A live session is taught during the session and nowhere else (LF-Core-Course § Amendment 2026-11-17).
+        foreach ($activities->where('activity_type', 'live_class') as $activity) {
+            if ($activity->available_during_session && ! $activity->available_before_session
+                && ! $activity->available_after_session && ! $activity->available_anytime) {
+                continue;
+            }
+            $lesson = $lessons->get($activity->template_lesson_id);
+            $this->add($issues, 'activity_live_class_phase', 'content', [
+                'lesson' => $lesson?->title ?? __('lf.LF_course_template_publish_integrity_unknown_lesson'),
+                'activity' => $activity->title,
+            ], $lesson ? $this->lessonFragment($lesson) : null);
+        }
         // A lesson holds at most one live session; a lesson without one is a self-study lesson.
         foreach ($activities->where('activity_type', 'live_class')->groupBy('template_lesson_id') as $lessonId => $live) {
             if ($live->count() < 2) {

@@ -80,6 +80,7 @@ Số ADR không được tái sử dụng hoặc đổi để lấp khoảng tr�
 | [ADR-0030](ADR-0030-Learner-Course-Delivery-And-Progress.md) | Học viên mở bài học (video, âm thanh, video nhúng, tài liệu) và ghi tiến độ Activity / Lesson / Course; Quan tâm (D4) làm 2026-11-11; Quiz Activity ngoài phạm vi | Approved |
 | [ADR-0031](ADR-0031-Learner-Learning-Results.md) | "Kết quả học tập" của học viên: tab trong Khóa học của tôi, tổng hợp và bảng cho khóa, lớp, bài thi; không lộ điểm chưa công bố | Approved |
 | [ADR-0032](ADR-0032-Course-Quiz-Activity.md) | Quiz Activity trong khóa học: chốt phiên bản đề khi publish, lần làm theo Enrollment, hoàn thành theo nộp / ngưỡng Activity | Approved |
+| [ADR-0033](ADR-0033-Teacher-Permissions-And-Tenant-Owner.md) | Phân quyền giáo viên theo nhóm quyền (bảy quyền cố định) và Chủ trung tâm giữa các quản trị | Approved |
 
 ---
 

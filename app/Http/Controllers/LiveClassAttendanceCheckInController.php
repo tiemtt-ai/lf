@@ -128,6 +128,11 @@ final class LiveClassAttendanceCheckInController extends Controller
     private function code(LiveClassBoardContext $context): JsonResponse
     {
         $issued = $this->checkIn->issue($context);
+        if ($issued['closed']) {
+            // Past the absent threshold: the board hides the code and says why.
+            return response()->json(['closed' => true, 'url' => null, 'svg' => null, 'refresh_in' => $issued['refresh_in']]
+                + $this->checkIn->counts($context))->header('Cache-Control', 'no-store');
+        }
         $url = route('student.live-sessions.check-in.scan', ['session' => $context->sessionId, 'code' => $issued['code']]);
         $svg = (new Writer(new ImageRenderer(new RendererStyle(320, 2), new SvgImageBackEnd)))->writeString($url);
 
@@ -135,6 +140,7 @@ final class LiveClassAttendanceCheckInController extends Controller
             'url' => $url,
             'svg' => 'data:image/svg+xml;base64,'.base64_encode($svg),
             'refresh_in' => $issued['refresh_in'],
+            'closed' => false,
         ] + $this->checkIn->counts($context))->header('Cache-Control', 'no-store');
     }
 

@@ -176,7 +176,8 @@
          noPhaseName: @js(__('lf.LF_course_template_activity_phase_none')),
          recognizedLabel: @js(__('lf.LF_course_template_activity_url_recognized', ['provider' => '__P__'])),
          externalUrl: @js((string) ($formActivity?->external_video_url ?? '')),
-         // A live class follows the session schedule: it cannot be anytime, but any session phase is allowed.
+         // A live class is taught during the session: it cannot be anytime and takes no other phase
+         // (LF-Core-Course § Amendment 2026-11-17).
          get liveLocked() { return this.activityType === 'live_class'; },
          get urlProvider() {
              let host = '';
@@ -196,10 +197,10 @@
          init() {
              // A live class cannot be anytime. One saved earlier as anytime opens switched to during the session,
              // with a note asking to check the phases and save.
-             if (this.liveLocked && this.learningMode !== 'session') {
+             if (this.liveLocked) {
+                 this.liveAdjusted = this.learningMode !== 'session' && @js($formActivity !== null);
                  this.learningMode = 'session';
                  this.sessionPhases = ['during_session'];
-                 this.liveAdjusted = @js($formActivity !== null);
              }
              this.$nextTick(() => this.syncCompletionOptions(false));
          },
@@ -236,8 +237,7 @@
              this.videoSpeechToTextEnabled = false;
              this.estimatedDurationMinutes = unchanged ? this.storedEstimateMinutes : null;
              this.externalUrl = '';
-             if (this.liveLocked && this.learningMode !== 'session') { this.learningMode = 'session'; }
-             if (this.liveLocked && this.sessionPhases.length === 0) { this.sessionPhases = ['during_session']; }
+             if (this.liveLocked) { this.learningMode = 'session'; this.sessionPhases = ['during_session']; }
              this.syncCompletionOptions(true);
          },
          documentFileChanged(event) {
@@ -646,18 +646,20 @@
                             <span>{{ __('lf.LF_course_template_activity_phase_choose') }}</span>
                             <x-info-tip class="lf-info-tip--lines" :text="__('lf.LF_course_type_session_phases_help')" />
                         </span>
-                        <span class="ui-field__hint">{{ __('lf.LF_course_template_activity_phase_choose_hint') }}</span>
+                        <span class="ui-field__hint" x-show="!liveLocked">{{ __('lf.LF_course_template_activity_phase_choose_hint') }}</span>
                     </span>
                 <div class="ui-chip-list">
                     @foreach (['before_session', 'during_session', 'after_session'] as $phase)
-                        <label class="ui-chip">
+                        {{-- A live class shows only its fixed phase; the disabled box is sent by the hidden field below. --}}
+                        <label class="ui-chip" @if ($phase !== 'during_session') x-show="!liveLocked" @else x-bind:class="{ 'is-fixed': liveLocked }" @endif>
                             <input type="checkbox" name="learning_phases[]" value="{{ $phase }}" id="activity-form-learning_phases-{{ $phase }}"
-                                   x-model="sessionPhases" x-bind:disabled="learningMode !== 'session'">
+                                   x-model="sessionPhases" x-bind:disabled="learningMode !== 'session' || liveLocked">
                             <x-backend-icon name="check" class="ui-icon ui-chip__check" />
                             <span>{{ __('lf.LF_course_template_activity_learning_availability_'.$phase) }}</span>
                         </label>
                     @endforeach
                 </div>
+                <input type="hidden" name="learning_phases[]" value="during_session" disabled x-bind:disabled="!liveLocked">
                 {{-- A phase error from the server shows here, once, while this box is open; choosing a phase clears it. --}}
                 <div class="ui-option-cards__error" data-ui-error-slot></div>
                 <span class="ui-field__hint" x-show="liveLocked" x-cloak>{{ __('lf.LF_course_template_activity_live_phase_locked') }}</span>

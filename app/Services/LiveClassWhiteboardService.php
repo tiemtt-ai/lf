@@ -32,6 +32,9 @@ class LiveClassWhiteboardService
         private readonly TrustedVideoUrlService $trustedVideos,
         private readonly CourseEnrollmentLifecycleService $enrollments,
         private readonly DocumentBoardPreview $previews,
+        private readonly LiveClassAttendancePolicies $attendancePolicies,
+        private readonly LiveClassAttendanceRecorder $attendanceRecorder,
+        private readonly LiveClassSessionOperations $sessionOperations,
     ) {}
 
     /**
@@ -63,6 +66,10 @@ class LiveClassWhiteboardService
                 $session->can_start = $presenter && $session->status === 'scheduled' && $session->is_today;
                 $session->can_open = $presenter && $session->status === 'live';
                 $session->can_complete = $session->can_open;
+                // What this teacher may change of the Session's operational part (ADR-0002 § Teacher Session Operations).
+                $editable = $presenter ? $this->sessionOperations->editable((int) $session->customer_id, $session) : ['place' => false, 'link' => false];
+                $session->can_edit_place = $editable['place'];
+                $session->can_edit_link = $editable['link'];
 
                 return $session;
             })
@@ -120,13 +127,19 @@ class LiveClassWhiteboardService
     }
 
     /**
-     * Live Sessions whose board the learner may open now, for the learner course page.
+     * Sessions the learner can act on now, for the learner pages: the live ones (the board is open), and — with
+     * attendance on — the scheduled ones whose entry time has opened, so "Vào phòng họp" and the "Điểm danh" button
+     * work before the teacher starts (ADR-0002 § Attendance Policy And Recording Amendment). Each row carries
+     * `is_live`, `entry_meeting`, `entry_button`, `entry_warning` and the learner's `attendance` so far.
      *
      * @return Collection<int, object>
      */
     public function learnerLiveSessions(int $customerId, int $studentId): Collection
     {
-        return $this->sessionQuery($customerId)
+        $attendanceOn = LiveClassAttendanceCheckIn::enabled();
+        $now = CarbonImmutable::now()->utc();
+
+        $sessions = $this->sessionQuery($customerId)
             ->join('core_course_cohort_students as memberships', function ($join) use ($customerId, $studentId): void {
                 $join->on('memberships.cohort_id', '=', 'sessions.cohort_id')
                     ->where('memberships.customer_id', $customerId)
@@ -134,14 +147,79 @@ class LiveClassWhiteboardService
                     ->where('memberships.status', 'active')
                     ->whereNull('memberships.left_at');
             })
-            ->where('sessions.status', 'live')
+            ->whereIn('sessions.status', $attendanceOn ? ['live', 'scheduled'] : ['live'])
             ->where('cohorts.status', 'active')
+            // A scheduled Session can only be open for entry near its own time; the exact check follows below.
+            ->where(fn ($query) => $query->where('sessions.status', 'live')
+                ->orWhereBetween('sessions.scheduled_start_at', [$now->subDays(2)->format('Y-m-d H:i:s'), $now->addDays(2)->format('Y-m-d H:i:s')]))
             ->addSelect('memberships.enrollment_id', 'memberships.student_id')
             ->orderBy('sessions.scheduled_start_at')->orderBy('sessions.id')
             ->limit(50)
             ->get()
-            ->filter(fn (object $session): bool => $this->learnerMayView($customerId, $session))
-            ->values();
+            ->filter(fn (object $session): bool => $this->learnerMayView($customerId, $session));
+
+        $results = $attendanceOn && $sessions->isNotEmpty()
+            ? DB::table('core_liveclass_attendances')->where('customer_id', $customerId)
+                ->whereIn('session_id', $sessions->pluck('id'))->whereIn('enrollment_id', $sessions->pluck('enrollment_id'))
+                ->get(['session_id', 'enrollment_id', 'status', 'joined_at', 'attendance_mode', 'attendance_source'])
+                ->keyBy(fn (object $row): string => $row->session_id.':'.$row->enrollment_id)
+            : collect();
+
+        return $sessions->map(function (object $session) use ($customerId, $attendanceOn, $now, $results): ?object {
+            $session->is_live = $session->status === 'live';
+            $session->entry_meeting = $session->entry_button = $session->entry_warning = false;
+            $session->attendance = $results->get($session->id.':'.$session->enrollment_id);
+            if (! $attendanceOn || ! LiveClassAttendanceCheckIn::sessionHasTeacher($customerId, (int) $session->id)) {
+                return $session->is_live ? $session : null;
+            }
+
+            $policy = $this->attendancePolicies->forCohort($customerId, (int) $session->cohort_id);
+            $open = fn (string $way): bool => $this->attendanceRecorder->offers($policy, $session, $way)
+                && ! ($timing = LiveClassAttendanceTiming::of($policy, $session, fromPlannedStart: $way === 'button'))->isBeforeOpening($now)
+                && ! $timing->isAfterClosing($now);
+            $session->entry_meeting = self::meetingUrl($session) !== null && $open('meeting');
+            $session->entry_button = $open('button');
+            $hasResult = $session->attendance && ($session->attendance->joined_at !== null || $session->attendance->status !== 'registered');
+            // Entering now would be recorded as absent: the page says so before the learner presses.
+            $session->entry_warning = ! $hasResult && ($session->entry_meeting || $session->entry_button)
+                && LiveClassAttendanceTiming::of($policy, $session, fromPlannedStart: $session->entry_button)->isPastAbsentThreshold($now);
+
+            return $session->is_live || $session->entry_meeting || $session->entry_button ? $session : null;
+        })->filter()->values();
+    }
+
+    /**
+     * Opening the board of an online Session is an entry, like "Vào phòng họp"; of an in-room or hybrid Session it
+     * is not (ADR-0002 § Attendance Policy And Recording Amendment, part B). The recorder decides; nothing is shown.
+     */
+    public function recordBoardEntry(LiveClassBoardContext $context): void
+    {
+        if (! LiveClassAttendanceCheckIn::enabled() || $context->role !== 'student') {
+            return;
+        }
+        $session = $this->attendanceRecorder->session($context->customerId, $context->sessionId);
+        $membership = $this->learnerMembership($context->customerId, $context->userId, $context->cohortId);
+        if ($session && $membership) {
+            $this->attendanceRecorder->enter($session, $membership, 'board', CarbonImmutable::now());
+        }
+    }
+
+    /**
+     * A learner's own entry to a Session that still takes entries: their seat, account and Enrollment, an active
+     * Cohort and a Session that is scheduled or live. Unlike the board, the Session need not be live.
+     *
+     * @return array{0: object, 1: object} the Session row and the learner's seat
+     */
+    public function learnerEntry(int $customerId, int $studentId, int $sessionId): array
+    {
+        $session = $this->sessionQuery($customerId)->where('sessions.id', $sessionId)->first();
+        $membership = $session ? $this->learnerMembership($customerId, $studentId, (int) $session->cohort_id) : null;
+        abort_if(! $membership, 404);
+        abort_unless($this->learnerMayView($customerId, $membership), 403);
+        abort_unless($session->cohort_status === 'active' && in_array($session->status, ['scheduled', 'live'], true), 403,
+            __('lf.LF_liveclass_attendance_entry_closed'));
+
+        return [$session, $membership];
     }
 
     /**
@@ -289,6 +367,15 @@ class LiveClassWhiteboardService
         ] + $base;
     }
 
+    /** The full Session row for a teacher assigned to it and inside their assignment window; 404/403 otherwise. */
+    public function teacherSessionRow(int $customerId, int $teacherId, int $sessionId): object
+    {
+        $this->teacherSession($customerId, $teacherId, $sessionId);
+
+        return DB::table('core_liveclass_sessions')->where('customer_id', $customerId)->where('id', $sessionId)->first()
+            ?? abort(404);
+    }
+
     private function teacherSession(int $customerId, int $teacherId, int $sessionId): object
     {
         $session = $this->sessionQuery($customerId)
@@ -392,7 +479,8 @@ class LiveClassWhiteboardService
                 'sessions.id', 'sessions.customer_id', 'sessions.cohort_id', 'sessions.template_version_id',
                 'sessions.version_lesson_id', 'sessions.title', 'sessions.session_type', 'sessions.delivery_mode',
                 'sessions.status', 'sessions.scheduled_start_at', 'sessions.scheduled_end_at', 'sessions.timezone',
-                'sessions.meeting_url_snapshot', 'sessions.room_name_snapshot',
+                'sessions.meeting_url_snapshot', 'sessions.room_name_snapshot', 'sessions.address_snapshot', 'sessions.attendance_tool',
+                'sessions.actual_start_at', 'sessions.actual_end_at', 'sessions.version_activity_id',
                 'cohorts.name as cohort_name', 'cohorts.status as cohort_status', 'cohorts.default_meeting_url as cohort_meeting_url',
                 'lessons.title_snapshot as lesson_title',
             ]);

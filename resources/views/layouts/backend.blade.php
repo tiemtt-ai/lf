@@ -52,9 +52,8 @@
             ]
             : [
                 ['label' => __('lf.LF_navigation_menu_admin_my_account'), 'route' => 'admin.my-account.edit', 'icon' => 'user'],
-                ['label' => __('lf.LF_navigation_menu_admin_users'), 'route' => 'admin.users.index', 'icon' => 'users'],
-                ['label' => __('lf.LF_navigation_menu_admin_organization'), 'route' => 'admin.organization.edit', 'icon' => 'building-2'],
             ];
+        $attendanceMenu = (bool) config('liveclass.attendance_enabled');
         $portalMenu = $isTeacher
             ? [
                 ['label' => __('lf.LF_navigation_menu_teacher_dashboard'), 'route' => 'teacher.dashboard', 'active' => 'teacher.dashboard', 'visible' => true, 'icon' => 'home'],
@@ -63,8 +62,11 @@
                     ['label' => __('lf.LF_navigation_menu_common_course_templates'), 'route' => 'teacher.course-templates.index', 'active' => 'teacher.course-templates.*', 'visible' => true],
                     ['label' => __('lf.LF_navigation_menu_admin_media'), 'route' => 'teacher.media.index', 'active' => 'teacher.media.*', 'visible' => true],
                 ]],
-                ['label' => __('lf.LF_navigation_menu_teacher_cohorts'), 'route' => 'teacher.cohorts.index', 'active' => 'teacher.cohorts.*', 'visible' => true, 'icon' => 'users'],
-                ['label' => __('lf.LF_navigation_menu_teacher_live_sessions'), 'route' => 'teacher.live-sessions.index', 'active' => 'teacher.live-sessions.*', 'visible' => true, 'icon' => 'presentation'],
+                // One "Lớp học" group for the teacher's classes and their live Sessions (Owner 2026-11-17).
+                ['label' => __('lf.LF_navigation_group_teacher_classes'), 'route' => null, 'active' => null, 'visible' => true, 'icon' => 'users', 'children' => [
+                    ['label' => __('lf.LF_navigation_menu_teacher_cohorts'), 'route' => 'teacher.cohorts.index', 'active' => 'teacher.cohorts.*', 'visible' => true],
+                    ['label' => __('lf.LF_navigation_menu_teacher_live_sessions'), 'route' => 'teacher.live-sessions.index', 'active' => 'teacher.live-sessions.*', 'visible' => true],
+                ]],
                 ['label' => __('lf.LF_navigation_group_assessment'), 'route' => null, 'active' => null, 'visible' => true, 'icon' => 'file-check', 'children' => [
                     ['label' => __('lf.LF_navigation_menu_assessment_questions'), 'route' => 'teacher.assessments.questions.index', 'active' => 'teacher.assessments.questions.*', 'visible' => true],
                     ['label' => __('lf.LF_navigation_menu_assessment_passages'), 'route' => 'teacher.assessments.passages.index', 'active' => 'teacher.assessments.passages.*', 'visible' => true],
@@ -83,7 +85,12 @@
                     ['label' => __('lf.LF_navigation_menu_admin_media'), 'route' => 'admin.media.index', 'active' => 'admin.media.*', 'visible' => true],
                 ]],
                 ['label' => __('lf.LF_navigation_menu_admin_course_enrollments'), 'route' => 'admin.course-enrollments.index', 'active' => 'admin.course-enrollments.*', 'visible' => true, 'icon' => 'clipboard-check'],
-                ['label' => __('lf.LF_navigation_menu_admin_course_cohorts'), 'route' => 'admin.course-cohorts.index', 'active' => 'admin.course-cohorts.*', 'visible' => true, 'icon' => 'users'],
+                // With attendance switched on, "Lớp học" is a group: the class list and the attendance policies. Off, the
+                // policies have no effect, so it stays the single entry it was (config/liveclass.php).
+                ['label' => __('lf.LF_navigation_menu_admin_course_cohorts'), 'route' => $attendanceMenu ? null : 'admin.course-cohorts.index', 'active' => $attendanceMenu ? null : 'admin.course-cohorts.*', 'visible' => true, 'icon' => 'users', 'children' => $attendanceMenu ? [
+                    ['label' => __('lf.LF_navigation_menu_admin_cohort_list'), 'route' => 'admin.course-cohorts.index', 'active' => 'admin.course-cohorts.*', 'visible' => true],
+                    ['label' => __('lf.LF_navigation_menu_admin_attendance_policies'), 'route' => 'admin.attendance-policies.index', 'active' => 'admin.attendance-policies.*', 'visible' => true],
+                ] : []],
                 ['label' => __('lf.LF_learning_frameworks'), 'route' => 'admin.learning-frameworks.index', 'active' => 'admin.learning-frameworks.*', 'visible' => true, 'icon' => 'book-marked'],
                 ['label' => __('lf.LF_navigation_group_assessment'), 'route' => null, 'active' => null, 'visible' => true, 'icon' => 'file-check', 'children' => [
                     ['label' => __('lf.LF_navigation_menu_assessment_categories'), 'route' => 'admin.assessments.categories.index', 'active' => 'admin.assessments.categories.*', 'visible' => true],
@@ -93,6 +100,12 @@
                     ['label' => __('lf.LF_navigation_menu_assessment_quizzes'), 'route' => 'admin.assessments.quizzes.index', 'active' => 'admin.assessments.quizzes.*', 'visible' => true],
                     ['label' => __('lf.LF_navigation_menu_assessment_registrations'), 'route' => 'admin.assessments.registrations.index', 'active' => 'admin.assessments.registrations.*', 'visible' => true],
                     ['label' => __('lf.LF_navigation_menu_assessment_results'), 'route' => 'admin.assessments.results.index', 'active' => 'admin.assessments.results.*', 'visible' => true],
+                ]],
+                // Running the centre sits in one group after the teaching modules; the account dropdown keeps only what
+                // belongs to the signed-in person (Owner 2026-11-17).
+                ['label' => __('lf.LF_navigation_group_admin_management'), 'route' => null, 'active' => null, 'visible' => true, 'icon' => 'cog', 'children' => [
+                    ['label' => __('lf.LF_navigation_menu_admin_users'), 'route' => 'admin.users.index', 'active' => 'admin.users.*', 'visible' => true],
+                    ['label' => __('lf.LF_navigation_menu_admin_organization'), 'route' => 'admin.organization.edit', 'active' => 'admin.organization.*', 'visible' => true],
                 ]],
             ];
         $dashboardLabel = $isTeacher

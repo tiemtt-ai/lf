@@ -18,7 +18,9 @@ use App\Http\Controllers\CourseTemplateSectionController;
 use App\Http\Controllers\CourseTemplateTeacherController;
 use App\Http\Controllers\CourseTemplateVersionMediaPreviewController;
 use App\Http\Controllers\LiveClassAttendanceCheckInController;
+use App\Http\Controllers\LiveClassAttendancePolicyController;
 use App\Http\Controllers\LiveClassScheduleController;
+use App\Http\Controllers\LiveClassSessionOperationsController;
 use App\Http\Controllers\LiveClassWhiteboardController;
 use App\Http\Controllers\LiveClassWhiteboardSyncController;
 use Illuminate\Support\Facades\Route;
@@ -53,6 +55,19 @@ if ($registerCategoryManagement ?? true) {
 if ($registerCourseProductRoutes ?? false) {
     Route::get('/course-cohorts', [CourseCohortController::class, 'index'])
         ->name('course-cohorts.index');
+
+    // Attendance policies of the tenant (ADR-0002 § Attendance Policy And Recording Amendment): the second entry of
+    // the "Lớp học" menu group.
+    Route::get('/attendance-policies', [LiveClassAttendancePolicyController::class, 'index'])
+        ->name('attendance-policies.index');
+    Route::post('/attendance-policies', [LiveClassAttendancePolicyController::class, 'store'])
+        ->name('attendance-policies.store');
+    Route::put('/attendance-policies/{policy}', [LiveClassAttendancePolicyController::class, 'update'])
+        ->whereNumber('policy')->name('attendance-policies.update');
+    Route::delete('/attendance-policies/{policy}', [LiveClassAttendancePolicyController::class, 'destroy'])
+        ->whereNumber('policy')->name('attendance-policies.destroy');
+    Route::put('/attendance-policies/{policy}/cohorts', [LiveClassAttendancePolicyController::class, 'apply'])
+        ->whereNumber('policy')->name('attendance-policies.apply');
 
     Route::get('/course-cohorts/create', [CourseCohortController::class, 'create'])
         ->name('course-cohorts.create');
@@ -116,6 +131,10 @@ if ($registerCourseProductRoutes ?? false) {
         ->name('course-cohorts.sessions.update');
     Route::put('/course-cohorts/{cohort}/sessions/{session}/schedule', [CourseCohortOperationController::class, 'updateSchedule'])
         ->name('course-cohorts.sessions.schedule');
+    // The meeting link stays editable after the planned start, until the planned end (ADR-0002 § Teacher Session Operations Amendment).
+    Route::put('/course-cohorts/{cohort}/sessions/{session}/meeting-link', [LiveClassSessionOperationsController::class, 'adminMeetingLink'])
+        ->whereNumber(['cohort', 'session'])->name('course-cohorts.sessions.meeting-link');
+
     Route::put('/course-cohorts/{cohort}/sessions/{session}/teachers', [CourseCohortOperationController::class, 'assignSessionTeachers'])
         ->name('course-cohorts.sessions.teachers');
     Route::post('/course-cohorts/{cohort}/sessions/{session}/start', [CourseCohortOperationController::class, 'startSession'])

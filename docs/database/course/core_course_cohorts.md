@@ -243,6 +243,21 @@ Owner duyệt 2026-11-09 (Đợt B, [LF-Core-LiveClass](../../core/LF-Core-LiveC
   khi mở phòng họp đọc link của lớp.
 * Buổi Tại lớp không dùng link.
 
+### Attendance Policy Amendment — 2026-11-17 (Approved)
+
+[ADR-0002](../../adr/ADR-0002-LiveClass-Foundation.md) § Attendance Policy And Recording
+Amendment. Thêm cột `attendance_policy_id`. Owner duyệt nghiệp vụ và schema ngày
+2026-11-17, cùng
+[core_liveclass_attendance_policies](../liveclass/core_liveclass_attendance_policies.md).
+
+* Lớp chọn một bộ quy tắc điểm danh của chính trung tâm mình. `NULL` nghĩa là dùng bộ
+  mặc định của trung tâm; dòng lớp đang có không cần chuyển dữ liệu.
+* Chỉ quản trị trung tâm đổi được, ở form lớp hoặc ở cửa sổ "Áp dụng cho lớp" của bộ quy
+  tắc. Bỏ chọn là đặt lại `NULL`.
+* Đổi bộ chỉ áp dụng cho kết quả điểm danh ghi sau đó.
+* Code kiểm tra bộ được chọn thuộc cùng `customer_id` trước khi lưu; khoá ngoại kép là
+  lớp chặn thứ hai.
+
 ---
 
 ## Relationships
@@ -493,6 +508,23 @@ NULL
 Link phòng họp mặc định của lớp (Default Meeting Link Amendment 2026-11-09). Chỉ
 URL `http`/`https`; backend kiểm tra, không có CHECK database. `NULL` khi lớp chưa
 có phòng họp chung.
+
+---
+
+### attendance_policy_id
+
+```text
+BIGINT UNSIGNED
+NULL
+```
+
+Bộ quy tắc điểm danh của lớp (Attendance Policy Amendment 2026-11-17, chưa có
+migration `2026_11_17_000200`). `NULL` là dùng bộ mặc định của trung tâm. Khoá ngoại kép
+`(attendance_policy_id, customer_id)` tới `core_liveclass_attendance_policies
+(id, customer_id)`, `ON UPDATE RESTRICT ON DELETE RESTRICT`, nên cơ sở dữ liệu tự chặn lớp
+trỏ sang bộ của trung tâm khác; chỉ mục `(attendance_policy_id, customer_id)`. Khoá kép
+chặt hơn khoá đơn ghi trong bản duyệt ngày 2026-11-17; đổi khi viết migration để giữ cô
+lập tenant ở mức schema.
 
 ---
 

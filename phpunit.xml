@@ -40,5 +40,8 @@
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
+        <!-- Tests state the LiveClass switches themselves; a developer's .env must not change what they see. -->
+        <env name="LIVECLASS_ATTENDANCE_ENABLED" value="false"/>
+        <env name="LIVECLASS_RECORDING_ENABLED" value="false"/>
     </php>
 </phpunit>

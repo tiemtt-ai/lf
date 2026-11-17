@@ -1000,7 +1000,7 @@ class CourseTemplateActivityManagementTest extends TestCase
             ->assertSessionHasErrors('learning_phases');
     }
 
-    public function test_a_live_class_takes_any_session_phase_but_never_anytime(): void
+    public function test_a_live_class_is_never_anytime_and_defaults_to_during_the_session(): void
     {
         [$customerId, $templateId, $sectionId, $lessonId] = $this->createHierarchy();
         $admin = $this->createUser($customerId, 'customer_admin');
@@ -1009,19 +1009,6 @@ class CourseTemplateActivityManagementTest extends TestCase
             'activity_type' => 'live_class',
             'completion_rule' => 'join',
         ] + $overrides);
-        // A lesson holds one live session, so each case starts from an empty lesson.
-        $clear = fn () => DB::table('core_course_template_activities')->where('template_lesson_id', $lessonId)->delete();
-
-        // Any session phase is kept as chosen (e.g. after the session, to watch the replay).
-        $this->actingAs($admin)
-            ->post($url, $live(['title' => 'Live after', 'learning_phases_present' => 1, 'learning_phases' => ['during_session', 'after_session']]))
-            ->assertSessionHasNoErrors();
-        $this->assertDatabaseHas('core_course_template_activities', [
-            'customer_id' => $customerId, 'title' => 'Live after',
-            'available_anytime' => 0, 'available_before_session' => 0, 'available_during_session' => 1, 'available_after_session' => 1,
-        ]);
-        $clear();
-
         // Anytime is refused, alone or with a session phase.
         foreach ([['anytime'], ['anytime', 'during_session']] as $index => $phases) {
             $this->actingAs($admin)
@@ -1037,6 +1024,36 @@ class CourseTemplateActivityManagementTest extends TestCase
         $this->assertDatabaseHas('core_course_template_activities', [
             'title' => 'Live default', 'available_anytime' => 0, 'available_during_session' => 1,
         ]);
+    }
+
+    public function test_a_live_session_belongs_to_during_the_session_only(): void
+    {
+        [$customerId, $templateId, $sectionId, $lessonId] = $this->createHierarchy();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $url = $this->activityCollectionUrl('admin', $templateId, $sectionId, $lessonId);
+        $live = fn (array $phases) => $this->validActivityData([
+            'title' => 'Live', 'activity_type' => 'live_class', 'completion_rule' => 'join',
+            'learning_phases_present' => '1', 'learning_phases' => $phases,
+        ]);
+        $duringOnly = ['learning_phases' => __('lf.LF_course_template_activity_learning_availability_live_class_during_only')];
+
+        foreach ([['before_session', 'during_session'], ['during_session', 'after_session'], ['after_session']] as $phases) {
+            $this->actingAs($admin)->post($url, $live($phases))->assertSessionHasErrors($duringOnly);
+        }
+        $this->assertDatabaseMissing('core_course_template_activities', ['title' => 'Live']);
+
+        $this->actingAs($admin)->post($url, $live(['during_session']))->assertSessionHasNoErrors();
+        $liveId = (int) DB::table('core_course_template_activities')->where('title', 'Live')->value('id');
+        $stored = fn () => (array) DB::table('core_course_template_activities')->where('id', $liveId)->first([
+            'available_anytime', 'available_before_session', 'available_during_session', 'available_after_session',
+        ]);
+        $expected = ['available_anytime' => 0, 'available_before_session' => 0, 'available_during_session' => 1, 'available_after_session' => 0];
+        $this->assertEquals($expected, $stored());
+
+        // An edit cannot widen it either, and the stored phase is kept.
+        $this->actingAs($admin)->put("{$url}/{$liveId}", $live(['before_session', 'during_session', 'after_session']))
+            ->assertSessionHasErrors($duringOnly);
+        $this->assertEquals($expected, $stored());
     }
 
     public function test_a_lesson_holds_one_live_session_and_the_default_link_is_no_longer_entered(): void

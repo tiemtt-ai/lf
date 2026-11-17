@@ -9,6 +9,8 @@ use App\Services\CourseCohortLifecycleService;
 use App\Services\CourseCohortMutationPolicy;
 use App\Services\CourseCohortSessionWindow;
 use App\Services\CourseCohortVersionResolver;
+use App\Services\LiveClassAttendancePolicies;
+use App\Services\LiveClassAttendanceRecorder;
 use App\Services\LiveClassCohortScheduleReadModel;
 use App\Services\LiveClassCohortSessionReadModel;
 use App\Services\LiveClassSessionPolicy;
@@ -22,6 +24,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
@@ -45,7 +48,8 @@ class CourseCohortController extends Controller
         private readonly LiveClassCohortSessionReadModel $sessionReadModel,
         private readonly LiveClassCohortScheduleReadModel $scheduleReadModel,
         private readonly CourseCohortContentTree $contentTree,
-        private readonly CourseCohortContentOrder $contentOrder
+        private readonly CourseCohortContentOrder $contentOrder,
+        private readonly LiveClassAttendanceRecorder $attendanceRecorder,
     ) {}
 
     public function index(Request $request): View
@@ -231,9 +235,14 @@ class CourseCohortController extends Controller
             'sessionWindow' => null,
             'selectedSessionId' => null,
             'attendance' => collect(),
+            'attendanceHistory' => collect(),
+            'attendanceTool' => 'board',
             'recordings' => collect(),
         ], $tabData, [
             'cohort' => $cohort,
+            'attendancePolicies' => DB::table(LiveClassAttendancePolicies::TABLE)->where('customer_id', $customerId)
+                ->orderByRaw('is_default is null')->orderBy('name')
+                ->get(['id', 'name', 'is_default', 'opens_before_minutes', 'late_after_minutes', 'absent_after_minutes']),
             'activeMembershipCount' => $activeMembershipCount,
             'activeTab' => $activeTab,
             'activationIssues' => $cohort->status === 'draft'
@@ -498,33 +507,15 @@ class CourseCohortController extends Controller
         if ($selectedSessionId && ! $sessions->contains('id', $selectedSessionId)) {
             $selectedSessionId = $sessions->first()?->id;
         }
-        $attendance = collect();
-        if ($selectedSessionId) {
-            $attendance = DB::table('core_course_cohort_students as memberships')
-                ->join('core_course_enrollments as enrollments', function ($join) use ($customerId): void {
-                    $join->on('enrollments.id', '=', 'memberships.enrollment_id')
-                        ->where('enrollments.customer_id', '=', $customerId);
-                })
-                ->join('users as students', function ($join) use ($customerId): void {
-                    $join->on('students.id', '=', 'memberships.student_id')
-                        ->where('students.customer_id', '=', $customerId);
-                })
-                ->leftJoin('core_liveclass_attendances as attendance', function ($join) use ($customerId, $selectedSessionId): void {
-                    $join->on('attendance.enrollment_id', '=', 'memberships.enrollment_id')
-                        ->where('attendance.customer_id', '=', $customerId)
-                        ->where('attendance.session_id', '=', $selectedSessionId);
-                })
-                ->where('memberships.customer_id', $customerId)->where('memberships.cohort_id', $id)
-                ->where('memberships.status', 'active')
-                ->orderBy('students.name')
-                ->get([
-                    'enrollments.id as enrollment_id', 'students.name as student_name',
-                    'students.email as student_email', 'attendance.status as attendance_status',
-                    'attendance.attendance_mode', 'attendance.notes', 'attendance.joined_at', 'attendance.attendance_source',
-                ]);
-        }
+        $selected = $selectedSessionId ? $sessions->firstWhere('id', $selectedSessionId) : null;
 
-        return ['sessions' => $sessions, 'selectedSessionId' => $selectedSessionId, 'attendance' => $attendance];
+        return [
+            'sessions' => $sessions,
+            'selectedSessionId' => $selectedSessionId,
+            'attendance' => $selectedSessionId ? $this->attendanceRecorder->roster($customerId, $id, (int) $selectedSessionId) : collect(),
+            'attendanceHistory' => $selectedSessionId ? $this->attendanceRecorder->history($customerId, (int) $selectedSessionId) : collect(),
+            'attendanceTool' => $selected ? LiveClassAttendanceRecorder::tool($selected) : 'board',
+        ];
     }
 
     private function recordingTabData(int $customerId, int $id, Collection $sessions): array
@@ -617,6 +608,12 @@ class CourseCohortController extends Controller
                 'default_meeting_url' => filled($validated['default_meeting_url'] ?? null) ? trim($validated['default_meeting_url']) : null,
                 'updated_at' => now(),
             ];
+            // A form without the field (an older page, an API caller) leaves the Cohort's policy as it is.
+            if (array_key_exists('attendance_policy_id', $validated)) {
+                $policyId = filled($validated['attendance_policy_id']) ? (int) $validated['attendance_policy_id'] : null;
+                $values['attendance_policy_id'] = $policyId !== null && DB::table(LiveClassAttendancePolicies::TABLE)
+                    ->where('customer_id', $customerId)->where('id', $policyId)->where('is_default', 1)->exists() ? null : $policyId;
+            }
 
             if ($locked->product_id && ! $locked->version_id) {
                 $version = $this->versionResolver->resolve($customerId, (int) $locked->product_id, true);
@@ -752,7 +749,7 @@ class CourseCohortController extends Controller
     private function validatedUpdateData(Request $request, int $customerId, object $cohort): array
     {
         $input = array_intersect_key($request->request->all(), array_flip([
-            'name', 'capacity', 'start_date', 'end_date', 'notes', 'default_meeting_url',
+            'name', 'capacity', 'start_date', 'end_date', 'notes', 'default_meeting_url', 'attendance_policy_id',
         ]));
 
         $validator = Validator::make($input, [
@@ -762,7 +759,10 @@ class CourseCohortController extends Controller
             'end_date' => ['nullable', 'required_with:start_date', 'date', 'after_or_equal:start_date'],
             'notes' => ['nullable', 'string'],
             'default_meeting_url' => ['nullable', 'string', 'max:2000', 'url:http,https'],
-        ], [], $this->cohortFieldLabels());
+            // Only a policy of this tenant; the tenant default is stored as NULL so the Cohort keeps following it.
+            'attendance_policy_id' => ['nullable', 'integer', Rule::exists(LiveClassAttendancePolicies::TABLE, 'id')
+                ->where('customer_id', $customerId)],
+        ], ['attendance_policy_id.exists' => __('lf.LF_attendance_policy_cohort_invalid')], $this->cohortFieldLabels());
 
         $validator->after(function ($validator) use ($request, $customerId, $cohort, $input): void {
             foreach (['customer_id', 'version_id', 'teacher_id'] as $managed) {

@@ -13511,6 +13511,15 @@
           "unsigned": false,
           "auto_increment": false,
           "generated": null
+        },
+        {
+          "name": "attendance_policy_id",
+          "type": "bigint",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
         }
       ],
       "primary_key": [
@@ -13592,6 +13601,14 @@
           ],
           "unique": true,
           "type": "btree"
+        },
+        {
+          "columns": [
+            "attendance_policy_id",
+            "customer_id"
+          ],
+          "unique": false,
+          "type": "btree"
         }
       ],
       "foreign_keys": [
@@ -13635,6 +13652,19 @@
           "foreign_table": "core_course_template_versions",
           "foreign_columns": [
             "id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "attendance_policy_id",
+            "customer_id"
+          ],
+          "foreign_table": "core_liveclass_attendance_policies",
+          "foreign_columns": [
+            "id",
+            "customer_id"
           ],
           "on_update": "restrict",
           "on_delete": "restrict"
@@ -25550,6 +25580,538 @@
       "views": []
     },
     {
+      "name": "core_liveclass_attendance_changes",
+      "documentation": "database/liveclass/core_liveclass_attendance_changes.md",
+      "implementation_status": "implemented",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": true,
+          "generated": null
+        },
+        {
+          "name": "customer_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "attendance_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "session_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "enrollment_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "old_status",
+          "type": "varchar",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "new_status",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "old_attendance_mode",
+          "type": "varchar",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "new_attendance_mode",
+          "type": "varchar",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "notes",
+          "type": "varchar",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "change_source",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "changed_by",
+          "type": "bigint",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "attendance_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "changed_by"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "enrollment_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "session_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "attendance_id",
+            "created_at"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "session_id",
+            "created_at"
+          ],
+          "unique": false,
+          "type": "btree"
+        }
+      ],
+      "foreign_keys": [
+        {
+          "columns": [
+            "attendance_id"
+          ],
+          "foreign_table": "core_liveclass_attendances",
+          "foreign_columns": [
+            "id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "changed_by"
+          ],
+          "foreign_table": "users",
+          "foreign_columns": [
+            "id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "customer_id"
+          ],
+          "foreign_table": "saas_customers",
+          "foreign_columns": [
+            "id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "enrollment_id"
+          ],
+          "foreign_table": "core_course_enrollments",
+          "foreign_columns": [
+            "id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "session_id"
+          ],
+          "foreign_table": "core_liveclass_sessions",
+          "foreign_columns": [
+            "id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        }
+      ],
+      "checks": [
+        {
+          "expression": "`old_status` is null or `old_status` in ('registered','present','late','absent','excused')"
+        },
+        {
+          "expression": "`new_status` in ('present','late','absent','excused')"
+        },
+        {
+          "expression": "`old_attendance_mode` is null or `old_attendance_mode` in ('online','offline')"
+        },
+        {
+          "expression": "`new_attendance_mode` is null or `new_attendance_mode` in ('online','offline')"
+        },
+        {
+          "expression": "`change_source` in ('manual','system')"
+        },
+        {
+          "expression": "`change_source` = 'manual' and `changed_by` is not null or `change_source` = 'system' and `changed_by` is null"
+        }
+      ],
+      "triggers": [],
+      "views": []
+    },
+    {
+      "name": "core_liveclass_attendance_policies",
+      "documentation": "database/liveclass/core_liveclass_attendance_policies.md",
+      "implementation_status": "implemented",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": true,
+          "generated": null
+        },
+        {
+          "name": "customer_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "name",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "is_default",
+          "type": "tinyint",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "opens_before_minutes",
+          "type": "smallint",
+          "nullable": false,
+          "default": "15",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "late_after_minutes",
+          "type": "smallint",
+          "nullable": false,
+          "default": "10",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "absent_after_minutes",
+          "type": "smallint",
+          "nullable": true,
+          "default": "30",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "auto_absent_after_minutes",
+          "type": "smallint",
+          "nullable": false,
+          "default": "30",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "count_from_actual_start",
+          "type": "tinyint",
+          "nullable": false,
+          "default": "1",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "offline_recording",
+          "type": "varchar",
+          "nullable": false,
+          "default": "'system'",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "online_recording",
+          "type": "varchar",
+          "nullable": false,
+          "default": "'system'",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "makeup_enabled",
+          "type": "tinyint",
+          "nullable": false,
+          "default": "1",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "makeup_within_days",
+          "type": "smallint",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "teacher_edit_days",
+          "type": "smallint",
+          "nullable": false,
+          "default": "7",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "created_by",
+          "type": "bigint",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "updated_by",
+          "type": "bigint",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "created_by"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "updated_by"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "is_default"
+          ],
+          "unique": true,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "name"
+          ],
+          "unique": true,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "id",
+            "customer_id"
+          ],
+          "unique": true,
+          "type": "btree"
+        }
+      ],
+      "foreign_keys": [
+        {
+          "columns": [
+            "created_by"
+          ],
+          "foreign_table": "users",
+          "foreign_columns": [
+            "id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "customer_id"
+          ],
+          "foreign_table": "saas_customers",
+          "foreign_columns": [
+            "id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "updated_by"
+          ],
+          "foreign_table": "users",
+          "foreign_columns": [
+            "id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        }
+      ],
+      "checks": [
+        {
+          "expression": "`is_default` = 1"
+        },
+        {
+          "expression": "`opens_before_minutes` <= 240"
+        },
+        {
+          "expression": "`late_after_minutes` <= 240"
+        },
+        {
+          "expression": "`absent_after_minutes` is null or `absent_after_minutes` >= `late_after_minutes` and `absent_after_minutes` <= 480"
+        },
+        {
+          "expression": "`auto_absent_after_minutes` <= 1440"
+        },
+        {
+          "expression": "`offline_recording` in ('system','manual')"
+        },
+        {
+          "expression": "`online_recording` in ('system','manual')"
+        },
+        {
+          "expression": "`makeup_within_days` is null or `makeup_within_days` between 1 and 365"
+        },
+        {
+          "expression": "`teacher_edit_days` <= 365"
+        }
+      ],
+      "triggers": [],
+      "views": []
+    },
+    {
       "name": "core_liveclass_attendances",
       "documentation": "database/liveclass/core_liveclass_attendances.md",
       "implementation_status": "implemented",
@@ -27856,6 +28418,15 @@
           "unsigned": false,
           "auto_increment": false,
           "generated": null
+        },
+        {
+          "name": "attendance_tool",
+          "type": "varchar",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
         }
       ],
       "primary_key": [
@@ -28060,6 +28631,9 @@
         },
         {
           "expression": "`session_type` = 'curriculum' and `version_lesson_id` is not null and `version_activity_id` is not null or `session_type` = 'operational' and `version_lesson_id` is null and `version_activity_id` is null"
+        },
+        {
+          "expression": "`attendance_tool` is null or `attendance_tool` in ('board','button')"
         }
       ],
       "triggers": [],
@@ -34105,6 +34679,30 @@
     {
       "name": "saas_subscriptions",
       "documentation": "database/saas-commercial/saas_subscriptions.md",
+      "implementation_status": "not_implemented",
+      "columns": [],
+      "primary_key": [],
+      "indexes": [],
+      "foreign_keys": [],
+      "checks": [],
+      "triggers": [],
+      "views": []
+    },
+    {
+      "name": "saas_teacher_permission_grants",
+      "documentation": "database/saas/saas_teacher_permission_grants.md",
+      "implementation_status": "not_implemented",
+      "columns": [],
+      "primary_key": [],
+      "indexes": [],
+      "foreign_keys": [],
+      "checks": [],
+      "triggers": [],
+      "views": []
+    },
+    {
+      "name": "saas_teacher_permission_groups",
+      "documentation": "database/saas/saas_teacher_permission_groups.md",
       "implementation_status": "not_implemented",
       "columns": [],
       "primary_key": [],

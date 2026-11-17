@@ -20,8 +20,8 @@ return [
     'attendance_enabled' => env('LIVECLASS_ATTENDANCE_ENABLED', false),
     'recording_enabled' => env('LIVECLASS_RECORDING_ENABLED', false),
 
-    // QR check-in (ADR-0002 § Attendance Check-In Amendment). A scan later than
-    // this after the start (the later of planned and actual) is `late`. Stays a
-    // deployment value until the per-tenant setting is approved.
-    'late_after_minutes' => (int) env('LIVECLASS_LATE_AFTER_MINUTES', 10),
+    // Automatic absence (ADR-0002 § Attendance Policy And Recording Amendment, review addition 7): Sessions whose
+    // planned end is before this UTC moment are never marked absent automatically, so turning the feature on does
+    // not invent results for the time before it existed. Immutable deployment cutover; empty turns the sweep off.
+    'auto_absent_from' => env('LIVECLASS_AUTO_ABSENT_FROM', '2026-11-18 00:00:00'),
 ];
