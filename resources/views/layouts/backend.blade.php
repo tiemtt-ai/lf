@@ -88,7 +88,7 @@
                     ['label' => __('lf.LF_navigation_menu_admin_course_products'), 'route' => 'admin.course-products.index', 'active' => 'admin.course-products.*', 'visible' => true],
                     ['label' => __('lf.LF_navigation_menu_admin_media'), 'route' => 'admin.media.index', 'active' => 'admin.media.*', 'visible' => true],
                 ]],
-                ['label' => __('lf.LF_navigation_menu_admin_course_enrollments'), 'route' => 'admin.course-enrollments.index', 'active' => 'admin.course-enrollments.*', 'visible' => true, 'icon' => 'clipboard-check'],
+                ['label' => __('lf.LF_navigation_menu_admin_course_enrollments'), 'route' => 'admin.course-enrollments.index', 'active' => 'admin.course-enrollments.*', 'visible' => true, 'icon' => 'user-plus'],
                 // With attendance switched on, "Lớp học" is a group: the class list and the attendance policies. Off, the
                 // policies have no effect, so it stays the single entry it was (config/liveclass.php).
                 ['label' => __('lf.LF_navigation_menu_admin_course_cohorts'), 'route' => $attendanceMenu ? null : 'admin.course-cohorts.index', 'active' => $attendanceMenu ? null : 'admin.course-cohorts.*', 'visible' => true, 'icon' => 'users', 'children' => $attendanceMenu ? [
