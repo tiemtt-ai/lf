@@ -50,41 +50,33 @@
             @csrf
             @method('PATCH')
 
-            <div @class([
-                'lf-form-group',
-                'student-password-field' => $isStudentVariant,
-            ])>
-                <label class="lf-form-label" for="{{ $name }}-current-password">
-                    {{ __('lf.LF_common_label_current_password') }}
-                </label>
-                <input id="{{ $name }}-current-password" type="password" name="current_password"
-                       @class(['lf-form-control', 'student-password-input' => $isStudentVariant])
-                       autocomplete="current-password" required>
-            </div>
-
-            <div @class([
-                'lf-form-group',
-                'student-password-field' => $isStudentVariant,
-            ])>
-                <label class="lf-form-label" for="{{ $name }}-password">
-                    {{ __('lf.LF_common_label_new_password') }}
-                </label>
-                <input id="{{ $name }}-password" type="password" name="password"
-                       @class(['lf-form-control', 'student-password-input' => $isStudentVariant])
-                       autocomplete="new-password" required>
-            </div>
-
-            <div @class([
-                'lf-form-group',
-                'student-password-field' => $isStudentVariant,
-            ])>
-                <label class="lf-form-label" for="{{ $name }}-password-confirmation">
-                    {{ __('lf.LF_common_label_confirm_new_password') }}
-                </label>
-                <input id="{{ $name }}-password-confirmation" type="password" name="password_confirmation"
-                       @class(['lf-form-control', 'student-password-input' => $isStudentVariant])
-                       autocomplete="new-password" required>
-            </div>
+            @foreach ([
+                ['id' => $name.'-current-password', 'name' => 'current_password', 'label' => 'lf.LF_common_label_current_password', 'autocomplete' => 'current-password'],
+                ['id' => $name.'-password', 'name' => 'password', 'label' => 'lf.LF_common_label_new_password', 'autocomplete' => 'new-password'],
+                ['id' => $name.'-password-confirmation', 'name' => 'password_confirmation', 'label' => 'lf.LF_common_label_confirm_new_password', 'autocomplete' => 'new-password'],
+            ] as $field)
+                <div @class([
+                    'lf-form-group',
+                    'student-password-field' => $isStudentVariant,
+                ])>
+                    <label class="lf-form-label" for="{{ $field['id'] }}">
+                        {{ __($field['label']) }}
+                    </label>
+                    <div class="student-password-control" x-data="{ shown: false }">
+                        <input id="{{ $field['id'] }}" type="password" x-bind:type="shown ? 'text' : 'password'"
+                               name="{{ $field['name'] }}"
+                               @class(['lf-form-control', 'student-password-input' => $isStudentVariant])
+                               autocomplete="{{ $field['autocomplete'] }}" required>
+                        <button type="button" class="student-password-toggle" x-on:click="shown = ! shown"
+                                aria-controls="{{ $field['id'] }}" x-bind:aria-pressed="shown.toString()"
+                                aria-label="{{ __('lf.LF_auth_login_show_password') }}"
+                                x-bind:aria-label="shown ? @js(__('lf.LF_auth_login_hide_password')) : @js(__('lf.LF_auth_login_show_password'))">
+                            <span x-show="! shown"><x-backend-icon name="eye" /></span>
+                            <span x-show="shown" x-cloak><x-backend-icon name="eye-off" /></span>
+                        </button>
+                    </div>
+                </div>
+            @endforeach
 
             <div @class([
                 'lf-modal-actions',

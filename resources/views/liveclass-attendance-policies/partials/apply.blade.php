@@ -76,7 +76,7 @@
                     <template x-for="cohort in visible()" :key="cohort.id">
                         <li>
                             <label class="ui-attendance-policy-apply__row" x-bind:class="{ 'is-locked': locked(cohort) }">
-                                <input type="checkbox" :value="cohort.id" x-model="ticked" x-bind:disabled="locked(cohort)">
+                                <input type="checkbox" :value="cohort.id" x-model.number="ticked" x-bind:disabled="locked(cohort)">
                                 <span class="ui-attendance-policy-apply__copy">
                                     <b x-text="cohort.name"></b>
                                     <small><span x-text="cohort.code || '—'"></span> · <span x-text="cohort.statusLabel"></span></small>

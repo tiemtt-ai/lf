@@ -49,11 +49,11 @@
         @unless ($isEdit)
             <div class="ui-field">
                 <label class="ui-field__label" for="user-form-password"><span class="ui-field__required" aria-hidden="true">*</span>{{ __('lf.LF_common_label_password') }}</label>
-                <input id="user-form-password" type="password" name="password" autocomplete="new-password" required placeholder="{{ __('lf.LF_admin_placeholder_user_password') }}">
+                <x-ui-password-input id="user-form-password" name="password" autocomplete="new-password" required placeholder="{{ __('lf.LF_admin_placeholder_user_password') }}" />
             </div>
             <div class="ui-field">
                 <label class="ui-field__label" for="user-form-password-confirmation"><span class="ui-field__required" aria-hidden="true">*</span>{{ __('lf.LF_common_label_confirm_password') }}</label>
-                <input id="user-form-password-confirmation" type="password" name="password_confirmation" autocomplete="new-password" required placeholder="{{ __('lf.LF_admin_placeholder_user_password_confirmation') }}">
+                <x-ui-password-input id="user-form-password-confirmation" name="password_confirmation" autocomplete="new-password" required placeholder="{{ __('lf.LF_admin_placeholder_user_password_confirmation') }}" />
             </div>
         @endunless
     </div>

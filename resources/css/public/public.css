@@ -225,6 +225,20 @@
     line-height: 1.65;
 }
 
+/* The same card on a tenant website, which defines student colours instead of public ones. */
+.lf-student-page .public-error-page {
+    --public-primary: var(--student-primary);
+    --public-text: var(--student-text);
+    --public-muted: var(--student-text-soft);
+    border-radius: var(--student-radius-md, 14px);
+}
+
+.public-error-actions {
+    margin-top: 28px;
+    display: flex;
+    justify-content: center;
+}
+
 .public-error-divider {
     width: 44px;
     height: 4px;

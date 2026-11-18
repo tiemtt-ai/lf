@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Assessment\AssessmentLearnerController;
 use App\Http\Controllers\CourseCohortController;
 use App\Http\Controllers\CustomerRegisterController;
+use App\Http\Controllers\FallbackController;
 use App\Http\Controllers\LearnerCourseFavoriteController;
 use App\Http\Controllers\LearnerMyLearningController;
 use App\Http\Controllers\LiveClassAttendanceCheckInController;
@@ -18,10 +19,12 @@ use App\Http\Controllers\MediaFileDeliveryController;
 use App\Http\Controllers\PublicSiteController;
 use App\Http\Controllers\RoleProfileController;
 use App\Http\Controllers\TeacherCohortAttendanceController;
-use App\Http\Controllers\TeacherPermissionGroupController;
 use App\Http\Controllers\TeacherCohortJudgmentController;
+use App\Http\Controllers\TeacherPermissionGroupController;
 use App\Http\Controllers\TenantWebsiteController;
 use App\Support\TenantContext;
+use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
+use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -407,3 +410,20 @@ Route::middleware([
     Route::patch('/profile/password', [RoleProfileController::class, 'updateStudentPassword'])
         ->name('student.profile.password.update');
 });
+
+/*
+|--------------------------------------------------------------------------
+| Fallback
+|--------------------------------------------------------------------------
+| Unmatched URLs run through the web middleware and tenant resolution so the
+| 404 page is drawn in the right area: admin/teacher shell, tenant website or
+| LearnForge root (App\Support\ErrorPageArea). Every method is caught so an
+| unknown POST stays 404; the action itself only raises 404/405, hence no CSRF.
+|--------------------------------------------------------------------------
+*/
+
+Route::match(Router::$verbs, '{fallbackPlaceholder}', FallbackController::class)
+    ->where('fallbackPlaceholder', '.*')
+    ->fallback()
+    ->middleware('tenant')
+    ->withoutMiddleware(ValidateCsrfToken::class);

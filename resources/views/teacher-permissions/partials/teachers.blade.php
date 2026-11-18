@@ -66,7 +66,7 @@
                     <template x-for="teacher in visible()" :key="teacher.id">
                         <li>
                             <label class="ui-attendance-policy-apply__row" x-bind:class="{ 'is-locked': locked(teacher) }">
-                                <input type="checkbox" :value="teacher.id" x-model="ticked" x-bind:disabled="locked(teacher)">
+                                <input type="checkbox" :value="teacher.id" x-model.number="ticked" x-bind:disabled="locked(teacher)">
                                 <span class="ui-attendance-policy-apply__copy">
                                     <b x-text="teacher.name"></b>
                                     <small><span x-text="teacher.email"></span><span x-show="teacher.locked"> · {{ __('lf.LF_common_status_common_inactive') }}</span></small>

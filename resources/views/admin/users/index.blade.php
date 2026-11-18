@@ -12,10 +12,11 @@
 @section('content')
 @php
     $hasActiveFilters = $keyword !== '' || $status;
+    // Tab order: Học viên, Giáo viên, Quản trị khách hàng (Owner 2026-11-18).
     $roleLabels = [
-        'customer_admin' => __('lf.LF_common_role_admin_customer_admin'),
-        'teacher' => __('lf.LF_common_role_teacher_teacher'),
         'student' => __('lf.LF_common_role_student_student'),
+        'teacher' => __('lf.LF_common_role_teacher_teacher'),
+        'customer_admin' => __('lf.LF_common_role_admin_customer_admin'),
     ];
     $roleLabel = mb_strtolower($roleLabels[$role]);
     // Only the owner creates admins or touches another admin's account (ADR-0033 D2).
@@ -39,17 +40,16 @@
 
     <x-ui-list-head :title="__('lf.LF_admin_user_index_heading')" :text="__('lf.LF_admin_user_index_description')" />
 
+    {{-- Page tabs sit above the card, like the Template tabs (Owner 2026-11-18). --}}
+    <nav class="course-template-tabs" data-ui-live-region="tabs" aria-label="{{ __('lf.LF_admin_user_role_navigation') }}">
+        @foreach ($roleLabels as $roleKey => $label)
+            <a href="{{ route('admin.users.index', array_filter(['role' => $roleKey, 'keyword' => $keyword, 'status' => $status])) }}"
+               @class(['course-template-tab', 'cursor-interaction', 'is-active' => $role === $roleKey])
+               @if ($role === $roleKey) aria-current="page" @endif>{{ $label }} <span class="ui-tab-count">{{ $roleCounts[$roleKey] ?? 0 }}</span></a>
+        @endforeach
+    </nav>
+
     <section class="mk-section" aria-labelledby="admin-page-title">
-        <nav class="mk-tabs" data-ui-live-region="tabs" aria-label="{{ __('lf.LF_admin_user_role_navigation') }}">
-            @foreach ($roleLabels as $roleKey => $label)
-                <a href="{{ route('admin.users.index', array_filter(['role' => $roleKey, 'keyword' => $keyword, 'status' => $status])) }}"
-                   class="mk-tab cursor-interaction"
-                   @if ($role === $roleKey) aria-current="page" @endif>
-                    {{ $label }}
-                    <span class="mk-tab-count">{{ $roleCounts[$roleKey] ?? 0 }}</span>
-                </a>
-            @endforeach
-        </nav>
 
         <div class="mk-tablebar mk-tablebar--filters">
             <form class="mk-filter-form" method="GET" action="{{ route('admin.users.index') }}" data-ui-live-filter>

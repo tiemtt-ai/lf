@@ -193,7 +193,9 @@ class TeacherPermissionsTest extends TestCase
         $group = $this->group($customerId, 'Trợ giảng', ['class.operate']);
         $shown = [$active->id, $locked->id, $stays->id];
 
-        $this->actingAs($admin)->get(self::URL.'?group_form=teachers&group_id='.$group)->assertOk()->assertSee($active->email);
+        // Ids are numbers in the list; a checkbox gives a string unless x-model casts it, and then Lưu never enables.
+        $this->actingAs($admin)->get(self::URL.'?group_form=teachers&group_id='.$group)->assertOk()->assertSee($active->email)
+            ->assertSee('x-model.number="ticked"', false);
         $this->actingAs($admin)->put(self::URL.'/'.$group.'/teachers', ['shown_teacher_ids' => $shown, 'teacher_ids' => [$active->id, $locked->id]])
             ->assertRedirect(self::URL);
         $this->assertSame($group, (int) DB::table('users')->where('id', $active->id)->value('teacher_permission_group_id'));

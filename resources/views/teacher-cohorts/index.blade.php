@@ -20,6 +20,19 @@
 
     <x-ui-list-head :title="__('lf.LF_navigation_menu_teacher_cohorts')" :text="__('lf.LF_teacher_cohorts_intro')" />
 
+    {{-- Status tabs sit above the card, like the Template tabs (Owner 2026-11-18). --}}
+    @if ($statusCounts->count() > 1)
+        @php $indexUrl = route('teacher.cohorts.index'); @endphp
+        <nav class="course-template-tabs" aria-label="{{ __('lf.LF_teacher_cohorts_filter_label') }}" data-teacher-cohort-filter>
+            <a @class(['course-template-tab', 'cursor-interaction', 'is-active' => $status === null]) href="{{ $indexUrl }}"
+               @if ($status === null) aria-current="page" @endif>{{ __('lf.LF_teacher_cohorts_filter_all') }} <span class="ui-tab-count">{{ $totalCohorts }}</span></a>
+            @foreach ($statusCounts as $tabStatus => $tabCount)
+                <a @class(['course-template-tab', 'cursor-interaction', 'is-active' => $status === $tabStatus]) href="{{ $indexUrl }}?status={{ $tabStatus }}"
+                   @if ($status === $tabStatus) aria-current="page" @endif>{{ __('lf.LF_course_cohort_common_'.$tabStatus) }} <span class="ui-tab-count">{{ $tabCount }}</span></a>
+            @endforeach
+        </nav>
+    @endif
+
     <section class="mk-section" aria-labelledby="teacher-cohorts-list-title">
         <div class="ui-summary-head">
             <h2 id="teacher-cohorts-list-title">{{ __('lf.LF_teacher_cohorts_list_title') }}</h2>
@@ -36,20 +49,6 @@
                 @endif
             </div>
         </div>
-
-        @if ($statusCounts->count() > 1)
-            @php $indexUrl = route('teacher.cohorts.index'); @endphp
-            <nav class="ui-tabs ui-teacher-cohort-filter" aria-label="{{ __('lf.LF_teacher_cohorts_filter_label') }}" data-teacher-cohort-filter>
-                <a class="ui-tabs__tab cursor-interaction" href="{{ $indexUrl }}" @if ($status === null) aria-current="page" @endif>
-                    {{ __('lf.LF_teacher_cohorts_filter_all') }}<span class="ui-tab-count">{{ $totalCohorts }}</span>
-                </a>
-                @foreach ($statusCounts as $tabStatus => $tabCount)
-                    <a class="ui-tabs__tab cursor-interaction" href="{{ $indexUrl }}?status={{ $tabStatus }}" @if ($status === $tabStatus) aria-current="page" @endif>
-                        {{ __('lf.LF_course_cohort_common_'.$tabStatus) }}<span class="ui-tab-count">{{ $tabCount }}</span>
-                    </a>
-                @endforeach
-            </nav>
-        @endif
 
         @forelse ($cohorts as $cohort)
             @php

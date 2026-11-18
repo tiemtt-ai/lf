@@ -145,17 +145,16 @@
 
     <x-ui-list-head :title="__('lf.LF_media_file_index_heading')" :text="__('lf.LF_media_file_index_description')" />
 
+    {{-- Page tabs sit above the card, like the Template tabs (Owner 2026-11-18). --}}
+    <nav class="course-template-tabs" data-ui-live-region="tabs" aria-label="{{ __('lf.LF_media_file_common_type') }}">
+        @foreach ($tabs as $availableTab)
+            <a href="{{ route($routePrefix.'.media.index', array_merge(['tab' => $availableTab], $tabQuery)) }}"
+               @class(['course-template-tab', 'cursor-interaction', 'is-active' => $tab === $availableTab])
+               @if ($tab === $availableTab) aria-current="page" @endif>{{ $tabLabels[$availableTab] }} <span class="ui-tab-count">{{ $tabCounts[$availableTab] ?? 0 }}</span></a>
+        @endforeach
+    </nav>
+
     <section class="mk-section" aria-labelledby="admin-page-title">
-        <nav class="mk-tabs" data-ui-live-region="tabs" aria-label="{{ __('lf.LF_media_file_common_type') }}">
-            @foreach ($tabs as $availableTab)
-                <a href="{{ route($routePrefix.'.media.index', array_merge(['tab' => $availableTab], $tabQuery)) }}"
-                   class="mk-tab cursor-interaction"
-                   @if ($tab === $availableTab) aria-current="page" @endif>
-                    {{ $tabLabels[$availableTab] }}
-                    <span class="mk-tab-count">{{ $tabCounts[$availableTab] ?? 0 }}</span>
-                </a>
-            @endforeach
-        </nav>
 
         <div class="mk-tablebar mk-tablebar--filters ui-media-filters">
         <form class="mk-filter-form" method="GET" action="{{ route($routePrefix.'.media.index') }}" data-ui-live-filter>

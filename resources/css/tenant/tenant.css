@@ -1166,6 +1166,51 @@
     outline: 0;
 }
 
+/* x-modal stacks at z-50; the sticky site header (z 100) would cover the dialog's title and close button. */
+.fixed.z-50:has(.student-password-modal) {
+    z-index: 110;
+}
+
+.student-password-control {
+    position: relative;
+}
+
+.student-password-control .student-password-input {
+    padding-right: 52px;
+}
+
+.student-password-toggle {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    position: absolute;
+    top: 50%;
+    right: 5px;
+    display: grid;
+    place-items: center;
+    border: 0;
+    border-radius: 10px;
+    color: var(--student-text-soft);
+    background: transparent;
+    cursor: pointer;
+    transform: translateY(-50%);
+    transition: color .2s ease, background-color .2s ease;
+}
+
+.student-password-toggle:hover,
+.student-password-toggle:focus-visible {
+    color: var(--student-primary);
+    background: var(--student-primary-wash);
+    outline: 0;
+}
+
+.student-password-toggle span,
+.student-password-toggle svg {
+    display: block;
+    width: 18px;
+    height: 18px;
+}
+
 .student-password-errors {
     margin-bottom: 22px;
     border: 1px solid var(--student-danger);

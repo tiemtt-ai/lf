@@ -174,7 +174,8 @@ class LiveClassAttendancePolicyManagementTest extends TestCase
 
         $page = $this->actingAs($admin)->get(self::URL."?policy_form=apply&policy_id={$evening}")->assertOk()
             ->assertSeeText(__('lf.LF_attendance_policy_apply_title', ['name' => 'Evening']));
-        $page->assertSee('Created meanwhile')->assertDontSee('Archived')->assertDontSee('Foreign');
+        $page->assertSee('Created meanwhile')->assertDontSee('Archived')->assertDontSee('Foreign')
+            ->assertSee('x-model.number="ticked"', false);
 
         // A and C join, B (unticked) returns to the default; a Cohort the form did not show, an archived one and
         // another tenant's are left alone even when their ids are sent.

@@ -68,7 +68,7 @@ class MediaLibraryManagementTest extends TestCase
             ->assertSeeText(__('lf.LF_navigation_menu_admin_media'))
             ->assertSee('data-ui-live-filter', false)
             ->assertSee('data-ui-multiselect', false)
-            ->assertSee('mk-tab-count', false)
+            ->assertSee('ui-tab-count', false)
             ->assertSee('ui-media-table', false)
             ->assertSee('ui-bulk-lock', false)
             ->assertSee('media-library-sequence-number', false)
@@ -577,6 +577,7 @@ class MediaLibraryManagementTest extends TestCase
             'source_fingerprint' => str_repeat('a', 64), 'output_profile' => 'locale=vi;structure=layout',
             'output_profile_hash' => str_repeat('b', 64), 'attempt' => 1,
             'idempotency_key' => 'sweeper-orphan-1', 'correlation_id' => 'sweeper-orphan-1',
+            'completed_at' => now(), 'error_code' => 'corrupt_source',
             'created_at' => now(), 'updated_at' => now(),
         ]);
         $orphan = "tenants/{$customerId}/media/{$mediaFile->id}/regions/".str_repeat('a', 64).'/v1/vi/1-1.png';
@@ -604,6 +605,7 @@ class MediaLibraryManagementTest extends TestCase
             'source_fingerprint' => str_repeat('a', 64), 'output_profile' => 'locale=vi;structure=layout',
             'output_profile_hash' => str_repeat('b', 64), 'attempt' => 1,
             'idempotency_key' => 'sweeper-kept-1', 'correlation_id' => 'sweeper-kept-1',
+            'completed_at' => now(), 'error_code' => 'corrupt_source',
             'created_at' => now(), 'updated_at' => now(),
         ]);
         $kept = "tenants/{$customerId}/media/{$mediaFile->id}/regions/".str_repeat('c', 64).'/v2/vi/1-1.png';
@@ -841,6 +843,7 @@ class MediaLibraryManagementTest extends TestCase
             'source_fingerprint' => str_repeat('a', 64), 'output_profile' => 'locale=vi;structure=layout',
             'output_profile_hash' => str_repeat('c', 64), 'attempt' => 1,
             'idempotency_key' => 'in-flight-0', 'correlation_id' => 'in-flight-0',
+            'completed_at' => now(), 'error_code' => 'corrupt_source',
             'created_at' => now(), 'updated_at' => now(),
         ]);
 
@@ -891,6 +894,8 @@ class MediaLibraryManagementTest extends TestCase
             'source_fingerprint' => str_repeat('a', 64), 'output_profile' => 'locale=vi;structure=layout',
             'output_profile_hash' => str_repeat('c', 64), 'attempt' => 1,
             'idempotency_key' => $name.'-0', 'correlation_id' => $name.'-0',
+            // chk_mpj_failed: a failed job carries completed_at and error_code (SQLite skips the CHECK, MariaDB does not).
+            'completed_at' => now(), 'error_code' => 'corrupt_source',
             'created_at' => now(), 'updated_at' => now(),
         ]);
 

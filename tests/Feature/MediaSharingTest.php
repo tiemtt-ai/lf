@@ -409,7 +409,7 @@ class MediaSharingTest extends TestCase
         // Source filter and the tab counts follow the same visibility.
         $this->actingAs($teachers[0])->get($url.'?source=mine')->assertSeeText('Mine only')->assertDontSeeText('From B direct');
         $this->actingAs($teachers[0])->get($url.'?source=shared')->assertDontSeeText('Mine only')->assertSeeText('From B direct')->assertSeeText('From admin group');
-        $this->assertSame('3', trim($this->xpath($this->actingAs($teachers[0])->get($url)->getContent())->query('//nav[contains(@class,"mk-tabs")]//a[1]/span')->item(0)->textContent));
+        $this->assertSame('3', trim($this->xpath($this->actingAs($teachers[0])->get($url)->getContent())->query('//nav[contains(@class,"course-template-tabs")]//a[1]/span[contains(@class,"ui-tab-count")]')->item(0)->textContent));
 
         // Admins still see everything, and the other teacher sees theirs.
         $this->actingAs($admin)->get('https://tenant-a.localhost/admin/media')->assertSeeText('B private')->assertSeeText('Admin private');

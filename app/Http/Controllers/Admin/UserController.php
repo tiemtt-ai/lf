@@ -90,7 +90,8 @@ class UserController extends Controller
     /** @return array{0: string, 1: string, 2: ?string} role, keyword, status */
     private function listFilters(Request $request): array
     {
-        $role = in_array($request->query('role'), self::ROLES, true) ? $request->query('role') : 'customer_admin';
+        // Without a role the list opens on the first tab, Học viên.
+        $role = in_array($request->query('role'), self::ROLES, true) ? $request->query('role') : 'student';
         $status = in_array($request->query('status'), ['active', 'inactive'], true) ? $request->query('status') : null;
 
         return [$role, trim((string) $request->query('keyword', '')), $status];

@@ -3964,14 +3964,6 @@
 .lf-admin-ui .ui-teacher-cohort__note { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0; color: var(--ui-muted); font-size: 13px; line-height: 18px; }
 .lf-admin-ui .ui-teacher-cohort__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .lf-admin-ui .ui-teacher-cohort__actions form { margin: 0; }
-.lf-admin-ui .ui-teacher-cohorts .ui-summary-head:has(+ .ui-teacher-cohort-filter) { border-bottom: 0; padding-bottom: 4px; }
-.lf-admin-ui .ui-teacher-cohort-filter { margin: 0; padding: 0 22px; overflow-x: auto; scrollbar-width: none; }
-.lf-admin-ui .ui-teacher-cohort-filter .ui-tabs__tab { display: inline-flex; align-items: center; font-size: 14px; text-decoration: none; }
-.lf-admin-ui .ui-teacher-cohort-filter .ui-tabs__tab:hover { color: var(--ui-text); }
-.lf-admin-ui .ui-teacher-cohort-filter .ui-tabs__tab[aria-current=page] { color: var(--ui-primary); }
-.lf-admin-ui .ui-teacher-cohort-filter .ui-tabs__tab[aria-current=page]::after { content: ''; position: absolute; right: 12px; bottom: 0; left: 12px; height: 2px; background: var(--ui-primary); }
-.lf-admin-ui .ui-teacher-cohort-filter .ui-tabs__tab[aria-current=page] .ui-tab-count { background: var(--ui-color-eef0fb); color: var(--ui-primary); }
-@media (max-width: 640px) { .lf-admin-ui .ui-teacher-cohort-filter { padding: 0 8px; } .lf-admin-ui .ui-teacher-cohort-filter .ui-tabs__tab { padding: 8px 8px; } .lf-admin-ui .ui-teacher-cohort-filter .ui-tabs__tab[aria-current=page]::after { right: 6px; left: 6px; } }
 .lf-admin-ui .ui-teacher-cohort-empty { display: grid; gap: 4px; padding: 28px 22px; text-align: center; }
 .lf-admin-ui .ui-teacher-cohort-empty p { margin: 0; }
 @media (max-width: 640px) {
@@ -3996,3 +3988,19 @@
 .lf-admin-ui .ui-teacher-attendance-rules__group h4 { margin: 0 0 2px; color: var(--ui-text); font-size: 14px; font-weight: 600; }
 .lf-admin-ui .ui-teacher-attendance-rules .ui-attendance-policy-view > div { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); }
 .lf-admin-ui .ui-teacher-attendance-rules .ui-attendance-policy-view dd { text-align: left; }
+
+/* Error page (404, 403) inside the admin/teacher shell: one centred card under the hidden page title. */
+.lf-admin-ui.ui-error-page { display: flex; justify-content: center; padding: 24px 0 8px; }
+.lf-admin-ui .ui-error-card { width: min(520px, 100%); margin-top: 0; padding: 36px 32px 32px; text-align: center; }
+.lf-admin-ui .ui-error-card__icon { width: 52px; height: 52px; margin: 0 auto 16px; display: grid; place-items: center; border-radius: 12px; color: var(--ui-primary); background: var(--ui-color-485cc710); }
+.lf-admin-ui .ui-error-card__icon .ui-icon { width: 24px; height: 24px; }
+.lf-admin-ui .ui-error-card__code { margin: 0 0 6px; color: var(--ui-primary); font-size: 13px; font-weight: 600; letter-spacing: .14em; }
+.lf-admin-ui .ui-error-card h2 { margin: 0; }
+.lf-admin-ui .ui-error-card__message { margin: 8px 0 0; color: var(--ui-muted); }
+.lf-admin-ui .ui-error-card__actions { margin-top: 24px; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.lf-admin-ui .ui-error-card__actions .ui-button { white-space: nowrap; }
+
+@media (max-width: 640px) {
+    .lf-admin-ui.ui-error-page { padding-top: 8px; }
+    .lf-admin-ui .ui-error-card { padding: 28px 20px 24px; }
+}

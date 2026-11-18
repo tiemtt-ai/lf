@@ -993,7 +993,7 @@ class BackendLayoutNavigationTest extends TestCase
             ->assertOk()
             ->assertSee('class="lf-admin-ui lf-admin-ui--list"', false)
             ->assertSee('class="page-heading page-heading--hidden"', false)
-            ->assertSee('class="mk-tabs"', false)
+            ->assertSee('class="course-template-tabs" data-ui-live-region="tabs"', false)
             ->assertSee('data-ui-live-filter', false)
             ->assertSee('data-ui-kit-select', false)
             ->assertSee('class="mk-table-scroll"', false)
