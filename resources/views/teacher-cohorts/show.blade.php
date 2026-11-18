@@ -27,6 +27,11 @@
     $thresholds = $levels->map(fn ($level) => ['key' => $level['key'], 'threshold' => (float) $level['threshold']])->values();
 @endphp
 
+@section('vite')
+    @parent
+    @vite(['resources/css/admin/admin-ui-kit.css', 'resources/js/admin-ui-kit-controls.js'])
+@endsection
+
 @section('content')
     <div class="teacher-judgment">
         <div class="teacher-judgment__header">
@@ -58,9 +63,8 @@
                 <ul>@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>
             </div>
         @endif
-        @if (session('success'))
-            <div class="admin-alert admin-alert-success" role="status">{{ session('success') }}</div>
-        @endif
+        {{-- The save result shows as the UI Kit toast, top right under the top bar. --}}
+        <div class="lf-admin-ui ui-page-toasts"><x-ui-list-toasts /></div>
         @if ($cohort->blocked_reason)
             <div class="admin-alert admin-alert-warning" role="status">{{ __('lf.LF_teacher_cohorts_blocked_'.$cohort->blocked_reason) }}</div>
         @endif

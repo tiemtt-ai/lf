@@ -65,10 +65,8 @@
             </p>
         </div>
     @elseif (session('success') && ! in_array($activeTab, ['information', 'structure', 'teachers', 'publish'], true))
-        {{-- These tabs show the message as a toast. --}}
-        <div class="admin-alert admin-alert-success admin-form-card">
-            {{ session('success') }}
-        </div>
+        {{-- Those tabs carry their own toast; the others get the same one, top right under the top bar. --}}
+        <div class="lf-admin-ui ui-page-toasts"><x-ui-list-toasts /></div>
     @endif
 
     @if (session('info'))

@@ -5158,7 +5158,7 @@ return [
     'LF_attendance_policy_add' => 'Thêm bộ quy tắc',
     'LF_attendance_policy_edit' => 'Sửa bộ quy tắc',
     'LF_attendance_policy_save' => 'Lưu thay đổi',
-    'LF_attendance_policy_default_badge' => 'Mặc định',
+    'LF_attendance_policy_default_badge' => 'Bộ mặc định',
     'LF_attendance_policy_default_help' => 'Bộ mặc định của trung tâm: lớp chưa chọn bộ nào dùng bộ này. Không xoá được.',
     'LF_attendance_policy_name_placeholder' => 'Ví dụ: Lớp buổi tối',
     'LF_attendance_policy_col_thresholds' => 'Các mốc',

@@ -3,6 +3,11 @@
 @section('title', __('lf.LF_course_cohort_student_common_title'))
 @section('page_title', __('lf.LF_course_cohort_student_common_title'))
 
+@section('vite')
+    @parent
+    @vite(['resources/css/admin/admin-ui-kit.css', 'resources/js/admin-ui-kit-controls.js'])
+@endsection
+
 @section('content')
     @if ($contextCohort)
         <nav class="admin-form-actions" aria-label="{{ __('lf.LF_course_cohort_common_tabs') }}">
@@ -10,11 +15,8 @@
             <span class="btn btn-primary" aria-current="page">{{ __('lf.LF_course_cohort_tab_students') }}</span>
         </nav>
     @endif
-    @if (session('success'))
-        <div class="admin-alert admin-alert-success">
-            {{ session('success') }}
-        </div>
-    @endif
+    {{-- The save result shows as the UI Kit toast, top right under the top bar. --}}
+    <div class="lf-admin-ui ui-page-toasts"><x-ui-list-toasts /></div>
     @if (session('error'))
         <div class="admin-alert admin-alert-danger" role="alert">
             {{ session('error') }}

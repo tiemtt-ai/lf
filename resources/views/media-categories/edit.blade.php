@@ -3,12 +3,14 @@
 @section('title', __('lf.LF_media_category_common_edit'))
 @section('page_title', __('lf.LF_media_category_common_edit'))
 
+@section('vite')
+    @parent
+    @vite(['resources/css/admin/admin-ui-kit.css', 'resources/js/admin-ui-kit-controls.js'])
+@endsection
+
 @section('content')
-    @if (session('success'))
-        <div class="admin-alert admin-alert-success admin-form-card">
-            {{ session('success') }}
-        </div>
-    @endif
+    {{-- The save result shows as the UI Kit toast, top right under the top bar. --}}
+    <div class="lf-admin-ui ui-page-toasts"><x-ui-list-toasts /></div>
 
     @if ($errors->any())
         <div class="admin-alert admin-alert-danger admin-form-card">

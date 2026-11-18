@@ -55,13 +55,17 @@
                     <div class="ui-search">
                         <input type="search" x-model="keyword" aria-label="{{ __('lf.LF_attendance_policy_apply_search') }}" placeholder="{{ __('lf.LF_attendance_policy_apply_search') }}">
                     </div>
-                    <select x-model="policyFilter" aria-label="{{ __('lf.LF_attendance_policy_apply_filter_policy') }}">
+                    <label class="ui-sr-only" for="attendance-policy-apply-policy">{{ __('lf.LF_attendance_policy_apply_filter_policy') }}</label>
+                    <select id="attendance-policy-apply-policy" x-model="policyFilter" data-ui-kit-select
+                            data-ui-clear-label="{{ __('lf.LF_attendance_policy_apply_filter_policy') }}">
                         <option value="">{{ __('lf.LF_attendance_policy_apply_filter_policy') }}</option>
                         @foreach ($policyOptions as $policyId => $policyName)
                             <option value="{{ $policyId }}">{{ $policyName }}</option>
                         @endforeach
                     </select>
-                    <select x-model="statusFilter" aria-label="{{ __('lf.LF_course_cohort_common_all_statuses') }}">
+                    <label class="ui-sr-only" for="attendance-policy-apply-status">{{ __('lf.LF_course_cohort_common_all_statuses') }}</label>
+                    <select id="attendance-policy-apply-status" x-model="statusFilter" data-ui-kit-select
+                            data-ui-clear-label="{{ __('lf.LF_course_cohort_common_all_statuses') }}">
                         <option value="">{{ __('lf.LF_course_cohort_common_all_statuses') }}</option>
                         @foreach ($cohorts->pluck('status')->unique() as $status)
                             <option value="{{ $status }}">{{ __('lf.LF_course_cohort_common_'.$status) }}</option>

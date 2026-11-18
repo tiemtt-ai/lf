@@ -72,13 +72,14 @@
                             @endif
                         </td>
                         <td class="mk-text-cell" data-label="{{ __('lf.LF_attendance_policy_col_thresholds') }}">
-                            <span>{{ __('lf.LF_attendance_policy_summary_opens', ['value' => $minutes((int) $policy->opens_before_minutes)]) }}</span>
-                            <span class="ui-caption ui-framework-description">{{ __('lf.LF_attendance_policy_summary_late', ['value' => $minutes((int) $policy->late_after_minutes)]) }}
-                                · {{ __('lf.LF_attendance_policy_summary_absent', ['value' => $minutes($policy->absent_after_minutes === null ? null : (int) $policy->absent_after_minutes)]) }}</span>
+                            {{-- The three thresholds weigh the same: one line each, one style. --}}
+                            <span class="ui-attendance-policy-line">{{ __('lf.LF_attendance_policy_summary_opens', ['value' => $minutes((int) $policy->opens_before_minutes)]) }}</span>
+                            <span class="ui-attendance-policy-line">{{ __('lf.LF_attendance_policy_summary_late', ['value' => $minutes((int) $policy->late_after_minutes)]) }}</span>
+                            <span class="ui-attendance-policy-line">{{ __('lf.LF_attendance_policy_summary_absent', ['value' => $minutes($policy->absent_after_minutes === null ? null : (int) $policy->absent_after_minutes)]) }}</span>
                         </td>
                         <td class="mk-text-cell" data-label="{{ __('lf.LF_attendance_policy_col_recording') }}">
-                            <span>{{ __('lf.LF_attendance_policy_summary_offline', ['value' => __('lf.LF_attendance_policy_recording_'.$policy->offline_recording)]) }}</span>
-                            <span class="ui-caption ui-framework-description">{{ __('lf.LF_attendance_policy_summary_online', ['value' => __('lf.LF_attendance_policy_recording_'.$policy->online_recording)]) }}</span>
+                            <span class="ui-attendance-policy-line">{{ __('lf.LF_attendance_policy_summary_offline', ['value' => __('lf.LF_attendance_policy_recording_'.$policy->offline_recording)]) }}</span>
+                            <span class="ui-attendance-policy-line">{{ __('lf.LF_attendance_policy_summary_online', ['value' => __('lf.LF_attendance_policy_recording_'.$policy->online_recording)]) }}</span>
                         </td>
                         <td class="ux-action-cell" data-label="{{ __('lf.LF_attendance_policy_col_cohorts') }}">{{ $policy->cohort_count }}</td>
                         <td class="ux-action-cell" data-label="{{ __('lf.table_actions') }}">

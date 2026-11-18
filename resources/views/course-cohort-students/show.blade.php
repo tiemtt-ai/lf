@@ -3,6 +3,11 @@
 @section('title', __('lf.LF_course_cohort_student_common_detail'))
 @section('page_title', __('lf.LF_course_cohort_student_common_detail'))
 
+@section('vite')
+    @parent
+    @vite(['resources/css/admin/admin-ui-kit.css', 'resources/js/admin-ui-kit-controls.js'])
+@endsection
+
 @section('content')
     @php
         $formatDateTime = static fn ($value): string => $value
@@ -11,11 +16,8 @@
         $returnUrl = route('admin.course-cohorts.show', ['id' => $membership->cohort_id, 'tab' => 'students']);
     @endphp
 
-    @if (session('success'))
-        <div class="admin-alert admin-alert-success">
-            {{ session('success') }}
-        </div>
-    @endif
+    {{-- The save result shows as the UI Kit toast, top right under the top bar. --}}
+    <div class="lf-admin-ui ui-page-toasts"><x-ui-list-toasts /></div>
 
     <div class="cohort-detail-toolbar course-cohort-student-detail-toolbar">
         <a class="cohort-detail-back" href="{{ $returnUrl }}">

@@ -5158,7 +5158,7 @@ return [
     'LF_attendance_policy_add' => 'Add policy',
     'LF_attendance_policy_edit' => 'Edit policy',
     'LF_attendance_policy_save' => 'Save changes',
-    'LF_attendance_policy_default_badge' => 'Default',
+    'LF_attendance_policy_default_badge' => 'Default policy',
     'LF_attendance_policy_default_help' => 'The centre default: a class without a policy uses it. It cannot be deleted.',
     'LF_attendance_policy_name_placeholder' => 'For example: Evening classes',
     'LF_attendance_policy_col_thresholds' => 'Thresholds',
