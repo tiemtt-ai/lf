@@ -6,7 +6,7 @@ Document Status: Approved
 
 Implementation Status: Unknown
 
-Last Updated: 2026-08-09
+Last Updated: 2026-11-18
 
 Document Path: tech/LF-Tech-Architecture.md
 
@@ -689,6 +689,29 @@ student
 
 Personalized Tenant Website
 ```
+
+---
+
+# Error Pages And Fallback Route — 2026-11-18 (Owner, Implemented)
+
+Trang 404 và 403 được vẽ trong khu của người xem (`App\Support\ErrorPageArea`,
+`resources/views/errors/layout.blade.php`):
+
+| Khu | Khi nào | Giao diện |
+| --- | --- | --- |
+| `backend` | Quản trị hoặc giáo viên còn hoạt động của chính tenant, đường dẫn `/admin…` hoặc `/teacher…` | Khung quản trị có menu theo vai trò; nút Quay lại và Về Bảng điều khiển |
+| `tenant` | Mọi người còn lại trên host của tenant (khách, học viên, nhân sự ở trang website, tài khoản của tenant khác) | Website của tenant; nút Quay về trang chủ; không có liên kết sang LearnForge |
+| `root` | Không resolve được tenant (root domain hoặc subdomain không tồn tại) | Trang công khai LearnForge, ép mọi link về root domain như trước |
+
+Đường dẫn không khớp route nào đi vào route dự phòng cuối `routes/web.php`
+(`FallbackController`, middleware `web` + `tenant`, mọi method, bỏ CSRF vì action
+chỉ trả 404/405). Nhờ vậy trang lỗi có session và `TenantContext`.
+
+* Laravel khớp route dự phòng trước khi xét method khác, nên action tự kiểm lại:
+  path có ở method khác thì trả 405 (OPTIONS trả 200 kèm `Allow`), không thì 404.
+  `GET /logout` vẫn là 405.
+* Không thêm route nào sau route dự phòng; route mới đặt phía trên nó.
+* Test: `tests/Feature/ErrorPageAreaTest.php`.
 
 ---
 

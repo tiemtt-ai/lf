@@ -1,6 +1,6 @@
 # LearnForge Admin Form And List Design Standard
 
-Version: 1.8
+Version: 1.9
 
 Document Status: Approved
 
@@ -8,7 +8,7 @@ Implementation Status: Unknown
 
 Scope: LF Admin Create/Edit Forms And List/Index Pages
 
-Last Updated: 2026-10-19
+Last Updated: 2026-11-18
 
 Document Path: tech/LF-Admin-Form-Design-Standard.md
 
@@ -1119,6 +1119,48 @@ tạo biến thể nút chữ hoặc thông báo thành công làm thay đổi c
 - [ ] Clipboard failure không bị báo thành công.
 - [ ] Keyboard focus và visible focus đạt yêu cầu.
 - [ ] Targeted tests, frontend build và `git diff --check` pass.
+
+---
+
+# 28. UI Kit Shell Conventions — Owner 2026-11-18
+
+Áp dụng cho mọi màn hình Admin/Giáo viên khi chuyển sang UI Kit.
+
+## 28.1 Save Feedback Toast
+
+* Báo lưu thành công **MUST** dùng toast UI Kit (`x-ui-list-toasts`, sự kiện
+  `ui-toast-show`), góc trên bên phải, ngay dưới thanh menu trên: `top: 74px`
+  desktop, `61px` ở màn ≤ 680px. Toast **MUST NOT** che ô ngôn ngữ và tài khoản.
+* **MUST NOT** dùng khung `admin-alert-success` trong trang. Trang chưa chuyển hết
+  sang UI Kit bọc `<div class="lf-admin-ui ui-page-toasts"><x-ui-list-toasts /></div>`
+  và nạp `admin-ui-kit.css` + `admin-ui-kit-controls.js`.
+
+## 28.2 Page Tabs
+
+* Tab của trang, kể cả tab lọc có số đếm, **MUST** dùng một kiểu như tab Template:
+  `nav.course-template-tabs` + `a.course-template-tab.is-active` (`aria-current="page"`),
+  đặt ngoài khung trắng, ngay dưới tiêu đề trang. Số đếm là `span.ui-tab-count`.
+* Tab lọc của danh sách lọc trực tiếp giữ `data-ui-live-region="tabs"` trên `nav`.
+* Tab con trong popup hoặc trong một khối nội dung giữ kiểu riêng.
+
+## 28.3 Password Fields
+
+* Ô mật khẩu trong Admin/Giáo viên **MUST** dùng `x-ui-password-input` (nút mắt hiện/ẩn,
+  `aria-pressed`, nhãn đa ngôn ngữ `LF_auth_login_show_password` /
+  `LF_auth_login_hide_password`). Trang học viên dùng `student-password-toggle` cùng hành vi.
+
+## 28.4 Error Pages
+
+* 404/403 trong `/admin`, `/teacher` hiện trong khung quản trị: thẻ `ui-error-card` ở giữa,
+  nút Quay lại và Về Bảng điều khiển. Quy tắc chọn khu xem
+  [LF-Tech-Architecture](LF-Tech-Architecture.md#error-pages-and-fallback-route--2026-11-18-owner-implemented).
+
+## 28.5 Alpine Checkbox Lists Of Ids
+
+* Danh sách checkbox gắn `x-model` vào mảng id dạng số **MUST** dùng `x-model.number`.
+  Checkbox luôn trả chuỗi; trộn `"3"` với `3` làm `includes()` sai, tóm tắt thay đổi
+  báo "Chưa có thay đổi" và nút Lưu không bật (lỗi đã gặp 2026-11-18 ở popup Giáo viên
+  của nhóm và Áp dụng cho lớp). Nếu giữ chuỗi thì giữ chuỗi ở cả dữ liệu gốc.
 
 ---
 

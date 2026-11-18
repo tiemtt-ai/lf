@@ -6,7 +6,7 @@ Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-11-17
+Last Updated: 2026-11-18
 
 Document Path: core/LF-Core-LiveClass.md
 
@@ -974,7 +974,10 @@ Nội dung vẫn nằm ở Template; lớp chỉ đọc.
   chối; giáo viên ghi tay. Bộ đặt "giáo viên ghi tay" cho buổi tại lớp thì bảng không
   hiện mã. Mã vẫn đổi mỗi 30 giây.
 * Thiết lập học bù được lưu nhưng chưa có hiệu lực cho tới khi nghiệp vụ học bù được
-  duyệt. Form vẫn hiện chúng, kèm ghi chú "chưa áp dụng" (Owner quyết 2026-11-17).
+  duyệt. Từ 2026-11-18 form không hiện chúng nữa; giá trị đang có đi theo input ẩn nên
+  sửa bộ không làm mất (Owner quyết 2026-11-18, thay quyết định hiện kèm ghi chú
+  "chưa áp dụng" ngày 2026-11-17).
+* Danh sách bộ quy tắc gắn nhãn "Bộ mặc định" cho bộ mặc định thay vì chỉ ẩn nút xoá.
 
 **Vào phòng họp** (buổi `online`, và người ở xa của buổi `hybrid`)
 

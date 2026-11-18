@@ -6,7 +6,7 @@ Document Status: Approved
 
 Implementation Status: Unknown
 
-Last Updated: 2026-11-17
+Last Updated: 2026-11-18
 
 Document Path: core/LF-Core-User.md
 
@@ -778,7 +778,17 @@ nguyên.
   dùng, Tổ chức, Phân quyền, Sản phẩm, Ghi danh, Quy tắc điểm danh.
 
 **Cấu hình trên giao diện:** chỉ tập quyền của nhóm và nhóm của giáo viên. Quy tắc giữa các
-quản trị và hai danh sách "luôn có", "không bao giờ cấp" là cố định.
+quản trị và hai danh sách "luôn có", "không bao giờ cấp" là cố định. Trang Phân quyền gắn
+nhãn "Nhóm mặc định" cho nhóm mặc định (không xoá được).
+
+# Admin User List — 2026-11-18 (Owner, Implemented)
+
+* `/admin/users` mở ở tab Học viên khi URL không có `role`. Thứ tự tab: Học viên, Giáo
+  viên, Quản trị; mỗi tab có số đếm.
+* Dòng tài khoản quản trị mà người đang xem không được quản lý (quản trị thường xem quản
+  trị khác, theo ADR-0033) chỉ có xem, không có sửa, khoá, đặt lại mật khẩu.
+* Ô mật khẩu ở popup tạo người dùng, đặt lại mật khẩu và đổi mật khẩu (quản trị, giáo viên,
+  học viên) có nút hiện/ẩn mật khẩu.
 
 ---
 
