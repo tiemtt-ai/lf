@@ -5315,7 +5315,7 @@ return [
     'LF_teacher_permission_group_save' => 'Lưu nhóm quyền',
     'LF_teacher_permission_group_field_name' => 'Tên nhóm',
     'LF_teacher_permission_group_name_placeholder' => 'Ví dụ: Trợ giảng',
-    'LF_teacher_permission_group_default_badge' => 'Mặc định',
+    'LF_teacher_permission_group_default_badge' => 'Nhóm mặc định',
     'LF_teacher_permission_group_default_help' => 'Nhóm của mọi giáo viên chưa được xếp nhóm. Sửa được quyền, không xoá được.',
     'LF_teacher_permission_col_permissions' => 'Quyền',
     'LF_teacher_permission_col_teachers' => 'Giáo viên',

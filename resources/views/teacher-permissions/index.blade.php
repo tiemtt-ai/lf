@@ -63,7 +63,7 @@
                         <td class="mk-sequence" data-label="{{ __('lf.table_no') }}">{{ $loop->iteration }}</td>
                         <td class="mk-text-cell" data-label="{{ __('lf.LF_teacher_permission_group_field_name') }}">
                             <span class="mk-name-text">{{ $group->name }}</span>
-                            @if ($group->is_default && mb_strtolower(trim($group->name)) !== mb_strtolower(__('lf.LF_teacher_permission_group_default_badge')))
+                            @if ($group->is_default)
                                 <span class="ui-status ui-status--active">{{ __('lf.LF_teacher_permission_group_default_badge') }}</span>
                             @endif
                         </td>

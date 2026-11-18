@@ -5315,7 +5315,7 @@ return [
     'LF_teacher_permission_group_save' => 'Save permission group',
     'LF_teacher_permission_group_field_name' => 'Group name',
     'LF_teacher_permission_group_name_placeholder' => 'For example: Teaching assistant',
-    'LF_teacher_permission_group_default_badge' => 'Default',
+    'LF_teacher_permission_group_default_badge' => 'Default group',
     'LF_teacher_permission_group_default_help' => 'The group of every teacher not placed in a group. Its permissions can change; it cannot be deleted.',
     'LF_teacher_permission_col_permissions' => 'Permissions',
     'LF_teacher_permission_col_teachers' => 'Teachers',
