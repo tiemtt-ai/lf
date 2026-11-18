@@ -2682,7 +2682,8 @@ class CourseCohortManagementTest extends TestCase
         $this->actingAs($admin)
             ->get("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=sessions")
             ->assertOk();
-        $queries = collect(DB::getQueryLog())->pluck('query');
+        // Identifier quotes differ by driver ("table" on SQLite, `table` on MariaDB): compare without them.
+        $queries = collect(DB::getQueryLog())->pluck('query')->map(fn (string $sql): string => str_replace(['"', '`'], '', $sql));
         DB::disableQueryLog();
 
         $count = fn (string $table): int => $queries
@@ -2693,7 +2694,7 @@ class CourseCohortManagementTest extends TestCase
         $this->assertSame(1, $count('core_liveclass_schedule_exclusions'),
             'Exclusion phải được nạp gộp một lần cho mọi Schedule.');
         $this->assertSame(1, $queries->filter(
-            fn (string $sql): bool => str_contains($sql, 'from "core_liveclass_sessions" as "sessions"')
+            fn (string $sql): bool => str_contains($sql, 'from core_liveclass_sessions as sessions')
         )->count(), 'Danh sách Session chỉ được nạp một lần trong mỗi request.');
     }
 
@@ -2866,10 +2867,11 @@ class CourseCohortManagementTest extends TestCase
         // A teacher cannot name another primary teacher, nor skip the operating period.
         $this->actingAs($manager)->post($host.'/teacher/course-cohorts', $this->validCohortData(['end_date' => null]))
             ->assertSessionHasErrors('end_date');
-        $this->actingAs($manager)->post($host.'/teacher/course-cohorts', $this->validCohortData(['name' => 'Lớp của giáo viên']))
-            ->assertRedirect($host.'/teacher/course-cohorts/1')
+        $created = $this->actingAs($manager)->post($host.'/teacher/course-cohorts', $this->validCohortData(['name' => 'Lớp của giáo viên']));
+        // Ids are not reset between tests on MariaDB: read the new class's id instead of assuming 1.
+        $cohortId = (int) DB::table('core_course_cohorts')->where('customer_id', $customerId)->where('name', 'Lớp của giáo viên')->value('id');
+        $created->assertRedirect($host.'/teacher/course-cohorts/'.$cohortId)
             ->assertSessionHas('success', __('lf.LF_course_cohort_common_created_teacher'));
-        $cohortId = 1;
         $this->assertDatabaseHas('core_course_cohort_teachers', [
             'customer_id' => $customerId, 'cohort_id' => $cohortId, 'teacher_id' => $manager->id, 'role' => 'primary_teacher',
             'status' => 'active', 'assigned_from' => '2026-08-01', 'assigned_to' => '2026-08-31', 'created_by' => $manager->id,
@@ -3304,6 +3306,35 @@ class CourseCohortManagementTest extends TestCase
         $this->assertSame($moved->format('Y-m-d H:i:s'), Carbon::parse($session->scheduled_start_at)->format('Y-m-d H:i:s'));
         $this->assertDatabaseHas('core_liveclass_session_schedule_origins', ['session_id' => $session->id, 'source_local_date' => $date->toDateString()]);
         $this->assertDatabaseHas('core_liveclass_session_schedule_changes', ['session_id' => $session->id, 'reason' => 'Holiday']);
+    }
+
+    public function test_a_refused_move_of_a_proposed_date_gives_back_the_time_the_user_typed(): void
+    {
+        Carbon::setTestNow('2026-08-04 12:00:00');
+        [$customerId, $admin, $cohortId] = $this->lifecycleCohort();
+        $date = now()->addWeek()->startOfDay();
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/schedules", $this->validScheduleData([
+            'starts_on' => $date->toDateString(), 'ends_on' => $date->toDateString(),
+            'slots' => [['weekday' => $date->isoWeekday(), 'start_time' => '09:00', 'end_time' => '10:00']],
+        ]))->assertSessionHasNoErrors();
+        $schedule = DB::table('core_liveclass_schedules')->where('cohort_id', $cohortId)->first();
+        $slot = DB::table('core_liveclass_schedule_slots')->where('schedule_id', $schedule->id)->first();
+        $sessions = "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/sessions";
+        $taken = $date->copy()->addDay()->setTime(14, 0);
+        $this->actingAs($admin)->post($sessions, $this->operationalPayload(
+            'Already there', $taken->format('Y-m-d H:i:s'), $taken->copy()->addHour()->format('Y-m-d H:i:s')
+        ))->assertSessionHasNoErrors();
+
+        // The moved time overlaps "Already there": the save is refused and the form must reopen on 14:30, the time
+        // typed, not on the Schedule's 09:00 the occurrence came from.
+        $typed = $taken->copy()->setTime(14, 30)->format('Y-m-d\TH:i');
+        $this->actingAs($admin)->from($sessions)->post($sessions, $this->operationalPayload(
+            'From proposal', $typed, $taken->copy()->setTime(15, 30)->format('Y-m-d\TH:i')
+        ) + [
+            'schedule_id' => $schedule->id, 'schedule_slot_id' => $slot->id, 'source_local_date' => $date->toDateString(),
+            'apply_schedule' => '1', 'reason' => 'Holiday', 'form_context' => 'session',
+        ])->assertSessionHasErrors()->assertSessionHasInput('scheduled_start_at', $typed)->assertSessionHasInput('apply_schedule', '1');
+        $this->assertDatabaseMissing('core_liveclass_sessions', ['cohort_id' => $cohortId, 'title' => 'From proposal']);
     }
 
     /** @return array<int, array{lesson: int, activity: int}> direct Lessons, each with one live Activity */
@@ -5406,7 +5437,7 @@ class CourseCohortManagementTest extends TestCase
         // Another request shortens the period between the first read and the lock.
         $shortened = false;
         DB::listen(function ($query) use (&$shortened, $cohortId): void {
-            if (! $shortened && str_starts_with($query->sql, 'select * from "core_course_cohorts"')) {
+            if (! $shortened && str_starts_with(str_replace(['"', '`'], '', $query->sql), 'select * from core_course_cohorts ')) {
                 $shortened = true;
                 DB::table('core_course_cohorts')->where('id', $cohortId)->update(['end_date' => '2026-08-15']);
             }

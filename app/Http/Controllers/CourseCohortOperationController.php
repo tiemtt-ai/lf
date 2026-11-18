@@ -406,13 +406,14 @@ class CourseCohortOperationController extends Controller
             if ($request->boolean('apply_schedule')) {
                 $movedInterval = $this->requestedInterval($request);
             }
-            $request->merge([
-                'scheduled_start_at' => $origin['scheduled_start_at'],
-                'scheduled_end_at' => $origin['scheduled_end_at'],
-            ]);
         }
 
-        $validated = $request->validate($this->sessionRules($customerId, (int) $cohortRow->version_id));
+        // The occurrence's own time is validated, but the request keeps what the user typed: a refused save
+        // flashes that back, so the form reopens on the date and time they chose (not on the Schedule's).
+        $validated = validator(array_merge($request->all(), $origin ? [
+            'scheduled_start_at' => $origin['scheduled_start_at'],
+            'scheduled_end_at' => $origin['scheduled_end_at'],
+        ] : []), $this->sessionRules($customerId, (int) $cohortRow->version_id))->validate();
         // A date opened on the programme takes its name from the Template; its link may be the session's own (empty falls back to the Template's).
         if ($request->filled('opened_version_activity_id') && $validated['session_type'] === 'curriculum') {
             $validated['title'] = (string) DB::table('core_course_template_version_lessons')->where('customer_id', $customerId)

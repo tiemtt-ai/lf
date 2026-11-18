@@ -236,6 +236,8 @@ class AssessmentResultGradingTest extends TestCase
             ->assertSee('ui-status--danger">'.__('lf.LF_assessment_result_failed'), false)
             ->assertSeeText(__('lf.LF_assessment_result_provisional_short'));
         $this->assertMatchesRegularExpression('/ui-result-tabbar.*ui-result-tabs.*results\/export.*mk-section/s', $page->getContent());
+        // Page tabs share the Template tab style, the count in ui-tab-count (Owner 2026-11-18).
+        $page->assertSee('class="course-template-tabs ui-result-tabs"', false)->assertSee('ui-tab-count', false)->assertDontSee('ui-result-tab__count', false);
     }
 
     // ---- fixtures ----

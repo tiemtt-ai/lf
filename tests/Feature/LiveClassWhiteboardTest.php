@@ -44,8 +44,8 @@ class LiveClassWhiteboardTest extends TestCase
             'app.tenant_scheme' => 'https',
         ]);
 
-        // 16:00 on 2026-07-04 in Asia/Ho_Chi_Minh.
-        Carbon::setTestNow('2026-07-04 09:00:00');
+        // 16:00 on 2026-07-04 in Asia/Ho_Chi_Minh: inside the 15:00–17:00 Sessions these tests start and end.
+        Carbon::setTestNow(Carbon::parse('2026-07-04 16:00:00', 'Asia/Ho_Chi_Minh'));
     }
 
     protected function tearDown(): void
@@ -90,6 +90,17 @@ class LiveClassWhiteboardTest extends TestCase
             ->assertDontSee('Mine yesterday')->assertDontSee('Mine completed')->assertDontSee('Someone else')
             ->assertSee(route('teacher.live-sessions.start', $mine), false);
         $this->assertSame(1, substr_count($response->getContent(), '/start'));
+
+        // A missed Session and a taught one each have their own tab (Owner 2026-11-18); another teacher's stay out.
+        $response->assertSee('class="course-template-tabs"', false);
+        $this->actingAs($setup['teacher'])->get(self::HOST.'/teacher/live-sessions?tab=overdue')->assertOk()
+            ->assertSee('Mine yesterday')->assertDontSee('Mine today')->assertDontSee('Mine completed')->assertDontSee('Someone else')
+            ->assertDontSee('/start', false);
+        $this->actingAs($setup['teacher'])->get(self::HOST.'/teacher/live-sessions?tab=taught')->assertOk()
+            ->assertSee('Mine completed')->assertDontSee('Mine yesterday')->assertDontSee('Mine today')
+            ->assertSee('mk-table-foot', false)
+            ->assertDontSee('/start', false)->assertDontSee('/complete', false);
+        $this->actingAs($setup['teacher'])->get(self::HOST.'/teacher/live-sessions?tab[]=taught')->assertOk()->assertSee('Mine today');
     }
 
     public function test_teacher_starts_their_session_on_its_day_and_lands_on_the_board(): void
@@ -119,6 +130,35 @@ class LiveClassWhiteboardTest extends TestCase
             ->assertSessionHasErrors('lifecycle');
 
         $this->assertSame('scheduled', DB::table('core_liveclass_sessions')->where('id', $tomorrow)->value('status'));
+    }
+
+    public function test_start_opens_with_the_attendance_entry_and_the_end_with_the_planned_start(): void
+    {
+        $setup = $this->setupClass();
+        // Now is 16:00. The default policy opens 15 minutes early: 18:00 opens at 17:45, 16:10 opened at 15:55.
+        $later = $this->liveSession($setup, 'Later today', '2026-07-04 18:00:00', '2026-07-04 19:00:00', teacher: $setup['teacher']);
+        $soon = $this->liveSession($setup, 'Soon', '2026-07-04 16:10:00', '2026-07-04 17:10:00', teacher: $setup['teacher']);
+        $list = self::HOST.'/teacher/live-sessions';
+
+        $page = $this->actingAs($setup['teacher'])->get($list)->assertOk()
+            ->assertSee(route('teacher.live-sessions.start', $soon), false)
+            ->assertDontSee(route('teacher.live-sessions.start', $later), false)
+            ->assertSeeText(__('lf.LF_liveclass_whiteboard_start_from', ['time' => '17:45']));
+
+        $this->actingAs($setup['teacher'])->from($list)->post("{$list}/{$later}/start")
+            ->assertSessionHasErrors(['lifecycle' => __('lf.LF_liveclass_whiteboard_start_too_early', ['time' => '17:45'])]);
+        $this->assertSame('scheduled', DB::table('core_liveclass_sessions')->where('id', $later)->value('status'));
+
+        // Started in the early window, the Session cannot be ended before 16:10; from then on it can.
+        $this->actingAs($setup['teacher'])->post("{$list}/{$soon}/start")->assertRedirect(route('teacher.live-sessions.board', $soon));
+        $this->actingAs($setup['teacher'])->get($list)->assertDontSee(route('teacher.live-sessions.complete', $soon), false);
+        $this->actingAs($setup['teacher'])->from($list)->post("{$list}/{$soon}/complete")
+            ->assertSessionHasErrors(['lifecycle' => __('lf.LF_liveclass_whiteboard_complete_too_early', ['time' => '16:10'])]);
+        $this->assertSame('live', DB::table('core_liveclass_sessions')->where('id', $soon)->value('status'));
+
+        Carbon::setTestNow(Carbon::parse('2026-07-04 16:10:00', 'Asia/Ho_Chi_Minh'));
+        $this->actingAs($setup['teacher'])->post("{$list}/{$soon}/complete")->assertRedirect(route('teacher.live-sessions.index'));
+        $this->assertSame('completed', DB::table('core_liveclass_sessions')->where('id', $soon)->value('status'));
     }
 
     public function test_only_an_active_assigned_teacher_within_the_window_may_act(): void
@@ -272,11 +312,11 @@ class LiveClassWhiteboardTest extends TestCase
         $file = DB::table('media_files')->where('id', $m['videoMedia'])->first();
         $orchestrator = app(MediaProcessingOrchestrator::class);
         $job = DB::table('media_processing_jobs')->insertGetId([
-            'customer_id' => $setup['customer'], 'media_file_id' => $m['videoMedia'], 'job_type' => 'transcode', 'status' => 'ready',
+            'customer_id' => $setup['customer'], 'media_file_id' => $m['videoMedia'], 'job_type' => 'transcode', 'status' => 'processing',
             'attempt' => 1, 'idempotency_key' => 'board-video-'.$m['videoMedia'], 'correlation_id' => (string) Str::uuid(),
             'source_fingerprint' => $orchestrator->sourceFingerprint($file), 'processing_version' => 'ffmpeg-faststart-v1',
             'output_profile' => 'preset=faststart', 'output_profile_hash' => app(MediaOutputProfile::class)->hash('preset=faststart'),
-            'provider' => 'local_video', 'started_at' => now(), 'completed_at' => now(), 'created_at' => now(), 'updated_at' => now(),
+            'provider' => 'local_video', 'started_at' => now(), 'created_at' => now(), 'updated_at' => now(),
         ]);
         $key = "tenants/{$setup['customer']}/media/{$m['videoMedia']}/previews/ffmpeg-faststart-v1/{$job}.mp4";
         Storage::disk('media_local')->put($key, str_repeat('v', 100));
@@ -286,7 +326,8 @@ class LiveClassWhiteboardTest extends TestCase
             'processing_version' => 'ffmpeg-faststart-v1', 'source_fingerprint' => $orchestrator->sourceFingerprint($file),
             'status' => 'ready', 'metadata' => json_encode(['faststart' => true, 'duration_ms' => 2000]), 'created_at' => now(), 'updated_at' => now(),
         ]);
-        DB::table('media_processing_jobs')->where('id', $job)->update(['output_type' => 'variant', 'output_id' => $variant]);
+        // chk_mpj_ready: the job turns ready together with its output (SQLite skips the CHECK, MariaDB does not).
+        DB::table('media_processing_jobs')->where('id', $job)->update(['status' => 'ready', 'completed_at' => now(), 'output_type' => 'variant', 'output_id' => $variant]);
 
         // The list does not change: the copy is the same video, not a converted kind.
         $item = collect($this->actingAs($setup['teacher'])->getJson($base)->assertOk()->json('materials'))->firstWhere('id', $m['video']);
@@ -819,12 +860,13 @@ class LiveClassWhiteboardTest extends TestCase
         $orchestrator = app(MediaProcessingOrchestrator::class);
 
         return DB::table('media_processing_jobs')->insertGetId([
-            'customer_id' => $setup['customer'], 'media_file_id' => $media, 'job_type' => 'transcode', 'status' => $status,
+            // chk_mpj_ready: a ready job names its output, so a "ready" job stays processing until boardPdf() adds the PDF.
+            'customer_id' => $setup['customer'], 'media_file_id' => $media, 'job_type' => 'transcode', 'status' => $status === 'ready' ? 'processing' : $status,
             'attempt' => $attempt, 'idempotency_key' => 'board-pdf-'.$media.'-'.$attempt, 'correlation_id' => (string) Str::uuid(),
             'source_fingerprint' => $orchestrator->sourceFingerprint($file), 'processing_version' => $orchestrator->versionFor('transcode', $file),
             'output_profile' => 'preset=pdf', 'output_profile_hash' => app(MediaOutputProfile::class)->hash('preset=pdf'),
             'provider' => 'local_document', 'started_at' => $status === 'pending' ? null : now(),
-            'completed_at' => $status === 'ready' ? now() : null, 'created_at' => now(), 'updated_at' => now(),
+            'completed_at' => null, 'created_at' => now(), 'updated_at' => now(),
         ]);
     }
 
@@ -840,7 +882,7 @@ class LiveClassWhiteboardTest extends TestCase
             'processing_version' => 'libreoffice-pdf-v1', 'source_fingerprint' => app(MediaProcessingOrchestrator::class)->sourceFingerprint($file),
             'status' => 'ready', 'metadata' => json_encode(['page_count' => 3]), 'created_at' => now(), 'updated_at' => now(),
         ]);
-        DB::table('media_processing_jobs')->where('id', $job)->update(['output_type' => 'variant', 'output_id' => $variant]);
+        DB::table('media_processing_jobs')->where('id', $job)->update(['status' => 'ready', 'completed_at' => now(), 'output_type' => 'variant', 'output_id' => $variant]);
 
         return $variant;
     }
@@ -1007,10 +1049,31 @@ class LiveClassWhiteboardTest extends TestCase
         ]);
     }
 
+    /** A published quiz version for a Quiz Activity: chk_cctva_quiz_ref needs the pair (SQLite skips the CHECK, MariaDB does not). */
+    private function quizSnapshot(int $customer): array
+    {
+        $author = (int) DB::table('users')->where('customer_id', $customer)->value('id');
+        $quiz = DB::table('core_assessment_quizzes')->insertGetId([
+            'customer_id' => $customer, 'created_by' => $author, 'title' => 'Quiz', 'assessment_type' => 'exam', 'max_attempts' => 1,
+            'show_result_mode' => 'immediately', 'status' => 'draft', 'registration_open' => false, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $version = DB::table('core_assessment_quiz_versions')->insertGetId([
+            'customer_id' => $customer, 'quiz_id' => $quiz, 'version_no' => 1, 'title' => 'Quiz', 'assessment_type' => 'exam',
+            'max_attempts' => 1, 'show_result_mode' => 'immediately', 'total_points' => 1, 'question_count' => 1, 'sections_snapshot' => '[]',
+            'published_by' => $author, 'published_at' => now(), 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('core_assessment_quizzes')->where('id', $quiz)->update(['status' => 'published', 'current_version_id' => $version]);
+
+        return ['assessment_quiz_id_snapshot' => $quiz, 'assessment_quiz_version_id_snapshot' => $version];
+    }
+
     private function activity(int $customer, int $version, int $lesson, string $type, string $title, int $order,
         ?int $media = null, array $extra = []): int
     {
         static $source = 80000;
+        if ($type === 'quiz' && ! isset($extra['assessment_quiz_version_id_snapshot'])) {
+            $extra += $this->quizSnapshot($customer);
+        }
         $activity = DB::table('core_course_template_version_activities')->insertGetId($extra + [
             'customer_id' => $customer, 'template_version_id' => $version, 'version_lesson_id' => $lesson,
             'source_template_activity_id' => ++$source, 'title_snapshot' => $title, 'activity_type' => $type,

@@ -694,7 +694,7 @@ Personalized Tenant Website
 
 # Error Pages And Fallback Route — 2026-11-18 (Owner, Implemented)
 
-Trang 404 và 403 được vẽ trong khu của người xem (`App\Support\ErrorPageArea`,
+Trang 404, 403 và 405 được vẽ trong khu của người xem (`App\Support\ErrorPageArea`,
 `resources/views/errors/layout.blade.php`):
 
 | Khu | Khi nào | Giao diện |

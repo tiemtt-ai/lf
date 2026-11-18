@@ -648,7 +648,8 @@
         </button>
     @endif
 
-    <x-media-preview-modal id="{{ $panelId }}-activity-preview-title" show="activityPreviewOpen" close="closeActivityPreview()" title="activityPreview.title" compact="['audio', 'unavailable'].includes(activityPreview.type)">
+    {{-- The UI Kit preview popup, as on the Version page and the class Sessions tab. --}}
+    <x-media-preview-modal ui-kit id="{{ $panelId }}-activity-preview-title" show="activityPreviewOpen" close="closeActivityPreview()" title="activityPreview.title" compact="['audio', 'unavailable'].includes(activityPreview.type)">
 
                 <video x-ref="outlinePreviewVideo"
                        x-show="activityPreview.type === 'video'"

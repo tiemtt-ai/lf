@@ -12,6 +12,7 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\RecordsNotFoundException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Lang;
 use Illuminate\Support\Str;
@@ -42,9 +43,16 @@ final class TeacherCohortJudgmentController extends Controller
         $requested = $request->query('status');
         $status = is_string($requested) && $statusCounts->has($requested) ? $requested : null;
 
+        // Ten classes a page, like the other lists (Owner 2026-11-18); the tab counts stay those of the whole list.
+        $shown = $status === null ? $all : $all->where('status', $status)->values();
+        $page = max(1, (int) $request->query('page', 1));
+        $cohorts = new LengthAwarePaginator($shown->forPage($page, 10)->values(), $shown->count(), 10, $page, [
+            'path' => $request->url(), 'query' => $status === null ? [] : ['status' => $status],
+        ]);
+
         // ADR-0033 D7: the classes this teacher is the primary teacher of open on the shared class pages.
         return view('teacher-cohorts.index', [
-            'cohorts' => $status === null ? $all : $all->where('status', $status)->values(),
+            'cohorts' => $cohorts,
             'totalCohorts' => $all->count(),
             'statusCounts' => $statusCounts,
             'status' => $status,

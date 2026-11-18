@@ -181,7 +181,7 @@ class CourseMediaIntegrationTest extends TestCase
         ]);
         $versionId = $this->createPublishedVersion($customerId, $templateId, $admin->id);
 
-        $this->actingAs($admin)
+        $created = $this->actingAs($admin)
             ->post(
                 'https://tenant-a.localhost/admin/course-products',
                 $this->validProductData([
@@ -196,13 +196,14 @@ class CourseMediaIntegrationTest extends TestCase
                         80
                     ),
                 ])
-            )
-            ->assertRedirect('https://tenant-a.localhost/admin/course-products/1/edit');
+            );
 
         $productId = (int) DB::table('core_course_products')
             ->where('customer_id', $customerId)
             ->where('slug', 'media-product')
             ->value('id');
+        // Ids are not reset between tests on MariaDB: the redirect names the new Product's own id.
+        $created->assertRedirect("https://tenant-a.localhost/admin/course-products/{$productId}/edit");
 
         $mediaFile = $this->assertActiveUsage(
             $customerId,
@@ -1963,7 +1964,9 @@ class CourseMediaIntegrationTest extends TestCase
                 .'//button[normalize-space()="Xem" and contains(@*[name()="x-on:click"], "openActivityPreview")]'
             )
         );
-        $outline->assertSee('x-show="activityPreviewOpen"', false);
+        // The preview is the UI Kit dialog, opened and closed from activityPreviewOpen.
+        $outline->assertSee('data-preview', false)
+            ->assertSee('x-effect="if (activityPreviewOpen && !$el.open) $el.showModal()', false);
         $this->assertSame(
             0,
             $this->htmlElementCount(

@@ -194,6 +194,6 @@
         <span class="ui-caption ui-library-pick__selected" role="status"
               x-text="pendingItem ? @js(__('lf.LF_media_pick_selected_info', ['name' => '__NAME__'])).replace('__NAME__', pendingItem.name) : @js(__('lf.LF_media_pick_none_selected'))"></span>
         <button type="button" class="ui-button cursor-interaction" x-on:click="back()">{{ __('lf.LF_common_button_cancel') }}</button>
-        <button type="button" class="ui-button ui-button--primary cursor-interaction" x-bind:disabled="! pendingItem" x-on:click="confirm()">{{ __('lf.LF_media_pick_select') }}</button>
+        <button type="button" class="ui-button ui-button--primary cursor-interaction" x-bind:disabled="! pendingItem" x-on:click="confirm()"><x-backend-icon name="check" class="ui-icon" />{{ __('lf.LF_media_pick_select') }}</button>
     </footer>
 </section>

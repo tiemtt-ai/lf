@@ -12,11 +12,21 @@ use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
+/**
+ * Exercises the detach / switch logic on a minimal scratch schema. SQLite gets a fresh in-memory database per test; on
+ * MariaDB each test runs in its own scratch database (created here, dropped afterwards) so the scratch tables never meet
+ * the migrated ones and the rollbacks are InnoDB's real ones.
+ */
 class CourseFrameworkDetachTest extends TestCase
 {
+    private ?string $scratchDatabase = null;
+
+    private ?string $migratedDatabase = null;
+
     protected function setUp(): void
     {
         parent::setUp();
+        $this->useScratchDatabase();
         foreach (['users', 'core_course_templates', 'core_course_template_learning_mapping_intents'] as $table) {
             Schema::create($table, function (Blueprint $blueprint) use ($table): void {
                 $blueprint->id();
@@ -48,10 +58,45 @@ class CourseFrameworkDetachTest extends TestCase
     protected function tearDown(): void
     {
         TenantContext::set(null);
-        foreach (['core_learning_nodes', 'core_learning_framework_versions', 'core_learning_frameworks', 'core_course_template_learning_mapping_intents', 'core_course_templates', 'users'] as $table) {
-            Schema::dropIfExists($table);
+        if ($this->scratchDatabase !== null) {
+            DB::statement('DROP DATABASE IF EXISTS `'.$this->scratchDatabase.'`');
+            $connection = DB::getDefaultConnection();
+            config(["database.connections.{$connection}.database" => $this->migratedDatabase]);
+            DB::purge($connection);
+            $this->scratchDatabase = null;
+        } elseif (DB::getDriverName() === 'sqlite') {
+            // Never on a server database: there these names are the migrated tables.
+            foreach (['core_learning_nodes', 'core_learning_framework_versions', 'core_learning_frameworks', 'core_course_template_learning_mapping_intents', 'core_course_templates', 'users'] as $table) {
+                Schema::dropIfExists($table);
+            }
         }
         parent::tearDown();
+    }
+
+    private function useScratchDatabase(): void
+    {
+        if (DB::getDriverName() === 'sqlite') {
+            return;
+        }
+        $connection = DB::getDefaultConnection();
+        $this->migratedDatabase = (string) config("database.connections.{$connection}.database");
+        $name = substr($this->migratedDatabase, 0, 40).'_detach_'.bin2hex(random_bytes(4));
+        try {
+            DB::statement('CREATE DATABASE `'.$name.'`');
+        } catch (QueryException) {
+            $this->markTestSkipped('Needs CREATE DATABASE for a scratch schema on '.DB::getDriverName().'.');
+        }
+        $this->scratchDatabase = $name;
+        config(["database.connections.{$connection}.database" => $name]);
+        DB::purge($connection);
+    }
+
+    /** Makes every update of core_course_templates fail, so the tests can prove the surrounding rollback. */
+    private function failTemplateUpdates(string $trigger): void
+    {
+        DB::unprepared(DB::getDriverName() === 'sqlite'
+            ? "CREATE TRIGGER {$trigger} BEFORE UPDATE ON core_course_templates BEGIN SELECT RAISE(ABORT, 'forced failure'); END"
+            : "CREATE TRIGGER {$trigger} BEFORE UPDATE ON core_course_templates FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'forced failure'");
     }
 
     public function test_detach_removes_only_own_draft_links_and_clears_both_selection_fields(): void
@@ -87,7 +132,7 @@ class CourseFrameworkDetachTest extends TestCase
 
     public function test_failure_clearing_selection_rolls_back_link_deletion(): void
     {
-        DB::unprepared("CREATE TRIGGER detach_test_fail BEFORE UPDATE ON core_course_templates BEGIN SELECT RAISE(ABORT, 'test failure'); END");
+        $this->failTemplateUpdates('detach_test_fail');
         try {
             app(CourseTemplateLearningMappingIntentService::class)->detachFramework(1, 1, 1, 7);
             $this->fail('Failure did not occur.');
@@ -221,7 +266,7 @@ class CourseFrameworkDetachTest extends TestCase
             DB::table($table)->insert(['payload' => 'published snapshot']);
         }
         try {
-            DB::statement("CREATE TRIGGER reject_version_update BEFORE UPDATE ON core_course_templates BEGIN SELECT RAISE(ABORT, 'forced failure'); END");
+            $this->failTemplateUpdates('reject_version_update');
             try {
                 app(CourseTemplateLearningMappingIntentService::class)->upgrade(1, 1, 1, 11, 7);
                 $this->fail('Update must fail.');
@@ -267,7 +312,7 @@ class CourseFrameworkDetachTest extends TestCase
         } catch (ValidationException) {
             $this->assertSame(2, DB::table('core_course_template_learning_mapping_intents')->where('customer_id', 1)->count());
         }
-        DB::statement("CREATE TRIGGER reject_direct_update BEFORE UPDATE ON core_course_templates BEGIN SELECT RAISE(ABORT, 'forced failure'); END");
+        $this->failTemplateUpdates('reject_direct_update');
         try {
             $service->select(1, 1, 1, 6, 11, 7);
             $this->fail('Forced failure must rollback.');

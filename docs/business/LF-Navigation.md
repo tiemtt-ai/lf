@@ -6,7 +6,7 @@ Document Status: Approved
 
 Implementation Status: Unknown
 
-Last Updated: 2026-11-17
+Last Updated: 2026-11-18
 
 Document Path: business/LF-Navigation.md
 
@@ -817,7 +817,9 @@ Quy tắc:
   (ADR-0030 Q2) → Đã hoàn thành; `expired` hoặc đã qua hạn học và ôn tập → Hết hạn;
   còn lại → Đang học.
 * Chuyên cần = Session có mặt hoặc đi muộn / Session đã diễn ra (bỏ `cancelled`,
-  `no_show`, `draft`). Giờ Session đọc theo `timezone` của chính dòng đó.
+  `no_show`, `draft`). Giờ Session đọc theo `timezone` của chính dòng đó. Từ 2026-11-18
+  "đã diễn ra" là Session `completed`; buổi `live` và buổi `scheduled` đã qua giờ chưa tính
+  (ADR-0031 Amendment 1.1).
 * "Đề thi của tôi" (`/assessments/my`) vẫn giữ lịch sử từng lượt làm.
 * Đợt 2 (ADR-0030): `/my-courses/{enrollment}/lessons/{lesson}` là trang bài học
   (Activity theo thứ tự lớp, phát video / âm thanh / video nhúng, mở tài liệu ở tab mới,

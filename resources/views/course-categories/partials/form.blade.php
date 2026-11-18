@@ -104,14 +104,15 @@
                           rows="3" placeholder="{{ __('lf.LF_course_category_placeholder_description') }}">{{ $formCategory?->description }}</textarea>
             </div>
 
-            <div class="ui-field">
-                <input type="hidden" name="is_featured" value="0">
-                <label class="ui-check ui-switch">
+            <label class="ui-switch-row" for="category-form-is_featured">
+                <span class="ui-switch-row__text"><b>{{ __('lf.LF_course_category_common_featured') }}</b></span>
+                <span class="ui-switch">
+                    <input type="hidden" name="is_featured" value="0">
                     <input id="category-form-is_featured" type="checkbox" role="switch" name="is_featured" value="1"
                            @checked($isFeatured)>
-                    <span>{{ __('lf.LF_course_category_common_featured') }}</span>
-                </label>
-            </div>
+                    <span></span>
+                </span>
+            </label>
         </div>
 
         <div class="ui-field-row">

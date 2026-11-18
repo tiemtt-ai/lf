@@ -111,6 +111,12 @@
                 <p class="ui-caption">{{ __('lf.LF_teacher_cohorts_empty_help') }}</p>
             </div>
         @endforelse
+
+        @if ($cohorts->total() > 0)
+            <x-ui-list-foot :paginator="$cohorts" :label="__('lf.LF_teacher_cohorts_list_title')"
+                            :page-size-label="__('lf.LF_course_category_index_page_size')"
+                            :page-size-option="__('lf.LF_course_category_index_page_size_option', ['count' => $cohorts->perPage()])" />
+        @endif
     </section>
 </div>
 @endsection

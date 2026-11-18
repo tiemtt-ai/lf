@@ -3,6 +3,10 @@
 @section('title', __('lf.LF_teacher_judgment_title', ['cohort' => $cohort->name]))
 @section('page_title', __('lf.LF_teacher_judgment_title', ['cohort' => $cohort->name]))
 
+@section('page_back')
+    <x-page-back-link :href="route('teacher.cohorts.index')" :label="__('lf.LF_teacher_attendance_back')" />
+@endsection
+
 @php
     $canJudge = $cohort->blocked_reason === null && $basis !== null;
     $levels = collect($basis->levels ?? [])->values();
@@ -65,13 +69,20 @@
         @endif
         {{-- The save result shows as the UI Kit toast, top right under the top bar. --}}
         <div class="lf-admin-ui ui-page-toasts"><x-ui-list-toasts /></div>
-        @if ($cohort->blocked_reason)
-            <div class="admin-alert admin-alert-warning" role="status">{{ __('lf.LF_teacher_cohorts_blocked_'.$cohort->blocked_reason) }}</div>
+        {{-- "No competencies" is what the empty block below says, so it is not shown twice. --}}
+        @if ($cohort->blocked_reason && $cohort->blocked_reason !== 'no_competencies')
+            <div class="lf-admin-ui lf-admin-ui--list">
+                <div class="ui-banner" role="status"><span class="ui-banner__text">{{ __('lf.LF_teacher_cohorts_blocked_'.$cohort->blocked_reason) }}</span></div>
+            </div>
         @endif
 
         @if ($basis === null)
-            <div class="admin-card admin-form-empty-state" role="status">
-                <strong>{{ __('lf.LF_teacher_cohorts_blocked_no_competencies') }}</strong>
+            <div class="lf-admin-ui lf-admin-ui--list">
+                <section class="mk-section">
+                    <div class="ui-teacher-cohort-empty" role="status">
+                        <strong>{{ __('lf.LF_teacher_cohorts_blocked_no_competencies') }}</strong>
+                    </div>
+                </section>
             </div>
         @else
             <div class="teacher-judgment__layout">

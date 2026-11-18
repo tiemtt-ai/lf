@@ -1,6 +1,6 @@
 # LearnForge Admin Form And List Design Standard
 
-Version: 1.9
+Version: 1.10
 
 Document Status: Approved
 
@@ -1142,6 +1142,8 @@ tạo biến thể nút chữ hoặc thông báo thành công làm thay đổi c
   đặt ngoài khung trắng, ngay dưới tiêu đề trang. Số đếm là `span.ui-tab-count`.
 * Tab lọc của danh sách lọc trực tiếp giữ `data-ui-live-region="tabs"` trên `nav`.
 * Tab con trong popup hoặc trong một khối nội dung giữ kiểu riêng.
+* "Kết quả & Chấm bài" dùng cùng kiểu tab này (trước là tab viên thuốc); nút Xuất Excel nằm bên phải
+  thanh tab. Bảng kết quả vừa màn 1280px khi menu đang mở.
 
 ## 28.3 Password Fields
 
@@ -1151,7 +1153,7 @@ tạo biến thể nút chữ hoặc thông báo thành công làm thay đổi c
 
 ## 28.4 Error Pages
 
-* 404/403 trong `/admin`, `/teacher` hiện trong khung quản trị: thẻ `ui-error-card` ở giữa,
+* 404/403/405 trong `/admin`, `/teacher` hiện trong khung quản trị: thẻ `ui-error-card` ở giữa,
   nút Quay lại và Về Bảng điều khiển. Quy tắc chọn khu xem
   [LF-Tech-Architecture](LF-Tech-Architecture.md#error-pages-and-fallback-route--2026-11-18-owner-implemented).
 
@@ -1161,6 +1163,44 @@ tạo biến thể nút chữ hoặc thông báo thành công làm thay đổi c
   Checkbox luôn trả chuỗi; trộn `"3"` với `3` làm `includes()` sai, tóm tắt thay đổi
   báo "Chưa có thay đổi" và nút Lưu không bật (lỗi đã gặp 2026-11-18 ở popup Giáo viên
   của nhóm và Áp dụng cho lớp). Nếu giữ chuỗi thì giữ chuỗi ở cả dữ liệu gốc.
+
+## 28.6 Row Lists For Teacher Work
+
+* Danh sách việc của giáo viên ("Lớp của tôi", "Buổi học trực tiếp") **MUST** dùng dòng
+  `article.ui-teacher-cohort` (tiêu đề + trạng thái, dòng thông tin, ghi chú, nhóm nút) thay
+  cho bảng nhiều cột: mọi phần, nhất là nút thao tác chính, luôn nằm trong màn hình ở mọi độ
+  rộng; trên điện thoại nút chiếm đủ chiều ngang. Bảng chỉ dùng khi cần so sánh theo cột.
+  Danh sách dạng dòng vẫn có chân phân trang `x-ui-list-foot` (10 dòng một trang).
+* Bảng nhập theo dòng (danh sách điểm danh) ở màn ≤ 640px **MUST** xếp mỗi dòng thành một khối,
+  giá trị nằm dưới nhãn lấy từ `data-label`, không cuộn ngang.
+
+## 28.9 List Tables On Phone
+
+* Ở màn ≤ 640px mọi bảng trong `.mk-table-scroll` tự chuyển thành thẻ, mỗi dòng một thẻ, không
+  cuộn ngang (luật chung cuối `admin-ui-kit.css`). Ô dữ liệu đầu tiên (sau ô chọn và ô STT) là
+  tiêu đề thẻ, chiếm đủ ngang, không nhãn. Các ô còn lại xếp lưới 2 cột, nhãn nằm trên giá trị.
+  Ô STT ẩn; ô chọn nằm góc trên bên phải; dòng trống, dòng tiêu đề nhóm và ô `colspan` chiếm đủ ngang.
+* Mỗi `td` trong bảng danh sách **MUST** có `data-label` bằng đúng tiêu đề cột. Chữ trong thẻ
+  được xuống dòng kể cả khi bảng rộng để `nowrap`.
+* Bảng có bố cục điện thoại riêng thì loại khỏi luật chung (`.enr-table`). Bảng điểm danh dùng luật
+  chung nhưng mỗi giá trị chiếm đủ ngang vì có ô chọn.
+
+## 28.10 Switch Fields
+
+* Công tắc bật/tắt trong form **MUST** dùng `label.ui-switch-row` với chữ trong
+  `span.ui-switch-row__text` và track `span.ui-switch > input[role=switch] + span`.
+  Kiểu cũ `label.ui-check.ui-switch` đã bỏ (làm vỡ ô "Danh mục nổi bật" 2026-11-18).
+
+## 28.7 Date Picker Placement
+
+* Lịch của ô ngày / ngày giờ mở dưới ô; không đủ chỗ thì mở phía trên ô, để ô đang nhập luôn
+  nhìn thấy (`calendarTop` trong `admin-ui-kit-date.js`). Lịch ngày giờ vẫn mở sau khi chọn
+  ngày để chọn giờ; đóng bằng "Xong".
+
+## 28.8 Confirm Buttons Bound To State
+
+* Nút xác nhận đổi kiểu theo thao tác (`ui-button--primary` hoặc `ui-button--danger-outline`)
+  **MUST NOT** mang kiểu nào khi chưa có thao tác, để không nháy màu lúc popup mở lần đầu.
 
 ---
 

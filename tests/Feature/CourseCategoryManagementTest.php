@@ -601,7 +601,9 @@ class CourseCategoryManagementTest extends TestCase
                 $this->assertSame(1, $count('//*[@id="category-form-'.$field.'"]'), $field);
             }
             $this->assertSame(0, $count('//*[@id="status" or @id="name" or @id="parent_id"]'), 'ids must not collide with list filters');
-            $this->assertStringContainsString('ui-check ui-switch', $content);
+            // The featured switch is the UI Kit switch row (label text beside a .ui-switch track), not the retired .ui-check switch.
+            $this->assertSame(1, $count('//label['.$hasClass('ui-switch-row').']//span['.$hasClass('ui-switch').']/input[@name="is_featured" and @role="switch"]'));
+            $this->assertStringNotContainsString('ui-check ui-switch', $content);
             $this->assertStringContainsString('name="is_featured"', $content);
             $this->assertSame(2, $count('//select[@data-ui-kit-select]'));
             $this->assertStringContainsString('name="slug"', $content);
@@ -1045,7 +1047,7 @@ class CourseCategoryManagementTest extends TestCase
         // The other admin's identical create commits after this request's slug check, before its insert.
         $raced = false;
         DB::listen(function ($query) use (&$raced, $customerId): void {
-            if (! $raced && DB::transactionLevel() > 1 && str_contains($query->sql, 'from "saas_customers"')) {
+            if (! $raced && DB::transactionLevel() > 1 && str_contains(str_replace(['"', '`'], '', $query->sql), 'from saas_customers ')) {
                 $raced = true;
                 $this->createCategory($customerId, 'Korean', 'korean');
             }
@@ -1068,7 +1070,7 @@ class CourseCategoryManagementTest extends TestCase
         // The other admin's create commits right after this request's slug check.
         $raced = false;
         DB::listen(function ($query) use (&$raced, $customerId): void {
-            if (! $raced && str_contains($query->sql, 'from "core_course_categories"') && str_contains($query->sql, '"slug"')) {
+            if (! $raced && str_contains(str_replace(['"', '`'], '', $query->sql), 'from core_course_categories ') && str_contains(str_replace(['"', '`'], '', $query->sql), 'slug')) {
                 $raced = true;
                 $this->createCategory($customerId, 'Korean', 'korean');
             }
@@ -1094,7 +1096,7 @@ class CourseCategoryManagementTest extends TestCase
         // The other admin's move of Beta under Alpha commits after this request's form check, before its write.
         $raced = false;
         DB::listen(function ($query) use (&$raced, $categoryA, $categoryB): void {
-            if (! $raced && DB::transactionLevel() > 1 && str_contains($query->sql, 'from "saas_customers"')) {
+            if (! $raced && DB::transactionLevel() > 1 && str_contains(str_replace(['"', '`'], '', $query->sql), 'from saas_customers ')) {
                 $raced = true;
                 DB::table('core_course_categories')->where('id', $categoryB)->update(['parent_id' => $categoryA]);
             }

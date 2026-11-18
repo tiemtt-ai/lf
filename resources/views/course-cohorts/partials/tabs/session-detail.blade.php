@@ -90,7 +90,7 @@
         <footer class="ui-modal__footer">
             <span></span>
             <button type="button" class="ui-button cursor-interaction" x-on:click="closeLifecycle()" x-bind:disabled="lifecycleSubmitting">{{ __('lf.LF_course_cohort_lifecycle_cancel') }}</button>
-            <button type="submit" class="ui-button cursor-interaction" x-bind:class="lifecycle?.danger ? 'ui-button--danger-outline' : 'ui-button--primary'" x-bind:disabled="lifecycleSubmitting" x-bind:aria-busy="lifecycleSubmitting">
+            <button type="submit" class="ui-button cursor-interaction" x-bind:class="lifecycle ? (lifecycle.danger ? 'ui-button--danger-outline' : 'ui-button--primary') : ''" x-bind:disabled="lifecycleSubmitting" x-bind:aria-busy="lifecycleSubmitting">
                 <span x-show="!lifecycle?.danger"><x-backend-icon name="check" class="ui-icon" /></span>
                 <span x-text="lifecycleSubmitting ? @js(__('lf.LF_course_cohort_lifecycle_processing')) : lifecycle?.label"></span>
             </button>

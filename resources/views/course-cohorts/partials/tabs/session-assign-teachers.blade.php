@@ -19,6 +19,7 @@
                 <select id="session_assign_teachers" name="teacher_ids[]" multiple required data-ui-kit-select
                         data-ui-placeholder="{{ __('lf.LF_course_cohort_session_select_teacher') }}"
                         data-ui-empty-label="{{ __('lf.LF_course_cohort_session_teachers_empty') }}"
+                        data-ui-clear-label="{{ __('lf.LF_common_button_clear') }}"
                         x-model="assignTeacherIds">
                     @foreach ($availableTeachers as $teacher)
                         <option value="{{ $teacher->id }}" x-bind:disabled="!assignTeacherSelectable({{ $teacher->id }})">{{ $teacher->name }} · {{ $teacherRoleLabel($teacher) }}</option>

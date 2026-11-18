@@ -73,6 +73,18 @@ const calendarIcon = doc => {
 
 let sequence = 0;
 
+/**
+ * Where the calendar goes: under the field; when it does not fit there but fits above, above the field, so the
+ * field being filled stays in sight (Owner 2026-11-18). Only when neither fits is it kept inside the viewport.
+ */
+export function calendarTop(field, boxHeight, viewportHeight) {
+    const below = field.bottom + 6;
+    if (below + boxHeight <= viewportHeight - 10) return below;
+    const above = field.top - 6 - boxHeight;
+    if (above >= 10) return above;
+    return Math.max(10, viewportHeight - boxHeight - 10);
+}
+
 export function initUiKitDateInput(input, win = globalThis.window) {
     if (!input || input.dataset.uiDateReady === '1') return null;
     const doc = win.document;
@@ -136,7 +148,7 @@ export function initUiKitDateInput(input, win = globalThis.window) {
         const field = input.getBoundingClientRect();
         const box = calendar.getBoundingClientRect();
         calendar.style.left = `${Math.max(10, Math.min(field.left, win.innerWidth - box.width - 10))}px`;
-        calendar.style.top = `${Math.max(10, Math.min(field.bottom + 6, win.innerHeight - box.height - 10))}px`;
+        calendar.style.top = `${calendarTop(field, box.height, win.innerHeight)}px`;
     };
 
     const choose = key => {
@@ -329,7 +341,7 @@ function initDateTime(holder, win) {
         const field = display.getBoundingClientRect();
         const box = calendar.getBoundingClientRect();
         calendar.style.left = `${Math.max(10, Math.min(field.left, win.innerWidth - box.width - 10))}px`;
-        calendar.style.top = `${Math.max(10, Math.min(field.bottom + 6, win.innerHeight - box.height - 10))}px`;
+        calendar.style.top = `${calendarTop(field, box.height, win.innerHeight)}px`;
     };
 
     const commit = next => {

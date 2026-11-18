@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { toIso, isoToDisplay, parseIso, monthCells, isDayAllowed, parseIsoDateTime, joinDateTime, isoDateTimeToDisplay } from '../../resources/js/admin-ui-kit-date.js';
+import { toIso, isoToDisplay, parseIso, monthCells, isDayAllowed, parseIsoDateTime, joinDateTime, isoDateTimeToDisplay, calendarTop } from '../../resources/js/admin-ui-kit-date.js';
 
 // Invariants: the server always gets ISO (yyyy-mm-dd); the field shows dd/mm/yyyy; weeks start on Monday;
 // impossible dates are rejected instead of rolling over; days outside min / max cannot be picked.
@@ -58,4 +58,12 @@ test('a date-time min / max limits the days by their date part', () => {
     assert.equal(isDayAllowed('2026-06-09', '2026-06-10T00:00', ''), false);
     assert.equal(isDayAllowed('2026-06-20', '', '2026-06-20T08:00'), true);
     assert.equal(isDayAllowed('2026-06-21', '', '2026-06-20T23:59'), false);
+});
+
+test('the calendar opens under the field, above it when there is no room below, and never off screen', () => {
+    // 300px tall calendar in a 768px viewport.
+    assert.equal(calendarTop({ top: 100, bottom: 134 }, 300, 768), 140);   // fits below
+    assert.equal(calendarTop({ top: 500, bottom: 534 }, 300, 768), 194);   // no room below: above the field, which stays visible
+    assert.equal(calendarTop({ top: 200, bottom: 234 }, 600, 768), 158);   // fits neither way: kept inside the viewport
+    assert.equal(calendarTop({ top: 40, bottom: 74 }, 760, 768), 10);      // taller than the viewport: pinned to the top
 });

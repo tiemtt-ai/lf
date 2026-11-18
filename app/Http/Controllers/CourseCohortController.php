@@ -521,9 +521,13 @@ class CourseCohortController extends Controller
 
     private function attendanceTabData(Request $request, int $customerId, int $id, $sessions): array
     {
-        $selectedSessionId = $request->integer('session_id') ?: ($sessions->first()?->id);
+        // Opens on the latest Session that has begun, the one being recorded now; before any has, on the first (Owner 2026-11-18).
+        $now = now();
+        $default = $sessions->filter(fn (object $session): bool => LiveClassSessionTime::utc((string) $session->scheduled_start_at, $session->timezone ?? null)->lte($now))
+            ->sortBy(fn (object $session): string => (string) $session->scheduled_start_at)->last() ?? $sessions->first();
+        $selectedSessionId = $request->integer('session_id') ?: $default?->id;
         if ($selectedSessionId && ! $sessions->contains('id', $selectedSessionId)) {
-            $selectedSessionId = $sessions->first()?->id;
+            $selectedSessionId = $default?->id;
         }
         $selected = $selectedSessionId ? $sessions->firstWhere('id', $selectedSessionId) : null;
 

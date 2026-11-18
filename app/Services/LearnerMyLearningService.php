@@ -295,7 +295,8 @@ class LearnerMyLearningService
         });
 
         $class->teachers = $this->cohortTeachers($customerId, [$cohortId])->get($cohortId, collect())->all();
-        $attendedCount = $sessions->filter(fn (object $s): bool => in_array($s->attendance_status, ['present', 'late'], true))->count();
+        // Counted against the Sessions held, so only a completed Session's mark counts (as in attendedCounts).
+        $attendedCount = $sessions->filter(fn (object $s): bool => $s->status === 'completed' && in_array($s->attendance_status, ['present', 'late'], true))->count();
         $this->summarizeSessions($class, $sessions, $attendedCount, $now);
         $class->sessions = $sessions;
 
@@ -380,8 +381,9 @@ class LearnerMyLearningService
     private function summarizeSessions(object $row, Collection $sessions, int $attended, Carbon $now): void
     {
         $counted = $sessions->reject(fn (object $s): bool => in_array($s->status, self::VOID_SESSION_STATUSES, true));
-        $held = $counted->filter(fn (object $s): bool => $s->status === 'completed' || ($s->status === 'live')
-            || ($s->status === 'scheduled' && $s->ends_at->lte($now)));
+        // Held means taught to the end: a Session still running, or left `scheduled` after its time, was not
+        // learned yet and must not raise the progress or lower the attendance rate (Owner 2026-11-18).
+        $held = $counted->filter(fn (object $s): bool => $s->status === 'completed');
 
         $row->session_total = $counted->count();
         $row->session_held = $held->count();
@@ -393,7 +395,7 @@ class LearnerMyLearningService
         $row->delivery_modes = $counted->pluck('delivery_mode')->unique()->values()->all();
     }
 
-    /** @return array<int, int> attended (present or late) Session count per Enrollment */
+    /** @return array<int, int> attended (present or late) count of completed Sessions per Enrollment */
     private function attendedCounts(int $customerId, array $enrollmentIds): array
     {
         if ($enrollmentIds === []) {
@@ -407,7 +409,7 @@ class LearnerMyLearningService
             ->where('attendances.customer_id', $customerId)
             ->whereIn('attendances.enrollment_id', $enrollmentIds)
             ->whereIn('attendances.status', ['present', 'late'])
-            ->whereNotIn('sessions.status', self::VOID_SESSION_STATUSES)
+            ->where('sessions.status', 'completed')
             ->groupBy('attendances.enrollment_id')
             ->selectRaw('attendances.enrollment_id, COUNT(DISTINCT attendances.session_id) as total')
             ->pluck('total', 'enrollment_id')

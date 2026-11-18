@@ -409,33 +409,6 @@
     margin-top: 7px;
     flex-wrap: wrap
 }
-.lf-admin-ui .ui-switch input {
-    appearance: none;
-    width: 32px!important;
-    height: 18px!important;
-    background: var(--ui-color-d8dce5);
-    border-radius: 10px;
-    position: relative;
-    transition: background .14s ease;
-    border: 0
-}
-.lf-admin-ui .ui-switch input:checked {
-    background: var(--ui-primary)
-}
-.lf-admin-ui .ui-switch input::before {
-    content: '';
-    position: absolute;
-    width: 14px;
-    height: 14px;
-    left: 2px;
-    top: 2px;
-    border-radius: 50%;
-    background: var(--ui-white);
-    transition: transform .14s ease
-}
-.lf-admin-ui .ui-switch input:checked::before {
-    transform: translateX(14px)
-}
 .lf-admin-ui .ui-tag-input__tags {
     display: flex;
     flex-wrap: wrap;
@@ -2296,7 +2269,7 @@
 .lf-admin-ui .ui-media-table .ux-action-cell { white-space: nowrap; }
 .lf-admin-ui .ui-media-table .ui-center-cell { text-align: center; }
 .lf-admin-ui .ui-media-table .ui-center-cell .ui-caption { margin-top: 4px; }
-.lf-admin-ui .ui-media-table { min-width: 960px; }
+.lf-admin-ui .ui-media-table { min-width: 880px; }
 .lf-admin-ui .ui-col-media { min-width: 260px; }
 .lf-admin-ui .ui-col-type { width: 130px; }
 .lf-admin-ui .ui-col-upload { width: 160px; }
@@ -3780,23 +3753,19 @@
 .lf-admin-ui .ui-pick-row:hover { background: var(--ui-color-eef0fb); }
 .lf-admin-ui .ui-pick-row > span:nth-child(2) { display: grid; gap: 2px; }
 .lf-admin-ui .ui-pick-empty { margin: 0; padding: 16px; }
-.lf-admin-ui .ui-result-tabs { display: flex; flex-wrap: nowrap; gap: 8px; max-width: 100%; min-width: 0; margin: 0 0 16px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
-.lf-admin-ui .ui-result-tab { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px; border: 1px solid var(--ui-border); border-radius: 999px; background: var(--ui-white); color: var(--ui-muted); font-size: 14px; text-decoration: none; white-space: nowrap; flex-shrink: 0; }
-.lf-admin-ui .ui-result-tab:hover { color: var(--ui-text); border-color: var(--ui-muted); }
-.lf-admin-ui .ui-result-tab.is-active { border-color: var(--ui-primary); background: var(--ui-color-eef0fb); color: var(--ui-primary); font-weight: 500; }
-.lf-admin-ui .ui-result-tab__count { min-width: 22px; padding: 0 6px; border-radius: 999px; background: var(--ui-warning-soft); color: var(--ui-warning); font-size: 12px; line-height: 20px; text-align: center; }
-@media (max-width: 420px) { .lf-admin-ui .ui-result-tabs { gap: 6px; } .lf-admin-ui .ui-result-tab { gap: 6px; padding: 0 11px; } }
+/* Kết quả & Chấm bài tabs use the page tab style (course-template-tabs); the export button sits at their right. */
 /* Kết quả & Chấm bài (Owner 2026-11-07): export beside the tabs, a wider quiz column,
    a coloured pass / fail verdict; row icons: square-pen = grade, eye = view. */
-.lf-admin-ui .ui-result-tabbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 16px; }
-.lf-admin-ui .ui-result-tabbar .ui-result-tabs { margin: 0; }
+.lf-admin-ui .ui-result-tabbar { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; margin: 0 0 16px; }
+.lf-admin-ui .ui-result-tabbar .ui-result-tabs { flex: 1 1 320px; min-width: 0; margin: 0; }
 .lf-admin-ui .ui-result-col-sequence { width: 56px; }
-.lf-admin-ui .ui-result-col-student { width: 176px; }
+.lf-admin-ui .ui-result-col-student { width: 160px; }
 .lf-admin-ui .ui-result-col-status { width: 116px; }
 .lf-admin-ui .ui-result-col-action { width: 88px; }
-.lf-admin-ui .ui-result-table .ui-asm-col-score { width: 136px; }
-/* The quiz column keeps ~220px: the fixed columns take 840px, so a narrower card scrolls the table sideways. */
-.lf-admin-ui .ui-result-table.ui-asm-table--wide { min-width: 1060px; }
+.lf-admin-ui .ui-result-table .ui-asm-col-score { width: 120px; }
+/* The fixed columns take 784px and the quiz column keeps ~165px: the table fits a 1280px screen with the menu open
+   (Owner 2026-11-18); a narrower card scrolls it sideways. */
+.lf-admin-ui .ui-result-table.ui-asm-table--wide { min-width: 950px; }
 /* The four filters share one row from ~900px; under 520px each takes its own row (UI Kit list rule). */
 .lf-admin-ui .ui-result-filterbar .mk-search { flex: 1 1 170px; max-width: 240px; }
 .lf-admin-ui .ui-result-filterbar .mk-search:first-child { flex: 1 1 240px; max-width: 360px; }
@@ -3804,7 +3773,7 @@
     .lf-admin-ui .ui-result-filterbar .mk-search,
     .lf-admin-ui .ui-result-filterbar .mk-search:first-child { flex-basis: 100%; max-width: none; }
 }
-.lf-admin-ui .ui-result-table .ui-asm-col-date { width: 132px; }
+.lf-admin-ui .ui-result-table .ui-asm-col-date { width: 136px; }
 .lf-admin-ui .ui-result-email { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lf-admin-ui .ui-result-score { display: block; font-weight: 600; }
 .lf-admin-ui .ui-result-score-meta { display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 6px; margin-top: 4px; }
@@ -3812,7 +3781,7 @@
 .lf-admin-ui .ui-result-verdict { min-height: 0; padding: 1px 8px; font-size: 12px; }
 .lf-admin-ui .ui-result-provisional { font-style: italic; }
 /* Phân công chấm (ADR-0027): who holds an attempt, the Giao chấm dialog badges, Giáo viên chấm of a category. */
-.lf-admin-ui .ui-result-col-grader { width: 136px; }
+.lf-admin-ui .ui-result-col-grader { width: 108px; }
 .lf-admin-ui .ui-result-grader.is-mine { font-weight: 600; color: var(--ui-primary); }
 .lf-admin-ui .ui-result-table .ui-check-cell + .mk-sequence { padding-left: 4px; }
 .lf-admin-ui .ui-grader-badges { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; }
@@ -3864,18 +3833,10 @@
     .lf-admin-ui .ui-result-grade { grid-template-columns: 1fr; }
 }
 
-/* Teacher live Sessions list (ADR-0002 § LiveClass Whiteboard Amendment). */
-.lf-admin-ui .ui-wb-session-actions { display: inline-flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
-.lf-admin-ui .ui-wb-session-actions .ui-button { white-space: nowrap; }
-.lf-admin-ui .ui-wb-today { color: var(--ui-primary); font-weight: 600; }
-/* Teacher live-session list: short value columns are fixed, the session title takes the rest; narrow screens scroll. */
-.lf-admin-ui .ui-wb-session-table { min-width: 980px; }
-.lf-admin-ui .ui-wb-col-sequence { width: 64px; }
-.lf-admin-ui .ui-wb-col-time { width: 188px; }
-.lf-admin-ui .ui-wb-col-mode { width: 150px; }
-.lf-admin-ui .ui-wb-col-class { width: 150px; }
-.lf-admin-ui .ui-wb-col-status { width: 120px; }
-.lf-admin-ui .ui-wb-col-actions { width: 220px; }
+/* Teacher live Sessions list (ADR-0002 § LiveClass Whiteboard Amendment): rows in the "Lớp của tôi" pattern
+   (.ui-teacher-cohort), so nothing scrolls sideways; "Hôm nay" is a pill in the title row. */
+.lf-admin-ui .ui-teacher-cohort__role.ui-wb-today { border-color: var(--ui-primary); color: var(--ui-primary); font-weight: 600; }
+.lf-admin-ui .ui-teacher-cohort__actions .ui-button { white-space: nowrap; }
 
 /* Quiz Activity: the chosen Quiz and the button that opens its picker. */
 .lf-admin-ui .ui-quiz-choice { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
@@ -3921,6 +3882,12 @@
     .lf-admin-ui.ui-teacher-attendance > .mk-section, .lf-admin-ui .mk-section.ui-cohort-attendance { overflow: visible; }
 }
 .lf-admin-ui .ui-attendance-actions { display: flex; justify-content: flex-end; margin-top: 12px; }
+/* Phone: the roster uses the shared list-table cards below; its status, mode and note pickers each take the card's
+   full width so the list they open has room (Owner 2026-11-18). */
+@media (max-width: 640px) {
+    .lf-admin-ui .mk-table-scroll.ui-attendance-roster > table > tbody > tr:not(.mk-empty-row) { grid-template-columns: minmax(0, 1fr); }
+    .lf-admin-ui.ui-teacher-attendance > .mk-section, .lf-admin-ui .mk-section.ui-cohort-attendance { overflow: visible; }
+}
 .lf-admin-ui .ui-attendance-history { margin-top: 16px; font-size: 14px; }
 .lf-admin-ui .ui-attendance-history summary { color: var(--ui-primary); cursor: pointer; }
 .lf-admin-ui .ui-attendance-history ul { display: grid; gap: 6px; margin: 8px 0 0; padding: 0; list-style: none; }
@@ -3968,7 +3935,7 @@
 .lf-admin-ui .ui-teacher-cohort-empty p { margin: 0; }
 @media (max-width: 640px) {
     .lf-admin-ui .ui-teacher-cohort { padding: 16px; }
-    .lf-admin-ui .ui-teacher-cohort__actions, .lf-admin-ui .ui-teacher-cohort__actions form { width: 100%; }
+    .lf-admin-ui .ui-teacher-cohort__actions, .lf-admin-ui .ui-teacher-cohort__actions form, .lf-admin-ui .ui-teacher-cohort__actions > span { width: 100%; }
     .lf-admin-ui .ui-teacher-cohort__actions .ui-button { width: 100%; }
 }
 .lf-admin-ui .ui-teacher-permission-fixed { margin-top: 16px; padding: 18px 22px; }
@@ -4003,4 +3970,34 @@
 @media (max-width: 640px) {
     .lf-admin-ui.ui-error-page { padding-top: 8px; }
     .lf-admin-ui .ui-error-card { padding: 28px 20px 24px; }
+}
+
+/* Phone: every list table becomes one card per row instead of scrolling sideways (Owner 2026-11-18). Each cell already
+   carries data-label; the label sits above its value and the values share a two-column grid. The first data cell (after
+   the check box and the No. cell) is the card title, full width and unlabelled; the No. cell is hidden and the check box
+   sits in the card's top-right corner. Rows spanning columns (empty state, section headings, inline errors) stay full
+   width. The column headings stay in the page for screen readers. Tables with their own phone layout (.enr-table) are
+   left out. */
+@media (max-width: 640px) {
+    .lf-admin-ui .mk-table-scroll:has(> table:not(.enr-table)) { overflow: visible; }
+    .lf-admin-ui .mk-table-scroll > table:not(.enr-table) { display: block; width: auto; min-width: 0; }
+    .lf-admin-ui .mk-table-scroll > table:not(.enr-table) > colgroup { display: none; }
+    .lf-admin-ui .mk-table-scroll > table:not(.enr-table) > thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+    .lf-admin-ui .mk-table-scroll > table:not(.enr-table) > :is(tbody, tfoot) { display: block; }
+    .lf-admin-ui .mk-table-scroll > table:not(.enr-table) > :is(tbody, tfoot) > tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 16px; position: relative; padding: 14px 16px; border-bottom: 1px solid var(--ui-color-e9ecf2); }
+    .lf-admin-ui .mk-table-scroll > table:not(.enr-table) > tbody > tr:nth-child(even) { background: var(--ui-color-fafbfe); }
+    .lf-admin-ui .mk-table-scroll > table:not(.enr-table) > :is(tbody, tfoot) > tr > :is(td, th) { display: block; width: auto; min-width: 0; height: auto; padding: 0; border: 0; background: transparent; text-align: left !important; white-space: normal; overflow-wrap: anywhere; }
+    /* Names, e-mails and policy lines that never break in a wide table wrap inside the card's narrower column. */
+    .lf-admin-ui .mk-table-scroll > table:not(.enr-table) > :is(tbody, tfoot) > tr > :is(td, th) :where(span, p, a, strong, b, small, time) { white-space: normal; }
+    .lf-admin-ui .mk-table-scroll > table:not(.enr-table) > :is(tbody, tfoot) > tr > :is(td, th)[data-label]::before { content: attr(data-label); display: block; margin-bottom: 4px; color: var(--ui-muted); font-size: 12px; font-weight: 400; line-height: 16px; }
+    .lf-admin-ui .mk-table-scroll > table:not(.enr-table) > :is(tbody, tfoot) > tr > :is(td, th):is([colspan], th) { grid-column: 1 / -1; }
+    /* Card title: the first data cell. */
+    .lf-admin-ui .mk-table-scroll > table:not(.enr-table) > tbody > tr > :is(td:first-child:not(.ui-check-cell, .mk-sequence, [colspan]), :is(.ui-check-cell, .mk-sequence) + td:not(.mk-sequence)) { grid-column: 1 / -1; padding-right: 32px; font-weight: 500; }
+    .lf-admin-ui .mk-table-scroll > table:not(.enr-table) > tbody > tr > :is(td:first-child:not(.ui-check-cell, .mk-sequence, [colspan]), :is(.ui-check-cell, .mk-sequence) + td:not(.mk-sequence))::before { content: none; }
+    .lf-admin-ui .mk-table-scroll > table:not(.enr-table) > tbody > tr > td.mk-sequence { display: none; }
+    .lf-admin-ui .mk-table-scroll > table:not(.enr-table) > tbody > tr > td.ui-check-cell { position: absolute; top: 12px; right: 12px; }
+    .lf-admin-ui .mk-table-scroll > table:not(.enr-table) > tbody > tr > td.ui-check-cell::before { content: none; }
+    .lf-admin-ui .mk-table-scroll > table:not(.enr-table) > tbody > tr.mk-empty-row { display: block; padding: 0; }
+    .lf-admin-ui .mk-table-scroll > table:not(.enr-table) > tbody > tr.mk-empty-row > td { height: auto; padding: 24px 16px; text-align: center !important; }
+    .lf-admin-ui .mk-table-scroll > table:not(.enr-table) .mk-empty > [role=status] { inline-size: auto; }
 }

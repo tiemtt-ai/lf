@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\User;
 use App\Support\LiveClassBoardContext;
 use Carbon\CarbonImmutable;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -24,6 +25,9 @@ class LiveClassWhiteboardService
 {
     /** Activity types the board lists; quiz and live_class carry no Media. */
     private const MATERIAL_TYPES = ['document', 'video', 'audio', 'embedded_video'];
+
+    /** @var array<string, int> minutes the class's attendance policy opens early, by "customer:cohort" */
+    private array $opensBeforeMinutes = [];
 
     public function __construct(
         private readonly LiveClassSessionLifecycleService $lifecycle,
@@ -64,9 +68,14 @@ class LiveClassWhiteboardService
             ->map(function (object $session) use ($teacherActive, $mayOperate): object {
                 $presenter = $teacherActive && $this->windowCovers($session);
                 $session->is_today = $this->isPlannedToday($session);
-                $session->can_start = $presenter && $session->status === 'scheduled' && $session->is_today;
+                // The start opens with the class's attendance entry, the end with the planned start (Owner 2026-11-18).
+                $session->start_opens_at = $this->startOpensAt($session);
+                $startable = $presenter && $session->status === 'scheduled' && $session->is_today;
+                $session->can_start = $startable && ! $session->start_opens_at->isFuture();
+                $session->start_waits = $startable && ! $session->can_start;
                 $session->can_open = $presenter && $session->status === 'live';
-                $session->can_complete = $session->can_open;
+                $session->can_complete = $session->can_open && ! $this->plannedStart($session)->isFuture();
+                $session->complete_waits = $session->can_open && ! $session->can_complete;
                 // What this teacher may change of the Session's operational part (ADR-0002 § Teacher Session Operations).
                 // Without `class.operate` the teacher still teaches the Session, but changes nothing of it (ADR-0033 D3).
                 $editable = $presenter && $mayOperate ? $this->sessionOperations->editable((int) $session->customer_id, $session) : ['place' => false, 'link' => false];
@@ -78,6 +87,47 @@ class LiveClassWhiteboardService
             ->values();
     }
 
+    /**
+     * Sessions of an earlier day the teacher was assigned to and that never started: they stay `scheduled` until
+     * someone cancels or moves them, so the teacher is shown what still waits for a decision (Owner 2026-11-18).
+     *
+     * @return Collection<int, object>
+     */
+    public function teacherOverdueSessions(int $customerId, int $teacherId): Collection
+    {
+        return $this->assignedSessionQuery($customerId, $teacherId)
+            ->where('sessions.status', 'scheduled')
+            ->where('cohorts.status', 'active')
+            ->orderByDesc('sessions.scheduled_start_at')->orderByDesc('sessions.id')
+            ->limit(200)
+            ->get()
+            ->filter(fn (object $session): bool => $this->localDate($session->scheduled_start_at, $session->timezone) < $this->today($session->timezone))
+            ->take(100)
+            ->values();
+    }
+
+    /**
+     * The Sessions the teacher taught to the end, newest first, ten a page: the way back to their attendance.
+     */
+    public function teacherTaughtSessions(int $customerId, int $teacherId, int $perPage = 10): LengthAwarePaginator
+    {
+        return $this->assignedSessionQuery($customerId, $teacherId)
+            ->where('sessions.status', 'completed')
+            ->orderByDesc('sessions.scheduled_start_at')->orderByDesc('sessions.id')
+            ->paginate($perPage)->withQueryString();
+    }
+
+    private function assignedSessionQuery(int $customerId, int $teacherId)
+    {
+        return $this->sessionQuery($customerId)
+            ->join('core_liveclass_session_teachers as assignments', function ($join) use ($customerId, $teacherId): void {
+                $join->on('assignments.session_id', '=', 'sessions.id')
+                    ->where('assignments.customer_id', $customerId)
+                    ->where('assignments.teacher_id', $teacherId);
+            })
+            ->addSelect('assignments.assigned_from', 'assignments.assigned_to');
+    }
+
     public function startForTeacher(int $customerId, int $teacherId, int $sessionId): void
     {
         $session = $this->teacherSession($customerId, $teacherId, $sessionId);
@@ -87,6 +137,14 @@ class LiveClassWhiteboardService
                 'lifecycle' => __('lf.LF_liveclass_whiteboard_start_not_today'),
             ]);
         }
+        // Not before the class's attendance entry opens: a Session started earlier would be live while learners
+        // still cannot be recorded entering it (Owner 2026-11-18).
+        $opensAt = $this->startOpensAt($session);
+        if ($opensAt->isFuture()) {
+            throw ValidationException::withMessages([
+                'lifecycle' => __('lf.LF_liveclass_whiteboard_start_too_early', ['time' => $opensAt->format('H:i')]),
+            ]);
+        }
 
         $this->lifecycle->start($customerId, (int) $session->cohort_id, $sessionId);
     }
@@ -94,6 +152,13 @@ class LiveClassWhiteboardService
     public function completeForTeacher(int $customerId, int $teacherId, int $sessionId): void
     {
         $session = $this->teacherSession($customerId, $teacherId, $sessionId);
+        // A live Session is not ended before its planned start (Owner 2026-11-18); any other state is refused by the lifecycle.
+        if ($session->status === 'live' && ($plannedStart = $this->plannedStart($session))->isFuture()) {
+            throw ValidationException::withMessages([
+                'lifecycle' => __('lf.LF_liveclass_whiteboard_complete_too_early', ['time' => $plannedStart->format('H:i')]),
+            ]);
+        }
+
         $this->lifecycle->complete($customerId, (int) $session->cohort_id, $sessionId);
     }
 
@@ -501,6 +566,22 @@ class LiveClassWhiteboardService
 
         return ($session->assigned_from === null || (string) $session->assigned_from <= $now)
             && ($session->assigned_to === null || (string) $session->assigned_to >= $now);
+    }
+
+    /** The planned start, in the Session's own timezone. */
+    private function plannedStart(object $session): Carbon
+    {
+        return Carbon::parse((string) $session->scheduled_start_at, $session->timezone);
+    }
+
+    /** When the teacher may start: the planned start less the minutes the class's attendance policy opens early. */
+    private function startOpensAt(object $session): Carbon
+    {
+        // One read per class, however many of its Sessions the list shows.
+        $minutes = $this->opensBeforeMinutes[$session->customer_id.':'.$session->cohort_id]
+            ??= max(0, (int) $this->attendancePolicies->forCohort((int) $session->customer_id, (int) $session->cohort_id)->opens_before_minutes);
+
+        return $this->plannedStart($session)->subMinutes($minutes);
     }
 
     private function isPlannedToday(object $session): bool

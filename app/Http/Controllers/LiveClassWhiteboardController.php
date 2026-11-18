@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Services\LiveClassAttendanceCheckIn;
 use App\Services\LiveClassWhiteboardLiveState;
 use App\Services\LiveClassWhiteboardService;
+use App\Services\TeacherPermissions;
 use App\Support\LiveClassBoardContext;
 use App\Support\TenantContext;
 use Illuminate\Http\JsonResponse;
@@ -25,8 +26,23 @@ final class LiveClassWhiteboardController extends Controller
 
     public function teacherIndex(Request $request): View
     {
+        $customerId = $this->customerId();
+        $teacher = $request->user();
+        $tab = in_array($request->query('tab'), ['overdue', 'taught'], true) ? $request->query('tab') : 'upcoming';
+        $upcoming = $this->whiteboards->teacherSessions($customerId, (int) $teacher->id);
+        $overdue = $this->whiteboards->teacherOverdueSessions($customerId, (int) $teacher->id);
+        $permissions = app(TeacherPermissions::class);
+
         return view('liveclass-whiteboard.teacher-sessions', [
-            'sessions' => $this->whiteboards->teacherSessions($this->customerId(), (int) $request->user()->id),
+            'tab' => $tab,
+            'sessions' => match ($tab) {
+                'overdue' => $overdue,
+                'taught' => $this->whiteboards->teacherTaughtSessions($customerId, (int) $teacher->id),
+                default => $upcoming,
+            },
+            'tabCounts' => ['upcoming' => $upcoming->count(), 'overdue' => $overdue->count()],
+            // A missed Session is cancelled or moved in "Quản lý lớp", which only the class's main teacher with class.manage opens.
+            'managedCohortIds' => $permissions->may($teacher, 'class.manage') ? $permissions->primaryCohortIds($teacher) : [],
         ]);
     }
 

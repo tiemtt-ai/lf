@@ -158,10 +158,16 @@ class LearnerMyLearningTest extends TestCase
         $missed = $this->liveSession($cohort, $version, 'Buổi 2', '2026-07-06 19:00:00', '2026-07-06 21:00:00', 'completed');
         $cancelled = $this->liveSession($cohort, $version, 'Buổi hủy', '2026-07-08 19:00:00', '2026-07-08 21:00:00', 'cancelled');
         $next = $this->liveSession($cohort, $version, 'Buổi 3', '2026-07-13 19:00:00', '2026-07-13 21:00:00');
-        DB::table('core_liveclass_attendances')->insert([
-            'customer_id' => $this->customer, 'session_id' => $attended, 'enrollment_id' => $enrollment, 'user_id' => $this->student->id,
-            'status' => 'present', 'attendance_mode' => 'onsite', 'joined_at' => '2026-07-03 19:01:00', 'created_at' => now(), 'updated_at' => now(),
-        ]);
+        // Only a completed Session is held (Owner 2026-11-18): one left `scheduled` after its time and one still
+        // running count in the total, not as learned, and a mark in the running one is not attendance yet.
+        $skipped = $this->liveSession($cohort, $version, 'Buổi lỡ', '2026-07-01 19:00:00', '2026-07-01 21:00:00');
+        $running = $this->liveSession($cohort, $version, 'Buổi đang dạy', '2026-07-09 19:00:00', '2026-07-09 21:00:00', 'live');
+        foreach ([[$attended, '2026-07-03 19:01:00'], [$running, '2026-07-09 19:01:00']] as [$session, $joinedAt]) {
+            DB::table('core_liveclass_attendances')->insert([
+                'customer_id' => $this->customer, 'session_id' => $session, 'enrollment_id' => $enrollment, 'user_id' => $this->student->id,
+                'status' => 'present', 'attendance_mode' => 'onsite', 'joined_at' => $joinedAt, 'created_at' => now(), 'updated_at' => now(),
+            ]);
+        }
 
         // Draft classes, classes the learner left, and other learners' classes stay out.
         $draft = $this->cohort($product, $version, 'Lớp nháp', 'draft');
@@ -178,14 +184,14 @@ class LearnerMyLearningTest extends TestCase
         $this->assertSame([$cohort], $this->ids($list, 'data-learn-class'));
         $this->assertStringContainsString('Thầy Minh, Cô Lan', $list);
         $this->assertStringContainsString(__('lf.LF_my_learning_class_attendance').': 50%', $list);
-        $this->assertStringContainsString(__('lf.LF_my_learning_class_sessions', ['held' => 2, 'total' => 3]), $list);
+        $this->assertStringContainsString(__('lf.LF_my_learning_class_sessions', ['held' => 2, 'total' => 5]), $list);
         $done = $this->actingAs($this->student)->get(self::HOST.'/my-courses?tab=classes&view=completed')->assertOk()->getContent();
         $this->assertSame([$finished], $this->ids($done, 'data-learn-class'));
         // Class-based courses are not listed among self-paced courses.
         $this->assertSame([], $this->ids($this->actingAs($this->student)->get(self::HOST.'/my-courses')->getContent(), 'data-learn-course'));
 
         $detail = $this->actingAs($this->student)->get(self::HOST.'/my-courses/classes/'.$cohort)->assertOk()->getContent();
-        $this->assertSame([$attended, $missed, $cancelled, $next], $this->ids($detail, 'data-learn-session'));
+        $this->assertSame([$skipped, $attended, $missed, $cancelled, $running, $next], $this->ids($detail, 'data-learn-session'));
         $this->assertMatchesRegularExpression('#data-learn-session="'.$attended.'".*?data-learn-attendance="present"#s', $detail);
         $this->assertMatchesRegularExpression('#data-learn-session="'.$missed.'".*?data-learn-attendance="none"#s', $detail);
         $this->assertStringContainsString('Buổi 3', substr($detail, strpos($detail, 'data-learn-next'), 600));

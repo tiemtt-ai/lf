@@ -115,7 +115,9 @@ class ErrorPageAreaTest extends TestCase
     {
         $this->createTenant('tenant-a');
 
-        $this->get(self::HOST.'/logout')->assertStatus(405);
+        // The 405 is drawn in the tenant's site too, never as the framework's bare page.
+        $this->get(self::HOST.'/logout')->assertStatus(405)
+            ->assertSee('sb2b-header', false)->assertSeeText(__('lf.LF_common_title_public_page_method_not_allowed'));
         $this->post(self::HOST.'/no-such-page')->assertNotFound();
         $this->delete(self::HOST.'/admin/no-such-page')->assertNotFound();
         $this->call('OPTIONS', self::HOST.'/logout')->assertOk()->assertHeader('Allow', 'POST');

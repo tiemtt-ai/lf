@@ -154,8 +154,8 @@ class CourseProductManagementTest extends TestCase
     {
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
-        $templateId = $this->createTemplate($customerId, $admin->id, 'Duration Template', 'duration-template');
-        $versionId = $this->createVersion($customerId, $templateId, $admin->id);
+        $templateId = $this->createTemplate($customerId, $admin->id, 'Duration Template');
+        $versionId = $this->createVersion($customerId, $admin->id, templateId: $templateId);
         $productId = $this->createProduct($customerId, 'Duration Product', 'duration-product', status: 'active');
         $this->createProductItem($customerId, $productId, $versionId);
         $url = "https://tenant-a.localhost/admin/course-products/{$productId}/edit";
@@ -414,7 +414,7 @@ class CourseProductManagementTest extends TestCase
         $concurrent = null;
         $codeQueries = 0;
         DB::listen(function ($query) use (&$concurrent, &$codeQueries, $seed): void {
-            if (! str_contains($query->sql, '"product_code" like')) {
+            if (! str_contains(str_replace(['"', '`'], '', $query->sql), 'product_code like')) {
                 return;
             }
             $codeQueries++;

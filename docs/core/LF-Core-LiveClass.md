@@ -978,6 +978,9 @@ Nội dung vẫn nằm ở Template; lớp chỉ đọc.
   sửa bộ không làm mất (Owner quyết 2026-11-18, thay quyết định hiện kèm ghi chú
   "chưa áp dụng" ngày 2026-11-17).
 * Danh sách bộ quy tắc gắn nhãn "Bộ mặc định" cho bộ mặc định thay vì chỉ ẩn nút xoá.
+* Tab Điểm danh của lớp mở ở buổi gần nhất đã đến giờ bắt đầu (chưa có buổi nào thì buổi
+  đầu tiên). Với giáo viên, tab này chỉ xem và có nút "Điểm danh" dẫn sang trang ghi tay của
+  đúng buổi đang xem (2026-11-18).
 
 **Vào phòng họp** (buổi `online`, và người ở xa của buổi `hybrid`)
 
@@ -1279,6 +1282,22 @@ Giáo viên được phân công tự bắt đầu (`scheduled → live`) và k�
 (`live → completed`) buổi của mình qua `LiveClassSessionLifecycleService`, theo bảng
 chuyển trạng thái hiện có. Server từ chối bắt đầu ngoài ngày dự kiến của buổi theo
 múi giờ đã lưu của buổi. Huỷ buổi và đánh dấu vắng (`no_show`) vẫn là việc của admin.
+
+**Giờ bắt đầu và kết thúc của giáo viên (Owner 2026-11-18).** Trong ngày dự kiến, giáo viên
+chỉ bắt đầu được từ mốc mở điểm danh của lớp: giờ bắt đầu dự kiến trừ `opens_before_minutes`
+của bộ quy tắc lớp đang dùng (mặc định 15 phút). Trước mốc đó nút "Bắt đầu buổi học" không
+hiện, dòng buổi ghi "Bắt đầu được từ HH:mm" và server từ chối. Buổi `live` không kết thúc
+được trước giờ bắt đầu dự kiến. Lý do: buổi bắt đầu sớm hơn mốc mở thì đã `live` nhưng học
+viên chưa được ghi giờ vào, và buổi kết thúc sớm vẫn giữ nguyên khung giờ dự kiến. Quy tắc
+này áp dụng cho giáo viên (`LiveClassWhiteboardService::startForTeacher`,
+`completeForTeacher`); thao tác của admin ở tab Buổi học không đổi.
+
+**Danh sách buổi của giáo viên** (`/teacher/live-sessions`, 2026-11-18) có ba tab: "Sắp tới"
+(buổi `scheduled` từ hôm nay và buổi `live`, nơi bắt đầu, mở bảng, kết thúc), "Cần xử lý"
+(buổi `scheduled` của ngày đã qua mà chưa dạy; giáo viên chính có `class.manage` có lối sang
+tab Buổi học của lớp để huỷ và xếp buổi bù, người khác được nhắc báo quản trị) và "Đã dạy"
+(buổi `completed`, mới nhất trước, 10 buổi một trang, kèm lối vào điểm danh). Trang chỉ đọc thêm, không đổi trạng
+thái buổi.
 
 **Hết giờ là kết thúc (Owner 2026-11-11).** Buổi `live` đã qua `scheduled_end_at` (theo múi
 giờ của buổi) được hệ thống tự chuyển sang `completed` bằng lệnh

@@ -182,12 +182,12 @@
                                             <tbody>
                                                 @foreach ($nodes as $node)
                                                     <tr x-show="! q || @js($lower($node->code_snapshot.' '.$node->name_snapshot)).includes(q.toLowerCase())">
-                                                        <td><span class="ui-learning-code">{{ $node->code_snapshot }}</span></td>
-                                                        <td>
+                                                        <td data-label="{{ __('lf.LF_course_template_learning_ui_code') }}"><span class="ui-learning-code">{{ $node->code_snapshot }}</span></td>
+                                                        <td data-label="{{ __('lf.LF_course_template_learning_ui_node') }}">
                                                             <span class="ui-learning-node-name">{{ $node->name_snapshot }}</span>
                                                             @if ($node->description_snapshot ?? null)<span class="ui-caption ui-learning-block">{{ $node->description_snapshot }}</span>@endif
                                                         </td>
-                                                        <td class="ui-learning-preview-table__count">{{ $nodeLessonCounts[(int) $node->id] ?? 0 }}</td>
+                                                        <td class="ui-learning-preview-table__count" data-label="{{ __('lf.LF_course_template_learning_ui_lessons_used') }}">{{ $nodeLessonCounts[(int) $node->id] ?? 0 }}</td>
                                                     </tr>
                                                 @endforeach
                                             </tbody>

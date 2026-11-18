@@ -1,12 +1,12 @@
 # ADR-0031 — Learner Learning Results
 
-Version: 1.0
+Version: 1.1
 
 Status: Approved
 
 Implementation Status: Implemented
 
-Last Updated: 2026-11-11
+Last Updated: 2026-11-18
 
 Proposal Date: 2026-11-11
 
@@ -100,6 +100,19 @@ Owner duyệt 2026-11-11 ("soạn luôn và làm luôn").
   `AssessmentLearnerTest::test_learning_results_never_show_a_score_the_student_may_not_see_yet`.
 * 2026-11-11: nhóm Bài thi thêm Quiz trong khóa, mỗi dòng một Enrollment + Activity
   ([ADR-0032](ADR-0032-Course-Quiz-Activity.md) D4); phần "chờ Quiz Activity" ở D4 đã xong.
+
+# Amendment 1.1 — 2026-11-18 (Owner): "buổi đã diễn ra" là buổi `completed`
+
+Trước đó `LearnerMyLearningService` tính cả buổi `live` và buổi còn `scheduled` nhưng đã qua
+giờ kết thúc là "đã diễn ra". Hệ quả: lớp có buổi bị lỡ chưa ai huỷ vẫn hiện tiến độ 100%, và
+buổi đang dạy kéo tỷ lệ chuyên cần xuống trước khi có kết quả. Từ 2026-11-18:
+
+* Buổi đã diễn ra = Session `completed`. Buổi `live`, buổi `scheduled` (kể cả đã qua giờ) vẫn
+  nằm trong tổng số buổi nhưng chưa tính là đã học.
+* Có mặt / đi muộn chỉ đếm ở buổi `completed`, nên tỷ lệ chuyên cần luôn so trên cùng tập buổi.
+* Áp dụng cho "Lớp học của tôi", chi tiết lớp và nhóm Lớp học của Kết quả học tập (cùng một
+  nguồn). Không đổi dữ liệu, không đổi Course Progress của ADR-0030.
+* Test: `LearnerMyLearningTest::test_classes_show_attendance_against_sessions_held_and_the_next_session`.
 
 ---
 

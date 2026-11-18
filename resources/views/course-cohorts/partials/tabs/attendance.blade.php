@@ -48,6 +48,12 @@
         @unless ($attendanceEditable)
             <div class="ui-banner ui-cohort-tab-notice" role="status">
                 <span class="ui-banner__text">{{ __(($cohortAdmin ?? true) ? 'lf.LF_course_cohort_attendance_read_only' : 'lf.LF_course_cohort_attendance_read_only_teacher') }}</span>
+                @if (! ($cohortAdmin ?? true) && \App\Services\LiveClassAttendanceCheckIn::enabled())
+                    {{-- The teacher records on "Lớp của tôi"; the notice leads there, on the Session shown here. --}}
+                    <span class="ui-banner__actions">
+                        <a class="ui-button ui-button--sm cursor-interaction" href="{{ route('teacher.cohorts.attendance', ['cohort' => $cohort->id, 'session_id' => $selectedSessionId]) }}" data-attendance-record-link>{{ __('lf.LF_teacher_attendance_open') }}</a>
+                    </span>
+                @endif
             </div>
         @endunless
 
