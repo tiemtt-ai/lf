@@ -659,6 +659,48 @@ class CourseTemplateManagementTest extends TestCase
             ->assertSee('Evening Class Course')->assertSee('Self Study Course');
     }
 
+    public function test_changing_the_course_type_clears_the_lesson_fields_the_new_type_does_not_use(): void
+    {
+        // ADR-0022 Amendment 1.2: preview and unlock rules are for a self-paced course, the lesson type for a class.
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $categoryId = $this->createCategory($customerId, 'Korean', 'korean');
+        $create = $this->validTemplateData(['category_id' => $categoryId, 'title' => 'Switching Template', 'intro_image_file' => null]);
+        $this->actingAs($admin)->post('https://tenant-a.localhost/admin/course-templates', ['course_type' => 'self_paced'] + $create)
+            ->assertSessionHasNoErrors();
+        $templateId = (int) DB::table('core_course_templates')->where('title', 'Switching Template')->value('id');
+        $lesson = fn (string $title, int $order, array $values = []) => DB::table('core_course_template_lessons')->insertGetId($values + [
+            'customer_id' => $customerId, 'template_id' => $templateId, 'template_section_id' => null, 'title' => $title,
+            'sort_order' => $order, 'is_preview' => false, 'lesson_type' => 'regular', 'duration_seconds' => 0, 'activity_count' => 0,
+            'unlock_rule' => 'none', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $first = $lesson('First', 0, ['is_preview' => true]);
+        $second = $lesson('Second', 1, ['unlock_rule' => 'selected_lessons_completed', 'prerequisite_match' => 'all']);
+        $third = $lesson('Third', 2, ['unlock_rule' => 'date_based', 'unlock_at' => now()->addDay()]);
+        DB::table('core_course_template_lesson_prerequisites')->insert([
+            'customer_id' => $customerId, 'template_id' => $templateId, 'lesson_id' => $second,
+            'prerequisite_lesson_id' => $first, 'sort_order' => 0, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $update = fn (string $type) => $this->actingAs($admin)->put(
+            "https://tenant-a.localhost/admin/course-templates/{$templateId}",
+            ['course_type' => $type] + $create
+        );
+
+        $update('blended')->assertSessionHasNoErrors();
+        $rows = DB::table('core_course_template_lessons')->where('template_id', $templateId)->get()->keyBy('id');
+        foreach ([$first, $second, $third] as $id) {
+            $this->assertFalse((bool) $rows[$id]->is_preview);
+            $this->assertSame('none', $rows[$id]->unlock_rule);
+            $this->assertNull($rows[$id]->prerequisite_match);
+            $this->assertNull($rows[$id]->unlock_at);
+        }
+        $this->assertDatabaseMissing('core_course_template_lesson_prerequisites', ['template_id' => $templateId]);
+
+        DB::table('core_course_template_lessons')->where('id', $first)->update(['lesson_type' => 'final_exam']);
+        $update('self_paced')->assertSessionHasNoErrors();
+        $this->assertSame('regular', DB::table('core_course_template_lessons')->where('id', $first)->value('lesson_type'));
+    }
+
     public function test_course_type_is_required_on_create_and_locked_once_a_product_binds_a_version(): void
     {
         // ADR-0022: the type is chosen at creation, may change only while every Activity fits it and no Product binds a Version.

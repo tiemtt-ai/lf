@@ -63,6 +63,21 @@ final class CourseType
         return $type === self::SELF_PACED;
     }
 
+    /**
+     * Lesson fields by type (ADR-0022 Amendment 1.2). A class opens its lessons by the class schedule, so
+     * preview and unlock rules belong to a self-paced course only; a Template without a type keeps them.
+     */
+    public static function usesLessonPreviewAndUnlock(?string $type): bool
+    {
+        return ! in_array($type, self::COHORT_VALUES, true);
+    }
+
+    /** The lesson type labels a session on the class schedule; a self-paced course has no schedule. */
+    public static function usesLessonType(?string $type): bool
+    {
+        return $type !== self::SELF_PACED;
+    }
+
     /** Whether the stored availability flags of one Activity fit the type; null type never fits. */
     public static function availabilityFits(?string $type, object|array $activity): bool
     {

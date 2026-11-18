@@ -1,12 +1,12 @@
 # LF-Core-Course.md
 
-Version: 3.12
+Version: 3.14
 
 Document Status: Approved
 
 Implementation Status: Unknown
 
-Last Updated: 2026-11-17
+Last Updated: 2026-11-18
 
 Document Path: core/LF-Core-Course.md
 
@@ -223,6 +223,15 @@ Course Template
 * `lesson_type` phân loại semantic Lesson bằng các code `regular`, `review`,
   `midterm_exam`, `final_exam`, `other_exam`. Classification không tự thay đổi
   scheduling, grading, completion, unlock, Assessment, Activity hoặc Cohort.
+* Trường của Lesson theo loại khóa học
+  ([ADR-0022 Amendment 1.2](../adr/ADR-0022-Course-Type-On-Template.md#amendment-12--trường-của-lesson-theo-loại-khóa-học-approved-2026-11-18)):
+  khóa Tự học có học thử và quy tắc mở khóa, không có loại bài học (luôn `regular`);
+  khóa Theo lớp có loại bài học, không có học thử và quy tắc mở khóa (luôn `false` /
+  `none`). Form chỉ hiện trường của loại; server tự đặt phần còn lại.
+* Ở khóa Theo lớp, `lesson_type` quyết định buổi có giáo viên hay buổi tự học và Activity
+  của bài (thêm `practice`, `extracurricular`, `self_study`):
+  [ADR-0022 Amendment 1.3](../adr/ADR-0022-Course-Type-On-Template.md#amendment-13--loại-buổi-học-và-hoạt-động-của-khóa-theo-lớp-approved-2026-11-18).
+  Câu "classification không tự thay đổi..." ở trên chỉ còn đúng với khóa Tự học.
 * Empty Activity state chỉ hiển thị `Chưa có hoạt động.`.
 * Section `allows_lessons = false` không render Lesson heading, count, empty
   state hoặc action gắn Lesson; child Sections vẫn hiển thị bình thường.
@@ -454,6 +463,14 @@ when none is declared.
 > * Trước khi áp dụng ở một môi trường, đếm Activity `live_class` đang khai báo
 >   `before_session` hoặc `after_session`. Trên database dev ngày 2026-11-17 không có dòng
 >   nào (8 Activity đang soạn, 8 Version Activity).
+> Ghi chú UI 2026-11-18 (Owner yêu cầu): trong form Activity của khóa học theo lớp, thẻ
+> "Theo buổi học" đứng trước "Học bất kỳ lúc nào" và được chọn sẵn khi thêm Activity mới;
+> thời điểm theo buổi để trống cho người soạn chọn. Thêm từ một tab thời điểm của Lesson
+> thì chọn sẵn đúng tab đó (kể cả tab "Học bất kỳ lúc nào"). Activity đang có giữ lựa chọn đã lưu.
+> Quy tắc server ở trên không đổi. Ghi chú này được thay bởi
+> [ADR-0022 Amendment 1.3](../adr/ADR-0022-Course-Type-On-Template.md#amendment-13--loại-buổi-học-và-hoạt-động-của-khóa-theo-lớp-approved-2026-11-18)
+> khi Amendment đó được triển khai: khóa Theo lớp chọn đúng một phần, không còn "Học bất kỳ lúc nào".
+
 Existing Activities default to `anytime`. Activity `sort_order` controls only
 display order and does not define availability.
 

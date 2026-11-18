@@ -551,6 +551,8 @@ class CourseTemplateActivityManagementTest extends TestCase
     public function test_a_date_based_unlock_typed_in_local_time_is_stored_in_utc_and_shown_back_locally(): void
     {
         [$customerId, $templateId] = $this->createDirectHierarchy();
+        // A date-based unlock belongs to a self-paced course (ADR-0022 Amendment 1.2).
+        DB::table('core_course_templates')->where('id', $templateId)->update(['course_type' => 'self_paced']);
         $admin = $this->createUser($customerId, 'customer_admin');
         $base = "https://tenant-a.localhost/admin/course-templates/{$templateId}";
         $this->actingAs($admin);
@@ -1160,7 +1162,18 @@ class CourseTemplateActivityManagementTest extends TestCase
             ->assertSee('lf-info-tip--lines', false)
             ->assertSeeText(__('lf.LF_course_template_activity_learning_mode_anytime_help'))
             ->assertSeeText(__('lf.LF_course_template_activity_phase_choose'))
-            ->assertDontSee('ui-option-cards__detail--solo', false);
+            ->assertDontSee('ui-option-cards__detail--solo', false)
+            // By session comes first and is chosen for a new Activity, with no phase picked yet.
+            ->assertSeeInOrder(['id="activity-form-learning_mode-session"', 'ui-option-cards__detail', 'id="activity-form-learning_mode-anytime"'], false)
+            ->assertSee("learningMode: 'session'", false)
+            ->assertSee('sessionPhases: []', false);
+
+        // Adding from a phase tab of the lesson presets that tab, the Anytime tab included.
+        $createUrl = $this->activityCollectionUrl('admin', $templateId, $sectionId, $lessonId).'/create?phase=';
+        $this->actingAs($admin)->get($createUrl.'anytime', ['X-Requested-With' => 'XMLHttpRequest'])
+            ->assertOk()->assertSee("learningMode: 'anytime'", false);
+        $this->actingAs($admin)->get($createUrl.'after_session', ['X-Requested-With' => 'XMLHttpRequest'])
+            ->assertOk()->assertSee("learningMode: 'session'", false)->assertDontSee('sessionPhases: []', false);
     }
 
     public function test_a_legacy_scheduled_course_gets_the_class_based_form(): void

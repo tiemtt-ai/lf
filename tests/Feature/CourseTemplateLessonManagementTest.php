@@ -570,7 +570,8 @@ class CourseTemplateLessonManagementTest extends TestCase
     {
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
-        $templateId = $this->createTemplate($customerId, 'Lesson Roles', 'lesson-roles');
+        // The lesson type labels a session of a class: only a class-based course has it.
+        $templateId = $this->createTemplate($customerId, 'Lesson Roles', 'lesson-roles', courseType: 'blended');
 
         foreach (['regular', 'review', 'midterm_exam', 'final_exam', 'other_exam'] as $index => $lessonType) {
             $this->actingAs($admin)->post(
@@ -593,6 +594,88 @@ class CourseTemplateLessonManagementTest extends TestCase
             $this->directLessonCollectionUrl('admin', $templateId),
             $this->validLessonData(['title' => 'Invalid Role', 'lesson_type' => 'introduction'])
         )->assertSessionHasErrors('lesson_type');
+    }
+
+    public function test_lesson_fields_follow_the_template_course_type(): void
+    {
+        // ADR-0022 Amendment 1.2: a class opens lessons by its schedule, so preview and unlock rules are for a
+        // self-paced course only; the lesson type labels a session of a class. The server sets what the form hides.
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $classId = $this->createTemplate($customerId, 'Class Course', 'class-course', courseType: 'blended');
+        $selfId = $this->createTemplate($customerId, 'Self Course', 'self-course');
+        $classFirst = $this->createLesson($customerId, $classId, null, 'Class First');
+
+        $classForm = $this->actingAs($admin)->withHeaders($this->ajaxHeaders())
+            ->get($this->directLessonCollectionUrl('admin', $classId).'/create')->assertOk();
+        $classForm->assertSee('name="lesson_type"', false);
+        foreach (['is_preview', 'unlock_rule', 'prerequisite_match', 'prerequisite_lesson_ids[]', 'unlock_at'] as $field) {
+            $classForm->assertDontSee('name="'.$field.'"', false);
+        }
+        $this->actingAs($admin)->withHeaders($this->ajaxHeaders())
+            ->get($this->directLessonCollectionUrl('admin', $selfId).'/create')->assertOk()
+            ->assertSee('name="is_preview"', false)
+            ->assertSee('name="unlock_rule"', false)
+            ->assertDontSee('name="lesson_type"', false);
+
+        // A tampered class request stores no preview, no rule and no prerequisite; an unusable rule is not even checked.
+        $this->actingAs($admin)->post($this->directLessonCollectionUrl('admin', $classId), $this->validLessonData([
+            'title' => 'Class Review', 'lesson_type' => 'review', 'is_preview' => 1,
+            'unlock_rule' => 'selected_lessons_completed', 'prerequisite_match' => 'any', 'prerequisite_lesson_ids' => [$classFirst, 999999],
+        ]))->assertSessionHasNoErrors();
+        $classLesson = DB::table('core_course_template_lessons')->where('template_id', $classId)->where('title', 'Class Review')->first();
+        $this->assertSame('review', $classLesson->lesson_type);
+        $this->assertFalse((bool) $classLesson->is_preview);
+        $this->assertSame('none', $classLesson->unlock_rule);
+        $this->assertNull($classLesson->prerequisite_match);
+        $this->assertDatabaseMissing('core_course_template_lesson_prerequisites', ['lesson_id' => $classLesson->id]);
+
+        $this->actingAs($admin)->post($this->directLessonCollectionUrl('admin', $selfId), $this->validLessonData([
+            'title' => 'Self Exam', 'lesson_type' => 'final_exam', 'is_preview' => 1,
+        ]))->assertSessionHasNoErrors();
+        $selfLesson = DB::table('core_course_template_lessons')->where('template_id', $selfId)->where('title', 'Self Exam')->first();
+        $this->assertSame('regular', $selfLesson->lesson_type);
+        $this->assertTrue((bool) $selfLesson->is_preview);
+
+        // Editing a class lesson keeps its type and still ignores a sent unlock date.
+        $this->actingAs($admin)->put($this->directLessonCollectionUrl('admin', $classId).'/'.$classLesson->id, $this->validLessonData([
+            'title' => 'Class Review', 'lesson_type' => 'midterm_exam', 'unlock_rule' => 'date_based', 'unlock_at' => '2026-12-01T08:00',
+        ]))->assertSessionHasNoErrors();
+        $edited = DB::table('core_course_template_lessons')->where('id', $classLesson->id)->first();
+        $this->assertSame('midterm_exam', $edited->lesson_type);
+        $this->assertSame('none', $edited->unlock_rule);
+        $this->assertNull($edited->unlock_at);
+    }
+
+    public function test_a_legacy_single_prerequisite_opens_as_the_selected_lesson_and_survives_a_save(): void
+    {
+        // `previous_lesson_completed` has no option of its own; the form must not show it as "no rule" and drop it.
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, 'Legacy Rule Course', 'legacy-rule-course');
+        $first = $this->createLesson($customerId, $templateId, null, 'Legacy First');
+        $second = $this->createLesson($customerId, $templateId, null, 'Legacy Second', $first);
+        DB::table('core_course_template_lessons')->where('id', $second)->update(['sort_order' => 1]);
+        $lessonUrl = $this->directLessonCollectionUrl('admin', $templateId).'/'.$second;
+
+        $form = $this->actingAs($admin)->withHeaders($this->ajaxHeaders())->get($lessonUrl.'/edit')->assertOk()->getContent();
+        $document = new \DOMDocument;
+        $previous = libxml_use_internal_errors(true);
+        $document->loadHTML($form);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previous);
+        $xpath = new \DOMXPath($document);
+        $this->assertSame('selected_lessons_completed', $xpath->query('//select[@name="unlock_rule"]/option[@selected]')->item(0)?->getAttribute('value'));
+        $this->assertSame('all', $xpath->query('//select[@name="prerequisite_match"]/option[@selected]')->item(0)?->getAttribute('value'));
+        $this->assertSame((string) $first, $xpath->query('//select[@name="prerequisite_lesson_ids[]"]/option[@selected]')->item(0)?->getAttribute('value'));
+
+        // Saving what the form shows keeps the rule, now stored as the selected lessons.
+        $this->actingAs($admin)->put($lessonUrl, $this->validLessonData([
+            'title' => 'Legacy Second', 'unlock_rule' => 'selected_lessons_completed',
+            'prerequisite_match' => 'all', 'prerequisite_lesson_ids' => [$first],
+        ]))->assertSessionHasNoErrors();
+        $this->assertSame('selected_lessons_completed', DB::table('core_course_template_lessons')->where('id', $second)->value('unlock_rule'));
+        $this->assertDatabaseHas('core_course_template_lesson_prerequisites', ['lesson_id' => $second, 'prerequisite_lesson_id' => $first]);
     }
 
     public function test_estimated_lesson_count_does_not_limit_authoring(): void
@@ -1492,7 +1575,6 @@ class CourseTemplateLessonManagementTest extends TestCase
         foreach ([
             'title',
             'is_preview',
-            'lesson_type',
             'unlock_rule',
             'prerequisite_match',
         ] as $field) {
@@ -1515,6 +1597,7 @@ class CourseTemplateLessonManagementTest extends TestCase
         }
 
         $response
+            ->assertDontSee('name="lesson_type"', false)
             ->assertDontSee('name="duration_seconds"', false)
             ->assertDontSee('name="activity_count"', false);
     }
@@ -1564,7 +1647,6 @@ class CourseTemplateLessonManagementTest extends TestCase
                 'short_description',
                 'description',
                 'is_preview',
-                'lesson_type',
                 'unlock_rule',
                 'unlock_after_lesson_id',
                 'unlock_at',
@@ -1572,23 +1654,20 @@ class CourseTemplateLessonManagementTest extends TestCase
                 $response->assertSee('name="'.$field.'"', false);
             }
 
-            $response->assertDontSee('name="sort_order"', false);
+            // A self-paced course has no class schedule, so no lesson type (ADR-0022 Amendment 1.2).
+            $response->assertDontSee('name="sort_order"', false)
+                ->assertDontSee('name="lesson_type"', false);
 
             $content = $response->getContent();
             $this->assertLessThan(
-                strpos($content, 'name="is_preview"'),
-                strpos($content, 'name="lesson_type"')
-            );
-            $this->assertLessThan(
                 strpos($content, 'name="unlock_rule"'),
-                strpos($content, 'name="lesson_type"')
+                strpos($content, 'name="is_preview"')
             );
             $response
                 ->assertSee('class="ui-modal__form"', false)
                 ->assertSee('data-ui-dialog-form-submit', false)
                 ->assertSee('data-ui-dialog-form-cancel', false)
-                ->assertDontSee('class="admin-form-standard"', false)
-                ->assertSeeText(__('lf.LF_course_template_lesson_common_type'));
+                ->assertDontSee('class="admin-form-standard"', false);
             $footerContent = substr($content, strpos($content, 'class="ui-modal__footer"'));
             $this->assertLessThan(
                 strpos($footerContent, 'data-ui-dialog-form-submit'),
@@ -2612,11 +2691,13 @@ class CourseTemplateLessonManagementTest extends TestCase
         string $title,
         string $slug,
         ?int $maxLessons = null,
-        ?int $createdBy = null
+        ?int $createdBy = null,
+        // Most tests here exercise preview and unlock rules, which only a self-paced course has (ADR-0022 Amendment 1.2).
+        string $courseType = 'self_paced'
     ): int {
         $now = now();
 
-        return $this->assignCreator($customerId, DB::table('core_course_templates')->insertGetId(['course_type' => 'blended',
+        return $this->assignCreator($customerId, DB::table('core_course_templates')->insertGetId(['course_type' => $courseType,
             'customer_id' => $customerId,
             'category_id' => null,
             'title' => $title,

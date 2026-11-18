@@ -491,7 +491,9 @@ class CourseTemplateController extends Controller
             // A legacy `scheduled` Template submitted as `blended` is the same type (ADR-0022 Amendment 1.1).
             if (! CourseType::same($validated['course_type'], $template->course_type)) {
                 // Serialized with Activity writes and Product binding by the lock above; check against the locked graph.
-                app(CourseTemplateCourseTypeService::class)->assertCanChange($customerId, $id, $validated['course_type']);
+                $courseTypes = app(CourseTemplateCourseTypeService::class);
+                $courseTypes->assertCanChange($customerId, $id, $validated['course_type']);
+                $courseTypes->resetUnusedLessonFields($customerId, $id, $validated['course_type']);
             }
             $categoryChanged = (int) $validated['category_id'] !== (int) $template->category_id;
             if ($categoryChanged) {

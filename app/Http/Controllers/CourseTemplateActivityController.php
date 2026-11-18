@@ -469,7 +469,7 @@ class CourseTemplateActivityController extends Controller
             'routePrefix' => $this->routePrefix($request, $sectionId),
             'templateRoutePrefix' => $this->templateRoutePrefix($request),
             'videoSttQualification' => $this->videoSttQualification->status(),
-            'presetPhase' => in_array($request->query('phase'), ['before_session', 'during_session', 'after_session'], true)
+            'presetPhase' => in_array($request->query('phase'), ['anytime', 'before_session', 'during_session', 'after_session'], true)
                 ? $request->query('phase')
                 : null,
         ]);

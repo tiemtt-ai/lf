@@ -1,12 +1,12 @@
 # ADR-0022 — Course Type On Course Template
 
-Version: 1.1
+Version: 1.3
 
 Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-11-09
+Last Updated: 2026-11-18
 
 Proposal Date: 2026-11-01
 
@@ -264,6 +264,140 @@ Template, Product đổi Version, Cohort, nhãn vi/en, tài liệu
   `scheduled` và `blended`. Nhân bản Version `scheduled` về bản nháp ghi
   `blended`. Form Activity bỏ nhánh riêng của Theo lịch.
 * Migration `2026_11_09_000100_merge_scheduled_course_type_into_class_based`.
+
+# Amendment 1.2 — Trường của Lesson theo loại khóa học (Approved 2026-11-18)
+
+Owner chốt ngày 2026-11-18. Amendment này thêm quy tắc cho form và dữ liệu Lesson;
+quy tắc thời điểm của Activity giữ nguyên.
+
+## Quyết định
+
+| Trường của Lesson | Tự học | Theo lớp |
+| --- | --- | --- |
+| Cho phép học thử (`is_preview`) | Có | Không; luôn `false` |
+| Quy tắc mở khóa (`unlock_rule`, `prerequisite_match`, `unlock_at`, bài điều kiện) | Có | Không; luôn `none`, không có bài điều kiện |
+| Loại bài học (`lesson_type`) | Không; luôn `regular` | Có |
+
+Căn cứ:
+
+* Lớp mở bài theo lịch của lớp. Thêm điều kiện "xong bài trước mới mở bài sau"
+  thì học viên vắng một buổi sẽ không mở được buổi sau dù lớp đã học tới
+  (MK Live mục 3.2 cũng không có điều kiện này).
+* Học thử là xem trước để quyết định mua, hợp với khóa đăng ký là học. Ở khóa theo
+  lớp, học thử là dự một buổi của lớp, là việc khác.
+* Loại bài học là nhãn của buổi trên lịch lớp; khóa tự học không có lịch.
+
+## Quy tắc
+
+* Form Lesson chỉ hiện các trường của loại khóa học; server tự đặt các trường còn lại
+  theo bảng trên, kể cả khi request gửi giá trị khác, và không kiểm tra quy tắc mở
+  khóa của khóa theo lớp.
+* Đổi loại Template (khi được phép) và nhân bản Version về bản nháp đưa các trường mà
+  loại mới không dùng về giá trị trong bảng, và xóa bài điều kiện khi sang Theo lớp.
+* **Version đã xuất bản không bị sửa** (Course Guardrails Rule 7). Version theo lớp
+  xuất bản trước 2026-11-18 vẫn chạy quy tắc mở khóa đã đóng băng; chi tiết buổi ở
+  lớp chỉ hiện quy tắc khi nó khác "Không giới hạn".
+* Không đổi schema, không cần migration. Dữ liệu dev ngày 2026-11-18: 9 Lesson của
+  Template theo lớp, không bài nào có học thử, quy tắc mở khóa hay loại khác
+  `regular`; 13 Lesson của Template tự học, không bài nào có loại khác `regular`.
+
+## Implementation record
+
+* `CourseType::usesLessonPreviewAndUnlock()`, `CourseType::usesLessonType()`.
+* `CourseTemplateLessonController` đặt lại các trường theo loại trước khi kiểm tra và
+  một lần nữa dưới khóa Template.
+* `CourseTemplateCourseTypeService::resetUnusedLessonFields()`, gọi khi đổi loại
+  Template và khi nhân bản Version về bản nháp.
+* Form Lesson và chi tiết buổi ở tab Buổi học của lớp.
+* Test: `CourseTemplateLessonManagementTest::test_lesson_fields_follow_the_template_course_type`,
+  `CourseTemplateManagementTest::test_changing_the_course_type_clears_the_lesson_fields_the_new_type_does_not_use`.
+
+# Amendment 1.3 — Loại buổi học và hoạt động của khóa Theo lớp (Approved 2026-11-18)
+
+Owner duyệt ngày 2026-11-18 (ba câu theo đề xuất: danh sách loại buổi, chặn xuất bản khi
+buổi có giáo viên thiếu Buổi học trực tiếp, bỏ thời lượng ước tính và tiêu chí thủ công).
+Căn cứ nghiệp vụ: "Nghiệp vụ luồng học tập lớp MK" (16/11/2026) mục 2.3, 3.2, 3.3, 3.4.
+Amendment này thay câu "Lesson không có Activity `live_class` là buổi tự học"
+(LF-Core-Course, Amendment 2026-11-09): buổi tự học nay do người soạn chọn.
+
+## Loại buổi học
+
+Chỉ khóa Theo lớp có trường này (Amendment 1.2).
+
+| Mã | Tên | Có giáo viên |
+| --- | --- | --- |
+| `regular` | Bài học thông thường | Có |
+| `review` | Ôn tập | Có |
+| `midterm_exam` | Kiểm tra giữa kỳ | Có |
+| `final_exam` | Kiểm tra cuối kỳ | Có |
+| `other_exam` | Kiểm tra khác | Có |
+| `practice` (mới) | Thực hành | Có |
+| `extracurricular` (mới) | Ngoại khóa | Có |
+| `self_study` (mới) | Tự học | Không |
+
+* **Buổi có giáo viên** (mọi loại trừ `self_study`) có **đúng một** Activity
+  `live_class`; mỗi Activity khác thuộc **đúng một** phần Trước / Trong / Sau buổi học
+  (một trong ba cờ `available_*_session` bằng 1, `available_anytime` bằng 0).
+  `live_class` luôn là Trong buổi học (Amendment 2026-11-17, giữ nguyên).
+* **Buổi tự học** (`self_study`) không có Activity `live_class` và không chia phần. Server
+  lưu `available_anytime = 1`: Activity mở suốt thời gian lớp như quy tắc hiện hành, cho
+  đến khi buổi tự học có ngày trên lịch lớp (LF-Core-LiveClass, Đợt C).
+* `lesson_type` là VARCHAR không có CHECK: thêm ba giá trị không đổi schema.
+
+## Form Activity của khóa Theo lớp
+
+1. Loại và học liệu.
+2. Tên, mô tả.
+3. Phần: chọn một trong Trước / Trong / Sau, chọn sẵn theo tab đang mở của bài. Buổi
+   tự học không có ô này. "Học bất kỳ lúc nào" không còn là lựa chọn.
+4. Tiêu chí hoàn thành theo loại và ô "Tính vào hoàn thành" (`is_required`):
+
+| Loại Activity | Tiêu chí (`completion_rule`) |
+| --- | --- |
+| Tài liệu | `view`: học viên bấm mở |
+| Video tải lên, audio | `watch_percent`: tỷ lệ xem/nghe, mặc định 80, từ 1 đến 100 |
+| Quiz | `submit` (đã nộp và đã chấm) hoặc `pass` (đạt điểm tối thiểu) |
+| Video từ liên kết | `view`: học viên bấm mở |
+| Buổi học trực tiếp | `join`: Có mặt hoặc Muộn |
+
+Không có ở khóa Theo lớp; server tự đặt giá trị, kể cả khi request gửi khác:
+"Cho phép học thử" (`is_preview = 0`), "Quy tắc mở khóa" (`unlock_rule = none`, không
+`unlock_after_activity_id`, `unlock_at`), "Thời lượng ước tính"
+(`estimated_duration_seconds = NULL`). Tiêu chí `manual` bị từ chối.
+
+## Server và xuất bản
+
+* Tạo/sửa Activity bị từ chối khi không đúng các quy tắc trên (lỗi ở trường tương ứng).
+* Đổi loại bài sang `self_study`: bị từ chối khi bài còn Activity `live_class`; các Activity
+  còn lại được chuyển sang `available_anytime = 1`. Đổi từ `self_study` sang loại có giáo
+  viên: Activity giữ nguyên và được nêu ở kiểm tra xuất bản cho đến khi chọn phần.
+* Kiểm tra xuất bản (Theo lớp) chặn và nêu tên bài, hoạt động: buổi có giáo viên thiếu
+  `live_class` (`lesson_live_class_missing`); buổi tự học có `live_class`
+  (`lesson_self_study_live_class`); Activity không thuộc đúng một phần hoặc dùng tiêu chí
+  không hợp lệ (`activity_class_phase`, `activity_class_completion`).
+* Đổi loại Template Tự học → Theo lớp: bài nhận `regular`; Activity `anytime` được nêu ở
+  kiểm tra xuất bản cho đến khi chọn phần.
+* **Version đã xuất bản không bị sửa** (Course Guardrails Rule 7).
+
+## Dữ liệu dev ngày 2026-11-18
+
+9 Lesson của Template Theo lớp, mỗi bài đúng một `live_class`; 15 Activity, không Activity
+`anytime` hay nhiều phần; 2 Activity video/audio đang dùng `view` sẽ được nêu khi xuất bản;
+14 Activity có thời lượng ước tính, giá trị bị xóa khi sửa.
+
+## Ngoài phạm vi (đợt sau)
+
+* Ô "Tính vào điểm danh", xét điểm danh theo nội dung và học bù (MK 2.3, 3.4, 3.5): cần
+  cột mới trên Activity và Version Activity, Database Docs duyệt trước. Khi có ô này, khung
+  tiêu chí ở Trong, Sau và buổi tự học đổi tên thành "Cài đặt tiêu chí hoàn thành và điểm
+  danh"; phần Trước giữ "Cài đặt tiêu chí hoàn thành".
+* Thực hành và Ngoại khóa không dùng bảng điện tử và link phòng họp; Ngoại khóa nhập địa
+  điểm thay phòng học (LF-Core-LiveClass).
+* Buổi tự học có ngày trên lịch lớp và tự ghi có mặt (LF-Core-LiveClass, Đợt C).
+
+## Implementation record
+
+Chưa triển khai.
 
 # Approval
 

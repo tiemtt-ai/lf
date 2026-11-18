@@ -2138,6 +2138,8 @@ class CourseTemplatePublishingTest extends TestCase
             $admin->id,
             'Restorable Course'
         );
+        // Lesson unlock rules belong to a self-paced course (ADR-0022 Amendment 1.2).
+        DB::table('core_course_templates')->where('id', $templateId)->update(['course_type' => 'self_paced']);
         $categoryId = $this->createCategory(
             $customerId,
             $admin->id,
@@ -2345,7 +2347,8 @@ class CourseTemplatePublishingTest extends TestCase
             'template_id' => $templateId,
             'title' => 'Stale Lesson',
         ]);
-        $this->assertDatabaseHas('core_course_template_lessons', [
+        // A self-paced course has no lesson type: a Version frozen with one restores it as regular (ADR-0022 Amendment 1.2).
+        $this->assertDatabaseMissing('core_course_template_lessons', [
             'customer_id' => $customerId,
             'template_id' => $templateId,
             'lesson_type' => 'final_exam',
@@ -2487,6 +2490,8 @@ class CourseTemplatePublishingTest extends TestCase
             $admin->id,
             'Prerequisite Duplicate Course'
         );
+        // Lesson unlock rules belong to a self-paced course (ADR-0022 Amendment 1.2).
+        DB::table('core_course_templates')->where('id', $templateId)->update(['course_type' => 'self_paced']);
 
         $lessonIds = [];
         foreach ([

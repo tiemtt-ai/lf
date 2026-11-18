@@ -164,6 +164,12 @@ class CourseTemplateVersionDuplicatingService
                 $lessonMap,
                 $now
             );
+            // A Version published before ADR-0022 Amendment 1.2 may carry Lesson fields its type no longer uses.
+            app(CourseTemplateCourseTypeService::class)->resetUnusedLessonFields(
+                $customerId,
+                $templateId,
+                CourseType::normalize($version->course_type_snapshot)
+            );
             // The old Lessons and Activities are gone: the draft takes the Learning Mappings of this Version.
             $restoredMappings = app(CourseTemplateLearningMappingIntentService::class)
                 ->restoreFromVersion($actorId, $customerId, $templateId, $versionId, $lessonMap, $activityMap);

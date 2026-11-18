@@ -45,6 +45,38 @@ class CourseTemplateCourseTypeService
             ->values();
     }
 
+    /**
+     * Clears the working Lesson fields the type does not use (ADR-0022 Amendment 1.2), so nothing the
+     * form no longer shows is published. Run under the Template lock when the type changes or a Version
+     * is copied back to the draft.
+     */
+    public function resetUnusedLessonFields(int $customerId, int $templateId, ?string $type): void
+    {
+        $lessons = fn () => DB::table('core_course_template_lessons')
+            ->where('customer_id', $customerId)
+            ->where('template_id', $templateId);
+
+        if (! CourseType::usesLessonPreviewAndUnlock($type)) {
+            DB::table('core_course_template_lesson_prerequisites')
+                ->where('customer_id', $customerId)
+                ->where('template_id', $templateId)
+                ->delete();
+            $lessons()
+                ->where(fn ($query) => $query->where('is_preview', true)->orWhere('unlock_rule', '!=', 'none'))
+                ->update([
+                    'is_preview' => false,
+                    'unlock_rule' => 'none',
+                    'prerequisite_match' => null,
+                    'unlock_after_lesson_id' => null,
+                    'unlock_at' => null,
+                    'updated_at' => now(),
+                ]);
+        }
+        if (! CourseType::usesLessonType($type)) {
+            $lessons()->where('lesson_type', '!=', 'regular')->update(['lesson_type' => 'regular', 'updated_at' => now()]);
+        }
+    }
+
     /** Rejects a type change that is locked or that working Activities do not fit. */
     public function assertCanChange(int $customerId, int $templateId, string $type, string $field = 'course_type'): void
     {

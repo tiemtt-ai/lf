@@ -126,7 +126,9 @@
                 $activityTabs = $sessionActivityCount > 0
                     ? array_keys(array_filter($activityPhaseCounts))
                     : [];
-                $activityDefaultPhase = $activityTabs[0] ?? 'anytime';
+                // The add action presets the open tab; a lesson without tabs presets nothing, so the form's
+                // own default (by session, for a class-based course) applies.
+                $activityDefaultPhase = $activityTabs[0] ?? '';
                 $activityCreateUrl = route($activityRoutePrefix.'.create', $lessonParameters);
                 $canReorderActivities = $lessonActivities->count() > 1;
                 // A lesson just added opens by itself: its next step is adding activities.

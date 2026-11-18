@@ -1,12 +1,12 @@
 # Table: core_course_template_lessons
 
-Version: 1.4
+Version: 1.5
 
 Document Status: Approved
 
 Implementation Status: Unknown
 
-Last Updated: 2026-11-10
+Last Updated: 2026-11-18
 
 Document Path: database/course/core_course_template_lessons.md
 
@@ -156,8 +156,16 @@ Cho phép học thử.
 VARCHAR(50) NOT NULL DEFAULT `regular`.
 
 Canonical values: `regular`, `review`, `midterm_exam`, `final_exam`,
-`other_exam`. Đây chỉ là semantic classification; không điều khiển scheduling,
-grading, completion, unlock, Assessment, Activity hoặc Cohort.
+`other_exam`, `practice`, `extracurricular`, `self_study`. Không có CHECK; server
+kiểm tra danh sách.
+
+> Amendment 2026-11-18 (Owner duyệt,
+> [ADR-0022 Amendment 1.2 và 1.3](../../adr/ADR-0022-Course-Type-On-Template.md)):
+> khóa Tự học luôn lưu `regular`. Ở khóa Theo lớp, `self_study` là buổi tự học (không có
+> Activity `live_class`, Activity lưu `available_anytime = 1`); mọi giá trị khác là buổi có
+> giáo viên (đúng một `live_class`, mỗi Activity khác đúng một phần Trước / Trong / Sau).
+> Ba giá trị mới không đổi schema. Ngoài quy tắc này, `lesson_type` không điều khiển
+> scheduling, grading, unlock, Assessment hoặc Cohort.
 
 ---
 

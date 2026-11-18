@@ -34,7 +34,8 @@
             'during_session' => (bool) ($formActivity->available_during_session ?? false),
             'after_session' => (bool) ($formActivity->available_after_session ?? false),
         ]))
-        : [($presetPhase ?? null) ?: 'anytime'];
+        // A new Activity of a class-based course starts by session; the phase is the teacher's choice.
+        : array_filter([$presetPhase ?? null]);
     if ($selfPaced) {
         $selectedLearningPhases = ['anytime'];
     }
@@ -621,9 +622,10 @@
             <legend class="ui-field__label">
                 <span>{!! $star !!}{{ __('lf.LF_course_template_activity_learning_availability') }}</span>
             </legend>
-            {{-- Anytime and the session phases are exclusive: pick the mode first, then the phases of a session. --}}
+            {{-- Anytime and the session phases are exclusive: pick the mode first, then the phases of a session.
+                 A class-based course is mostly learned by session, so that mode comes first and is the default. --}}
             <div class="ui-option-cards" role="radiogroup">
-                @foreach (['anytime', 'session'] as $mode)
+                @foreach (['session', 'anytime'] as $mode)
                     <div class="ui-option-box"
                          x-bind:class="{ 'is-selected': learningMode === '{{ $mode }}', 'is-disabled': liveLocked && '{{ $mode }}' === 'anytime' }">
                         <label class="ui-option-card">
@@ -633,37 +635,40 @@
                             <span><b>{{ __('lf.LF_course_template_activity_learning_mode_'.$mode) }}</b><small>{{ __('lf.LF_course_template_activity_learning_mode_'.$mode.'_help') }}</small></span>
                         </label>
                     </div>
+                    @if ($mode === 'session')
+                    {{-- The phases of a session follow the session card: a full-width row under both cards on a wide
+                         dialog, so choosing a mode never makes one card taller than the other, and right under the
+                         session card when the cards stack. --}}
+                    <div class="ui-option-cards__detail" x-show="learningMode === 'session'" x-cloak
+                         data-ui-required-group="learning_phases" data-ui-required-message="{{ __('lf.LF_course_template_activity_learning_phases_required') }}"
+                         x-on:change="if ($event.target.name === 'learning_phases[]') $el.querySelectorAll('[data-ui-dialog-form-error]').forEach(node => node.remove())">
+                        <span class="ui-activity-panel__head">
+                                {{-- The field title above already carries the required mark. --}}
+                                <span class="ui-field__label ui-field__label--tip">
+                                    <span>{{ __('lf.LF_course_template_activity_phase_choose') }}</span>
+                                    <x-info-tip class="lf-info-tip--lines" :text="__('lf.LF_course_type_session_phases_help')" />
+                                </span>
+                                <span class="ui-field__hint" x-show="!liveLocked">{{ __('lf.LF_course_template_activity_phase_choose_hint') }}</span>
+                            </span>
+                        <div class="ui-chip-list">
+                            @foreach (['before_session', 'during_session', 'after_session'] as $phase)
+                                {{-- A live class shows only its fixed phase; the disabled box is sent by the hidden field below. --}}
+                                <label class="ui-chip" @if ($phase !== 'during_session') x-show="!liveLocked" @else x-bind:class="{ 'is-fixed': liveLocked }" @endif>
+                                    <input type="checkbox" name="learning_phases[]" value="{{ $phase }}" id="activity-form-learning_phases-{{ $phase }}"
+                                           x-model="sessionPhases" x-bind:disabled="learningMode !== 'session' || liveLocked">
+                                    <x-backend-icon name="check" class="ui-icon ui-chip__check" />
+                                    <span>{{ __('lf.LF_course_template_activity_learning_availability_'.$phase) }}</span>
+                                </label>
+                            @endforeach
+                        </div>
+                        <input type="hidden" name="learning_phases[]" value="during_session" disabled x-bind:disabled="!liveLocked">
+                        {{-- A phase error from the server shows here, once, while this box is open; choosing a phase clears it. --}}
+                        <div class="ui-option-cards__error" data-ui-error-slot></div>
+                        <span class="ui-field__hint" x-show="liveLocked" x-cloak>{{ __('lf.LF_course_template_activity_live_phase_locked') }}</span>
+                        <span class="ui-field__hint ui-field__hint--notice" role="status" x-show="liveLocked && liveAdjusted" x-cloak>{{ __('lf.LF_activity_live_phase_adjusted') }}</span>
+                    </div>
+                    @endif
                 @endforeach
-            </div>
-            {{-- The phases of a session take a full-width row under both cards, pointing at the session card,
-                 so choosing a mode never makes one card taller than the other. --}}
-            <div class="ui-option-cards__detail" x-show="learningMode === 'session'" x-cloak
-                 data-ui-required-group="learning_phases" data-ui-required-message="{{ __('lf.LF_course_template_activity_learning_phases_required') }}"
-                 x-on:change="if ($event.target.name === 'learning_phases[]') $el.querySelectorAll('[data-ui-dialog-form-error]').forEach(node => node.remove())">
-                <span class="ui-activity-panel__head">
-                        {{-- The field title above already carries the required mark. --}}
-                        <span class="ui-field__label ui-field__label--tip">
-                            <span>{{ __('lf.LF_course_template_activity_phase_choose') }}</span>
-                            <x-info-tip class="lf-info-tip--lines" :text="__('lf.LF_course_type_session_phases_help')" />
-                        </span>
-                        <span class="ui-field__hint" x-show="!liveLocked">{{ __('lf.LF_course_template_activity_phase_choose_hint') }}</span>
-                    </span>
-                <div class="ui-chip-list">
-                    @foreach (['before_session', 'during_session', 'after_session'] as $phase)
-                        {{-- A live class shows only its fixed phase; the disabled box is sent by the hidden field below. --}}
-                        <label class="ui-chip" @if ($phase !== 'during_session') x-show="!liveLocked" @else x-bind:class="{ 'is-fixed': liveLocked }" @endif>
-                            <input type="checkbox" name="learning_phases[]" value="{{ $phase }}" id="activity-form-learning_phases-{{ $phase }}"
-                                   x-model="sessionPhases" x-bind:disabled="learningMode !== 'session' || liveLocked">
-                            <x-backend-icon name="check" class="ui-icon ui-chip__check" />
-                            <span>{{ __('lf.LF_course_template_activity_learning_availability_'.$phase) }}</span>
-                        </label>
-                    @endforeach
-                </div>
-                <input type="hidden" name="learning_phases[]" value="during_session" disabled x-bind:disabled="!liveLocked">
-                {{-- A phase error from the server shows here, once, while this box is open; choosing a phase clears it. --}}
-                <div class="ui-option-cards__error" data-ui-error-slot></div>
-                <span class="ui-field__hint" x-show="liveLocked" x-cloak>{{ __('lf.LF_course_template_activity_live_phase_locked') }}</span>
-                <span class="ui-field__hint ui-field__hint--notice" role="status" x-show="liveLocked && liveAdjusted" x-cloak>{{ __('lf.LF_activity_live_phase_adjusted') }}</span>
             </div>
             <input type="hidden" name="learning_phases[]" value="anytime" x-bind:disabled="learningMode !== 'anytime'">
         </fieldset>

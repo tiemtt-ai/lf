@@ -2956,14 +2956,16 @@
 /* Learning availability: both mode cards keep one height; the session phases open as a full-width row under them,
    with a notch pointing at the session card (the right column; the left on one-column layouts). */
 .lf-admin-ui .ui-option-cards { align-items: stretch; }
-.lf-admin-ui .ui-option-cards__detail { position: relative; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 20px; margin-top: 12px; padding: 14px 16px; border: 1px solid var(--ui-primary); border-radius: 10px; background: var(--ui-color-f7f8fd); }
-.lf-admin-ui .ui-option-cards__detail::before { content: ""; position: absolute; top: -7px; left: calc(75% + 3px); width: 12px; height: 12px; border-top: 1px solid var(--ui-primary); border-left: 1px solid var(--ui-primary); background: var(--ui-color-f7f8fd); transform: rotate(45deg); }
+/* The detail of the first card (the session phases) is the cards' second row, full width; when the cards stack it follows the first card. */
+.lf-admin-ui .ui-option-cards__detail { position: relative; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; grid-row: 2; grid-column: 1 / -1; gap: 10px 20px; padding: 14px 16px; border: 1px solid var(--ui-primary); border-radius: 10px; background: var(--ui-color-f7f8fd); }
+.lf-admin-ui .ui-option-cards__detail::before { content: ""; position: absolute; top: -7px; left: calc(25% - 9px); width: 12px; height: 12px; border-top: 1px solid var(--ui-primary); border-left: 1px solid var(--ui-primary); background: var(--ui-color-f7f8fd); transform: rotate(45deg); }
 .lf-admin-ui .ui-option-cards__detail > :is(.ui-field__hint, .ui-option-cards__error) { flex-basis: 100%; }
 /* No mode to pick (a scheduled course): the phases sit directly under the field title, without the selected-card frame. */
 .lf-admin-ui .ui-option-cards__detail--solo { justify-content: flex-start; gap: 8px; margin-top: 0; padding: 0; border: 0; border-radius: 0; background: transparent; }
 .lf-admin-ui .ui-option-cards__detail--solo::before { display: none; }
 .lf-admin-ui .ui-option-cards__error:empty { display: none; }
-@media (max-width: 767.98px) {
+@container (max-width: 720px) {
+    .lf-admin-ui .ui-option-cards__detail { grid-row: auto; }
     .lf-admin-ui .ui-option-cards__detail::before { left: 24px; }
 }
 

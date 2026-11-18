@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Services\CourseTemplateLessonUnlockOrder;
 use App\Support\CourseTemplateEditable;
 use App\Support\CourseTemplateWorkingRevision;
+use App\Support\CourseType;
 use App\Support\LessonUnlockTime;
 use App\Support\TenantContext;
 use Illuminate\Http\JsonResponse;
@@ -184,7 +185,7 @@ class CourseTemplateLessonController extends Controller
         ?int $sectionId
     ) {
         $customerId = $this->customerId();
-        $this->findTemplate($customerId, $templateId);
+        $courseType = $this->findTemplate($customerId, $templateId)->course_type ?? null;
 
         if ($sectionId !== null) {
             $this->findLessonContainerSection($customerId, $templateId, $sectionId);
@@ -195,7 +196,8 @@ class CourseTemplateLessonController extends Controller
             $customerId,
             $templateId,
             null,
-            $sectionId
+            $sectionId,
+            $courseType
         );
 
         $lessonId = DB::transaction(function () use (
@@ -206,6 +208,8 @@ class CourseTemplateLessonController extends Controller
             $sectionId
         ): int {
             $template = CourseTemplateEditable::lock($customerId, $templateId);
+            // The type may have changed since validation: the locked row decides which fields are kept.
+            $validated = $this->fitCourseType($validated, $template->course_type ?? null);
 
             if ($sectionId !== null) {
                 $sectionAllowsLessons = DB::table('core_course_template_sections')
@@ -352,11 +356,13 @@ class CourseTemplateLessonController extends Controller
             $customerId,
             $templateId,
             $lessonId,
-            $sectionId
+            $sectionId,
+            DB::table('core_course_templates')->where('customer_id', $customerId)->where('id', $templateId)->value('course_type')
         );
 
         DB::transaction(function () use ($customerId, $templateId, $sectionId, $lessonId, $validated): void {
-            $this->lockTemplate($customerId, $templateId);
+            // The type may have changed since validation: the locked row decides which fields are kept.
+            $validated = $this->fitCourseType($validated, $this->lockTemplate($customerId, $templateId)->course_type ?? null);
             // Re-read under the lock whether or not an order was sent: a lesson deleted meanwhile is a 404,
             // never an update of nothing followed by prerequisites written for it.
             $current = $this->findLesson($customerId, $templateId, $sectionId, $lessonId);
@@ -581,9 +587,9 @@ class CourseTemplateLessonController extends Controller
         ]);
     }
 
-    private function lockTemplate(int $customerId, int $templateId): void
+    private function lockTemplate(int $customerId, int $templateId): object
     {
-        CourseTemplateEditable::lock($customerId, $templateId);
+        return CourseTemplateEditable::lock($customerId, $templateId);
     }
 
     private function validatedData(
@@ -591,10 +597,11 @@ class CourseTemplateLessonController extends Controller
         int $customerId,
         int $templateId,
         ?int $lessonId = null,
-        ?int $sectionId = null
+        ?int $sectionId = null,
+        ?string $courseType = null
     ): array {
         $validator = Validator::make(
-            $this->validationInput($request),
+            $this->validationInput($request, $courseType),
             $this->validationRules($customerId, $templateId, $lessonId, $sectionId)
         );
 
@@ -603,8 +610,13 @@ class CourseTemplateLessonController extends Controller
             $customerId,
             $templateId,
             $lessonId,
-            $sectionId
+            $sectionId,
+            $courseType
         ): void {
+            // A class-based course has no unlock rule: whatever was sent is ignored, not checked.
+            if (! CourseType::usesLessonPreviewAndUnlock($courseType)) {
+                return;
+            }
             $rule = $request->input('unlock_rule');
             // Without an order a new lesson goes last and an existing one stays where it is.
             $prospectiveSortOrder = $request->filled('sort_order')
@@ -673,7 +685,30 @@ class CourseTemplateLessonController extends Controller
         return $validator->validate();
     }
 
-    private function validationInput(Request $request): array
+    /**
+     * ADR-0022 Amendment 1.2: the form hides the Lesson fields the course type does not use, and the
+     * server sets them. A class-based course never previews or unlocks; a self-paced one has no lesson type.
+     */
+    private function fitCourseType(array $values, ?string $courseType): array
+    {
+        if (! CourseType::usesLessonPreviewAndUnlock($courseType)) {
+            $values['is_preview'] = 0;
+            $values['unlock_rule'] = 'none';
+            unset(
+                $values['unlock_after_lesson_id'],
+                $values['prerequisite_match'],
+                $values['prerequisite_lesson_ids'],
+                $values['unlock_at']
+            );
+        }
+        if (! CourseType::usesLessonType($courseType)) {
+            $values['lesson_type'] = 'regular';
+        }
+
+        return $values;
+    }
+
+    private function validationInput(Request $request, ?string $courseType = null): array
     {
         $fields = [
             'title',
@@ -689,10 +724,10 @@ class CourseTemplateLessonController extends Controller
             'unlock_at',
         ];
 
-        $input = array_intersect_key(
+        $input = $this->fitCourseType(array_intersect_key(
             $request->request->all(),
             array_flip($fields)
-        );
+        ), $courseType);
 
         if (($input['unlock_rule'] ?? null) === 'previous_lesson_completed') {
             $input['unlock_rule'] = 'selected_lessons_completed';

@@ -7,9 +7,21 @@
     $selectedUnlockRule = $formLesson?->unlock_rule ?? 'none';
     $selectedPrerequisites = collect($selectedPrerequisiteIds ?? [])->map(fn ($id) => (string) $id)->all();
     $selectedPrerequisiteMatch = $formLesson?->prerequisite_match ?? 'all';
+    // A legacy single prerequisite (`previous_lesson_completed`, kept in unlock_after_lesson_id) has no option of
+    // its own: it opens as "the selected lessons", all of one lesson, so saving keeps the rule instead of dropping it.
+    if ($selectedUnlockRule === 'previous_lesson_completed') {
+        $selectedUnlockRule = 'selected_lessons_completed';
+        $selectedPrerequisiteMatch = 'all';
+        $selectedPrerequisites = $selectedPrerequisites ?: array_filter([(string) ($formLesson->unlock_after_lesson_id ?? '')]);
+    }
     $unlockAt = $formLesson?->unlock_at
         ? \App\Support\LessonUnlockTime::toLocal((string) $formLesson->unlock_at)
         : null;
+    // ADR-0022 Amendment 1.2: a class opens its lessons by the class schedule, so preview and unlock rules
+    // are for a self-paced course only; the lesson type labels a session of a class. The server sets the rest.
+    $courseType = $template->course_type ?? null;
+    $showLessonType = \App\Support\CourseType::usesLessonType($courseType);
+    $showPreviewAndUnlock = \App\Support\CourseType::usesLessonPreviewAndUnlock($courseType);
     $selectAttributes = 'data-ui-kit-select data-ui-empty-label="'.e(__('lf.LF_course_template_lesson_dialog_no_options')).'" data-ui-clear-label="'.e(__('lf.LF_common_button_clear')).'"';
 @endphp
 
@@ -39,7 +51,8 @@
                       placeholder="{{ __('lf.LF_course_template_lesson_placeholder_description') }}">{{ $formLesson?->description }}</textarea>
         </div>
 
-        {{-- Row 1: type, preview, order. Row 2: the unlock rule and what it opens (match + lessons, or the date). --}}
+        {{-- Row 1: type (class-based), or preview and the unlock rule (self-paced). Row 2: what the rule opens (match + lessons, or the date). --}}
+        @if ($showLessonType)
         <div class="ui-field">
             <label class="ui-field__label" for="lesson-form-lesson_type">{!! $star !!}{{ __('lf.LF_course_template_lesson_common_type') }}</label>
             <select id="lesson-form-lesson_type" name="lesson_type" required {!! $selectAttributes !!}>
@@ -49,7 +62,9 @@
             </select>
             <span class="ui-field__hint">{{ __('lf.LF_course_template_lesson_common_type_help') }}</span>
         </div>
+        @endif
 
+        @if ($showPreviewAndUnlock)
         <div class="ui-field">
             <label class="ui-field__label" for="lesson-form-is_preview">{!! $star !!}{{ __('lf.LF_course_template_lesson_common_preview') }}</label>
             <select id="lesson-form-is_preview" name="is_preview" required {!! $selectAttributes !!}>
@@ -99,5 +114,6 @@
                 @endforeach
             </select>
         </div>
+        @endif
     </div>
 </div>

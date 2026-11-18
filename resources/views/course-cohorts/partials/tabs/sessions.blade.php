@@ -32,15 +32,14 @@
         : __('lf.LF_course_cohort_teacher_role_'.$teacher->role);
     $lifecycleActions = ['start', 'complete', 'cancel', 'no-show'];
     // What the session form shows from the Template. Read only on the class: the Version is immutable.
-    $yesNo = fn ($value): string => __($value ? 'lf.LF_course_template_lesson_common_yes' : 'lf.LF_course_template_lesson_common_no');
     // The fields of the Template's lesson form, for the edit opened on a lesson row.
     $programmeLessons = $versionLessons->mapWithKeys(fn (object $item): array => [$item->id => collect([
         ['label' => __('lf.LF_course_template_lesson_common_name'), 'value' => $item->title_snapshot, 'wide' => true],
         ['label' => __('lf.LF_course_template_lesson_common_short_description'), 'value' => $item->short_description_snapshot ?: '—', 'wide' => true],
         ['label' => __('lf.LF_course_template_lesson_common_description'), 'value' => $item->description_snapshot ?: '—', 'wide' => true],
         ['label' => __('lf.LF_course_template_lesson_common_type'), 'value' => __('lf.LF_course_template_lesson_common_role_'.($item->lesson_type ?: 'regular'))],
-        ['label' => __('lf.LF_course_template_lesson_common_preview'), 'value' => $yesNo($item->is_preview)],
-        ['label' => __('lf.LF_course_template_lesson_common_unlock_rule'), 'value' => __('lf.LF_course_template_lesson_common_unlock_'.($item->unlock_rule_snapshot ?: 'none'))],
+        // A class has no preview and no unlock rule (ADR-0022 Amendment 1.2); a Version published before that still shows its rule.
+        ($item->unlock_rule_snapshot ?: 'none') !== 'none' ? ['label' => __('lf.LF_course_template_lesson_common_unlock_rule'), 'value' => __('lf.LF_course_template_lesson_common_unlock_'.$item->unlock_rule_snapshot)] : null,
         $item->unlock_at_snapshot ? ['label' => __('lf.LF_course_template_lesson_common_unlock_at'), 'value' => \App\Support\LessonUnlockTime::toLocal((string) $item->unlock_at_snapshot, 'd/m/Y H:i')] : null,
         $item->prerequisite_titles !== [] ? ['label' => __('lf.LF_course_template_lesson_common_unlock_after_lessons'), 'value' => implode(', ', $item->prerequisite_titles), 'wide' => true] : null,
     ])->filter()->values()]);
