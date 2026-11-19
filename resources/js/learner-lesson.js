@@ -160,6 +160,15 @@ export function learnerActivity(config) {
             }
         },
 
+        /** External platform links (ADR-0035): the link itself opens the tab; the click records `opened`. */
+        openLink() {
+            this.error = '';
+
+            return this.send('opened').catch(() => {
+                this.error = config.messages.failed;
+            });
+        },
+
         /** Embedded videos (YouTube, Vimeo) show on click; opening counts for the `view` rule. */
         async showEmbed() {
             this.started = true;

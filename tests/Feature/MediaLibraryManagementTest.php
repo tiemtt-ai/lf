@@ -1433,7 +1433,7 @@ class MediaLibraryManagementTest extends TestCase
     ): int {
         $now = now();
 
-        return DB::table('core_course_templates')->insertGetId(['course_type' => 'blended',
+        return DB::table('core_course_templates')->insertGetId(['course_type' => 'self_paced',
             'customer_id' => $customerId,
             'category_id' => null,
             'title' => $title,

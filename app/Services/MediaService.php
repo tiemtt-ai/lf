@@ -322,7 +322,7 @@ class MediaService
      * Board material URL for a live Session's Whiteboard (LF-Media § Whiteboard
      * Rendering Exception). LiveClass has already authorized the viewer and the
      * Session; this resolves only a ready Media File in use by a Version Activity
-     * of that Session's Lesson that is available during the Session.
+     * of that Session's Lesson, whatever its phase (ADR-0022 Amendment 1.3).
      */
     public function generateLiveClassBoardSignedUrl(LiveClassBoardContext $context, int $versionActivityId, bool $preview = false): string
     {
@@ -346,7 +346,6 @@ class MediaService
             ->where('activities.customer_id', $customerId)
             ->where('activities.template_version_id', $context->versionId)
             ->where('activities.version_lesson_id', $context->versionLessonId)
-            ->where('activities.available_during_session', true)
             ->where('activities.id', $versionActivityId)
             ->first(['media.*']);
 

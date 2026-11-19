@@ -21,7 +21,8 @@ use Illuminate\Support\Facades\DB;
 class LiveClassCohortScheduleReadModel
 {
     public function __construct(
-        private readonly LiveClassSchedulePreviewService $previewService
+        private readonly LiveClassSchedulePreviewService $previewService,
+        private readonly LiveClassScheduleService $scheduleService
     ) {}
 
     /**
@@ -91,6 +92,7 @@ class LiveClassCohortScheduleReadModel
             'scheduleFormExclusions' => collect(),
             'scheduleFormPlan' => null,
             'scheduleFormDerivedStatus' => null,
+            'scheduleFormDeletion' => null,
         ];
 
         if (! in_array($mode, ['view', 'edit'], true)) {
@@ -115,6 +117,12 @@ class LiveClassCohortScheduleReadModel
             'scheduleFormExclusions' => $exclusions,
             'scheduleFormPlan' => $mode === 'view' ? $this->detailPlan($schedule, $slots, $exclusions, $derivedStatus) : null,
             'scheduleFormDerivedStatus' => $derivedStatus,
+            // What "Xóa lịch" would take with it, or why it cannot (ADR-0002 § Schedule Deletion Amendment).
+            'scheduleFormDeletion' => $mode === 'view' ? (function () use ($customerId, $schedule): array {
+                $deletion = $this->scheduleService->deletion($customerId, (int) $schedule->id);
+
+                return ['session_count' => $deletion['sessions']->count(), 'blocker' => $deletion['blocker']];
+            })() : null,
         ]);
     }
 

@@ -8,7 +8,9 @@
         'status_label' => __('lf.LF_course_enrollment_common_'.$enrollment->status),
         'current' => $current,
         'account_active' => $enrollment->student_status === 'active',
-        'eligible' => $enrollment->status === 'active' && $enrollment->student_status === 'active',
+        'access_ended' => \App\Services\CourseEnrollmentLifecycleService::accessEnded($enrollment, now()),
+        'eligible' => $enrollment->status === 'active' && $enrollment->student_status === 'active'
+            && ! \App\Services\CourseEnrollmentLifecycleService::accessEnded($enrollment, now()),
     ];
     $rosterItems = $selectedEnrollments->map(fn ($enrollment) => $managedItem($enrollment, true))->values();
     $startingItems = $retainedEnrollmentIds === null
@@ -48,8 +50,12 @@
                   ? @js(__('lf.LF_course_cohort_student_selected_heading_count')).replace(':count', this.selectedItems.length)
                   : @js(__('lf.LF_course_cohort_student_selected_heading_capacity')).replace(':count', this.selectedItems.length).replace(':capacity', this.capacity)
           },
-          tagLabel(item) { return item.status !== 'active' ? item.status_label : @js(__('lf.LF_course_cohort_student_account_inactive')) },
+          tagLabel(item) {
+              if (item.status !== 'active') return item.status_label
+              return item.access_ended ? @js(__('lf.LF_course_cohort_student_access_ended')) : @js(__('lf.LF_course_cohort_student_account_inactive'))
+          },
           tagTone(item) {
+              if (item.status === 'active' && item.access_ended) return 'ui-status--danger'
               if (item.status === 'active' || item.status === 'suspended') return 'ui-status--inactive'
               return item.status === 'pending' ? 'ui-status--draft' : (['expired', 'cancelled'].includes(item.status) ? 'ui-status--danger' : 'ui-status--archived')
           },

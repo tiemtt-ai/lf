@@ -79,8 +79,10 @@ Số ADR không được tái sử dụng hoặc đổi để lấp khoảng tr�
 | [ADR-0029](ADR-0029-Learning-Mapping-Invalidation.md) | Admin đánh dấu liên kết năng lực đã xuất bản là sai (lý do bắt buộc, không xoá, không hoàn tác); teacher judgment bỏ liên kết đó từ lần sau | Approved |
 | [ADR-0030](ADR-0030-Learner-Course-Delivery-And-Progress.md) | Học viên mở bài học (video, âm thanh, video nhúng, tài liệu) và ghi tiến độ Activity / Lesson / Course; Quan tâm (D4) làm 2026-11-11; Quiz Activity ngoài phạm vi | Approved |
 | [ADR-0031](ADR-0031-Learner-Learning-Results.md) | "Kết quả học tập" của học viên: tab trong Khóa học của tôi, tổng hợp và bảng cho khóa, lớp, bài thi; không lộ điểm chưa công bố | Approved |
-| [ADR-0032](ADR-0032-Course-Quiz-Activity.md) | Quiz Activity trong khóa học: chốt phiên bản đề khi publish, lần làm theo Enrollment, hoàn thành theo nộp / ngưỡng Activity | Approved |
+| [ADR-0032](ADR-0032-Course-Quiz-Activity.md) | Quiz Activity trong khóa học: chốt phiên bản đề khi publish, lần làm theo Enrollment, hoàn thành theo nộp / ngưỡng Activity; Amendment 1.1 nhãn Đạt / Chưa đạt theo ngưỡng Activity (đã triển khai 2026-11-19) | Approved |
 | [ADR-0033](ADR-0033-Teacher-Permissions-And-Tenant-Owner.md) | Phân quyền giáo viên theo nhóm quyền (bảy quyền cố định) và Chủ trung tâm giữa các quản trị | Approved |
+| [ADR-0034](ADR-0034-Cohort-Membership-Period-And-History.md) | Ngày vào lớp, rời lớp và thêm lại; buổi ngoài thời gian thuộc lớp; lịch sử thành viên lớp | Approved |
+| [ADR-0035](ADR-0035-External-Link-Activity.md) | Loại hoạt động "Link nền tảng ngoài": học viên bấm mở link là hoàn thành; link chốt khi xuất bản (`external_link_url`, `external_link_url_snapshot`); đã triển khai 2026-11-19 | Approved |
 
 ---
 

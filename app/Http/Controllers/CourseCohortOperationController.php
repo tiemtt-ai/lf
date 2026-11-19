@@ -12,6 +12,8 @@ use App\Services\LiveClassAttendanceCheckIn;
 use App\Services\LiveClassAttendanceRecorder;
 use App\Services\LiveClassCohortSessionReadModel;
 use App\Services\LiveClassMeetingProvider;
+use App\Services\LiveClassPracticeSession;
+use App\Services\LiveClassSelfStudySession;
 use App\Services\LiveClassSessionLifecycleService;
 use App\Services\LiveClassSessionOperations;
 use App\Services\LiveClassSessionOriginService;
@@ -395,6 +397,9 @@ class CourseCohortOperationController extends Controller
             $request->merge(['teacher_ids' => $this->deduplicateTeacherIds($request->input('teacher_ids'))]);
         }
 
+        $this->fitPracticeSession($request, $customerId,
+            $request->input('session_type') === 'curriculum' ? $request->integer('version_lesson_id') : null);
+
         $origin = null;
         $movedInterval = null;
         if ($request->filled(['schedule_id', 'schedule_slot_id', 'source_local_date'])) {
@@ -522,6 +527,9 @@ class CourseCohortOperationController extends Controller
             $request->merge(['teacher_ids' => $this->deduplicateTeacherIds($request->input('teacher_ids'))]);
         }
 
+        // The Lesson of a programme Session is not changed here, so the stored one decides.
+        $this->fitPracticeSession($request, $customerId, DB::table('core_liveclass_sessions')->where('customer_id', $customerId)
+            ->where('cohort_id', $cohort)->where('id', $session)->where('session_type', 'curriculum')->value('version_lesson_id'));
         $validated = $request->validate($this->sessionRules($customerId, (int) $cohortRow->version_id));
         $requestedInterval = $request->boolean('apply_schedule') ? $this->requestedInterval($request) : null;
 
@@ -625,8 +633,10 @@ class CourseCohortOperationController extends Controller
             $sessionRow = DB::table('core_liveclass_sessions')
                 ->where('customer_id', $customerId)->where('cohort_id', $cohort)
                 ->where('id', $session)->lockForUpdate()->firstOrFail();
-            abort_unless($this->sessionPolicy->canReschedule($sessionRow, now()), 422,
-                __('lf.LF_course_cohort_session_reschedule_status_invalid'));
+            $hasEvidence = $this->sessionHasEvidence($customerId, $session);
+            abort_unless($this->sessionPolicy->canReschedule($sessionRow, $hasEvidence, now()), 422, __($hasEvidence
+                ? 'lf.LF_course_cohort_session_reschedule_has_evidence'
+                : 'lf.LF_course_cohort_session_reschedule_status_invalid'));
             if ($this->sameMinute($validated['scheduled_start_at'], $sessionRow->scheduled_start_at)
                 && $this->sameMinute($validated['scheduled_end_at'], $sessionRow->scheduled_end_at)) {
                 throw ValidationException::withMessages([
@@ -869,7 +879,9 @@ class CourseCohortOperationController extends Controller
         $customerId = $this->authorizeAdmin($request);
         abort_unless(config('liveclass.attendance_enabled'), 403,
             __('lf.LF_course_cohort_attendance_feature_disabled'));
-        $this->activeCohort($customerId, $cohort);
+        // A completed class is still corrected by hand; an archived one only reads.
+        abort_unless(in_array($this->cohort($customerId, $cohort)->status, LiveClassAttendanceRecorder::MANUAL_COHORT_STATUSES, true), 422,
+            __('lf.LF_course_cohort_attendance_read_only'));
         $sessionRow = DB::table('core_liveclass_sessions')
             ->where('customer_id', $customerId)->where('cohort_id', $cohort)
             ->where('id', $session)->firstOrFail();
@@ -936,6 +948,17 @@ class CourseCohortOperationController extends Controller
 
         return $this->tab($cohort, 'recordings')
             ->with('success', __('lf.LF_course_cohort_recording_created'));
+    }
+
+    /**
+     * A practice session is held in a room or at a place, without a board or a meeting link, and learners check in
+     * with the button: the server sets those values whatever the request sent (ADR-0022 Amendment 1.3, Đợt 4).
+     */
+    private function fitPracticeSession(Request $request, int $customerId, ?int $versionLessonId): void
+    {
+        if ($versionLessonId && LiveClassPracticeSession::lesson($customerId, $versionLessonId)) {
+            $request->merge(['delivery_mode' => 'offline', 'meeting_url' => null, 'online_provider' => null, 'attendance_tool' => 'button']);
+        }
     }
 
     private function sessionRules(int $customerId, int $versionId): array
@@ -1213,7 +1236,9 @@ class CourseCohortOperationController extends Controller
 
     private function sessionHasAssignedTeacher(int $customerId, object $session): bool
     {
+        // A self-study Session has no teacher by design and still takes a result set by hand.
         return (bool) $session->primary_teacher_id
+            || LiveClassSelfStudySession::is($session)
             || LiveClassAttendanceCheckIn::sessionHasTeacher($customerId, (int) $session->id);
     }
 

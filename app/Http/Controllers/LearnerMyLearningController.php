@@ -14,6 +14,7 @@ use App\Support\TenantContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -170,13 +171,31 @@ class LearnerMyLearningController extends Controller
         $studentId = (int) $request->user()->id;
         $class = $this->learning->cohort($customerId, $studentId, $cohort);
         abort_if($class === null, 404);
+        $this->learning->cohortBoard($customerId, $studentId, $class);
+        $activities = $class->sessions->flatMap(fn (object $session) => $session->activities)->unique('id')->values();
 
         return view('tenant.my-learning.cohort', [
             'tenant' => TenantContext::customer(),
             'class' => $class,
+            'quizCards' => $this->quizzes->cards($customerId, $studentId, (int) $class->enrollment_id, $activities),
             'liveSessions' => $this->whiteboards->learnerLiveSessions($customerId, $studentId)
-                ->where('cohort_id', $class->cohort_id)->values(),
+                ->where('cohort_id', $class->cohort_id)->keyBy('id'),
         ]);
+    }
+
+    /**
+     * The "Buổi học sắp bắt đầu / đang diễn ra" block alone, for the pages to refresh without a reload (MK 3.1).
+     * `cohort` narrows it to one class; another learner's class simply has nothing to show.
+     */
+    public function liveSessions(Request $request): Response
+    {
+        $sessions = $this->whiteboards->learnerLiveSessions($this->customerId(), (int) $request->user()->id);
+        if ($request->filled('cohort')) {
+            $sessions = $sessions->where('cohort_id', $request->integer('cohort'))->values();
+        }
+
+        return response($sessions->isEmpty() ? '' : view('tenant.my-learning.partials.live-sessions', ['liveSessions' => $sessions])->render())
+            ->header('Cache-Control', 'no-store, private');
     }
 
     /** "Bài thi của tôi": registrations still usable, then exhausted or cancelled ones. */

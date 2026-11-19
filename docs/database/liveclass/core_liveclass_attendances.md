@@ -61,6 +61,36 @@ on 2026-11-17). No column and no migration on this table. Implemented 2026-11-17
   [core_liveclass_attendance_changes](core_liveclass_attendance_changes.md) in the
   same transaction.
 
+## Attendance By Content And Make-Up Amendment — 2026-11-18
+
+Implemented 2026-11-18 (`LiveClassAttendanceRecorder::contentChanged()`):
+[ADR-0022 Amendment 1.3, Đợt 3](../../adr/ADR-0022-Course-Type-On-Template.md#đợt-3--tính-vào-điểm-danh-và-học-bù)
+(Owner duyệt nghiệp vụ 2026-11-18). No column and no migration on this table.
+
+* `attendance_source` nhận thêm giá trị `makeup`: kết quả `present` do học bù. Cột không
+  có CHECK nên không cần migration.
+* Kết quả đang chờ là dòng `status = registered` có `joined_at` và `attendance_mode`:
+  học viên đã vào lớp nhưng chưa xong Activity phần Trong được tick "Tính vào điểm danh".
+  Dòng `registered` không có `joined_at` vẫn là "chưa có kết quả".
+* Tự ghi vắng chuyển dòng đang chờ sang `absent` và giữ `joined_at`.
+* Học bù ghi `status = present`, `attendance_source = makeup`, giữ `joined_at` và
+  `attendance_mode` đã có, và thêm một dòng `system` vào
+  [core_liveclass_attendance_changes](core_liveclass_attendance_changes.md).
+* Dòng `makeup` được giáo viên hoặc quản trị sửa tay như mọi dòng khác; lần vào lớp sau
+  đó không thay nó.
+
+## Self-Study Session Amendment — 2026-11-18
+
+Implemented 2026-11-18
+([ADR-0022 Amendment 1.3, Đợt 4, Bước 3](../../adr/ADR-0022-Course-Type-On-Template.md#đợt-4--buổi-thực-hành-và-buổi-tự-học-có-lịch)).
+No column and no migration on this table.
+
+* Kết quả của buổi `self_study` có `version_activity_id = NULL` và `attendance_mode = NULL`.
+* Hệ thống ghi `present` với `attendance_source = system` và `joined_at` là lúc học viên xong
+  Activity được tick cuối cùng, hoặc lúc bấm nút Điểm danh khi bài không tick Activity nào.
+* Học bù ghi `present` với `attendance_source = makeup`, `joined_at = NULL`.
+* Không có `late`. Tự ghi vắng và ghi tay như buổi thường.
+
 ## Purpose
 
 Ghi nhận trạng thái và thời lượng một học viên tham gia một LiveClass Session.
@@ -112,7 +142,7 @@ Version Activity 1 → N LiveClass Attendances
   `core_course_activity_progress`, nhưng không thay thế bảng đó và không tự đặt
   Course completion.
 * Allowed `status`: `registered`, `present`, `late`, `absent`, `excused`.
-* Allowed `attendance_source`: `provider`, `manual`, `system`.
+* Allowed `attendance_source`: `provider`, `manual`, `system`, `makeup`.
 
 ## Fields
 
@@ -235,7 +265,7 @@ duration.
 VARCHAR(50) NOT NULL
 ```
 
-Nguồn xác định Attendance: `provider`, `manual` hoặc `system`.
+Nguồn xác định Attendance: `provider`, `manual`, `system` hoặc `makeup` (học bù).
 
 ### attendance_method
 

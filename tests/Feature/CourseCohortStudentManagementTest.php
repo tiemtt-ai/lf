@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Services\LearnerCohortSeat;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
@@ -982,7 +983,8 @@ class CourseCohortStudentManagementTest extends TestCase
             ->assertSee('cohort-enrollment-detail-modal', false)
             ->assertSee('data-label="Học viên"', false)
             ->assertDontSee('class="admin-table-sequence"', false)
-            ->assertDontSee(route('admin.course-cohort-students.edit', $membershipId), false)
+            // Owner 2026-11-18 (ADR-0034): the row links to the membership form, where the join date is changed.
+            ->assertSee(route('admin.course-cohort-students.edit', $membershipId), false)
             ->assertDontSee(route('admin.course-cohorts.students.edit', $cohortId), false)
             ->assertDontSee(route('admin.course-cohorts.students.create', $cohortId), false)
             ->assertSee(route('admin.course-cohorts.students.sync', $cohortId), false)
@@ -1047,6 +1049,41 @@ class CourseCohortStudentManagementTest extends TestCase
         $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-cohorts/{$activeCohort}/students",
             ['enrollment_ids' => [$secondEnrollment]])
             ->assertSessionHasErrors('enrollment_ids.0');
+    }
+
+    public function test_an_enrollment_past_its_learning_period_cannot_join_or_move_into_a_class(): void
+    {
+        [$customerId, $admin, $student, $productId, $versionId] = $this->learningContext();
+        $sourceCohortId = $this->createCohort($customerId, $productId, $versionId, name: 'Source');
+        $targetCohortId = $this->createCohort($customerId, $productId, $versionId, name: 'Target');
+        $enrollmentId = $this->createEnrollment($customerId, $student->id, $productId, $versionId);
+        // Still `active`: the expiry sweep has not run, and the review window is still open.
+        DB::table('core_course_enrollments')->where('id', $enrollmentId)->update([
+            'access_starts_at' => now()->subMonth(), 'access_ends_at' => now()->subMinute(),
+            'review_starts_at' => now()->subMinute(), 'review_ends_at' => now()->addMonth(),
+        ]);
+        $message = __('lf.LF_course_cohort_student_validation_access_ended');
+
+        // The add list leaves it out; the class roster popup shows it, tagged and not selectable.
+        $this->actingAs($admin)->getJson("https://tenant-a.localhost/admin/course-cohorts/{$targetCohortId}/students/search")
+            ->assertOk()->assertJsonPath('pagination.total', 0);
+        $this->actingAs($admin)->getJson("https://tenant-a.localhost/admin/course-cohorts/{$targetCohortId}/students/search?manage=1")
+            ->assertOk()->assertJsonFragment(['id' => $enrollmentId, 'access_ended' => true, 'eligible' => false]);
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-cohorts/{$targetCohortId}/students", ['enrollment_ids' => [$enrollmentId]])
+            ->assertSessionHasErrors(['enrollment_ids.0' => $message]);
+        $this->assertDatabaseMissing('core_course_cohort_students', ['enrollment_id' => $enrollmentId]);
+
+        $membershipId = $this->createMembership($customerId, $sourceCohortId, $enrollmentId, $productId, $student->id);
+        $this->actingAs($admin)->put("https://tenant-a.localhost/admin/course-cohort-students/{$membershipId}", $this->validMembershipData([
+            'cohort_id' => $targetCohortId, 'enrollment_id' => null, 'status' => 'active',
+        ]))->assertSessionHasErrors(['enrollment_id' => $message]);
+        $this->assertDatabaseHas('core_course_cohort_students', ['id' => $membershipId, 'cohort_id' => $sourceCohortId]);
+
+        // A learning period that has not ended yet still lets the Enrollment in.
+        DB::table('core_course_enrollments')->where('id', $enrollmentId)->update(['access_ends_at' => now()->addDay()]);
+        $this->actingAs($admin)->put("https://tenant-a.localhost/admin/course-cohort-students/{$membershipId}", $this->validMembershipData([
+            'cohort_id' => $targetCohortId, 'enrollment_id' => null, 'status' => 'active',
+        ]))->assertSessionHasNoErrors();
     }
 
     public function test_direct_add_rejects_an_inactive_student_account(): void
@@ -1476,6 +1513,59 @@ class CourseCohortStudentManagementTest extends TestCase
             'created_at' => $now,
             'updated_at' => $now,
         ]);
+    }
+
+    public function test_the_join_date_is_kept_when_a_learner_is_added_back_and_every_change_is_history(): void
+    {
+        // ADR-0034.
+        [$customerId, $admin, $student, $productId, $versionId] = $this->learningContext();
+        $cohortId = $this->createCohort($customerId, $productId, $versionId, name: 'Morning', capacity: 5);
+        $otherCohortId = $this->createCohort($customerId, $productId, $versionId, name: 'Evening', capacity: 5);
+        $enrollmentId = $this->createEnrollment($customerId, $student->id, $productId, $versionId);
+        $membershipId = $this->createMembership($customerId, $cohortId, $enrollmentId, $productId, $student->id);
+        DB::table('core_course_cohort_students')->where('id', $membershipId)->update(['joined_at' => '2026-07-01 09:00:00']);
+        $membership = fn (): object => DB::table('core_course_cohort_students')->where('id', $membershipId)->first();
+        $history = fn () => DB::table('core_course_cohort_student_changes')->where('cohort_student_id', $membershipId)->orderBy('id')->get();
+        $base = 'https://tenant-a.localhost/admin';
+
+        // Leaving and being added back to the same class: the first join date stands, the time away is a gap.
+        Carbon::setTestNow('2026-07-10 08:00:00');
+        $this->actingAs($admin)->put("{$base}/course-cohorts/{$cohortId}/students", ['enrollment_ids' => []])->assertSessionHasNoErrors();
+        $this->assertSame(['removed', '2026-07-10 08:00:00'], [$membership()->status, (string) $membership()->left_at]);
+        Carbon::setTestNow('2026-07-20 08:00:00');
+        $this->actingAs($admin)->put("{$base}/course-cohorts/{$cohortId}/students", ['enrollment_ids' => [$enrollmentId]])->assertSessionHasNoErrors();
+        $this->assertSame(['active', '2026-07-01 09:00:00', null], [$membership()->status, (string) $membership()->joined_at, $membership()->left_at]);
+        $this->assertSame(['left', 'rejoined'], $history()->pluck('change_type')->all());
+        $rejoined = $history()->last();
+        $this->assertSame(['2026-07-10 08:00:00', '2026-07-20 08:00:00', $admin->id, $cohortId],
+            [(string) $rejoined->absent_from, (string) $rejoined->absent_to, (int) $rejoined->changed_by, (int) $rejoined->cohort_id]);
+
+        // The join date is the administrator's to change, never into the future, and each change is kept.
+        $update = fn (array $data) => $this->actingAs($admin)->put("{$base}/course-cohort-students/{$membershipId}",
+            $this->validMembershipData(['enrollment_id' => null] + $data));
+        $update(['cohort_id' => $cohortId, 'joined_at' => '2026-07-21 08:00:00'])->assertSessionHasErrors('joined_at');
+        $update(['cohort_id' => $cohortId, 'joined_at' => '2026-07-03 09:00:00'])->assertSessionHasNoErrors();
+        $changed = $history()->last();
+        $this->assertSame(['joined_at_changed', '2026-07-01 09:00:00', '2026-07-03 09:00:00', $admin->id],
+            [$changed->change_type, (string) $changed->old_joined_at, (string) $changed->new_joined_at, (int) $changed->changed_by]);
+        // Saving it unchanged adds nothing.
+        $update(['cohort_id' => $cohortId, 'joined_at' => '2026-07-03 09:00:00'])->assertSessionHasNoErrors();
+        $this->assertCount(3, $history());
+
+        // The class page shows the history beside the join date, and the edit form refuses a future date.
+        $this->actingAs($admin)->get("{$base}/course-cohorts/{$cohortId}?tab=students")->assertOk()
+            ->assertSee('data-membership-history="'.$membershipId.'"', false)
+            ->assertSee('href="'.route('admin.course-cohort-students.edit', $membershipId).'"', false)
+            ->assertSeeText(__('lf.LF_course_cohort_student_history_rejoined', ['from' => '10/07/2026 08:00', 'to' => '20/07/2026 08:00']))
+            ->assertSeeText(__('lf.LF_course_cohort_student_history_joined_at_changed', ['from' => '01/07/2026 09:00', 'to' => '03/07/2026 09:00']));
+        $this->actingAs($admin)->get("{$base}/course-cohort-students/{$membershipId}/edit")->assertOk()
+            ->assertSee('max="2026-07-20T08:00"', false)
+            ->assertSee('data-confirm="'.e(__('lf.LF_course_cohort_student_joined_at_confirm')).'"', false);
+
+        // Moving to another class is a transfer: the join date there is the one given.
+        $update(['cohort_id' => $otherCohortId, 'joined_at' => '2026-07-19 09:00:00'])->assertSessionHasNoErrors();
+        $this->assertSame(['transferred', $otherCohortId], [$history()->last()->change_type, (int) $history()->last()->cohort_id]);
+        Carbon::setTestNow();
     }
 
     private function validMembershipData(array $overrides = []): array

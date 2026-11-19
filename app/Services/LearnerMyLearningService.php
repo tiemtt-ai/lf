@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Support\CourseType;
+use App\Support\ExternalLinkUrl;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -93,6 +94,8 @@ class LearnerMyLearningService
         $course->phase = $this->phase($course, $now);
         $course->is_class = in_array($course->course_type, CourseType::COHORT_VALUES, true);
         $course->cohort_id = $course->is_class ? $this->seatCohortId($customerId, $studentId, (int) $course->id) : null;
+        // ADR-0022 Amendment 1.4: the class has ended, so the learner only reviews.
+        $course->review_only = $course->cohort_id !== null && CourseClassReview::only($customerId, (int) $course->id);
         $stored = DB::table('core_course_progress')
             ->where('customer_id', $customerId)->where('enrollment_id', $course->id)->where('student_id', $studentId)
             ->first(['progress_percentage', 'status', 'last_version_lesson_id']);
@@ -165,32 +168,49 @@ class LearnerMyLearningService
         $lesson->previous_id = $position > 0 ? $all[$position - 1]->id : null;
         $lesson->next_id = $all[$position + 1]->id ?? null;
         $lesson->next_allowed = (bool) ($all[$position + 1]->allowed ?? false);
-        if (! $lesson->allowed) {
-            $lesson->activities = collect();
+        $lesson->activities = $lesson->allowed
+            ? $this->lessonActivities($customerId, $studentId, $course, $versionLessonId)
+            : collect();
 
-            return $lesson;
-        }
+        return $lesson;
+    }
 
+    /**
+     * The Activities of one Lesson of the learner's Enrollment, each with its runtime access decision, stored progress
+     * and the part of the Session it belongs to (`phase`: before, during, after or anytime).
+     *
+     * @return Collection<int, object>
+     */
+    private function lessonActivities(int $customerId, int $studentId, object $course, int $versionLessonId, ?Collection $sessions = null): Collection
+    {
         $activities = DB::table('core_course_template_version_activities')
             ->where('customer_id', $customerId)->where('template_version_id', $course->version_id)->where('version_lesson_id', $versionLessonId)
             ->orderBy('sort_order')->orderBy('id')
             ->get(['id', 'title_snapshot as title', 'description_snapshot as description', 'activity_type', 'media_file_id',
-                'external_video_url_snapshot', 'duration_seconds', 'estimated_duration_seconds_snapshot as estimated_seconds',
-                'is_required', 'completion_rule', 'completion_threshold', 'sort_order']);
+                'external_video_url_snapshot', 'external_link_url_snapshot', 'duration_seconds', 'estimated_duration_seconds_snapshot as estimated_seconds',
+                'is_required', 'counts_for_attendance', 'completion_rule', 'completion_threshold', 'sort_order',
+                'available_anytime', 'available_before_session', 'available_during_session', 'available_after_session']);
         if ($course->cohort_id) {
             $activities = $this->cohortOrder->activities($customerId, $course->cohort_id, $activities);
         }
         $progress = DB::table('core_course_activity_progress')
             ->where('customer_id', $customerId)->where('enrollment_id', $course->id)->whereIn('version_activity_id', $activities->pluck('id'))
             ->get(['version_activity_id', 'status', 'progress_percentage', 'last_position_seconds'])->keyBy('version_activity_id');
-        $sessions = $course->cohort_id
+        $sessions ??= $course->cohort_id
             ? $this->cohortSessions($customerId, [$course->cohort_id])->get($course->cohort_id, collect())
             : collect();
 
         $activities->each(function (object $activity) use ($studentId, $course, $progress, $sessions): void {
+            $activity->phase = match (true) {
+                (bool) $activity->available_before_session => 'before',
+                (bool) $activity->available_during_session => 'during',
+                (bool) $activity->available_after_session => 'after',
+                default => 'anytime',
+            };
             $decision = $this->activityAccess->decide($studentId, (int) $course->id, (int) $activity->id);
             $activity->allowed = $decision->allowed;
             $activity->reason = $decision->reason;
+            $activity->unlock_at = $decision->unlockAt ? Carbon::parse($decision->unlockAt) : null;
             $stored = $progress->get($activity->id);
             $activity->progress_status = $stored->status ?? 'not_started';
             $activity->progress = (int) round((float) ($stored->progress_percentage ?? 0));
@@ -204,13 +224,18 @@ class LearnerMyLearningService
                     $activity->embed_url = null;
                 }
             }
+            // ADR-0035: the link reaches the page only for an Activity the learner may open.
+            $activity->link_url = $decision->allowed && $activity->activity_type === 'external_link'
+                && ExternalLinkUrl::isValid($activity->external_link_url_snapshot)
+                ? $activity->external_link_url_snapshot
+                : null;
+            unset($activity->external_link_url_snapshot);
             $activity->sessions = $activity->activity_type === 'live_class'
                 ? $sessions->filter(fn (object $s): bool => (int) ($s->version_activity_id ?? 0) === (int) $activity->id)->values()
                 : collect();
         });
-        $lesson->activities = $activities;
 
-        return $lesson;
+        return $activities;
     }
 
     /**
@@ -227,13 +252,13 @@ class LearnerMyLearningService
 
         $teachers = $this->cohortTeachers($customerId, $rows->pluck('cohort_id')->all());
         $sessions = $this->cohortSessions($customerId, $rows->pluck('cohort_id')->all());
-        $attended = $this->attendedCounts($customerId, $rows->pluck('enrollment_id')->all());
+        $attended = $this->attendedSessions($customerId, $rows->pluck('enrollment_id')->all());
         $now = Carbon::now();
 
-        $rows->each(function (object $row) use ($teachers, $sessions, $attended, $now): void {
+        $rows->each(function (object $row) use ($customerId, $teachers, $sessions, $attended, $now): void {
             $row->awaiting_class = false;
             $row->teachers = $teachers->get($row->cohort_id, collect())->all();
-            $this->summarizeSessions($row, $sessions->get($row->cohort_id, collect()), (int) ($attended[$row->enrollment_id] ?? 0), $now);
+            $this->summarizeSessions($customerId, $row, $sessions->get($row->cohort_id, collect()), $attended[$row->enrollment_id] ?? [], $now);
             $row->group = in_array($row->cohort_status, ['completed', 'archived'], true) ? 'completed' : 'current';
         });
 
@@ -285,22 +310,87 @@ class LearnerMyLearningService
         $attendance = DB::table('core_liveclass_attendances')
             ->where('customer_id', $customerId)->where('enrollment_id', $class->enrollment_id)
             ->whereIn('session_id', $sessions->pluck('id'))
-            ->get(['session_id', 'status', 'attendance_mode', 'joined_at'])->keyBy('session_id');
+            ->get(['session_id', 'status', 'attendance_mode', 'attendance_source', 'joined_at'])->keyBy('session_id');
         $now = Carbon::now();
 
-        $sessions->each(function (object $session) use ($attendance): void {
+        $sessions->each(function (object $session) use ($attendance, $now): void {
             $mark = $attendance->get($session->id);
             $session->attendance_status = $mark->status ?? null;
+            // A self-study Session has no "Bắt đầu": it stays `scheduled` until it ends, so inside its planned time
+            // the learner sees it as running, as the block of sessions to act on now already does (Đợt 4, Bước 2).
+            $session->shown_status = $session->session_type === LiveClassSelfStudySession::TYPE && $session->status === 'scheduled'
+                && $session->starts_at->lte($now) && $session->ends_at->gt($now) ? 'live' : $session->status;
             $session->attendance_mode = $mark->attendance_mode ?? null;
+            $session->attendance_source = $mark->attendance_source ?? null;
+            // When the learner entered, in the Session's timezone (MK 3.1); `joined_at` is stored in the application's.
+            $session->attendance_entered_at = ($mark->joined_at ?? null) === null ? null
+                : Carbon::parse((string) $mark->joined_at, config('app.timezone'))->setTimezone($session->timezone);
+            // Waiting for a result (MK 3.1): an entry waiting for ticked content (ADR-0022 Amendment 1.3, Đợt 3), or
+            // a Session that took place and is past its planned end with no result yet, until it is marked absent or
+            // marked by hand. A Session nobody started stays `scheduled` and waits for nothing, and so does one that
+            // ended longer ago than automatic absence looks back: nothing will record it any more.
+            $unmarked = $mark === null || $mark->status === 'registered';
+            $ended = in_array($session->status, ['live', 'completed'], true) && $session->ends_at->lte($now)
+                && $session->ends_at->gte($now->copy()->subDays(LiveClassAttendanceRecorder::AUTO_ABSENT_LOOKBACK_DAYS));
+            $session->attendance_pending = $unmarked && (($mark->joined_at ?? null) !== null || $ended);
+            $session->attendance_makeup = $mark !== null && $mark->status === 'present' && $mark->attendance_source === 'makeup';
         });
 
         $class->teachers = $this->cohortTeachers($customerId, [$cohortId])->get($cohortId, collect())->all();
-        // Counted against the Sessions held, so only a completed Session's mark counts (as in attendedCounts).
-        $attendedCount = $sessions->filter(fn (object $s): bool => $s->status === 'completed' && in_array($s->attendance_status, ['present', 'late'], true))->count();
-        $this->summarizeSessions($class, $sessions, $attendedCount, $now);
+        $attendedIds = $sessions->filter(fn (object $s): bool => in_array($s->attendance_status, ['present', 'late'], true))
+            ->pluck('id')->map(fn ($id): int => (int) $id)->all();
+        $this->summarizeSessions($customerId, $class, $sessions, $attendedIds, $now);
         $class->sessions = $sessions;
 
         return $class;
+    }
+
+    /**
+     * The learning board of a class page (MK Live "Lịch học theo tuần"): on each Session the Activities of its Lesson
+     * split into before / during / after, the learner's progress on the required ones, and the class totals. Reads only;
+     * what opens when is still decided by the runtime access service.
+     */
+    public function cohortBoard(int $customerId, int $studentId, object $class): void
+    {
+        $course = $this->course($customerId, $studentId, (int) $class->enrollment_id);
+        $class->course = $course;
+        $lessons = $course
+            ? $course->sections->flatMap(fn (object $section) => $section->lessons)->keyBy('id')
+            : collect();
+        $boards = [];
+        foreach ($class->sessions->pluck('version_lesson_id')->filter()->unique() as $lessonId) {
+            $lesson = $lessons->get((int) $lessonId);
+            $boards[(int) $lessonId] = $lesson && $lesson->allowed
+                ? $this->lessonActivities($customerId, $studentId, $course, (int) $lessonId, $class->sessions)
+                : collect();
+        }
+
+        $done = fn (object $a): bool => $a->progress_status === 'completed';
+        $class->sessions->each(function (object $session) use ($boards, $lessons, $done): void {
+            $activities = $boards[(int) $session->version_lesson_id] ?? collect();
+            $required = $activities->where('is_required', true);
+            $session->lesson = $lessons->get((int) $session->version_lesson_id);
+            $session->activities = $activities;
+            $session->completion = $required->isEmpty() ? null
+                : ['done' => $required->filter($done)->count(), 'total' => $required->count()];
+            // What the learner must finish for the Session's attendance (or the make-up), shown as "Điều kiện điểm danh".
+            $session->attendance_requirements = $activities->where('counts_for_attendance', true)->values();
+        });
+
+        $required = collect($boards)->flatten(1)->where('is_required', true);
+        $class->completion_done = $required->filter($done)->count();
+        $class->completion_total = $required->count();
+        $class->completion_rate = $required->isEmpty() ? null : (int) round(100 * $class->completion_done / $required->count());
+
+        // The learner's results over the Sessions held while they were in the class (ADR-0034).
+        $held = $class->sessions->filter(fn (object $s): bool => $s->status === 'completed' && ($s->membership_outside ?? null) === null);
+        $class->attendance_counts = [
+            'present' => $held->filter(fn (object $s): bool => $s->attendance_status === 'present' && ! $s->attendance_makeup)->count(),
+            'late' => $held->where('attendance_status', 'late')->count(),
+            'makeup' => $held->where('attendance_makeup', true)->count(),
+            'absent' => $held->where('attendance_status', 'absent')->count(),
+            'excused' => $held->where('attendance_status', 'excused')->count(),
+        ];
     }
 
     private function enrollmentQuery(int $customerId, int $studentId)
@@ -366,7 +456,7 @@ class LearnerMyLearningService
             ->whereNull('superseded_by_session_id')
             ->where('status', '!=', 'draft')
             ->orderBy('scheduled_start_at')->orderBy('id')
-            ->get(['id', 'cohort_id', 'version_activity_id', 'title', 'session_no', 'session_type', 'delivery_mode', 'status',
+            ->get(['id', 'cohort_id', 'version_lesson_id', 'version_activity_id', 'title', 'session_no', 'session_type', 'delivery_mode', 'attendance_tool', 'status',
                 'scheduled_start_at', 'scheduled_end_at', 'timezone', 'meeting_url_snapshot',
                 'facility_name_snapshot', 'room_name_snapshot', 'address_snapshot', 'cancellation_reason'])
             ->each(function (object $session): void {
@@ -377,13 +467,24 @@ class LearnerMyLearningService
             ->groupBy('cohort_id');
     }
 
-    /** Adds the Session counts, the next Session and the attendance rate to a Cohort row. */
-    private function summarizeSessions(object $row, Collection $sessions, int $attended, Carbon $now): void
+    /**
+     * Adds the Session counts, the next Session and the attendance rate to a Cohort row, and marks on each Session
+     * whether it is outside the learner's time in the class (`membership_outside`, ADR-0034): such a Session shows
+     * no result and does not count toward the attendance rate.
+     *
+     * @param  array<int, int>  $attendedIds  the Sessions the learner was present or late at
+     */
+    private function summarizeSessions(int $customerId, object $row, Collection $sessions, array $attendedIds, Carbon $now): void
     {
+        $gaps = CourseCohortMembershipHistory::gaps($customerId, (int) $row->cohort_id, [(int) $row->enrollment_id])->get((int) $row->enrollment_id);
+        $sessions->each(function (object $s) use ($row, $gaps): void {
+            $s->membership_outside = CourseCohortMembershipHistory::outside($row->joined_at, null, $gaps, $s->ends_at);
+        });
         $counted = $sessions->reject(fn (object $s): bool => in_array($s->status, self::VOID_SESSION_STATUSES, true));
         // Held means taught to the end: a Session still running, or left `scheduled` after its time, was not
         // learned yet and must not raise the progress or lower the attendance rate (Owner 2026-11-18).
-        $held = $counted->filter(fn (object $s): bool => $s->status === 'completed');
+        $held = $counted->filter(fn (object $s): bool => $s->status === 'completed' && $s->membership_outside === null);
+        $attended = $held->filter(fn (object $s): bool => in_array((int) $s->id, $attendedIds, true))->count();
 
         $row->session_total = $counted->count();
         $row->session_held = $held->count();
@@ -392,28 +493,24 @@ class LearnerMyLearningService
         $row->schedule_rate = $counted->count() > 0 ? (int) round(100 * $held->count() / $counted->count()) : 0;
         $row->live_session = $sessions->firstWhere('status', 'live');
         $row->next_session = $sessions->first(fn (object $s): bool => $s->status === 'scheduled' && $s->ends_at->gt($now));
-        $row->delivery_modes = $counted->pluck('delivery_mode')->unique()->values()->all();
+        // A self-study Session has no delivery mode.
+        $row->delivery_modes = $counted->pluck('delivery_mode')->filter()->unique()->values()->all();
     }
 
-    /** @return array<int, int> attended (present or late) count of completed Sessions per Enrollment */
-    private function attendedCounts(int $customerId, array $enrollmentIds): array
+    /** @return array<int, array<int, int>> the Sessions each Enrollment was present or late at */
+    private function attendedSessions(int $customerId, array $enrollmentIds): array
     {
         if ($enrollmentIds === []) {
             return [];
         }
 
-        return DB::table('core_liveclass_attendances as attendances')
-            ->join('core_liveclass_sessions as sessions', function ($join) use ($customerId): void {
-                $join->on('sessions.id', '=', 'attendances.session_id')->where('sessions.customer_id', $customerId);
-            })
-            ->where('attendances.customer_id', $customerId)
-            ->whereIn('attendances.enrollment_id', $enrollmentIds)
-            ->whereIn('attendances.status', ['present', 'late'])
-            ->where('sessions.status', 'completed')
-            ->groupBy('attendances.enrollment_id')
-            ->selectRaw('attendances.enrollment_id, COUNT(DISTINCT attendances.session_id) as total')
-            ->pluck('total', 'enrollment_id')
-            ->map(fn ($total): int => (int) $total)
+        return DB::table('core_liveclass_attendances')
+            ->where('customer_id', $customerId)
+            ->whereIn('enrollment_id', $enrollmentIds)
+            ->whereIn('status', ['present', 'late'])
+            ->get(['enrollment_id', 'session_id'])
+            ->groupBy('enrollment_id')
+            ->map(fn (Collection $rows): array => $rows->pluck('session_id')->map(fn ($id): int => (int) $id)->unique()->values()->all())
             ->all();
     }
 

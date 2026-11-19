@@ -9,6 +9,7 @@ use App\Services\Assessment\AssessmentQuestionService;
 use App\Services\Assessment\AssessmentQuizPublishService;
 use App\Services\Assessment\AssessmentQuizService as Quizzes;
 use App\Services\MediaService;
+use App\Support\CourseQuizVerdict;
 use App\Support\TenantContext;
 use App\Support\UploadLimit;
 use DateTimeInterface;
@@ -369,7 +370,7 @@ final class AssessmentLearnerController extends Controller
         $registration = $attempt->quiz_registration_id
             ? DB::table('core_assessment_quiz_registrations')->where('id', $attempt->quiz_registration_id)->first()
             : null;
-        $course = $this->courseContext($customerId, $attempt, $version);
+        $course = $this->courseContext($customerId, $attempt, $version, $visible);
 
         return view('tenant.assessments.result', [
             'tenant' => TenantContext::customer(),
@@ -538,19 +539,22 @@ final class AssessmentLearnerController extends Controller
      *
      * @return array{back: string, retry: ?string}|null
      */
-    private function courseContext(int $customerId, object $attempt, object $version): ?array
+    private function courseContext(int $customerId, object $attempt, object $version, array $visible = ['score' => false]): ?array
     {
         if (! $attempt->enrollment_id || ! $attempt->version_activity_id) {
             return null;
         }
-        $lessonId = DB::table('core_course_template_version_activities')->where('customer_id', $customerId)
-            ->where('id', $attempt->version_activity_id)->value('version_lesson_id');
+        $activity = DB::table('core_course_template_version_activities')->where('customer_id', $customerId)
+            ->where('id', $attempt->version_activity_id)->first(['version_lesson_id', 'completion_rule', 'completion_threshold']);
+        $lessonId = $activity?->version_lesson_id;
         $used = DB::table(Attempts::TABLE)->where('customer_id', $customerId)->where('enrollment_id', $attempt->enrollment_id)
             ->where('version_activity_id', $attempt->version_activity_id)->count();
         $active = DB::table('core_course_enrollments')->where('customer_id', $customerId)
             ->where('id', $attempt->enrollment_id)->value('status') !== 'cancelled';
 
         return [
+            // In a course, Đạt / Chưa đạt follows the Activity's threshold, not the quiz's (ADR-0032 Amendment 1.1).
+            'verdict' => $activity ? CourseQuizVerdict::of($activity, $attempt, $visible) : null,
             'back' => route('student.courses.lessons.show', [$attempt->enrollment_id, $lessonId]),
             'retry' => $active && $used < (int) $version->max_attempts
                 ? route('student.courses.activities.attempts.store', [$attempt->enrollment_id, $attempt->version_activity_id])

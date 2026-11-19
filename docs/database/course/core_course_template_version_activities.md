@@ -1,12 +1,12 @@
 # Table: core_course_template_version_activities
 
-Version: 2.1
+Version: 2.4
 
 Document Status: Approved
 
 Implementation Status: Unknown
 
-Last Updated: 2026-11-01
+Last Updated: 2026-11-19
 
 Document Path: database/course/core_course_template_version_activities.md
 
@@ -67,9 +67,10 @@ Media / Assessment / LiveClass → version_activities (approved immutable refere
 | `title_snapshot` | VARCHAR(255) | required | Snapshot Activity title. |
 | `description_snapshot` | TEXT | nullable | Snapshot Activity description. |
 | `sort_order` | INT | required, default 0 | Published order within the Lesson. |
-| `activity_type` | VARCHAR(50) | required | `video`, `embedded_video`, `audio`, `document`, `quiz`, or `live_class`. |
+| `activity_type` | VARCHAR(50) | required | `video`, `embedded_video`, `audio`, `document`, `quiz`, `live_class`, or `external_link` (ADR-0035). |
 | `media_file_id` | BIGINT UNSIGNED | nullable | Immutable uploaded video/audio/document Media reference; existing historical rows remain `NULL`. |
 | `external_video_url_snapshot` | VARCHAR(1000) | nullable | Frozen HTTPS external video URL. |
+| `external_link_url_snapshot` | VARCHAR(1000) | nullable | Frozen HTTPS link of an `external_link` Activity (ADR-0035); `NULL` for every other type. |
 | `live_class_url_snapshot` | VARCHAR(1000) | nullable | Frozen optional default HTTPS live-class URL. `NULL` is valid; the Session owns the actual join URL. |
 | `assessment_quiz_id_snapshot` | BIGINT UNSIGNED | nullable | Reserved for the future immutable Assessment binding; current publish readiness blocks Quiz Activities. |
 | `duration_seconds` | INT UNSIGNED | required, default 0 | Published Activity duration. |
@@ -79,6 +80,7 @@ Media / Assessment / LiveClass → version_activities (approved immutable refere
 | `available_during_session` | TINYINT(1) | required, default 0 | Available during the real Cohort Session. |
 | `available_after_session` | TINYINT(1) | required, default 0 | Available after the real Cohort Session. |
 | `is_required` | TINYINT(1) | required, default 1 | Published completion requirement. |
+| `counts_for_attendance` | TINYINT(1) | required, default 0 | Published "Tính vào điểm danh": the learner must complete the Activity for the Session to count (part "Trong") or to make it up (part "Sau"). |
 | `completion_rule` | VARCHAR(50) | required, default `view` | Type-compatible value: `view`, `watch_percent`, `submit`, `pass`, `join`, or `manual`; Live Class supports `join` and `manual`. |
 | `completion_threshold` | INT UNSIGNED | nullable | Frozen threshold from `1` through `100`, such as watch percentage or pass percentage. |
 | `is_preview` | TINYINT(1) | required, default 0 | Published preview permission. |
@@ -90,11 +92,38 @@ Media / Assessment / LiveClass → version_activities (approved immutable refere
 | `created_at` | TIMESTAMP | nullable | Snapshot creation time. |
 | `updated_at` | TIMESTAMP | nullable | Creation/finalization audit timestamp only. |
 
+> Amendment 2026-11-19 (Owner duyệt nghiệp vụ và thiết kế dữ liệu;
+> [ADR-0035](../../adr/ADR-0035-External-Link-Activity.md); migration
+> `2026_11_19_000100_add_external_link_to_course_activities`): `external_link_url_snapshot`
+> VARCHAR(1000) NULL sau `external_video_url_snapshot`. Ghi một lần khi xuất bản từ
+> `external_link_url` của Activity `external_link`, `NULL` với mọi loại khác, không sửa sau
+> đó. Không CHECK, không index, không backfill. `activity_type` có thêm giá trị
+> `external_link`.
+
 Amendment 2026-11-01 (Approved, [ADR-0022](../../adr/ADR-0022-Course-Type-On-Template.md)):
 the four `available_*` snapshots must agree with the parent Version
 `course_type_snapshot`: `self_paced` → only `available_anytime = 1` and no
 `live_class` Activity; `scheduled` → `available_anytime = 0`; `blended` →
 current rules. Publish fails closed on any inconsistency.
+
+Amendment 2026-11-18 (Approved; migration `2026_11_18_000100_add_counts_for_attendance_to_course_activities`;
+[ADR-0022 Amendment 1.3, Đợt 3](../../adr/ADR-0022-Course-Type-On-Template.md#đợt-3--tính-vào-điểm-danh-và-học-bù)):
+cột `counts_for_attendance` TINYINT(1) NOT NULL DEFAULT 0, đặt sau `is_required`.
+Publish chép nguyên giá trị từ working Activity; nhân bản Version về bản nháp chép ngược
+lại. Version đã xuất bản trước migration nhận 0 và không bị sửa. Cùng ràng buộc với bảng
+working:
+
+```sql
+CONSTRAINT chk_cctva_counts_for_attendance CHECK (
+    counts_for_attendance = 0
+    OR (activity_type <> 'live_class' AND available_before_session = 0)
+)
+```
+
+Migration `2026_11_18_000300_allow_attendance_tick_on_self_study_activities` bỏ vế
+`available_anytime = 0` của bản đầu (Đợt 4, Bước 3). Kiểm tra xuất bản chặn Activity có giá
+trị 1 mà không thuộc phần Trong hoặc Sau của buổi có người phụ trách, cũng không thuộc buổi
+tự học, của khóa Theo lớp.
 
 Amendment 2026-11-11 (Approved, [ADR-0032](../../adr/ADR-0032-Course-Quiz-Activity.md)) —
 Quiz binding:

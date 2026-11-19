@@ -121,6 +121,11 @@
             </div>
         @endif
 
+        @if (isset($sessionTree) && \App\Support\LessonType::normalize($lesson->lesson_type ?? null) === \App\Support\LessonType::SELF_STUDY)
+            {{-- The further sessions of a self-study lesson, such as a cancelled one (ADR-0023 §10). --}}
+            @include('course-cohorts.partials.tabs.session-tree-activity', ['activitySlots' => \App\Services\CourseCohortContentTree::slotsOfLesson($sessionTree, $lesson)])
+        @endif
+
         <div class="course-template-activity-list" id="course-version-lesson-{{ $lesson->id }}-activity-list"
              @if ($activityTabs !== []) role="tabpanel" x-bind:aria-labelledby="'course-version-lesson-{{ $lesson->id }}-tab-' + phase" @endif
              @if ($activitiesReorderable)
@@ -199,6 +204,12 @@
                         @elseif ($activityView['mediaUrl'] && $activity->activity_type === 'document')
                             <a class="ux-row-edit cursor-interaction" data-version-activity-view
                                href="{{ $activityView['mediaUrl'] }}" target="_blank" rel="noopener noreferrer"
+                               aria-label="{{ $previewLabel }}" data-tooltip="{{ __('lf.LF_common_button_view') }}">
+                                <x-backend-icon name="eye" class="ui-icon" />
+                            </a>
+                        @elseif ($activityView['linkUrl'] ?? null)
+                            <a class="ux-row-edit cursor-interaction" data-version-activity-view
+                               href="{{ $activityView['linkUrl'] }}" target="_blank" rel="noopener noreferrer"
                                aria-label="{{ $previewLabel }}" data-tooltip="{{ __('lf.LF_common_button_view') }}">
                                 <x-backend-icon name="eye" class="ui-icon" />
                             </a>

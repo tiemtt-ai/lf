@@ -521,6 +521,74 @@ so what a teacher may change is the operational part of the Session only.
 
 ---
 
+## Schedule Deletion Amendment — 2026-11-19
+
+Trạng thái: Approved 2026-11-19 (Owner chọn phương án B và duyệt chi tiết dưới đây);
+đã triển khai 2026-11-19. Không thêm cột, không thêm bảng, không migration.
+
+Amendment này thay các câu nói xóa Schedule "deferred", "not available" hoặc
+"remain unapproved" trong Automatic Session Generation Amendment, Schedule-To-Session
+Origin Amendment và Cohort Schedule Foundation Amendment. Các phần khác không đổi.
+
+**Lý do.** Lưu Schedule là tự tạo Session ngay. Một Schedule lưu nhầm vì vậy luôn
+kéo theo Session, Origin và phân công giáo viên. Nếu không có cách xóa, quản trị
+phải hủy từng buổi, và các buổi đã hủy vẫn nằm lại trong lớp.
+
+**Khi nào được xóa.** Quản trị lớp được xóa một Schedule khi Cohort đang `draft`
+hoặc `active` và mọi Session có Origin trỏ về Schedule đó đều thỏa tất cả các điều
+kiện sau:
+
+* `status = scheduled` và chưa có `actual_start_at`;
+* giờ bắt đầu dự kiến vẫn còn ở phía trước;
+* không có Attendance, Attendance change, Recording hoặc Replay;
+* chưa từng dời giờ, tức không có row trong `core_liveclass_session_schedule_changes`;
+* không thay thế Session khác và không bị Session khác thay thế
+  (`superseded_by_session_id`).
+
+Chỉ cần một Session không thỏa là việc xóa bị từ chối và không đổi gì. Thông báo nêu
+lý do và hướng dẫn: sửa ngày kết thúc của Schedule, rồi hủy từng buổi thừa ở tab
+Buổi học. Session đã hủy hoặc vắng mặt (`cancelled`, `no_show`) cũng chặn việc xóa,
+vì loại Session này không bao giờ bị hard delete. Schedule chưa có Session nào luôn
+xóa được.
+
+**Xóa gì.** Mọi thứ nằm trong một transaction, sau khi lock Cohort, Schedule và các
+Session liên quan:
+
+1. phân công giáo viên của các Session đó (`core_liveclass_session_teachers`, chỉ là
+   dữ liệu chuẩn bị);
+2. Origin của các Session đó;
+3. các Session đó;
+4. Exclusion, Slot và chính Schedule.
+
+Đây là ngoại lệ duy nhất của quy tắc "Origin chỉ thêm, không sửa, không xóa": một
+Origin chỉ bị xóa cùng Session của nó, khi Schedule của nó bị xóa. Origin vẫn không
+bao giờ bị sửa. Việc xóa ghi một dòng audit `liveclass_schedule.deleted`, gồm tên,
+khoảng ngày, timezone, các Slot và danh sách Session đã xóa (id, số buổi, giờ bắt
+đầu, giờ kết thúc).
+
+**Hệ quả.**
+
+* Hoạt động `live_class` của các Session đã xóa trở lại trạng thái chưa có buổi.
+  Lần lưu Schedule sau sẽ ghép ngày cho chúng như thường lệ.
+* Học viên và giáo viên không còn thấy các buổi đó.
+* Session khác giữ nguyên số buổi. Buổi mới tiếp tục từ số lớn nhất hiện có cộng
+  một, nên số buổi có thể bị hở.
+* Cohort `completed` hoặc `archived` vẫn chỉ đọc: không có nút xóa, endpoint từ chối.
+
+**Giao diện.** Có nút "Xóa lịch" ở chi tiết Schedule, chỉ hiện với Cohort `draft`
+hoặc `active`. Bấm vào thì hiện popup xác nhận: nếu xóa được, popup nêu số buổi sẽ
+bị xóa theo; nếu không, popup nêu lý do và không có nút xóa. Endpoint
+`DELETE /course-cohorts/{cohort}/schedules/{schedule}` kiểm lại mọi điều kiện ở
+server.
+
+**Triển khai.** `LiveClassScheduleService::deletion()` (điều kiện, dùng cho cả popup)
+và `delete()` (transaction, audit); `LiveClassScheduleController::destroy`, route
+`course-cohorts.schedules.destroy`; popup trong
+`course-cohort-schedules/partials/detail`. Test: `CourseCohortManagementTest`
+(`test_a_schedule_whose_sessions_are_unused_is_deleted_with_them`,
+`test_a_schedule_with_a_used_session_stays_with_everything_it_made`,
+`test_completed_schedule_is_readonly_and_cannot_be_deleted`).
+
 ## Automatic Session Generation Amendment
 
 Approved: 2026-11-05 (Owner decision)

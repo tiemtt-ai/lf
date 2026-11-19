@@ -6,7 +6,7 @@ Status: Approved
 
 Implementation Status: Implemented
 
-Last Updated: 2026-11-11
+Last Updated: 2026-11-19
 
 Proposal Date: 2026-11-10
 
@@ -91,6 +91,7 @@ Ràng buộc đã có hiệu lực:
 | `document` | Tab mới bằng signed URL (giữ luật LF-Media). Xem câu hỏi Q3 |
 | `live_class` | Không có nội dung. Hiện buổi học của lớp gắn Activity này, nút vào bảng hoặc phòng họp khi buổi đang diễn ra (dùng lại `learnerLiveSessions`) |
 | `quiz` | Ngoài phạm vi. Hiện "Chưa hỗ trợ" nếu gặp; không có Version nào chứa loại này |
+| `external_link` | Bổ sung 2026-11-19 ([ADR-0035](ADR-0035-External-Link-Activity.md)): nút "Mở link" mở link HTTPS đã chốt ở tab mới (`rel="noopener noreferrer"`) và gửi `opened`; link chỉ có trong trang khi Activity được mở |
 
 * MediaService có thêm `generateLearnerActivitySignedUrl(enrollmentId, versionActivityId)`.
   Hàm chỉ cấp URL khi tất cả điều kiện sau đúng, trong cùng một truy vấn:

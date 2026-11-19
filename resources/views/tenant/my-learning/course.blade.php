@@ -30,6 +30,10 @@
 
 @section('content')
     <a class="lf-learn-back" href="{{ route('student.courses.index') }}"><span aria-hidden="true">←</span> {{ __('lf.LF_my_learning_back') }}</a>
+    @if ($course->review_only ?? false)
+        {{-- ADR-0022 Amendment 1.4: the class has ended; the learner only reviews. --}}
+        <p class="student-alert" role="status" data-learn-review-only>{{ __('lf.LF_my_learning_review_only') }}</p>
+    @endif
 
     <section class="student-card lf-learn-summary" aria-labelledby="learn-course-title">
         <h1 id="learn-course-title">{{ $title }}</h1>

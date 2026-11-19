@@ -3,7 +3,8 @@
     $isRequired = static fn (string $field): bool => in_array($field, $requiredFields, true);
     $star = '<span class="ui-field__required" aria-hidden="true">*</span>';
     $selectedPreview = (string) ($formLesson?->is_preview ?? 0);
-    $selectedLessonType = $formLesson?->lesson_type ?? 'regular';
+    // ADR-0022 Amendment 1.3: a retired type (review, exams) opens as a regular session.
+    $selectedLessonType = \App\Support\LessonType::normalize($formLesson?->lesson_type);
     $selectedUnlockRule = $formLesson?->unlock_rule ?? 'none';
     $selectedPrerequisites = collect($selectedPrerequisiteIds ?? [])->map(fn ($id) => (string) $id)->all();
     $selectedPrerequisiteMatch = $formLesson?->prerequisite_match ?? 'all';
@@ -56,8 +57,8 @@
         <div class="ui-field">
             <label class="ui-field__label" for="lesson-form-lesson_type">{!! $star !!}{{ __('lf.LF_course_template_lesson_common_type') }}</label>
             <select id="lesson-form-lesson_type" name="lesson_type" required {!! $selectAttributes !!}>
-                @foreach (['regular', 'review', 'midterm_exam', 'final_exam', 'other_exam'] as $lessonType)
-                    <option value="{{ $lessonType }}" @selected($selectedLessonType === $lessonType)>{{ __('lf.LF_course_template_lesson_common_role_'.$lessonType) }}</option>
+                @foreach (\App\Support\LessonType::SELECTABLE as $lessonType)
+                    <option value="{{ $lessonType }}" @selected($selectedLessonType === $lessonType)>{{ __(\App\Support\LessonType::labelKey($lessonType)) }}</option>
                 @endforeach
             </select>
             <span class="ui-field__hint">{{ __('lf.LF_course_template_lesson_common_type_help') }}</span>

@@ -48,9 +48,11 @@ final class LiveClassWhiteboardController extends Controller
 
     public function teacherStart(Request $request, int $session): RedirectResponse
     {
-        $this->whiteboards->startForTeacher($this->customerId(), (int) $request->user()->id, $session);
+        $hasBoard = $this->whiteboards->startForTeacher($this->customerId(), (int) $request->user()->id, $session);
 
-        return redirect()->route('teacher.live-sessions.board', $session);
+        return $hasBoard
+            ? redirect()->route('teacher.live-sessions.board', $session)
+            : redirect()->route('teacher.live-sessions.index')->with('success', __('lf.LF_liveclass_whiteboard_started'));
     }
 
     public function teacherComplete(Request $request, int $session): RedirectResponse

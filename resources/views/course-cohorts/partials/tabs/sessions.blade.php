@@ -37,7 +37,7 @@
         ['label' => __('lf.LF_course_template_lesson_common_name'), 'value' => $item->title_snapshot, 'wide' => true],
         ['label' => __('lf.LF_course_template_lesson_common_short_description'), 'value' => $item->short_description_snapshot ?: '—', 'wide' => true],
         ['label' => __('lf.LF_course_template_lesson_common_description'), 'value' => $item->description_snapshot ?: '—', 'wide' => true],
-        ['label' => __('lf.LF_course_template_lesson_common_type'), 'value' => __('lf.LF_course_template_lesson_common_role_'.($item->lesson_type ?: 'regular'))],
+        ['label' => __('lf.LF_course_template_lesson_common_type'), 'value' => __(\App\Support\LessonType::labelKey($item->lesson_type))],
         // A class has no preview and no unlock rule (ADR-0022 Amendment 1.2); a Version published before that still shows its rule.
         ($item->unlock_rule_snapshot ?: 'none') !== 'none' ? ['label' => __('lf.LF_course_template_lesson_common_unlock_rule'), 'value' => __('lf.LF_course_template_lesson_common_unlock_'.$item->unlock_rule_snapshot)] : null,
         $item->unlock_at_snapshot ? ['label' => __('lf.LF_course_template_lesson_common_unlock_at'), 'value' => \App\Support\LessonUnlockTime::toLocal((string) $item->unlock_at_snapshot, 'd/m/Y H:i')] : null,
@@ -51,6 +51,9 @@
          showFormErrors: true, showRescheduleErrors: true, meetingLinkCopied: false, defaultTeachersPending: false, editingProgramme: @js($formHasErrors && (old('schedule_id') || old('opened_version_activity_id'))),
          programmeLessonRows: @js($programmeLessons),
          programmeForm() { return this.editingProgramme || this.editingSession?.session_type === 'curriculum' },
+         // A practice session is held in a room or at a place: no mode, link or attendance tool to choose (ADR-0022 Amendment 1.3, Đợt 4).
+         practiceSession() { return this.sessionType === 'curriculum' && this.lessons.some(lesson => String(lesson.id) === String(this.lessonId) && lesson.lesson_type === 'practice') },
+         inRoom() { return this.practiceSession() || this.mode === 'offline' || this.mode === 'hybrid' },
          rescheduleSession: @js($rescheduleOldSession),
          rescheduleStart: @js($rescheduleHasErrors ? old('scheduled_start_at', '') : ''),
          rescheduleEnd: @js($rescheduleHasErrors ? old('scheduled_end_at', '') : ''),
@@ -73,7 +76,7 @@
          roomName: @js($formHasErrors ? old('room_name', '') : ''), address: @js($formHasErrors ? old('address', '') : ''),
          attendanceTool: @js($formHasErrors ? old('attendance_tool', 'board') : 'board'),
          statusLabels: @js(collect(['scheduled', 'live', 'completed', 'cancelled', 'no_show'])->mapWithKeys(fn ($status) => [$status => __('lf.LF_course_cohort_session_status_'.$status)])),
-         typeLabels: @js(collect(['curriculum', 'operational'])->mapWithKeys(fn ($type) => [$type => __('lf.LF_course_cohort_session_type_'.$type)])),
+         typeLabels: @js(collect(['curriculum', 'operational', 'self_study'])->mapWithKeys(fn ($type) => [$type => __('lf.LF_course_cohort_session_type_'.$type)])),
          modeLabels: @js(collect(['online', 'offline', 'hybrid'])->mapWithKeys(fn ($mode) => [$mode => __('lf.LF_course_cohort_session_mode_'.$mode)])),
          relationLabels: @js(collect(['on_schedule', 'rescheduled', 'off_schedule', 'source_unknown'])->mapWithKeys(fn ($relation) => [$relation => __('lf.LF_course_cohort_session_relation_'.$relation)])),
          statusTones: { scheduled: 'draft', live: 'active', completed: 'completed', cancelled: 'danger', no_show: 'archived' },

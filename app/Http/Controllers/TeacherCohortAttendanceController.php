@@ -5,8 +5,9 @@ namespace App\Http\Controllers;
 use App\Services\LiveClassAttendanceCheckIn;
 use App\Services\LiveClassAttendancePolicies;
 use App\Services\LiveClassAttendanceRecorder;
-use App\Services\TeacherPermissions;
+use App\Services\LiveClassSelfStudySession;
 use App\Services\LiveClassSessionPolicy;
+use App\Services\TeacherPermissions;
 use App\Support\TenantContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
@@ -19,7 +20,8 @@ use Illuminate\View\View;
 /**
  * Manual attendance by a teacher (ADR-0002 § Attendance Policy And Recording Amendment, part B): every teacher with
  * an active assignment to the Cohort records and corrects results, from the start of a Session until the policy's
- * edit window closes. The administrator keeps the Cohort attendance tab, without a time limit.
+ * edit window closes, in an active or a completed class. The administrator keeps the Cohort attendance tab, without a
+ * time limit.
  */
 final class TeacherCohortAttendanceController extends Controller
 {
@@ -48,14 +50,14 @@ final class TeacherCohortAttendanceController extends Controller
             'closesAt' => $closesAt,
             // Without `class.operate` the page only reads (ADR-0033 D3).
             'mayOperate' => $mayOperate = app(TeacherPermissions::class)->may($request->user(), 'class.operate'),
-            'editable' => $mayOperate && $selected !== null && $cohortRow->status === 'active' && CarbonImmutable::now()->utc()->lte($closesAt),
+            'editable' => $mayOperate && $selected !== null && in_array($cohortRow->status, LiveClassAttendanceRecorder::MANUAL_COHORT_STATUSES, true) && CarbonImmutable::now()->utc()->lte($closesAt),
         ]);
     }
 
     public function save(Request $request, int $cohort, int $session): RedirectResponse
     {
         [$customerId, $cohortRow] = $this->authorize($request, $cohort);
-        abort_unless($cohortRow->status === 'active', 422, __('lf.LF_teacher_attendance_closed_cohort'));
+        abort_unless(in_array($cohortRow->status, LiveClassAttendanceRecorder::MANUAL_COHORT_STATUSES, true), 422, __('lf.LF_teacher_attendance_closed_cohort'));
         $sessionRow = $this->sessions($customerId, $cohort)->firstWhere('id', $session);
         abort_unless($sessionRow, 422, __('lf.LF_course_cohort_attendance_session_invalid'));
         abort_unless(CarbonImmutable::now()->utc()->lte($this->recorder->teacherEditClosesAt(
@@ -107,9 +109,11 @@ final class TeacherCohortAttendanceController extends Controller
             ->whereNull('superseded_by_session_id')->whereIn('status', ['scheduled', 'live', 'completed'])
             ->orderBy('scheduled_start_at')->orderBy('id')
             ->get(['id', 'customer_id', 'cohort_id', 'title', 'session_no', 'delivery_mode', 'attendance_tool', 'status',
-                'scheduled_start_at', 'scheduled_end_at', 'actual_start_at', 'actual_end_at', 'timezone', 'version_activity_id'])
+                'scheduled_start_at', 'scheduled_end_at', 'actual_start_at', 'actual_end_at', 'timezone', 'version_activity_id',
+                'session_type'])
+            // A self-study Session has no teacher of its own; the class's teachers record it.
             ->filter(fn (object $session): bool => $this->sessionPolicy->canRecordAttendance($session, $now)
-                && LiveClassAttendanceCheckIn::sessionHasTeacher($customerId, (int) $session->id))
+                && (LiveClassSelfStudySession::is($session) || LiveClassAttendanceCheckIn::sessionHasTeacher($customerId, (int) $session->id)))
             ->values();
     }
 }

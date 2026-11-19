@@ -29,8 +29,27 @@
                    name="joined_at"
                    class="lf-form-control"
                    value="{{ old('joined_at', optional(($membership?->joined_at ?? null) ? \Illuminate\Support\Carbon::parse($membership->joined_at) : null)->format('Y-m-d\TH:i')) }}"
+                   max="{{ now()->format('Y-m-d\TH:i') }}"
+                   data-original="{{ optional(($membership?->joined_at ?? null) ? \Illuminate\Support\Carbon::parse($membership->joined_at) : null)->format('Y-m-d\TH:i') }}"
+                   data-confirm="{{ __('lf.LF_course_cohort_student_joined_at_confirm') }}"
                    required>
+            <p class="lf-secondary-text">{{ __('lf.LF_course_cohort_student_joined_at_help') }}</p>
             @error('joined_at')<p class="lf-form-error" role="alert">{{ $message }}</p>@enderror
+            {{-- ADR-0034: a changed join date decides which sessions count, so the shared confirm dialog asks before it is
+                 saved (resources/js/app.js reads `data-lf-confirm` on the form at submit time). --}}
+            <script>
+                (() => {
+                    const input = document.getElementById('joined_at');
+                    const sync = () => {
+                        if (! input?.form) return;
+                        if (input.dataset.original && input.value !== input.dataset.original) input.form.dataset.lfConfirm = input.dataset.confirm;
+                        else delete input.form.dataset.lfConfirm;
+                    };
+                    input?.addEventListener('input', sync);
+                    input?.addEventListener('change', sync);
+                    sync();
+                })();
+            </script>
         </div>
 
         <div class="lf-form-group admin-form-field admin-form-field--full">

@@ -64,6 +64,7 @@ class LiveClassCohortSessionReadModel
             ->select(
                 'sessions.*',
                 'lessons.title_snapshot as lesson_title',
+                'lessons.lesson_type',
                 'activities.title_snapshot as activity_title',
                 // Shown when the Session has no link of its own: the class's, then the Template's.
                 DB::raw('COALESCE(cohorts.default_meeting_url, activities.live_class_url_snapshot) as activity_meeting_url'),
@@ -118,7 +119,11 @@ class LiveClassCohortSessionReadModel
             $session->can_edit_link = ! $session->can_edit && $cohortStatus === 'active'
                 && in_array($session->delivery_mode, ['online', 'hybrid'], true) && in_array($session->status, ['scheduled', 'live'], true)
                 && LiveClassSessionTime::utc($session->scheduled_end_at, $session->timezone)->gte($now);
-            $session->can_reschedule = $this->sessionPolicy->canReschedule($session, $now);
+            $session->can_reschedule = $this->sessionPolicy->canReschedule(
+                $session,
+                $sessionsWithEvidence->contains((int) $session->id),
+                $now
+            );
             $session->position_lock_reason = $this->sessionPolicy->positionLockReason(
                 $session,
                 $sessionsWithEvidence->contains((int) $session->id),
@@ -131,6 +136,10 @@ class LiveClassCohortSessionReadModel
                 $sessionsWithEvidence->contains((int) $session->id),
                 $now
             );
+            // A self-study Session has only its date: it is moved or cancelled, never edited or staffed (ADR-0023 §10).
+            if (LiveClassSelfStudySession::is($session)) {
+                $session->can_edit = $session->can_edit_link = $session->can_assign_teachers = false;
+            }
         });
 
         return $sessions;

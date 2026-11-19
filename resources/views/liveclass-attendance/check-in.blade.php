@@ -16,7 +16,7 @@
         @if (in_array($result, ['recorded', 'already'], true))
             <p class="lf-checkin__status" role="status">
                 @if ($result === 'recorded')
-                    {{ $recorded['status'] === 'late' ? $t('recorded_late') : $t('recorded_present') }}
+                    {{ match ($recorded['status'] ?? null) { 'late' => $t('recorded_late'), 'registered' => $t('recorded_pending'), default => $t('recorded_present') } }}
                 @else
                     {{ $t('already') }}
                 @endif

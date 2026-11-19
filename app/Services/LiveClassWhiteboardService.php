@@ -39,6 +39,7 @@ class LiveClassWhiteboardService
         private readonly LiveClassAttendancePolicies $attendancePolicies,
         private readonly LiveClassAttendanceRecorder $attendanceRecorder,
         private readonly LiveClassSessionOperations $sessionOperations,
+        private readonly LiveClassAttendanceContent $attendanceContent,
     ) {}
 
     /**
@@ -73,9 +74,12 @@ class LiveClassWhiteboardService
                 $startable = $presenter && $session->status === 'scheduled' && $session->is_today;
                 $session->can_start = $startable && ! $session->start_opens_at->isFuture();
                 $session->start_waits = $startable && ! $session->can_start;
-                $session->can_open = $presenter && $session->status === 'live';
-                $session->can_complete = $session->can_open && ! $this->plannedStart($session)->isFuture();
-                $session->complete_waits = $session->can_open && ! $session->can_complete;
+                $live = $presenter && $session->status === 'live';
+                // A practice session is started and ended like any other, but has no board (ADR-0022 Amendment 1.3, Đợt 4).
+                $session->is_practice = LiveClassPracticeSession::isType($session->lesson_type ?? null);
+                $session->can_open = $live && ! $session->is_practice;
+                $session->can_complete = $live && ! $this->plannedStart($session)->isFuture();
+                $session->complete_waits = $live && ! $session->can_complete;
                 // What this teacher may change of the Session's operational part (ADR-0002 § Teacher Session Operations).
                 // Without `class.operate` the teacher still teaches the Session, but changes nothing of it (ADR-0033 D3).
                 $editable = $presenter && $mayOperate ? $this->sessionOperations->editable((int) $session->customer_id, $session) : ['place' => false, 'link' => false];
@@ -128,7 +132,8 @@ class LiveClassWhiteboardService
             ->addSelect('assignments.assigned_from', 'assignments.assigned_to');
     }
 
-    public function startForTeacher(int $customerId, int $teacherId, int $sessionId): void
+    /** @return bool whether the Session has a board to open after the start (a practice session has none) */
+    public function startForTeacher(int $customerId, int $teacherId, int $sessionId): bool
     {
         $session = $this->teacherSession($customerId, $teacherId, $sessionId);
 
@@ -147,6 +152,8 @@ class LiveClassWhiteboardService
         }
 
         $this->lifecycle->start($customerId, (int) $session->cohort_id, $sessionId);
+
+        return ! LiveClassPracticeSession::isType($session->lesson_type ?? null);
     }
 
     public function completeForTeacher(int $customerId, int $teacherId, int $sessionId): void
@@ -236,6 +243,9 @@ class LiveClassWhiteboardService
             $session->is_live = $session->status === 'live';
             $session->entry_meeting = $session->entry_button = $session->entry_warning = false;
             $session->attendance = $results->get($session->id.':'.$session->enrollment_id);
+            if (LiveClassSelfStudySession::is($session)) {
+                return $attendanceOn ? $this->selfStudyEntry($customerId, $session, $now) : null;
+            }
             if (! $attendanceOn || ! LiveClassAttendanceCheckIn::sessionHasTeacher($customerId, (int) $session->id)) {
                 return $session->is_live ? $session : null;
             }
@@ -253,6 +263,24 @@ class LiveClassWhiteboardService
 
             return $session->is_live || $session->entry_meeting || $session->entry_button ? $session : null;
         })->filter()->values();
+    }
+
+    /**
+     * A self-study Session shows during its own hours (ADR-0022 Amendment 1.3, Đợt 4, Bước 3): with the "Điểm danh"
+     * button when its lesson ticks no Activity, otherwise with a reminder that the ticked content decides.
+     */
+    private function selfStudyEntry(int $customerId, object $session, CarbonImmutable $now): ?object
+    {
+        if ($session->status !== 'scheduled'
+            || $now->lt(LiveClassSessionTime::utc((string) $session->scheduled_start_at, $session->timezone))
+            || $now->gt(LiveClassSessionTime::utc((string) $session->scheduled_end_at, $session->timezone))) {
+            return null;
+        }
+        $session->is_self_study = true;
+        $session->self_study_ticked = $this->attendanceContent->tickedSelfStudy($customerId, (int) $session->version_lesson_id)->count();
+        $session->entry_button = $session->self_study_ticked === 0;
+
+        return $session;
     }
 
     /**
@@ -321,8 +349,8 @@ class LiveClassWhiteboardService
     }
 
     /**
-     * Ready Media of the Session's Version Lesson that the Activity makes
-     * available during the Session, in the Cohort's own order.
+     * Ready Media of every material Activity of the Session's Version Lesson,
+     * whatever its phase (ADR-0022 Amendment 1.3), in the Cohort's own order.
      *
      * @return array<int, array<string, mixed>>
      */
@@ -349,7 +377,6 @@ class LiveClassWhiteboardService
             ->where('activities.customer_id', $context->customerId)
             ->where('activities.template_version_id', $context->versionId)
             ->where('activities.version_lesson_id', $context->versionLessonId)
-            ->where('activities.available_during_session', true)
             ->whereIn('activities.activity_type', self::MATERIAL_TYPES)
             ->get([
                 'activities.id', 'activities.sort_order', 'activities.title_snapshot', 'activities.activity_type',
@@ -483,6 +510,8 @@ class LiveClassWhiteboardService
 
     private function context(object $session, int $userId, string $role, bool $canPresent = true): LiveClassBoardContext
     {
+        // A practice session has no board, for anyone (ADR-0022 Amendment 1.3, Đợt 4).
+        abort_if(LiveClassPracticeSession::isType($session->lesson_type ?? null), 404);
         abort_unless($session->cohort_status === 'active' && $session->status === 'live', 403,
             __('lf.LF_liveclass_whiteboard_not_live'));
 
@@ -549,7 +578,7 @@ class LiveClassWhiteboardService
                 'sessions.meeting_url_snapshot', 'sessions.room_name_snapshot', 'sessions.address_snapshot', 'sessions.attendance_tool',
                 'sessions.actual_start_at', 'sessions.actual_end_at', 'sessions.version_activity_id',
                 'cohorts.name as cohort_name', 'cohorts.status as cohort_status', 'cohorts.default_meeting_url as cohort_meeting_url',
-                'lessons.title_snapshot as lesson_title',
+                'lessons.title_snapshot as lesson_title', 'lessons.lesson_type',
             ]);
     }
 

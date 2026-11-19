@@ -116,12 +116,15 @@
 
             @if (! $mayOperate)
                 <div class="ui-banner ui-cohort-tab-notice" role="status"><span class="ui-banner__text">{{ __('lf.LF_teacher_attendance_no_permission') }}</span></div>
-            @elseif ($cohort->status !== 'active')
+            @elseif (! in_array($cohort->status, \App\Services\LiveClassAttendanceRecorder::MANUAL_COHORT_STATUSES, true))
                 <div class="ui-banner ui-cohort-tab-notice" role="status"><span class="ui-banner__text">{{ __('lf.LF_teacher_attendance_closed_cohort') }}</span></div>
             @elseif (! $editable)
                 <div class="ui-banner ui-cohort-tab-notice" role="status"><span class="ui-banner__text">{{ __('lf.LF_teacher_attendance_closed', ['time' => $closesLabel]) }}</span></div>
             @else
                 <p class="ui-caption" data-attendance-closes>{{ __('lf.LF_teacher_attendance_closes', ['time' => $closesLabel]) }}</p>
+                @if ($cohort->status === 'completed')
+                    <p class="ui-caption" data-attendance-completed-note>{{ __('lf.LF_attendance_completed_class_note') }}</p>
+                @endif
             @endif
 
             @include('liveclass-attendance.partials.roster', [

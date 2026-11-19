@@ -494,6 +494,9 @@ class CourseTemplateController extends Controller
                 $courseTypes = app(CourseTemplateCourseTypeService::class);
                 $courseTypes->assertCanChange($customerId, $id, $validated['course_type']);
                 $courseTypes->resetUnusedLessonFields($customerId, $id, $validated['course_type']);
+                if ($locked->course_type === CourseType::SELF_PACED && CourseType::isClassBased($validated['course_type'])) {
+                    $courseTypes->startLessonsAsSelfStudy($customerId, $id);
+                }
             }
             $categoryChanged = (int) $validated['category_id'] !== (int) $template->category_id;
             if ($categoryChanged) {
@@ -1170,9 +1173,9 @@ class CourseTemplateController extends Controller
                     }
                 }
 
-                if (in_array($activity->activity_type, ['embedded_video', 'live_class'], true)) {
+                if (in_array($activity->activity_type, ['embedded_video', 'external_link', 'live_class'], true)) {
                     $activity->view_url = $this->safeExternalUrl(
-                        $activity->external_video_url ?? $activity->live_class_url
+                        $activity->external_video_url ?? $activity->external_link_url ?? $activity->live_class_url
                     );
                     $activity->view_kind = $activity->view_url
                         ? 'external'

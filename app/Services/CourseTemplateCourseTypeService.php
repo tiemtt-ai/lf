@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Support\CourseType;
+use App\Support\LessonType;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -75,6 +76,42 @@ class CourseTemplateCourseTypeService
         if (! CourseType::usesLessonType($type)) {
             $lessons()->where('lesson_type', '!=', 'regular')->update(['lesson_type' => 'regular', 'updated_at' => now()]);
         }
+        if (CourseType::isClassBased($type)) {
+            // ADR-0022 Amendment 1.3: a class has no Activity preview, unlock rule or estimated duration.
+            DB::table('core_course_template_activities')
+                ->where('customer_id', $customerId)
+                ->where('template_id', $templateId)
+                ->where(fn ($query) => $query->where('is_preview', true)->orWhere('unlock_rule', '!=', 'none')
+                    ->orWhereNotNull('unlock_after_activity_id')->orWhereNotNull('estimated_duration_seconds'))
+                ->update([
+                    'is_preview' => false,
+                    'unlock_rule' => 'none',
+                    'unlock_after_activity_id' => null,
+                    'estimated_duration_seconds' => null,
+                    'updated_at' => now(),
+                ]);
+            $lessons()->where('duration_seconds', '!=', 0)->update(['duration_seconds' => 0, 'updated_at' => now()]);
+        } else {
+            // "Tính vào điểm danh" belongs to a class (Amendment 1.3, Đợt 3).
+            DB::table('core_course_template_activities')
+                ->where('customer_id', $customerId)
+                ->where('template_id', $templateId)
+                ->where('counts_for_attendance', true)
+                ->update(['counts_for_attendance' => false, 'updated_at' => now()]);
+        }
+    }
+
+    /**
+     * A self-paced Template becoming class-based (ADR-0022 Amendment 1.3): its lessons, whose Activities are
+     * all anytime, become self-study sessions, valid as they are; the author changes each type when needed.
+     * Run under the Template lock, after {@see resetUnusedLessonFields()}.
+     */
+    public function startLessonsAsSelfStudy(int $customerId, int $templateId): void
+    {
+        DB::table('core_course_template_lessons')
+            ->where('customer_id', $customerId)
+            ->where('template_id', $templateId)
+            ->update(['lesson_type' => LessonType::SELF_STUDY, 'updated_at' => now()]);
     }
 
     /** Rejects a type change that is locked or that working Activities do not fit. */

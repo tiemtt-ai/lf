@@ -126,3 +126,17 @@ test('a document opens in a new tab, or records first when no tab can be opened'
     assert.deepEqual(order, [['fetch', '/media'], ['fetch', '/progress'], ['navigate', '/file.pdf']]);
     delete globalThis.window;
 });
+
+test('an external link records its opening and the link itself opens the tab', async () => {
+    const calls = withFetch(() => progress('completed', 100));
+    const activity = learnerActivity(config({ tracksPosition: false }));
+    await activity.openLink();
+    assert.deepEqual(calls.map((call) => [call.url, call.body]), [['/progress', { event: 'opened' }]]);
+    assert.equal(activity.completed, true);
+
+    withFetch(() => ({ ok: false, status: 403 }));
+    const refused = learnerActivity(config({ tracksPosition: false }));
+    await refused.openLink();
+    assert.equal(refused.error, 'Failed');
+    assert.equal(refused.completed, false);
+});

@@ -499,6 +499,30 @@ a.lf-wb-btn { text-decoration: none; } /* "Vào phòng họp" is a link styled a
 }
 
 /* Enlarged: the code fills the screen so learners at the back of the room can scan it. */
+.lf-wb-attendance .lf-wb-attendance__recent {
+    display: grid;
+    gap: 4px;
+    margin: 8px 0 0;
+    padding: 0;
+    list-style: none;
+    font-size: 14px;
+}
+
+.lf-wb-attendance .lf-wb-attendance__recent li {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.lf-wb-attendance .lf-wb-attendance__recent span {
+    color: var(--lf-text-muted, #64748b);
+    white-space: nowrap;
+}
+
+.lf-wb-attendance.is-corner .lf-wb-attendance__recent {
+    font-size: 12px;
+}
+
 .lf-admin-ui .ui-modal.lf-wb-attendance.is-large {
     width: 100vw;
     height: 100dvh;

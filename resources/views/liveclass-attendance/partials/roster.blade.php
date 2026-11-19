@@ -4,8 +4,15 @@
 @php
     $manualStatuses = \App\Services\LiveClassAttendanceRecorder::MANUAL_STATUSES;
     $entryLabel = function (object $row) use ($attendanceTool): ?string {
+        if ($row->attendance_status === 'registered' && $row->joined_at) {
+            // Entered, waiting for the content ticked "Tính vào điểm danh" (ADR-0022 Amendment 1.3, Đợt 3).
+            return __('lf.LF_course_cohort_attendance_pending', ['time' => \Illuminate\Support\Carbon::parse($row->joined_at)->format('H:i')]);
+        }
         if (! $row->attendance_status || $row->attendance_status === 'registered') {
             return null;
+        }
+        if ($row->attendance_source === 'makeup') {
+            return __('lf.LF_course_cohort_attendance_source_makeup');
         }
         if ($row->attendance_source !== 'system') {
             return __('lf.LF_course_cohort_attendance_source_manual');
@@ -16,6 +23,8 @@
         $time = \Illuminate\Support\Carbon::parse($row->joined_at)->format('H:i');
 
         return match (true) {
+            // A self-study session: the moment the ticked content was done, or the learner's own button.
+            $attendanceTool === \App\Services\LiveClassSelfStudySession::TYPE => __('lf.LF_course_cohort_attendance_checked_in_self_study', ['time' => $time]),
             $row->attendance_mode === 'online' => __('lf.LF_course_cohort_attendance_checked_in_online', ['time' => $time]),
             $attendanceTool === 'button' => __('lf.LF_course_cohort_attendance_checked_in_button', ['time' => $time]),
             default => __('lf.LF_course_cohort_attendance_checked_in_qr', ['time' => $time]),
@@ -51,15 +60,20 @@
                     <td class="mk-text-cell" data-label="{{ __('lf.LF_course_cohort_student_common_student') }}">
                         <span class="mk-name-text">{{ $row->student_name }}</span>
                         <span class="ui-caption ui-framework-description">{{ $row->student_email }}</span>
-                        @if ($source)<span class="ui-caption ui-framework-description" @if ($row->joined_at && $row->attendance_source === 'system') data-attendance-checked-in @endif>{{ $source }}</span>@endif
-                        @if ($action)
+                        @if ($source && ! ($row->outside ?? null))<span class="ui-caption ui-framework-description" @if ($row->joined_at && $row->attendance_source === 'system') data-attendance-checked-in @endif>{{ $source }}</span>@endif
+                        @if ($action && ! ($row->outside ?? null))
                             <input type="hidden" name="attendance[{{ $index }}][enrollment_id]" value="{{ $row->enrollment_id }}">
                             <input type="hidden" name="attendance[{{ $index }}][loaded_status]" value="{{ $current }}">
                             <input type="hidden" name="attendance[{{ $index }}][loaded_mode]" value="{{ $row->attendance_mode }}">
                             <input type="hidden" name="attendance[{{ $index }}][loaded_notes]" value="{{ $row->notes }}">
                         @endif
                     </td>
-                    @if ($action)
+                    @if ($row->outside ?? null)
+                        {{-- ADR-0034: the Session is outside this learner's time in the class; it takes no result. --}}
+                        <td class="mk-text-cell" colspan="3" data-label="{{ __('lf.LF_course_cohort_attendance_status') }}" data-attendance-outside="{{ $row->outside }}">
+                            <span class="ui-caption">{{ __('lf.LF_course_cohort_attendance_outside_'.$row->outside) }}</span>
+                        </td>
+                    @elseif ($action)
                         <td class="mk-text-cell" data-label="{{ __('lf.LF_course_cohort_attendance_status') }}">
                             <label class="ui-sr-only" for="attendance-status-{{ $index }}">{{ __('lf.LF_course_cohort_attendance_status') }}: {{ $row->student_name }}</label>
                             <select id="attendance-status-{{ $index }}" name="attendance[{{ $index }}][status]" data-ui-kit-select>

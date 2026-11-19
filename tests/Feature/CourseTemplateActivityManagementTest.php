@@ -882,6 +882,68 @@ class CourseTemplateActivityManagementTest extends TestCase
         $this->assertDatabaseCount('core_course_template_activities', 0);
     }
 
+    public function test_an_external_link_takes_only_a_clean_https_link_and_loses_it_with_the_type(): void
+    {
+        [$customerId, $templateId, $sectionId, $lessonId] = $this->createHierarchy();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $url = $this->activityCollectionUrl('admin', $templateId, $sectionId, $lessonId);
+        $link = fn (?string $value, array $extra = []): array => $this->validActivityData(array_merge([
+            'title' => 'Wings practice', 'activity_type' => 'external_link', 'external_link_url' => $value,
+        ], $extra));
+
+        // ADR-0035 §1: required, HTTPS only, no user name or password, at most 1000 characters.
+        foreach ([null, 'http://wings.example.test', 'https://user:secret@wings.example.test', 'ftp://wings.example.test',
+            'wings.example.test', 'https://wings.example.test/'.str_repeat('a', 1000)] as $bad) {
+            $this->actingAs($admin)->post($url, $link($bad))->assertSessionHasErrors('external_link_url');
+        }
+        $this->actingAs($admin)->post($url, $link('http://wings.example.test'))
+            ->assertSessionHasErrors(['external_link_url' => __('lf.LF_course_template_activity_external_link_invalid')]);
+        // The type allows view and, outside a class course, manual; never a percentage.
+        $this->actingAs($admin)->post($url, $link('https://wings.example.test', ['completion_rule' => 'watch_percent', 'completion_threshold' => 80]))
+            ->assertSessionHasErrors('completion_rule');
+        $this->assertDatabaseCount('core_course_template_activities', 0);
+
+        $this->actingAs($admin)->post($url, $link('https://wings.example.test/class?id=7', ['estimated_duration_minutes' => 20]))
+            ->assertSessionHasNoErrors();
+        $activity = DB::table('core_course_template_activities')->where('title', 'Wings practice')->sole();
+        $this->assertSame(['external_link', 'https://wings.example.test/class?id=7', null, 1200],
+            [$activity->activity_type, $activity->external_link_url, $activity->external_video_url, (int) $activity->estimated_duration_seconds]);
+        $this->actingAs($admin)->put("{$url}/{$activity->id}", $link('https://wings.example.test/class?id=8', ['completion_rule' => 'manual']))
+            ->assertSessionHasNoErrors();
+        $this->assertSame('https://wings.example.test/class?id=8', DB::table('core_course_template_activities')->where('id', $activity->id)->value('external_link_url'));
+
+        $edit = $this->actingAs($admin)->withHeaders($this->ajaxHeaders())->get("{$url}/{$activity->id}/edit")->assertOk()->getContent();
+        $this->assertStringContainsString('name="external_link_url" value="https://wings.example.test/class?id=8"', $edit);
+        // The structure row opens the link itself in a new tab.
+        $xpath = $this->xpath($this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit")->assertOk()->getContent());
+        $view = $xpath->query('//div[contains(@class, "course-template-activity-item")][.//span[normalize-space()="Wings practice"]]//a[normalize-space()="Xem"]')->item(0);
+        $this->assertSame(['https://wings.example.test/class?id=8', '_blank', 'noopener noreferrer'],
+            [$view?->getAttribute('href'), $view?->getAttribute('target'), $view?->getAttribute('rel')]);
+
+        // Another type never keeps the link, even one sent along with it (ADR-0035 §1).
+        $this->actingAs($admin)->put("{$url}/{$activity->id}", $this->validActivityData([
+            'title' => 'Wings practice', 'activity_type' => 'embedded_video',
+            'external_video_url' => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', 'external_link_url' => 'https://wings.example.test',
+        ]))->assertSessionHasNoErrors();
+        $this->assertNull(DB::table('core_course_template_activities')->where('id', $activity->id)->value('external_link_url'));
+    }
+
+    public function test_a_class_course_external_link_completes_on_view_and_may_count_for_attendance(): void
+    {
+        [$customerId, $templateId, $sectionId, $lessonId] = $this->createClassHierarchy();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $url = $this->activityCollectionUrl('admin', $templateId, $sectionId, $lessonId);
+        $data = fn (string $rule): array => $this->validActivityData(array_merge([
+            'title' => 'MasterK homework', 'activity_type' => 'external_link', 'external_link_url' => 'https://masterk.example.test/hw',
+            'completion_rule' => $rule, 'counts_for_attendance' => 1,
+        ], $this->classPhase('after_session')));
+
+        $this->actingAs($admin)->post($url, $data('manual'))->assertSessionHasErrors('completion_rule');
+        $this->actingAs($admin)->post($url, $data('view'))->assertSessionHasNoErrors();
+        $this->assertSame([1, 'view'], [(int) DB::table('core_course_template_activities')->value('counts_for_attendance'),
+            DB::table('core_course_template_activities')->value('completion_rule')]);
+    }
+
     public function test_activity_description_and_sort_order_are_bounded_to_their_columns(): void
     {
         [$customerId, $templateId, $sectionId, $lessonId] = $this->createHierarchy();
@@ -933,10 +995,10 @@ class CourseTemplateActivityManagementTest extends TestCase
         ]);
     }
 
-    public function test_live_class_accepts_attendance_or_manual_completion_rules(): void
+    public function test_a_live_class_completes_on_attendance_only(): void
     {
         [$customerId, $templateId, $sectionId, $lessonId] =
-            $this->createHierarchy();
+            $this->createClassHierarchy();
         $admin = $this->createUser($customerId, 'customer_admin');
         $url = $this->activityCollectionUrl(
             'admin',
@@ -945,6 +1007,13 @@ class CourseTemplateActivityManagementTest extends TestCase
             $lessonId
         );
 
+        $this->actingAs($admin)
+            ->post($url, $this->validActivityData([
+                'title' => 'Live manual',
+                'activity_type' => 'live_class',
+                'completion_rule' => 'manual',
+            ]))
+            ->assertSessionHasErrors('completion_rule');
         $this->actingAs($admin)
             ->post($url, $this->validActivityData([
                 'title' => 'Live attendance',
@@ -962,49 +1031,127 @@ class CourseTemplateActivityManagementTest extends TestCase
         ]);
     }
 
-    public function test_learning_availability_supports_anytime_or_multiple_session_phases(): void
+    public function test_a_class_activity_belongs_to_one_part_of_a_led_session_and_takes_no_self_paced_field(): void
     {
-        [$customerId, $templateId, $sectionId, $lessonId] = $this->createHierarchy();
+        // ADR-0022 Amendment 1.3.
+        [$customerId, $templateId, $sectionId, $lessonId] = $this->createClassHierarchy();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $url = $this->activityCollectionUrl('admin', $templateId, $sectionId, $lessonId);
+        $phases = fn (array $phases) => ['learning_phases_present' => 1, 'learning_phases' => $phases];
+
+        foreach ([['before_session', 'during_session'], ['anytime'], ['anytime', 'after_session']] as $index => $refused) {
+            $this->actingAs($admin)->post($url, $this->validActivityData(['title' => 'Refused '.$index] + $phases($refused)))
+                ->assertSessionHasErrors(['learning_phases' => __('lf.LF_course_template_activity_class_phase_one')]);
+        }
+        $this->actingAs($admin)->post($url, $this->validActivityData(['title' => 'No part'] + $phases([])))
+            ->assertSessionHasErrors('learning_phases');
+        $this->assertDatabaseMissing('core_course_template_activities', ['title' => 'No part']);
+
+        // Preview, unlock rule and estimate are set by the server whatever was sent; manual completion is refused.
+        $this->actingAs($admin)->post($url, $this->validActivityData(['title' => 'Manual', 'completion_rule' => 'manual'] + $this->classPhase()))
+            ->assertSessionHasErrors('completion_rule');
+        $this->actingAs($admin)->post($url, $this->validActivityData([
+            'title' => 'Before class', 'is_preview' => 1, 'estimated_duration_minutes' => 15,
+        ] + $this->classPhase('before_session')))->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('core_course_template_activities', [
+            'customer_id' => $customerId, 'title' => 'Before class', 'is_preview' => 0, 'unlock_rule' => 'none',
+            'estimated_duration_seconds' => null, 'available_anytime' => 0, 'available_before_session' => 1,
+            'available_during_session' => 0, 'available_after_session' => 0,
+        ]);
+
+        // A video counts as watched at 80% unless another share is sent.
+        $this->actingAs($admin)->post($url, $this->validActivityData([
+            'title' => 'Watched', 'activity_type' => 'video', 'completion_rule' => 'watch_percent',
+        ] + $this->classPhase('after_session')))->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('core_course_template_activities', ['title' => 'Watched', 'completion_threshold' => 80]);
+        $this->actingAs($admin)->post($url, $this->validActivityData([
+            'title' => 'Opened video', 'activity_type' => 'video', 'completion_rule' => 'view',
+        ] + $this->classPhase()))->assertSessionHasErrors('completion_rule');
+    }
+
+    public function test_counts_for_attendance_is_kept_only_in_the_during_and_after_parts_of_a_led_class_session(): void
+    {
+        // ADR-0022 Amendment 1.3, Đợt 3.
+        [$customerId, $templateId, $sectionId, $lessonId] = $this->createClassHierarchy();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $url = $this->activityCollectionUrl('admin', $templateId, $sectionId, $lessonId);
+        $save = fn (string $title, array $extra) => $this->actingAs($admin)
+            ->post($url, $this->validActivityData(['title' => $title, 'counts_for_attendance' => 1] + $extra))->assertSessionHasNoErrors();
+        $stored = fn (string $title): int => (int) DB::table('core_course_template_activities')
+            ->where('customer_id', $customerId)->where('title', $title)->value('counts_for_attendance');
+
+        $save('In class', $this->classPhase('during_session'));
+        $save('Homework', $this->classPhase('after_session'));
+        $save('Prepare', $this->classPhase('before_session'));
+        $save('Live', ['activity_type' => 'live_class', 'completion_rule' => 'join'] + $this->classPhase());
+        $this->actingAs($admin)->post($url, $this->validActivityData(['title' => 'Unticked'] + $this->classPhase()))->assertSessionHasNoErrors();
+        $this->assertSame([1, 1, 0, 0, 0], array_map($stored, ['In class', 'Homework', 'Prepare', 'Live', 'Unticked']));
+
+        // Moving a ticked Activity to "Trước" clears the tick.
+        $inClassId = (int) DB::table('core_course_template_activities')->where('title', 'In class')->value('id');
+        $this->actingAs($admin)->put("{$url}/{$inClassId}", $this->validActivityData(['title' => 'In class', 'counts_for_attendance' => 1]
+            + $this->classPhase('before_session')))->assertSessionHasNoErrors();
+        $this->assertSame(0, $stored('In class'));
+
+        $form = $this->actingAs($admin)->withHeaders($this->ajaxHeaders())->get("{$url}/create")->assertOk()
+            ->assertSeeText(__('lf.LF_course_template_activity_class_completion_attendance_title'))
+            ->assertSeeText(__('lf.LF_course_template_activity_apply_title'))
+            ->assertSeeText(__('lf.LF_course_template_activity_apply_attendance_live_help'))
+            ->getContent();
+        $this->assertStringContainsString('name="counts_for_attendance" value="1"', $form);
+        $this->assertStringContainsString("classPhase !== 'before_session'", $form);
+        $this->actingAs($admin)->withHeaders($this->ajaxHeaders())->get("{$url}/".DB::table('core_course_template_activities')->where('title', 'Homework')->value('id').'/edit')
+            ->assertOk()->assertSee('countsForAttendance: true', false);
+
+        // A self-study session has no parts: any Activity of it may be ticked (Đợt 4, Bước 3).
+        DB::table('core_course_template_lessons')->where('id', $lessonId)->update(['lesson_type' => 'self_study']);
+        $save('Self study', $this->classPhase());
+        $this->assertSame(1, $stored('Self study'));
+        $this->assertDatabaseHas('core_course_template_activities', ['title' => 'Self study', 'available_anytime' => 1]);
+        $this->actingAs($admin)->withHeaders($this->ajaxHeaders())->get("{$url}/create")->assertOk()
+            ->assertSeeText(__('lf.LF_course_template_activity_apply_title'))
+            ->assertSeeText(__('lf.LF_course_template_activity_apply_attendance_self_study_help'))
+            ->assertSee('name="counts_for_attendance" value="1"', false);
+
+        // A self-paced course has no such tick: the server stores 0 and the form has no field.
+
+        DB::table('core_course_templates')->where('id', $templateId)->update(['course_type' => 'self_paced']);
+        DB::table('core_course_template_lessons')->where('id', $lessonId)->update(['lesson_type' => 'regular']);
+        $this->actingAs($admin)->post($url, $this->validActivityData(['title' => 'Self paced', 'counts_for_attendance' => 1]))
+            ->assertSessionHasNoErrors();
+        $this->assertSame(0, $stored('Self paced'));
+        $this->actingAs($admin)->withHeaders($this->ajaxHeaders())->get("{$url}/create")->assertOk()
+            ->assertDontSee('name="counts_for_attendance"', false)
+            ->assertDontSeeText(__('lf.LF_course_template_activity_apply_title'));
+    }
+
+    public function test_a_self_study_session_has_no_live_class_and_no_parts(): void
+    {
+        [$customerId, $templateId, $sectionId, $lessonId] = $this->createClassHierarchy(lessonType: 'self_study');
         $admin = $this->createUser($customerId, 'customer_admin');
         $url = $this->activityCollectionUrl('admin', $templateId, $sectionId, $lessonId);
 
-        $this->actingAs($admin)
-            ->post($url, $this->validActivityData([
-                'title' => 'Before and during',
-                'learning_phases_present' => 1,
-                'learning_phases' => ['before_session', 'during_session'],
-            ]))
-            ->assertRedirect();
+        $this->actingAs($admin)->post($url, $this->validActivityData([
+            'title' => 'Live', 'activity_type' => 'live_class', 'completion_rule' => 'join',
+        ] + $this->classPhase()))->assertSessionHasErrors(['activity_type' => __('lf.LF_course_template_activity_self_study_live_class')]);
+        $this->assertDatabaseMissing('core_course_template_activities', ['title' => 'Live']);
 
+        // Whatever part is sent, the Activity of a self-study session is stored as anytime.
+        $this->actingAs($admin)->post($url, $this->validActivityData(['title' => 'Reading'] + $this->classPhase('before_session')))
+            ->assertSessionHasNoErrors();
         $this->assertDatabaseHas('core_course_template_activities', [
-            'customer_id' => $customerId,
-            'title' => 'Before and during',
-            'available_anytime' => 0,
-            'available_before_session' => 1,
-            'available_during_session' => 1,
-            'available_after_session' => 0,
+            'title' => 'Reading', 'available_anytime' => 1, 'available_before_session' => 0,
         ]);
 
-        $this->actingAs($admin)
-            ->post($url, $this->validActivityData([
-                'title' => 'Invalid availability',
-                'learning_phases_present' => 1,
-                'learning_phases' => ['anytime', 'after_session'],
-            ]))
-            ->assertSessionHasErrors('learning_phases');
-
-        $this->actingAs($admin)
-            ->post($url, $this->validActivityData([
-                'title' => 'Missing availability',
-                'learning_phases_present' => 1,
-                'learning_phases' => [],
-            ]))
-            ->assertSessionHasErrors('learning_phases');
+        $form = $this->actingAs($admin)->withHeaders($this->ajaxHeaders())->get("{$url}/create")->assertOk()->getContent();
+        $this->assertStringNotContainsString('value="live_class"', $form);
+        $this->assertStringNotContainsString('value="before_session"', $form);
+        $this->assertStringContainsString('<input type="hidden" name="learning_phases[]" value="anytime">', $form);
     }
 
     public function test_a_live_class_is_never_anytime_and_defaults_to_during_the_session(): void
     {
-        [$customerId, $templateId, $sectionId, $lessonId] = $this->createHierarchy();
+        [$customerId, $templateId, $sectionId, $lessonId] = $this->createClassHierarchy();
         $admin = $this->createUser($customerId, 'customer_admin');
         $url = $this->activityCollectionUrl('admin', $templateId, $sectionId, $lessonId);
         $live = fn (array $overrides) => $this->validActivityData([
@@ -1019,7 +1166,7 @@ class CourseTemplateActivityManagementTest extends TestCase
             $this->assertDatabaseMissing('core_course_template_activities', ['title' => 'Live anytime '.$index]);
         }
 
-        // Without a declaration a live class defaults to during the session (other types keep defaulting to anytime).
+        // Without a declaration a live class defaults to during the session.
         $request = $live(['title' => 'Live default']);
         unset($request['learning_phases'], $request['learning_phases_present']);
         $this->actingAs($admin)->post($url, $request)->assertSessionHasNoErrors();
@@ -1030,7 +1177,7 @@ class CourseTemplateActivityManagementTest extends TestCase
 
     public function test_a_live_session_belongs_to_during_the_session_only(): void
     {
-        [$customerId, $templateId, $sectionId, $lessonId] = $this->createHierarchy();
+        [$customerId, $templateId, $sectionId, $lessonId] = $this->createClassHierarchy();
         $admin = $this->createUser($customerId, 'customer_admin');
         $url = $this->activityCollectionUrl('admin', $templateId, $sectionId, $lessonId);
         $live = fn (array $phases) => $this->validActivityData([
@@ -1060,7 +1207,7 @@ class CourseTemplateActivityManagementTest extends TestCase
 
     public function test_a_lesson_holds_one_live_session_and_the_default_link_is_no_longer_entered(): void
     {
-        [$customerId, $templateId, $sectionId, $lessonId] = $this->createHierarchy();
+        [$customerId, $templateId, $sectionId, $lessonId] = $this->createClassHierarchy();
         $admin = $this->createUser($customerId, 'customer_admin');
         $url = $this->activityCollectionUrl('admin', $templateId, $sectionId, $lessonId);
         $live = fn (array $overrides) => $this->validActivityData([
@@ -1091,11 +1238,12 @@ class CourseTemplateActivityManagementTest extends TestCase
             ->post($this->activityCollectionUrl('admin', $templateId, $sectionId, $otherLessonId), $live(['title' => 'Live other']))
             ->assertSessionHasNoErrors();
 
-        // In a class course only the lesson without a live session is labelled self-study.
-        $this->createLesson($customerId, $templateId, $sectionId, 'Reading lesson');
+        // A session other than a regular one names its type (ADR-0022 Amendment 1.3).
+        $readingLessonId = $this->createLesson($customerId, $templateId, $sectionId, 'Reading lesson');
+        DB::table('core_course_template_lessons')->where('id', $readingLessonId)->update(['lesson_type' => 'self_study']);
         $html = $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=structure")
             ->assertOk()->getContent();
-        $label = preg_quote(__('lf.LF_course_template_lesson_self_study'), '/');
+        $label = preg_quote(__('lf.LF_course_template_lesson_common_role_self_study'), '/');
         $this->assertSame(1, preg_match_all('/>\s*'.$label.'\s*<\/span>/u', $html));
 
         // A link stored before the change is kept when the live session is edited, and dropped when its type changes.
@@ -1107,7 +1255,7 @@ class CourseTemplateActivityManagementTest extends TestCase
         $this->assertDatabaseHas('core_course_template_activities', [
             'id' => $liveId, 'title' => 'Live renamed', 'live_class_url' => 'https://meet.google.com/old-link',
         ]);
-        $this->actingAs($admin)->put("{$url}/{$liveId}", $this->validActivityData(['title' => 'Now a document']))
+        $this->actingAs($admin)->put("{$url}/{$liveId}", $this->validActivityData(['title' => 'Now a document'] + $this->classPhase()))
             ->assertSessionHasNoErrors();
         $this->assertDatabaseHas('core_course_template_activities', [
             'id' => $liveId, 'activity_type' => 'document', 'live_class_url' => null,
@@ -1134,73 +1282,65 @@ class CourseTemplateActivityManagementTest extends TestCase
         $this->actingAs($admin)->post($url, $this->validActivityData(['title' => 'Self default']))->assertSessionHasNoErrors();
         $this->assertDatabaseHas('core_course_template_activities', ['title' => 'Self default', 'available_anytime' => 1, 'available_during_session' => 0]);
 
-        // ADR-0022 Amendment 1.1: a legacy scheduled Template reads as class-based and takes anytime too.
-        $template->update(['course_type' => 'scheduled']);
-        $this->actingAs($admin)->post($url, $this->validActivityData(['title' => 'Sched any'] + $phases(['anytime'])))->assertSessionHasNoErrors();
-        $this->actingAs($admin)->post($url, $this->validActivityData(['title' => 'Sched before'] + $phases(['before_session', 'after_session'])))->assertSessionHasNoErrors();
+        // ADR-0022 Amendment 1.1: a legacy scheduled Template reads as class-based. Amendment 1.3: an Activity of a
+        // led session takes exactly one part and never anytime.
+        foreach (['scheduled', 'blended'] as $type) {
+            $template->update(['course_type' => $type]);
+            $this->actingAs($admin)->post($url, $this->validActivityData(['title' => "{$type} any"] + $phases(['anytime'])))
+                ->assertSessionHasErrors('learning_phases');
+            $this->actingAs($admin)->post($url, $this->validActivityData(['title' => "{$type} two"] + $phases(['before_session', 'after_session'])))
+                ->assertSessionHasErrors('learning_phases');
+            $this->actingAs($admin)->post($url, $this->validActivityData(['title' => "{$type} session"] + $phases(['during_session'])))
+                ->assertSessionHasNoErrors();
+        }
 
-        $template->update(['course_type' => 'blended']);
-        $this->actingAs($admin)->post($url, $this->validActivityData(['title' => 'Blend any'] + $phases(['anytime'])))->assertSessionHasNoErrors();
-        $this->actingAs($admin)->post($url, $this->validActivityData(['title' => 'Blend session'] + $phases(['during_session'])))->assertSessionHasNoErrors();
-
-        foreach (['Self session', 'Self live'] as $rejected) {
+        foreach (['Self session', 'Self live', 'scheduled any', 'blended two'] as $rejected) {
             $this->assertDatabaseMissing('core_course_template_activities', ['title' => $rejected]);
         }
     }
 
-    public function test_a_blended_course_keeps_the_mode_cards_and_explains_the_session_times(): void
+    public function test_a_class_course_form_offers_one_part_of_the_session_and_no_self_paced_field(): void
     {
-        [$customerId, $templateId, $sectionId, $lessonId] = $this->createHierarchy();
+        [$customerId, $templateId, $sectionId, $lessonId] = $this->createClassHierarchy();
         $admin = $this->createUser($customerId, 'customer_admin');
-        DB::table('core_course_templates')->where('id', $templateId)->update(['course_type' => 'blended']);
+        $createUrl = $this->activityCollectionUrl('admin', $templateId, $sectionId, $lessonId).'/create';
 
-        $this->actingAs($admin)
-            ->get($this->activityCollectionUrl('admin', $templateId, $sectionId, $lessonId).'/create', ['X-Requested-With' => 'XMLHttpRequest'])
-            ->assertOk()
-            ->assertSee('name="learning_mode"', false)
-            ->assertSee('value="anytime"', false)
-            ->assertSee('lf-info-tip--lines', false)
-            ->assertSeeText(__('lf.LF_course_template_activity_learning_mode_anytime_help'))
-            ->assertSeeText(__('lf.LF_course_template_activity_phase_choose'))
-            ->assertDontSee('ui-option-cards__detail--solo', false)
-            // By session comes first and is chosen for a new Activity, with no phase picked yet.
-            ->assertSeeInOrder(['id="activity-form-learning_mode-session"', 'ui-option-cards__detail', 'id="activity-form-learning_mode-anytime"'], false)
-            ->assertSee("learningMode: 'session'", false)
-            ->assertSee('sessionPhases: []', false);
+        // A legacy scheduled Template gets the same form (ADR-0022 Amendment 1.1).
+        foreach (['blended', 'scheduled'] as $courseType) {
+            DB::table('core_course_templates')->where('id', $templateId)->update(['course_type' => $courseType]);
 
-        // Adding from a phase tab of the lesson presets that tab, the Anytime tab included.
-        $createUrl = $this->activityCollectionUrl('admin', $templateId, $sectionId, $lessonId).'/create?phase=';
-        $this->actingAs($admin)->get($createUrl.'anytime', ['X-Requested-With' => 'XMLHttpRequest'])
-            ->assertOk()->assertSee("learningMode: 'anytime'", false);
-        $this->actingAs($admin)->get($createUrl.'after_session', ['X-Requested-With' => 'XMLHttpRequest'])
-            ->assertOk()->assertSee("learningMode: 'session'", false)->assertDontSee('sessionPhases: []', false);
+            $this->actingAs($admin)->get($createUrl, ['X-Requested-With' => 'XMLHttpRequest'])
+                ->assertOk()
+                ->assertSeeText(__('lf.LF_course_template_activity_class_phase'))
+                ->assertSeeText(__('lf.LF_course_template_activity_class_completion_title'))
+                ->assertSee('ui-option-cards--three', false)
+                ->assertSeeInOrder(['value="before_session"', 'value="during_session"', 'value="after_session"'], false)
+                ->assertSee("classPhase: ''", false)
+                ->assertDontSee('name="learning_mode"', false)
+                ->assertDontSee('value="anytime" x-bind', false)
+                ->assertDontSee('name="is_preview"', false)
+                ->assertDontSee('name="unlock_rule"', false)
+                ->assertDontSee('name="estimated_duration_minutes"', false)
+                ->assertDontSee('<option value="manual"', false);
+
+            // Adding from a part tab of the lesson presets that part; anytime presets none.
+            $this->actingAs($admin)->get($createUrl.'?phase=after_session', ['X-Requested-With' => 'XMLHttpRequest'])
+                ->assertOk()->assertSee("classPhase: 'after_session'", false);
+            $this->actingAs($admin)->get($createUrl.'?phase=anytime', ['X-Requested-With' => 'XMLHttpRequest'])
+                ->assertOk()->assertSee("classPhase: ''", false);
+        }
     }
 
-    public function test_a_legacy_scheduled_course_gets_the_class_based_form(): void
+    public function test_the_session_part_renders_on_activity_form_and_detail(): void
     {
-        [$customerId, $templateId, $sectionId, $lessonId] = $this->createHierarchy();
-        $admin = $this->createUser($customerId, 'customer_admin');
-        DB::table('core_course_templates')->where('id', $templateId)->update(['course_type' => 'scheduled']);
-
-        $this->actingAs($admin)
-            ->get($this->activityCollectionUrl('admin', $templateId, $sectionId, $lessonId).'/create', ['X-Requested-With' => 'XMLHttpRequest'])
-            ->assertOk()
-            ->assertSee('name="learning_mode"', false)
-            ->assertSee('value="anytime"', false)
-            ->assertDontSee('ui-option-cards__detail--solo', false);
-    }
-
-    public function test_learning_availability_checkboxes_render_on_activity_form_and_detail(): void
-    {
-        [$customerId, $templateId, $sectionId, $lessonId] = $this->createHierarchy();
+        [$customerId, $templateId, $sectionId, $lessonId] = $this->createClassHierarchy();
         $admin = $this->createUser($customerId, 'customer_admin');
         $url = $this->activityCollectionUrl('admin', $templateId, $sectionId, $lessonId);
 
         $this->actingAs($admin)->withHeaders($this->ajaxHeaders())->get("{$url}/create")
             ->assertOk()
-            ->assertSeeText(__('lf.LF_course_template_activity_learning_availability'))
+            ->assertSeeText(__('lf.LF_course_template_activity_class_phase'))
             ->assertSee('name="learning_phases[]"', false)
-            ->assertSee('value="anytime"', false)
             ->assertSee('value="before_session"', false)
             ->assertSee('value="during_session"', false)
             ->assertSee('value="after_session"', false);
@@ -1940,6 +2080,22 @@ class CourseTemplateActivityManagementTest extends TestCase
         return [$customerId, $templateId, $sectionId, $lessonId];
     }
 
+    /** A class-based Template (ADR-0022 Amendment 1.3) whose lesson has the given session type. */
+    private function createClassHierarchy(string $courseType = 'blended', string $lessonType = 'regular'): array
+    {
+        $hierarchy = $this->createHierarchy();
+        DB::table('core_course_templates')->where('id', $hierarchy[1])->update(['course_type' => $courseType]);
+        DB::table('core_course_template_lessons')->where('id', $hierarchy[3])->update(['lesson_type' => $lessonType]);
+
+        return $hierarchy;
+    }
+
+    /** The one part of a led session an Activity of a class belongs to. */
+    private function classPhase(string $phase = 'during_session'): array
+    {
+        return ['learning_phases_present' => 1, 'learning_phases' => [$phase]];
+    }
+
     private function createDirectHierarchy(): array
     {
         $customerId = DB::table('saas_customers')->insertGetId([
@@ -1992,12 +2148,14 @@ class CourseTemplateActivityManagementTest extends TestCase
         return $templateId;
     }
 
+    // Self-paced by default: the class-based rules (ADR-0022 Amendment 1.3) have tests of their own.
     private function createTemplate(
         int $customerId,
         string $title,
-        string $slug
+        string $slug,
+        string $courseType = 'self_paced'
     ): int {
-        return DB::table('core_course_templates')->insertGetId(['course_type' => 'blended',
+        return DB::table('core_course_templates')->insertGetId(['course_type' => $courseType,
             'customer_id' => $customerId,
             'category_id' => null,
             'title' => $title,
@@ -2181,13 +2339,14 @@ class CourseTemplateActivityManagementTest extends TestCase
             $optionValues[] = $radio->getAttribute('value');
         }
 
+        // A self-paced course has no live class (ADR-0022).
         $this->assertSame([
             'video',
             'embedded_video',
             'audio',
             'document',
             'quiz',
-            'live_class',
+            'external_link',
         ], $optionValues);
         $this->assertSame(
             1,

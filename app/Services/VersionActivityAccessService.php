@@ -4,7 +4,9 @@ namespace App\Services;
 
 use App\Support\ActivityAccessDecision;
 use App\Support\CourseType;
+use App\Support\LessonType;
 use App\Support\TenantContext;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -60,7 +62,8 @@ class VersionActivityAccessService
     /**
      * ADR-0022: a scheduled or blended course is learned in a class. Without an active class membership
      * nothing opens; a blended "anytime" Activity opens from the class start date to the end of its end date.
-     * Session-relative windows have no runtime yet (open question), so Session-bound Activities need only membership.
+     * A Session-bound Activity (other than `live_class`) opens by the class schedule (Amendment 1.3, Đợt 2), and
+     * so does every Activity of a self-study lesson, from the start of its Session (Đợt 4, Bước 3).
      */
     private function classAccess(int $customerId, object $enrollment, object $activity): ?ActivityAccessDecision
     {
@@ -78,9 +81,15 @@ class VersionActivityAccessService
             ->where('memberships.status', 'active')
             ->whereIn('cohorts.status', ['active', 'completed'])
             ->orderByDesc('memberships.id')
-            ->first(['cohorts.start_date', 'cohorts.end_date']);
+            ->first(['cohorts.id', 'cohorts.start_date', 'cohorts.end_date']);
         if (! $cohort) {
             return $this->deny('no_active_cohort');
+        }
+
+        // A self-study lesson has a date on the class schedule: its content opens at that Session's start, like "Trong".
+        if ($activity->activity_type !== 'live_class' && LessonType::normalize(DB::table('core_course_template_version_lessons')
+            ->where('customer_id', $customerId)->where('id', $activity->version_lesson_id)->value('lesson_type')) === LessonType::SELF_STUDY) {
+            return $this->scheduleAccess($customerId, (int) $cohort->id, (int) $activity->version_lesson_id, ['during']);
         }
 
         if (CourseType::normalize($courseType) === CourseType::BLENDED && (bool) $activity->available_anytime && $activity->activity_type !== 'live_class') {
@@ -89,6 +98,66 @@ class VersionActivityAccessService
                 || $today < substr((string) $cohort->start_date, 0, 10) || $today > substr((string) $cohort->end_date, 0, 10)) {
                 return $this->deny('outside_cohort_period');
             }
+        }
+
+        $phases = array_values(array_filter(['before', 'during', 'after'], fn (string $phase): bool => (bool) $activity->{'available_'.$phase.'_session'}));
+        if ($activity->activity_type !== 'live_class' && ! (bool) $activity->available_anytime && $phases !== []) {
+            return $this->scheduleAccess($customerId, (int) $cohort->id, (int) $activity->version_lesson_id, $phases);
+        }
+
+        return null;
+    }
+
+    /**
+     * Amendment 1.3, Đợt 2 (MK 3.2): only the planned times count. "Trước" opens when the class's previous
+     * programme Session (of a led or a self-study lesson) ends (00:00 of the first Session's day when there is none), "Trong" at the start of the
+     * Lesson's first Session, "Sau" at the end of its last one. Cancelled Sessions do not count (the Lesson moved
+     * to another Session), nor do draft ones; `no_show` does. An Activity of several phases (older Versions) opens at the earliest.
+     *
+     * @param  list<string>  $phases
+     */
+    private function scheduleAccess(int $customerId, int $cohortId, int $versionLessonId, array $phases): ?ActivityAccessDecision
+    {
+        $sessions = DB::table('core_liveclass_sessions')
+            ->where('customer_id', $customerId)
+            ->where('cohort_id', $cohortId)
+            ->whereIn('session_type', ['curriculum', LiveClassSelfStudySession::TYPE])
+            ->whereNotIn('status', ['draft', 'cancelled'])
+            ->get(['version_lesson_id', 'scheduled_start_at', 'scheduled_end_at', 'timezone'])
+            ->map(fn (object $s): object => (object) [
+                'lesson' => (int) $s->version_lesson_id,
+                'start' => LiveClassSessionTime::utc((string) $s->scheduled_start_at, $s->timezone),
+                'end' => LiveClassSessionTime::utc((string) $s->scheduled_end_at, $s->timezone),
+                'timezone' => $s->timezone ?: config('app.timezone'),
+            ])
+            ->sortBy(fn (object $s): int => $s->start->getTimestamp())
+            ->values();
+        $own = $sessions->where('lesson', $versionLessonId)->values();
+        if ($own->isEmpty()) {
+            return $this->deny('session_unscheduled');
+        }
+        $first = $own->first();
+
+        $opensAt = collect($phases)->map(function (string $phase) use ($sessions, $own, $first): CarbonImmutable {
+            if ($phase === 'during') {
+                return $first->start;
+            }
+            if ($phase === 'after') {
+                return $own->sortBy(fn (object $s): int => $s->end->getTimestamp())->last()->end;
+            }
+            // The Session just before the Lesson's first one, whichever Lesson it carries.
+            $previous = $sessions->filter(fn (object $s): bool => $s->start->lt($first->start))->last();
+            $opens = $previous
+                ? $previous->end
+                : CarbonImmutable::parse($first->start->setTimezone($first->timezone)->toDateString(), $first->timezone)->utc();
+
+            // A previous Session overlapping this one never holds "Trước" back past the start.
+            return $opens->gt($first->start) ? $first->start : $opens;
+        })->sortBy(fn (CarbonImmutable $at): int => $at->getTimestamp())->first();
+
+        if (CarbonImmutable::now('UTC')->lt($opensAt)) {
+            // Shown in the Lesson's own Session timezone, the class clock the learner sees on the schedule.
+            return new ActivityAccessDecision(false, 'session_not_open', null, $opensAt->setTimezone($first->timezone)->toIso8601String());
         }
 
         return null;

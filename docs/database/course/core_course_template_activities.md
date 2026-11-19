@@ -1,12 +1,12 @@
 # Table: core_course_template_activities
 
-Version: 1.5
+Version: 1.9
 
 Document Status: Approved
 
 Implementation Status: Unknown
 
-Last Updated: 2026-11-17
+Last Updated: 2026-11-19
 
 Document Path: database/course/core_course_template_activities.md
 
@@ -195,6 +195,8 @@ Giá trị:
 * document
 * quiz
 * live_class
+* external_link — "Link nền tảng ngoài", Amendment 2026-11-19
+  ([ADR-0035](../../adr/ADR-0035-External-Link-Activity.md)).
 
 Amendment 2026-11-09 (Owner approved): `live_class` hiển thị là "Buổi học trực
 tiếp". Mỗi Lesson có tối đa một Activity `live_class`; luật nằm ở backend (tạo,
@@ -213,6 +215,21 @@ URL ngoài hệ thống.
 
 Dùng khi activity_type = embedded_video. Chỉ canonical HTTPS YouTube/Vimeo URL
 được normalize bởi `TrustedVideoUrlService`.
+
+### external_link_url
+
+> Amendment 2026-11-19 (Owner duyệt nghiệp vụ và thiết kế dữ liệu) — migration
+> `2026_11_19_000100_add_external_link_to_course_activities`. Nghiệp vụ:
+> [ADR-0035](../../adr/ADR-0035-External-Link-Activity.md).
+
+VARCHAR(1000) NULL, đặt sau `external_video_url`. Không CHECK, không index, không backfill.
+
+* Dùng khi `activity_type = external_link` ("Link nền tảng ngoài"): bắt buộc, chỉ `https://`,
+  không chứa tên đăng nhập hay mật khẩu trong URL; server kiểm.
+* Mọi loại khác: `NULL`. Đổi loại khỏi `external_link` thì về `NULL`.
+* `completion_rule` của loại này là `view` (khóa khác Theo lớp có thêm `manual`).
+* Xuất bản sao vào `core_course_template_version_activities.external_link_url_snapshot`;
+  nhân bản Template sao nguyên giá trị.
 
 ### live_class_url
 
@@ -284,6 +301,15 @@ Có thể học sau Cohort Session thực tế gắn với Lesson.
 
 Ít nhất một trong bốn field availability phải bằng `1`.
 
+> Khóa Theo lớp ([ADR-0022 Amendment 1.3](../../adr/ADR-0022-Course-Type-On-Template.md),
+> 2026-11-18; không đổi schema): Activity của buổi có người phụ trách (`lesson_type`
+> `regular`, `practice`) có đúng một trong ba field theo buổi bằng `1` và
+> `available_anytime = 0`; Activity của buổi `self_study` có `available_anytime = 1`.
+> `completion_rule`: `video`, `audio` dùng `watch_percent` (mặc định 80); `document`,
+> `embedded_video` dùng `view`; `quiz` dùng `submit` hoặc `pass`; `live_class` dùng `join`;
+> không có `manual`. Server luôn ghi `is_preview = 0`, `unlock_rule = none`,
+> `estimated_duration_seconds = NULL`.
+
 ### duration_seconds
 
 INT UNSIGNED DEFAULT 0
@@ -305,6 +331,35 @@ when every estimate is unknown.
 TINYINT(1) DEFAULT 1
 
 Activity bắt buộc để hoàn thành Lesson.
+
+### counts_for_attendance
+
+> Amendment 2026-11-18 (Owner duyệt) — migration
+> `2026_11_18_000100_add_counts_for_attendance_to_course_activities`.
+> Nghiệp vụ: [ADR-0022 Amendment 1.3, Đợt 3](../../adr/ADR-0022-Course-Type-On-Template.md#đợt-3--tính-vào-điểm-danh-và-học-bù).
+
+TINYINT(1) NOT NULL DEFAULT 0, đặt sau `is_required`.
+
+"Tính vào điểm danh": học viên phải đạt tiêu chí hoàn thành của Activity này thì mới được
+tính điểm danh (phần Trong buổi học) hoặc học bù (phần Sau buổi học).
+
+* Chỉ nhận 1 khi Template là Theo lớp, Activity không phải `live_class`, và hoặc thuộc phần
+  Trong hoặc Sau của buổi có người phụ trách, hoặc thuộc buổi tự học (Amendment 2026-11-18,
+  Đợt 4, Bước 3). Server lưu 0 ở mọi trường hợp khác.
+* Đưa về 0 khi Activity chuyển sang phần Trước và khi Template đổi sang Tự học. Đổi bài sang
+  Tự học giữ nguyên giá trị.
+* Dòng đang có nhận 0 khi migration chạy; không cần backfill.
+
+```sql
+CONSTRAINT chk_ccta_counts_for_attendance CHECK (
+    counts_for_attendance = 0
+    OR (activity_type <> 'live_class' AND available_before_session = 0)
+)
+```
+
+Ràng buộc này không kiểm loại khóa và loại buổi (nằm ở bảng khác); phần đó do server và
+kiểm tra xuất bản đảm nhận. Migration `2026_11_18_000300_allow_attendance_tick_on_self_study_activities`
+bỏ vế `available_anytime = 0` của bản đầu để Activity của buổi tự học tick được.
 
 ### completion_rule
 

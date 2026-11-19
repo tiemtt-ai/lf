@@ -207,6 +207,15 @@ class CourseEnrollmentLifecycleService
         ];
     }
 
+    /**
+     * The learning window is over, whether or not `course:expire-enrollments` has marked the Enrollment yet. Such an
+     * Enrollment no longer joins or moves into a class, even during its review window (Owner decision 2026-11-19).
+     */
+    public static function accessEnded(object $enrollment, CarbonInterface $at): bool
+    {
+        return ($enrollment->access_ends_at ?? null) !== null && $at->gte(Carbon::parse($enrollment->access_ends_at));
+    }
+
     public function allowsLearningAccessAt(object $enrollment, CarbonInterface $at): bool
     {
         if (! $enrollment->access_starts_at && ! $enrollment->access_ends_at) {

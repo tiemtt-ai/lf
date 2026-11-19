@@ -5,8 +5,10 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Services\VersionActivityAccessService;
 use App\Support\TenantContext;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
@@ -68,15 +70,163 @@ class CourseActivityProgressRuntimeTest extends TestCase
         ]);
         $this->assertSame('outside_cohort_period', $decide()->reason);
 
-        // A Session-bound Activity has no time window yet; class membership is enough.
+        // A Session-bound Activity follows the schedule, not the class period (test below); `live_class` needs membership only.
         DB::table('core_course_template_version_activities')->where('id', $context['version_activity_id'])
             ->update(['available_anytime' => false, 'available_during_session' => true]);
+        $this->assertSame('session_unscheduled', $decide()->reason);
+        DB::table('core_course_template_version_activities')->where('id', $context['version_activity_id'])
+            ->update(['activity_type' => 'live_class', 'completion_rule' => 'join', 'completion_threshold' => null]);
         $this->assertTrue($decide()->allowed);
         $version->update(['course_type_snapshot' => 'scheduled']);
         $this->assertTrue($decide()->allowed);
 
         DB::table('core_course_cohort_students')->where('id', $membershipId)->update(['status' => 'removed', 'left_at' => now()]);
         $this->assertSame('no_active_cohort', $decide()->reason);
+    }
+
+    public function test_class_activities_open_by_the_planned_schedule_of_their_lesson(): void
+    {
+        // ADR-0022 Amendment 1.3, Đợt 2 (MK 3.2).
+        $context = $this->runtimeContext();
+        TenantContext::set((object) ['id' => $context['customer_id']]);
+        $customerId = $context['customer_id'];
+        DB::table('core_course_template_versions')->where('id', $context['version_id'])->update(['course_type_snapshot' => 'blended']);
+        $cohortId = DB::table('core_course_cohorts')->insertGetId([
+            'customer_id' => $customerId, 'product_id' => $context['product_id'], 'version_id' => $context['version_id'],
+            'name' => 'Class A', 'status' => 'active', 'start_date' => '2026-01-01', 'end_date' => '2026-01-02',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('core_course_cohort_students')->insert([
+            'customer_id' => $customerId, 'cohort_id' => $cohortId, 'enrollment_id' => $context['enrollment_id'],
+            'product_id' => $context['product_id'], 'student_id' => $context['student']->id, 'status' => 'active',
+            'joined_at' => now(), 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $activity = DB::table('core_course_template_version_activities')->where('id', $context['version_activity_id']);
+        $phase = fn (string ...$phases) => $activity->update([
+            'available_anytime' => false,
+            'available_before_session' => in_array('before', $phases, true),
+            'available_during_session' => in_array('during', $phases, true),
+            'available_after_session' => in_array('after', $phases, true),
+        ]);
+        $service = app(VersionActivityAccessService::class);
+        $at = function (string $local) use ($service, $context) {
+            Carbon::setTestNow(CarbonImmutable::parse($local, 'Asia/Ho_Chi_Minh'));
+
+            return $service->decide($context['student']->id, $context['enrollment_id'], $context['version_activity_id']);
+        };
+        $otherLessonId = $this->createVersionLesson($customerId, $context['version_id']);
+        $session = function (int $lessonId, string $day, string $status = 'scheduled') use ($customerId, $cohortId, $context): int {
+            static $number = 0;
+
+            return DB::table('core_liveclass_sessions')->insertGetId([
+                'customer_id' => $customerId, 'cohort_id' => $cohortId, 'template_version_id' => $context['version_id'],
+                'session_type' => 'curriculum', 'version_lesson_id' => $lessonId, 'version_activity_id' => $context['version_activity_id'],
+                'session_no' => ++$number, 'title' => 'Buổi '.$number, 'delivery_mode' => 'offline',
+                'scheduled_start_at' => $day.' 19:30:00', 'scheduled_end_at' => $day.' 21:00:00', 'timezone' => 'Asia/Ho_Chi_Minh',
+                'status' => $status, 'created_at' => now(), 'updated_at' => now(),
+            ]);
+        };
+
+        $phase('before');
+        $this->assertSame('session_unscheduled', $at('2026-12-01 12:00')->reason);
+
+        // The Lesson has two Sessions; the class's previous Session carries another Lesson.
+        $previous = $session($otherLessonId, '2026-12-01');
+        $session($context['version_lesson_id'], '2026-12-03');
+        $session($context['version_lesson_id'], '2026-12-05');
+        $draft = $session($otherLessonId, '2026-12-02', 'draft');
+
+        $decision = $at('2026-12-01 20:59');
+        $this->assertSame('session_not_open', $decision->reason);
+        $this->assertSame('2026-12-01T21:00:00+07:00', $decision->unlockAt, '"Trước" opens when the previous Session ends; drafts do not count');
+        $this->assertTrue($at('2026-12-01 21:00')->allowed);
+
+        $phase('during');
+        $this->assertSame('2026-12-03T19:30:00+07:00', $at('2026-12-03 19:29')->unlockAt, '"Trong" opens at the first Session start');
+        $this->assertTrue($at('2026-12-03 19:30')->allowed);
+
+        $phase('after');
+        $this->assertSame('2026-12-05T21:00:00+07:00', $at('2026-12-04 08:00')->unlockAt, '"Sau" opens when the last Session ends');
+        $this->assertTrue($at('2026-12-05 21:00')->allowed);
+        $this->assertTrue($at('2027-03-01 08:00')->allowed, 'open content stays open after the class period');
+
+        $phase('before', 'after');
+        $this->assertSame('2026-12-01T21:00:00+07:00', $at('2026-12-01 08:00')->unlockAt, 'several phases open at the earliest');
+
+        // A cancelled previous Session does not count; the first Session's day opens at 00:00. A no_show Session does count.
+        DB::table('core_liveclass_sessions')->where('id', $previous)->update(['status' => 'cancelled']);
+        DB::table('core_liveclass_sessions')->where('id', $draft)->delete();
+        $phase('before');
+        $this->assertSame('2026-12-03T00:00:00+07:00', $at('2026-12-02 23:59')->unlockAt);
+        $this->assertTrue($at('2026-12-03 00:00')->allowed);
+        DB::table('core_liveclass_sessions')->where('id', $previous)->update(['status' => 'no_show']);
+        $this->assertTrue($at('2026-12-02 08:00')->allowed);
+
+        // A rescheduled Session moves the opening with it.
+        DB::table('core_liveclass_sessions')->where('id', $previous)->update([
+            'scheduled_start_at' => '2026-12-02 19:30:00', 'scheduled_end_at' => '2026-12-02 21:00:00',
+        ]);
+        $this->assertSame('2026-12-02T21:00:00+07:00', $at('2026-12-02 08:00')->unlockAt);
+
+        Carbon::setTestNow();
+    }
+
+    public function test_self_study_content_opens_when_its_session_starts(): void
+    {
+        // ADR-0022 Amendment 1.3, Đợt 4, Bước 3.
+        $context = $this->runtimeContext();
+        TenantContext::set((object) ['id' => $context['customer_id']]);
+        $customerId = $context['customer_id'];
+        DB::table('core_course_template_versions')->where('id', $context['version_id'])->update(['course_type_snapshot' => 'blended']);
+        DB::table('core_course_template_version_lessons')->where('id', $context['version_lesson_id'])->update(['lesson_type' => 'self_study']);
+        DB::table('core_course_template_version_activities')->where('id', $context['version_activity_id'])->update(['available_anytime' => true]);
+        // The class period is over: a self-study lesson follows its Session, not the period.
+        $cohortId = DB::table('core_course_cohorts')->insertGetId([
+            'customer_id' => $customerId, 'product_id' => $context['product_id'], 'version_id' => $context['version_id'],
+            'name' => 'Class A', 'status' => 'active', 'start_date' => '2026-01-01', 'end_date' => '2026-01-02',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('core_course_cohort_students')->insert([
+            'customer_id' => $customerId, 'cohort_id' => $cohortId, 'enrollment_id' => $context['enrollment_id'],
+            'product_id' => $context['product_id'], 'student_id' => $context['student']->id, 'status' => 'active',
+            'joined_at' => now(), 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $service = app(VersionActivityAccessService::class);
+        $at = function (string $local, ?int $activityId = null) use ($service, $context) {
+            Carbon::setTestNow(CarbonImmutable::parse($local, 'Asia/Ho_Chi_Minh'));
+
+            return $service->decide($context['student']->id, $context['enrollment_id'], $activityId ?? $context['version_activity_id']);
+        };
+
+        $this->assertSame('session_unscheduled', $at('2026-12-01 12:00')->reason);
+
+        DB::table('core_liveclass_sessions')->insert([
+            'customer_id' => $customerId, 'cohort_id' => $cohortId, 'template_version_id' => $context['version_id'],
+            'session_type' => 'self_study', 'version_lesson_id' => $context['version_lesson_id'], 'version_activity_id' => null,
+            'session_no' => 1, 'title' => 'Self study', 'delivery_mode' => null,
+            'scheduled_start_at' => '2026-12-03 19:30:00', 'scheduled_end_at' => '2026-12-03 21:00:00', 'timezone' => 'Asia/Ho_Chi_Minh',
+            'status' => 'scheduled', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $decision = $at('2026-12-03 19:29');
+        $this->assertSame(['session_not_open', '2026-12-03T19:30:00+07:00'], [$decision->reason, $decision->unlockAt]);
+        $this->assertTrue($at('2026-12-03 19:30')->allowed);
+        $this->assertTrue($at('2026-12-20 08:00')->allowed, 'open content stays open');
+
+        // The next lesson's "Trước" part opens when the self-study session, the class's previous one, ends.
+        $nextLessonId = $this->createVersionLesson($customerId, $context['version_id']);
+        $nextActivityId = $this->createVersionActivity($customerId, $context['version_id'], $nextLessonId);
+        DB::table('core_course_template_version_activities')->where('id', $nextActivityId)
+            ->update(['available_anytime' => false, 'available_before_session' => true]);
+        DB::table('core_liveclass_sessions')->insert([
+            'customer_id' => $customerId, 'cohort_id' => $cohortId, 'template_version_id' => $context['version_id'],
+            'session_type' => 'curriculum', 'version_lesson_id' => $nextLessonId, 'version_activity_id' => $nextActivityId,
+            'session_no' => 2, 'title' => 'Next', 'delivery_mode' => 'offline',
+            'scheduled_start_at' => '2026-12-05 19:30:00', 'scheduled_end_at' => '2026-12-05 21:00:00', 'timezone' => 'Asia/Ho_Chi_Minh',
+            'status' => 'scheduled', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $this->assertSame('2026-12-03T21:00:00+07:00', $at('2026-12-03 20:00', $nextActivityId)->unlockAt);
+
+        Carbon::setTestNow();
     }
 
     public function test_version_activity_access_enforces_prerequisite_in_exact_enrollment_context(): void

@@ -289,6 +289,12 @@
                     </div>
                     <p class="lf-wb-attendance__count" x-show="attendance.learners !== null" x-cloak
                        x-text="strings.attendance_count.replace(':count', attendance.checkedIn).replace(':total', attendance.learners)"></p>
+                    {{-- MK 2.4: who just scanned, so the teacher can compare the names with the room. --}}
+                    <ul class="lf-wb-attendance__recent" x-show="attendance.recent.length" x-cloak aria-label="{{ $t('attendance_recent') }}" aria-live="polite" data-attendance-recent>
+                        <template x-for="(entry, index) in attendance.recent" x-bind:key="index + entry.name + entry.time">
+                            <li><strong x-text="entry.name"></strong><span x-text="entry.time + ' · ' + entry.label"></span></li>
+                        </template>
+                    </ul>
                 </div>
                 <footer class="ui-modal__footer">
                     <button type="button" class="ui-button cursor-interaction" x-on:click="setAttendanceView(attendanceView === 'large' ? 'corner' : 'large')">

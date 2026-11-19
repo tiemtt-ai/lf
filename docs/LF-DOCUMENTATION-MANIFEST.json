@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
-  "generated_or_updated_at": "2026-11-17",
+  "generated_or_updated_at": "2026-11-19",
   "root": "docs",
   "default_locale": "vi",
   "fallback_locale": "en",
   "source_of_truth": "docs/LF-INDEX.md",
-  "document_count": 353,
+  "document_count": 356,
   "documents": [
     {
       "path": "LF-Core-Overview.md",
@@ -1714,6 +1714,92 @@
         "adr/ADR-0007-SaaS-Tenant-Foundation.md",
         "core/LF-Core-User.md",
         "core/LF-Core-Auth.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "adr/ADR-0034-Cohort-Membership-Period-And-History.md",
+      "title": "ADR-0034 — Cohort Membership Period And History",
+      "area": "adr",
+      "document_type": "adr",
+      "document_status": "Approved",
+      "implementation_status": "Implemented",
+      "metadata_complete": true,
+      "authority": "architecture_decision",
+      "canonical_for": [],
+      "topics": [
+        "course",
+        "cohort",
+        "attendance"
+      ],
+      "keywords": {
+        "vi": [
+          "ngày vào lớp",
+          "thành viên lớp",
+          "lịch sử thành viên",
+          "không thuộc lớp",
+          "chuyên cần"
+        ],
+        "en": [
+          "join date",
+          "cohort membership",
+          "membership history",
+          "attendance"
+        ]
+      },
+      "identifiers": [
+        "ADR-0034",
+        "core_course_cohort_student_changes"
+      ],
+      "related_documents": [
+        "adr/ADR-0001-Course-Foundation.md",
+        "database/course/core_course_cohort_students.md",
+        "core/LF-Core-Course.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "adr/ADR-0035-External-Link-Activity.md",
+      "title": "ADR-0035 — External Link Activity",
+      "area": "adr",
+      "document_type": "adr",
+      "document_status": "Approved",
+      "implementation_status": "Implemented",
+      "metadata_complete": true,
+      "authority": "architecture_decision",
+      "canonical_for": [],
+      "topics": [
+        "course",
+        "activity",
+        "progress"
+      ],
+      "keywords": {
+        "vi": [
+          "link nền tảng ngoài",
+          "hoạt động",
+          "mở link",
+          "hoàn thành"
+        ],
+        "en": [
+          "external link",
+          "activity",
+          "open link",
+          "completion"
+        ]
+      },
+      "identifiers": [
+        "ADR-0035",
+        "external_link",
+        "external_link_url",
+        "external_link_url_snapshot"
+      ],
+      "related_documents": [
+        "adr/ADR-0012-Course-Template-Published-Version-Snapshot.md",
+        "adr/ADR-0030-Learner-Course-Delivery-And-Progress.md",
+        "database/course/core_course_template_activities.md",
+        "database/course/core_course_template_version_activities.md"
       ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"
@@ -4390,6 +4476,47 @@
       "routing_source": "LF-INDEX.md"
     },
     {
+      "path": "database/course/core_course_cohort_student_changes.md",
+      "title": "Table: core_course_cohort_student_changes",
+      "area": "database",
+      "document_type": "table_schema",
+      "document_status": "Approved",
+      "implementation_status": "Implemented",
+      "metadata_complete": true,
+      "authority": "database",
+      "canonical_for": [],
+      "topics": [
+        "course",
+        "cohort",
+        "student"
+      ],
+      "keywords": {
+        "vi": [
+          "lược đồ bảng",
+          "tài liệu cơ sở dữ liệu",
+          "thành viên lớp",
+          "lịch sử thành viên",
+          "ngày vào lớp"
+        ],
+        "en": [
+          "table schema",
+          "database documentation",
+          "cohort membership",
+          "membership history",
+          "join date"
+        ]
+      },
+      "identifiers": [
+        "core_course_cohort_student_changes"
+      ],
+      "related_documents": [
+        "adr/ADR-0034-Cohort-Membership-Period-And-History.md",
+        "database/course/core_course_cohort_students.md"
+      ],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
       "path": "database/course/core_course_cohort_students.md",
       "title": "Table: core_course_cohort_students",
       "area": "database",
@@ -6207,7 +6334,7 @@
       "area": "database",
       "document_type": "table_schema",
       "document_status": "Approved",
-      "implementation_status": "Partial",
+      "implementation_status": "Implemented",
       "metadata_complete": true,
       "authority": "database",
       "canonical_for": [],

@@ -1,23 +1,28 @@
 {{-- The lesson's date in its summary line: its first saved Session, otherwise its date from the Schedule. --}}
 @php
     $treeLiveActivities = $lessonActivities->where('activity_type', 'live_class');
-    $treeLessonSessions = $lessonActivities
-        ->flatMap(fn (object $item) => $sessionTree['sessionsByActivity']->get($item->id, collect()))
+    // A self-study lesson has no live activity: the lesson itself holds the date (ADR-0023 §10).
+    $treeSelfStudy = \App\Support\LessonType::normalize($lesson->lesson_type ?? null) === \App\Support\LessonType::SELF_STUDY;
+    $treeSelfStudySessions = $treeSelfStudy ? $sessionTree['selfStudySessionsByLesson']->get($lesson->id, collect()) : collect();
+    $treeLessonSessions = ($treeSelfStudy ? $treeSelfStudySessions : $lessonActivities
+        ->flatMap(fn (object $item) => $sessionTree['sessionsByActivity']->get($item->id, collect())))
         ->filter(fn (object $session): bool => \App\Services\CourseCohortContentTree::delivers($session))
         ->sortBy('scheduled_start_at')
         ->values();
     // A cancelled session before the lesson's current date makes that date a make-up (2026-11-09).
-    $treeLessonCancelled = $treeLiveActivities
-        ->flatMap(fn (object $item) => $sessionTree['sessionsByActivity']->get($item->id, collect()))
+    $treeLessonCancelled = ($treeSelfStudy ? $treeSelfStudySessions : $treeLiveActivities
+        ->flatMap(fn (object $item) => $sessionTree['sessionsByActivity']->get($item->id, collect())))
         ->where('status', 'cancelled')
         ->sortByDesc('scheduled_start_at')
         ->first();
-    $treeLessonProposal = $treeLiveActivities
-        ->map(fn (object $item) => $sessionTree['proposals'][$item->id]['occurrence'] ?? null)
-        ->filter()
-        ->first();
+    $treeLessonProposal = $treeSelfStudy
+        ? ($sessionTree['proposals']['l'.(int) $lesson->id]['occurrence'] ?? null)
+        : $treeLiveActivities
+            ->map(fn (object $item) => $sessionTree['proposals'][$item->id]['occurrence'] ?? null)
+            ->filter()
+            ->first();
 @endphp
-@if ($treeLiveActivities->isNotEmpty())
+@if ($treeSelfStudy || $treeLiveActivities->isNotEmpty())
     <span data-lesson-date @class(['ui-cohort-session-unassigned' => $treeLessonSessions->isEmpty() && ! $treeLessonProposal])>
         <x-backend-icon name="calendar" class="ui-icon" />
         @if ($treeLessonSessions->isNotEmpty())
@@ -28,7 +33,9 @@
             {{ __('lf.LF_course_cohort_session_tree_unscheduled') }}
         @endif
     </span>
-    @if ($treeLessonSessions->isNotEmpty())
+    @if ($treeSelfStudy)
+        <span class="ui-session-mode" data-session-mode="self_study">{{ __(\App\Support\LessonType::labelKey(\App\Support\LessonType::SELF_STUDY)) }}</span>
+    @elseif ($treeLessonSessions->isNotEmpty())
         {{-- How the lesson's session is delivered: in class, in class with remote learners, or online. --}}
         <span class="ui-session-mode ui-session-mode--{{ $treeLessonSessions->first()->delivery_mode }}" data-session-mode="{{ $treeLessonSessions->first()->delivery_mode }}">{{ __('lf.LF_course_cohort_session_mode_'.$treeLessonSessions->first()->delivery_mode) }}</span>
     @endif

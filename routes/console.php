@@ -28,6 +28,9 @@ Schedule::command('course:expire-enrollments')->everyFiveMinutes()->withoutOverl
 // Time-out of attempts the student left open (ADR-0025 Amendment 1.3, D10a); local database only.
 Schedule::command('assessment:close-overdue')->everyMinute()->withoutOverlapping(5);
 
+// An active class ends after 23:59 of its end date (ADR-0022 Amendment 1.4, "Lớp tự kết thúc theo ngày"); local database only.
+Schedule::command('course:complete-ended-cohorts')->everyMinute()->withoutOverlapping(5);
+
 // A live Session is over when its timetable says so (LF-Core-LiveClass § Bắt đầu và kết thúc buổi); local database only.
 Schedule::command('liveclass:complete-overdue')->everyMinute()->withoutOverlapping(5);
 

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -35,6 +36,11 @@ class LiveClassSessionLifecycleService
         'no_show' => [],
     ];
 
+    /** A self-study Session is not taught: it ends by its timetable or is cancelled (ADR-0023 §10). */
+    private const SELF_STUDY_TRANSITIONS = [
+        'scheduled' => ['completed', 'cancelled'],
+    ];
+
     public function __construct(private readonly LiveClassWhiteboardLiveState $boards) {}
 
     public function start(int $customerId, int $cohortId, int $sessionId): void
@@ -54,6 +60,7 @@ class LiveClassSessionLifecycleService
     /**
      * Ends every `live` Session whose scheduled end has passed (Owner 2026-11-11: the timetable decides when a
      * Session is over). The Session is recorded as ended at its scheduled end, not at the moment the sweep ran.
+     * A self-study Session is never live: it ends here straight from `scheduled`.
      * Only Sessions of an `active` Cohort: leaving `active` already closes the others' Whiteboards.
      *
      * @return int Sessions completed
@@ -66,7 +73,10 @@ class LiveClassSessionLifecycleService
             ->join('core_course_cohorts as cohorts', function ($join): void {
                 $join->on('cohorts.id', '=', 'sessions.cohort_id')->on('cohorts.customer_id', '=', 'sessions.customer_id');
             })
-            ->where('sessions.status', 'live')->where('cohorts.status', 'active')
+            ->where(fn ($query) => $query->where('sessions.status', 'live')
+                ->orWhere(fn ($selfStudy) => $selfStudy->where('sessions.status', 'scheduled')
+                    ->where('sessions.session_type', LiveClassSelfStudySession::TYPE)))
+            ->where('cohorts.status', 'active')
             ->where('sessions.scheduled_end_at', '<=', $now->copy()->utc()->addHours(14)->format('Y-m-d H:i:s'))
             ->when($customerId !== null, fn ($query) => $query->where('sessions.customer_id', $customerId))
             ->orderBy('sessions.id')
@@ -88,6 +98,57 @@ class LiveClassSessionLifecycleService
         }
 
         return $completed;
+    }
+
+    /**
+     * What completing the Cohort now does to its Sessions (ADR-0022 Amendment 1.4, "Dọn buổi khi hoàn thành lớp"):
+     * a Session that has not started is cancelled, without moving any lesson; a live Session and a self-study
+     * Session already inside its time end, at the moment of completion or at their scheduled end when that has
+     * passed (the sweep that would end them reads active classes only). A taught Session past its start that
+     * nobody started stays as it is: it is still recorded by hand and closed by automatic absence.
+     *
+     * @return array{cancel: array<int, int>, complete: array<int, string|null>} Session ids to cancel; Session id
+     *                                                                           => end to record (null: now) to complete
+     */
+    public function cohortCompletionPlan(int $customerId, int $cohortId, ?CarbonInterface $now = null): array
+    {
+        $now = CarbonImmutable::instance($now ?? now())->utc();
+        $plan = ['cancel' => [], 'complete' => []];
+        $sessions = DB::table('core_liveclass_sessions')
+            ->where('customer_id', $customerId)->where('cohort_id', $cohortId)
+            ->whereIn('status', ['scheduled', 'live'])->orderBy('id')
+            ->get(['id', 'status', 'session_type', 'scheduled_start_at', 'scheduled_end_at', 'timezone']);
+
+        foreach ($sessions as $session) {
+            $start = LiveClassSessionTime::utc((string) $session->scheduled_start_at, $session->timezone ?? null);
+            $end = LiveClassSessionTime::utc((string) $session->scheduled_end_at, $session->timezone ?? null);
+            if ($session->status === 'live' || (LiveClassSelfStudySession::is($session) && $start->lte($now))) {
+                $plan['complete'][(int) $session->id] = $end->lte($now) ? (string) $session->scheduled_end_at : null;
+            } elseif ($start->gt($now)) {
+                $plan['cancel'][] = (int) $session->id;
+            }
+        }
+
+        return $plan;
+    }
+
+    /**
+     * Applies cohortCompletionPlan() inside the Cohort's completion transaction, while the Cohort is still active.
+     *
+     * @return array{cancelled: int, completed: int}
+     */
+    public function settleForCohortCompletion(int $customerId, int $cohortId): array
+    {
+        $plan = $this->cohortCompletionPlan($customerId, $cohortId);
+        foreach ($plan['cancel'] as $sessionId) {
+            $this->transition($customerId, $cohortId, $sessionId, 'cancelled',
+                __('lf.LF_course_cohort_complete_session_cancel_reason'));
+        }
+        foreach ($plan['complete'] as $sessionId => $endedAt) {
+            $this->transition($customerId, $cohortId, $sessionId, 'completed', endedAt: $endedAt);
+        }
+
+        return ['cancelled' => count($plan['cancel']), 'completed' => count($plan['complete'])];
     }
 
     public function cancel(int $customerId, int $cohortId, int $sessionId, ?string $reason = null): void
@@ -121,7 +182,8 @@ class LiveClassSessionLifecycleService
                 ->where('id', $sessionId)->lockForUpdate()->first();
             abort_if(! $session, 404);
 
-            if (! in_array($targetStatus, self::TRANSITIONS[$session->status] ?? [], true)) {
+            $transitions = LiveClassSelfStudySession::is($session) ? self::SELF_STUDY_TRANSITIONS : self::TRANSITIONS;
+            if (! in_array($targetStatus, $transitions[$session->status] ?? [], true)) {
                 throw ValidationException::withMessages([
                     'lifecycle' => __('lf.LF_course_cohort_session_lifecycle_invalid_transition', [
                         'from' => __('lf.LF_course_cohort_session_status_'.$session->status),

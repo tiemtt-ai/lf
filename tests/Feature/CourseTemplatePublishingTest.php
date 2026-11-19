@@ -478,7 +478,8 @@ class CourseTemplatePublishingTest extends TestCase
         $templateId = $this->createTemplate(
             $customerId,
             $admin->id,
-            'Snapshot Course'
+            'Snapshot Course',
+            'blended'
         );
         $sectionId = $this->createSection($customerId, $templateId);
         $childSectionId = $this->createSection(
@@ -541,12 +542,24 @@ class CourseTemplatePublishingTest extends TestCase
             ->update([
                 'available_anytime' => false,
                 'available_before_session' => true,
-                'available_during_session' => true,
+                'available_during_session' => false,
                 'available_after_session' => false,
             ]);
+        // ADR-0022 Amendment 1.3: a retired type is kept as stored and runs as a led session, which holds one
+        // live class; the section lessons are self-study sessions.
         DB::table('core_course_template_lessons')
             ->where('id', $directLessonId)
             ->update(['lesson_type' => 'review']);
+        DB::table('core_course_template_lessons')
+            ->whereIn('id', [$sectionLessonId, $nestedSectionLessonId])
+            ->update(['lesson_type' => 'self_study']);
+        DB::table('core_course_template_activities')->insert([
+            'customer_id' => $customerId, 'template_id' => $templateId, 'template_lesson_id' => $directLessonId,
+            'title' => 'Orientation Live', 'sort_order' => 2, 'activity_type' => 'live_class', 'duration_seconds' => 0,
+            'is_required' => true, 'completion_rule' => 'join', 'is_preview' => false, 'unlock_rule' => 'none',
+            'available_anytime' => false, 'available_during_session' => true,
+            'created_by' => $admin->id, 'created_at' => now(), 'updated_at' => now(),
+        ]);
         $draftBefore = $this->draftState($customerId, $templateId);
 
         $this->actingAs($admin)
@@ -685,7 +698,7 @@ class CourseTemplatePublishingTest extends TestCase
         $this->assertSame('Welcome Video', $directVersionActivity->title_snapshot);
         $this->assertSame(0, (int) $directVersionActivity->available_anytime);
         $this->assertSame(1, (int) $directVersionActivity->available_before_session);
-        $this->assertSame(1, (int) $directVersionActivity->available_during_session);
+        $this->assertSame(0, (int) $directVersionActivity->available_during_session);
         $this->assertSame(0, (int) $directVersionActivity->available_after_session);
         $this->assertNotNull($sectionVersionActivity);
         $this->assertSame(
@@ -915,8 +928,10 @@ class CourseTemplatePublishingTest extends TestCase
     {
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin', 'Media Auth Admin');
-        $templateId = $this->createTemplate($customerId, $admin->id, 'Media Auth Course');
+        // A class-based course whose lesson is a self-study session (ADR-0022 Amendment 1.3).
+        $templateId = $this->createTemplate($customerId, $admin->id, 'Media Auth Course', 'blended');
         $lessonId = $this->createLesson($customerId, $templateId, null, 'Media Auth Lesson', 0, $admin->id);
+        DB::table('core_course_template_lessons')->where('id', $lessonId)->update(['lesson_type' => 'self_study']);
         $draftActivityId = $this->createActivity($customerId, $templateId, $lessonId, 'Unique Media Activity', 0, $admin->id);
         $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-templates/{$templateId}/publish");
         $version = DB::table('core_course_template_versions')->where('template_id', $templateId)->first();
@@ -1357,6 +1372,70 @@ class CourseTemplatePublishingTest extends TestCase
         $this->assertSame(['information', 'information', 'information'], $readiness->blockers()->pluck('targetTab')->all());
     }
 
+    public function test_class_sessions_block_publish_until_each_follows_its_session_type(): void
+    {
+        // ADR-0022 Amendment 1.3: a led session holds one live class and its other Activities one part each;
+        // a self-study session holds no live class; every Activity of a class uses the criterion of its type.
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin', 'Class Admin');
+        $templateId = $this->createTemplate($customerId, $admin->id, 'Class Sessions Course', 'blended');
+        $ledId = $this->createLesson($customerId, $templateId, null, 'Led Session', 0, $admin->id);
+        $selfStudyId = $this->createLesson($customerId, $templateId, null, 'Reading Session', 1, $admin->id);
+        DB::table('core_course_template_lessons')->where('id', $selfStudyId)->update(['lesson_type' => 'self_study']);
+        $readingId = $this->createActivity($customerId, $templateId, $ledId, 'Slides', 0, $admin->id);
+        $this->createActivity($customerId, $templateId, $selfStudyId, 'Article', 0, $admin->id);
+        DB::table('core_course_template_activities')->where('id', $readingId)->update(['completion_rule' => 'manual']);
+        $live = fn (int $lessonId, string $title) => DB::table('core_course_template_activities')->insertGetId([
+            'customer_id' => $customerId, 'template_id' => $templateId, 'template_lesson_id' => $lessonId,
+            'title' => $title, 'sort_order' => 1, 'activity_type' => 'live_class', 'duration_seconds' => 0,
+            'is_required' => true, 'completion_rule' => 'join', 'is_preview' => false, 'unlock_rule' => 'none',
+            'available_anytime' => false, 'available_during_session' => true,
+            'created_by' => $admin->id, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $wrongLiveId = $live($selfStudyId, 'Wrong Live');
+        $editUrl = "https://tenant-a.localhost/admin/course-templates/{$templateId}/edit?tab=publish";
+        $publishUrl = "https://tenant-a.localhost/admin/course-templates/{$templateId}/publish";
+
+        $this->actingAs($admin)->get($editUrl)->assertOk()
+            ->assertSee('data-readiness-code="lesson_live_class_missing"', false)
+            ->assertSee(__('lf.LF_course_template_publish_integrity_lesson_live_class_missing', ['lesson' => 'Led Session']))
+            ->assertSee('data-readiness-code="lesson_self_study_live_class"', false)
+            ->assertSee(__('lf.LF_course_template_publish_integrity_lesson_self_study_live_class', ['lesson' => 'Reading Session']))
+            ->assertSee(__('lf.LF_course_template_publish_integrity_activity_class_phase', ['activity' => 'Slides', 'lesson' => 'Led Session']))
+            ->assertSee(__('lf.LF_course_template_publish_integrity_activity_class_completion', ['activity' => 'Slides', 'lesson' => 'Led Session']))
+            ->assertDontSee(__('lf.LF_course_template_publish_integrity_activity_class_phase', ['activity' => 'Article', 'lesson' => 'Reading Session']));
+        $this->actingAs($admin)->from($editUrl)->post($publishUrl)->assertSessionHasErrors();
+        $this->assertDatabaseMissing('core_course_template_versions', ['template_id' => $templateId]);
+
+        DB::table('core_course_template_activities')->where('id', $wrongLiveId)->delete();
+        $live($ledId, 'Led Live');
+        DB::table('core_course_template_activities')->where('id', $readingId)->update([
+            'completion_rule' => 'view', 'available_anytime' => false, 'available_before_session' => true,
+        ]);
+        $this->actingAs($admin)->get($editUrl)->assertOk()
+            ->assertDontSee('data-readiness-code="lesson_live_class_missing"', false)
+            ->assertDontSee('data-readiness-code="lesson_self_study_live_class"', false)
+            ->assertDontSee('data-readiness-code="activity_class_phase"', false)
+            ->assertDontSee('data-readiness-code="activity_class_completion"', false);
+        // Đợt 3: "Tính vào điểm danh" outside the "Trong" or "Sau" part of a led session blocks publishing; inside it
+        // is frozen. The database itself refuses the tick on a "Trước" Activity, so the stray one here is anytime.
+        DB::table('core_course_template_activities')->where('id', $readingId)->update([
+            'counts_for_attendance' => true, 'available_anytime' => true, 'available_before_session' => false,
+        ]);
+        $this->actingAs($admin)->get($editUrl)->assertOk()
+            ->assertSee(__('lf.LF_course_template_publish_integrity_activity_attendance_scope', ['activity' => 'Slides', 'lesson' => 'Led Session']));
+        $this->actingAs($admin)->from($editUrl)->post($publishUrl)->assertSessionHasErrors();
+        DB::table('core_course_template_activities')->where('id', $readingId)->update([
+            'available_anytime' => false, 'available_after_session' => true,
+        ]);
+        $this->actingAs($admin)->get($editUrl)->assertOk()->assertDontSee('data-readiness-code="activity_attendance_scope"', false);
+
+        $this->actingAs($admin)->post($publishUrl)->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('core_course_template_versions', ['template_id' => $templateId, 'course_type_snapshot' => 'blended']);
+        $this->assertSame(['Slides'], DB::table('core_course_template_version_activities')->where('customer_id', $customerId)
+            ->where('counts_for_attendance', true)->pluck('title_snapshot')->all());
+    }
+
     public function test_lesson_without_activity_is_blocked_in_readiness_and_direct_publish(): void
     {
         $customerId = $this->createTenant();
@@ -1518,6 +1597,49 @@ class CourseTemplatePublishingTest extends TestCase
         $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-templates/{$templateId}/publish")->assertSessionHasNoErrors();
         $snapshot = DB::table('core_course_template_version_activities')->where('source_template_activity_id', $activityId)->sole();
         $this->assertSame(['quiz', $quizId, $versionId], [$snapshot->activity_type, (int) $snapshot->assessment_quiz_id_snapshot, (int) $snapshot->assessment_quiz_version_id_snapshot]);
+    }
+
+    public function test_an_external_link_activity_freezes_its_https_link_and_duplicates_it(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, $admin->id, 'Platform Course');
+        $lessonId = $this->createLesson($customerId, $templateId, null, 'Platform Lesson', 0, $admin->id);
+        $activityId = $this->createActivity($customerId, $templateId, $lessonId, 'Wings practice', 0, $admin->id);
+        DB::table('media_file_usages')->where('owner_type', 'course_activity')->where('owner_id', $activityId)->delete();
+        $service = app(CourseTemplatePublishReadinessService::class);
+        $blockers = fn (): array => $service->evaluate($customerId, $service->load($customerId, $templateId))->blockers()->pluck('code')->all();
+        $setLink = fn (?string $url) => DB::table('core_course_template_activities')->where('id', $activityId)
+            ->update(['activity_type' => 'external_link', 'external_link_url' => $url]);
+
+        // ADR-0035 §3: a missing link, a non-HTTPS one or one carrying credentials blocks publish.
+        foreach ([null, 'http://wings.example.test/class', 'https://user:secret@wings.example.test/class', 'javascript:alert(1)'] as $bad) {
+            $setLink($bad);
+            $this->assertContains('activity_source', $blockers(), (string) $bad);
+        }
+        $setLink('https://wings.example.test/class/1');
+        $this->assertSame([], $blockers());
+        // Only an external link Activity holds a link.
+        DB::table('core_course_template_activities')->where('id', $activityId)->update(['activity_type' => 'embedded_video', 'external_video_url' => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ']);
+        $this->assertContains('activity_source', $blockers());
+        DB::table('core_course_template_activities')->where('id', $activityId)->update(['activity_type' => 'external_link', 'external_video_url' => null]);
+
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-templates/{$templateId}/publish")->assertSessionHasNoErrors();
+        $snapshot = DB::table('core_course_template_version_activities')->where('source_template_activity_id', $activityId)->sole();
+        $this->assertSame(['external_link', 'https://wings.example.test/class/1', null], [$snapshot->activity_type, $snapshot->external_link_url_snapshot, $snapshot->media_file_id]);
+
+        // A later edit of the working link leaves the published version as it was.
+        $setLink('https://wings.example.test/class/2');
+        $this->assertSame('https://wings.example.test/class/1', DB::table('core_course_template_version_activities')->where('id', $snapshot->id)->value('external_link_url_snapshot'));
+
+        $this->actingAs($admin)->get("https://tenant-a.localhost/admin/course-templates/{$templateId}/versions/{$snapshot->template_version_id}")
+            ->assertOk()
+            ->assertSee('href="https://wings.example.test/class/1" target="_blank" rel="noopener noreferrer"', false)
+            ->assertSeeText('Link nền tảng ngoài');
+
+        $this->duplicateToDraft($admin, $templateId, (int) $snapshot->template_version_id);
+        $this->assertSame('https://wings.example.test/class/1', DB::table('core_course_template_activities')
+            ->where('template_id', $templateId)->where('activity_type', 'external_link')->value('external_link_url'));
     }
 
     public function test_publish_and_duplicate_preserve_documented_duplicate_content_order_values(): void
@@ -3455,10 +3577,12 @@ class CourseTemplatePublishingTest extends TestCase
         ]);
     }
 
+    // Self-paced by default: the class-based session rules (ADR-0022 Amendment 1.3) have tests of their own.
     private function createTemplate(
         int $customerId,
         int $createdBy,
-        string $title
+        string $title,
+        string $courseType = 'self_paced'
     ): int {
         $now = now();
         $categoryId = DB::table('core_course_categories')
@@ -3470,7 +3594,7 @@ class CourseTemplatePublishingTest extends TestCase
                 'General '.$customerId
             );
 
-        return DB::table('core_course_templates')->insertGetId(['course_type' => 'blended',
+        return DB::table('core_course_templates')->insertGetId(['course_type' => $courseType,
             'customer_id' => $customerId,
             'category_id' => $categoryId,
             'title' => $title,

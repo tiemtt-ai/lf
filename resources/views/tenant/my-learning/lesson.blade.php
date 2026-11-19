@@ -9,6 +9,7 @@
         'prerequisite_incomplete' => __('lf.LF_my_learning_activity_lock_prerequisite'),
         'outside_cohort_period' => __('lf.LF_my_learning_activity_lock_period'),
         'no_active_cohort' => __('lf.LF_my_learning_activity_lock_class'),
+        'session_unscheduled' => __('lf.LF_my_learning_activity_lock_unscheduled'),
         'outside_enrollment_access_window' => __('lf.LF_my_learning_lock_window'),
         default => __('lf.LF_my_learning_lock_other'),
     };
@@ -20,6 +21,10 @@
 
 @section('content')
     <a class="lf-learn-back" href="{{ route('student.courses.show', $course->id) }}"><span aria-hidden="true">←</span> {{ $courseTitle }}</a>
+    @if ($course->review_only ?? false)
+        {{-- ADR-0022 Amendment 1.4: the class has ended; the learner only reviews. --}}
+        <p class="student-alert" role="status" data-learn-review-only>{{ __('lf.LF_my_learning_review_only') }}</p>
+    @endif
 
     <header class="student-card lf-learn-summary lf-learn-lesson-head">
         <p class="lf-learn-summary__meta">
@@ -32,9 +37,7 @@
         @endif
     </header>
 
-    @if ($liveSessions->isNotEmpty())
-        @include('tenant.my-learning.partials.live-sessions')
-    @endif
+    @include('tenant.my-learning.partials.live-sessions-block', ['liveCohortId' => $course->cohort_id])
 
     <section class="lf-learn-outline" aria-labelledby="learn-activities-title">
         <header class="lf-learn-outline__head">
@@ -68,6 +71,9 @@
                         <div class="lf-learn-activity__title">
                             <span class="lf-learn-badge is-blue">{{ __('lf.LF_my_learning_activity_type_'.$activity->activity_type) }}</span>
                             <strong>{{ $activity->title }}</strong>
+                            @if ($activity->counts_for_attendance ?? false)
+                                <span class="lf-learn-badge is-orange" data-learn-counts-attendance>{{ __('lf.LF_my_learning_activity_counts_attendance') }}</span>
+                            @endif
                             <span class="lf-learn-lesson__meta">
                                 @if ($seconds > 0) {{ $clock($seconds) }} · @endif
                                 {{ $activity->is_required ? __('lf.LF_my_learning_activity_required') : __('lf.LF_my_learning_activity_optional') }}
@@ -88,7 +94,9 @@
                     @if (! $activity->allowed)
                         <p class="lf-learn-activity__locked">
                             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
-                            {{ $lockLabel($activity->reason) }}
+                            {{ $activity->reason === 'session_not_open' && $activity->unlock_at
+                                ? __('lf.LF_my_learning_activity_lock_opens_at', ['time' => $activity->unlock_at->format('H:i'), 'date' => $activity->unlock_at->format('d/m')])
+                                : $lockLabel($activity->reason) }}
                         </p>
                     @elseif (in_array($activity->activity_type, ['video', 'audio'], true))
                         <div @class(['lf-learn-player', 'is-audio' => $activity->activity_type === 'audio'])>
@@ -123,6 +131,16 @@
                         <button type="button" class="student-button is-outline" x-on:click="openDocument()" data-learn-open-document>
                             {{ __('lf.LF_my_learning_activity_open_document') }} <span aria-hidden="true">↗</span>
                         </button>
+                    @elseif ($activity->activity_type === 'external_link')
+                        {{-- ADR-0035: the click records the opening, then the browser opens the link in a new tab. --}}
+                        @if ($activity->link_url)
+                            <a class="student-button is-outline" href="{{ $activity->link_url }}" target="_blank" rel="noopener noreferrer"
+                               x-on:click="openLink()" data-learn-open-link>
+                                {{ __('lf.LF_my_learning_activity_open_link') }} <span aria-hidden="true">↗</span>
+                            </a>
+                        @else
+                            <p class="lf-learn-activity__locked">{{ __('lf.LF_my_learning_activity_unavailable') }}</p>
+                        @endif
                     @elseif ($activity->activity_type === 'live_class')
                         @if ($activity->sessions->isEmpty())
                             <p class="lf-learn-activity__note">{{ __('lf.LF_my_learning_activity_no_session') }}</p>
@@ -147,11 +165,24 @@
                                 · {{ $card->version->duration_minutes ? __('lf.LF_my_learning_quiz_minutes', ['minutes' => (int) $card->version->duration_minutes]) : __('lf.LF_my_learning_quiz_untimed') }}
                                 · <span data-learn-quiz-attempts>{{ __('lf.LF_my_learning_quiz_attempts', ['used' => $card->used, 'max' => $card->max]) }}</span>
                             </p>
+                            @if ($card->best)
+                                {{-- The attempt that counts, judged by the Activity's threshold (ADR-0032 Amendment 1.1). --}}
+                                <p class="lf-learn-quiz__verdict" data-learn-quiz-verdict="{{ $card->best->verdict['passed'] ? 'passed' : 'failed' }}">
+                                    <span class="lf-learn-badge {{ $card->best->verdict['passed'] ? 'is-green' : 'is-danger' }}">{{ __($card->best->verdict['passed'] ? 'lf.LF_my_learning_quiz_passed' : 'lf.LF_my_learning_quiz_failed') }}</span>
+                                    <strong>{{ $trim($card->best->score) }} / {{ $trim($card->best->max_score) }} ({{ $trim($card->best->score_percentage) }}%)</strong>
+                                    @unless ($card->best->verdict['passed'])
+                                        <span>· {{ __('lf.LF_my_learning_quiz_pass_mark', ['percent' => $trim($card->best->verdict['threshold'])]) }}</span>
+                                    @endunless
+                                </p>
+                            @endif
                             @if ($card->open)
                                 <form method="POST" action="{{ route('student.courses.activities.attempts.store', [$course->id, $activity->id]) }}">
                                     @csrf
                                     <button type="submit" class="student-button" data-learn-quiz-start>{{ __('lf.LF_my_learning_quiz_resume') }} <span aria-hidden="true">→</span></button>
                                 </form>
+                            @elseif ($course->review_only ?? false)
+                                {{-- No new attempt once the class has ended; one already open is resumed above. --}}
+                                <p class="lf-learn-activity__note" data-learn-quiz-closed>{{ __('lf.LF_my_learning_quiz_class_ended') }}</p>
                             @elseif ($card->left > 0)
                                 <form method="POST" action="{{ route('student.courses.activities.attempts.store', [$course->id, $activity->id]) }}">
                                     @csrf
@@ -171,10 +202,15 @@
                                             @if ($attempt->visible['score'])
                                                 <strong>{{ $trim($attempt->score) }} / {{ $trim($attempt->max_score) }} ({{ $trim($attempt->score_percentage) }}%)</strong>
                                                 @if ($attempt->status !== 'graded')
-                                                    <span class="lf-learn-badge is-orange">{{ __('lf.LF_my_learning_results_waiting') }}</span>
+                                                    <span class="lf-learn-badge is-orange">{{ __('lf.LF_my_learning_quiz_waiting') }}</span>
+                                                @elseif ($attempt->verdict)
+                                                    <span class="lf-learn-badge {{ $attempt->verdict['passed'] ? 'is-green' : 'is-danger' }}" data-learn-quiz-attempt-verdict="{{ $attempt->verdict['passed'] ? 'passed' : 'failed' }}">{{ __($attempt->verdict['passed'] ? 'lf.LF_my_learning_quiz_passed' : 'lf.LF_my_learning_quiz_failed') }}</span>
+                                                    @unless ($attempt->verdict['passed'])
+                                                        <span>{{ __('lf.LF_my_learning_quiz_pass_mark', ['percent' => $trim($attempt->verdict['threshold'])]) }}</span>
+                                                    @endunless
                                                 @endif
                                             @elseif ($attempt->status !== 'graded')
-                                                <span class="lf-learn-badge is-orange">{{ __('lf.LF_my_learning_results_waiting') }}</span>
+                                                <span class="lf-learn-badge is-orange">{{ __('lf.LF_my_learning_quiz_waiting') }}</span>
                                             @else
                                                 <span class="lf-learn-badge">{{ __('lf.LF_my_learning_results_not_published') }}</span>
                                             @endif

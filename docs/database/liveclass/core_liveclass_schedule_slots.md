@@ -1,12 +1,12 @@
 # Table: core_liveclass_schedule_slots
 
-Version: 1.0
+Version: 1.1
 
 Document Status: Approved
 
 Implementation Status: Unknown
 
-Last Updated: 2026-08-09
+Last Updated: 2026-11-19
 
 Document Path: database/liveclass/core_liveclass_schedule_slots.md
 
@@ -79,3 +79,9 @@ INDEX idx_lcsslot_overlap
 Cross-row overlap and the “at least one Slot” invariant require transactional
 application validation; basic database checks and uniqueness do not replace
 that validation.
+
+## Schedule Deletion Amendment — 2026-11-19 (Approved, đã triển khai)
+
+Owner chọn cho xóa Schedule theo phương án B. Chi tiết ở
+[ADR-0002 § Schedule Deletion Amendment](../../adr/ADR-0002-LiveClass-Foundation.md#schedule-deletion-amendment--2026-11-19). Không đổi schema. Slot bị xóa cùng Schedule, sau khi
+Origin trỏ về nó đã bị xóa theo Session.

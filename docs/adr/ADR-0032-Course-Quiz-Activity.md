@@ -1,12 +1,12 @@
 # ADR-0032 — Course Quiz Activity
 
-Version: 1.0
+Version: 1.1
 
 Status: Approved
 
 Implementation Status: Implemented
 
-Last Updated: 2026-11-11
+Last Updated: 2026-11-19
 
 Proposal Date: 2026-11-11
 
@@ -88,7 +88,7 @@ khi xuất bản khóa; "đạt" dùng ngưỡng hoàn thành của Activity, kh
 
 | Version Activity | Activity Progress | Hoàn thành khi |
 | --- | --- | --- |
-| `submit` | `submitted` | nộp một lần (học viên nộp hoặc hết giờ) |
+| `submit` | `submitted` | một lần làm đã chấm xong (`graded`); Quiz tự chấm được chấm ngay khi nộp. Trước 2026-11-18: nộp là hoàn thành ([ADR-0022 Amendment 1.3, Đợt 3](ADR-0022-Course-Type-On-Template.md#đợt-3--tính-vào-điểm-danh-và-học-bù)) |
 | `pass` | `passed` | một lần `graded` có `score_percentage >= completion_threshold` của Activity |
 | `manual` | `manual` | học viên bấm "Đánh dấu hoàn thành" (như Activity khác) |
 
@@ -189,6 +189,55 @@ ngưỡng Activity.
 * Test: `tests/Feature/CourseQuizActivityTest.php`,
   `CourseTemplatePublishingTest::test_a_quiz_activity_publishes_with_the_quiz_version_current_at_publish`,
   `tests/Integration/CourseQuizActivityMariaDbTest.php`.
+
+# Amendment 1.1 — Nhãn Đạt / Chưa đạt (Approved 2026-11-19, đã triển khai 2026-11-19)
+
+Owner duyệt ngày 2026-11-19. Căn cứ: "Nghiệp vụ luồng học tập lớp MK" mục 3.1 (trạng thái
+Quiz: Chờ giáo viên chấm, Đạt kèm điểm, Chưa đạt kèm điểm và mức cần đạt, nút Làm lại). Không
+đổi schema. Owner cho code ngày 2026-11-19; xem Implementation record 1.1 cuối amendment.
+
+## Hiện trạng (kiểm trong code ngày 2026-11-19)
+
+* Thẻ Quiz ở trang bài học hiện mỗi lần đã nộp với điểm và phần trăm, hoặc "Chờ chấm"; không
+  có Đạt / Chưa đạt, không có mức cần đạt.
+* Trang kết quả của một lần làm (`tenant/assessments/result.blade.php`) hiện Đạt / Chưa đạt
+  theo cột `passed` của lần làm, tức theo `pass_score_percentage` của đề. Tiến độ khóa học
+  xét theo `completion_threshold` của Activity (D3, Owner chốt 2026-11-11). Hai ngưỡng khác
+  nhau thì học viên có thể thấy "Đạt" ở trang kết quả trong khi Quiz của bài học chưa hoàn
+  thành.
+
+## Quyết định
+
+* **Một ngưỡng trong khóa học.** Với lần làm có `version_activity_id` (làm trong khóa học),
+  mọi nhãn Đạt / Chưa đạt mà học viên thấy đều so `score_percentage` với
+  `completion_threshold` của Activity, cả ở thẻ Quiz lẫn trang kết quả. Cột `passed` của lần
+  làm không đổi (vẫn theo ngưỡng của đề, D3) và không hiện cho lần làm trong khóa học. Bài thi
+  độc lập ngoài khóa học giữ như hiện nay.
+* **Activity `pass`.** Mỗi lần đã chấm (`graded`) hiện "Đạt · điểm (phần trăm)" hoặc "Chưa đạt
+  · điểm (phần trăm) · cần đạt X%". Đầu thẻ hiện kết quả của lần có `score_percentage` cao
+  nhất, vì đó là lần được tính (D3). Chưa đạt mà còn lượt thì nút "Làm lại" như hiện nay; hết
+  lượt thì "Đã hết lượt làm bài".
+* **Activity `submit`.** Không hiện Đạt / Chưa đạt, vì khóa học không đặt ngưỡng; giữ điểm
+  như hiện nay.
+* **Chờ chấm.** Lần làm chưa `graded` hiện "Chờ giáo viên chấm", không có nhãn đạt.
+* **Không lộ kết quả.** Nhãn chỉ hiện khi học viên được xem điểm của lần làm đó theo D12
+  (`AssessmentLearnerService::visibility()['score']`). Không được xem điểm thì không có nhãn,
+  kể cả khi đã chấm.
+* "Kết quả học tập" (ADR-0031) không đổi trong amendment này.
+
+## Implementation record 1.1 — 2026-11-19
+
+* `App\Support\CourseQuizVerdict::of()`: nhãn chỉ có khi Activity `pass`, lần làm `graded`,
+  học viên được xem điểm (D12) và có `score_percentage`; Đạt khi phần trăm ≥
+  `completion_threshold` (mặc định 100, như `CourseProgressRecorder::quizChanged`).
+* `LearnerCourseQuizService::cards()` gắn `verdict` cho mỗi lần đã nộp và chọn `best` là lần
+  có nhãn với phần trăm cao nhất. Thẻ Quiz ở trang bài học hiện dòng kết quả đầu thẻ
+  (`data-learn-quiz-verdict`) và nhãn từng lần (`data-learn-quiz-attempt-verdict`), kèm "cần
+  đạt X%" khi chưa đạt; lần chưa chấm hiện "Chờ giáo viên chấm".
+* Trang kết quả (`tenant/assessments/result.blade.php`): lần làm trong khóa học lấy nhãn từ
+  `AssessmentLearnerController::courseContext()` (ngưỡng Activity); bài thi độc lập giữ cột
+  `passed` của lần làm.
+* Test: `CourseQuizActivityTest::test_a_course_attempt_shows_passed_or_not_by_the_activity_threshold`.
 
 ---
 

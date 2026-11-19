@@ -84,6 +84,7 @@
                     'plan' => $scheduleFormPlan,
                     'derivedStatus' => $scheduleFormDerivedStatus,
                     'canMutate' => $cohort->is_mutable,
+                    'deletion' => $scheduleFormDeletion ?? null,
                 ])
             @endif
 

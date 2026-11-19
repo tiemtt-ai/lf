@@ -19,7 +19,8 @@
         <header class="ui-modal__header">
             <div>
                 <h3 id="session_form_title" x-text="programmeForm() ? @js(__('lf.LF_course_cohort_session_edit_lesson')) : (editingId ? @js(__('lf.LF_course_cohort_session_edit')) : @js(__('lf.LF_course_cohort_session_manual_title')))"></h3>
-                <p class="ui-caption" x-show="programmeForm()" x-cloak>{{ __('lf.LF_course_cohort_session_lesson_form_help') }}</p>
+                <p class="ui-caption" x-show="programmeForm() && !practiceSession()" x-cloak>{{ __('lf.LF_course_cohort_session_lesson_form_help') }}</p>
+                <p class="ui-caption" x-show="programmeForm() && practiceSession()" x-cloak>{{ __('lf.LF_course_cohort_session_practice_form_help') }}</p>
                 <p class="ui-caption" x-show="editingId && !programmeForm()" x-cloak>{{ __('lf.LF_course_cohort_session_edit_scope_help') }}</p>
             </div>
             <button type="button" class="ui-modal__close cursor-interaction" x-on:click="closeForm()" x-bind:disabled="submitting" aria-label="{{ __('lf.LF_common_button_close') }}">×</button>
@@ -85,8 +86,8 @@
                     @error('title')<p class="ui-field__error" role="alert" x-show="showFormErrors">{{ $message }}</p>@enderror
                 </div>
                 {{-- In class or online; an in-class session with remote learners is stored as hybrid. --}}
-                <input type="hidden" name="delivery_mode" x-bind:value="mode">
-                <fieldset class="ui-field ui-field--full ui-fieldset-reset">
+                <input type="hidden" name="delivery_mode" x-bind:value="practiceSession() ? 'offline' : mode">
+                <fieldset class="ui-field ui-field--full ui-fieldset-reset" x-show="!practiceSession()">
                     <legend class="ui-field__label"><span class="ui-field__required" aria-hidden="true">*</span>{{ __('lf.LF_course_cohort_session_mode') }}</legend>
                     <div class="ui-option-cards" role="radiogroup">
                         @foreach (['offline', 'online'] as $place)
@@ -101,19 +102,21 @@
                     <p class="ui-caption">{{ __('lf.LF_course_cohort_session_place_help') }}</p>
                     @error('delivery_mode')<p class="ui-field__error" role="alert" x-show="showFormErrors">{{ $message }}</p>@enderror
                 </fieldset>
-                <div class="ui-field" x-show="(mode === 'offline' || mode === 'hybrid')" x-cloak>
-                    <label class="ui-field__label" for="room_name"><span class="ui-field__required" aria-hidden="true">*</span>{{ __('lf.LF_course_cohort_session_room') }}</label>
-                    <input id="room_name" name="room_name" maxlength="255" x-model="roomName" x-bind:required="(mode === 'offline' || mode === 'hybrid')" placeholder="{{ __('lf.LF_course_cohort_session_room_placeholder') }}">
+                <div class="ui-field" x-show="inRoom()" x-cloak>
+                    <label class="ui-field__label" for="room_name"><span class="ui-field__required" aria-hidden="true">*</span><span x-text="practiceSession() ? @js(__('lf.LF_course_cohort_session_place')) : @js(__('lf.LF_course_cohort_session_room'))"></span></label>
+                    <input id="room_name" name="room_name" maxlength="255" x-model="roomName" x-bind:required="inRoom()"
+                           placeholder="{{ __('lf.LF_course_cohort_session_room_placeholder') }}"
+                           x-bind:placeholder="practiceSession() ? @js(__('lf.LF_course_cohort_session_place_placeholder')) : @js(__('lf.LF_course_cohort_session_room_placeholder'))">
                     @error('room_name')<p class="ui-field__error" role="alert" x-show="showFormErrors">{{ $message }}</p>@enderror
                 </div>
-                <div class="ui-field" x-show="(mode === 'offline' || mode === 'hybrid')" x-cloak>
+                <div class="ui-field" x-show="inRoom()" x-cloak>
                     <label class="ui-field__label" for="address">{{ __('lf.LF_course_cohort_session_address') }}</label>
                     <input id="address" name="address" maxlength="2000" x-model="address" placeholder="{{ __('lf.LF_course_cohort_session_address_placeholder') }}">
                     @error('address')<p class="ui-field__error" role="alert" x-show="showFormErrors">{{ $message }}</p>@enderror
                 </div>
-                <div class="ui-field ui-field--full" x-show="(mode === 'offline' || mode === 'hybrid')" x-cloak>
+                <div class="ui-field ui-field--full" x-show="!practiceSession() && (mode === 'offline' || mode === 'hybrid')" x-cloak>
                     <label class="ui-field__label" for="attendance_tool">{{ __('lf.LF_course_cohort_session_attendance_tool') }}</label>
-                    <select id="attendance_tool" name="attendance_tool" x-model="attendanceTool" x-bind:disabled="mode === 'online'">
+                    <select id="attendance_tool" name="attendance_tool" x-model="attendanceTool" x-bind:disabled="mode === 'online' || practiceSession()">
                         @foreach (\App\Services\LiveClassSessionOperations::ATTENDANCE_TOOLS as $tool)
                             <option value="{{ $tool }}">{{ __('lf.LF_course_cohort_session_attendance_tool_'.$tool) }}</option>
                         @endforeach
@@ -121,14 +124,17 @@
                     <p class="ui-caption">{{ __('lf.LF_course_cohort_session_attendance_tool_help') }}</p>
                     @error('attendance_tool')<p class="ui-field__error" role="alert" x-show="showFormErrors">{{ $message }}</p>@enderror
                 </div>
-                <div class="ui-field ui-field--full" x-show="mode !== 'online'" x-cloak>
+                <div class="ui-field ui-field--full" x-show="practiceSession()" x-cloak>
+                    <p class="ui-caption" role="note">{{ __('lf.LF_course_cohort_session_practice_attendance') }}</p>
+                </div>
+                <div class="ui-field ui-field--full" x-show="mode !== 'online' && !practiceSession()" x-cloak>
                     <label class="ui-check">
                         <input type="checkbox" x-bind:checked="mode === 'hybrid'" x-on:change="mode = $event.target.checked ? 'hybrid' : 'offline'">
                         <span>{{ __('lf.LF_course_cohort_session_remote') }}</span>
                     </label>
                     <p class="ui-caption" x-show="mode === 'hybrid'" x-cloak>{{ __('lf.LF_course_cohort_session_remote_help') }}</p>
                 </div>
-                <div class="ui-field" x-bind:class="{ 'ui-field--full': sessionType === 'curriculum' }" x-show="(mode === 'online' || mode === 'hybrid')">
+                <div class="ui-field" x-bind:class="{ 'ui-field--full': sessionType === 'curriculum' }" x-show="!practiceSession() && (mode === 'online' || mode === 'hybrid')">
                     <label class="ui-field__label" for="meeting_url">{{ __('lf.LF_course_cohort_session_meeting_url') }}</label>
                     <div class="ui-cohort-session-link">
                         <input id="meeting_url" type="url" name="meeting_url" x-model.trim="meetingUrl" placeholder="{{ __('lf.LF_course_cohort_session_meeting_url_placeholder') }}">
@@ -143,7 +149,7 @@
                     <p class="ui-caption" x-show="sessionType === 'operational'" x-cloak>{{ __('lf.LF_course_cohort_session_operational_meeting_help') }}</p>
                     @error('meeting_url')<p class="ui-field__error" role="alert" x-show="showFormErrors">{{ $message }}</p>@enderror
                 </div>
-                <div class="ui-field" x-show="(mode === 'online' || mode === 'hybrid') && sessionType === 'operational'" x-cloak>
+                <div class="ui-field" x-show="!practiceSession() && (mode === 'online' || mode === 'hybrid') && sessionType === 'operational'" x-cloak>
                     <label class="ui-field__label" for="online_provider">{{ __('lf.LF_course_cohort_session_provider') }}</label>
                     <input id="online_provider" name="online_provider" maxlength="50" x-model="provider" placeholder="{{ __('lf.LF_course_cohort_session_provider_placeholder') }}">
                     @error('online_provider')<p class="ui-field__error" role="alert" x-show="showFormErrors">{{ $message }}</p>@enderror

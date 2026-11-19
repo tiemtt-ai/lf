@@ -1,12 +1,12 @@
 # LF-Core-Course.md
 
-Version: 3.14
+Version: 3.23
 
 Document Status: Approved
 
 Implementation Status: Unknown
 
-Last Updated: 2026-11-18
+Last Updated: 2026-11-19
 
 Document Path: core/LF-Core-Course.md
 
@@ -220,18 +220,30 @@ Course Template
 * Media/external Activity không có target trực tiếp hợp lệ dùng readonly detail
   cho action View.
 * Lesson không có lifecycle/status riêng. Activity status không hiển thị trong tree.
-* `lesson_type` phân loại semantic Lesson bằng các code `regular`, `review`,
-  `midterm_exam`, `final_exam`, `other_exam`. Classification không tự thay đổi
-  scheduling, grading, completion, unlock, Assessment, Activity hoặc Cohort.
+* `lesson_type` của khóa Tự học luôn là `regular` và không đổi scheduling, grading,
+  completion, unlock, Assessment, Activity hoặc Cohort.
 * Trường của Lesson theo loại khóa học
   ([ADR-0022 Amendment 1.2](../adr/ADR-0022-Course-Type-On-Template.md#amendment-12--trường-của-lesson-theo-loại-khóa-học-approved-2026-11-18)):
   khóa Tự học có học thử và quy tắc mở khóa, không có loại bài học (luôn `regular`);
   khóa Theo lớp có loại bài học, không có học thử và quy tắc mở khóa (luôn `false` /
   `none`). Form chỉ hiện trường của loại; server tự đặt phần còn lại.
-* Ở khóa Theo lớp, `lesson_type` quyết định buổi có giáo viên hay buổi tự học và Activity
-  của bài (thêm `practice`, `extracurricular`, `self_study`):
-  [ADR-0022 Amendment 1.3](../adr/ADR-0022-Course-Type-On-Template.md#amendment-13--loại-buổi-học-và-hoạt-động-của-khóa-theo-lớp-approved-2026-11-18).
-  Câu "classification không tự thay đổi..." ở trên chỉ còn đúng với khóa Tự học.
+* Ở khóa Theo lớp, `lesson_type` là loại buổi học và quyết định Activity của bài: `regular`
+  (Buổi học), `practice` (Thực hành, ngoại khóa), `self_study` (Tự học). Bốn giá trị cũ
+  `review`, `midterm_exam`, `final_exam`, `other_exam` không còn chọn được, đọc như `regular`:
+  [ADR-0022 Amendment 1.3](../adr/ADR-0022-Course-Type-On-Template.md#amendment-13--loại-buổi-học-và-hoạt-động-của-khóa-theo-lớp-approved-2026-11-18)
+  (đã triển khai Đợt 1 ngày 2026-11-18). Buổi có người phụ trách (`regular`, `practice`) có
+  đúng một Buổi học trực tiếp, mỗi Activity khác thuộc đúng một phần Trước / Trong / Sau;
+  buổi tự học không có Buổi học trực tiếp, Activity lưu `available_anytime = 1`. Đổi bài sang
+  Tự học bị từ chối khi bài còn Buổi học trực tiếp. Danh sách bài của Template hiện nhãn loại
+  khi khác "Buổi học".
+* Activity của khóa Theo lớp có ô "Tính vào điểm danh" (`counts_for_attendance`) ở phần Trong
+  và Sau của buổi có người phụ trách: học viên phải hoàn thành Activity đó mới được tính điểm
+  danh (Trong) hoặc học bù (Sau). Form gộp ô này với "Tính vào hoàn thành" (`is_required`)
+  trong khối "Áp dụng cho". Buổi tự học cũng có ô này từ Đợt 4, Bước 3: xong mọi Activity được
+  tick trước khi buổi tự học kết thúc thì được ghi Có mặt. Quiz tiêu chí `submit` hoàn thành
+  khi lần làm đã chấm xong
+  ([ADR-0022 Amendment 1.3, Đợt 3](../adr/ADR-0022-Course-Type-On-Template.md#đợt-3--tính-vào-điểm-danh-và-học-bù),
+  triển khai 2026-11-18).
 * Empty Activity state chỉ hiển thị `Chưa có hoạt động.`.
 * Section `allows_lessons = false` không render Lesson heading, count, empty
   state hoặc action gắn Lesson; child Sections vẫn hiển thị bình thường.
@@ -437,8 +449,10 @@ when none is declared.
 > * Mỗi Lesson có **tối đa một** Activity `live_class`. Backend từ chối khi tạo
 >   hoặc sửa Activity, và Publish readiness chặn Template có Lesson chứa hai
 >   Activity loại này (mã `lesson_live_class_multiple`, nêu tên Lesson).
-> * Trong khóa học theo lớp, Lesson **không có** Activity `live_class` là buổi tự
->   học; danh sách bài học của Template hiện nhãn "Tự học".
+> * ~~Trong khóa học theo lớp, Lesson **không có** Activity `live_class` là buổi tự
+>   học~~ — thay bởi ADR-0022 Amendment 1.3 (2026-11-18): buổi tự học là bài có
+>   `lesson_type = self_study`; buổi có người phụ trách thiếu Buổi học trực tiếp bị chặn xuất
+>   bản (`lesson_live_class_missing`).
 > * Form không còn ô "Liên kết tham gia mặc định"; server bỏ qua giá trị
 >   `live_class_url` gửi lên. Link đã lưu trên Template được giữ khi sửa Activity
 >   vẫn là `live_class`, bị xóa khi Activity đổi sang loại khác. Link đã đóng
@@ -467,9 +481,11 @@ when none is declared.
 > "Theo buổi học" đứng trước "Học bất kỳ lúc nào" và được chọn sẵn khi thêm Activity mới;
 > thời điểm theo buổi để trống cho người soạn chọn. Thêm từ một tab thời điểm của Lesson
 > thì chọn sẵn đúng tab đó (kể cả tab "Học bất kỳ lúc nào"). Activity đang có giữ lựa chọn đã lưu.
-> Quy tắc server ở trên không đổi. Ghi chú này được thay bởi
+> Ghi chú này đã được thay bởi
 > [ADR-0022 Amendment 1.3](../adr/ADR-0022-Course-Type-On-Template.md#amendment-13--loại-buổi-học-và-hoạt-động-của-khóa-theo-lớp-approved-2026-11-18)
-> khi Amendment đó được triển khai: khóa Theo lớp chọn đúng một phần, không còn "Học bất kỳ lúc nào".
+> (triển khai 2026-11-18): form Activity của khóa Theo lớp có ô "Phần của buổi học" chọn đúng một
+> trong Trước / Trong / Sau (chọn sẵn theo tab đang mở), không còn "Học bất kỳ lúc nào", học thử,
+> quy tắc mở khóa, thời lượng ước tính và tiêu chí thủ công; buổi tự học không có ô phần.
 
 Existing Activities default to `anytime`. Activity `sort_order` controls only
 display order and does not define availability.
@@ -663,7 +679,13 @@ này.
   `NULL`, như chính sách `live_online_course` hiện hành); quyền học theo lớp,
   buổi học và Live Class.
 * **Kết hợp:** Enrollment không có thời hạn theo ngày. Activity theo buổi học
-  mở theo buổi của lớp. Activity `anytime` mở từ `start_date` đến hết
+  mở theo lịch của lớp: Trước khi buổi liền trước kết thúc (buổi đầu: 00:00 ngày học),
+  Trong lúc buổi bắt đầu, Sau lúc buổi kết thúc; chỉ tính giờ trên lịch
+  ([ADR-0022 Amendment 1.3, Đợt 2](../adr/ADR-0022-Course-Type-On-Template.md#đợt-2--mở-theo-lịch),
+  triển khai 2026-11-18). `live_class` chỉ cần học viên thuộc lớp. Khi lớp đã `completed`, học
+  viên chỉ xem lại: nội dung vẫn mở, tiến độ không tăng, không bắt đầu Quiz mới
+  ([ADR-0022 Amendment 1.4](../adr/ADR-0022-Course-Type-On-Template.md), triển khai 2026-11-18). Activity của buổi tự học mở
+  lúc buổi tự học bắt đầu theo lịch (Đợt 4, Bước 3). Activity `anytime` mở từ `start_date` đến hết
   `end_date` của Cohort mà Enrollment là thành viên (ngày địa phương theo
   timezone tenant). Đây là ngoại lệ có chủ đích với quy tắc "không suy ra thời
   hạn từ ngày của Cohort": thời gian lớp giới hạn quyền mở Activity tại runtime
@@ -1673,6 +1695,15 @@ Khi publish Version Activity:
 Mutable external content không được làm thay đổi silent learning experience của
 Enrollment đã khóa Version.
 
+2026-11-19 (Owner duyệt, đã triển khai 2026-11-19):
+
+* Loại Activity "Link nền tảng ngoài" (`external_link`,
+  [ADR-0035](../adr/ADR-0035-External-Link-Activity.md)): học viên bấm mở link HTTPS là hoàn
+  thành; hệ thống không lấy kết quả từ nền tảng ngoài; link chốt khi xuất bản vào
+  `external_link_url_snapshot`. Không lên Bảng điện tử, không nằm trong thư viện Media.
+* Quiz trong khóa học hiện Đạt / Chưa đạt theo ngưỡng hoàn thành của Activity, ở cả thẻ Quiz
+  lẫn trang kết quả ([ADR-0032](../adr/ADR-0032-Course-Quiz-Activity.md) Amendment 1.1).
+
 ---
 
 # Tracking And AI
@@ -1747,6 +1778,9 @@ Marketing/display cache không được dùng cho Completion, Certificate, Billi
   không tạo hidden/default Section.
 * Một Enrollment chỉ có một active Cohort; chuyển lớp cập nhật membership hiện
   tại, không lưu membership history và không dùng `is_current`.
+  [ADR-0034](../adr/ADR-0034-Cohort-Membership-Period-And-History.md) (Owner duyệt 2026-11-18,
+  đã triển khai) thêm lịch sử thành viên ở bảng riêng: ngày vào lớp, rời lớp,
+  thêm lại; bảng thành viên vẫn một dòng cho mỗi Enrollment.
 * Mọi Cohort mới khóa một Product và published Version được server resolve từ
   đúng một active Product Item hợp lệ. Request không được chọn Version. Product
   đổi Version không cập nhật Cohort hoặc Enrollment đã có.
@@ -1754,9 +1788,19 @@ Marketing/display cache không được dùng cho Completion, Certificate, Billi
   `draft -> archived`. Cohort `draft` và `active` được quản lý membership như
   setup operation theo authorization và validation hiện hành; chỉ Cohort
   `active` được thực hiện runtime operations.
+* 2026-11-19 (Owner duyệt và triển khai;
+  [ADR-0022](../adr/ADR-0022-Course-Type-On-Template.md) Amendment 1.4): `active -> completed`
+  tự xảy ra sau 23:59 ngày `end_date` (lệnh `course:complete-ended-cohorts`); kết thúc sớm
+  bằng tay chỉ quản trị làm. Các bước chuyển trạng thái không đổi.
 * Chỉ Enrollment `active` được thêm hoặc chuyển vào Cohort `draft` hoặc
-  `active`. Membership trong Cohort `draft` không kích hoạt Cohort, không đổi
-  Enrollment status và không tự cấp learning access.
+  `active`. Bổ sung 2026-11-19 (Owner duyệt, đã triển khai): Enrollment đã qua
+  `access_ends_at` (`access_ends_at <= now`) cũng bị từ chối, kể cả khi còn trong
+  thời gian ôn tập và lệnh `course:expire-enrollments` chưa kịp chuyển nó sang
+  `expired`. Enrollment không có `access_ends_at` không bị chặn. Trang thêm học
+  viên không liệt kê nó; popup quản lý học viên của lớp hiện nó với nhãn "Hết hạn
+  học" và không cho chọn. Activation Cohort không đổi. Kiểm ở `CourseCohortStudentController::assignmentIssue`.
+  Membership trong Cohort `draft` không kích hoạt Cohort, không đổi Enrollment
+  status và không tự cấp learning access.
 * Activation `draft -> active` là action riêng và phải revalidate toàn bộ
   membership, tenant/Product/Version binding, capacity cùng các readiness
   requirements áp dụng. Nếu có lỗi, Cohort giữ nguyên `draft` và server trả về

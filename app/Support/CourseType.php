@@ -78,6 +78,42 @@ final class CourseType
         return $type !== self::SELF_PACED;
     }
 
+    /** A class-based course: its Activities follow the session rules of ADR-0022 Amendment 1.3. */
+    public static function isClassBased(?string $type): bool
+    {
+        return in_array($type, self::COHORT_VALUES, true);
+    }
+
+    /** Default watch or listen share of a video or audio Activity of a class (ADR-0022 Amendment 1.3). */
+    public const CLASS_WATCH_PERCENT = 80;
+
+    /**
+     * The completion rules an Activity type may use. A class-based course has one criterion per type and no
+     * manual completion (ADR-0022 Amendment 1.3); the other types keep the full list.
+     *
+     * @return list<string>
+     */
+    public static function completionRules(?string $type, ?string $activityType): array
+    {
+        if (self::isClassBased($type)) {
+            return match ($activityType) {
+                'video', 'audio' => ['watch_percent'],
+                'document', 'embedded_video', 'external_link' => ['view'],
+                'quiz' => ['submit', 'pass'],
+                'live_class' => ['join'],
+                default => [],
+            };
+        }
+
+        return match ($activityType) {
+            'video', 'audio' => ['view', 'watch_percent', 'manual'],
+            'document', 'embedded_video', 'external_link' => ['view', 'manual'],
+            'quiz' => ['submit', 'pass', 'manual'],
+            'live_class' => ['join', 'manual'],
+            default => [],
+        };
+    }
+
     /** Whether the stored availability flags of one Activity fit the type; null type never fits. */
     public static function availabilityFits(?string $type, object|array $activity): bool
     {

@@ -10,6 +10,11 @@
     ])->filter()->keys()->map(
         fn (string $phase) => __('lf.LF_course_template_activity_learning_availability_'.$phase)
     )->implode(', ');
+    // ADR-0022 Amendment 1.3: in a class an Activity sits in one part of the session; a self-study session has none.
+    $classBased = \App\Support\CourseType::isClassBased($template->course_type ?? null);
+    if ($classBased && ! \App\Support\LessonType::isLed($lesson->lesson_type ?? null)) {
+        $learningAvailability = __(\App\Support\LessonType::labelKey(\App\Support\LessonType::SELF_STUDY));
+    }
 @endphp
 {{-- Read-only details of an activity, in the same dialog as the forms. It has no field and no submit; Close and Edit. --}}
 <form class="ui-modal__form" novalidate onsubmit="return false">
@@ -46,9 +51,16 @@
             @endif
 
             <div class="ui-summary__item ui-summary__item--wide">
-                <dt class="ui-field__label">{{ __('lf.LF_course_template_activity_learning_availability') }}</dt>
+                <dt class="ui-field__label">{{ __($classBased ? 'lf.LF_course_template_activity_class_phase' : 'lf.LF_course_template_activity_learning_availability') }}</dt>
                 <dd>{{ $learningAvailability }}</dd>
             </div>
+
+            @if ($classBased && ($activity->counts_for_attendance ?? false))
+                <div class="ui-summary__item ui-summary__item--wide">
+                    <dt class="ui-field__label">{{ __('lf.LF_course_template_activity_apply_title') }}</dt>
+                    <dd>{{ __('lf.LF_course_template_activity_apply_attendance') }}</dd>
+                </div>
+            @endif
 
             @if ($activity->assessment_quiz_id)
                 <div class="ui-summary__item">

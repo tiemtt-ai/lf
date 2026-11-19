@@ -1,12 +1,12 @@
 # Table: core_liveclass_session_schedule_origins
 
-Version: 1.0
+Version: 1.1
 
 Document Status: Approved
 
 Implementation Status: Unknown
 
-Last Updated: 2026-08-09
+Last Updated: 2026-11-19
 
 Document Path: database/liveclass/core_liveclass_session_schedule_origins.md
 
@@ -135,7 +135,7 @@ customer, Cohort or Schedule metadata.
 Origin is append-only and immutable. Reschedule keeps the Origin unchanged and
 uses `core_liveclass_session_schedule_changes` for audit.
 
-All Origin relationships use `RESTRICT`. Schedule deletion is not available.
+All Origin relationships use `RESTRICT`. Schedule deletion follows the amendment below.
 A referenced Slot cannot be hard-deleted; Schedule updates must preserve Slot
 identity and may not delete/recreate referenced Slots. Schedule or Slot edits
 never update Origin snapshots or Sessions.
@@ -154,3 +154,10 @@ Coincident times are never used to infer origin.
 Confirmation creates no Attendance, Recording, Replay, Progress or Completion.
 Curriculum/operational binding, Cohort lifecycle, tenant authorization,
 delivery and Session Teacher policies remain governed by existing contracts.
+
+## Schedule Deletion Amendment — 2026-11-19 (Approved, đã triển khai)
+
+Owner chọn cho xóa Schedule theo phương án B. Chi tiết ở
+[ADR-0002 § Schedule Deletion Amendment](../../adr/ADR-0002-LiveClass-Foundation.md#schedule-deletion-amendment--2026-11-19). Không đổi schema. Ngoại lệ duy nhất của quy tắc
+append-only: Origin bị xóa cùng Session của nó khi Schedule bị xóa; Origin vẫn không
+bao giờ bị sửa.

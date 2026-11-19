@@ -1,4 +1,4 @@
-{{-- Create or edit popup of one attendance policy. The make-up settings are stored but not applied yet (Owner 2026-11-17), so they are carried hidden. --}}
+{{-- Create or edit popup of one attendance policy. The make-up settings apply since ADR-0022 Amendment 1.3, Đợt 3. --}}
 @php
     $errorBag = $errors->getBag($bag);
     $retry = $errorBag->isNotEmpty();
@@ -13,7 +13,7 @@
     $error = fn (string $field) => $errorBag->first($field);
 @endphp
 <dialog id="{{ $dialogId }}" class="ui-modal ui-attendance-policy-modal" data-columns="2" aria-labelledby="{{ $dialogId }}-title"
-        x-data="{ submitting: false, absentUnlimited: @js($absentUnlimited) }"
+        x-data="{ submitting: false, absentUnlimited: @js($absentUnlimited), makeupUnlimited: @js($makeupUnlimited) }"
         @if ($autoOpen) x-init="$nextTick(() => $el.showModal())" @endif
         @if ($policy) x-on:close="window.location.assign(@js($closeUrl))" @endif
         x-on:cancel="if (submitting) $event.preventDefault()">
@@ -106,10 +106,32 @@
                     <p class="ui-caption">{{ __('lf.LF_attendance_policy_help_teacher_edit_days') }}</p>
                     @if ($error('teacher_edit_days'))<p class="ui-field__error" role="alert">{{ $error('teacher_edit_days') }}</p>@endif
                 </div>
-                {{-- The make-up settings stay stored but are hidden until make-up classes exist (Owner 2026-11-18). --}}
-                <input type="hidden" name="makeup_enabled" value="{{ $checked('makeup_enabled', true) ? 1 : 0 }}">
-                <input type="hidden" name="makeup_unlimited" value="{{ $makeupUnlimited ? 1 : 0 }}">
-                <input type="hidden" name="makeup_within_days" value="{{ $makeupUnlimited ? '' : $value('makeup_within_days', '') }}">
+                <div class="ui-field">
+                    <label class="ui-field__label" for="{{ $dialogId }}-makeup_within_days">{{ __('lf.LF_attendance_policy_field_makeup_within_days') }}</label>
+                    <div class="ui-input-group">
+                        <input id="{{ $dialogId }}-makeup_within_days" type="number" inputmode="numeric" name="makeup_within_days" min="1" max="365" step="1"
+                               value="{{ $value('makeup_within_days', '') }}" x-bind:disabled="makeupUnlimited">
+                        <span class="ui-input-group__addon">{{ __('lf.LF_attendance_policy_unit_days') }}</span>
+                    </div>
+                    <label class="ui-check">
+                        <input type="checkbox" name="makeup_unlimited" value="1" x-model="makeupUnlimited">
+                        <span>{{ __('lf.LF_attendance_policy_makeup_unlimited') }}</span>
+                    </label>
+                    <p class="ui-caption">{{ __('lf.LF_attendance_policy_help_makeup_within_days') }}</p>
+                    @if ($error('makeup_within_days'))<p class="ui-field__error" role="alert">{{ $error('makeup_within_days') }}</p>@endif
+                </div>
+
+                <label class="ui-switch-row ui-switch-row--boxed ui-field--full">
+                    <span class="ui-switch-row__text">
+                        <b>{{ __('lf.LF_attendance_policy_field_makeup_enabled') }}</b>
+                        <small>{{ __('lf.LF_attendance_policy_help_makeup_enabled') }}</small>
+                    </span>
+                    <span class="ui-switch">
+                        <input type="hidden" name="makeup_enabled" value="0">
+                        <input type="checkbox" name="makeup_enabled" value="1" @checked($checked('makeup_enabled', true))>
+                        <span></span>
+                    </span>
+                </label>
             </div>
         </div>
         <footer class="ui-modal__footer">

@@ -4,6 +4,7 @@
     $star = '<span class="ui-field__required" aria-hidden="true">*</span>';
     $selectedActivityType = $formActivity?->activity_type ?? 'video';
     $selectedRequired = (string) ($formActivity?->is_required ?? 1);
+    $selectedCountsForAttendance = (bool) ($formActivity?->counts_for_attendance ?? false);
     $selectedCompletionRule = (string) ($formActivity?->completion_rule ?? '');
     $selectedPreview = (string) ($formActivity?->is_preview ?? 0);
     $selectedUnlockRule = $formActivity?->unlock_rule ?? 'none';
@@ -24,7 +25,11 @@
     // ADR-0022: the Template course type bounds the learning availability (and whether a live class exists).
     $courseType = $template->course_type ?? \App\Support\CourseType::BLENDED;
     $selfPaced = $courseType === \App\Support\CourseType::SELF_PACED;
-    if (! \App\Support\CourseType::allowsLiveClass($courseType)) {
+    // ADR-0022 Amendment 1.3: a class has no preview, unlock rule, estimated duration or manual completion;
+    // a self-study session has no live class and no phases.
+    $classBased = \App\Support\CourseType::isClassBased($courseType);
+    $classSelfStudy = $classBased && ! \App\Support\LessonType::isLed($lesson->lesson_type ?? null);
+    if (! \App\Support\CourseType::allowsLiveClass($courseType) || $classSelfStudy) {
         $activityTypes = array_values(array_diff($activityTypes, ['live_class']));
     }
     $selectedLearningPhases = $formActivity
@@ -36,19 +41,23 @@
         ]))
         // A new Activity of a class-based course starts by session; the phase is the teacher's choice.
         : array_filter([$presetPhase ?? null]);
-    if ($selfPaced) {
+    if ($selfPaced || $classSelfStudy) {
         $selectedLearningPhases = ['anytime'];
     }
+    // A led session takes exactly one part; a legacy Activity in several parts, or anytime, opens with none chosen.
+    $selectedClassPhase = count($selectedLearningPhases) === 1
+        && in_array($selectedLearningPhases[0], \App\Support\CourseType::SESSION_PHASES, true)
+        ? $selectedLearningPhases[0] : '';
     $storedEstimateMinutes = $formActivity?->estimated_duration_seconds !== null
         ? (int) ceil($formActivity->estimated_duration_seconds / 60)
         : null;
     $storedDurationSeconds = (int) ($formActivity?->duration_seconds ?? 0);
-    $completionRules = [
-        'video' => ['view', 'watch_percent', 'manual'], 'audio' => ['view', 'watch_percent', 'manual'],
-        'document' => ['view', 'manual'], 'embedded_video' => ['view', 'manual'],
-        'quiz' => ['submit', 'pass', 'manual'], 'live_class' => ['join', 'manual'],
-    ];
-    $allCompletionRules = ['view', 'watch_percent', 'submit', 'pass', 'join', 'manual'];
+    $completionRules = collect(['video', 'audio', 'document', 'embedded_video', 'quiz', 'live_class', 'external_link'])
+        ->mapWithKeys(fn (string $type) => [$type => \App\Support\CourseType::completionRules($courseType, $type)])->all();
+    $allCompletionRules = array_values(array_intersect(
+        ['view', 'watch_percent', 'submit', 'pass', 'join', 'manual'],
+        array_merge(...array_values($completionRules))
+    ));
     $completionRuleLabels = collect($allCompletionRules)
         ->mapWithKeys(fn (string $rule) => [$rule => __('lf.LF_course_template_activity_common_completion_'.$rule)])
         ->all();
@@ -66,6 +75,7 @@
     $typeCards = [
         'video' => ['video', 'violet'], 'embedded_video' => ['link', 'blue'], 'audio' => ['audio', 'teal'],
         'document' => ['file-text', 'blue'], 'quiz' => ['clipboard-check', 'orange'], 'live_class' => ['square-play', 'green'],
+        'external_link' => ['external-link', 'teal'],
     ];
     $typeNames = collect($activityTypes)
         ->mapWithKeys(fn (string $type) => [$type => __('lf.LF_course_template_activity_common_type_'.$type)])->all();
@@ -97,7 +107,11 @@
          completionRule: @js($selectedCompletionRule),
          unlockRule: @js($selectedUnlockRule),
          learningMode: @js(in_array('anytime', $selectedLearningPhases, true) ? 'anytime' : 'session'),
-         sessionPhases: @js(array_values(array_diff($selectedLearningPhases, ['anytime']))),
+         sessionPhases: @js($selectedClassPhase === '' ? [] : [$selectedClassPhase]),
+         classPhase: @js($selectedClassPhase),
+         classBased: @js($classBased),
+         countsForAttendance: @js($selectedCountsForAttendance),
+         classWatchPercent: @js(\App\Support\CourseType::CLASS_WATCH_PERCENT),
          completionRules: @js($completionRules),
          completionRuleLabels: @js($completionRuleLabels),
          completionRuleLabelsByType: @js($completionRuleLabelsByType),
@@ -174,6 +188,7 @@
          },
          phaseNames: @js($phaseNames),
          anytimeName: @js(__('lf.LF_course_template_activity_learning_availability_anytime')),
+         selfStudyName: @js($classSelfStudy ? __(\App\Support\LessonType::labelKey(\App\Support\LessonType::SELF_STUDY)) : ''),
          noPhaseName: @js(__('lf.LF_course_template_activity_phase_none')),
          recognizedLabel: @js(__('lf.LF_course_template_activity_url_recognized', ['provider' => '__P__'])),
          externalUrl: @js((string) ($formActivity?->external_video_url ?? '')),
@@ -188,6 +203,7 @@
              return match ? known[match] : '';
          },
          phaseLabel() {
+             if (this.selfStudyName) return this.selfStudyName;
              if (this.learningMode === 'anytime') return this.anytimeName;
              const names = Object.keys(this.phaseNames).filter(key => this.sessionPhases.includes(key)).map(key => this.phaseNames[key]);
              return names.length ? names.join(' · ') : this.noPhaseName;
@@ -202,6 +218,7 @@
                  this.liveAdjusted = this.learningMode !== 'session' && @js($formActivity !== null);
                  this.learningMode = 'session';
                  this.sessionPhases = ['during_session'];
+                 this.classPhase = 'during_session';
              }
              this.$nextTick(() => this.syncCompletionOptions(false));
          },
@@ -222,9 +239,16 @@
                  option.disabled = ! allowed.includes(option.value);
                  option.textContent = this.completionRuleLabel(option.value);
              }
-             if (clear || ! allowed.includes(select.value)) select.value = '';
-             this.completionRule = select.value;
+             // A type with one criterion (a class-based course) has it chosen for the author.
+             if (clear || ! allowed.includes(select.value)) select.value = allowed.length === 1 ? allowed[0] : '';
+             this.completionRuleChanged(select.value);
              select.dispatchEvent(new Event('change', { bubbles: true }));
+         },
+         // A class counts a video or audio as watched at 80% unless the author sets another share.
+         completionRuleChanged(rule) {
+             this.completionRule = rule;
+             const threshold = this.$refs.completionThreshold;
+             if (this.classBased && rule === 'watch_percent' && threshold && threshold.value === '') threshold.value = this.classWatchPercent;
          },
          activityTypeChanged() {
              const automatic = ['video', 'audio'].includes(this.activityType);
@@ -238,7 +262,7 @@
              this.videoSpeechToTextEnabled = false;
              this.estimatedDurationMinutes = unchanged ? this.storedEstimateMinutes : null;
              this.externalUrl = '';
-             if (this.liveLocked) { this.learningMode = 'session'; this.sessionPhases = ['during_session']; }
+             if (this.liveLocked) { this.learningMode = 'session'; this.sessionPhases = ['during_session']; this.classPhase = 'during_session'; }
              this.syncCompletionOptions(true);
          },
          documentFileChanged(event) {
@@ -433,6 +457,14 @@
             <span class="ui-field__hint">{{ __('lf.LF_course_template_activity_url_help_embedded_video') }}</span>
         </div>
 
+        {{-- ADR-0035: a link to an outside platform the learner opens in a new tab; HTTPS only. --}}
+        <div class="ui-field" x-show="activityType === 'external_link'" x-cloak data-activity-external-link-field>
+            <label class="ui-field__label" for="activity-form-external_link_url">{!! $star !!}{{ __('lf.LF_course_template_activity_external_link_url') }}</label>
+            <input id="activity-form-external_link_url" type="url" name="external_link_url" value="{{ $formActivity?->external_link_url }}" maxlength="1000"
+                   placeholder="https://" :disabled="activityType !== 'external_link'" :required="activityType === 'external_link'">
+            <span class="ui-field__hint">{{ __('lf.LF_course_template_activity_external_link_help') }}</span>
+        </div>
+
         {{-- A live session marks a taught, attended lesson; in class or online and the meeting link are chosen when the class is scheduled. --}}
         <div class="ui-field" x-show="activityType === 'live_class'" x-cloak>
             <span class="ui-field__hint">{{ __('lf.LF_course_template_activity_url_help_live_class') }}</span>
@@ -608,79 +640,57 @@
             <label class="ui-field__label" for="activity-form-description">{{ __('lf.LF_course_template_activity_common_description') }}</label>
             <textarea id="activity-form-description" name="description" rows="4"
                       placeholder="{{ __('lf.LF_course_template_activity_placeholder_description') }}">{{ $formActivity?->description }}</textarea>
+            <span class="ui-field__hint" x-show="activityType === 'external_link'" x-cloak>{{ __('lf.LF_course_template_activity_external_link_description_help') }}</span>
         </div>
     </section>
 
-    @if ($selfPaced)
-        {{-- A self-paced course is learned at any time: the choice is fixed, so the field is not shown. --}}
+    @if ($selfPaced || $classSelfStudy)
+        {{-- A self-paced course is learned at any time, and a self-study session has no phases
+             (ADR-0022 Amendment 1.3): the choice is fixed, so the field is not shown. --}}
         <input type="hidden" name="learning_phases_present" value="1">
         <input type="hidden" name="learning_phases[]" value="anytime">
     @else
     <section class="ui-activity-section">
-        <fieldset class="ui-field ui-fieldset-reset" data-ui-error-for="learning_phases">
+        {{-- ADR-0022 Amendment 1.3: in a led session every Activity belongs to exactly one part of it. --}}
+        <fieldset class="ui-field ui-fieldset-reset" data-ui-error-for="learning_phases"
+                  data-ui-required-group="learning_phases" data-ui-required-message="{{ __('lf.LF_course_template_activity_class_phase_one') }}"
+                  x-on:change="if ($event.target.name === 'learning_phases[]') $el.querySelectorAll('[data-ui-dialog-form-error]').forEach(node => node.remove())">
             <input type="hidden" name="learning_phases_present" value="1">
             <legend class="ui-field__label">
-                <span>{!! $star !!}{{ __('lf.LF_course_template_activity_learning_availability') }}</span>
+                <span>{!! $star !!}{{ __('lf.LF_course_template_activity_class_phase') }}</span>
             </legend>
-            {{-- Anytime and the session phases are exclusive: pick the mode first, then the phases of a session.
-                 A class-based course is mostly learned by session, so that mode comes first and is the default. --}}
-            <div class="ui-option-cards" role="radiogroup">
-                @foreach (['session', 'anytime'] as $mode)
+            <div class="ui-option-cards ui-option-cards--three" role="radiogroup">
+                @foreach (\App\Support\CourseType::SESSION_PHASES as $phase)
+                    {{-- A live class shows only its fixed part; the disabled radio is sent by the hidden field below. --}}
                     <div class="ui-option-box"
-                         x-bind:class="{ 'is-selected': learningMode === '{{ $mode }}', 'is-disabled': liveLocked && '{{ $mode }}' === 'anytime' }">
+                         @if ($phase !== 'during_session') x-show="!liveLocked" @endif
+                         x-bind:class="{ 'is-selected': classPhase === '{{ $phase }}' }">
                         <label class="ui-option-card">
-                            <input type="radio" name="learning_mode" value="{{ $mode }}" id="activity-form-learning_mode-{{ $mode }}" x-model="learningMode"
-                                   x-bind:disabled="liveLocked && '{{ $mode }}' === 'anytime'">
+                            <input type="radio" name="learning_phases[]" value="{{ $phase }}" id="activity-form-learning_phases-{{ $phase }}"
+                                   x-model="classPhase" x-on:change="sessionPhases = [classPhase]" x-bind:disabled="liveLocked">
                             <span class="ui-option-card__dot" aria-hidden="true"></span>
-                            <span><b>{{ __('lf.LF_course_template_activity_learning_mode_'.$mode) }}</b><small>{{ __('lf.LF_course_template_activity_learning_mode_'.$mode.'_help') }}</small></span>
+                            <span><b>{{ __('lf.LF_course_template_activity_learning_availability_'.$phase) }}</b><small>{{ __('lf.LF_course_template_activity_class_phase_'.$phase.'_help') }}</small></span>
                         </label>
                     </div>
-                    @if ($mode === 'session')
-                    {{-- The phases of a session follow the session card: a full-width row under both cards on a wide
-                         dialog, so choosing a mode never makes one card taller than the other, and right under the
-                         session card when the cards stack. --}}
-                    <div class="ui-option-cards__detail" x-show="learningMode === 'session'" x-cloak
-                         data-ui-required-group="learning_phases" data-ui-required-message="{{ __('lf.LF_course_template_activity_learning_phases_required') }}"
-                         x-on:change="if ($event.target.name === 'learning_phases[]') $el.querySelectorAll('[data-ui-dialog-form-error]').forEach(node => node.remove())">
-                        <span class="ui-activity-panel__head">
-                                {{-- The field title above already carries the required mark. --}}
-                                <span class="ui-field__label ui-field__label--tip">
-                                    <span>{{ __('lf.LF_course_template_activity_phase_choose') }}</span>
-                                    <x-info-tip class="lf-info-tip--lines" :text="__('lf.LF_course_type_session_phases_help')" />
-                                </span>
-                                <span class="ui-field__hint" x-show="!liveLocked">{{ __('lf.LF_course_template_activity_phase_choose_hint') }}</span>
-                            </span>
-                        <div class="ui-chip-list">
-                            @foreach (['before_session', 'during_session', 'after_session'] as $phase)
-                                {{-- A live class shows only its fixed phase; the disabled box is sent by the hidden field below. --}}
-                                <label class="ui-chip" @if ($phase !== 'during_session') x-show="!liveLocked" @else x-bind:class="{ 'is-fixed': liveLocked }" @endif>
-                                    <input type="checkbox" name="learning_phases[]" value="{{ $phase }}" id="activity-form-learning_phases-{{ $phase }}"
-                                           x-model="sessionPhases" x-bind:disabled="learningMode !== 'session' || liveLocked">
-                                    <x-backend-icon name="check" class="ui-icon ui-chip__check" />
-                                    <span>{{ __('lf.LF_course_template_activity_learning_availability_'.$phase) }}</span>
-                                </label>
-                            @endforeach
-                        </div>
-                        <input type="hidden" name="learning_phases[]" value="during_session" disabled x-bind:disabled="!liveLocked">
-                        {{-- A phase error from the server shows here, once, while this box is open; choosing a phase clears it. --}}
-                        <div class="ui-option-cards__error" data-ui-error-slot></div>
-                        <span class="ui-field__hint" x-show="liveLocked" x-cloak>{{ __('lf.LF_course_template_activity_live_phase_locked') }}</span>
-                        <span class="ui-field__hint ui-field__hint--notice" role="status" x-show="liveLocked && liveAdjusted" x-cloak>{{ __('lf.LF_activity_live_phase_adjusted') }}</span>
-                    </div>
-                    @endif
                 @endforeach
             </div>
-            <input type="hidden" name="learning_phases[]" value="anytime" x-bind:disabled="learningMode !== 'anytime'">
+            <input type="hidden" name="learning_phases[]" value="during_session" disabled x-bind:disabled="!liveLocked">
+            <div class="ui-option-cards__error" data-ui-error-slot></div>
+            <span class="ui-field__hint" x-show="liveLocked" x-cloak>{{ __('lf.LF_course_template_activity_live_phase_locked') }}</span>
+            <span class="ui-field__hint ui-field__hint--notice" role="status" x-show="liveLocked && liveAdjusted" x-cloak>{{ __('lf.LF_activity_live_phase_adjusted') }}</span>
         </fieldset>
     </section>
     @endif
 
     <section class="ui-activity-section">
+        @if ($classBased)
+            <div class="ui-field__label">{{ __('lf.LF_course_template_activity_class_completion_attendance_title') }}</div>
+        @endif
         <div class="ui-modal__grid ui-modal__grid--pair">
             <div class="ui-field">
                 <label class="ui-field__label" for="activity-form-completion_rule">{!! $star !!}{{ __('lf.LF_course_template_activity_common_completion_rule') }}</label>
                 <select id="activity-form-completion_rule" name="completion_rule" required x-ref="completionRule" {!! $selectAttributes !!}
-                        x-on:change="completionRule = $event.target.value">
+                        x-on:change="completionRuleChanged($event.target.value)">
                     <option value="">{{ $selectedActivityType ? __('lf.LF_course_template_activity_placeholder_completion_rule') : __('lf.LF_course_template_activity_common_select_type_first') }}</option>
                     @foreach ($allCompletionRules as $rule)
                         <option value="{{ $rule }}" @selected($selectedCompletionRule === $rule)
@@ -689,6 +699,7 @@
                 </select>
             </div>
 
+            @unless ($classBased)
             <div class="ui-field">
                 <label class="ui-field__label ui-field__label--tip" for="activity-form-estimated_duration_minutes">
                     {{ __('lf.LF_course_template_activity_common_estimated_duration_minutes') }}
@@ -708,15 +719,18 @@
                 <span class="ui-field__hint ui-field__hint--line" x-show="! durationAuto && ['video', 'audio'].includes(activityType) && mediaDurationState === 'empty'" x-cloak>{{ __('lf.LF_activity_duration_autofill_hint') }}</span>
                 <span class="ui-field__hint ui-field__hint--line" x-show="['video', 'audio'].includes(activityType) && mediaDurationState === 'unavailable'" x-cloak>{{ __('lf.LF_course_template_activity_media_duration_unknown') }}</span>
             </div>
+            @endunless
 
             <div class="ui-field" x-show="['watch_percent', 'pass'].includes(completionRule)" x-cloak>
                 <label class="ui-field__label" for="activity-form-completion_threshold">{{ __('lf.LF_course_template_activity_common_completion_threshold') }}</label>
-                <input id="activity-form-completion_threshold" type="number" min="1" max="100" name="completion_threshold"
+                <input id="activity-form-completion_threshold" type="number" min="1" max="100" name="completion_threshold" x-ref="completionThreshold"
                        value="{{ $formActivity?->completion_threshold }}"
                        placeholder="{{ __('lf.LF_course_template_activity_placeholder_completion_threshold_percent') }}">
             </div>
         </div>
 
+        {{-- A class opens its content by the class schedule: no preview or unlock rule; the server sets them. --}}
+        @unless ($classBased)
         <div class="ui-modal__grid ui-modal__grid--pair">
             <div class="ui-field">
                 <label class="ui-field__label" for="activity-form-is_preview">{!! $star !!}{{ __('lf.LF_course_template_activity_common_preview') }}</label>
@@ -746,7 +760,51 @@
                 </select>
             </div>
         </div>
+        @endunless
 
+        @if ($classBased)
+        {{-- ADR-0022 Amendment 1.3, Đợt 3: what the criterion applies to. "Tính vào điểm danh" exists in the
+             "Trong" and "Sau" parts of a led session; the live session always counts, by the class's own policy. --}}
+        <div class="ui-apply-box" data-activity-apply>
+            <div class="ui-field__label">{{ __('lf.LF_course_template_activity_apply_title') }}</div>
+            <label class="ui-switch-row">
+                <input type="hidden" name="is_required" value="0">
+                <input id="activity-form-is_required" type="checkbox" name="is_required" value="1" @checked($selectedRequired === '1')>
+                <span class="ui-switch-row__text">
+                    <b>{{ __('lf.LF_course_template_activity_apply_completion') }}</b>
+                    <small>{{ __('lf.LF_course_template_activity_apply_completion_help') }}</small>
+                </span>
+            </label>
+            @if ($classSelfStudy)
+            {{-- A self-study session has no parts: every ticked Activity must be done before the session ends (Đợt 4, Bước 3). --}}
+            <label class="ui-switch-row" data-activity-attendance>
+                <input type="hidden" name="counts_for_attendance" value="0">
+                <input id="activity-form-counts_for_attendance" type="checkbox" name="counts_for_attendance" value="1" x-model="countsForAttendance">
+                <span class="ui-switch-row__text">
+                    <b>{{ __('lf.LF_course_template_activity_apply_attendance') }}</b>
+                    <small>{{ __('lf.LF_course_template_activity_apply_attendance_self_study_help') }}</small>
+                </span>
+            </label>
+            @else
+            <label class="ui-switch-row" x-show="!liveLocked && classPhase !== 'before_session'" x-cloak data-activity-attendance>
+                <input type="hidden" name="counts_for_attendance" value="0">
+                <input id="activity-form-counts_for_attendance" type="checkbox" name="counts_for_attendance" value="1" x-model="countsForAttendance">
+                <span class="ui-switch-row__text">
+                    <b>{{ __('lf.LF_course_template_activity_apply_attendance') }}</b>
+                    <small x-show="classPhase !== 'after_session'">{{ __('lf.LF_course_template_activity_apply_attendance_during_help') }}</small>
+                    <small x-show="classPhase === 'after_session'" x-cloak>{{ __('lf.LF_course_template_activity_apply_attendance_after_help') }}</small>
+                </span>
+            </label>
+            <label class="ui-switch-row is-locked" x-show="liveLocked" x-cloak data-activity-attendance-live>
+                <input type="checkbox" checked disabled>
+                <span class="ui-switch-row__text">
+                    <b>{{ __('lf.LF_course_template_activity_apply_attendance') }}</b>
+                    <small>{{ __('lf.LF_course_template_activity_apply_attendance_live_help') }}</small>
+                </span>
+            </label>
+            @endif
+        </div>
+        @else
         <label class="ui-switch-row ui-switch-row--boxed">
             <span class="ui-switch-row__text">
                 <b>{{ __('lf.LF_course_template_activity_common_required') }}</b>
@@ -758,6 +816,7 @@
                 <span></span>
             </span>
         </label>
+        @endif
     </section>
 
     <x-media-preview-modal ui-kit id="activity-form-preview-title" show="previewOpen" close="closePreview()" title="preview.name" compact="false">

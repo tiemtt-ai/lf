@@ -165,7 +165,7 @@ class LearnerMyLearningTest extends TestCase
         foreach ([[$attended, '2026-07-03 19:01:00'], [$running, '2026-07-09 19:01:00']] as [$session, $joinedAt]) {
             DB::table('core_liveclass_attendances')->insert([
                 'customer_id' => $this->customer, 'session_id' => $session, 'enrollment_id' => $enrollment, 'user_id' => $this->student->id,
-                'status' => 'present', 'attendance_mode' => 'onsite', 'joined_at' => $joinedAt, 'created_at' => now(), 'updated_at' => now(),
+                'status' => 'present', 'attendance_mode' => 'offline', 'joined_at' => $joinedAt, 'created_at' => now(), 'updated_at' => now(),
             ]);
         }
 
@@ -192,8 +192,40 @@ class LearnerMyLearningTest extends TestCase
 
         $detail = $this->actingAs($this->student)->get(self::HOST.'/my-courses/classes/'.$cohort)->assertOk()->getContent();
         $this->assertSame([$skipped, $attended, $missed, $cancelled, $running, $next], $this->ids($detail, 'data-learn-session'));
+        // A held Session older than automatic absence looks back no longer waits for a result.
+        Carbon::setTestNow('2026-07-20 09:00:00');
+        $old = $this->actingAs($this->student)->get(self::HOST.'/my-courses/classes/'.$cohort)->assertOk()->getContent();
+        $this->assertStringNotContainsString('data-learn-attendance-pending', strstr(substr($old, strpos($old, 'data-learn-session="'.$missed.'"')), 'id="lesson-content-', true));
+        Carbon::setTestNow('2026-07-10 09:00:00');
         $this->assertMatchesRegularExpression('#data-learn-session="'.$attended.'".*?data-learn-attendance="present"#s', $detail);
         $this->assertMatchesRegularExpression('#data-learn-session="'.$missed.'".*?data-learn-attendance="none"#s', $detail);
+        // MK 3.1: the entry time and mode sit under the result; a held Session past its end with no result waits
+        // for one, while a Session nobody started waits for nothing.
+        // The Session's header ends where its contents start.
+        $row = fn (int $id): string => strstr(substr($detail, strpos($detail, 'data-learn-session="'.$id.'"')), 'id="lesson-content-', true);
+        $this->assertMatchesRegularExpression('#data-learn-attendance-entry>\s*'.preg_quote(__('lf.LF_my_learning_board_entered', ['time' => '19:01'])).' · '.__('lf.LF_my_learning_board_entered_offline').'#u', $row($attended));
+        $this->assertStringContainsString('data-learn-attendance-pending', $row($missed));
+        $this->assertStringContainsString(__('lf.LF_my_learning_attendance_pending'), $row($missed));
+        $this->assertStringNotContainsString('data-learn-attendance-entry', $row($missed));
+        $this->assertStringNotContainsString('data-learn-attendance-pending', $row($skipped));
+        $this->assertStringNotContainsString('data-learn-attendance-pending', $row($attended));
+
+        // MK 3.1: the block of sessions to act on now refreshes itself from a fragment, narrowed to the page's class.
+        Carbon::setTestNow('2026-07-09 19:30:00');
+        $fragment = self::HOST.'/my-courses/live-sessions/now';
+        // The class page (MK Live layout) puts the actions in the Session's own "Trong buổi học" row and reloads
+        // itself when that fragment of its class changes.
+        $page = $this->actingAs($this->student)->get(self::HOST.'/my-courses/classes/'.$cohort)->assertOk()
+            ->assertSee('data-live-refresh-url="'.$fragment.'?cohort='.$cohort.'"', false)->getContent();
+        $this->assertSame([$running], $this->ids($page, 'data-live-session'));
+        $this->actingAs($this->student)->get(self::HOST.'/my-courses?tab=classes')->assertOk()
+            ->assertSee('data-live-sessions-block data-url="'.$fragment.'"', false);
+        $now = $this->actingAs($this->student)->get($fragment)->assertOk()->assertHeader('Cache-Control', 'no-store, private');
+        $this->assertSame([$running], $this->ids($now->getContent(), 'data-live-session'));
+        $this->assertSame([$running], $this->ids($this->actingAs($this->student)->get($fragment.'?cohort='.$cohort)->getContent(), 'data-live-session'));
+        $this->assertSame('', $this->actingAs($this->student)->get($fragment.'?cohort='.$foreign)->assertOk()->getContent());
+        $this->assertSame('', $this->actingAs($otherStudent)->get($fragment.'?cohort='.$cohort)->assertOk()->getContent());
+        Carbon::setTestNow('2026-07-10 09:00:00');
         $this->assertStringContainsString('Buổi 3', substr($detail, strpos($detail, 'data-learn-next'), 600));
 
         $this->actingAs($this->student)->get(self::HOST.'/my-courses/classes/'.$foreign)->assertNotFound();
@@ -308,6 +340,34 @@ class LearnerMyLearningTest extends TestCase
         $this->actingAs($this->student)->get($this->lessonUrl($enrollment, $lesson))->assertForbidden();
     }
 
+    public function test_an_external_link_opens_in_a_new_tab_and_completes_when_opened(): void
+    {
+        [$product, $version] = $this->course($this->customer, 'Luyện Wings', 'self_paced');
+        $lesson = $this->lesson($version, 'Bài 1', 1);
+        $first = $this->activity($version, $lesson, 'Wings bài 1', 'external_link', 1, ['external_link_url_snapshot' => 'https://wings.example.test/u/1']);
+        $second = $this->activity($version, $lesson, 'Wings bài 2', 'external_link', 2, ['external_link_url_snapshot' => 'https://wings.example.test/u/2',
+            'unlock_rule_snapshot' => 'previous_activity_completed', 'unlock_after_version_activity_id' => $first]);
+        $broken = $this->activity($version, $lesson, 'Link hỏng', 'external_link', 3, ['external_link_url_snapshot' => 'http://wings.example.test/u/3', 'is_required' => 0]);
+        $enrollment = $this->enroll($this->student, $product, $version);
+
+        $html = $this->actingAs($this->student)->get($this->lessonUrl($enrollment, $lesson))->assertOk()
+            ->assertSeeText(__('lf.LF_my_learning_activity_open_link'))->getContent();
+        // ADR-0035 §2: a new tab without opener or referrer; the click records the opening.
+        $this->assertStringContainsString('href="https://wings.example.test/u/1" target="_blank" rel="noopener noreferrer"', $html);
+        $this->assertStringContainsString('x-on:click="openLink()" data-learn-open-link', $html);
+        // A locked Activity's link, and an invalid one, never reach the page.
+        $this->assertStringNotContainsString('wings.example.test/u/2', $html);
+        $this->assertStringNotContainsString('wings.example.test/u/3', $html);
+        $this->assertSame(1, substr_count($html, 'data-learn-open-link'));
+
+        $this->actingAs($this->student)->postJson($this->progressUrl($enrollment, $first), ['event' => 'opened'])
+            ->assertOk()->assertJsonPath('progress.status', 'completed');
+        $this->assertSame('viewed', $this->activityRow($enrollment, $first)->completion_rule);
+        $this->assertStringContainsString('href="https://wings.example.test/u/2"',
+            $this->actingAs($this->student)->get($this->lessonUrl($enrollment, $lesson))->assertOk()->getContent());
+        $this->assertNull($this->activityRow($enrollment, $broken));
+    }
+
     public function test_completing_activities_unlocks_the_next_activity_and_lesson(): void
     {
         [$product, $version] = $this->course($this->customer, 'Sơ cấp tự học', 'self_paced');
@@ -405,6 +465,117 @@ class LearnerMyLearningTest extends TestCase
         $lesson = $this->actingAs($this->student)->get($this->lessonUrl($enrollment, $first))->assertOk()->getContent();
         $this->assertSame([$two, $one], $this->ids($lesson, 'data-learn-activity'));
         $this->actingAs($this->student)->postJson($this->progressUrl($enrollment, $one), ['event' => 'opened'])->assertOk();
+    }
+
+    public function test_a_class_lesson_page_shows_when_each_scheduled_activity_opens(): void
+    {
+        // ADR-0022 Amendment 1.3, Đợt 2: content not open yet says when it opens, or that the Lesson has no Session.
+        [$product, $version] = $this->course($this->customer, 'Sơ cấp 2A', 'blended');
+        $first = $this->lesson($version, 'Bài A', 1);
+        $second = $this->lesson($version, 'Bài B', 2);
+        $phase = fn (string $phase): array => ['available_anytime' => false, 'available_'.$phase.'_session' => true];
+        $live = $this->activity($version, $first, 'Lên lớp', 'live_class', 1, $phase('during') + ['completion_rule' => 'join']);
+        $before = $this->activity($version, $first, 'Đọc trước', 'document', 2, $phase('before'));
+        $after = $this->activity($version, $first, 'Bài tập về nhà', 'document', 3, $phase('after'));
+        $unscheduled = $this->activity($version, $second, 'Đọc bài B', 'document', 1, $phase('before'));
+        $cohort = $this->cohort($product, $version, 'Lớp 2A', 'active');
+        $enrollment = $this->enroll($this->student, $product, $version);
+        $this->seat($cohort, $enrollment, $this->student, $product);
+        $day = now('Asia/Ho_Chi_Minh')->addDays(2)->toDateString();
+        DB::table('core_liveclass_sessions')->insert([
+            'customer_id' => $this->customer, 'cohort_id' => $cohort, 'template_version_id' => $version,
+            'session_type' => 'curriculum', 'version_lesson_id' => $first, 'version_activity_id' => $live,
+            'session_no' => 1, 'title' => 'Buổi 1', 'delivery_mode' => 'offline',
+            'scheduled_start_at' => $day.' 19:30:00', 'scheduled_end_at' => $day.' 21:00:00', 'timezone' => 'Asia/Ho_Chi_Minh',
+            'status' => 'scheduled', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $date = Carbon::parse($day)->format('d/m');
+
+        $page = $this->actingAs($this->student)->get($this->lessonUrl($enrollment, $first))->assertOk();
+        $page->assertSee(__('lf.LF_my_learning_activity_lock_opens_at', ['time' => '00:00', 'date' => $date]));
+        $page->assertSee(__('lf.LF_my_learning_activity_lock_opens_at', ['time' => '21:00', 'date' => $date]));
+        $this->actingAs($this->student)->postJson($this->progressUrl($enrollment, $before), ['event' => 'opened'])->assertForbidden();
+        $this->actingAs($this->student)->postJson($this->progressUrl($enrollment, $after), ['event' => 'opened'])->assertForbidden();
+
+        $this->actingAs($this->student)->get($this->lessonUrl($enrollment, $second))->assertOk()
+            ->assertSee(__('lf.LF_my_learning_activity_lock_unscheduled'));
+        $this->actingAs($this->student)->postJson($this->progressUrl($enrollment, $unscheduled), ['event' => 'opened'])->assertForbidden();
+
+        Carbon::setTestNow(Carbon::parse($day.' 00:00:00', 'Asia/Ho_Chi_Minh'));
+        $this->actingAs($this->student)->postJson($this->progressUrl($enrollment, $before), ['event' => 'opened'])->assertOk();
+        Carbon::setTestNow();
+    }
+
+    public function test_the_class_page_lists_a_self_study_session_without_a_delivery_mode(): void
+    {
+        // ADR-0022 Amendment 1.3, Đợt 4, Bước 2: a self-study lesson has a date on the class schedule.
+        [$product, $version] = $this->course($this->customer, 'Sơ cấp 3A', 'blended');
+        $lesson = $this->lesson($version, 'Ôn tập', 1, ['lesson_type' => 'self_study']);
+        $cohort = $this->cohort($product, $version, 'Lớp 3A', 'active');
+        $enrollment = $this->enroll($this->student, $product, $version);
+        $this->seat($cohort, $enrollment, $this->student, $product);
+        $session = DB::table('core_liveclass_sessions')->insertGetId([
+            'customer_id' => $this->customer, 'cohort_id' => $cohort, 'template_version_id' => $version,
+            'session_type' => 'self_study', 'version_lesson_id' => $lesson, 'version_activity_id' => null,
+            'session_no' => 1, 'title' => 'Ôn tập', 'delivery_mode' => null,
+            'scheduled_start_at' => '2026-07-20 19:00:00', 'scheduled_end_at' => '2026-07-20 21:00:00', 'timezone' => 'Asia/Ho_Chi_Minh',
+            'status' => 'scheduled', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->actingAs($this->student)->get(self::HOST.'/my-courses/classes/'.$cohort)->assertOk()
+            ->assertSee('data-learn-session="'.$session.'"', false)
+            ->assertSeeText(__('lf.LF_course_cohort_session_type_self_study'))
+            ->assertSee('data-learn-session-shown="scheduled"', false);
+        // It has no "Bắt đầu" and stays scheduled; inside its planned time the learner sees it as running.
+        Carbon::setTestNow(Carbon::parse('2026-07-20 20:00:00', 'Asia/Ho_Chi_Minh'));
+        $this->actingAs($this->student)->get(self::HOST.'/my-courses/classes/'.$cohort)->assertOk()
+            ->assertSee('data-learn-session-status="scheduled" data-learn-session-shown="live"', false)
+            ->assertSeeText(__('lf.LF_my_learning_session_status_live'));
+        Carbon::setTestNow('2026-07-10 09:00:00');
+        $this->actingAs($this->student)->get(self::HOST.'/my-courses')->assertOk();
+        $this->actingAs($this->student)->get(self::HOST.'/my-courses/'.$enrollment)->assertOk();
+    }
+
+    public function test_a_class_that_has_ended_is_review_only(): void
+    {
+        // ADR-0022 Amendment 1.4 (MK 3.6): the content still opens, nothing adds progress.
+        [$product, $version] = $this->course($this->customer, 'Sơ cấp 4A', 'blended');
+        $lesson = $this->lesson($version, 'Ôn tập', 1, ['lesson_type' => 'self_study']);
+        $done = $this->activity($version, $lesson, 'Đã đọc', 'document', 1);
+        $later = $this->activity($version, $lesson, 'Chưa đọc', 'document', 2);
+        $cohort = $this->cohort($product, $version, 'Lớp 4A', 'active');
+        $enrollment = $this->enroll($this->student, $product, $version);
+        $this->seat($cohort, $enrollment, $this->student, $product);
+        DB::table('core_liveclass_sessions')->insert([
+            'customer_id' => $this->customer, 'cohort_id' => $cohort, 'template_version_id' => $version,
+            'session_type' => 'self_study', 'version_lesson_id' => $lesson, 'version_activity_id' => null,
+            'session_no' => 1, 'title' => 'Ôn tập', 'delivery_mode' => null,
+            'scheduled_start_at' => '2026-07-01 19:00:00', 'scheduled_end_at' => '2026-07-01 21:00:00', 'timezone' => 'Asia/Ho_Chi_Minh',
+            'status' => 'completed', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $status = fn (int $activity): ?string => DB::table('core_course_activity_progress')->where('enrollment_id', $enrollment)
+            ->where('version_activity_id', $activity)->value('status');
+
+        // While the class runs, opening a document completes it.
+        $this->actingAs($this->student)->postJson($this->progressUrl($enrollment, $done), ['event' => 'opened'])->assertOk();
+        $this->assertSame('completed', $status($done));
+        $before = (float) DB::table('core_course_progress')->where('enrollment_id', $enrollment)->value('progress_percentage');
+
+        DB::table('core_course_cohorts')->where('id', $cohort)->update(['status' => 'completed']);
+        foreach ([self::HOST.'/my-courses/'.$enrollment, $this->lessonUrl($enrollment, $lesson), self::HOST.'/my-courses/classes/'.$cohort] as $page) {
+            $this->actingAs($this->student)->get($page)->assertOk()
+                ->assertSee('data-learn-review-only', false)->assertSeeText(__('lf.LF_my_learning_review_only'));
+        }
+        // The content is still served, and opening it records nothing.
+        $this->actingAs($this->student)->postJson($this->progressUrl($enrollment, $later), ['event' => 'opened'])->assertOk()
+            ->assertJsonPath('progress.status', 'not_started');
+        $this->assertSame('not_started', $status($later));
+        $this->assertSame($before, (float) DB::table('core_course_progress')->where('enrollment_id', $enrollment)->value('progress_percentage'));
+        $this->assertSame('completed', $status($done));
+
+        // A class still running shows no such notice.
+        DB::table('core_course_cohorts')->where('id', $cohort)->update(['status' => 'active']);
+        $this->actingAs($this->student)->get($this->lessonUrl($enrollment, $lesson))->assertOk()->assertDontSee('data-learn-review-only', false);
     }
 
     // ---- fixtures ----

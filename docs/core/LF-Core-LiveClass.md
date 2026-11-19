@@ -1,12 +1,12 @@
 # LF-Core-LiveClass.md
 
-Version: 2.27
+Version: 2.38
 
 Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-11-18
+Last Updated: 2026-11-19
 
 Document Path: core/LF-Core-LiveClass.md
 
@@ -164,6 +164,12 @@ thông tin, lịch học, buổi học, thứ tự nội dung, kích hoạt, k�
 lớp nháp chưa có học viên trong cùng phạm vi. Người tạo lớp tự thành giáo viên chính, nên
 tạo lớp bắt buộc có ngày bắt đầu và kết thúc. Ghi danh, phân công giáo viên của lớp, bộ quy
 tắc điểm danh và lưu trữ vẫn chỉ quản trị làm. Mọi thao tác này kiểm tra phạm vi ở máy chủ.
+
+2026-11-19 (Owner duyệt và triển khai; chi tiết ở
+[ADR-0022](../adr/ADR-0022-Course-Type-On-Template.md) Amendment 1.4, mục "Lớp tự kết thúc
+theo ngày"): lớp `active` tự kết thúc sau 23:59 ngày kết thúc (lệnh
+`course:complete-ended-cohorts`); kết thúc sớm chỉ quản trị bấm, giáo viên chính không còn
+nút "Kết thúc lớp" nhưng vẫn sửa được ngày kết thúc (lớp đang chạy: không trước hôm nay).
 
 Khoảng lịch của Session phải nằm hoàn toàn trong thời gian vận hành Cohort.
 Ngày bắt đầu tối thiểu là ngày lớn hơn giữa `cohort.start_date` và ngày hiện
@@ -471,13 +477,46 @@ ghi rõ “Các Buổi học thực tế chưa được tạo”. Client-side pr
 * Tạo/sửa Schedule không activate Cohort và không tạo runtime data.
 * Persisted Schedule status không tồn tại; presentation suy ra `upcoming`,
   `current` hoặc `ended` từ ngày hiện tại trong timezone của Schedule.
-* Schedule deletion chưa được approved; implementation không được hard-delete
-  hoặc tự thêm soft delete/status để giả lập lifecycle.
+* Xóa Schedule theo [ADR-0002 § Schedule Deletion Amendment](../adr/ADR-0002-LiveClass-Foundation.md#schedule-deletion-amendment--2026-11-19)
+  (Owner duyệt 2026-11-19, đã triển khai): chỉ khi mọi
+  Session của nó chưa diễn ra, chưa hủy, chưa dời giờ và chưa có dữ liệu; Session,
+  Origin và phân công giáo viên đi theo. Không thêm soft delete hoặc status để giả lập
+  lifecycle.
 
 Automatic generation, synchronization, shared holiday calendars and
 Schedule-driven bulk rescheduling remain deferred. Explicit confirmed creation
 from selected occurrences is governed by the immutable Origin policy below.
 Schedule mutation has no side effect on any Session or Origin.
+
+## Lịch học trùng giờ và dời buổi đã có dữ liệu — 2026-11-19 (Owner duyệt, đã triển khai)
+
+Owner duyệt hai quy tắc ngày 2026-11-19. Không thêm cột, không thêm bảng.
+
+**Hai Schedule của cùng Cohort không được trùng giờ.** Trước đây hai Schedule
+được phép giao nhau, và bước tạo buổi tự động bỏ qua ngày giao nhau mà không báo,
+nên lớp có thể thiếu buổi. Nay lưu Schedule (tạo hoặc sửa) bị từ chối, không lưu
+gì, khi một occurrence của nó (sau khi bỏ ngày Exclusion) giao với một occurrence
+của Schedule khác cùng Cohort. Hai khoảng chỉ chạm mốc (giờ kết thúc bằng giờ bắt
+đầu) không tính là trùng. Thông báo nêu ngày, khung giờ đầu tiên bị trùng và tên
+Schedule kia. Kiểm tra chạy trong cùng transaction lưu, sau khi lock Cohort. Quy
+tắc cũ vẫn giữ: các Slot trong một Schedule không chồng nhau, và Session đang hiệu
+lực trong Cohort không chồng nhau. Schedule cũ đã trùng nhau thì vẫn đọc được; lần
+sửa tiếp theo của một trong hai phải gỡ chỗ trùng trước.
+
+**Session đã có dữ liệu không được dời giờ.** Ngoài các điều kiện dời giờ hiện
+có (`scheduled`, chưa bắt đầu, giờ bắt đầu dự kiến chưa tới), Session còn phải
+không có Attendance hoặc Recording, giống điều kiện sửa Session. Điều này chặn
+trường hợp học viên điểm danh sớm (trong cửa sổ mở trước giờ học) rồi buổi bị dời.
+Áp dụng cho form dời buổi trên tab Buổi học và cho mọi đường dời giờ khác dùng cùng
+policy; kéo thả thứ tự hoạt động đã khóa vị trí khi có dữ liệu nên không đổi.
+
+Triển khai: `LiveClassScheduleService` kiểm trùng giờ khi tạo và sửa (thông báo
+`LF_course_cohort_schedule_overlaps_other`, lỗi ở trường `slots`);
+`LiveClassSessionPolicy::canReschedule` nhận thêm cờ có dữ liệu, form dời buổi trả
+422 với `LF_course_cohort_session_reschedule_has_evidence` và nút dời ẩn trên tab
+Buổi học. Test: `CourseCohortManagementTest`.
+
+Xóa Schedule: xem § Schedule Lifecycle.
 
 ## Schedule Occurrence To Session Origin
 
@@ -625,8 +664,13 @@ chọn và tên hiển thị.
 
 ### Buổi tự học và link mặc định của lớp — Đề xuất 2026-11-09
 
-Trạng thái: Đợt B **Approved** (Owner duyệt 2026-11-09, đã có code); Đợt C
-**Proposed**, chờ Owner duyệt, chưa có migration, chưa có code.
+Trạng thái: Đợt B **Approved** (Owner duyệt 2026-11-09, đã có code); Đợt C: Owner duyệt
+nghiệp vụ ngày 2026-11-18 trong
+[ADR-0022 Amendment 1.3, Đợt 4](../adr/ADR-0022-Course-Type-On-Template.md#đợt-4--buổi-thực-hành-và-buổi-tự-học-có-lịch)
+(Bước 2 và 3), bản đó thay các điểm khác dưới đây: buổi tự học là bài có loại `self_study`
+(không suy từ việc thiếu `live_class`) và **có** điểm danh. Bước 2 (buổi tự học có ngày trên
+lịch) và Bước 3 (mở nội dung và điểm danh) đã triển khai 2026-11-18; xem mục Buổi tự học có
+lịch.
 
 **Đợt B — Link phòng họp mặc định của lớp.**
 
@@ -661,6 +705,53 @@ binding) và ADR-0023 (ngày theo vị trí) trước.
   không có nút.
 * Ngoài phạm vi: trang tự học của học viên có dấu hoàn thành (Đợt D, cần trang học và ghi
   tiến độ, chưa có trong LF).
+
+### Buổi thực hành, ngoại khóa — 2026-11-18 (Approved, đã triển khai)
+
+[ADR-0022 Amendment 1.3, Đợt 4, Bước 1](../adr/ADR-0022-Course-Type-On-Template.md#đợt-4--buổi-thực-hành-và-buổi-tự-học-có-lịch). Buổi của lớp gắn với bài có loại
+`practice`:
+
+* Tổ chức tại phòng học hoặc một địa điểm: `delivery_mode = offline`, không link phòng họp,
+  `attendance_tool = button`. Server đặt các giá trị này ở mọi nơi ghi buổi (form quản trị,
+  Lưu lịch, kéo thả), kể cả khi request gửi khác.
+* Form buổi chỉ có ô bắt buộc "Phòng học hoặc địa điểm", địa chỉ, ngày giờ và giáo viên.
+  Buổi tạo tự động để trống địa điểm cho đến khi người xếp lịch nhập.
+* Không có bảng điện tử cho bất kỳ ai: không có lối mở, và địa chỉ bảng của buổi trả 404.
+  Giáo viên bắt đầu và kết thúc buổi như buổi thường.
+* Học viên điểm danh bằng nút Điểm danh, theo các mốc của bộ quy tắc; bộ quy tắc đặt "giáo
+  viên ghi tay" cho buổi tại lớp thì giáo viên ghi tay.
+
+### Buổi tự học có lịch — 2026-11-18 (Approved, đã triển khai)
+
+[ADR-0022 Amendment 1.3, Đợt 4, Bước 2](../adr/ADR-0022-Course-Type-On-Template.md#đợt-4--buổi-thực-hành-và-buổi-tự-học-có-lịch) và
+[ADR-0023 mục 10](../adr/ADR-0023-Cohort-Content-Order.md). Thay quy tắc "chỉ Activity
+`live_class` được xếp lịch" của mục Curriculum Session cho bài có loại `self_study`.
+
+* `session_type = self_study`: gắn `version_lesson_id` của một bài `self_study`,
+  `version_activity_id = NULL`. Không có `delivery_mode`, link, phòng, địa chỉ, công cụ điểm
+  danh; không có bảng điện tử; không bắt buộc giáo viên.
+* Có `scheduled_start_at` và `scheduled_end_at` như buổi thường. Lịch học xếp ngày cho mọi
+  vị trí theo thứ tự chương trình: mỗi Activity `live_class` và mỗi bài tự học. Lịch không đủ
+  ngày thì không lưu được.
+* Kéo thả và hủy buổi áp dụng cho bài tự học như mọi vị trí; dòng Session ở một vị trí nhận
+  loại buổi của nội dung mới.
+* Trạng thái: `scheduled → completed` khi hết giờ kết thúc theo lịch (lệnh
+  `liveclass:complete-overdue`), hoặc `scheduled → cancelled`. Không có `live` và `no_show`.
+* Quản trị và giáo viên chính của lớp đổi lịch hoặc hủy buổi ở dòng bài trong tab Buổi học;
+  không có form sửa chung. Ngày chưa lưu của bài tự học được lưu ở lần Lưu Lịch học kế tiếp.
+* **Mở nội dung** (Bước 3): mọi Activity của bài tự học mở lúc buổi bắt đầu theo lịch; bài chưa
+  có buổi thì khóa, "Chưa có lịch". Buổi tự học được tính là "buổi liền trước" của bài kế tiếp.
+* **Điểm danh** (Bước 3), chỉ cho kết quả do hệ thống ghi:
+  - Bài có Activity được tick "Tính vào điểm danh": xong mọi Activity đó trước giờ kết thúc
+    thì ghi `present`, `attendance_source = system`, `joined_at` là lúc xong Activity cuối.
+    Xong sau giờ kết thúc, trong hạn học bù của bộ quy tắc và khi lớp còn `active`, thì ghi
+    `present` với `attendance_source = makeup`.
+  - Bài không tick Activity nào: học viên bấm nút Điểm danh trong giờ của buổi thì ghi
+    `present`; không có học bù.
+  - Không có `late`. `attendance_mode` và `version_activity_id` để trống.
+  - Tự ghi vắng sau thời gian chờ của bộ quy tắc, không cần giáo viên và không phụ thuộc thiết
+    lập "giáo viên ghi tay".
+  - Quản trị và giáo viên của lớp ghi tay được; kết quả ghi tay là kết quả sau cùng.
 
 ### Curriculum Session
 
@@ -821,7 +912,8 @@ recurring Schedule persistence:
   the Session has not started, remains in a pre-runtime state and has no
   Attendance, Recording, Replay, Progress evidence or other operational child;
 * schedule changes use the dedicated reschedule workflow and append audit
-  history rather than silently replacing history;
+  history rather than silently replacing history; a Session with Attendance or
+  Recording cannot be rescheduled (2026-11-19);
 * active Session time ranges in the same Cohort must not overlap, regardless
   of whether a Session originates from a Schedule, is created off-schedule, or
   is rescheduled; boundary-touching ranges are allowed, while cancelled and
@@ -836,6 +928,12 @@ recurring Schedule persistence:
   (no time changes); the cancelled Session stays on its Activity with
   `superseded_by_session_id` set to the Session now carrying that lesson. In the Sessions tab
   it shows under "Buổi đã hủy", and the lesson date carries a "Buổi bù" badge.
+* 2026-11-19 (Owner duyệt và triển khai; chi tiết ở
+  [ADR-0022](../adr/ADR-0022-Course-Type-On-Template.md) Amendment 1.4, mục "Dọn buổi khi hoàn
+  thành lớp"): khi lớp chuyển sang `completed`, buổi chưa tới giờ bắt đầu thành `cancelled`
+  (không dời lịch), buổi đang `live` và buổi tự học đang trong giờ thành `completed` tại thời
+  điểm đó (đã qua giờ kết thúc thì ở giờ kết thúc theo lịch), buổi đã tới giờ mà chưa được bắt
+  đầu giữ nguyên (`LiveClassSessionLifecycleService::settleForCohortCompletion()`).
 
 ---
 
@@ -951,7 +1049,8 @@ Tự ghi vắng chỉ xét các buổi kết thúc trong 7 ngày gần nhất v�
 bỏ qua khi bộ quy tắc đặt ghi tay cho cả buổi tại lớp lẫn buổi trực tuyến.
 
 Owner muốn quy tắc điểm danh theo sát tài liệu nguồn (MK Live). Khác biệt còn lại: LF
-không có Klass, quy tắc "một thiết bị một học viên" được hoãn, và mã QR đổi mỗi 30 giây.
+không có Klass và mã QR đổi mỗi 30 giây. Quy tắc "một thiết bị một học viên" đã có từ
+2026-11-18 (mục "Một thiết bị một học viên" bên dưới).
 Nội dung vẫn nằm ở Template; lớp chỉ đọc.
 
 **Bộ quy tắc điểm danh** (`core_liveclass_attendance_policies`)
@@ -973,10 +1072,8 @@ Nội dung vẫn nằm ở Template; lớp chỉ đọc.
 * Mã QR lấy mốc mở sớm và mốc muộn từ bộ của lớp. Sau mốc vắng, mã ẩn và lần quét bị từ
   chối; giáo viên ghi tay. Bộ đặt "giáo viên ghi tay" cho buổi tại lớp thì bảng không
   hiện mã. Mã vẫn đổi mỗi 30 giây.
-* Thiết lập học bù được lưu nhưng chưa có hiệu lực cho tới khi nghiệp vụ học bù được
-  duyệt. Từ 2026-11-18 form không hiện chúng nữa; giá trị đang có đi theo input ẩn nên
-  sửa bộ không làm mất (Owner quyết 2026-11-18, thay quyết định hiện kèm ghi chú
-  "chưa áp dụng" ngày 2026-11-17).
+* Thiết lập học bù có hiệu lực từ 2026-11-18 (mục Điểm danh theo nội dung và học bù); form
+  hiện lại hai ô "Cho học bù" và "Hạn học bù".
 * Danh sách bộ quy tắc gắn nhãn "Bộ mặc định" cho bộ mặc định thay vì chỉ ẩn nút xoá.
 * Tab Điểm danh của lớp mở ở buổi gần nhất đã đến giờ bắt đầu (chưa có buổi nào thì buổi
   đầu tiên). Với giáo viên, tab này chỉ xem và có nút "Điểm danh" dẫn sang trang ghi tay của
@@ -1022,6 +1119,8 @@ quy tắc dựa vào loại buổi mà trung tâm đã đặt (Owner quyết 202
   hoặc `button`. Chọn ở form buổi học của lớp.
 * Với `button`, học viên tự bấm "Điểm danh" trên trang lớp; giáo viên không cần mở gì và
   bảng không hiện mã QR.
+* Đã có kết quả (kể cả đang chờ nội dung) thì nút Điểm danh ẩn đi, chỉ còn dòng kết quả
+  (Owner 2026-11-19).
 * Quy tắc giống "Vào phòng họp": cùng khoảng thời gian, cùng điều kiện về học viên, chỉ
   tính lần đầu, không cần giáo viên bấm "Bắt đầu", bấm sau mốc vắng vẫn được nhưng ghi
   `absent` kèm giờ vào và có dòng báo trước. Khác ở chỗ ghi `attendance_mode = offline`
@@ -1029,7 +1128,31 @@ quy tắc dựa vào loại buổi mà trung tâm đã đặt (Owner quyết 202
 * Buổi `hybrid`: công cụ áp dụng cho người ở lớp; người ở xa bấm "Vào phòng họp".
 * Bộ quy tắc đặt "giáo viên ghi tay" cho buổi tại lớp thì không có mã QR và không có nút.
 * Hệ thống không biết học viên có thật sự ở trong phòng học hay không. Quy tắc "một
-  thiết bị một học viên" để hạn chế việc này đang được hoãn.
+  thiết bị một học viên" bên dưới hạn chế việc này.
+
+**Một thiết bị một học viên** (Owner duyệt 2026-11-18, theo "Nghiệp vụ luồng học tập lớp MK"
+mục 2.4; thay câu "được hoãn" của ADR-0002 § Attendance Policy And Recording Amendment)
+
+* Trong một buổi, một thiết bị chỉ điểm danh cho một học viên. Áp dụng cho quét mã QR và
+  nút Điểm danh của buổi tại lớp. Không áp dụng cho "Vào phòng họp" và buổi tự học (học ở
+  nhà, một gia đình có thể dùng chung máy).
+* Thiết bị đã điểm danh cho học viên A mà học viên B dùng để điểm danh cùng buổi: hệ thống
+  từ chối, không ghi gì, và báo "Thiết bị này đã điểm danh cho học viên khác trong buổi học
+  này. Hãy báo giáo viên để được ghi nhận." Giáo viên ghi tay nếu B có mặt.
+* Thiết bị chỉ bị gắn với học viên khi lần điểm danh đó được ghi (`recorded` hoặc
+  `mode_changed`). Chính học viên đó điểm danh lại, hoặc thiết bị đó dùng ở buổi khác, không
+  bị từ chối.
+* Nhận ra thiết bị bằng mã ngẫu nhiên trong cookie `lf_attendance_device` của trình duyệt
+  (một năm). Thông tin "thiết bị nào đã điểm danh cho ai" chỉ nằm trong cache, tự mất sau
+  48 giờ; không có cột hay bảng. Đây là rào cản, không phải bằng chứng: trình duyệt khác,
+  chế độ ẩn danh hoặc xóa cookie là một thiết bị mới.
+* Code: `LiveClassAttendanceDevice::guard()`.
+
+**Tên học viên vừa quét trên bảng** (Owner duyệt 2026-11-18, MK 2.4)
+
+* Dưới mã QR, bảng của người trình chiếu hiện 5 lần điểm danh tại lớp mới nhất do hệ thống
+  ghi: tên, giờ vào, kết quả (Có mặt, Muộn hoặc "Chờ nội dung"). Bảng hỏi lại 5 giây một lần.
+* Chỉ người được trình chiếu (giáo viên của buổi, quản trị) nhận dữ liệu này.
 
 **Điểm danh tay**
 
@@ -1038,6 +1161,11 @@ quy tắc dựa vào loại buổi mà trung tâm đã đặt (Owner quyết 202
 * Ghi `present`, `late`, `absent`, `excused` kèm ghi chú. `excused` chỉ ghi bằng tay.
 * Giáo viên ghi và sửa từ giờ bắt đầu buổi đến hết hạn sửa của bộ quy tắc. Quản trị
   không giới hạn.
+* Lớp `completed` (Owner duyệt và triển khai 2026-11-19; chi tiết ở ADR-0022 Amendment 1.4,
+  mục Bổ sung 2026-11-19): quản trị vẫn sửa không giới hạn, giáo viên vẫn sửa đến hết hạn sửa;
+  lớp `archived` chỉ xem. Màn hình điểm danh của lớp `completed` nhắc lối vào lớp, mã QR, nút
+  Điểm danh và học bù đã đóng. Kết quả sửa tính lại hoàn thành của Buổi học trực tiếp và tiến
+  độ.
 * Kết quả ghi tay là kết quả sau cùng.
 * Màn hình hiện tên bộ quy tắc, các mốc chính, giờ vào, hình thức và nguồn. Học viên
   chưa có kết quả và chưa hết thời gian chờ hiện "Chưa điểm danh".
@@ -1089,6 +1217,46 @@ Thẻ buổi học trên trang học viên hiện từ mốc mở sớm, không 
 "Chưa điểm danh", `present` "Có mặt", `late` "Muộn", `absent` "Vắng", `excused` "Có phép".
 Trước đó giao diện dùng "Dự kiến", "Đi muộn", "Vắng có phép". Giá trị lưu trong database
 không đổi.
+
+## Điểm danh theo nội dung và học bù — 2026-11-18 (Approved, đã triển khai)
+
+Nghiệp vụ và lý do: [ADR-0022 Amendment 1.3, Đợt 3](../adr/ADR-0022-Course-Type-On-Template.md#đợt-3--tính-vào-điểm-danh-và-học-bù).
+Quy tắc chỉ áp dụng cho kết quả do hệ thống ghi; kết quả ghi tay là kết quả sau cùng.
+
+* Activity được tick "Tính vào điểm danh" thuộc phần Trong hoặc Sau của buổi có người phụ
+  trách. Buổi không có Activity nào được tick thì điểm danh như trước.
+* **Phần Trong.** Lần vào lớp chỉ cho ra Có mặt hoặc Muộn khi học viên đã xong mọi Activity
+  được tick trước giờ kết thúc trên lịch. Chưa xong thì hệ thống giữ giờ vào và hình thức,
+  kết quả chờ (`registered` có `joined_at`); xong trong giờ thì kết quả tính theo giờ vào đã
+  giữ. Vào sau mốc vắng vẫn ghi Vắng ngay.
+* **Học bù.** Sau giờ kết thúc trên lịch, học viên xong mọi Activity phần Sau được tick thì
+  được ghi `present` với `attendance_source = makeup`, khi bộ quy tắc bật học bù, lớp đang
+  `active` và nội dung được làm xong trong hạn (hết 23:59 ngày thứ N sau buổi; không giới
+  hạn là đến khi lớp kết thúc). Áp dụng cho học viên chưa có kết quả, kết quả đang chờ và
+  Vắng do hệ thống ghi. Không đè kết quả ghi tay, Có phép, Có mặt hoặc Muộn. Buổi kết thúc
+  trước ngày học viên vào lớp không có học bù. Mỗi lần học bù ghi một dòng lịch sử do hệ thống.
+* **Thời điểm làm xong.** Quiz tính từ giờ nộp (tiêu chí `pass`: lần nộp có điểm đạt, chấm muộn
+  vẫn tính); Activity khác tính từ thời điểm hoàn thành.
+* Tự ghi vắng áp dụng cả cho kết quả đang chờ và giữ giờ vào. Khi giáo viên bắt đầu muộn và
+  kết quả trực tuyến được tính lại, kết quả hết Vắng nhưng chưa xong nội dung trở về chờ.
+* `live_class` hoàn thành theo kết quả sau cùng, kể cả Có mặt do học bù.
+* Hiển thị: học viên thấy "Chờ ghi nhận điểm danh" và "Có mặt · Học bù"; bảng điểm danh hiện
+  "Vào lớp lúc HH:mm, chờ hoàn thành nội dung" và nhãn "Học bù".
+
+**Trang của học viên** (Owner duyệt 2026-11-18, theo "Nghiệp vụ luồng học tập lớp MK" mục 3.1)
+
+* Khối "Buổi học sắp bắt đầu / đang diễn ra" tự làm mới mỗi phút khi tab đang mở, không tải
+  lại trang, ở bốn trang: Khóa học của tôi, Kết quả học tập, trang bài học, trang lớp. Khối
+  chỉ đổi khi dữ liệu đổi. Nguồn: `GET /my-courses/live-sessions/now` (`?cohort=` để lọc một
+  lớp), trả về đúng phần HTML của khối.
+* Trang lớp: dưới kết quả điểm danh của buổi hiện giờ vào lớp và hình thức, ví dụ
+  "Vào lớp 19:28 · Trực tuyến". Ghi chú của giáo viên không hiện cho học viên.
+* "Chờ ghi nhận điểm danh" hiện cho buổi đã diễn ra (`live` hoặc `completed`), đã qua giờ kết
+  thúc theo lịch mà học viên chưa có kết quả, cho đến khi hệ thống ghi vắng hoặc giáo viên
+  ghi tay. Buổi không ai bắt đầu (vẫn `scheduled`) không hiện nhãn này. Buổi đã kết thúc quá
+  7 ngày (hết khoảng tự ghi vắng nhìn lại) cũng không hiện: học viên thấy "Chưa điểm danh".
+* Buổi tự học không có nút "Bắt đầu" nên giữ `scheduled` đến khi kết thúc. Trong giờ của buổi,
+  trang lớp của học viên hiện "Đang diễn ra", khớp với khối buổi học phía trên (2026-11-19).
 
 ---
 
@@ -1219,12 +1387,14 @@ hiện trên bảng là việc của Attendance (§ Attendance, Điểm danh b�
 
 | Session | Ngăn tài liệu |
 | --- | --- |
-| `curriculum` | Media `ready` của các Version Activity trong Version Lesson của Session có `available_during_session = 1`, theo thứ tự của lớp (`CourseCohortContentOrder`); chỉ đọc |
+| `curriculum` | Media `ready` của mọi Version Activity học liệu trong Version Lesson của Session, không phân biệt phần Trước / Trong / Sau (ADR-0022 Amendment 1.3), theo thứ tự của lớp (`CourseCohortContentOrder`); chỉ đọc |
 | `operational` | Trống |
 
-* Cờ `available_during_session` là điều kiện hiển thị trong giờ học. Luật mở khoá
-  bài của học viên (`VersionActivityAccessService`) không áp dụng cho phần giáo viên
-  chiếu; việc xem trên bảng không phải là truy cập Activity và không tính Progress.
+* Từ 2026-11-18, ADR-0022 Amendment 1.3 thay điều kiện "cờ `available_during_session`" của
+  ADR-0002 LiveClass Whiteboard Amendment (văn bản Frozen giữ nguyên): mỗi Activity chỉ thuộc
+  một phần, nên slide đặt ở "Trước buổi học" vẫn phải trình chiếu được. Luật mở khoá bài của
+  học viên (`VersionActivityAccessService`) không áp dụng cho phần giáo viên chiếu; việc xem
+  trên bảng không phải là truy cập Activity và không tính Progress.
 * Giáo viên có thể mở thêm một PDF từ máy mình. Tệp chỉ nằm trong trình duyệt, không
   tải lên, không gửi cho học viên; học viên chỉ thấy nét vẽ và một dòng báo tài liệu
   đang ở trên máy giáo viên.

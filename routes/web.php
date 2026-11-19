@@ -339,6 +339,9 @@ Route::middleware([
         ->name('student.courses.index');
     Route::get('/my-courses/{enrollment}', [LearnerMyLearningController::class, 'course'])
         ->whereNumber('enrollment')->name('student.courses.show');
+    // The sessions to act on now, as a fragment the learner pages refresh once a minute (MK 3.1).
+    Route::get('/my-courses/live-sessions/now', [LearnerMyLearningController::class, 'liveSessions'])
+        ->middleware('throttle:30,1,lf-learn-live.')->name('student.live-sessions.now');
     Route::get('/my-courses/classes/{cohort}', [LearnerMyLearningController::class, 'cohort'])
         ->whereNumber('cohort')->name('student.courses.classes.show');
     // "Quan tâm" of a Course Product (ADR-0030 D4).

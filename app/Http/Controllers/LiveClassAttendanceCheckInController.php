@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\LiveClassAttendanceCheckIn;
+use App\Services\LiveClassAttendanceDevice;
 use App\Services\LiveClassWhiteboardService;
 use App\Support\LiveClassBoardContext;
 use App\Support\LoginExperience;
@@ -39,6 +40,7 @@ final class LiveClassAttendanceCheckInController extends Controller
     public function __construct(
         private readonly LiveClassWhiteboardService $whiteboards,
         private readonly LiveClassAttendanceCheckIn $checkIn,
+        private readonly LiveClassAttendanceDevice $devices,
     ) {}
 
     public function teacherCode(Request $request, int $session): JsonResponse
@@ -115,7 +117,9 @@ final class LiveClassAttendanceCheckInController extends Controller
             return redirect()->to($page)->with('lf_checkin_result', 'not_allowed');
         }
 
-        $outcome = $this->checkIn->record($context, CarbonImmutable::createFromTimestamp($pending['at']));
+        // One device records one learner in a Session (MK 2.4).
+        $outcome = $this->devices->guard($request, $customerId, $session, (int) $request->user()->id, true,
+            fn (): array => $this->checkIn->record($context, CarbonImmutable::createFromTimestamp($pending['at'])));
 
         return redirect()->to($page)->with('lf_checkin_result', $outcome['result'])->with('lf_checkin_recorded', [
             'title' => $context->sessionTitle,

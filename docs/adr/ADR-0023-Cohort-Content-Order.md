@@ -1,16 +1,16 @@
 # ADR-0023 — Cohort Content Order
 
-Version: 1.5
+Version: 1.6
 
 Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-11-09
+Last Updated: 2026-11-18
 
 Proposal Date: 2026-11-05
 
-Approval Date: 2026-11-05 (bản 1.3 ghi quyết định cả box đi theo bài và cách 1 của Owner; bản 1.4 ghi việc lưu Lịch học tự tạo Session; bản 1.5, Owner duyệt 2026-11-09, ghi việc hủy buổi thì dời các bài sau)
+Approval Date: 2026-11-05 (bản 1.3 ghi quyết định cả box đi theo bài và cách 1 của Owner; bản 1.4 ghi việc lưu Lịch học tự tạo Session; bản 1.5, Owner duyệt 2026-11-09, ghi việc hủy buổi thì dời các bài sau; bản 1.6, Owner duyệt 2026-11-18, ghi bài tự học cũng là một vị trí)
 
 Document Path: adr/ADR-0023-Cohort-Content-Order.md
 
@@ -208,6 +208,28 @@ trước bài trước. Từ bản 1.5:
 * Giáo viên trong box phải dạy được ở ngày mới; nếu không, cả lần hủy bị từ chối và thông báo
   nêu tên giáo viên và ngày.
 * Cùng transaction với việc hủy, cùng thứ tự khóa của mục 8. Không đổi schema.
+
+## 10. Bài tự học cũng là một vị trí (bản 1.6)
+
+Owner duyệt 2026-11-18
+([ADR-0022 Amendment 1.3, Đợt 4, Bước 2](ADR-0022-Course-Type-On-Template.md#đợt-4--buổi-thực-hành-và-buổi-tự-học-có-lịch)).
+Trước bản này chỉ Activity `live_class` có vị trí, nên bài tự học không có ngày trên lịch lớp.
+
+* Vị trí là danh sách phẳng theo thứ tự của lớp, gồm mỗi Activity `live_class` và mỗi bài
+  có loại `self_study` (một vị trí cho cả bài). Mục 3, 4 và 9 áp dụng cho cả hai loại vị trí.
+* Session ở vị trí của bài tự học có `session_type = self_study`: gắn `version_lesson_id`,
+  không gắn Activity, không có hình thức, link, phòng, địa chỉ, công cụ điểm danh và không
+  bắt buộc giáo viên. Box của nó chỉ có tên bài.
+* Khi kéo hoặc dời sau hủy, dòng Session ở một vị trí giữ giờ, Origin và số buổi, và nhận cả
+  loại buổi của nội dung mới (`curriculum` hoặc `self_study`) cùng box của nó.
+* Lưu Lịch học tạo Session cho mọi vị trí chưa có; lịch không đủ ngày cho mọi vị trí thì
+  không lưu được.
+* Buổi tự học đổi được ngày giờ (đổi lịch) và hủy được; không có form sửa chung, không bắt
+  đầu và không đánh dấu "không diễn ra" bằng tay. Hết giờ kết thúc theo lịch thì tự chuyển
+  `completed`.
+* Ngày chưa lưu của bài tự học, ít gặp (ví dụ sau một lần hủy không dời được), được lưu ở
+  lần Lưu Lịch học kế tiếp.
+* Kích hoạt lớp không đòi giáo viên cho buổi tự học.
 
 ---
 

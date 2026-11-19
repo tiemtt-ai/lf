@@ -2911,7 +2911,7 @@ class CourseMediaIntegrationTest extends TestCase
         string $slug,
         ?int $createdBy = null
     ): int {
-        return DB::table('core_course_templates')->insertGetId(['course_type' => 'blended',
+        return DB::table('core_course_templates')->insertGetId(['course_type' => 'self_paced',
             'customer_id' => $customerId,
             'category_id' => null,
             'title' => $title,
@@ -3101,7 +3101,7 @@ class CourseMediaIntegrationTest extends TestCase
             'short_description' => null,
             'description' => null,
             'publisher_name' => 'LearnForge',
-            'course_type' => 'blended',
+            'course_type' => 'self_paced',
             'intro_video_source' => null,
             'intro_image_file' => UploadedFile::fake()->image(
                 'template-cover.png',

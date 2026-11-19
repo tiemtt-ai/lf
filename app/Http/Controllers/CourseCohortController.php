@@ -6,6 +6,7 @@ use App\Http\Controllers\Concerns\AuthorizesCourseCohortAdmin;
 use App\Services\CourseCohortContentOrder;
 use App\Services\CourseCohortContentTree;
 use App\Services\CourseCohortLifecycleService;
+use App\Services\CourseCohortMembershipHistory;
 use App\Services\CourseCohortMutationPolicy;
 use App\Services\CourseCohortSessionWindow;
 use App\Services\CourseCohortVersionResolver;
@@ -295,7 +296,7 @@ class CourseCohortController extends Controller
             ->where('memberships.status', 'active')
             ->orderBy('students.name')
             ->get([
-                'enrollments.id', 'enrollments.status',
+                'enrollments.id', 'enrollments.status', 'enrollments.access_ends_at',
                 'students.name as student_name', 'students.email as student_email',
                 'students.status as student_status',
             ]);
@@ -339,6 +340,9 @@ class CourseCohortController extends Controller
 
         return [
             'students' => $students,
+            // ADR-0034: the history shown beside each join date.
+            'membershipHistory' => CourseCohortMembershipHistory::forMemberships($customerId,
+                collect($students->items())->pluck('membership_id')->map(fn ($id): int => (int) $id)->all()),
             'studentKeyword' => $studentKeyword,
             'selectedEnrollments' => $selectedEnrollments,
             'cancelledSeatCount' => $selectedEnrollments->where('status', 'cancelled')->count(),
@@ -388,7 +392,7 @@ class CourseCohortController extends Controller
             })
             ->orderBy('students.name')
             ->get([
-                'enrollments.id', 'enrollments.status',
+                'enrollments.id', 'enrollments.status', 'enrollments.access_ends_at',
                 'students.name as student_name', 'students.email as student_email',
                 'students.status as student_status',
             ]);
@@ -673,7 +677,7 @@ class CourseCohortController extends Controller
 
     public function complete(Request $request, int $id)
     {
-        $this->authorizeCohortManager($request, $id);
+        $this->authorizeAdmin($request);
         $this->lifecycleService->complete($this->customerId(), $id);
 
         return redirect()->route($this->cohortArea().'.show', $id)
@@ -837,6 +841,15 @@ class CourseCohortController extends Controller
                 ->exists();
             if ($hasPrimaryTeacher && (empty($input['start_date']) || empty($input['end_date']))) {
                 $validator->errors()->add('start_date', __('lf.LF_course_cohort_teacher_validation_primary_period_required'));
+            }
+
+            // A running class ends by itself after its end date: moving that date into the past would end it at
+            // once, so a changed end date starts today at the earliest (ADR-0022 Amendment 1.4, 2026-11-19).
+            $newEnd = $cohort->status === 'active' && ! $validator->errors()->has('end_date') && ! empty($input['end_date'])
+                ? Carbon::parse((string) $input['end_date'])->toDateString() : null;
+            if ($newEnd !== null && $newEnd !== substr((string) $cohort->end_date, 0, 10)
+                && $newEnd < now(config('app.timezone'))->toDateString()) {
+                $validator->errors()->add('end_date', __('lf.LF_course_cohort_validation_end_date_past'));
             }
 
             // UX-only pass, run before any lock. It gives the user field-level

@@ -43,10 +43,14 @@ class LiveClassSessionPolicy
             && $this->startsAt($session)->lte($now);
     }
 
-    /** A Session whose start has passed stays where it is. Owner decision 2026-11-05. */
-    public function canReschedule(object $session, CarbonInterface $now): bool
+    /**
+     * A Session whose start has passed stays where it is (Owner decision 2026-11-05), and so does one with
+     * Attendance or Recording, which an early check-in can leave before the start (Owner decision 2026-11-19).
+     */
+    public function canReschedule(object $session, bool $hasEvidence, CarbonInterface $now): bool
     {
-        return $session->status === 'scheduled'
+        return ! $hasEvidence
+            && $session->status === 'scheduled'
             && ! $session->actual_start_at
             && $this->startsAt($session)->gt($now);
     }

@@ -5,6 +5,7 @@
 @import './tenant/assessment.css';
 @import './tenant/my-learning.css';
 @import './tenant/student-site.css';
+@import './tenant/class-detail.css';
 @import './tenant/theme-default.css';
 
 @tailwind base;

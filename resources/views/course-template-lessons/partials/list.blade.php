@@ -188,12 +188,12 @@
                                     {{ __($sessionActivityCount > 0 ? 'lf.LF_course_template_activity_learning_mode_session' : 'lf.LF_course_template_activity_learning_mode_anytime') }}
                                 </span>
                             @endif
-                            {{-- In a class course a lesson without a live session is a self-study lesson. --}}
-                            @if (($template->course_type ?? null) !== \App\Support\CourseType::SELF_PACED
-                                && ! $lessonActivities->contains('activity_type', 'live_class'))
+                            {{-- A class session other than a regular one names its type (ADR-0022 Amendment 1.3). --}}
+                            @if (\App\Support\CourseType::isClassBased($template->course_type ?? null)
+                                && \App\Support\LessonType::normalize($lesson->lesson_type ?? null) !== \App\Support\LessonType::REGULAR)
                                 <span>
                                     <x-backend-icon name="book-open" class="ui-icon" />
-                                    {{ __('lf.LF_course_template_lesson_self_study') }}
+                                    {{ __(\App\Support\LessonType::labelKey($lesson->lesson_type)) }}
                                 </span>
                             @endif
                         </span>

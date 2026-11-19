@@ -2,6 +2,54 @@
 
 Document Path: database/liveclass/core_liveclass_sessions.md
 
+## Self-Study Session Amendment — 2026-11-18 (Approved)
+
+Owner duyệt schema ngày 2026-11-18. Migration:
+`2026_11_18_000200_add_self_study_sessions` (kiểm trên MariaDB 11.4). Nghiệp vụ:
+[ADR-0022 Amendment 1.3, Đợt 4, Bước 2](../../adr/ADR-0022-Course-Type-On-Template.md#đợt-4--buổi-thực-hành-và-buổi-tự-học-có-lịch).
+Không thêm cột, không thêm bảng.
+
+* `session_type` nhận thêm giá trị `self_study`: buổi tự học của một bài `self_study`.
+  `version_lesson_id` bắt buộc, `version_activity_id` phải `NULL` (bài tự học không có
+  Activity `live_class`).
+* `delivery_mode` thành nullable: bắt buộc với `curriculum` và `operational`, phải `NULL` với
+  `self_study`. Buổi tự học cũng không có link, phòng, địa chỉ và công cụ điểm danh.
+* Buổi tự học có `scheduled_start_at`, `scheduled_end_at`, `timezone`, `status`, `session_no`
+  và Origin của lịch như buổi thường; không bắt buộc có dòng trong
+  `core_liveclass_session_teachers`.
+* Dòng đang có không đổi: chưa lớp nào có bài `self_study` (loại này có từ 2026-11-18).
+
+```sql
+ALTER TABLE core_liveclass_sessions MODIFY delivery_mode VARCHAR(50) NULL;
+
+-- thay chk_lcs_type_binding
+CONSTRAINT chk_lcs_type_binding CHECK (
+    (session_type = 'curriculum' AND version_lesson_id IS NOT NULL AND version_activity_id IS NOT NULL)
+    OR (session_type = 'operational' AND version_lesson_id IS NULL AND version_activity_id IS NULL)
+    OR (session_type = 'self_study' AND version_lesson_id IS NOT NULL AND version_activity_id IS NULL)
+)
+
+CONSTRAINT chk_lcs_self_study_box CHECK (
+    (session_type = 'self_study' AND delivery_mode IS NULL AND online_provider IS NULL
+        AND meeting_url_snapshot IS NULL AND room_name_snapshot IS NULL
+        AND address_snapshot IS NULL AND attendance_tool IS NULL)
+    OR (session_type <> 'self_study' AND delivery_mode IS NOT NULL)
+)
+```
+
+Buổi tự học không bắt đầu và không đánh dấu "không diễn ra" bằng tay: `scheduled` chuyển
+thẳng sang `completed` khi hết giờ kết thúc theo lịch (`actual_end_at` = giờ kết thúc theo
+lịch, `actual_start_at` để trống), hoặc sang `cancelled`.
+
+Bước 3 (migration `2026_11_18_000300_allow_attendance_tick_on_self_study_activities`) nới ràng
+buộc `counts_for_attendance` ở hai bảng Activity để bài tự học (`available_anytime = 1`) tick
+được "Tính vào điểm danh":
+
+```sql
+-- thay chk_ccta_counts_for_attendance và chk_cctva_counts_for_attendance
+CHECK (counts_for_attendance = 0 OR (activity_type <> 'live_class' AND available_before_session = 0))
+```
+
 ## Attendance Tool Amendment — 2026-11-17 (Approved)
 
 [ADR-0002](../../adr/ADR-0002-LiveClass-Foundation.md) § Attendance Policy And Recording
@@ -252,7 +300,8 @@ When present it must be a same-tenant `live_class` Activity in the Session
 Lesson and Version. Only such a Session may produce Activity Completion
 Evidence.
 
-Allowed `delivery_mode`: `online`, `offline`, `hybrid`.
+Allowed `delivery_mode`: `online`, `offline`, `hybrid`; `NULL` cho buổi `self_study`
+(Self-Study Session Amendment — 2026-11-18).
 
 Amendment 2026-11-01 (Approved, [ADR-0022](../../adr/ADR-0022-Course-Type-On-Template.md)): `delivery_mode` là thuộc tính của buổi học,
 không phải loại khóa học. Khóa học Theo lịch / Kết hợp có thể có buổi online,
@@ -575,3 +624,10 @@ metadata = {"calendar_sync": "pending"}
 * Không suy ra completion chỉ từ `status = completed`; attendance/replay
   evidence còn phải được Course progress service đánh giá theo frozen completion
   rule.
+
+## Schedule Deletion Amendment — 2026-11-19 (Approved, đã triển khai)
+
+Owner chọn cho xóa Schedule theo phương án B. Chi tiết ở
+[ADR-0002 § Schedule Deletion Amendment](../../adr/ADR-0002-LiveClass-Foundation.md#schedule-deletion-amendment--2026-11-19). Không đổi schema. Session `scheduled`, chưa bắt
+đầu, chưa tới giờ, chưa dời giờ và không có dữ liệu bị hard delete khi Schedule của nó
+bị xóa. Session `cancelled` và `no_show` vẫn không bao giờ bị hard delete.

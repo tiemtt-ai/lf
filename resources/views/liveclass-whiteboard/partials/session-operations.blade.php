@@ -7,6 +7,8 @@
     $opsValue = fn (string $field, $saved) => $opsRetry ? old($field) : $saved;
     // A stored value that is not an http(s) link is never echoed back, not even into the field (it is re-entered).
     $opsSavedUrl = preg_match('#^https?://#i', (string) $session->meeting_url_snapshot) ? $session->meeting_url_snapshot : '';
+    // A practice session names a room or a place and has no attendance tool to choose (ADR-0022 Amendment 1.3, Đợt 4).
+    $opsPractice = (bool) ($session->is_practice ?? false);
 @endphp
 <span x-data="{ submitting: false }" x-init="if (@js($opsRetry)) $refs.opsDialog.showModal()">
     <button type="button" class="ui-button cursor-interaction" aria-haspopup="dialog" x-on:click="$refs.opsDialog.showModal()" data-session-edit>
@@ -39,9 +41,9 @@
                     @endif
                     @if ($session->can_edit_place)
                         <div class="ui-field">
-                            <label class="ui-field__label" for="{{ $opsId }}-room"><span class="ui-field__required" aria-hidden="true">*</span>{{ __('lf.LF_course_cohort_session_room') }}</label>
+                            <label class="ui-field__label" for="{{ $opsId }}-room"><span class="ui-field__required" aria-hidden="true">*</span>{{ __($opsPractice ? 'lf.LF_course_cohort_session_place' : 'lf.LF_course_cohort_session_room') }}</label>
                             <input id="{{ $opsId }}-room" name="room_name" maxlength="255" required value="{{ $opsValue('room_name', $session->room_name_snapshot) }}"
-                                   placeholder="{{ __('lf.LF_course_cohort_session_room_placeholder') }}">
+                                   placeholder="{{ __($opsPractice ? 'lf.LF_course_cohort_session_place_placeholder' : 'lf.LF_course_cohort_session_room_placeholder') }}">
                             @if ($opsRetry && $opsBag->has('room_name'))<p class="ui-field__error" role="alert">{{ $opsBag->first('room_name') }}</p>@endif
                         </div>
                         <div class="ui-field">
@@ -49,6 +51,7 @@
                             <input id="{{ $opsId }}-address" name="address" maxlength="2000" value="{{ $opsValue('address', $session->address_snapshot) }}"
                                    placeholder="{{ __('lf.LF_course_cohort_session_address_placeholder') }}">
                         </div>
+                        @unless ($opsPractice)
                         <div class="ui-field ui-field--full">
                             <label class="ui-field__label" for="{{ $opsId }}-tool">{{ __('lf.LF_course_cohort_session_attendance_tool') }}</label>
                             <select id="{{ $opsId }}-tool" name="attendance_tool">
@@ -58,6 +61,7 @@
                             </select>
                             <p class="ui-caption">{{ __('lf.LF_course_cohort_session_attendance_tool_help') }}</p>
                         </div>
+                        @endunless
                     @elseif ($session->delivery_mode !== 'online')
                         <p class="ui-caption ui-field--full" role="status">{{ __('lf.LF_liveclass_session_operations_place_locked') }}</p>
                     @endif

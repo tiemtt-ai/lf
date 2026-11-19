@@ -78,11 +78,21 @@ core_course_cohort_students
 * Mỗi Enrollment chỉ có một Active Cohort.
 * Khi chuyển Cohort, UPDATE record hiện tại; không tạo record mới.
 * Không lưu Membership History trong bảng này hoặc bảng history riêng.
+  [ADR-0034](../../adr/ADR-0034-Cohort-Membership-Period-And-History.md) (Owner duyệt
+  2026-11-18, đã triển khai) thay vế "bảng history riêng" bằng bảng
+  [core_course_cohort_student_changes](core_course_cohort_student_changes.md), và đổi quy tắc
+  thêm lại vào cùng lớp: giữ `joined_at` ban đầu. Quản trị sửa `joined_at` không được chọn
+  thời điểm tương lai. Bảng này không đổi cột.
 * Không dùng field `is_current`.
 * Nếu Cohort đầy, không cho thêm student mới. Foundation không có admin override.
 * Nếu student bị remove khỏi Cohort, enrollment vẫn có thể còn active.
 * Chỉ Enrollment `active` được thêm hoặc chuyển vào Cohort `draft` hoặc
-  `active`.
+  `active`. Bổ sung 2026-11-19 (Owner duyệt, đã triển khai): Enrollment đã qua
+  `access_ends_at` (`access_ends_at <= now`) cũng bị từ chối, kể cả khi còn trong
+  thời gian ôn tập và lệnh `course:expire-enrollments` chưa kịp chuyển nó sang
+  `expired`. Enrollment không có `access_ends_at` không bị chặn. Trang thêm học
+  viên không liệt kê nó; popup quản lý học viên của lớp hiện nó với nhãn "Hết hạn
+  học" và không cho chọn. Activation Cohort không đổi. Kiểm ở `CourseCohortStudentController::assignmentIssue`.
 * Cohort `draft` và `active` cho phép thêm, xóa và chuyển membership như setup
   operation theo authorization và validation hiện hành. Cohort `completed` và
   `archived` không cho phép thay đổi membership.

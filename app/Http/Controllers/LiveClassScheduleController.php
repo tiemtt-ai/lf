@@ -12,6 +12,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class LiveClassScheduleController extends Controller
 {
@@ -99,6 +100,25 @@ class LiveClassScheduleController extends Controller
         }, 3);
 
         return $this->saved($cohort, $schedule, $created, 'lf.LF_course_cohort_schedule_updated');
+    }
+
+    /** ADR-0002 § Schedule Deletion Amendment: the Schedule goes with its unused Sessions, or nothing changes. */
+    public function destroy(Request $request, int $cohort, int $schedule): RedirectResponse
+    {
+        $customerId = $this->authorizeCohortManager($request, $cohort);
+        abort_unless(CourseCohortMutationPolicy::canMutate($this->cohort($customerId, $cohort)), 403);
+        $name = (string) $this->schedule($customerId, $cohort, $schedule)->name;
+
+        try {
+            $deleted = $this->scheduleService->delete($request, $customerId, $cohort, $schedule);
+        } catch (ValidationException $e) {
+            return redirect()->route($this->cohortArea().'.show', [
+                'id' => $cohort, 'tab' => 'schedules', 'schedule_form' => 'view', 'schedule_id' => $schedule,
+            ])->withErrors($e->errors())->withFragment('cohort-schedule-editor');
+        }
+
+        return redirect()->route($this->cohortArea().'.show', ['id' => $cohort, 'tab' => 'schedules'])
+            ->with('success', trans_choice('lf.LF_course_cohort_schedule_deleted', $deleted, ['name' => $name, 'count' => $deleted]));
     }
 
     public function preview(LiveClassScheduleRequest $request, int $cohort): JsonResponse

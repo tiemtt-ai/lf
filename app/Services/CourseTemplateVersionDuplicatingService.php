@@ -860,6 +860,7 @@ class CourseTemplateVersionDuplicatingService
                 'sort_order' => $activity->sort_order,
                 'activity_type' => $activity->activity_type,
                 'external_video_url' => $activity->external_video_url_snapshot,
+                'external_link_url' => $activity->external_link_url_snapshot,
                 'live_class_url' => $activity->live_class_url_snapshot,
                 'assessment_quiz_id' => $activity->assessment_quiz_id_snapshot,
                 'duration_seconds' => $activity->duration_seconds,
@@ -869,6 +870,7 @@ class CourseTemplateVersionDuplicatingService
                 'available_during_session' => $activity->available_during_session,
                 'available_after_session' => $activity->available_after_session,
                 'is_required' => $activity->is_required,
+                'counts_for_attendance' => $activity->counts_for_attendance,
                 'completion_rule' => $activity->completion_rule,
                 'completion_threshold' => $activity
                     ->completion_threshold,

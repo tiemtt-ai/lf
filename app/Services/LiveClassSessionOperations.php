@@ -63,7 +63,8 @@ final class LiveClassSessionOperations
             if (array_key_exists('address', $input)) {
                 $values['address_snapshot'] = filled($input['address']) ? trim((string) $input['address']) : null;
             }
-            if (array_key_exists('attendance_tool', $input)) {
+            if (array_key_exists('attendance_tool', $input)
+                && ! LiveClassPracticeSession::lesson($customerId, isset($session->version_lesson_id) ? (int) $session->version_lesson_id : null)) {
                 $values['attendance_tool'] = in_array($input['attendance_tool'], self::ATTENDANCE_TOOLS, true) ? $input['attendance_tool'] : 'board';
             }
         }

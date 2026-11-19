@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Route;
  * The class pages an admin and a class's primary teacher share (ADR-0033 D7): required inside the admin area by
  * course.php and inside the teacher area behind `teacher.may:class.manage`. Each controller checks the scope again
  * (AuthorizesCourseCohortAdmin::authorizeCohortManager). Enrolment, the class teachers, attendance policies,
- * archiving and runtime operations stay in course.php, admin only.
+ * completing a class early, archiving and runtime operations stay in course.php, admin only.
  */
 
 Route::get('/course-cohorts/create', [CourseCohortController::class, 'create'])
@@ -39,8 +39,6 @@ Route::put('/course-cohorts/{id}', [CourseCohortController::class, 'update'])
 Route::post('/course-cohorts/{id}/activate', [CourseCohortController::class, 'activate'])
     ->name('course-cohorts.activate');
 
-Route::post('/course-cohorts/{id}/complete', [CourseCohortController::class, 'complete'])
-    ->name('course-cohorts.complete');
 Route::get('/course-cohorts/{cohort}/schedules/create', [LiveClassScheduleController::class, 'create'])
     ->name('course-cohorts.schedules.create');
 Route::post('/course-cohorts/{cohort}/schedules/preview', [LiveClassScheduleController::class, 'preview'])
@@ -53,6 +51,8 @@ Route::get('/course-cohorts/{cohort}/schedules/{schedule}/edit', [LiveClassSched
     ->name('course-cohorts.schedules.edit');
 Route::put('/course-cohorts/{cohort}/schedules/{schedule}', [LiveClassScheduleController::class, 'update'])
     ->name('course-cohorts.schedules.update');
+Route::delete('/course-cohorts/{cohort}/schedules/{schedule}', [LiveClassScheduleController::class, 'destroy'])
+    ->name('course-cohorts.schedules.destroy');
 Route::patch('/course-cohorts/{cohort}/content/lessons/order', [CourseCohortOperationController::class, 'reorderLessons'])
     ->name('course-cohorts.content.lessons.reorder');
 Route::patch('/course-cohorts/{cohort}/content/lessons/{lesson}/activities/order', [CourseCohortOperationController::class, 'reorderActivities'])

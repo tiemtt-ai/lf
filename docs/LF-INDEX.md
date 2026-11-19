@@ -381,8 +381,10 @@ docs/adr/
 | [ADR-0029](adr/ADR-0029-Learning-Mapping-Invalidation.md) | Approved: đánh dấu một liên kết năng lực đã xuất bản là sai — ai làm, ở đâu, ảnh hưởng gì |
 | [ADR-0030](adr/ADR-0030-Learner-Course-Delivery-And-Progress.md) | Approved: trang bài học của học viên, phát Media, ghi tiến độ qua `CourseProgressRecorder`, điểm danh → hoàn thành hoạt động tham gia lớp; Quan tâm (Favorite, D4) làm 2026-11-11 |
 | [ADR-0031](adr/ADR-0031-Learner-Learning-Results.md) | Approved: "Kết quả học tập" của học viên (`/my-courses?tab=results`), chỉ đọc; điểm theo luật hiển thị D12 của ADR-0025 |
-| [ADR-0032](adr/ADR-0032-Course-Quiz-Activity.md) | Approved: Quiz Activity trong khóa học; chốt phiên bản đề, lần làm theo Enrollment, tiến độ `submitted` / `passed` |
+| [ADR-0032](adr/ADR-0032-Course-Quiz-Activity.md) | Approved: Quiz Activity trong khóa học; chốt phiên bản đề, lần làm theo Enrollment, tiến độ `submitted` / `passed`; Amendment 1.1 (đã triển khai 2026-11-19): nhãn Đạt / Chưa đạt theo ngưỡng Activity |
 | [ADR-0033](adr/ADR-0033-Teacher-Permissions-And-Tenant-Owner.md) | Approved, đã triển khai đủ ba đợt 2026-11-17: phân quyền giáo viên theo nhóm quyền, bảy quyền cố định; D7 giáo viên chính tự vận hành lớp; Chủ trung tâm giữa các quản trị. Bảng: [saas_teacher_permission_groups.md](database/saas/saas_teacher_permission_groups.md), [saas_teacher_permission_grants.md](database/saas/saas_teacher_permission_grants.md) |
+| [ADR-0034](adr/ADR-0034-Cohort-Membership-Period-And-History.md) | Approved, đã triển khai 2026-11-18: ngày vào lớp chỉ quản trị sửa, thêm lại giữ ngày ban đầu, buổi ngoài thời gian thuộc lớp không điểm danh và không tính chuyên cần, lịch sử thành viên lớp (`core_course_cohort_student_changes`) |
+| [ADR-0035](adr/ADR-0035-External-Link-Activity.md) | Approved, đã triển khai 2026-11-19: loại hoạt động "Link nền tảng ngoài" (`external_link`), mở link là hoàn thành, link chốt khi xuất bản; hai cột `external_link_url` / `external_link_url_snapshot` |
 
 ---
 

@@ -6,6 +6,7 @@ use App\Services\CourseTemplateLessonUnlockOrder;
 use App\Support\CourseTemplateEditable;
 use App\Support\CourseTemplateWorkingRevision;
 use App\Support\CourseType;
+use App\Support\LessonType;
 use App\Support\LessonUnlockTime;
 use App\Support\TenantContext;
 use Illuminate\Http\JsonResponse;
@@ -362,10 +363,16 @@ class CourseTemplateLessonController extends Controller
 
         DB::transaction(function () use ($customerId, $templateId, $sectionId, $lessonId, $validated): void {
             // The type may have changed since validation: the locked row decides which fields are kept.
-            $validated = $this->fitCourseType($validated, $this->lockTemplate($customerId, $templateId)->course_type ?? null);
+            $courseType = $this->lockTemplate($customerId, $templateId)->course_type ?? null;
+            $validated = $this->fitCourseType($validated, $courseType);
             // Re-read under the lock whether or not an order was sent: a lesson deleted meanwhile is a 404,
             // never an update of nothing followed by prerequisites written for it.
             $current = $this->findLesson($customerId, $templateId, $sectionId, $lessonId);
+            if (CourseType::isClassBased($courseType)
+                && ! LessonType::isLed($validated['lesson_type'])
+                && LessonType::isLed($current->lesson_type ?? null)) {
+                $this->startSelfStudy($customerId, $templateId, $lessonId);
+            }
             CourseTemplateWorkingRevision::bump($customerId, $templateId);
             $violationsBefore = $this->unlockOrder->violations($customerId, $templateId, $sectionId !== null);
             $validated['sort_order'] ??= $current->sort_order;
@@ -760,9 +767,8 @@ class CourseTemplateLessonController extends Controller
             'description' => ['nullable', 'string', 'max:20000'],
             'sort_order' => ['nullable', 'integer', 'min:0', 'max:1000000'],
             'is_preview' => ['required', 'boolean'],
-            'lesson_type' => ['required', Rule::in([
-                'regular', 'review', 'midterm_exam', 'final_exam', 'other_exam',
-            ])],
+            // ADR-0022 Amendment 1.3: the retired types (review, exams) are no longer chosen.
+            'lesson_type' => ['required', Rule::in(LessonType::SELECTABLE)],
             'unlock_rule' => [
                 'required',
                 Rule::in([
@@ -839,6 +845,31 @@ class CourseTemplateLessonController extends Controller
                 ? LessonUnlockTime::fromLocalInput((string) $validated['unlock_at'])
                 : null,
         ], $extra);
+    }
+
+    /**
+     * A led session becoming self-study (ADR-0022 Amendment 1.3): refused while it holds a live class; its
+     * other Activities lose their phase and are stored as anytime.
+     */
+    private function startSelfStudy(int $customerId, int $templateId, int $lessonId): void
+    {
+        $activities = fn () => DB::table('core_course_template_activities')
+            ->where('customer_id', $customerId)
+            ->where('template_id', $templateId)
+            ->where('template_lesson_id', $lessonId);
+
+        if ($activities()->where('activity_type', 'live_class')->exists()) {
+            throw ValidationException::withMessages([
+                'lesson_type' => __('lf.LF_course_template_lesson_self_study_has_live_class'),
+            ]);
+        }
+        $activities()->update([
+            'available_anytime' => true,
+            'available_before_session' => false,
+            'available_during_session' => false,
+            'available_after_session' => false,
+            'updated_at' => now(),
+        ]);
     }
 
     private function prerequisiteLessons(

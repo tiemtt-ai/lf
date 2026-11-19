@@ -2,9 +2,12 @@
 
 namespace App\Services;
 
+use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class CourseCohortLifecycleService
 {
@@ -29,6 +32,7 @@ class CourseCohortLifecycleService
     public function __construct(
         private readonly CourseCohortVersionResolver $versionResolver,
         private readonly LiveClassWhiteboardLiveState $boards,
+        private readonly LiveClassSessionLifecycleService $sessions,
     ) {}
 
     public function activate(int $customerId, int $cohortId): void
@@ -39,6 +43,35 @@ class CourseCohortLifecycleService
     public function complete(int $customerId, int $cohortId): void
     {
         $this->transition($customerId, $cohortId, 'completed');
+    }
+
+    /**
+     * An active Cohort ends by itself after 23:59 of its end date, in the application timezone (ADR-0022
+     * Amendment 1.4, "Lớp tự kết thúc theo ngày"); completing it this way has every effect of the button. A legacy
+     * Cohort without an end date is left to an administrator.
+     *
+     * @return int Cohorts completed
+     */
+    public function completeEnded(?CarbonInterface $now = null): int
+    {
+        $today = CarbonImmutable::instance($now ?? now())->setTimezone(config('app.timezone'))->toDateString();
+        $completed = 0;
+        $cohorts = DB::table('core_course_cohorts')->where('status', 'active')
+            ->whereNotNull('end_date')->where('end_date', '<', $today)
+            ->orderBy('id')->get(['id', 'customer_id']);
+        foreach ($cohorts as $cohort) {
+            try {
+                $this->complete((int) $cohort->customer_id, (int) $cohort->id);
+                $completed++;
+            } catch (ValidationException|HttpException $exception) {
+                // Completed by hand since the read: nothing left to do. Anything else is reported and retried next run.
+                if (DB::table('core_course_cohorts')->where('id', $cohort->id)->value('status') === 'active') {
+                    report($exception);
+                }
+            }
+        }
+
+        return $completed;
     }
 
     public function archive(int $customerId, int $cohortId): void
@@ -121,16 +154,13 @@ class CourseCohortLifecycleService
      */
     public function completionWarnings(int $customerId, object $cohort, int $activeMembershipCount): array
     {
-        $openSessions = DB::table('core_liveclass_sessions')
-            ->where('customer_id', $customerId)
-            ->where('cohort_id', $cohort->id)
-            ->whereIn('status', ['scheduled', 'live'])
-            ->count();
+        $plan = $this->sessions->cohortCompletionPlan($customerId, (int) $cohort->id);
         $endsLater = $cohort->end_date && Carbon::parse($cohort->end_date)->isAfter(today());
 
         return array_values(array_filter([
             $endsLater ? __('lf.LF_course_cohort_complete_warning_end_date', ['date' => Carbon::parse($cohort->end_date)->format('d/m/Y')]) : null,
-            $openSessions > 0 ? __('lf.LF_course_cohort_complete_warning_sessions', ['count' => $openSessions]) : null,
+            $plan['cancel'] !== [] ? __('lf.LF_course_cohort_complete_warning_sessions', ['count' => count($plan['cancel'])]) : null,
+            $plan['complete'] !== [] ? __('lf.LF_course_cohort_complete_warning_sessions_running', ['count' => count($plan['complete'])]) : null,
             $activeMembershipCount > 0 ? __('lf.LF_course_cohort_complete_warning_students', ['count' => $activeMembershipCount]) : null,
         ]));
     }
@@ -168,6 +198,12 @@ class CourseCohortLifecycleService
 
             if ($cohort->status === 'draft' && $targetStatus === 'archived') {
                 $this->assertDraftArchiveEligible($customerId, $cohort);
+            }
+
+            // Sessions not held are cancelled and running ones end, while the Cohort is still active (ADR-0022
+            // Amendment 1.4, "Dọn buổi khi hoàn thành lớp").
+            if ($cohort->status === 'active' && $targetStatus === 'completed') {
+                $this->sessions->settleForCohortCompletion($customerId, $cohortId);
             }
 
             DB::table('core_course_cohorts')
@@ -261,6 +297,8 @@ class CourseCohortLifecycleService
             ->where('sessions.customer_id', $customerId)
             ->where('sessions.cohort_id', $cohort->id)
             ->whereNotIn('sessions.status', ['cancelled', 'no_show'])
+            // Nobody teaches a self-study Session (ADR-0023 §10).
+            ->where('sessions.session_type', '!=', LiveClassSelfStudySession::TYPE)
             ->whereNull('sessions.primary_teacher_id')
             ->whereNotExists(function ($query) use ($customerId): void {
                 $query->selectRaw('1')
@@ -289,6 +327,10 @@ class CourseCohortLifecycleService
             $leaving = DB::table('core_course_cohort_students')
                 ->where('customer_id', $customerId)->where('cohort_id', $cohortId)->where('status', 'active');
             $now = now();
+            // ADR-0034: the system removed them, so the history names nobody.
+            foreach ((clone $leaving)->get() as $member) {
+                CourseCohortMembershipHistory::record($member, 'left', null);
+            }
             $leaving->update(['status' => 'removed', 'left_at' => $now, 'updated_at' => $now]);
 
             return;

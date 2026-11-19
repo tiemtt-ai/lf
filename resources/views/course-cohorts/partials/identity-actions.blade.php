@@ -1,5 +1,5 @@
 {{-- Status changes for the identity card: they concern the whole class, unlike the per-tab actions.
-     The primary teacher activates and completes; archiving stays with admins (ADR-0033 D7). --}}
+     The primary teacher activates; completing early and archiving stay with admins (ADR-0033 D7, 2026-11-19). --}}
 @if ($cohort->status === 'draft')
     <div class="course-cohort-activation-action">
         @include('course-cohorts.partials.kit-lifecycle-action', [
@@ -29,7 +29,8 @@
         'confirmLabel' => __('lf.LF_course_cohort_lifecycle_archive_confirm'),
     ])
     @endif
-@elseif ($cohort->status === 'active')
+@elseif ($cohort->status === 'active' && ($cohortAdmin ?? true))
+    {{-- The class ends by itself after its end date; only an administrator ends it earlier. --}}
     @include('course-cohorts.partials.kit-lifecycle-action', [
         'dialogId' => 'cohort-complete',
         'action' => route($routePrefix.'.complete', $cohort->id),

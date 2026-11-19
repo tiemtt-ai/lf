@@ -4,13 +4,16 @@ namespace App\Services;
 
 use App\Support\CourseTemplateStatus;
 use App\Support\CourseType;
+use App\Support\ExternalLinkUrl;
+use App\Support\LessonType;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 class CourseTemplatePublishGraphValidator
 {
-    private const LESSON_TYPES = ['regular', 'review', 'midterm_exam', 'final_exam', 'other_exam'];
+    /** The selectable types and the retired ones, which read as a regular session (ADR-0022 Amendment 1.3). */
+    private const LESSON_TYPES = [...LessonType::SELECTABLE, 'review', 'midterm_exam', 'final_exam', 'other_exam'];
 
     private const LESSON_UNLOCK_RULES = [
         'none',
@@ -20,7 +23,7 @@ class CourseTemplatePublishGraphValidator
         'date_based',
     ];
 
-    private const ACTIVITY_TYPES = ['video', 'embedded_video', 'audio', 'document', 'quiz', 'live_class'];
+    private const ACTIVITY_TYPES = ['video', 'embedded_video', 'audio', 'document', 'quiz', 'live_class', 'external_link'];
 
     private const ACTIVITY_UNLOCK_RULES = ['none', 'previous_activity_completed'];
 
@@ -241,7 +244,7 @@ class CourseTemplatePublishGraphValidator
             $type = $activity->activity_type;
             $completionRules = match ($type) {
                 'video', 'audio' => ['view', 'watch_percent', 'manual'],
-                'document', 'embedded_video' => ['view', 'manual'],
+                'document', 'embedded_video', 'external_link' => ['view', 'manual'],
                 'quiz' => ['submit', 'pass', 'manual'],
                 'live_class' => ['join', 'manual'],
                 default => [],
@@ -285,6 +288,9 @@ class CourseTemplatePublishGraphValidator
             }
             if (($type === 'embedded_video' && ! $this->validEmbeddedActivityUrl($activity->external_video_url))
                 || ($type !== 'embedded_video' && $activity->external_video_url !== null)
+                // ADR-0035: an external link Activity needs a valid HTTPS link; no other type holds one.
+                || ($type === 'external_link' && ! ExternalLinkUrl::isValid($activity->external_link_url ?? null))
+                || ($type !== 'external_link' && ($activity->external_link_url ?? null) !== null)
                 || ($type === 'live_class' && $activity->live_class_url !== null && ! $this->validHttpsUrl($activity->live_class_url))
                 || ($type !== 'live_class' && $activity->live_class_url !== null)
                 || ($type === 'quiz' && ! $this->positiveInteger($activity->assessment_quiz_id))
@@ -390,6 +396,71 @@ class CourseTemplatePublishGraphValidator
             $this->add($issues, 'lesson_live_class_multiple', 'content', [
                 'lesson' => $lesson?->title ?? __('lf.LF_course_template_publish_integrity_unknown_lesson'),
             ], $lesson ? $this->lessonFragment($lesson) : null);
+        }
+        if (CourseType::isClassBased($courseType)) {
+            $this->validateClassSessions($courseType, $activities, $lessons, $issues);
+        }
+        // "Tính vào điểm danh" exists in the "Trong" or "Sau" part of a led class session, and anywhere in a
+        // self-study one (Amendment 1.3, Đợt 3 and Đợt 4).
+        foreach ($activities as $activity) {
+            if (! ($activity->counts_for_attendance ?? false)) {
+                continue;
+            }
+            $lesson = $lessons->get($activity->template_lesson_id);
+            $inScope = CourseType::isClassBased($courseType) && $lesson && $activity->activity_type !== 'live_class'
+                && (LessonType::isLed($lesson->lesson_type ?? null)
+                    ? ! $activity->available_anytime && ! $activity->available_before_session
+                        && ($activity->available_during_session xor $activity->available_after_session)
+                    : (bool) $activity->available_anytime);
+            if ($inScope) {
+                continue;
+            }
+            $this->add($issues, 'activity_attendance_scope', 'content', [
+                'lesson' => $lesson?->title ?? __('lf.LF_course_template_publish_integrity_unknown_lesson'),
+                'activity' => $activity->title,
+            ], $lesson ? $this->lessonFragment($lesson) : null);
+        }
+    }
+
+    /**
+     * ADR-0022 Amendment 1.3: a led session (regular, practice) holds exactly one live class and every other
+     * Activity in exactly one phase; a self-study session holds no live class and its Activities are anytime.
+     * Every Activity of a class uses the one criterion of its type.
+     */
+    private function validateClassSessions(string $courseType, Collection $activities, Collection $lessons, Collection $issues): void
+    {
+        $byLesson = $activities->groupBy('template_lesson_id');
+        foreach ($lessons as $lesson) {
+            $led = LessonType::isLed($lesson->lesson_type ?? null);
+            $liveCount = $byLesson->get($lesson->id, collect())->where('activity_type', 'live_class')->count();
+            if ($led && $liveCount === 0) {
+                $this->add($issues, 'lesson_live_class_missing', 'content', ['lesson' => $lesson->title], $this->lessonFragment($lesson));
+            } elseif (! $led && $liveCount > 0) {
+                $this->add($issues, 'lesson_self_study_live_class', 'content', ['lesson' => $lesson->title], $this->lessonFragment($lesson));
+            }
+        }
+        foreach ($activities as $activity) {
+            $lesson = $lessons->get($activity->template_lesson_id);
+            if (! $lesson) {
+                continue;
+            }
+            $context = ['lesson' => $lesson->title, 'activity' => $activity->title];
+            $phases = array_keys(array_filter([
+                'anytime' => (bool) $activity->available_anytime,
+                'before_session' => (bool) $activity->available_before_session,
+                'during_session' => (bool) $activity->available_during_session,
+                'after_session' => (bool) $activity->available_after_session,
+            ]));
+            $expectedPhase = LessonType::isLed($lesson->lesson_type ?? null)
+                ? count($phases) === 1 && in_array($phases[0], CourseType::SESSION_PHASES, true)
+                : $phases === ['anytime'];
+            // A live class out of its phase is named by activity_live_class_phase already.
+            if (! $expectedPhase && $activity->activity_type !== 'live_class') {
+                $this->add($issues, 'activity_class_phase', 'content', $context, $this->lessonFragment($lesson));
+            }
+            if (! in_array($activity->completion_rule, CourseType::completionRules($courseType, $activity->activity_type), true)) {
+                $this->add($issues, 'activity_class_completion', 'content', $context, $this->lessonFragment($lesson));
+            }
         }
     }
 

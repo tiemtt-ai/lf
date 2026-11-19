@@ -53,11 +53,17 @@ class CourseProgressRecorder
             return null;
         }
 
-        return DB::transaction(function () use ($customerId, $enrollmentId, $activity, $event, $position): object {
+        $completedNow = false;
+        $row = DB::transaction(function () use ($customerId, $enrollmentId, $activity, $event, $position, &$completedNow): object {
+            $completedNow = false;
             $enrollment = $this->enrollment($customerId, $enrollmentId);
             $course = $this->lockCourse($customerId, $enrollment);
             $lesson = $this->lessonRow($customerId, $enrollment, $course, (int) $activity->version_lesson_id);
             $row = $this->activityRow($customerId, $enrollment, $course, $lesson, $activity);
+            // A class that has ended is review only: the content opens, nothing is recorded (Amendment 1.4).
+            if (CourseClassReview::only($customerId, $enrollmentId)) {
+                return $row;
+            }
             $now = Carbon::now();
 
             $values = [
@@ -89,6 +95,7 @@ class CourseProgressRecorder
             }
             if ($done && $row->status !== 'completed') {
                 $values = ['status' => 'completed', 'completed_at' => $now, 'progress_percentage' => 100] + $values;
+                $completedNow = true;
             }
 
             DB::table('core_course_activity_progress')->where('id', $row->id)->update($values);
@@ -102,6 +109,23 @@ class CourseProgressRecorder
 
             return DB::table('core_course_activity_progress')->where('id', $row->id)->first();
         }, 3);
+        if ($completedNow) {
+            $this->attendanceContentChanged($customerId, $enrollmentId, $activity);
+        }
+
+        return $row;
+    }
+
+    /**
+     * An Activity ticked "Tính vào điểm danh" changed for this learner: the Sessions of its Lesson are looked at
+     * again (ADR-0022 Amendment 1.3, Đợt 3). Called after the progress transaction, never inside it. The recorder
+     * is resolved here because it depends on this class.
+     */
+    private function attendanceContentChanged(int $customerId, int $enrollmentId, object $activity): void
+    {
+        if ($activity->counts_for_attendance ?? false) {
+            app(LiveClassAttendanceRecorder::class)->contentChanged($customerId, $enrollmentId, (int) $activity->version_lesson_id);
+        }
     }
 
     /**
@@ -112,6 +136,10 @@ class CourseProgressRecorder
     {
         if (! $this->lessonAccess->decide($studentId, $enrollmentId, $versionLessonId)->allowed) {
             return false;
+        }
+        // Review only (Amendment 1.4): the Lesson opens, nothing is recorded.
+        if (CourseClassReview::only($customerId, $enrollmentId)) {
+            return true;
         }
 
         DB::transaction(function () use ($customerId, $enrollmentId, $versionLessonId): void {
@@ -187,12 +215,18 @@ class CourseProgressRecorder
     /**
      * The Module Kiểm tra calls this after a course attempt started, was submitted or (re)graded (ADR-0032 D3). It reads
      * every attempt of the Enrollment on the Activity: `attempt_count`, the best graded score, and completion by the
-     * Activity's rule. Completion is never taken back.
+     * Activity's rule. Completion is never taken back. The `submit` rule completes once an attempt is graded
+     * (ADR-0022 Amendment 1.3, Đợt 3): an auto-graded quiz at once, one with essays or recordings after the teacher.
      */
     public function quizChanged(int $customerId, int $enrollmentId, int $versionActivityId): void
     {
         $activity = $this->activity($customerId, $versionActivityId);
         if (! $activity || $activity->activity_type !== 'quiz') {
+            return;
+        }
+        // Review only (Amendment 1.4): an attempt handed in or graded after the class ended keeps its own result in
+        // the Kiểm tra module, and adds no progress here.
+        if (CourseClassReview::only($customerId, $enrollmentId)) {
             return;
         }
 
@@ -217,7 +251,7 @@ class CourseProgressRecorder
             $threshold = (float) ($activity->completion_threshold ?? 100);
             $passed = $best ? (float) $best->score_percentage >= $threshold : null;
             $complete = $row->status === 'completed' || match ($activity->completion_rule) {
-                'submit' => $done->isNotEmpty(),
+                'submit' => $graded->isNotEmpty(),
                 'pass' => (bool) $passed,
                 default => false,
             };
@@ -247,6 +281,8 @@ class CourseProgressRecorder
             ]);
             $this->recalculate($customerId, $enrollment, $course->id);
         }, 3);
+        // Handing in and grading both matter to attendance, which counts a quiz from the moment it was handed in.
+        $this->attendanceContentChanged($customerId, $enrollmentId, $activity);
     }
 
     /** Version Activity completion rule as the progress tables name it. */
@@ -389,8 +425,8 @@ class CourseProgressRecorder
             })
             ->where('activities.customer_id', $customerId)->where('activities.id', $versionActivityId)
             ->first(['activities.id', 'activities.template_version_id', 'activities.version_lesson_id', 'activities.activity_type',
-                'activities.sort_order', 'activities.is_required', 'activities.completion_rule', 'activities.completion_threshold',
-                'activities.duration_seconds', 'lessons.version_section_id']);
+                'activities.sort_order', 'activities.is_required', 'activities.counts_for_attendance', 'activities.completion_rule',
+                'activities.completion_threshold', 'activities.duration_seconds', 'lessons.version_section_id']);
     }
 
     /** The Enrollment's Course Progress row, created on first use and locked for the rest of the transaction. */

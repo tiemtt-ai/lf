@@ -13,6 +13,8 @@ use App\Services\VideoSttQualification;
 use App\Support\CourseTemplateEditable;
 use App\Support\CourseTemplateWorkingRevision;
 use App\Support\CourseType;
+use App\Support\ExternalLinkUrl;
+use App\Support\LessonType;
 use App\Support\TenantContext;
 use App\Support\UploadLimit;
 use Illuminate\Database\Query\Builder;
@@ -42,6 +44,7 @@ class CourseTemplateActivityController extends Controller
         'document',
         'quiz',
         'live_class',
+        'external_link',
     ];
 
     private const MANUAL_DURATION_TYPES = [
@@ -502,7 +505,7 @@ class CourseTemplateActivityController extends Controller
             $templateId,
             $lessonId
         ): int {
-            $this->lockTemplate($customerId, $templateId);
+            $template = $this->lockTemplate($customerId, $templateId);
             $lesson = DB::table('core_course_template_lessons')
                 ->where('customer_id', $customerId)
                 ->where('template_id', $templateId)
@@ -511,6 +514,9 @@ class CourseTemplateActivityController extends Controller
                 ->first();
 
             abort_if(! $lesson, 404);
+            // The course type and the lesson type may have changed since validation: the locked rows decide.
+            $validated = $this->fitClassActivity($validated, $template->course_type ?? null, $lesson->lesson_type ?? null);
+            $keepsEstimate = ! CourseType::isClassBased($template->course_type ?? null);
             $this->assertSingleLiveClass($validated, $customerId, $templateId, $lessonId, null);
 
             $validated['sort_order'] ??= $this->nextSortOrder(
@@ -529,14 +535,15 @@ class CourseTemplateActivityController extends Controller
                 'created_by' => $request->user()?->id,
                 'created_at' => $now,
                 'updated_at' => $now,
-            ]));
+            ], null, $keepsEstimate));
             $this->detachInactiveMedia($activityId, $validated['activity_type'], $request);
             $uploadedMedia = $this->attachUploadedMedia($request, $activityId)
                 ?? $this->attachLibraryMedia($request, $activityId, $validated['activity_type']);
             $this->synchronizeUploadedMediaDuration(
                 $activityId,
                 $validated['activity_type'],
-                $uploadedMedia
+                $uploadedMedia,
+                $keepsEstimate
             );
             $this->recalculateLessonDuration($customerId, $templateId, $lessonId);
             CourseTemplateWorkingRevision::bump($customerId, $templateId);
@@ -644,7 +651,7 @@ class CourseTemplateActivityController extends Controller
             'activity' => $activity,
             'activityQuiz' => $this->quizSummary($customerId, $activity->assessment_quiz_id ?? null),
             'externalUrl' => $this->safeExternalUrl(
-                $activity->external_video_url ?? $activity->live_class_url
+                $activity->external_video_url ?? $activity->external_link_url ?? $activity->live_class_url
             ),
             'activityMedia' => $this->ownerMedia(
                 'course_activity',
@@ -695,7 +702,12 @@ class CourseTemplateActivityController extends Controller
         );
 
         DB::transaction(function () use ($request, $customerId, $templateId, $lessonId, $activityId, $validated, $activity): void {
-            $this->lockTemplate($customerId, $templateId);
+            $courseType = $this->lockTemplate($customerId, $templateId)->course_type ?? null;
+            // The course type and the lesson type may have changed since validation: the locked rows decide.
+            $validated = $this->fitClassActivity($validated, $courseType, DB::table('core_course_template_lessons')
+                ->where('customer_id', $customerId)->where('template_id', $templateId)->where('id', $lessonId)
+                ->value('lesson_type'));
+            $keepsEstimate = ! CourseType::isClassBased($courseType);
             CourseTemplateWorkingRevision::bump($customerId, $templateId);
             $this->assertSingleLiveClass($validated, $customerId, $templateId, $lessonId, $activityId);
             DB::table('core_course_template_activities')
@@ -706,7 +718,8 @@ class CourseTemplateActivityController extends Controller
                 ->update($this->activityValues(
                     $validated,
                     ['updated_at' => now()],
-                    $activity
+                    $activity,
+                    $keepsEstimate
                 ));
             $this->detachInactiveMedia($activityId, $validated['activity_type'], $request);
             $uploadedMedia = $this->attachUploadedMedia($request, $activityId)
@@ -714,7 +727,8 @@ class CourseTemplateActivityController extends Controller
             $this->synchronizeUploadedMediaDuration(
                 $activityId,
                 $validated['activity_type'],
-                $uploadedMedia
+                $uploadedMedia,
+                $keepsEstimate
             );
             $this->recalculateLessonDuration($customerId, $templateId, $lessonId);
         });
@@ -820,9 +834,9 @@ class CourseTemplateActivityController extends Controller
             ->with('success', __('lf.LF_course_template_activity_common_deleted'));
     }
 
-    private function lockTemplate(int $customerId, int $templateId): void
+    private function lockTemplate(int $customerId, int $templateId): object
     {
-        CourseTemplateEditable::lock($customerId, $templateId);
+        return CourseTemplateEditable::lock($customerId, $templateId);
     }
 
     private function validatedData(
@@ -835,9 +849,11 @@ class CourseTemplateActivityController extends Controller
         // ADR-0022: the Template course type bounds which learning availability an Activity may declare.
         $courseType = (string) DB::table('core_course_templates')
             ->where('customer_id', $customerId)->where('id', $templateId)->value('course_type');
+        $lessonType = $lessonId === null ? null : DB::table('core_course_template_lessons')
+            ->where('customer_id', $customerId)->where('template_id', $templateId)->where('id', $lessonId)->value('lesson_type');
         $validator = Validator::make(
-            $this->validationInput($request, $courseType),
-            $this->validationRules($customerId, $templateId, $activityId, $lessonId),
+            $this->validationInput($request, $courseType, $lessonType),
+            $this->validationRules($customerId, $templateId, $activityId, $lessonId, $courseType),
             [
                 // "By session" with no phase checked sends no phase at all.
                 'learning_phases.required' => __('lf.LF_course_template_activity_learning_phases_required'),
@@ -850,9 +866,26 @@ class CourseTemplateActivityController extends Controller
             ]
         );
 
-        $validator->after(function ($validator) use ($request, $courseType, $customerId, $templateId, $activityId, $lessonId): void {
+        $validator->after(function ($validator) use ($request, $courseType, $lessonType, $customerId, $templateId, $activityId, $lessonId): void {
             // The normalized input: a live class without a declaration already defaults to during the session.
             $phases = $validator->getData()['learning_phases'] ?? [];
+
+            // ADR-0022 Amendment 1.3: a led session holds one live class and every other Activity in exactly one
+            // phase; a self-study session has no live class and no phases (its Activities are stored as anytime).
+            if (CourseType::isClassBased($courseType) && is_array($phases)) {
+                if (! LessonType::isLed($lessonType)) {
+                    if ($request->input('activity_type') === 'live_class') {
+                        $validator->errors()->add('activity_type', __('lf.LF_course_template_activity_self_study_live_class'));
+
+                        return;
+                    }
+                } elseif ($request->input('activity_type') !== 'live_class'
+                    && (count(array_unique($phases)) !== 1 || ! in_array(reset($phases), CourseType::SESSION_PHASES, true))) {
+                    $validator->errors()->add('learning_phases', __('lf.LF_course_template_activity_class_phase_one'));
+
+                    return;
+                }
+            }
 
             if ($request->input('activity_type') === 'live_class' && ! CourseType::allowsLiveClass($courseType)) {
                 $validator->errors()->add('activity_type', __('lf.LF_course_type_live_class_not_allowed'));
@@ -929,7 +962,7 @@ class CourseTemplateActivityController extends Controller
         return $validator->validate();
     }
 
-    private function validationInput(Request $request, string $courseType): array
+    private function validationInput(Request $request, string $courseType, ?string $lessonType = null): array
     {
         $fields = [
             'title',
@@ -937,12 +970,14 @@ class CourseTemplateActivityController extends Controller
             'sort_order',
             'activity_type',
             'external_video_url',
+            'external_link_url',
             'assessment_quiz_id',
             'duration_seconds',
             'estimated_duration_minutes',
             'learning_phases',
             'learning_phases_present',
             'is_required',
+            'counts_for_attendance',
             'completion_rule',
             'completion_threshold',
             'is_preview',
@@ -969,12 +1004,18 @@ class CourseTemplateActivityController extends Controller
                     : [($input['activity_type'] ?? null) === 'live_class' ? 'during_session' : 'anytime']),
         };
         unset($input['learning_phases_present']);
+        if (CourseType::isClassBased($courseType)) {
+            $input = $this->fitClassRules($input, $lessonType);
+        } else {
+            $input['counts_for_attendance'] = 0;
+        }
 
         $typeField = [
             'embedded_video' => 'external_video_url',
+            'external_link' => 'external_link_url',
             'quiz' => 'assessment_quiz_id',
         ][$input['activity_type'] ?? ''] ?? null;
-        foreach (['external_video_url', 'assessment_quiz_id'] as $field) {
+        foreach (['external_video_url', 'external_link_url', 'assessment_quiz_id'] as $field) {
             if ($field !== $typeField) {
                 unset($input[$field]);
             }
@@ -1017,7 +1058,8 @@ class CourseTemplateActivityController extends Controller
         int $customerId,
         int $templateId,
         ?int $activityId = null,
-        ?int $lessonId = null
+        ?int $lessonId = null,
+        ?string $courseType = null
     ): array {
         $activityType = request()->input('activity_type');
 
@@ -1058,6 +1100,19 @@ class CourseTemplateActivityController extends Controller
                     }
                 },
             ],
+            // ADR-0035: HTTPS only, no user name or password in the URL.
+            'external_link_url' => [
+                'nullable',
+                'string',
+                'max:'.ExternalLinkUrl::MAX_LENGTH,
+                'required_if:activity_type,external_link',
+                'prohibited_unless:activity_type,external_link',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if ($value !== null && ! ExternalLinkUrl::isValid((string) $value)) {
+                        $fail(__('lf.LF_course_template_activity_external_link_invalid'));
+                    }
+                },
+            ],
             'assessment_quiz_id' => [
                 'nullable', 'integer', 'min:1',
                 'required_if:activity_type,quiz',
@@ -1095,15 +1150,11 @@ class CourseTemplateActivityController extends Controller
             'learning_phases' => ['required', 'array', 'min:1'],
             'learning_phases.*' => ['required', 'string', Rule::in(self::LEARNING_PHASES), 'distinct'],
             'is_required' => ['required', 'boolean'],
+            'counts_for_attendance' => ['nullable', 'boolean'],
+            // A class-based course has one criterion per type and no manual completion (ADR-0022 Amendment 1.3).
             'completion_rule' => [
                 'required',
-                Rule::in(match ($activityType) {
-                    'video', 'audio' => ['view', 'watch_percent', 'manual'],
-                    'document', 'embedded_video' => ['view', 'manual'],
-                    'quiz' => ['submit', 'pass', 'manual'],
-                    'live_class' => ['join', 'manual'],
-                    default => [],
-                }),
+                Rule::in(CourseType::completionRules($courseType, is_string($activityType) ? $activityType : null)),
             ],
             'completion_threshold' => [
                 'nullable',
@@ -1214,7 +1265,8 @@ class CourseTemplateActivityController extends Controller
     private function activityValues(
         array $validated,
         array $extra = [],
-        ?object $existingActivity = null
+        ?object $existingActivity = null,
+        bool $keepsEstimate = true
     ): array {
         $usesAutomaticMediaDuration = in_array(
             $validated['activity_type'],
@@ -1230,6 +1282,8 @@ class CourseTemplateActivityController extends Controller
             'sort_order' => $validated['sort_order'] ?? null,
             'activity_type' => $validated['activity_type'],
             'external_video_url' => $validated['external_video_url'] ?? null,
+            // ADR-0035: changing the type away from external_link clears the link.
+            'external_link_url' => $validated['external_link_url'] ?? null,
             // The default join link is no longer entered; a stored one is kept while the Activity stays a live class.
             'live_class_url' => $validated['activity_type'] === 'live_class' && $existingActivity?->activity_type === 'live_class'
                 ? $existingActivity->live_class_url
@@ -1238,16 +1292,18 @@ class CourseTemplateActivityController extends Controller
             'duration_seconds' => $preserveAutomaticDuration
                 ? (int) $existingActivity->duration_seconds
                 : 0,
-            'estimated_duration_seconds' => isset($validated['estimated_duration_minutes'])
+            // A class has no estimated duration: the class schedule gives the time (ADR-0022 Amendment 1.3).
+            'estimated_duration_seconds' => ! $keepsEstimate ? null : (isset($validated['estimated_duration_minutes'])
                 ? $validated['estimated_duration_minutes'] * 60
                 : ($preserveAutomaticDuration
                     ? $existingActivity->estimated_duration_seconds
-                    : null),
+                    : null)),
             'available_anytime' => in_array('anytime', $validated['learning_phases'], true),
             'available_before_session' => in_array('before_session', $validated['learning_phases'], true),
             'available_during_session' => in_array('during_session', $validated['learning_phases'], true),
             'available_after_session' => in_array('after_session', $validated['learning_phases'], true),
             'is_required' => (bool) $validated['is_required'],
+            'counts_for_attendance' => (bool) ($validated['counts_for_attendance'] ?? false),
             'completion_rule' => $validated['completion_rule'],
             'completion_threshold' => $validated['completion_threshold'] ?? null,
             'is_preview' => (bool) $validated['is_preview'],
@@ -1257,7 +1313,50 @@ class CourseTemplateActivityController extends Controller
         ], fn ($value, $key) => $key !== 'sort_order' || $value !== null, ARRAY_FILTER_USE_BOTH), $extra);
     }
 
-    /** A lesson holds at most one live session; the lesson without one is a self-study lesson. */
+    /**
+     * ADR-0022 Amendment 1.3: the fields a class-based course does not use are set by the server, whatever
+     * the request sent. A self-study session has no phases, so its Activities are stored as anytime.
+     * "Tính vào điểm danh" exists only for an Activity other than the live class: in the "Trong" or "Sau" part of
+     * a led session (Đợt 3), or anywhere in a self-study session (Đợt 4, Bước 3).
+     */
+    private function fitClassRules(array $values, ?string $lessonType): array
+    {
+        $values['is_preview'] = 0;
+        $values['unlock_rule'] = 'none';
+        unset($values['unlock_after_activity_id'], $values['estimated_duration_minutes']);
+        if (! LessonType::isLed($lessonType)) {
+            $values['learning_phases'] = ['anytime'];
+        }
+        if (($values['completion_rule'] ?? null) === 'watch_percent'
+            && in_array($values['completion_threshold'] ?? null, [null, ''], true)) {
+            $values['completion_threshold'] = CourseType::CLASS_WATCH_PERCENT;
+        }
+        $phases = array_values((array) ($values['learning_phases'] ?? []));
+        // In a led session the tick belongs to the "Trong" or "Sau" part; a self-study session has no parts (Đợt 4, Bước 3).
+        $values['counts_for_attendance'] = (int) (filter_var($values['counts_for_attendance'] ?? false, FILTER_VALIDATE_BOOLEAN)
+            && ($values['activity_type'] ?? null) !== 'live_class'
+            && (! LessonType::isLed($lessonType)
+                || (count($phases) === 1 && in_array($phases[0], ['during_session', 'after_session'], true))));
+
+        return $values;
+    }
+
+    /** {@see fitClassRules()} under the Template lock, which also rejects a live class in a self-study session. */
+    private function fitClassActivity(array $validated, ?string $courseType, ?string $lessonType): array
+    {
+        if (! CourseType::isClassBased($courseType)) {
+            return ['counts_for_attendance' => 0] + $validated;
+        }
+        if ($validated['activity_type'] === 'live_class' && ! LessonType::isLed($lessonType)) {
+            throw ValidationException::withMessages([
+                'activity_type' => __('lf.LF_course_template_activity_self_study_live_class'),
+            ]);
+        }
+
+        return $this->fitClassRules($validated, $lessonType);
+    }
+
+    /** A lesson holds at most one live session (ADR-0022 Amendment 1.3: a led session holds exactly one). */
     private function lessonHasOtherLiveClass(int $customerId, int $templateId, int $lessonId, ?int $activityId): bool
     {
         return DB::table('core_course_template_activities')
@@ -1571,7 +1670,8 @@ class CourseTemplateActivityController extends Controller
     private function synchronizeUploadedMediaDuration(
         int $activityId,
         string $activityType,
-        ?object $mediaFile
+        ?object $mediaFile,
+        bool $keepsEstimate = true
     ): void {
         if ($mediaFile === null
             || ! in_array(
@@ -1591,7 +1691,7 @@ class CourseTemplateActivityController extends Controller
             ->where('id', $activityId)
             ->update([
                 'duration_seconds' => $durationSeconds ?? 0,
-                'estimated_duration_seconds' => $durationSeconds !== null
+                'estimated_duration_seconds' => $keepsEstimate && $durationSeconds !== null
                     ? (int) ceil($durationSeconds / 60) * 60
                     : null,
                 'updated_at' => now(),

@@ -13,13 +13,14 @@
         'start' => $cohortAdminArea && $session->status === 'scheduled' && collect($session->teacher_ids ?? [])->isNotEmpty(),
         'complete' => $cohortAdminArea && $session->status === 'live',
         'cancel' => $sessionEndsLifecycleOpen,
-        'no-show' => $sessionEndsLifecycleOpen,
+        // Nobody teaches a self-study session, so it cannot "not take place"; it is cancelled or ends by its timetable.
+        'no-show' => $sessionEndsLifecycleOpen && ! \App\Services\LiveClassSelfStudySession::is($session),
     ]);
 @endphp
 <button type="button" class="ux-row-edit cursor-interaction" aria-haspopup="dialog"
         aria-label="{{ __('lf.LF_course_cohort_session_details') }}: {{ $session->title }}" data-tooltip="{{ __('lf.LF_course_cohort_session_details') }}"
         @foreach (array_keys($sessionLifecycle) as $action) data-lifecycle-{{ $action }}="{{ route($routePrefix.'.sessions.'.$action, [$cohort->id, $session->id]) }}" @endforeach
-        @if ($cohortAdminArea && $cohort->status === 'active' && ! $slotProposal && $session->status === 'live') data-board-url="{{ route($routePrefix.'.sessions.board', [$cohort->id, $session->id]) }}" @endif
+        @if ($cohortAdminArea && $cohort->status === 'active' && ! $slotProposal && $session->status === 'live' && ! \App\Services\LiveClassPracticeSession::isType($session->lesson_type ?? null)) data-board-url="{{ route($routePrefix.'.sessions.board', [$cohort->id, $session->id]) }}" @endif
         x-on:click="openDetail(@js($session), $el)">
     <x-backend-icon name="eye" class="ui-icon" />
 </button>

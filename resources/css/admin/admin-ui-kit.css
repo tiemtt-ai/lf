@@ -2609,8 +2609,17 @@
 .lf-admin-ui .ui-chip-list--grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .lf-admin-ui .ui-chip-list--grid3 .ui-chip { justify-content: center; }
 .lf-admin-ui .ui-activity-panel { display: grid; gap: 12px; margin-top: 12px; padding: 16px 18px; border: 1px solid var(--ui-color-eef0fb); border-radius: 10px; background: var(--ui-color-f7f8fd); }
-.lf-admin-ui .ui-activity-panel__head { display: grid; gap: 2px; }
 .lf-admin-ui .ui-switch-row--boxed { align-items: center; padding: 14px 16px; border: 1px solid var(--ui-color-e6e8ee); border-radius: 10px; }
+.lf-admin-ui .ui-cohort-join-history { margin-top: 2px; color: var(--ui-muted); font-size: 12px; }
+.lf-admin-ui .ui-cohort-join-history > summary { color: var(--ui-primary); }
+.lf-admin-ui .ui-cohort-join-history ul { display: grid; gap: 6px; margin: 6px 0 0; padding: 0; list-style: none; }
+.lf-admin-ui .ui-cohort-join-history li { display: grid; gap: 1px; }
+.lf-admin-ui .ui-apply-box { display: grid; gap: 12px; padding: 14px 16px; border: 1px solid var(--ui-color-e6e8ee); border-radius: 10px; }
+.lf-admin-ui .ui-apply-box .ui-switch-row > input[type=checkbox] { flex: none; margin-top: 3px; }
+.lf-admin-ui .ui-apply-box .ui-switch-row.is-locked { cursor: default; }
+/* A locked tick stays readable: the kit greys a disabled box out, which hides its white check. */
+.lf-admin-ui .ui-apply-box .ui-switch-row.is-locked > input[type=checkbox]:checked { border-color: var(--ui-color-a6aebc); background: var(--ui-color-a6aebc)!important; } /* beats the grey disabled-input rule, which is !important */
+.lf-admin-ui .ui-apply-box .ui-switch-row.is-locked b { color: var(--ui-muted); }
 @media (max-width: 640px) {
     .lf-admin-ui .ui-ai-card__body { padding-left: 18px; }
     .lf-admin-ui .ui-chip-list--grid3 { grid-template-columns: 1fr; }
@@ -2647,6 +2656,8 @@
 .lf-admin-ui .ui-type-card__text b { font-size: 14px; }
 .lf-admin-ui .ui-type-card__text small { font-size: 12px; }
 .lf-admin-ui .ui-option-cards { align-items: start; gap: 12px; }
+/* Three parts of a session side by side (before, during, after); they stack on a narrow dialog. */
+.lf-admin-ui .ui-option-cards--three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .lf-admin-ui .ui-option-box { overflow: visible; border: 1px solid var(--ui-color-e6e8ee); border-radius: 10px; background: var(--ui-white); }
 .lf-admin-ui .ui-option-box:hover { border-color: var(--ui-border); }
 .lf-admin-ui .ui-option-box.is-selected { border-color: var(--ui-primary); outline: .5px solid var(--ui-primary); background: var(--ui-color-f7f8fd); }
@@ -2953,21 +2964,9 @@
 .lf-admin-ui .ui-learning-filter__dot--mapped { background: var(--ui-success); }
 .lf-admin-ui.ui-structure .course-template-content-toc-count.ui-learning-toc-unmapped { color: var(--ui-warning); }
 
-/* Learning availability: both mode cards keep one height; the session phases open as a full-width row under them,
-   with a notch pointing at the session card (the right column; the left on one-column layouts). */
+/* Option cards of one row keep one height; an error under them shows only when there is one. */
 .lf-admin-ui .ui-option-cards { align-items: stretch; }
-/* The detail of the first card (the session phases) is the cards' second row, full width; when the cards stack it follows the first card. */
-.lf-admin-ui .ui-option-cards__detail { position: relative; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; grid-row: 2; grid-column: 1 / -1; gap: 10px 20px; padding: 14px 16px; border: 1px solid var(--ui-primary); border-radius: 10px; background: var(--ui-color-f7f8fd); }
-.lf-admin-ui .ui-option-cards__detail::before { content: ""; position: absolute; top: -7px; left: calc(25% - 9px); width: 12px; height: 12px; border-top: 1px solid var(--ui-primary); border-left: 1px solid var(--ui-primary); background: var(--ui-color-f7f8fd); transform: rotate(45deg); }
-.lf-admin-ui .ui-option-cards__detail > :is(.ui-field__hint, .ui-option-cards__error) { flex-basis: 100%; }
-/* No mode to pick (a scheduled course): the phases sit directly under the field title, without the selected-card frame. */
-.lf-admin-ui .ui-option-cards__detail--solo { justify-content: flex-start; gap: 8px; margin-top: 0; padding: 0; border: 0; border-radius: 0; background: transparent; }
-.lf-admin-ui .ui-option-cards__detail--solo::before { display: none; }
 .lf-admin-ui .ui-option-cards__error:empty { display: none; }
-@container (max-width: 720px) {
-    .lf-admin-ui .ui-option-cards__detail { grid-row: auto; }
-    .lf-admin-ui .ui-option-cards__detail::before { left: 24px; }
-}
 
 /* Pages of a long direct-lesson list (lfLessonPager): a matching lesson outside the current page is hidden. */
 .lf-admin-ui .course-template-lesson-item.is-page-hidden { display: none !important; }
@@ -3236,6 +3235,7 @@
 .lf-admin-ui .ui-cohort-detail-summary { padding: 0; }
 .lf-admin-ui .ui-cohort-detail-summary .ui-framework-description { font-size: 12px; line-height: 17.4px; font-weight: 400; }
 .lf-admin-ui .ui-cohort-seat-warning { margin: 16px 20px 0; }
+.lf-admin-ui .ui-cohort-auto-end { margin-top: 16px; }
 /* A short form: its dropdowns may leave the popup instead of being cut by the scroll box. Only low screens keep scrolling. */
 @media (min-width: 641px) and (min-height: 480px), (min-height: 700px) {
     .lf-admin-ui .ui-modal.ui-cohort-teacher-modal, .lf-admin-ui .ui-cohort-teacher-modal .ui-modal__body { overflow: visible; }

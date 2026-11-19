@@ -9,8 +9,8 @@ use Illuminate\Validation\ValidationException;
 
 /**
  * Saving a Schedule turns its free dates into Sessions, in programme order, for
- * the live Activities that have none (ADR-0002 § Automatic Session Generation
- * Amendment). The pairing is the one the Sessions tab shows, so what the admin
+ * the positions that have none: the live Activities and the self-study Lessons
+ * (ADR-0002 § Automatic Session Generation Amendment, ADR-0023 §10). The pairing is the one the Sessions tab shows, so what the admin
  * sees and what is stored cannot differ.
  *
  * Existing Sessions and their Origins are never touched. Call it inside the
@@ -34,17 +34,18 @@ class LiveClassScheduleSessionGenerator
             return [];
         }
 
-        // Two Schedules of a Cohort may share a time. A date overlapping one just
-        // created ends the pass: the next one no longer offers it. A pass also sees
-        // at most the first free occurrences the read model lists (100), so a long
-        // programme needs further passes; each one that creates nothing ends it.
+        // Saving refuses two Schedules sharing a time (2026-11-19), but older ones may
+        // still do. A date overlapping one just created ends the pass: the next one
+        // no longer offers it. A pass also sees at most the first free occurrences
+        // the read model lists (100), so a long programme needs further passes; each
+        // one that creates nothing ends it.
         $created = [];
         do {
             [$ids] = $this->pass($customerId, $cohort, $actorId);
             $created = [...$created, ...$ids];
         } while ($ids !== []);
 
-        // Every live Activity must get a date: refused here, the Schedule is not saved either.
+        // Every position must get a date: refused here, the Schedule is not saved either.
         $missing = count($this->proposals($customerId, $cohort));
         if ($missing > 0) {
             throw ValidationException::withMessages([
@@ -140,7 +141,8 @@ class LiveClassScheduleSessionGenerator
 
     /**
      * The default box of ADR-0023 §3: the Lesson's title, online and the Activity's
-     * link, with the Cohort's teachers of that date as its team.
+     * link, with the Cohort's teachers of that date as its team. A practice session starts
+     * in a room, without a link, checked in by the button (ADR-0022 Amendment 1.3, Đợt 4).
      *
      * @param  array<string, mixed>  $proposal
      * @param  array<string, mixed>  $origin
@@ -148,7 +150,17 @@ class LiveClassScheduleSessionGenerator
     private function store(int $customerId, object $cohort, array $proposal, array $origin, int $sessionNo, int $actorId): int
     {
         $now = now();
-        $sessionId = DB::table('core_liveclass_sessions')->insertGetId([
+        $selfStudy = (bool) ($proposal['self_study'] ?? false);
+        $box = match (true) {
+            $selfStudy => LiveClassSelfStudySession::BOX,
+            (bool) ($proposal['practice'] ?? false) => LiveClassPracticeSession::BOX,
+            default => [
+                'delivery_mode' => 'online',
+                'online_provider' => LiveClassMeetingProvider::fromUrl($proposal['meeting_url']),
+                'meeting_url_snapshot' => $proposal['meeting_url'],
+            ],
+        };
+        $sessionId = DB::table('core_liveclass_sessions')->insertGetId($box + [
             'customer_id' => $customerId,
             'cohort_id' => $cohort->id,
             'template_version_id' => $cohort->version_id,
@@ -156,15 +168,12 @@ class LiveClassScheduleSessionGenerator
             'session_no' => $sessionNo,
             'session_type' => 'curriculum',
             'version_lesson_id' => (int) $proposal['lesson_id'],
-            'version_activity_id' => (int) $proposal['activity_id'],
+            'version_activity_id' => $selfStudy ? null : (int) $proposal['activity_id'],
             'primary_teacher_id' => null,
             'title' => trim($proposal['lesson_title']),
-            'delivery_mode' => 'online',
             'scheduled_start_at' => $origin['scheduled_start_at'],
             'scheduled_end_at' => $origin['scheduled_end_at'],
             'timezone' => $origin['timezone'],
-            'online_provider' => LiveClassMeetingProvider::fromUrl($proposal['meeting_url']),
-            'meeting_url_snapshot' => $proposal['meeting_url'],
             'status' => 'scheduled',
             'created_by' => $actorId,
             'created_at' => $now,
@@ -184,6 +193,11 @@ class LiveClassScheduleSessionGenerator
             'created_by' => $actorId,
             'created_at' => $now,
         ]);
+
+        // Nobody teaches a self-study session.
+        if ($selfStudy) {
+            return $sessionId;
+        }
 
         $date = $origin['source_local_date'];
         $team = DB::table('core_course_cohort_teachers')

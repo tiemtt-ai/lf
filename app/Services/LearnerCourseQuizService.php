@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Services\Assessment\AssessmentAttemptService;
 use App\Services\Assessment\AssessmentLearnerService;
 use App\Services\Assessment\AssessmentQuizService;
+use App\Support\CourseQuizVerdict;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -32,6 +33,13 @@ class LearnerCourseQuizService
             return null;
         }
         $this->learner->closeOverdue($customerId, $studentId);
+        // A class that has ended starts no new attempt; one already open may still be finished (Amendment 1.4).
+        if (CourseClassReview::only($customerId, $enrollmentId)
+            && ! DB::table(AssessmentAttemptService::TABLE)->where('customer_id', $customerId)->where('user_id', $studentId)
+                ->where('enrollment_id', $enrollmentId)->where('version_activity_id', $versionActivityId)
+                ->where('status', 'in_progress')->exists()) {
+            return null;
+        }
 
         return $this->attempts->startForActivity($customerId, $studentId, $enrollmentId, $versionActivityId);
     }
@@ -62,13 +70,20 @@ class LearnerCourseQuizService
             $version = $versions->get($snapshots->get($activity->id));
             $mine = $attempts->get($activity->id, collect())->values();
             $finished = $mine->where('status', '!=', 'in_progress')->values()
-                ->each(fn (object $attempt) => $attempt->visible = $version ? $this->learner->visibility($attempt, $version) : ['score' => false]);
+                ->each(function (object $attempt) use ($version, $activity): void {
+                    $attempt->visible = $version ? $this->learner->visibility($attempt, $version) : ['score' => false];
+                    // Đạt / Chưa đạt against the Activity's threshold (ADR-0032 Amendment 1.1).
+                    $attempt->verdict = CourseQuizVerdict::of($activity, $attempt, $attempt->visible);
+                });
             $max = (int) ($version->max_attempts ?? 0);
 
             return [$activity->id => (object) [
                 'version' => $version,
                 'open' => $mine->firstWhere('status', 'in_progress'),
                 'finished' => $finished,
+                // The attempt that counts: the graded one with the highest percentage (ADR-0032 D3), when it has a verdict.
+                'best' => $finished->filter(fn (object $attempt): bool => $attempt->verdict !== null)
+                    ->sortByDesc(fn (object $attempt): float => (float) $attempt->score_percentage)->first(),
                 'used' => $mine->count(),
                 'max' => $max,
                 'left' => max(0, $max - $mine->count()),

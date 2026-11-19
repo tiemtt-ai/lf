@@ -119,6 +119,45 @@ class LiveClassWhiteboardTest extends TestCase
             ->assertOk()->assertSee('lf-wb-config', false)->assertSee($setup['cohortName']);
     }
 
+    public function test_a_practice_session_starts_without_a_board(): void
+    {
+        // ADR-0022 Amendment 1.3, Đợt 4, Bước 1.
+        $setup = $this->setupClass();
+        DB::table('core_course_template_version_lessons')->where('id', $setup['lesson'])->update(['lesson_type' => 'practice']);
+        $session = $this->liveSession($setup, 'Field trip', '2026-07-04 15:00:00', '2026-07-04 17:00:00', teacher: $setup['teacher']);
+        DB::table('core_liveclass_sessions')->where('id', $session)->update(['attendance_tool' => 'button', 'room_name_snapshot' => 'Sân trường']);
+        $student = $this->learner($setup);
+
+        // While a Session is still ahead the teacher may rename the place; the attendance tool is not a choice.
+        $later = $this->liveSession($setup, 'Workshop', '2026-07-05 15:00:00', '2026-07-05 17:00:00', teacher: $setup['teacher']);
+        DB::table('core_liveclass_sessions')->where('id', $later)->update(['attendance_tool' => 'button', 'room_name_snapshot' => 'Sân trường']);
+        $this->actingAs($setup['teacher'])->put(self::HOST."/teacher/live-sessions/{$later}", [
+            'operations_session_id' => $later, 'room_name' => 'Bảo tàng', 'address' => '', 'attendance_tool' => 'board',
+        ])->assertSessionHasNoErrors();
+        $this->assertSame(['Bảo tàng', 'button'], array_values((array) DB::table('core_liveclass_sessions')->where('id', $later)
+            ->first(['room_name_snapshot', 'attendance_tool'])));
+        $this->actingAs($setup['teacher'])->get(self::HOST.'/teacher/live-sessions')->assertOk()
+            ->assertSeeText(__('lf.LF_course_cohort_session_place'))
+            ->assertDontSee('id="session-operations-'.$later.'-tool"', false);
+
+        // The start confirmation posts into this page, not into a board window.
+        $this->actingAs($setup['teacher'])->get(self::HOST.'/teacher/live-sessions')->assertOk()
+            ->assertSee("ask('start', \$el.dataset.url, {$session}, true)", false);
+        $this->actingAs($setup['teacher'])->post(self::HOST."/teacher/live-sessions/{$session}/start")
+            ->assertRedirect(route('teacher.live-sessions.index'))->assertSessionHas('success', __('lf.LF_liveclass_whiteboard_started'));
+        $this->assertSame('live', DB::table('core_liveclass_sessions')->where('id', $session)->value('status'));
+
+        // Live: it can be ended, but nobody has a board to open.
+        $this->actingAs($setup['teacher'])->get(self::HOST.'/teacher/live-sessions')->assertOk()
+            ->assertSee(route('teacher.live-sessions.complete', $session), false)
+            ->assertDontSee(route('teacher.live-sessions.board', $session), false);
+        $this->actingAs($setup['teacher'])->get(self::HOST."/teacher/live-sessions/{$session}/board")->assertNotFound();
+        $this->actingAs($setup['admin'])->get(self::HOST."/admin/course-cohorts/{$setup['cohort']}/sessions/{$session}/board")->assertNotFound();
+        $this->actingAs($student)->get(self::HOST."/my-courses/live-sessions/{$session}/board")->assertNotFound();
+        $this->actingAs($setup['admin'])->get(self::HOST."/admin/course-cohorts/{$setup['cohort']}?tab=sessions")->assertOk()
+            ->assertDontSee("sessions/{$session}/board", false);
+    }
+
     public function test_start_is_refused_outside_the_planned_local_day(): void
     {
         $setup = $this->setupClass();
@@ -228,9 +267,10 @@ class LiveClassWhiteboardTest extends TestCase
         $response = $this->actingAs($setup['teacher'])->getJson(self::HOST."/teacher/live-sessions/{$live}/board/materials")->assertOk();
         $items = collect($response->json('materials'));
 
-        // Cohort order puts the video before the PDF; hidden, unready, other-lesson and quiz Activities are left out.
-        $this->assertSame([$m['video'], $m['pdf'], $m['doc'], $m['embed']], $items->pluck('id')->all());
-        $this->assertSame(['video', 'pdf', 'document', 'embed'], $items->pluck('kind')->all());
+        // Cohort order puts the video before the PDF; unready, other-lesson and quiz Activities are left out. A material of
+        // any part of the session is listed, the homework after it included (ADR-0022 Amendment 1.3).
+        $this->assertSame([$m['video'], $m['pdf'], $m['doc'], $m['embed'], $m['homework']], $items->pluck('id')->all());
+        $this->assertSame(['video', 'pdf', 'document', 'embed', 'pdf'], $items->pluck('kind')->all());
         $this->assertSame(12, $items->firstWhere('id', $m['pdf'])['page_count']);
         $this->assertStringStartsWith('https://www.youtube-nocookie.com/embed/', $items->firstWhere('id', $m['embed'])['embed_url']);
         $this->assertNull($items->firstWhere('id', $m['embed'])['url_endpoint']);
@@ -248,7 +288,8 @@ class LiveClassWhiteboardTest extends TestCase
             ->assertOk()->assertHeader('Cache-Control', 'no-store, private')->json('url');
         $this->assertStringStartsWith(self::HOST.'/media/files/'.$m['pdfMedia'].'/signed?', $url);
 
-        foreach (['hidden', 'unready', 'otherLesson', 'embed'] as $key) {
+        $this->actingAs($setup['teacher'])->getJson("{$base}/{$m['homework']}/url")->assertOk();
+        foreach (['unready', 'otherLesson', 'embed'] as $key) {
             $this->actingAs($setup['teacher'])->getJson("{$base}/{$m[$key]}/url")->assertNotFound();
         }
     }
@@ -445,9 +486,9 @@ class LiveClassWhiteboardTest extends TestCase
         $this->assertSame('viewer', $config['role']);
         $this->assertSame(['stateUrl', 'statusUrl', 'channel', 'authUrl', 'lockSeconds', 'maxEventBytes', 'maxBatch'], array_keys($config['sync']));
         $this->assertSame("tenant.{$setup['customer']}.liveclass-board.{$live}", $config['sync']['channel']);
-        $this->actingAs($student)->getJson("{$board}/materials")->assertOk()->assertJsonCount(4, 'materials');
+        $this->actingAs($student)->getJson("{$board}/materials")->assertOk()->assertJsonCount(5, 'materials');
         $this->actingAs($student)->getJson("{$board}/materials/{$setup['materials']['pdf']}/url")->assertOk()->assertJsonStructure(['url']);
-        $this->actingAs($student)->getJson("{$board}/materials/{$setup['materials']['hidden']}/url")->assertNotFound();
+        $this->actingAs($student)->getJson("{$board}/materials/{$setup['materials']['unready']}/url")->assertNotFound();
         $this->actingAs($student)->getJson("{$board}/state")->assertOk()->assertJsonPath('seq', 0);
 
         // Not live, not a member, no longer a member, Enrollment not active or outside its window.
@@ -960,8 +1001,9 @@ class LiveClassWhiteboardTest extends TestCase
         $doc = $this->activity($customer, $version, $lesson, 'document', 'Worksheet', 4, $docMedia);
         $embed = $this->activity($customer, $version, $lesson, 'embedded_video', 'YouTube clip', 5, null,
             ['external_video_url_snapshot' => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ']);
-        $hidden = $this->activity($customer, $version, $lesson, 'document', 'Homework', 6,
-            $this->media($customer, $admin->id, 'document', 'application/pdf', 'homework.pdf'), ['available_during_session' => false]);
+        $homework = $this->activity($customer, $version, $lesson, 'document', 'Homework', 6,
+            $this->media($customer, $admin->id, 'document', 'application/pdf', 'homework.pdf'),
+            ['available_during_session' => false, 'available_after_session' => true]);
         $unready = $this->activity($customer, $version, $lesson, 'document', 'Processing', 7,
             $this->media($customer, $admin->id, 'document', 'application/pdf', 'processing.pdf', status: 'processing'));
         $this->activity($customer, $version, $lesson, 'quiz', 'Quiz', 8);
@@ -969,7 +1011,7 @@ class LiveClassWhiteboardTest extends TestCase
             $this->media($customer, $admin->id, 'document', 'application/pdf', 'next.pdf'));
 
         // The class keeps its own order: the video first.
-        foreach ([$video => 1, $liveActivity => 2, $pdf => 3, $doc => 4, $embed => 5, $hidden => 6, $unready => 7] as $activity => $order) {
+        foreach ([$video => 1, $liveActivity => 2, $pdf => 3, $doc => 4, $embed => 5, $homework => 6, $unready => 7] as $activity => $order) {
             DB::table('core_course_cohort_activity_orders')->insert([
                 'customer_id' => $customer, 'cohort_id' => $cohort,
                 'version_activity_id' => $activity, 'sort_order' => $order, 'created_at' => now(), 'updated_at' => now(),
@@ -982,7 +1024,7 @@ class LiveClassWhiteboardTest extends TestCase
             'lesson' => $lesson, 'liveActivity' => $liveActivity,
             'materials' => [
                 'pdf' => $pdf, 'pdfMedia' => $pdfMedia, 'video' => $video, 'videoMedia' => $videoMedia, 'doc' => $doc, 'docMedia' => $docMedia, 'embed' => $embed,
-                'hidden' => $hidden, 'unready' => $unready, 'otherLesson' => $otherLessonActivity,
+                'homework' => $homework, 'unready' => $unready, 'otherLesson' => $otherLessonActivity,
             ],
         ];
     }

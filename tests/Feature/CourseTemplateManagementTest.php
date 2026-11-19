@@ -662,6 +662,7 @@ class CourseTemplateManagementTest extends TestCase
     public function test_changing_the_course_type_clears_the_lesson_fields_the_new_type_does_not_use(): void
     {
         // ADR-0022 Amendment 1.2: preview and unlock rules are for a self-paced course, the lesson type for a class.
+        // Amendment 1.3: a self-paced Template turning class-based starts its lessons as self-study sessions.
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
         $categoryId = $this->createCategory($customerId, 'Korean', 'korean');
@@ -686,6 +687,14 @@ class CourseTemplateManagementTest extends TestCase
             ['course_type' => $type] + $create
         );
 
+        $activityId = DB::table('core_course_template_activities')->insertGetId([
+            'customer_id' => $customerId, 'template_id' => $templateId, 'template_lesson_id' => $first,
+            'title' => 'Reading', 'sort_order' => 0, 'activity_type' => 'document', 'duration_seconds' => 0,
+            'estimated_duration_seconds' => 600, 'is_required' => true, 'completion_rule' => 'view', 'is_preview' => true,
+            'unlock_rule' => 'none', 'available_anytime' => true, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('core_course_template_lessons')->where('id', $first)->update(['duration_seconds' => 600]);
+
         $update('blended')->assertSessionHasNoErrors();
         $rows = DB::table('core_course_template_lessons')->where('template_id', $templateId)->get()->keyBy('id');
         foreach ([$first, $second, $third] as $id) {
@@ -693,8 +702,15 @@ class CourseTemplateManagementTest extends TestCase
             $this->assertSame('none', $rows[$id]->unlock_rule);
             $this->assertNull($rows[$id]->prerequisite_match);
             $this->assertNull($rows[$id]->unlock_at);
+            // ADR-0022 Amendment 1.3: the lessons, whose Activities are all anytime, become self-study sessions.
+            $this->assertSame('self_study', $rows[$id]->lesson_type);
+            $this->assertSame(0, (int) $rows[$id]->duration_seconds);
         }
         $this->assertDatabaseMissing('core_course_template_lesson_prerequisites', ['template_id' => $templateId]);
+        // A class has no Activity preview or estimated duration.
+        $this->assertDatabaseHas('core_course_template_activities', [
+            'id' => $activityId, 'is_preview' => 0, 'estimated_duration_seconds' => null, 'available_anytime' => 1,
+        ]);
 
         DB::table('core_course_template_lessons')->where('id', $first)->update(['lesson_type' => 'final_exam']);
         $update('self_paced')->assertSessionHasNoErrors();

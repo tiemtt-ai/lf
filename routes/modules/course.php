@@ -71,6 +71,11 @@ if ($registerCourseProductRoutes ?? false) {
     Route::delete('/course-cohorts', [CourseCohortController::class, 'bulkDestroy'])
         ->name('course-cohorts.bulk-destroy');
 
+    // A class ends by itself after its end date; ending it earlier is an administrator's decision (ADR-0022
+    // Amendment 1.4, "Lớp tự kết thúc theo ngày").
+    Route::post('/course-cohorts/{id}/complete', [CourseCohortController::class, 'complete'])
+        ->name('course-cohorts.complete');
+
     Route::post('/course-cohorts/{id}/archive', [CourseCohortController::class, 'archive'])
         ->name('course-cohorts.archive');
 

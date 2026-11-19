@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\AuthorizesCourseCohortAdmin;
+use App\Services\CourseCohortMembershipHistory;
 use App\Services\CourseCohortMutationPolicy;
 use App\Services\CourseCohortVersionResolver;
+use App\Services\CourseEnrollmentLifecycleService;
 use App\Services\LiveClassWhiteboardLiveState;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
@@ -202,7 +204,9 @@ class CourseCohortStudentController extends Controller
             'detail_url' => route('admin.course-enrollments.show', $enrollment->id),
             'current' => (bool) ($enrollment->current_membership ?? false),
             'account_active' => ($enrollment->student_status ?? 'active') === 'active',
-            'eligible' => $enrollment->status === 'active' && ($enrollment->student_status ?? 'active') === 'active',
+            'access_ended' => CourseEnrollmentLifecycleService::accessEnded($enrollment, now()),
+            'eligible' => $enrollment->status === 'active' && ($enrollment->student_status ?? 'active') === 'active'
+                && ! CourseEnrollmentLifecycleService::accessEnded($enrollment, now()),
         ]);
 
         return response()->json(['data' => $data, 'pagination' => [
@@ -343,6 +347,10 @@ class CourseCohortStudentController extends Controller
                     ->where('customer_id', $customerId)->where('cohort_id', $cohort)
                     ->where('status', 'active')->whereIn('enrollment_id', $removeIds)
                     ->update(['status' => 'removed', 'left_at' => now(), 'updated_at' => now()]);
+                // ADR-0034: every change of a membership is kept.
+                foreach ($currentMemberships->only($removeIds) as $leaving) {
+                    CourseCohortMembershipHistory::record($leaving, 'left', $request->user()?->id);
+                }
             }
 
             // Capacity was already validated once for the whole selection above,
@@ -406,7 +414,7 @@ class CourseCohortStudentController extends Controller
         $membership = $this->findMembership($customerId, $id);
         abort_if($membership->status !== 'active', 422);
         $validated = $this->validatedData($request, $customerId, $membership);
-        DB::transaction(function () use ($customerId, $validated, $membership, $id): void {
+        DB::transaction(function () use ($customerId, $validated, $membership, $id, $request): void {
             $ids = array_values(array_unique([(int) $membership->cohort_id, (int) $validated['cohort_id']]));
             sort($ids);
             $lockedCohorts = DB::table('core_course_cohorts')->where('customer_id', $customerId)
@@ -420,6 +428,13 @@ class CourseCohortStudentController extends Controller
             abort_if(! $source || ! $target || ! $enrollment || ! CourseCohortMutationPolicy::canMutate($source), 422);
             $this->assertAssignmentAllowed($customerId, $target, $enrollment, $id);
 
+            // ADR-0034: a transfer and a changed join date are kept in the history.
+            $transferred = (int) $target->id !== (int) $source->id;
+            if ($transferred || ! Carbon::parse((string) $lockedMembership->joined_at)->equalTo(Carbon::parse((string) $validated['joined_at']))) {
+                CourseCohortMembershipHistory::record($lockedMembership, $transferred ? 'transferred' : 'joined_at_changed', $request->user()?->id, [
+                    'old_joined_at' => $lockedMembership->joined_at, 'new_joined_at' => $validated['joined_at'], 'cohort_id' => (int) $target->id,
+                ]);
+            }
             DB::table('core_course_cohort_students')->where('customer_id', $customerId)->where('id', $id)->update([
                 'cohort_id' => $target->id, 'joined_at' => $validated['joined_at'],
                 'left_at' => null, 'status' => 'active',
@@ -442,7 +457,7 @@ class CourseCohortStudentController extends Controller
         $this->authorizeAdmin($request);
 
         $customerId = $this->customerId();
-        DB::transaction(function () use ($customerId, $id): void {
+        DB::transaction(function () use ($customerId, $id, $request): void {
             $membership = DB::table('core_course_cohort_students')->where('customer_id', $customerId)
                 ->where('id', $id)->lockForUpdate()->first();
             abort_if(! $membership, 404);
@@ -451,6 +466,7 @@ class CourseCohortStudentController extends Controller
             abort_if(! $cohort || ! CourseCohortMutationPolicy::canMutate($cohort) || $membership->status !== 'active', 422);
             DB::table('core_course_cohort_students')->where('customer_id', $customerId)->where('id', $id)
                 ->update(['status' => 'removed', 'left_at' => now(), 'updated_at' => now()]);
+            CourseCohortMembershipHistory::record($membership, 'left', $request->user()?->id);
             $this->closeBoardsAfterCommit($customerId, (int) $membership->cohort_id, [(int) $membership->student_id]);
         }, 3);
 
@@ -475,7 +491,8 @@ class CourseCohortStudentController extends Controller
         $validator = Validator::make($request->all(), [
             'cohort_id' => ['required', 'integer', 'min:1'],
             'enrollment_id' => [$membership ? 'nullable' : 'required', 'integer', 'min:1'],
-            'joined_at' => ['required', 'date'],
+            // ADR-0034: a learner cannot have joined the class in the future.
+            'joined_at' => ['required', 'date', 'before_or_equal:now'],
             'left_at' => ['nullable', 'date', 'after_or_equal:joined_at'],
             'status' => ['required', Rule::in(self::STATUSES)],
             'transfer_reason' => ['nullable', 'string', 'max:500'],
@@ -742,6 +759,7 @@ class CourseCohortStudentController extends Controller
             $checkEligibility && ! $this->cohortAcceptsMembership($cohort) => __('lf.LF_course_cohort_student_validation_active_cohort'),
             $extraAccepted !== null && $this->cohortIsFull($customerId, $cohort, $ignoreMembershipId, $extraAccepted) => __('lf.LF_course_cohort_student_validation_capacity'),
             $enrollment->status !== 'active' => __('lf.LF_course_cohort_student_validation_active_enrollment'),
+            CourseEnrollmentLifecycleService::accessEnded($enrollment, now()) => __('lf.LF_course_cohort_student_validation_access_ended'),
             ! $this->activeStudentExists($customerId, (int) $enrollment->student_id) => __('lf.LF_course_cohort_student_validation_active_student'),
             (int) $cohort->product_id !== (int) $enrollment->product_id => __('lf.LF_course_cohort_student_validation_product_mismatch'),
             (int) $cohort->version_id !== (int) $enrollment->version_id => __('lf.LF_course_cohort_student_validation_version_mismatch'),
@@ -815,6 +833,12 @@ class CourseCohortStudentController extends Controller
             $existingMembership = $existingMemberships->get($enrollmentId);
 
             if ($existingMembership) {
+                // ADR-0034: added back to the same class, the learner keeps the first join date and the time away
+                // is kept as a gap; moved in from another class, the join date is now.
+                $sameClass = (int) $existingMembership->cohort_id === $cohortId;
+                CourseCohortMembershipHistory::record($existingMembership, $sameClass ? 'rejoined' : 'transferred', $actorId, $sameClass
+                    ? ['absent_from' => $existingMembership->left_at ?? $now, 'absent_to' => $now]
+                    : ['old_joined_at' => $existingMembership->joined_at, 'new_joined_at' => $now, 'cohort_id' => $cohortId]);
                 DB::table('core_course_cohort_students')
                     ->where('customer_id', $customerId)
                     ->where('id', $existingMembership->id)
@@ -823,7 +847,7 @@ class CourseCohortStudentController extends Controller
                         'product_id' => $enrollment->product_id,
                         'student_id' => $enrollment->student_id,
                         'assigned_by' => $actorId,
-                        'joined_at' => $now,
+                        'joined_at' => $sameClass ? $existingMembership->joined_at : $now,
                         'left_at' => null,
                         'status' => 'active',
                         'transfer_from_cohort_id' => (int) $existingMembership->cohort_id !== $cohortId
@@ -919,6 +943,8 @@ class CourseCohortStudentController extends Controller
             ->where('enrollments.product_id', $cohort->product_id)
             ->where('enrollments.version_id', $cohort->version_id)
             ->where('enrollments.status', 'active')
+            // A learning window that has ended closes the class to the Enrollment before the expiry sweep runs.
+            ->where(fn ($query) => $query->whereNull('enrollments.access_ends_at')->orWhere('enrollments.access_ends_at', '>', now()))
             ->whereNotExists(function ($query) use ($customerId): void {
                 $query->selectRaw('1')
                     ->from('core_course_cohort_students as memberships')

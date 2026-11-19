@@ -566,14 +566,15 @@ class CourseTemplateLessonManagementTest extends TestCase
         $this->assertDatabaseCount('core_course_template_lessons', 0);
     }
 
-    public function test_lesson_role_allowlist_is_required_and_all_values_are_accepted(): void
+    public function test_lesson_type_allowlist_is_required_and_the_three_session_types_are_accepted(): void
     {
         $customerId = $this->createTenant();
         $admin = $this->createUser($customerId, 'customer_admin');
         // The lesson type labels a session of a class: only a class-based course has it.
         $templateId = $this->createTemplate($customerId, 'Lesson Roles', 'lesson-roles', courseType: 'blended');
 
-        foreach (['regular', 'review', 'midterm_exam', 'final_exam', 'other_exam'] as $index => $lessonType) {
+        // ADR-0022 Amendment 1.3: three session types; review and the exams are no longer chosen.
+        foreach (['regular', 'practice', 'self_study'] as $index => $lessonType) {
             $this->actingAs($admin)->post(
                 $this->directLessonCollectionUrl('admin', $templateId),
                 $this->validLessonData(['title' => 'Role '.$index, 'lesson_type' => $lessonType])
@@ -590,10 +591,56 @@ class CourseTemplateLessonManagementTest extends TestCase
         unset($missing['lesson_type']);
         $this->actingAs($admin)->post($this->directLessonCollectionUrl('admin', $templateId), $missing)
             ->assertSessionHasErrors('lesson_type');
-        $this->actingAs($admin)->post(
-            $this->directLessonCollectionUrl('admin', $templateId),
-            $this->validLessonData(['title' => 'Invalid Role', 'lesson_type' => 'introduction'])
-        )->assertSessionHasErrors('lesson_type');
+        foreach (['introduction', 'review', 'midterm_exam', 'final_exam', 'other_exam'] as $retired) {
+            $this->actingAs($admin)->post(
+                $this->directLessonCollectionUrl('admin', $templateId),
+                $this->validLessonData(['title' => 'Invalid Role', 'lesson_type' => $retired])
+            )->assertSessionHasErrors('lesson_type');
+        }
+        $this->assertDatabaseMissing('core_course_template_lessons', ['title' => 'Invalid Role']);
+    }
+
+    public function test_a_session_becomes_self_study_only_without_a_live_class_and_its_activities_lose_their_part(): void
+    {
+        // ADR-0022 Amendment 1.3.
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $templateId = $this->createTemplate($customerId, 'Class Course', 'class-course', courseType: 'blended');
+        $lessonId = $this->createLesson($customerId, $templateId, null, 'Session One');
+        $activity = fn (string $title, string $type, string $phase) => DB::table('core_course_template_activities')->insertGetId([
+            'customer_id' => $customerId, 'template_id' => $templateId, 'template_lesson_id' => $lessonId,
+            'title' => $title, 'sort_order' => 0, 'activity_type' => $type, 'duration_seconds' => 0, 'is_required' => true,
+            'completion_rule' => $type === 'live_class' ? 'join' : 'view', 'is_preview' => false, 'unlock_rule' => 'none',
+            'available_anytime' => false, 'available_before_session' => $phase === 'before_session',
+            'available_during_session' => $phase === 'during_session', 'available_after_session' => false,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $liveId = $activity('Live', 'live_class', 'during_session');
+        $readingId = $activity('Reading', 'document', 'before_session');
+        $tickedId = $activity('Exercise', 'document', 'during_session');
+        DB::table('core_course_template_activities')->where('id', $tickedId)->update(['counts_for_attendance' => true]);
+        $lessonUrl = $this->directLessonCollectionUrl('admin', $templateId).'/'.$lessonId;
+
+        $this->actingAs($admin)->put($lessonUrl, $this->validLessonData(['title' => 'Session One', 'lesson_type' => 'self_study']))
+            ->assertSessionHasErrors(['lesson_type' => __('lf.LF_course_template_lesson_self_study_has_live_class')]);
+        $this->assertSame('regular', DB::table('core_course_template_lessons')->where('id', $lessonId)->value('lesson_type'));
+
+        DB::table('core_course_template_activities')->where('id', $liveId)->delete();
+        $this->actingAs($admin)->put($lessonUrl, $this->validLessonData(['title' => 'Session One', 'lesson_type' => 'self_study']))
+            ->assertSessionHasNoErrors();
+        $this->assertSame('self_study', DB::table('core_course_template_lessons')->where('id', $lessonId)->value('lesson_type'));
+        $this->assertDatabaseHas('core_course_template_activities', [
+            'id' => $readingId, 'available_anytime' => 1, 'available_before_session' => 0,
+        ]);
+        // The tick stays: a self-study session records attendance by its ticked content (Đợt 4, Bước 3).
+        $this->assertDatabaseHas('core_course_template_activities', [
+            'id' => $tickedId, 'available_anytime' => 1, 'counts_for_attendance' => 1,
+        ]);
+
+        // Back to a led session: the Activities are kept as they are until a part is chosen.
+        $this->actingAs($admin)->put($lessonUrl, $this->validLessonData(['title' => 'Session One', 'lesson_type' => 'practice']))
+            ->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('core_course_template_activities', ['id' => $readingId, 'available_anytime' => 1]);
     }
 
     public function test_lesson_fields_follow_the_template_course_type(): void
@@ -620,18 +667,18 @@ class CourseTemplateLessonManagementTest extends TestCase
 
         // A tampered class request stores no preview, no rule and no prerequisite; an unusable rule is not even checked.
         $this->actingAs($admin)->post($this->directLessonCollectionUrl('admin', $classId), $this->validLessonData([
-            'title' => 'Class Review', 'lesson_type' => 'review', 'is_preview' => 1,
+            'title' => 'Class Review', 'lesson_type' => 'practice', 'is_preview' => 1,
             'unlock_rule' => 'selected_lessons_completed', 'prerequisite_match' => 'any', 'prerequisite_lesson_ids' => [$classFirst, 999999],
         ]))->assertSessionHasNoErrors();
         $classLesson = DB::table('core_course_template_lessons')->where('template_id', $classId)->where('title', 'Class Review')->first();
-        $this->assertSame('review', $classLesson->lesson_type);
+        $this->assertSame('practice', $classLesson->lesson_type);
         $this->assertFalse((bool) $classLesson->is_preview);
         $this->assertSame('none', $classLesson->unlock_rule);
         $this->assertNull($classLesson->prerequisite_match);
         $this->assertDatabaseMissing('core_course_template_lesson_prerequisites', ['lesson_id' => $classLesson->id]);
 
         $this->actingAs($admin)->post($this->directLessonCollectionUrl('admin', $selfId), $this->validLessonData([
-            'title' => 'Self Exam', 'lesson_type' => 'final_exam', 'is_preview' => 1,
+            'title' => 'Self Exam', 'lesson_type' => 'self_study', 'is_preview' => 1,
         ]))->assertSessionHasNoErrors();
         $selfLesson = DB::table('core_course_template_lessons')->where('template_id', $selfId)->where('title', 'Self Exam')->first();
         $this->assertSame('regular', $selfLesson->lesson_type);
@@ -639,10 +686,10 @@ class CourseTemplateLessonManagementTest extends TestCase
 
         // Editing a class lesson keeps its type and still ignores a sent unlock date.
         $this->actingAs($admin)->put($this->directLessonCollectionUrl('admin', $classId).'/'.$classLesson->id, $this->validLessonData([
-            'title' => 'Class Review', 'lesson_type' => 'midterm_exam', 'unlock_rule' => 'date_based', 'unlock_at' => '2026-12-01T08:00',
+            'title' => 'Class Review', 'lesson_type' => 'self_study', 'unlock_rule' => 'date_based', 'unlock_at' => '2026-12-01T08:00',
         ]))->assertSessionHasNoErrors();
         $edited = DB::table('core_course_template_lessons')->where('id', $classLesson->id)->first();
-        $this->assertSame('midterm_exam', $edited->lesson_type);
+        $this->assertSame('self_study', $edited->lesson_type);
         $this->assertSame('none', $edited->unlock_rule);
         $this->assertNull($edited->unlock_at);
     }

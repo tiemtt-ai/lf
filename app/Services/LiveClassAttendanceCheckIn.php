@@ -100,10 +100,34 @@ final class LiveClassAttendanceCheckIn
         return $fresh && hash_equals($this->signature($customerId, $sessionId, $window), $parts[2]);
     }
 
-    /** Learners who have checked in so far, and the Cohort's active learners, for the board. */
+    /** How many learners the board names as "just checked in". */
+    public const RECENT = 5;
+
+    /**
+     * Learners who have checked in so far, the Cohort's active learners, and the last in-room entries by name so the
+     * teacher can compare them with the room (MK 2.4), for the presenter's board.
+     */
     public function counts(LiveClassBoardContext $context): array
     {
+        $recent = DB::table('core_liveclass_attendances as marks')
+            ->join('users', function ($join) use ($context): void {
+                $join->on('users.id', '=', 'marks.user_id')->where('users.customer_id', $context->customerId);
+            })
+            ->where('marks.customer_id', $context->customerId)->where('marks.session_id', $context->sessionId)
+            ->where('marks.attendance_mode', 'offline')->where('marks.attendance_source', 'system')->whereNotNull('marks.joined_at')
+            ->orderByDesc('marks.joined_at')->orderByDesc('marks.id')->limit(self::RECENT)
+            ->get(['users.name', 'marks.status', 'marks.joined_at'])
+            ->map(fn (object $row): array => [
+                'name' => (string) $row->name,
+                'time' => CarbonImmutable::parse((string) $row->joined_at)->format('H:i'),
+                'status' => (string) $row->status,
+                'label' => $row->status === 'registered'
+                    ? __('lf.LF_liveclass_whiteboard_attendance_recent_pending')
+                    : __('lf.LF_course_cohort_attendance_status_'.$row->status),
+            ])->all();
+
         return [
+            'recent' => $recent,
             'checked_in' => DB::table('core_liveclass_attendances')
                 ->where('customer_id', $context->customerId)->where('session_id', $context->sessionId)
                 ->whereIn('status', ['present', 'late'])->count(),

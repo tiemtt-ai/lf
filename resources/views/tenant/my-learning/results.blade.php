@@ -19,9 +19,7 @@
     <section class="student-products student-results">
         @include('tenant.my-learning.partials.hub-nav', ['tab' => $tab])
 
-        @if ($liveSessions->isNotEmpty())
-            @include('tenant.my-learning.partials.live-sessions')
-        @endif
+        @include('tenant.my-learning.partials.live-sessions-block')
 
         <h1>{{ __('lf.LF_student_site_my_results') }}</h1>
         <p class="student-products__description">{{ __('lf.LF_my_learning_results_help') }}</p>

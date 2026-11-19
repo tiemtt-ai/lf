@@ -158,7 +158,7 @@ class CourseQuizActivityTest extends TestCase
         // Waiting for grading: no score shown, not completed.
         $this->assertSame(['in_progress', null], [$this->progress($enrollment, $activity)->status, $this->progress($enrollment, $activity)->passed]);
         $this->actingAs($this->student)->get(self::HOST.'/my-courses/'.$enrollment.'/lessons/'.$lesson)->assertOk()
-            ->assertSeeText(__('lf.LF_my_learning_results_waiting'))->assertDontSeeText('2 / 6');
+            ->assertSeeText(__('lf.LF_my_learning_quiz_waiting'))->assertDontSeeText('2 / 6');
 
         $this->actingAs($this->admin)->get(self::ADMIN.'/results?tab=pending')->assertOk()
             ->assertSeeText(__('lf.LF_assessment_result_course_source', ['course' => 'Viết sơ cấp']));
@@ -172,6 +172,112 @@ class CourseQuizActivityTest extends TestCase
         $this->actingAs($this->admin)->post(self::ADMIN.'/results/'.$attempt->id.'/answers/'.$answer.'/grade', ['score' => '0'])->assertSessionHasNoErrors();
         $row = $this->progress($enrollment, $activity);
         $this->assertSame(['completed', 0, '2.00'], [$row->status, (int) $row->passed, number_format((float) $row->score, 2, '.', '')]);
+    }
+
+    public function test_submit_completes_once_the_attempt_is_graded(): void
+    {
+        // ADR-0022 Amendment 1.3, Đợt 3 (MK 3.3): an essay waits for the teacher; an auto-graded quiz completes at once.
+        [$quiz, $version] = $this->quiz(['title' => 'Bài viết nộp', 'max_attempts' => '1', 'show_result_mode' => 'after_grading'], essay: true);
+        [$product, $courseVersion, $lesson] = $this->course('Viết nộp bài');
+        $activity = $this->quizActivity($courseVersion, $lesson, $quiz, $version, ['completion_rule' => 'submit']);
+        $enrollment = $this->enroll($this->student, $product, $courseVersion);
+        $attempt = $this->startAttempt(self::HOST.'/my-courses/'.$enrollment.'/activities/'.$activity.'/attempts');
+        $essay = (int) DB::table('core_assessment_quiz_version_questions')->where('quiz_version_id', $version)->where('question_type', 'essay')->value('id');
+        $this->actingAs($this->student)->post(self::HOST.'/assessments/attempts/'.$attempt->id.'/submit', ['answers' => [
+            $this->singleQuestion($attempt) => ['present' => '1', 'option_keys' => ['2']],
+            $essay => ['present' => '1', 'text' => 'Bài viết của em'],
+        ]]);
+        $this->assertSame('submitted', DB::table('core_assessment_attempts')->where('id', $attempt->id)->value('status'));
+        $this->assertSame('in_progress', $this->progress($enrollment, $activity)->status);
+
+        $answer = (int) DB::table('core_assessment_answers')->where('attempt_id', $attempt->id)->where('quiz_version_question_id', $essay)->value('id');
+        $this->actingAs($this->admin)->post(self::ADMIN.'/results/'.$attempt->id.'/answers/'.$answer.'/grade', ['score' => '0'])->assertSessionHasNoErrors();
+        $this->assertSame('completed', $this->progress($enrollment, $activity)->status);
+    }
+
+    public function test_a_class_that_has_ended_starts_no_new_attempt_and_adds_no_progress(): void
+    {
+        // ADR-0022 Amendment 1.4: an attempt already open is finished and graded, without adding progress.
+        [$quiz, $version] = $this->quiz(['title' => 'Kiểm tra cuối lớp', 'max_attempts' => '3']);
+        [$product, $courseVersion, $lesson] = $this->course('Lớp đã kết thúc');
+        DB::table('core_course_template_versions')->where('id', $courseVersion)->update(['course_type_snapshot' => 'blended']);
+        $activity = $this->quizActivity($courseVersion, $lesson, $quiz, $version, ['completion_rule' => 'submit']);
+        $enrollment = $this->enroll($this->student, $product, $courseVersion);
+        $cohort = DB::table('core_course_cohorts')->insertGetId([
+            'customer_id' => $this->customer, 'product_id' => $product, 'version_id' => $courseVersion, 'name' => 'Lớp cũ',
+            'code' => 'COH-'.uniqid(), 'status' => 'active', 'start_date' => '2026-01-01', 'end_date' => '2026-12-31',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('core_course_cohort_students')->insert([
+            'customer_id' => $this->customer, 'cohort_id' => $cohort, 'enrollment_id' => $enrollment, 'product_id' => $product,
+            'student_id' => $this->student->id, 'joined_at' => '2026-01-01 00:00:00', 'status' => 'active', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $start = self::HOST.'/my-courses/'.$enrollment.'/activities/'.$activity.'/attempts';
+
+        $open = $this->startAttempt($start);
+        DB::table('core_course_cohorts')->where('id', $cohort)->update(['status' => 'completed']);
+
+        // The open attempt is resumed and handed in; its result is kept, the Activity does not complete.
+        $this->assertSame((int) $open->id, (int) $this->startAttempt($start)->id);
+        $this->submit($open->id, ['2']);
+        $this->assertSame('graded', DB::table('core_assessment_attempts')->where('id', $open->id)->value('status'));
+        $this->assertNotSame('completed', DB::table('core_course_activity_progress')->where('enrollment_id', $enrollment)
+            ->where('version_activity_id', $activity)->value('status'));
+
+        // No new attempt, although two are left; the lesson page says why.
+        $this->actingAs($this->student)->post($start)->assertForbidden();
+        $this->assertSame(1, DB::table('core_assessment_attempts')->where('enrollment_id', $enrollment)->count());
+        $this->actingAs($this->student)->get(self::HOST.'/my-courses/'.$enrollment.'/lessons/'.$lesson)->assertOk()
+            ->assertSee('data-learn-quiz-closed', false)->assertDontSee('data-learn-quiz-start', false);
+    }
+
+    public function test_a_course_attempt_shows_passed_or_not_by_the_activity_threshold(): void
+    {
+        // ADR-0032 Amendment 1.1. The quiz's own pass mark is 60%, the Activity asks for 80%.
+        [$quiz, $version] = $this->quiz(['title' => 'Kiểm tra nhãn', 'max_attempts' => '3']);
+        [$product, $courseVersion, $lesson] = $this->course('Khóa nhãn');
+        $activity = $this->quizActivity($courseVersion, $lesson, $quiz, $version, ['completion_rule' => 'pass', 'completion_threshold' => 80]);
+        $enrollment = $this->enroll($this->student, $product, $courseVersion);
+        $lessonUrl = self::HOST.'/my-courses/'.$enrollment.'/lessons/'.$lesson;
+        $start = self::HOST.'/my-courses/'.$enrollment.'/activities/'.$activity.'/attempts';
+        $result = fn (int $attempt) => $this->actingAs($this->student)->get(self::HOST.'/assessments/attempts/'.$attempt.'/result')->assertOk();
+
+        // 70%: passed for the quiz, not for the course. Both pages follow the course.
+        $first = $this->startAttempt($start);
+        $this->submit($first->id, ['1']);
+        DB::table('core_assessment_attempts')->where('id', $first->id)->update(['score' => 1.4, 'score_percentage' => 70, 'passed' => 1]);
+        $this->actingAs($this->student)->get($lessonUrl)->assertOk()
+            ->assertSee('data-learn-quiz-verdict="failed"', false)
+            ->assertSee('data-learn-quiz-attempt-verdict="failed"', false)
+            ->assertSeeText(__('lf.LF_my_learning_quiz_pass_mark', ['percent' => 80]))
+            ->assertSeeText(__('lf.LF_my_learning_quiz_retry'));
+        $result($first->id)->assertSee('data-exam-verdict="failed"', false)
+            ->assertSeeText(__('lf.LF_assessment_result_pass_mark', ['mark' => 80]))
+            ->assertDontSeeText(__('lf.LF_assessment_result_pass_mark', ['mark' => 60]));
+
+        // 100%: the best attempt counts; each attempt keeps its own label.
+        $second = $this->startAttempt($start);
+        $this->submit($second->id, ['2']);
+        $page = $this->actingAs($this->student)->get($lessonUrl)->assertOk()
+            ->assertSee('data-learn-quiz-verdict="passed"', false)
+            ->assertSee('data-learn-quiz-attempt-verdict="passed"', false)
+            ->assertSee('data-learn-quiz-attempt-verdict="failed"', false);
+        // Only the attempt below the threshold says what it needed.
+        $this->assertSame(1, substr_count($page->getContent(), __('lf.LF_my_learning_quiz_pass_mark', ['percent' => 80])));
+        $result($second->id)->assertSee('data-exam-verdict="passed"', false);
+
+        // "Hoàn thành khi nộp bài" sets no threshold: no label anywhere.
+        DB::table('core_course_template_version_activities')->where('id', $activity)->update(['completion_rule' => 'submit', 'completion_threshold' => null]);
+        $this->actingAs($this->student)->get($lessonUrl)->assertOk()
+            ->assertDontSee('data-learn-quiz-verdict', false)->assertDontSee('data-learn-quiz-attempt-verdict', false);
+        $result($second->id)->assertDontSee('data-exam-verdict', false);
+
+        // A score the learner may not see gives no label either.
+        DB::table('core_course_template_version_activities')->where('id', $activity)->update(['completion_rule' => 'pass', 'completion_threshold' => 80]);
+        DB::table('core_assessment_quiz_versions')->where('id', $version)->update(['show_result_mode' => 'hidden']);
+        $this->actingAs($this->student)->get($lessonUrl)->assertOk()
+            ->assertDontSee('data-learn-quiz-verdict', false)->assertDontSee('data-learn-quiz-attempt-verdict', false);
+        $result($second->id)->assertDontSee('data-exam-verdict', false);
     }
 
     private function startAttempt(string $url): object

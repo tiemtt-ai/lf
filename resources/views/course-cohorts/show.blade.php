@@ -30,6 +30,18 @@
 
     @include('course-cohorts.partials.identity', ['identityActions' => 'course-cohorts.partials.identity-actions'])
 
+    @if ($cohort->status === 'active' && $cohort->end_date)
+        @php
+            // The class ends by itself after its end date (ADR-0022 Amendment 1.4); the last week reads as a warning.
+            $autoEndDate = \Illuminate\Support\Carbon::parse($cohort->end_date, config('app.timezone'));
+            $autoEndSoon = $autoEndDate->toDateString() <= now(config('app.timezone'))->addDays(7)->toDateString();
+        @endphp
+        <div class="ui-banner ui-cohort-auto-end @unless ($autoEndSoon) ui-banner--info @endunless" role="status" data-cohort-auto-end="{{ $autoEndSoon ? 'soon' : 'later' }}">
+            <x-backend-icon name="calendar" class="ui-icon ui-banner__icon" />
+            <span class="ui-banner__text">{{ __('lf.LF_course_cohort_auto_end_notice', ['date' => $autoEndDate->format('d/m/Y')]) }}</span>
+        </div>
+    @endif
+
     @if ($cohort->status === 'draft' && $activationIssues !== [])
         <div id="cohort-activate-requirements" class="ui-cohort-alert" role="alert">
             <x-backend-icon name="circle-alert" class="ui-icon" />
@@ -183,6 +195,21 @@
                         <td class="mk-text-cell" data-label="{{ __('lf.LF_course_cohort_student_common_enrollment') }}">
                             <span class="mk-name-text">ENR-{{ str_pad((string) $student->enrollment_id, 6, '0', STR_PAD_LEFT) }}</span>
                             <span class="ui-caption ui-framework-description">{{ __('lf.LF_course_cohort_student_joined_short') }}: {{ \Illuminate\Support\Carbon::parse($student->joined_at)->format('d/m/Y H:i') }}</span>
+                            @php($studentHistory = ($membershipHistory ?? collect())->get($student->membership_id, collect()))
+                            @if ($studentHistory->isNotEmpty())
+                                {{-- ADR-0034: the changes of the join date and the times the learner was out of the class. --}}
+                                <details class="ui-cohort-join-history" data-membership-history="{{ $student->membership_id }}">
+                                    <summary class="cursor-interaction">{{ __('lf.LF_course_cohort_student_history') }} ({{ $studentHistory->count() }})</summary>
+                                    <ul>
+                                        @foreach ($studentHistory as $change)
+                                            <li>
+                                                <span>{{ \App\Services\CourseCohortMembershipHistory::at($change->created_at) }} · {{ $change->actor_name ?: __('lf.LF_course_cohort_student_history_system') }}</span>
+                                                <span>{{ \App\Services\CourseCohortMembershipHistory::label($change) }}</span>
+                                            </li>
+                                        @endforeach
+                                    </ul>
+                                </details>
+                            @endif
                         </td>
                         <td class="ux-action-cell" data-label="{{ __('lf.LF_course_cohort_student_common_status') }}">
                             <span class="ui-status ui-status--{{ $studentTone }}">{{ __('lf.LF_course_enrollment_common_'.$student->enrollment_status) }}</span>
@@ -212,6 +239,14 @@
                                     ]), $event)">
                                 <x-backend-icon name="eye" class="ui-icon" />
                             </button>
+                            @if ($cohort->is_mutable && $cohortAdmin)
+                                {{-- ADR-0034: only an administrator changes the join date, on the membership's own form. --}}
+                                <a class="ux-row-edit cursor-interaction" href="{{ route('admin.course-cohort-students.edit', $student->membership_id) }}"
+                                   aria-label="{{ __('lf.LF_course_cohort_student_edit_joined_at') }}: {{ $student->student_name }}"
+                                   data-tooltip="{{ __('lf.LF_course_cohort_student_edit_joined_at') }}" data-membership-edit="{{ $student->membership_id }}">
+                                    <x-backend-icon name="calendar" class="ui-icon" />
+                                </a>
+                            @endif
                         </td>
                     </tr>
                 @empty

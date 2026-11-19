@@ -155,17 +155,17 @@ Cho phép học thử.
 
 VARCHAR(50) NOT NULL DEFAULT `regular`.
 
-Canonical values: `regular`, `review`, `midterm_exam`, `final_exam`,
-`other_exam`, `practice`, `extracurricular`, `self_study`. Không có CHECK; server
-kiểm tra danh sách.
+Canonical values: `regular`, `practice`, `self_study`. Legacy values `review`,
+`midterm_exam`, `final_exam`, `other_exam` không còn được ghi mới và được đọc như
+`regular`. Không có CHECK; server kiểm tra danh sách.
 
 > Amendment 2026-11-18 (Owner duyệt,
 > [ADR-0022 Amendment 1.2 và 1.3](../../adr/ADR-0022-Course-Type-On-Template.md)):
-> khóa Tự học luôn lưu `regular`. Ở khóa Theo lớp, `self_study` là buổi tự học (không có
-> Activity `live_class`, Activity lưu `available_anytime = 1`); mọi giá trị khác là buổi có
-> giáo viên (đúng một `live_class`, mỗi Activity khác đúng một phần Trước / Trong / Sau).
-> Ba giá trị mới không đổi schema. Ngoài quy tắc này, `lesson_type` không điều khiển
-> scheduling, grading, unlock, Assessment hoặc Cohort.
+> khóa Tự học luôn lưu `regular`. Ở khóa Theo lớp đây là loại buổi học: `regular` (Buổi
+> học) và `practice` (Thực hành, ngoại khóa) là buổi có người phụ trách (đúng một Activity
+> `live_class`, mỗi Activity khác đúng một phần Trước / Trong / Sau); `self_study` là buổi
+> tự học (không có `live_class`, Activity lưu `available_anytime = 1`). Không đổi schema.
+> Ngoài quy tắc này, `lesson_type` không điều khiển grading, unlock hoặc Assessment.
 
 ---
 

@@ -239,24 +239,25 @@ class LiveClassAttendancePolicyManagementTest extends TestCase
         $this->assertSame((int) $default->id, (int) $policies->forCohort($customerId, $cohortId)->id);
     }
 
-    public function test_the_hidden_make_up_settings_survive_an_edit(): void
+    public function test_the_make_up_settings_are_shown_and_saved(): void
     {
+        // They apply since ADR-0022 Amendment 1.3, Đợt 3, so the popup shows them again.
         $customerId = $this->tenant();
         $admin = $this->user($customerId, 'customer_admin');
         $policyId = $this->policy($customerId, 'Học bù riêng', ['makeup_enabled' => 0, 'makeup_within_days' => 14]);
 
-        // The popup shows no make-up field but carries the stored values.
         $html = $this->actingAs($admin)->get(self::URL."?policy_form=edit&policy_id={$policyId}")->assertOk()
-            ->assertDontSee('id="attendance-policy-edit-makeup_within_days"', false)->getContent();
-        $this->assertStringContainsString('name="makeup_enabled" value="0"', $html);
-        $this->assertStringContainsString('name="makeup_unlimited" value="0"', $html);
-        $this->assertStringContainsString('name="makeup_within_days" value="14"', $html);
+            ->assertSee('id="attendance-policy-edit-makeup_within_days"', false)
+            ->assertSeeText(__('lf.LF_attendance_policy_help_makeup_within_days'))
+            ->assertDontSeeText(__('lf.LF_attendance_policy_not_applied_yet'))->getContent();
+        $this->assertStringContainsString('makeupUnlimited: false', $html);
+        $this->assertMatchesRegularExpression('/name="makeup_within_days"[^>]*value="14"/', $html);
 
         $this->actingAs($admin)->put(self::URL."/{$policyId}", $this->payload([
             'name' => 'Học bù riêng', 'late_after_minutes' => 5,
-            'makeup_enabled' => '0', 'makeup_unlimited' => '0', 'makeup_within_days' => '14',
+            'makeup_enabled' => '1', 'makeup_unlimited' => '0', 'makeup_within_days' => '3',
         ]))->assertSessionHasNoErrors();
-        $this->assertDatabaseHas(self::TABLE, ['id' => $policyId, 'late_after_minutes' => 5, 'makeup_enabled' => 0, 'makeup_within_days' => 14]);
+        $this->assertDatabaseHas(self::TABLE, ['id' => $policyId, 'late_after_minutes' => 5, 'makeup_enabled' => 1, 'makeup_within_days' => 3]);
     }
 
     private function payload(array $overrides = []): array

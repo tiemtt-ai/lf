@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\ExternalLinkUrl;
 use App\Support\LessonUnlockTime;
 use Illuminate\Support\Collection;
 
@@ -59,6 +60,12 @@ class CourseTemplateVersionDetailPresenter
                 }
             }
 
+            // ADR-0035: the frozen link opens in a new tab; an invalid one shows as having nothing to preview.
+            $linkUrl = $activity->activity_type === 'external_link'
+                && ExternalLinkUrl::isValid($activity->external_link_url_snapshot ?? null)
+                ? $activity->external_link_url_snapshot
+                : null;
+
             return [$activity->id => compact(
                 'activity',
                 'minutes',
@@ -66,7 +73,8 @@ class CourseTemplateVersionDetailPresenter
                 'unlock',
                 'completion',
                 'mediaUrl',
-                'embeddedUrl'
+                'embeddedUrl',
+                'linkUrl'
             )];
         });
         $presentedLessons = $lessons->mapWithKeys(function ($lesson) use ($lessonTitles) {

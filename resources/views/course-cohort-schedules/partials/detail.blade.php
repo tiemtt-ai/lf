@@ -21,7 +21,7 @@
 @endphp
 <dialog class="ui-modal ui-cohort-schedule-detail" data-columns="3" aria-labelledby="schedule_detail_title" aria-describedby="schedule_detail_notice" tabindex="-1"
         x-data="{
-            view: 'calendar', month: @js($plan['initial_month']),
+            view: 'calendar', month: @js($plan['initial_month']), deleting: false,
             monthLabels: @js($detailMonthLabels), monthCounts: @js($detailMonthCounts),
             closed() { history.replaceState(null, '', @js(route('admin.course-cohorts.show', ['id' => $cohort->id, 'tab' => 'schedules']))) },
             // The list is the readable view on a phone, where a month grid only fits colour marks.
@@ -189,7 +189,13 @@
             </section>
         </div>
         <footer class="ui-modal__footer">
-            <span class="ui-caption">@if ($canMutate){{ __('lf.LF_course_cohort_schedule_detail_edit_note') }}@endif</span>
+            <span class="ui-caption">
+                @error('schedule')<span class="ui-field__error" role="alert">{{ $message }}</span>@elseif ($canMutate){{ __('lf.LF_course_cohort_schedule_detail_edit_note') }}@enderror
+            </span>
+            @if ($canMutate && $deletion)
+                <button type="button" class="ui-button ui-button--danger-outline cursor-interaction" data-schedule-delete
+                        aria-haspopup="dialog" x-on:click="$refs.deleteDialog.showModal()">{{ __('lf.LF_course_cohort_schedule_delete') }}</button>
+            @endif
             <button type="button" class="ui-button cursor-interaction" x-on:click="$refs.dialog.close()">{{ __('lf.LF_common_button_close') }}</button>
             @if ($canMutate)
                 <a class="ui-button ui-button--primary cursor-interaction" href="{{ route('admin.course-cohorts.show', ['id' => $cohort->id, 'tab' => 'schedules', 'schedule_form' => 'edit', 'schedule_id' => $schedule->id]) }}">
@@ -198,4 +204,50 @@
             @endif
         </footer>
     </div>
+    @if ($canMutate && $deletion)
+        {{-- ADR-0002 § Schedule Deletion Amendment: either what goes with the Schedule, or why it stays. --}}
+        <dialog class="ui-modal" data-columns="1" x-ref="deleteDialog" data-schedule-delete-dialog
+                aria-labelledby="schedule_delete_title" aria-describedby="schedule_delete_body"
+                x-on:close.stop x-on:cancel="if (deleting) $event.preventDefault()">
+            @if ($deletion['blocker'] === null)
+                <form method="POST" action="{{ route(($routePrefix ?? 'admin.course-cohorts').'.schedules.destroy', [$cohort->id, $schedule->id]) }}" class="ui-modal__form"
+                      x-on:submit="if (deleting) { $event.preventDefault(); return } deleting = true">
+                    @csrf
+                    @method('DELETE')
+                    <header class="ui-modal__header">
+                        <div><h3 id="schedule_delete_title">{{ __('lf.LF_course_cohort_schedule_delete_title', ['name' => $schedule->name]) }}</h3></div>
+                        <button type="button" class="ui-modal__close cursor-interaction" x-on:click="$refs.deleteDialog.close()" x-bind:disabled="deleting"
+                                aria-label="{{ __('lf.LF_common_button_close') }}">×</button>
+                    </header>
+                    <div class="ui-modal__body">
+                        <p id="schedule_delete_body" class="ui-enroll-dialog-text">{{ trans_choice('lf.LF_course_cohort_schedule_delete_confirm', $deletion['session_count'], ['count' => $deletion['session_count']]) }}</p>
+                    </div>
+                    <footer class="ui-modal__footer">
+                        <span></span>
+                        <button type="button" class="ui-button cursor-interaction" x-on:click="$refs.deleteDialog.close()" x-bind:disabled="deleting">{{ __('lf.LF_course_cohort_lifecycle_cancel') }}</button>
+                        <button type="submit" class="ui-button ui-button--danger-outline cursor-interaction" x-bind:disabled="deleting" x-bind:aria-busy="deleting">
+                            <span x-show="!deleting">{{ __('lf.LF_course_cohort_schedule_delete') }}</span>
+                            <span x-cloak x-show="deleting">{{ __('lf.LF_course_cohort_lifecycle_processing') }}</span>
+                        </button>
+                    </footer>
+                </form>
+            @else
+                <div class="ui-modal__form">
+                    <header class="ui-modal__header">
+                        <div><h3 id="schedule_delete_title">{{ __('lf.LF_course_cohort_schedule_delete_blocked_title') }}</h3></div>
+                        <button type="button" class="ui-modal__close cursor-interaction" x-on:click="$refs.deleteDialog.close()" aria-label="{{ __('lf.LF_common_button_close') }}">×</button>
+                    </header>
+                    <div class="ui-modal__body">
+                        <p id="schedule_delete_body" class="ui-enroll-dialog-text">{{ $deletion['blocker'] }}</p>
+                    </div>
+                    <footer class="ui-modal__footer">
+                        <span></span>
+                        <button type="button" class="ui-button ui-button--primary cursor-interaction" x-on:click="$refs.deleteDialog.close()">
+                            <x-backend-icon name="check" class="ui-icon" />{{ __('lf.LF_common_button_close') }}
+                        </button>
+                    </footer>
+                </div>
+            @endif
+        </dialog>
+    @endif
 </dialog>

@@ -82,6 +82,7 @@ vẫn là một miền nghiệp vụ sở hữu độc lập và được xác �
 | [**core_course_enrollment_submissions**](core_course_enrollment_submissions.md) | Durable preflight và idempotency authority cho Bulk Enrollment |
 | **core_course_cohorts** | Cohort và nhóm học vận hành thực tế |
 | **core_course_cohort_students** | Quan hệ thành viên của học viên trong Cohort |
+| **core_course_cohort_student_changes** | Lịch sử thành viên lớp, chỉ thêm (ADR-0034) |
 | [**core_course_cohort_teachers**](core_course_cohort_teachers.md) | Quan hệ giáo viên được phân công cho Cohort |
 | [**core_course_cohort_lesson_orders**](core_course_cohort_lesson_orders.md) | Thứ tự Lesson riêng của lớp; theo ADR-0023 |
 | [**core_course_cohort_activity_orders**](core_course_cohort_activity_orders.md) | Thứ tự Activity riêng của lớp; theo ADR-0023 |

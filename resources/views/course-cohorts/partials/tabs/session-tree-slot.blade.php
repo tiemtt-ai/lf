@@ -22,7 +22,8 @@
         @endif
         <span class="ui-caption">{{ collect([
             \Illuminate\Support\Str::ucfirst($sessionStartsAt->translatedFormat('l')),
-            __('lf.LF_course_cohort_session_mode_'.$session->delivery_mode),
+            // A self-study session has no delivery mode.
+            $session->delivery_mode ? __('lf.LF_course_cohort_session_mode_'.$session->delivery_mode) : __('lf.LF_course_cohort_session_type_self_study'),
             $session->timezone && $session->timezone !== config('app.timezone') ? $session->timezone : null,
         ])->filter()->implode(' · ') }}</span>
         @if ($session->status === 'cancelled' && filled($session->cancellation_reason ?? null))
@@ -32,6 +33,8 @@
     <div class="ui-cohort-session-tree__teachers">
         @if ($sessionTeacherNames)
             {{ $sessionTeacherNames }}
+        @elseif (\App\Services\LiveClassSelfStudySession::is($session))
+            <span class="ui-caption">—</span>
         @else
             <span @class(['ui-caption', 'ui-cohort-session-unassigned' => $sessionEndsLifecycleOpen])>{{ __('lf.LF_course_cohort_session_batch_no_teacher') }}</span>
         @endif

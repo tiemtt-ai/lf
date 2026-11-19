@@ -12802,6 +12802,209 @@
       "views": []
     },
     {
+      "name": "core_course_cohort_student_changes",
+      "documentation": "database/course/core_course_cohort_student_changes.md",
+      "implementation_status": "implemented",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": true,
+          "generated": null
+        },
+        {
+          "name": "customer_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "cohort_student_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "cohort_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "enrollment_id",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "change_type",
+          "type": "varchar",
+          "nullable": false,
+          "default": null,
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "old_joined_at",
+          "type": "datetime",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "new_joined_at",
+          "type": "datetime",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "absent_from",
+          "type": "datetime",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "absent_to",
+          "type": "datetime",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "changed_by",
+          "type": "bigint",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": true,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "nullable": false,
+          "default": "current_timestamp()",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "changed_by"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "cohort_student_id",
+            "customer_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "cohort_id",
+            "enrollment_id"
+          ],
+          "unique": false,
+          "type": "btree"
+        },
+        {
+          "columns": [
+            "customer_id",
+            "cohort_student_id",
+            "created_at"
+          ],
+          "unique": false,
+          "type": "btree"
+        }
+      ],
+      "foreign_keys": [
+        {
+          "columns": [
+            "changed_by"
+          ],
+          "foreign_table": "users",
+          "foreign_columns": [
+            "id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "customer_id"
+          ],
+          "foreign_table": "saas_customers",
+          "foreign_columns": [
+            "id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        },
+        {
+          "columns": [
+            "cohort_student_id",
+            "customer_id"
+          ],
+          "foreign_table": "core_course_cohort_students",
+          "foreign_columns": [
+            "id",
+            "customer_id"
+          ],
+          "on_update": "restrict",
+          "on_delete": "restrict"
+        }
+      ],
+      "checks": [
+        {
+          "expression": "`change_type` in ('joined_at_changed','left','rejoined','transferred')"
+        },
+        {
+          "expression": "`change_type` = 'rejoined' = (`absent_from` is not null and `absent_to` is not null)"
+        },
+        {
+          "expression": "`absent_from` is null or `absent_to` >= `absent_from`"
+        }
+      ],
+      "triggers": [],
+      "views": []
+    },
+    {
       "name": "core_course_cohort_students",
       "documentation": "database/course/core_course_cohort_students.md",
       "implementation_status": "implemented",
@@ -18493,6 +18696,15 @@
           "generated": null
         },
         {
+          "name": "external_link_url",
+          "type": "varchar",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
           "name": "live_class_url",
           "type": "varchar",
           "nullable": true,
@@ -18569,6 +18781,15 @@
           "type": "tinyint",
           "nullable": false,
           "default": "1",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "counts_for_attendance",
+          "type": "tinyint",
+          "nullable": false,
+          "default": "0",
           "unsigned": false,
           "auto_increment": false,
           "generated": null
@@ -18796,7 +19017,11 @@
           "on_delete": "restrict"
         }
       ],
-      "checks": [],
+      "checks": [
+        {
+          "expression": "`counts_for_attendance` = 0 or `activity_type` <> 'live_class' and `available_before_session` = 0"
+        }
+      ],
       "triggers": [],
       "views": []
     },
@@ -20178,6 +20403,15 @@
           "generated": null
         },
         {
+          "name": "external_link_url_snapshot",
+          "type": "varchar",
+          "nullable": true,
+          "default": "NULL",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
           "name": "live_class_url_snapshot",
           "type": "varchar",
           "nullable": true,
@@ -20254,6 +20488,15 @@
           "type": "tinyint",
           "nullable": false,
           "default": "1",
+          "unsigned": false,
+          "auto_increment": false,
+          "generated": null
+        },
+        {
+          "name": "counts_for_attendance",
+          "type": "tinyint",
+          "nullable": false,
+          "default": "0",
           "unsigned": false,
           "auto_increment": false,
           "generated": null
@@ -20579,6 +20822,9 @@
         },
         {
           "expression": "`activity_type` = 'quiz' = (`assessment_quiz_version_id_snapshot` is not null) and `assessment_quiz_id_snapshot` is null = (`assessment_quiz_version_id_snapshot` is null)"
+        },
+        {
+          "expression": "`counts_for_attendance` = 0 or `activity_type` <> 'live_class' and `available_before_session` = 0"
         }
       ],
       "triggers": [],
@@ -28260,8 +28506,8 @@
         {
           "name": "delivery_mode",
           "type": "varchar",
-          "nullable": false,
-          "default": null,
+          "nullable": true,
+          "default": "NULL",
           "unsigned": false,
           "auto_increment": false,
           "generated": null
@@ -28630,10 +28876,13 @@
           "expression": "json_valid(`metadata`)"
         },
         {
-          "expression": "`session_type` = 'curriculum' and `version_lesson_id` is not null and `version_activity_id` is not null or `session_type` = 'operational' and `version_lesson_id` is null and `version_activity_id` is null"
+          "expression": "`session_type` = 'curriculum' and `version_lesson_id` is not null and `version_activity_id` is not null or `session_type` = 'operational' and `version_lesson_id` is null and `version_activity_id` is null or `session_type` = 'self_study' and `version_lesson_id` is not null and `version_activity_id` is null"
         },
         {
           "expression": "`attendance_tool` is null or `attendance_tool` in ('board','button')"
+        },
+        {
+          "expression": "`session_type` = 'self_study' and `delivery_mode` is null and `online_provider` is null and `meeting_url_snapshot` is null and `room_name_snapshot` is null and `address_snapshot` is null and `attendance_tool` is null or `session_type` <> 'self_study' and `delivery_mode` is not null"
         }
       ],
       "triggers": [],

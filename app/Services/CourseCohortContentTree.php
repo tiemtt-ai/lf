@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\LessonType;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -13,7 +14,11 @@ use Illuminate\Support\Facades\DB;
  * an admin saves it, though the Sessions tab shows both alike.
  *
  * Every Session of the Cohort appears exactly once: on its Activity when that
- * Activity is in the tree, otherwise in `looseSessions`.
+ * Activity is in the tree, on its Lesson when it is the Session of a self-study
+ * Lesson of the tree, otherwise in `looseSessions`.
+ *
+ * A date belongs to a position (ADR-0023 §3 and §10): each live Activity, and each
+ * self-study Lesson as a whole. A position is told by its key, {@see positionKey()}.
  */
 class CourseCohortContentTree
 {
@@ -37,10 +42,15 @@ class CourseCohortContentTree
         $orderedLessons = $this->orderedLessons($tree);
         $this->offerClassTeachers($sessions, $teachers ?? collect());
         $placedActivityIds = $this->orderedActivities($tree, $orderedLessons)->pluck('id')->map(fn ($id): int => (int) $id)->flip();
+        $lessonIds = collect($orderedLessons)->pluck('id')->map(fn ($id): int => (int) $id)->flip();
 
         [$placedSessions, $looseSessions] = $sessions->partition(
             fn (object $session): bool => $session->version_activity_id !== null
                 && $placedActivityIds->has((int) $session->version_activity_id)
+        );
+        // The Session of a self-study Lesson sits on the Lesson itself.
+        [$selfStudySessions, $looseSessions] = $looseSessions->partition(
+            fn (object $session): bool => self::isSelfStudy($session) && $lessonIds->has((int) $session->version_lesson_id)
         );
         $proposals = $this->computeProposals($tree, $orderedLessons, $sessions, $occurrences ?? collect());
         foreach ($proposals as $activityId => $proposal) {
@@ -61,6 +71,7 @@ class CourseCohortContentTree
                     : collect(),
             ],
             'sessionsByActivity' => $placedSessions->groupBy('version_activity_id'),
+            'selfStudySessionsByLesson' => $selfStudySessions->groupBy('version_lesson_id'),
             'looseSessions' => $looseSessions->values(),
             'proposals' => $proposals,
             'hasContent' => $orderedLessons !== [],
@@ -96,14 +107,58 @@ class CourseCohortContentTree
             ->mapWithKeys(fn (object $session): array => [(int) $session->{$column} => $session->position_lock_reason]);
     }
 
-    /** The positions dates belong to: the live Activities in the Cohort's order. */
-    public function liveActivities(int $customerId, int $cohortId, int $versionId): Collection
+    /**
+     * The positions dates belong to, in the Cohort's order: each live Activity, and each self-study Lesson
+     * (ADR-0023 §10). A self-study position is shaped like an Activity so both travel through the same code:
+     * `id` null, `self_study` true, the Lesson's title. Every position carries its `position_key`.
+     */
+    public function positions(int $customerId, int $cohortId, int $versionId): Collection
     {
         $tree = $this->load($customerId, $cohortId, $versionId);
 
-        return $this->orderedActivities($tree, $this->orderedLessons($tree))
-            ->filter(fn (object $activity): bool => $activity->activity_type === 'live_class')
-            ->values();
+        return $this->positionsOf($tree, $this->orderedLessons($tree));
+    }
+
+    /** The key of the position a Session or a position row belongs to: the live Activity's id, or `l{lesson}`. */
+    public static function positionKey(object $row): int|string|null
+    {
+        if (isset($row->position_key)) {
+            return $row->position_key;
+        }
+        if (self::isSelfStudy($row)) {
+            return 'l'.(int) $row->version_lesson_id;
+        }
+        // A Session names its Activity; one outside the programme has no position.
+        if (property_exists($row, 'session_type') || property_exists($row, 'version_activity_id')) {
+            return $row->version_activity_id === null ? null : (int) $row->version_activity_id;
+        }
+
+        return isset($row->id) ? (int) $row->id : null;
+    }
+
+    /** A self-study Session, or the position of a self-study Lesson. */
+    public static function isSelfStudy(object $row): bool
+    {
+        return ($row->session_type ?? null) === 'self_study' || ($row->self_study ?? false) === true;
+    }
+
+    /**
+     * What a self-study Lesson's row acts on, as {@see slotsOf()} for a live Activity.
+     *
+     * @param  array<string, mixed>  $tree  from build()
+     * @return array{session: ?object, proposal: ?array<string, mixed>, others: Collection<int, object>}
+     */
+    public static function slotsOfLesson(array $tree, object $lesson): array
+    {
+        $sessions = $tree['selfStudySessionsByLesson']->get($lesson->id, collect());
+        $delivering = $sessions->first(fn (object $session): bool => self::delivers($session));
+        $proposal = $delivering ? null : ($tree['proposals']['l'.(int) $lesson->id] ?? null);
+
+        return [
+            'session' => $delivering ?? ($proposal['session'] ?? null),
+            'proposal' => $proposal,
+            'others' => $sessions->reject(fn (object $session): bool => $session === $delivering)->values(),
+        ];
     }
 
     /** The Lessons of one Section, or the direct Lessons, in the Cohort's order. */
@@ -214,11 +269,41 @@ class CourseCohortContentTree
     /**
      * @param  array<string, Collection>  $tree
      * @param  array<int, object>  $orderedLessons
+     */
+    private function positionsOf(array $tree, array $orderedLessons): Collection
+    {
+        return collect($orderedLessons)->flatMap(function (object $lesson) use ($tree): Collection {
+            $live = $tree['activitiesByLesson']->get($lesson->id, collect())
+                ->filter(fn (object $activity): bool => $activity->activity_type === 'live_class')
+                ->each(fn (object $activity) => $activity->position_key = (int) $activity->id)
+                ->values();
+            if (LessonType::normalize($lesson->lesson_type ?? null) !== LessonType::SELF_STUDY) {
+                return $live;
+            }
+
+            // A self-study Lesson holds no live Activity (ADR-0022 Amendment 1.3); the Lesson is the position.
+            return $live->push((object) [
+                'id' => null,
+                'position_key' => 'l'.(int) $lesson->id,
+                'self_study' => true,
+                'version_lesson_id' => (int) $lesson->id,
+                'activity_type' => 'self_study',
+                'title_snapshot' => (string) $lesson->title_snapshot,
+                'live_class_url_snapshot' => null,
+                'unlock_after_version_activity_id' => null,
+            ]);
+        })->values();
+    }
+
+    /**
+     * @param  array<string, Collection>  $tree
+     * @param  array<int, object>  $orderedLessons
      * @return array<int|string, array<string, mixed>>
      */
     private function computeProposals(array $tree, array $orderedLessons, Collection $sessions, Collection $occurrences): array
     {
-        $sessionsByActivity = $sessions->whereNotNull('version_activity_id')->groupBy('version_activity_id');
+        $sessionsByPosition = $sessions->filter(fn (object $session): bool => self::positionKey($session) !== null)
+            ->groupBy(fn (object $session): string => (string) self::positionKey($session));
 
         // The next free dates go, in order, to the live activities without a Session. A past date is never proposed,
         // nor one a moved Session now occupies: its Origin elsewhere leaves it looking free, but saving it would overlap.
@@ -229,19 +314,25 @@ class CourseCohortContentTree
                 || $this->isOccupied($occurrence, $occupying))
             ->values();
         $lessonTitles = collect($orderedLessons)->pluck('title_snapshot', 'id');
+        $lessonTypes = collect($orderedLessons)->pluck('lesson_type', 'id');
         $proposals = [];
-        $this->orderedActivities($tree, $orderedLessons)
-            ->filter(fn (object $activity): bool => $activity->activity_type === 'live_class'
-                && ! $sessionsByActivity->get($activity->id, collect())->contains(fn (object $session): bool => self::delivers($session)))
+        $this->positionsOf($tree, $orderedLessons)
+            ->filter(fn (object $position): bool => ! $sessionsByPosition->get((string) $position->position_key, collect())
+                ->contains(fn (object $session): bool => self::delivers($session)))
             ->values()
-            ->each(function (object $activity, int $index) use (&$proposals, $freeOccurrences, $lessonTitles, $tree): void {
+            ->each(function (object $activity, int $index) use (&$proposals, $freeOccurrences, $lessonTitles, $lessonTypes, $tree): void {
                 $occurrence = $freeOccurrences->get($index);
-                $proposals[$activity->id] = [
+                $selfStudy = self::isSelfStudy($activity);
+                // A practice session has no meeting link (ADR-0022 Amendment 1.3, Đợt 4); nor has a self-study one.
+                $practice = ! $selfStudy && LiveClassPracticeSession::isType($lessonTypes->get($activity->version_lesson_id));
+                $proposals[$activity->position_key] = [
                     'lesson_id' => (string) $activity->version_lesson_id,
-                    'activity_id' => (string) $activity->id,
+                    'activity_id' => $selfStudy ? '' : (string) $activity->id,
                     'lesson_title' => (string) $lessonTitles->get($activity->version_lesson_id),
                     'activity_title' => (string) $activity->title_snapshot,
-                    'meeting_url' => $tree['meetingUrl'] ?? $activity->live_class_url_snapshot,
+                    'meeting_url' => $practice || $selfStudy ? null : ($tree['meetingUrl'] ?? $activity->live_class_url_snapshot),
+                    'practice' => $practice,
+                    'self_study' => $selfStudy,
                     'occurrence' => $occurrence,
                     'occurrence_key' => $occurrence
                         ? implode('|', [$occurrence['schedule_id'], $occurrence['schedule_slot_id'], $occurrence['date']])
@@ -260,13 +351,19 @@ class CourseCohortContentTree
     private function dateAsSession(array $proposal, Collection $teachers): object
     {
         $occurrence = $proposal['occurrence'];
-        $team = $this->teachersOn($teachers, $occurrence['date']);
+        $selfStudy = (bool) ($proposal['self_study'] ?? false);
+        // A self-study session has no teachers of its own.
+        $team = $selfStudy ? collect() : $this->teachersOn($teachers, $occurrence['date']);
 
         return (object) [
             'id' => null,
             'title' => $proposal['lesson_title'],
-            'session_type' => 'curriculum',
-            'delivery_mode' => 'online',
+            'session_type' => $selfStudy ? 'self_study' : 'curriculum',
+            'delivery_mode' => match (true) {
+                $selfStudy => null,
+                (bool) ($proposal['practice'] ?? false) => LiveClassPracticeSession::BOX['delivery_mode'],
+                default => 'online',
+            },
             'status' => 'scheduled',
             'scheduled_start_at' => $occurrence['date'].' '.substr((string) $occurrence['start_time'], 0, 5).':00',
             'scheduled_end_at' => $occurrence['date'].' '.substr((string) $occurrence['end_time'], 0, 5).':00',

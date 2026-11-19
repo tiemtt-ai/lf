@@ -306,6 +306,13 @@
     gap: 6px;
 }
 
+.lf-learn-session__entry {
+    flex-basis: 100%;
+    color: var(--student-text-soft);
+    font-size: 12px;
+    text-align: right;
+}
+
 .lf-learn-summary__resume {
     margin: 4px 0 0;
 }
@@ -414,6 +421,16 @@
     display: grid;
     gap: 12px;
     justify-items: start;
+}
+
+.lf-learn-quiz__verdict {
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+    color: var(--student-text);
+    font-size: 14px;
 }
 
 .lf-learn-quiz__attempts {

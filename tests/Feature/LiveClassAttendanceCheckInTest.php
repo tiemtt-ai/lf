@@ -4,13 +4,18 @@ namespace Tests\Feature;
 
 use App\Http\Controllers\LiveClassAttendanceCheckInController;
 use App\Models\User;
+use App\Services\CourseCohortMembershipHistory;
+use App\Services\LearnerMyLearningService;
+use App\Services\LiveClassAttendanceDevice;
 use App\Services\LiveClassAttendancePolicies;
+use App\Services\LiveClassAttendanceRecorder;
 use App\Services\LiveClassSessionLifecycleService;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
 /** ADR-0002 § Attendance Check-In Amendment; LF-Core-LiveClass § Attendance, Điểm danh bằng mã QR. */
@@ -107,6 +112,46 @@ class LiveClassAttendanceCheckInTest extends TestCase
         ]);
         $this->actingAs($setup['teacher'])->getJson(self::HOST."/teacher/live-sessions/{$session}/board/attendance-code")
             ->assertJsonPath('checked_in', 1);
+    }
+
+    public function test_one_device_checks_in_one_learner_and_the_board_names_who_just_scanned(): void
+    {
+        $setup = $this->setupClass();
+        $session = $this->liveSession($setup, 'offline');
+        $other = $this->liveSession($setup, 'offline');
+        [$first, $second, $third] = [$this->learner($setup), $this->learner($setup), $this->learner($setup)];
+        $page = self::HOST."/my-courses/live-sessions/{$session}/check-in";
+        $scan = function (User $student, int $session) use ($setup): TestResponse {
+            $this->actingAs($student)->get($this->codeUrl($setup, $session));
+
+            return $this->actingAs($student)->post(self::HOST."/my-courses/live-sessions/{$session}/check-in");
+        };
+
+        // The first check-in gives the browser its device id.
+        $device = $scan($first, $session)->assertSessionHas('lf_checkin_result', 'recorded')
+            ->getCookie(LiveClassAttendanceDevice::COOKIE)?->getValue();
+        $this->assertMatchesRegularExpression('/^[A-Za-z0-9]{40}$/', (string) $device);
+
+        // MK 2.4: the same device does not check in another learner in this Session, and says why.
+        $this->withCookie(LiveClassAttendanceDevice::COOKIE, $device);
+        $scan($second, $session)->assertSessionHas('lf_checkin_result', 'device_used');
+        $this->actingAs($second)->get($page)->assertSee(__('lf.LF_liveclass_attendance_checkin_device_used'));
+        $this->assertSame(1, DB::table('core_liveclass_attendances')->where('session_id', $session)->count());
+        // Its own learner again, and another Session, are not refused.
+        $scan($first, $session)->assertSessionHas('lf_checkin_result', 'already');
+        $scan($second, $other)->assertSessionHas('lf_checkin_result', 'recorded');
+
+        // Another device checks the second learner in.
+        Carbon::setTestNow(Carbon::now()->addMinutes(1));
+        $this->withCookie(LiveClassAttendanceDevice::COOKIE, str_repeat('b', 40));
+        $scan($second, $session)->assertSessionHas('lf_checkin_result', 'recorded');
+
+        // The presenter's board names who just scanned, newest first; a learner who has not scanned is not named.
+        $board = $this->actingAs($setup['teacher'])->getJson(self::HOST."/teacher/live-sessions/{$session}/board/attendance-code")->assertOk();
+        $this->assertSame([$second->name, $first->name], array_column($board->json('recent'), 'name'));
+        $this->assertSame(['16:01', '16:00'], array_column($board->json('recent'), 'time'));
+        $this->assertSame(__('lf.LF_course_cohort_attendance_status_present'), $board->json('recent.0.label'));
+        $this->assertNotContains($third->name, array_column($board->json('recent'), 'name'));
     }
 
     public function test_the_code_lasts_at_most_sixty_seconds_and_belongs_to_its_session(): void
@@ -338,6 +383,17 @@ class LiveClassAttendanceCheckInTest extends TestCase
         // A second press changes nothing.
         $press($late, '2026-07-04 16:01:00');
         $this->assertSame('2026-07-04 16:15:00', (string) $row($late)->joined_at);
+        // Once recorded, the button is gone and the result line stays.
+        $this->actingAs($late)->get(self::HOST.'/my-courses')->assertOk()
+            ->assertDontSee("live-sessions/{$session}/attend", false)->assertSee('data-live-attendance', false);
+
+        // MK 2.4: the device that pressed for one learner does not press for another in the same Session.
+        [$owner, $borrower] = [$this->learner($setup), $this->learner($setup)];
+        $this->withCookie(LiveClassAttendanceDevice::COOKIE, str_repeat('c', 40));
+        $press($owner, '2026-07-04 16:05:00')->assertSessionHas('lf_attendance_entry.result', 'recorded');
+        $press($borrower, '2026-07-04 16:06:00')->assertSessionHas('lf_attendance_entry.result', 'device_used');
+        $this->assertNull($row($borrower));
+        $this->withCookie(LiveClassAttendanceDevice::COOKIE, str_repeat('d', 40));
 
         // A Session whose tool is the board refuses the button.
         $boardSession = $this->liveSession($setup, 'offline');
@@ -498,6 +554,154 @@ class LiveClassAttendanceCheckInTest extends TestCase
             ->assertStatus(422);
         config(['liveclass.attendance_enabled' => false]);
         $this->actingAs($setup['teacher'])->get($page)->assertNotFound();
+    }
+
+    public function test_a_completed_class_is_still_corrected_by_hand_and_an_archived_one_only_reads(): void
+    {
+        // ADR-0022 Amendment 1.4, addendum 2026-11-19 (MK 1.4, 2.5).
+        $setup = $this->setupClass();
+        $session = $this->liveSession($setup, 'offline');
+        DB::table('core_liveclass_sessions')->where('id', $session)->update(['status' => 'completed', 'actual_end_at' => '2026-07-04 17:30:00']);
+        $student = $this->learner($setup);
+        $enrollment = (int) DB::table('core_course_enrollments')->where('student_id', $student->id)->value('id');
+        DB::table('core_course_cohort_teachers')->insert([
+            'customer_id' => $setup['customer'], 'cohort_id' => $setup['cohort'], 'teacher_id' => $setup['teacher']->id, 'role' => 'teacher',
+            'status' => 'active', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('core_course_cohorts')->where('id', $setup['cohort'])->update(['status' => 'completed']);
+        $adminPage = self::HOST."/admin/course-cohorts/{$setup['cohort']}?tab=attendance&session_id={$session}";
+        $adminSave = self::HOST."/admin/course-cohorts/{$setup['cohort']}/sessions/{$session}/attendance";
+        $teacherPage = self::HOST."/teacher/cohorts/{$setup['cohort']}/attendance?session_id={$session}";
+        $teacherSave = self::HOST."/teacher/cohorts/{$setup['cohort']}/sessions/{$session}/attendance";
+        $payload = fn (string $status, string $loaded) => ['attendance' => [[
+            'enrollment_id' => $enrollment, 'status' => $status, 'attendance_mode' => 'offline', 'notes' => '',
+            'loaded_status' => $loaded, 'loaded_mode' => $loaded === 'registered' ? '' : 'offline', 'loaded_notes' => '',
+        ]]];
+        $status = fn () => DB::table('core_liveclass_attendances')->where('enrollment_id', $enrollment)->value('status');
+        $liveDone = fn () => DB::table('core_course_activity_progress')->where('enrollment_id', $enrollment)
+            ->where('version_activity_id', $setup['liveActivity'])->value('status');
+
+        // The teacher records within the edit window; the page says what stays closed.
+        Carbon::setTestNow(CarbonImmutable::parse('2026-07-05 09:00:00', self::TZ));
+        $this->actingAs($setup['teacher'])->get($teacherPage)->assertOk()
+            ->assertSee(__('lf.LF_course_cohort_attendance_save'))
+            ->assertSeeText(__('lf.LF_attendance_completed_class_note'))
+            ->assertDontSeeText(__('lf.LF_teacher_attendance_closed_cohort'));
+        $this->actingAs($setup['teacher'])->put($teacherSave, $payload('absent', 'registered'))->assertSessionHasNoErrors();
+        $this->assertSame('absent', $status());
+        $this->assertNotSame('completed', $liveDone());
+
+        // After the window the teacher only reads; the administrator corrects without a limit, and progress follows.
+        Carbon::setTestNow(CarbonImmutable::parse('2026-08-30 09:00:00', self::TZ));
+        $this->actingAs($setup['teacher'])->put($teacherSave, $payload('present', 'absent'))->assertStatus(422);
+        $this->actingAs($setup['admin'])->get($adminPage)->assertOk()
+            ->assertSee(__('lf.LF_course_cohort_attendance_save'))
+            ->assertSeeText(__('lf.LF_attendance_completed_class_note'))
+            ->assertDontSeeText(__('lf.LF_course_cohort_attendance_read_only'));
+        $this->actingAs($setup['admin'])->put($adminSave, $payload('present', 'absent'))->assertSessionHasNoErrors();
+        $this->assertSame('present', $status());
+        $this->assertSame('completed', $liveDone());
+        $this->assertSame(2, DB::table('core_liveclass_attendance_changes')->where('enrollment_id', $enrollment)->count());
+
+        // An archived class only reads, for both.
+        DB::table('core_course_cohorts')->where('id', $setup['cohort'])->update(['status' => 'archived']);
+        Carbon::setTestNow(CarbonImmutable::parse('2026-07-05 09:00:00', self::TZ));
+        $this->actingAs($setup['teacher'])->put($teacherSave, $payload('late', 'present'))->assertStatus(422);
+        $this->actingAs($setup['teacher'])->get($teacherPage)->assertOk()
+            ->assertSeeText(__('lf.LF_teacher_attendance_closed_cohort'))
+            ->assertDontSee(__('lf.LF_course_cohort_attendance_save'));
+        $this->actingAs($setup['admin'])->put($adminSave, $payload('late', 'present'))->assertStatus(422);
+        $this->actingAs($setup['admin'])->get($adminPage)->assertOk()
+            ->assertSeeText(__('lf.LF_course_cohort_attendance_read_only'))
+            ->assertDontSeeText(__('lf.LF_attendance_completed_class_note'));
+        $this->assertSame('present', $status());
+    }
+
+    public function test_completing_a_class_cancels_sessions_not_held_and_ends_running_ones(): void
+    {
+        // ADR-0022 Amendment 1.4, "Dọn buổi khi hoàn thành lớp". The admin completes the class at 16:30 on 4 July.
+        config(['liveclass.auto_absent_from' => '2026-07-01 00:00:00']);
+        $setup = $this->setupClass();
+        $student = $this->learner($setup);
+        $at = fn (string $start, string $end, string $status, ?string $actualStart = null) => fn (int $id) => DB::table('core_liveclass_sessions')
+            ->where('id', $id)->update(['scheduled_start_at' => $start, 'scheduled_end_at' => $end, 'status' => $status, 'actual_start_at' => $actualStart]);
+        $running = $this->liveSession($setup, 'offline');
+        $overdueLive = $this->liveSession($setup, 'offline');
+        $at('2026-07-03 16:00:00', '2026-07-03 17:30:00', 'live', '2026-07-03 16:00:00')($overdueLive);
+        $future = $this->liveSession($setup, 'online');
+        $at('2026-07-10 16:00:00', '2026-07-10 17:30:00', 'scheduled')($future);
+        $notStarted = $this->liveSession($setup, 'offline');
+        $at('2026-07-04 14:00:00', '2026-07-04 15:30:00', 'scheduled')($notStarted);
+        [, $selfNow] = $this->selfStudySession($setup, 'Tự học đang trong giờ');
+        [, $selfPast] = $this->selfStudySession($setup, 'Tự học đã qua');
+        $at('2026-07-02 16:00:00', '2026-07-02 17:30:00', 'scheduled')($selfPast);
+        [, $selfFuture] = $this->selfStudySession($setup, 'Tự học sắp tới');
+        $at('2026-07-08 16:00:00', '2026-07-08 17:30:00', 'scheduled')($selfFuture);
+        $row = fn (int $id): object => DB::table('core_liveclass_sessions')->where('id', $id)
+            ->first(['status', 'actual_end_at', 'cancellation_reason', 'superseded_by_session_id']);
+        $page = self::HOST."/admin/course-cohorts/{$setup['cohort']}";
+
+        // The confirmation says what will happen to the Sessions.
+        Carbon::setTestNow(CarbonImmutable::parse('2026-07-04 16:30:00', self::TZ));
+        $this->actingAs($setup['admin'])->get($page)->assertOk()
+            ->assertSeeText(__('lf.LF_course_cohort_complete_warning_sessions', ['count' => 2]))
+            ->assertSeeText(__('lf.LF_course_cohort_complete_warning_sessions_running', ['count' => 4]));
+
+        $this->actingAs($setup['admin'])->post($page.'/complete')->assertRedirect($page);
+        $this->assertSame('completed', DB::table('core_course_cohorts')->where('id', $setup['cohort'])->value('status'));
+
+        // Not held: cancelled with the reason, no lesson moves.
+        foreach ([$future, $selfFuture] as $id) {
+            $this->assertSame(['cancelled', __('lf.LF_course_cohort_complete_session_cancel_reason'), null],
+                [$row($id)->status, $row($id)->cancellation_reason, $row($id)->superseded_by_session_id]);
+        }
+        // Running: ended now, or at the scheduled end when that has passed.
+        $this->assertSame(['completed', '2026-07-04 16:30:00'], [$row($running)->status, (string) $row($running)->actual_end_at]);
+        $this->assertSame(['completed', '2026-07-04 16:30:00'], [$row($selfNow)->status, (string) $row($selfNow)->actual_end_at]);
+        $this->assertSame(['completed', '2026-07-03 17:30:00'], [$row($overdueLive)->status, (string) $row($overdueLive)->actual_end_at]);
+        $this->assertSame(['completed', '2026-07-02 17:30:00'], [$row($selfPast)->status, (string) $row($selfPast)->actual_end_at]);
+        // Past its start but never started: left for the hand and for automatic absence.
+        $this->assertSame('scheduled', $row($notStarted)->status);
+
+        // Automatic absence closes the Sessions that took place, never the cancelled ones.
+        app(LiveClassAttendanceRecorder::class)->markAbsent($setup['customer'], CarbonImmutable::parse('2026-07-10 20:00:00', self::TZ));
+        $result = fn (int $id): ?string => DB::table('core_liveclass_attendances')->where('session_id', $id)
+            ->where('user_id', $student->id)->value('status');
+        $this->assertSame('absent', $result($notStarted));
+        $this->assertSame('absent', $result($running));
+        $this->assertNull($result($future));
+        $this->assertNull($result($selfFuture));
+    }
+
+    public function test_a_class_ends_by_itself_after_its_end_date(): void
+    {
+        // ADR-0022 Amendment 1.4, "Lớp tự kết thúc theo ngày": end date 31 August 2026, application timezone.
+        $setup = $this->setupClass();
+        $lastSession = $this->liveSession($setup, 'online');
+        DB::table('core_liveclass_sessions')->where('id', $lastSession)->update([
+            'status' => 'scheduled', 'actual_start_at' => null,
+            'scheduled_start_at' => '2026-08-31 16:00:00', 'scheduled_end_at' => '2026-08-31 17:30:00',
+        ]);
+        $legacy = DB::table('core_course_cohorts')->insertGetId([
+            'customer_id' => $setup['customer'], 'product_id' => $setup['product'], 'version_id' => $setup['version'],
+            'name' => 'Legacy class', 'code' => 'COH-LEGACY', 'status' => 'active', 'start_date' => null, 'end_date' => null,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $status = fn (int $cohort): string => (string) DB::table('core_course_cohorts')->where('id', $cohort)->value('status');
+
+        Carbon::setTestNow(CarbonImmutable::parse('2026-08-31 23:59:00', self::TZ));
+        $this->artisan('course:complete-ended-cohorts')->expectsOutput('Completed 0 ended class(es).')->assertSuccessful();
+        $this->assertSame('active', $status($setup['cohort']));
+
+        Carbon::setTestNow(CarbonImmutable::parse('2026-09-01 00:00:30', self::TZ));
+        $this->artisan('course:complete-ended-cohorts')->expectsOutput('Completed 1 ended class(es).')->assertSuccessful();
+        $this->assertSame('completed', $status($setup['cohort']));
+        // Every Session lies inside the class period, so by then none is still to come: one nobody started stays
+        // for the hand and for automatic absence, as when the button is pressed.
+        $this->assertSame('scheduled', DB::table('core_liveclass_sessions')->where('id', $lastSession)->value('status'));
+        // A class without an end date is left to an administrator; a second run finds nothing.
+        $this->assertSame('active', $status($legacy));
+        $this->artisan('course:complete-ended-cohorts')->expectsOutput('Completed 0 ended class(es).')->assertSuccessful();
     }
 
     public function test_a_late_start_reevaluates_the_online_entries_the_system_recorded(): void
@@ -831,6 +1035,363 @@ class LiveClassAttendanceCheckInTest extends TestCase
         // A cancelled Session no longer counts.
         app(LiveClassSessionLifecycleService::class)->cancel($setup['customer'], $setup['cohort'], $session, 'Giáo viên ốm');
         $this->assertSame('not_started', $progress());
+    }
+
+    public function test_ticked_content_decides_attendance_and_make_up(): void
+    {
+        // ADR-0022 Amendment 1.3, Đợt 3 (MK 3.4, 3.5). Planned 16:00–17:30; late after 16:10, absent after 16:30.
+        config(['liveclass.auto_absent_from' => '2026-07-01 00:00:00']);
+        $setup = $this->setupClass();
+        $session = $this->liveSession($setup, 'online');
+        $inClass = $this->tickedActivity($setup, 'Bài tập trên lớp', 'during');
+        $homework = $this->tickedActivity($setup, 'Bài tập về nhà', 'after');
+        [$onTime, $late, $madeUp, $tooLate, $silent, $waiting, $byHand] = array_map(fn () => $this->learner($setup), range(1, 7));
+        $enrollment = fn (User $student): int => (int) DB::table('core_course_cohort_students')->where('student_id', $student->id)->value('enrollment_id');
+        $at = fn (string $localTime) => Carbon::setTestNow(CarbonImmutable::parse('2026-07-04 '.$localTime, self::TZ));
+        $enter = function (User $student, string $localTime) use ($session, $at): void {
+            $at($localTime);
+            $this->actingAs($student)->post(self::HOST."/my-courses/live-sessions/{$session}/meeting")->assertRedirect();
+        };
+        $open = function (User $student, int $activity, string $localTime) use ($enrollment, $at) {
+            $at($localTime);
+
+            return $this->actingAs($student)->postJson(self::HOST.'/my-courses/'.$enrollment($student).'/activities/'.$activity.'/progress', ['event' => 'opened']);
+        };
+        $row = fn (User $student): ?object => DB::table('core_liveclass_attendances')->where('session_id', $session)->where('user_id', $student->id)
+            ->first(['status', 'attendance_source', 'attendance_mode', 'joined_at']);
+        $result = fn (User $student): array => [$row($student)->status, $row($student)->attendance_source, (string) $row($student)->joined_at];
+
+        // Entered but the ticked content is not done: the entry is kept and the result waits.
+        $enter($onTime, '16:02:00');
+        $this->assertSame(['registered', 'system', '2026-07-04 16:02:00'], $result($onTime));
+        $this->actingAs($onTime)->get(self::HOST.'/my-courses')->assertOk()
+            ->assertSeeText(__('lf.LF_liveclass_attendance_entry_pending', ['time' => '16:02']));
+        $this->assertNull(DB::table('core_course_activity_progress')->where('enrollment_id', $enrollment($onTime))
+            ->where('version_activity_id', $setup['liveActivity'])->where('status', 'completed')->value('id'));
+        // Done in time: the result is the one of the entry time, and the live class completes.
+        $open($onTime, $inClass, '16:40:00')->assertOk();
+        $this->assertSame(['present', 'system', '2026-07-04 16:02:00'], $result($onTime));
+        $this->assertSame('completed', DB::table('core_course_activity_progress')->where('enrollment_id', $enrollment($onTime))
+            ->where('version_activity_id', $setup['liveActivity'])->value('status'));
+
+        // The content first, the entry after: no waiting. A late entry stays late.
+        $open($late, $inClass, '16:05:00')->assertOk();
+        $enter($late, '16:15:00');
+        $this->assertSame(['late', 'system', '2026-07-04 16:15:00'], $result($late));
+
+        // "Sau" content opens at the planned end, so nothing is made up before it.
+        $open($madeUp, $homework, '17:00:00')->assertForbidden();
+
+        // Entered in time, content not done by the end, homework done after: present by make-up, entry kept.
+        $enter($madeUp, '16:02:00');
+        $open($madeUp, $inClass, '17:40:00')->assertOk();
+        $this->assertSame('registered', $row($madeUp)->status);
+        $open($madeUp, $homework, '17:45:00')->assertOk();
+        $this->assertSame(['present', 'makeup', '2026-07-04 16:02:00'], $result($madeUp));
+        $this->assertSame('online', $row($madeUp)->attendance_mode);
+        $this->assertDatabaseHas('core_liveclass_attendance_changes', [
+            'session_id' => $session, 'enrollment_id' => $enrollment($madeUp), 'old_status' => 'registered', 'new_status' => 'present',
+            'change_source' => 'system', 'changed_by' => null,
+        ]);
+
+        // Past the absent threshold the entry is absent at once; the homework still makes it up.
+        $enter($tooLate, '16:45:00');
+        $this->assertSame('absent', $row($tooLate)->status);
+        $open($tooLate, $homework, '17:50:00')->assertOk();
+        $this->assertSame(['present', 'makeup', '2026-07-04 16:45:00'], $result($tooLate));
+
+        // A result set by hand is final.
+        $at('17:55:00');
+        $this->actingAs($setup['admin'])->put(self::HOST."/admin/course-cohorts/{$setup['cohort']}/sessions/{$session}/attendance", [
+            'attendance' => [['enrollment_id' => $enrollment($byHand), 'status' => 'absent', 'attendance_mode' => '', 'notes' => '']],
+        ])->assertSessionHasNoErrors();
+        $open($byHand, $homework, '17:56:00')->assertOk();
+        $this->assertSame(['absent', 'manual'], [$row($byHand)->status, $row($byHand)->attendance_source]);
+
+        // Automatic absence takes the waiting entry too and keeps its entry time; both can still be made up.
+        $enter($waiting, '16:03:00');
+        $at('18:00:00');
+        $this->artisan('liveclass:mark-absent')->expectsOutput('Marked 2 learner(s) absent.')->assertSuccessful();
+        $this->assertSame(['absent', 'system', '2026-07-04 16:03:00'], $result($waiting));
+        $this->assertSame(['absent', 'system', ''], $result($silent));
+        $open($silent, $homework, '18:10:00')->assertOk();
+        $this->assertSame(['present', 'makeup', ''], $result($silent));
+        $this->assertDatabaseHas('core_liveclass_attendance_changes', [
+            'session_id' => $session, 'enrollment_id' => $enrollment($silent), 'old_status' => 'absent', 'new_status' => 'present',
+        ]);
+
+        // The class page and the roster name the make-up.
+        $this->actingAs($silent)->get(self::HOST.'/my-courses/classes/'.$setup['cohort'])->assertOk()
+            ->assertSeeText('✓ '.__('lf.LF_my_learning_board_chip_makeup'));
+        $this->actingAs($setup['admin'])->get(self::HOST."/admin/course-cohorts/{$setup['cohort']}?tab=attendance&session_id={$session}")->assertOk()
+            ->assertSeeText(__('lf.LF_course_cohort_attendance_source_makeup'));
+    }
+
+    public function test_make_up_follows_the_policy_of_the_class(): void
+    {
+        $setup = $this->setupClass();
+        $session = $this->liveSession($setup, 'online');
+        $homework = $this->tickedActivity($setup, 'Bài tập về nhà', 'after');
+        [$off, $inTime, $overdue, $joinedLater, $ended] = array_map(fn () => $this->learner($setup), range(1, 5));
+        $enrollment = fn (User $student): int => (int) DB::table('core_course_cohort_students')->where('student_id', $student->id)->value('enrollment_id');
+        $open = function (User $student, string $local) use ($enrollment, $homework) {
+            Carbon::setTestNow(CarbonImmutable::parse($local, self::TZ));
+
+            return $this->actingAs($student)->postJson(self::HOST.'/my-courses/'.$enrollment($student).'/activities/'.$homework.'/progress', ['event' => 'opened']);
+        };
+        $status = fn (User $student): ?string => DB::table('core_liveclass_attendances')->where('session_id', $session)
+            ->where('user_id', $student->id)->value('status');
+        $policy = fn (array $values) => DB::table(LiveClassAttendancePolicies::TABLE)->where('customer_id', $setup['customer'])->update($values);
+
+        // Make-up switched off: the content is learned, the Session gets no result from it.
+        Carbon::setTestNow(CarbonImmutable::parse('2026-07-04 17:40:00', self::TZ));
+        app(LiveClassAttendancePolicies::class)->forCohort($setup['customer'], $setup['cohort']);
+        $policy(['makeup_enabled' => false]);
+        $open($off, '2026-07-04 17:40:00')->assertOk();
+        $this->assertNull($status($off));
+
+        // Two days: until 23:59 of 6 July, in the Session's timezone.
+        $policy(['makeup_enabled' => true, 'makeup_within_days' => 2]);
+        $open($inTime, '2026-07-06 23:59:00')->assertOk();
+        $this->assertSame('present', $status($inTime));
+        $open($overdue, '2026-07-07 00:00:01')->assertOk();
+        $this->assertNull($status($overdue));
+
+        // A Session that ended before the learner joined the class has no make-up; nor has a class that ended.
+        $policy(['makeup_within_days' => null]);
+        DB::table('core_course_cohort_students')->where('student_id', $joinedLater->id)->update(['joined_at' => '2026-07-05 00:00:00']);
+        $open($joinedLater, '2026-07-07 09:00:00')->assertOk();
+        $this->assertNull($status($joinedLater));
+        DB::table('core_course_cohorts')->where('id', $setup['cohort'])->update(['status' => 'completed']);
+        $open($ended, '2026-07-07 09:05:00');
+        $this->assertNull($status($ended));
+    }
+
+    public function test_a_self_study_session_records_attendance_by_its_ticked_content(): void
+    {
+        // ADR-0022 Amendment 1.3, Đợt 4, Bước 3 (MK 3.4). The session runs 16:00–17:30; nobody teaches it.
+        config(['liveclass.auto_absent_from' => '2026-07-01 00:00:00']);
+        $setup = $this->setupClass();
+        [$lesson, $session] = $this->selfStudySession($setup, 'Ôn tập');
+        $reading = $this->selfStudyActivity($setup, $lesson, 'Bài đọc', true);
+        $exercise = $this->selfStudyActivity($setup, $lesson, 'Bài tập', true);
+        $extra = $this->selfStudyActivity($setup, $lesson, 'Đọc thêm', false);
+        [$inTime, $madeUp, $silent, $excused, $partial] = array_map(fn () => $this->learner($setup), range(1, 5));
+        $enrollment = fn (User $student): int => (int) DB::table('core_course_cohort_students')->where('student_id', $student->id)->value('enrollment_id');
+        $at = fn (string $localTime) => Carbon::setTestNow(CarbonImmutable::parse('2026-07-04 '.$localTime, self::TZ));
+        $open = function (User $student, int $activity, string $localTime) use ($enrollment, $at) {
+            $at($localTime);
+
+            return $this->actingAs($student)->postJson(self::HOST.'/my-courses/'.$enrollment($student).'/activities/'.$activity.'/progress', ['event' => 'opened']);
+        };
+        $row = fn (User $student): ?object => DB::table('core_liveclass_attendances')->where('session_id', $session)->where('user_id', $student->id)
+            ->first(['status', 'attendance_source', 'attendance_mode', 'joined_at', 'version_activity_id']);
+        $result = fn (User $student): array => [$row($student)->status, $row($student)->attendance_source, (string) $row($student)->joined_at];
+
+        // The content opens when the session starts, not before.
+        $open($inTime, $reading, '15:59:00')->assertForbidden();
+
+        // During the session the learner page shows it, with the reminder instead of a button.
+        $at('16:05:00');
+        $this->actingAs($inTime)->get(self::HOST.'/my-courses')->assertOk()
+            ->assertSeeText(__('lf.LF_liveclass_self_study_now_title'))
+            ->assertSeeText(__('lf.LF_liveclass_self_study_content_hint', ['time' => '17:30']))
+            ->assertDontSee("live-sessions/{$session}/attend", false);
+        $this->actingAs($inTime)->from(self::HOST.'/my-courses')->post(self::HOST."/my-courses/live-sessions/{$session}/attend")
+            ->assertSessionHas('lf_attendance_entry', fn (array $flash): bool => $flash['result'] === 'not_offered');
+
+        // Every ticked Activity done before the end: present, at the moment the last one was done. No late.
+        $open($inTime, $reading, '16:10:00')->assertOk();
+        $this->assertNull($row($inTime));
+        $open($inTime, $exercise, '17:20:00')->assertOk();
+        $this->assertSame(['present', 'system', '2026-07-04 17:20:00'], $result($inTime));
+        $this->assertSame([null, null], [$row($inTime)->attendance_mode, $row($inTime)->version_activity_id]);
+        $this->assertSame(0, DB::table('core_liveclass_attendance_changes')->count());
+
+        // The last one done after the end: present by make-up.
+        $open($madeUp, $reading, '16:30:00')->assertOk();
+        $open($madeUp, $exercise, '17:45:00')->assertOk();
+        $this->assertSame(['present', 'makeup', ''], $result($madeUp));
+        $this->assertDatabaseHas('core_liveclass_attendance_changes', [
+            'session_id' => $session, 'enrollment_id' => $enrollment($madeUp), 'new_status' => 'present', 'change_source' => 'system',
+        ]);
+
+        // An Activity that is not ticked decides nothing.
+        $open($partial, $reading, '16:20:00')->assertOk();
+        $open($partial, $extra, '16:25:00')->assertOk();
+        $this->assertNull($row($partial));
+
+        // A result set by hand is final; a self-study session takes one although it has no teacher.
+        $at('17:50:00');
+        $this->actingAs($setup['admin'])->put(self::HOST."/admin/course-cohorts/{$setup['cohort']}/sessions/{$session}/attendance", [
+            'attendance' => [['enrollment_id' => $enrollment($excused), 'status' => 'excused', 'attendance_mode' => '', 'notes' => 'Có đơn']],
+        ])->assertSessionHasNoErrors();
+        $open($excused, $reading, '17:52:00')->assertOk();
+        $open($excused, $exercise, '17:53:00')->assertOk();
+        $this->assertSame(['excused', 'manual'], [$row($excused)->status, $row($excused)->attendance_source]);
+
+        // Automatic absence needs no teacher on a self-study session; the absence can still be made up.
+        $at('18:00:00');
+        $this->artisan('liveclass:mark-absent')->expectsOutput('Marked 2 learner(s) absent.')->assertSuccessful();
+        $this->assertSame(['absent', 'system', ''], $result($silent));
+        $this->assertSame('absent', $row($partial)->status);
+        $open($silent, $reading, '18:05:00')->assertOk();
+        $open($silent, $exercise, '18:06:00')->assertOk();
+        $this->assertSame(['present', 'makeup', ''], $result($silent));
+
+        $this->actingAs($setup['admin'])->get(self::HOST."/admin/course-cohorts/{$setup['cohort']}?tab=attendance&session_id={$session}")->assertOk()
+            ->assertSeeText(__('lf.LF_course_cohort_attendance_checked_in_self_study', ['time' => '17:20']))
+            ->assertSeeText(__('lf.LF_course_cohort_attendance_source_makeup'));
+    }
+
+    public function test_a_self_study_session_without_ticked_content_is_checked_in_by_its_button(): void
+    {
+        // MK 3.4: with nothing ticked, the learner presses "Điểm danh" during the session's hours.
+        $setup = $this->setupClass();
+        [$lesson, $session] = $this->selfStudySession($setup, 'Tự luyện');
+        $this->selfStudyActivity($setup, $lesson, 'Đọc thêm', false);
+        [$early, $onTime, $late] = array_map(fn () => $this->learner($setup), range(1, 3));
+        $attend = self::HOST."/my-courses/live-sessions/{$session}/attend";
+        $press = function (User $student, string $localTime) use ($attend) {
+            Carbon::setTestNow(CarbonImmutable::parse('2026-07-04 '.$localTime, self::TZ));
+
+            return $this->actingAs($student)->from(self::HOST.'/my-courses')->post($attend);
+        };
+        $row = fn (User $student): ?object => DB::table('core_liveclass_attendances')->where('session_id', $session)->where('user_id', $student->id)
+            ->first(['status', 'attendance_source', 'attendance_mode', 'joined_at']);
+
+        // Not listed before its hours; the server refuses a press made then.
+        Carbon::setTestNow(CarbonImmutable::parse('2026-07-04 15:50:00', self::TZ));
+        $this->actingAs($early)->get(self::HOST.'/my-courses')->assertOk()->assertDontSee("live-sessions/{$session}/attend", false);
+        $press($early, '15:50:00')->assertSessionHas('lf_attendance_entry', fn (array $flash): bool => $flash['result'] === 'too_early');
+        $this->assertNull($row($early));
+
+        Carbon::setTestNow(CarbonImmutable::parse('2026-07-04 16:40:00', self::TZ));
+        $this->actingAs($onTime)->get(self::HOST.'/my-courses')->assertOk()
+            ->assertSeeText(__('lf.LF_liveclass_self_study_now_title'))
+            ->assertSee("live-sessions/{$session}/attend", false);
+        // Any moment inside the hours is present: there is no late.
+        $press($onTime, '16:40:00')->assertRedirect(self::HOST.'/my-courses');
+        $this->assertEquals(['status' => 'present', 'attendance_source' => 'system', 'attendance_mode' => null,
+            'joined_at' => '2026-07-04 16:40:00'], (array) $row($onTime));
+        $press($onTime, '16:50:00');
+        $this->assertSame('2026-07-04 16:40:00', (string) $row($onTime)->joined_at);
+        $this->actingAs($onTime)->get(self::HOST.'/my-courses')->assertOk()
+            ->assertDontSee("live-sessions/{$session}/attend", false)->assertSee('data-live-attendance', false);
+
+        $press($late, '17:31:00')->assertSessionHas('lf_attendance_entry', fn (array $flash): bool => $flash['result'] === 'too_late');
+        $this->assertNull($row($late));
+    }
+
+    public function test_a_session_outside_the_learners_time_in_the_class_takes_no_attendance(): void
+    {
+        // ADR-0034. The session runs 16:00–17:30 on 4 July.
+        config(['liveclass.auto_absent_from' => '2026-07-01 00:00:00']);
+        $setup = $this->setupClass();
+        $session = $this->liveSession($setup, 'online');
+        [$member, $joinedLater, $away] = array_map(fn () => $this->learner($setup), range(1, 3));
+        $seat = fn (User $student): object => DB::table('core_course_cohort_students')->where('student_id', $student->id)->first();
+        $enrollment = fn (User $student): int => (int) $seat($student)->enrollment_id;
+        // One joined the class the day after; one was out of it from the morning to the evening of that day.
+        DB::table('core_course_cohort_students')->where('student_id', $joinedLater->id)->update(['joined_at' => '2026-07-05 08:00:00']);
+        CourseCohortMembershipHistory::record($seat($away), 'rejoined', $setup['admin']->id,
+            ['absent_from' => '2026-07-04 10:00:00', 'absent_to' => '2026-07-04 20:00:00']);
+        // A result recorded before the join date was moved stays in the table.
+        DB::table('core_liveclass_attendances')->insert([
+            'customer_id' => $setup['customer'], 'session_id' => $session, 'enrollment_id' => $enrollment($joinedLater),
+            'user_id' => $joinedLater->id, 'version_activity_id' => $setup['liveActivity'], 'status' => 'absent',
+            'attendance_source' => 'system', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $status = fn (User $student): ?string => DB::table('core_liveclass_attendances')->where('session_id', $session)
+            ->where('user_id', $student->id)->value('status');
+
+        // Nobody records them by hand, and the roster says why.
+        Carbon::setTestNow(CarbonImmutable::parse('2026-07-04 17:40:00', self::TZ));
+        $this->actingAs($setup['admin'])->put(self::HOST."/admin/course-cohorts/{$setup['cohort']}/sessions/{$session}/attendance", [
+            'attendance' => [
+                ['enrollment_id' => $enrollment($member), 'status' => 'present', 'attendance_mode' => 'online', 'notes' => ''],
+                ['enrollment_id' => $enrollment($joinedLater), 'status' => 'present', 'attendance_mode' => 'online', 'notes' => ''],
+                ['enrollment_id' => $enrollment($away), 'status' => 'present', 'attendance_mode' => 'online', 'notes' => ''],
+            ],
+        ])->assertSessionHasNoErrors();
+        $this->assertSame(['present', 'absent', null], [$status($member), $status($joinedLater), $status($away)]);
+        $roster = $this->actingAs($setup['admin'])->get(self::HOST."/admin/course-cohorts/{$setup['cohort']}?tab=attendance&session_id={$session}")->assertOk()
+            ->assertSee('data-attendance-outside="before_join"', false)
+            ->assertSee('data-attendance-outside="not_member"', false)->getContent();
+        $this->assertSame(1, substr_count($roster, 'name="attendance[0][status]"') + substr_count($roster, 'name="attendance[1][status]"') + substr_count($roster, 'name="attendance[2][status]"'));
+
+        // The system marks neither of them absent.
+        Carbon::setTestNow(CarbonImmutable::parse('2026-07-04 18:00:00', self::TZ));
+        $this->artisan('liveclass:mark-absent')->expectsOutput('Marked 0 learner(s) absent.')->assertSuccessful();
+        $this->assertNull($status($away));
+
+        // The learner sees why instead of a result, and the session does not count toward the attendance rate.
+        DB::table('core_liveclass_sessions')->where('id', $session)->update(['status' => 'completed']);
+        $this->actingAs($joinedLater)->get(self::HOST.'/my-courses/classes/'.$setup['cohort'])->assertOk()
+            ->assertSee('data-learn-attendance="before_join"', false)->assertSeeText(__('lf.LF_my_learning_attendance_before_join'));
+        $this->actingAs($away)->get(self::HOST.'/my-courses/classes/'.$setup['cohort'])->assertOk()
+            ->assertSee('data-learn-attendance="not_member"', false)->assertSeeText(__('lf.LF_my_learning_attendance_not_member'));
+        $learning = app(LearnerMyLearningService::class);
+        $this->assertSame([0, 0], [
+            $learning->cohort($setup['customer'], $joinedLater->id, $setup['cohort'])->session_held,
+            $learning->cohort($setup['customer'], $away->id, $setup['cohort'])->session_held,
+        ]);
+        $inside = $learning->cohort($setup['customer'], $member->id, $setup['cohort']);
+        $this->assertSame([1, 1, 100], [$inside->session_held, $inside->session_attended, $inside->attendance_rate]);
+
+        // Moving the join date back brings the stored result back.
+        DB::table('core_course_cohort_students')->where('student_id', $joinedLater->id)->update(['joined_at' => '2026-07-01 00:00:00']);
+        $this->actingAs($joinedLater)->get(self::HOST.'/my-courses/classes/'.$setup['cohort'])->assertOk()
+            ->assertSee('data-learn-attendance="absent"', false);
+    }
+
+    /**
+     * A self-study lesson of the class with its Session, planned 16:00–17:30 local time. Nobody teaches it.
+     *
+     * @return array{0: int, 1: int} the Version Lesson and the Session
+     */
+    private function selfStudySession(array $setup, string $title): array
+    {
+        static $source = 94000;
+        $lesson = DB::table('core_course_template_version_lessons')->insertGetId([
+            'customer_id' => $setup['customer'], 'template_version_id' => $setup['version'], 'source_template_lesson_id' => ++$source,
+            'title_snapshot' => $title, 'lesson_type' => 'self_study', 'sort_order' => 5, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $session = DB::table('core_liveclass_sessions')->insertGetId([
+            'customer_id' => $setup['customer'], 'cohort_id' => $setup['cohort'], 'template_version_id' => $setup['version'],
+            'session_type' => 'self_study', 'version_lesson_id' => $lesson, 'version_activity_id' => null,
+            'title' => $title, 'session_no' => 50 + ($source - 94000), 'delivery_mode' => null,
+            'scheduled_start_at' => '2026-07-04 16:00:00', 'scheduled_end_at' => '2026-07-04 17:30:00', 'timezone' => self::TZ,
+            'status' => 'scheduled', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        return [(int) $lesson, (int) $session];
+    }
+
+    /** A document of a self-study lesson, ticked "Tính vào điểm danh" or not. */
+    private function selfStudyActivity(array $setup, int $lesson, string $title, bool $ticked): int
+    {
+        static $source = 95000;
+
+        return DB::table('core_course_template_version_activities')->insertGetId([
+            'customer_id' => $setup['customer'], 'template_version_id' => $setup['version'], 'version_lesson_id' => $lesson,
+            'source_template_activity_id' => ++$source, 'title_snapshot' => $title, 'activity_type' => 'document', 'sort_order' => $source - 95000,
+            'available_anytime' => true, 'is_required' => true, 'counts_for_attendance' => $ticked,
+            'completion_rule' => 'view', 'unlock_rule_snapshot' => 'none', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+    }
+
+    /** A document of the class Lesson ticked "Tính vào điểm danh" in the given part (`during` or `after`). */
+    private function tickedActivity(array $setup, string $title, string $phase): int
+    {
+        static $source = 93000;
+
+        return DB::table('core_course_template_version_activities')->insertGetId([
+            'customer_id' => $setup['customer'], 'template_version_id' => $setup['version'], 'version_lesson_id' => $setup['lesson'],
+            'source_template_activity_id' => ++$source, 'title_snapshot' => $title, 'activity_type' => 'document', 'sort_order' => 2,
+            'available_anytime' => false, 'available_'.$phase.'_session' => true, 'is_required' => true, 'counts_for_attendance' => true,
+            'completion_rule' => 'view', 'unlock_rule_snapshot' => 'none', 'created_at' => now(), 'updated_at' => now(),
+        ]);
     }
 
     private function scanAt(array $setup, int $session, User $student, string $localTime)

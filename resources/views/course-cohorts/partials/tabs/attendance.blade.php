@@ -5,7 +5,8 @@
         ? __('lf.LF_attendance_policy_unlimited')
         : trans_choice('lf.LF_attendance_policy_minutes', $value, ['count' => $value]);
     // The primary teacher records attendance on Lớp của tôi with class.operate; here it reads.
-    $attendanceEditable = $cohort->status === 'active' && ($cohortAdmin ?? true);
+    // A completed class is still corrected by hand (ADR-0022 Amendment 1.4, 2026-11-19); an archived one only reads.
+    $attendanceEditable = in_array($cohort->status, \App\Services\LiveClassAttendanceRecorder::MANUAL_COHORT_STATUSES, true) && ($cohortAdmin ?? true);
 @endphp
 <section class="mk-section ui-cohort-attendance" aria-labelledby="cohort-attendance-title">
     <div class="ui-summary-head">
@@ -44,6 +45,10 @@
                 @endforeach
             </select>
         </form>
+
+        @if ($attendanceEditable && $cohort->status === 'completed')
+            <p class="ui-caption" data-attendance-completed-note>{{ __('lf.LF_attendance_completed_class_note') }}</p>
+        @endif
 
         @unless ($attendanceEditable)
             <div class="ui-banner ui-cohort-tab-notice" role="status">

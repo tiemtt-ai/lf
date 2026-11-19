@@ -1,12 +1,12 @@
 # Table: core_liveclass_schedules
 
-Version: 1.0
+Version: 1.2
 
 Document Status: Approved
 
 Implementation Status: Unknown
 
-Last Updated: 2026-08-09
+Last Updated: 2026-11-19
 
 Document Path: database/liveclass/core_liveclass_schedules.md
 
@@ -47,7 +47,7 @@ There is no persisted `status`. Presentation derives:
 * current — current date is within the inclusive range;
 * ended — current date is after `ends_on`.
 
-No soft-delete column is approved. Delete behavior remains deferred.
+No soft-delete column is approved. Hard delete follows the Schedule Deletion Amendment below.
 
 ## Business Rules
 
@@ -75,6 +75,11 @@ No soft-delete column is approved. Delete behavior remains deferred.
   `core_liveclass_session_schedule_origins`.
 * A Slot referenced by an Origin has stable identity and cannot be hard-deleted.
   Schedule update must not delete/recreate referenced Slot rows.
+* Bổ sung 2026-11-19 (Owner duyệt, đã triển khai): occurrence của hai Schedule
+  cùng Cohort không được giao nhau (chạm mốc thì được). Lưu Schedule giao với
+  Schedule khác bị từ chối và không lưu gì; kiểm tra trong transaction sau khi lock
+  Cohort. Không đổi schema. Xem
+  [LF-Core-LiveClass](../../core/LF-Core-LiveClass.md#lịch-học-trùng-giờ-và-dời-buổi-đã-có-dữ-liệu--2026-11-19-owner-duyệt-đã-triển-khai).
 * Schedule names are not globally or Cohort-unique; identity is the primary
   key. Presentation may warn about similar names but persistence must not infer
   recurrence identity from a name.
@@ -114,3 +119,9 @@ the Cohort lifecycle/date invariants.
 Schedule deletion, automatic generation and synchronization are not part of
 this table contract. Explicit confirmation, provenance and idempotency are
 owned by `core_liveclass_session_schedule_origins` and its application service.
+
+## Schedule Deletion Amendment — 2026-11-19 (Approved, đã triển khai)
+
+Owner chọn cho xóa Schedule theo phương án B. Chi tiết ở
+[ADR-0002 § Schedule Deletion Amendment](../../adr/ADR-0002-LiveClass-Foundation.md#schedule-deletion-amendment--2026-11-19). Không đổi schema. Schedule bị xóa cùng Slot,
+Exclusion và các Session chưa dùng của nó (kèm Origin và phân công giáo viên).

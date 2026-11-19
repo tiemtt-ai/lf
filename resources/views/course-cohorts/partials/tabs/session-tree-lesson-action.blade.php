@@ -5,7 +5,16 @@
         ? $sessionTree['sessionsByActivity']->get($treeLessonLive->id, collect())->first(fn (object $session): bool => $session->status === 'scheduled' && $session->can_edit)
         : null;
     $treeLessonProposed = $treeLessonLive && $canCreateSession ? ($sessionTree['proposals'][$treeLessonLive->id] ?? null) : null;
+    // A self-study lesson has no form: its session is only moved or cancelled, here on its row (ADR-0023 §10).
+    $treeSelfStudySession = \App\Support\LessonType::normalize($lesson->lesson_type ?? null) === \App\Support\LessonType::SELF_STUDY
+        ? \App\Services\CourseCohortContentTree::slotsOfLesson($sessionTree, $lesson)['session']
+        : null;
 @endphp
+@if ($treeSelfStudySession && $treeSelfStudySession->id)
+    <div class="admin-table-actions" data-self-study-session="{{ $treeSelfStudySession->id }}">
+        @include('course-cohorts.partials.tabs.session-tree-slot-actions', ['session' => $treeSelfStudySession, 'slotProposal' => null, 'slotEditable' => false])
+    </div>
+@endif
 @if ($treeLessonOpen || $treeLessonProposed)
     <div class="admin-table-actions">
         <button type="button" class="admin-link-button admin-text-action ui-row-action"

@@ -27,13 +27,17 @@
      x-data="{
          action: null, submitting: false,
          texts: @js($actionTexts),
-         ask(kind, url, sessionId) { this.action = { kind, url, sessionId, ...this.texts[kind] }; this.submitting = false; this.$refs.confirmDialog.showModal() },
+         // `noBoard`: a practice session starts on this page, with no board window to open.
+         ask(kind, url, sessionId, noBoard = false) {
+             this.action = { kind, url, sessionId, noBoard, ...this.texts[kind], ...(noBoard && kind === 'start' ? { body: @js(__('lf.LF_liveclass_whiteboard_start_body_no_board')) } : {}) }
+             this.submitting = false; this.$refs.confirmDialog.showModal()
+         },
          close() { if (! this.submitting) this.$refs.confirmDialog.close() },
          openBoard(url, sessionId) { const win = window.open(url, 'lf-whiteboard-' + sessionId, 'popup,width=1280,height=800'); if (win) win.focus() },
          submit(event) {
              if (this.submitting) { event.preventDefault(); return }
              this.submitting = true
-             if (this.action.kind === 'start') {
+             if (this.action.kind === 'start' && ! this.action.noBoard) {
                  window.open('', event.target.target, 'popup,width=1280,height=800')
                  setTimeout(() => window.location.reload(), 1500)
              }
@@ -109,7 +113,7 @@
                     @if ($tab === 'upcoming')
                         @if ($session->can_start)
                             <button type="button" class="ui-button ui-button--primary cursor-interaction"
-                                    data-url="{{ route('teacher.live-sessions.start', $session->id) }}" x-on:click="ask('start', $el.dataset.url, {{ $session->id }})">
+                                    data-url="{{ route('teacher.live-sessions.start', $session->id) }}" x-on:click="ask('start', $el.dataset.url, {{ $session->id }}, @js((bool) ($session->is_practice ?? false)))">
                                 <x-backend-icon name="presentation" class="ui-icon" />{{ __('lf.LF_liveclass_whiteboard_start') }}
                             </button>
                         @endif
@@ -165,7 +169,7 @@
     <dialog x-ref="confirmDialog" class="ui-modal" data-columns="1" aria-labelledby="live_session_confirm_title" aria-describedby="live_session_confirm_body"
             x-on:cancel="if (submitting) $event.preventDefault()">
         <form method="POST" class="ui-modal__form" x-bind:action="action?.url || ''"
-              x-bind:target="action?.kind === 'start' ? 'lf-whiteboard-' + action.sessionId : '_self'"
+              x-bind:target="action?.kind === 'start' && ! action.noBoard ? 'lf-whiteboard-' + action.sessionId : '_self'"
               x-on:submit="submit($event)">
             @csrf
             <header class="ui-modal__header">

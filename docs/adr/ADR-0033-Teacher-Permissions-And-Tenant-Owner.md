@@ -1,12 +1,12 @@
 # ADR-0033 — Teacher Permissions And Tenant Owner
 
-Version: 1.4
+Version: 1.5
 
 Status: Approved
 
 Implementation Status: Implemented
 
-Last Updated: 2026-11-17
+Last Updated: 2026-11-19
 
 Proposal Date: 2026-11-17
 
@@ -246,6 +246,15 @@ Owner duyệt tài liệu Database dưới đây ngày 2026-11-17 và cho bắt 
 * Màn của giáo viên có nút "Kích hoạt lớp" (lớp nháp) và "Kết thúc lớp" (lớp đang hoạt
   động); nút "Lưu trữ" và route lưu trữ vẫn chỉ ở khu quản trị.
 * Test: `CourseCohortManagementTest::test_a_primary_teacher_activates_and_completes_their_class_but_never_archives_it`.
+
+## Bổ sung 2026-11-19 — Giáo viên không còn kết thúc lớp (Approved, đã triển khai)
+
+Owner duyệt ngày 2026-11-19, chi tiết ở
+[ADR-0022](ADR-0022-Course-Type-On-Template.md) Amendment 1.4, mục "Lớp tự kết thúc theo
+ngày": lớp tự kết thúc sau ngày kết thúc; nút và route "Kết thúc lớp" chỉ còn cho quản trị.
+Giáo viên chính vẫn kích hoạt lớp và sửa ngày kết thúc của lớp. Triển khai cùng ngày: route
+`course-cohorts.complete` chỉ còn ở khu quản trị, thay ghi chú đợt 3b ở trên. Test đổi tên
+thành `CourseCohortManagementTest::test_a_primary_teacher_activates_their_class_but_never_completes_or_archives_it`.
 
 # Database Documents
 

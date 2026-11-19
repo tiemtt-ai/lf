@@ -44,9 +44,14 @@
                 <p class="lf-exam-score__value">{{ $trim($attempt->score) }}<span> / {{ $trim($attempt->max_score) }}</span></p>
                 <p class="lf-exam-score__meta">
                     {{ $trim($attempt->score_percentage) }}%
-                    @if ($attempt->passed !== null)
-                        · <strong @class(['is-pass' => $attempt->passed, 'is-fail' => ! $attempt->passed])>{{ $attempt->passed ? __('lf.LF_assessment_result_passed') : __('lf.LF_assessment_result_failed') }}</strong>
-                        ({{ __('lf.LF_assessment_result_pass_mark', ['mark' => $trim($version->pass_score_percentage)]) }})
+                    @php
+                        // In a course the Activity's threshold decides (ADR-0032 Amendment 1.1); a standalone exam keeps its own.
+                        $verdict = $course !== null ? ($course['verdict'] ?? null)
+                            : ($attempt->passed !== null ? ['passed' => (bool) $attempt->passed, 'threshold' => $version->pass_score_percentage] : null);
+                    @endphp
+                    @if ($verdict !== null)
+                        · <strong @class(['is-pass' => $verdict['passed'], 'is-fail' => ! $verdict['passed']]) data-exam-verdict="{{ $verdict['passed'] ? 'passed' : 'failed' }}">{{ $verdict['passed'] ? __('lf.LF_assessment_result_passed') : __('lf.LF_assessment_result_failed') }}</strong>
+                        ({{ __('lf.LF_assessment_result_pass_mark', ['mark' => $trim($verdict['threshold'])]) }})
                     @elseif (! $graded)
                         · {{ __('lf.LF_assessment_learner_score_provisional') }}
                     @endif

@@ -1,12 +1,12 @@
 # Table: core_liveclass_attendance_policies
 
-Version: 1.2
+Version: 1.3
 
 Document Status: Approved
 
-Implementation Status: Partial
+Implementation Status: Implemented
 
-Last Updated: 2026-11-17
+Last Updated: 2026-11-18
 
 Document Path: database/liveclass/core_liveclass_attendance_policies.md
 
@@ -43,11 +43,11 @@ Owner duyệt thiết kế dữ liệu ngày 2026-11-17 và cho bắt đầu cod
 * Tên là duy nhất trong một trung tâm.
 * Sửa một bộ không tính lại kết quả điểm danh đã ghi. Bảng này không lưu lịch sử thay
   đổi; `updated_by` và `updated_at` cho biết lần sửa sau cùng.
-* `makeup_enabled` và `makeup_within_days` được lưu nhưng chưa có nghiệp vụ đọc chúng
-  cho tới khi học bù được duyệt.
-* Trạng thái triển khai (2026-11-17): mọi thiết lập đều đã có nghiệp vụ đọc, trừ
-  `makeup_enabled` và `makeup_within_days` (chờ nghiệp vụ học bù). Vì vậy tài liệu ghi
-  `Partial`.
+* `makeup_enabled` và `makeup_within_days` có hiệu lực từ 2026-11-18
+  ([ADR-0022 Amendment 1.3, Đợt 3](../../adr/ADR-0022-Course-Type-On-Template.md#đợt-3--tính-vào-điểm-danh-và-học-bù)):
+  học bù chỉ được ghi khi `makeup_enabled = 1`, lớp chưa kết thúc và nội dung được làm xong
+  trong hạn.
+* Trạng thái triển khai (2026-11-18): mọi thiết lập đều đã có nghiệp vụ đọc.
 
 ## Fields
 
@@ -64,8 +64,8 @@ Owner duyệt thiết kế dữ liệu ngày 2026-11-17 và cho bắt đầu cod
 | count_from_actual_start | BOOLEAN NOT NULL DEFAULT true | Bật: mốc muộn và vắng tính từ mốc muộn hơn giữa giờ dự kiến và `actual_start_at`. Tắt: luôn tính từ giờ dự kiến. Buổi dùng nút Điểm danh luôn tính từ giờ dự kiến. |
 | offline_recording | VARCHAR(20) NOT NULL DEFAULT 'system' | Cách ghi giờ vào lớp ở buổi tại lớp: `system` (mã QR hoặc nút Điểm danh, theo `core_liveclass_sessions.attendance_tool`) hoặc `manual` (giáo viên ghi tay, không có mã và không có nút). |
 | online_recording | VARCHAR(20) NOT NULL DEFAULT 'system' | Cách ghi ở buổi trực tuyến: `system` (nút "Vào phòng họp") hoặc `manual`. |
-| makeup_enabled | BOOLEAN NOT NULL DEFAULT true | Cho học bù. Chưa có hiệu lực. |
-| makeup_within_days | SMALLINT UNSIGNED NULL | Hạn học bù, tính bằng ngày sau buổi. `NULL` là đến khi lớp kết thúc. Chưa có hiệu lực. |
+| makeup_enabled | BOOLEAN NOT NULL DEFAULT true | Cho học bù. |
+| makeup_within_days | SMALLINT UNSIGNED NULL | Hạn học bù: hết 23:59 của ngày thứ N sau ngày của buổi, theo `timezone` của buổi. `NULL` là đến khi lớp kết thúc. |
 | teacher_edit_days | SMALLINT UNSIGNED NOT NULL DEFAULT 7 | Giáo viên ghi và sửa điểm danh được trong bao nhiêu ngày sau buổi. Quản trị không bị giới hạn. |
 | created_by | BIGINT UNSIGNED NULL | Người tạo. `NULL` khi hệ thống tạo bộ mặc định. |
 | updated_by | BIGINT UNSIGNED NULL | Người sửa sau cùng. |

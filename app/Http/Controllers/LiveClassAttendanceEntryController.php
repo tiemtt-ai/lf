@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Services\LiveClassAttendanceCheckIn;
+use App\Services\LiveClassAttendanceDevice;
 use App\Services\LiveClassAttendanceRecorder;
+use App\Services\LiveClassSelfStudySession;
 use App\Services\LiveClassWhiteboardService;
 use App\Support\TenantContext;
 use Carbon\CarbonImmutable;
@@ -19,6 +21,7 @@ final class LiveClassAttendanceEntryController extends Controller
     public function __construct(
         private readonly LiveClassWhiteboardService $whiteboards,
         private readonly LiveClassAttendanceRecorder $recorder,
+        private readonly LiveClassAttendanceDevice $devices,
     ) {}
 
     /** Records the entry, then sends the learner to the meeting. The meeting opens whatever the recorder answers. */
@@ -43,7 +46,9 @@ final class LiveClassAttendanceEntryController extends Controller
         $customerId = (int) TenantContext::customerId();
         [$row, $membership] = $this->whiteboards->learnerEntry($customerId, (int) $request->user()->id, $session);
 
-        $outcome = $this->recorder->enter($row, $membership, 'button', CarbonImmutable::now());
+        // One device records one learner in a Session in a room (MK 2.4); a self-study Session is learned at home.
+        $outcome = $this->devices->guard($request, $customerId, $session, (int) $request->user()->id, ! LiveClassSelfStudySession::is($row),
+            fn (): array => $this->recorder->enter($row, $membership, 'button', CarbonImmutable::now()));
 
         return back()->with('lf_attendance_entry', ['session' => $session] + $outcome);
     }

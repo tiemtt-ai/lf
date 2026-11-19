@@ -1,12 +1,12 @@
 # LF-Navigation.md
 
-Version: 1.7
+Version: 1.8
 
 Document Status: Approved
 
 Implementation Status: Unknown
 
-Last Updated: 2026-11-18
+Last Updated: 2026-11-19
 
 Document Path: business/LF-Navigation.md
 
@@ -828,6 +828,13 @@ Quy tắc:
   catalogue của Product đã đánh dấu (đang trên catalogue hoặc đang ghi danh), mới đánh dấu
   trước; nút ♡ ở thẻ `/courses`, trang chủ, trang chi tiết và thẻ khóa của tôi. Không tạo
   Enrollment.
+* Chi tiết lớp theo bố cục MK Live (2026-11-19): đầu trang có tiến độ hiện tại (buổi đã
+  điểm danh / tổng buổi) và tiến độ khuyến nghị theo ngày, thẻ buổi sắp tới / đang diễn ra,
+  tóm tắt tỷ lệ có mặt và tỷ lệ hoàn thành nội dung bắt buộc. "Lịch học theo tuần" liệt kê
+  mọi Session; mỗi buổi có kết quả điểm danh, đếm ngược đến giờ vào học và bảng nội dung
+  Trước / Trong / Sau buổi học (nội dung `anytime` nằm ở Trong). Nội dung mở ngay trên trang
+  (âm thanh, video, video nhúng, tài liệu, liên kết, Quiz) theo VersionActivityAccessService;
+  buổi đang diễn ra có nút vào lớp, bảng và phòng họp như khối "Buổi học đang diễn ra".
 * "Kết quả học tập" (ADR-0031, 2026-11-11): `/my-courses?tab=results&view=courses|classes|exams`,
   mỗi nhóm một thẻ tổng hợp và một bảng; cùng phạm vi và cách tính chuyên cần như trên. Điểm
   bài thi chỉ dùng lần làm học viên được xem điểm (ADR-0025 D12), còn lại "Chưa công bố".

@@ -10,8 +10,8 @@ use Illuminate\Validation\ValidationException;
 /**
  * Saves a Cohort's order of one group of Lessons or Activities (ADR-0023).
  *
- * A date belongs to its position, the list of live Activities in the Cohort's
- * order; everything else belongs to the content. So after a drag each position
+ * A date belongs to its position, the list of live Activities and self-study
+ * Lessons in the Cohort's order (§10); everything else belongs to the content. So after a drag each position
  * keeps its Session row, with its time and Origin, and takes the box of the
  * Activity that now sits there: name, mode, link, room, address and teachers.
  * No time changes, so it needs no audit row.
@@ -49,7 +49,7 @@ class CourseCohortContentReorder
             }
             $this->assertPrerequisitesStayBefore($customerId, $versionId, $lessonIds, $titles);
 
-            $before = $this->contentTree->liveActivities($customerId, (int) $cohort->id, $versionId);
+            $before = $this->contentTree->positions($customerId, (int) $cohort->id, $versionId);
             $dates = $this->unsavedDates($customerId, $cohort, $sessions);
             $this->writeOrder('core_course_cohort_lesson_orders', 'version_lesson_id', $customerId, (int) $cohort->id, $lessonIds, $actorId);
             $this->followPositions($customerId, $cohort, $sessions, $before, $dates, $titles, $actorId);
@@ -83,7 +83,7 @@ class CourseCohortContentReorder
                 }
             }
 
-            $before = $this->contentTree->liveActivities($customerId, (int) $cohort->id, $versionId);
+            $before = $this->contentTree->positions($customerId, (int) $cohort->id, $versionId);
             $dates = $this->unsavedDates($customerId, $cohort, $sessions);
             $this->writeOrder('core_course_cohort_activity_orders', 'version_activity_id', $customerId, (int) $cohort->id, $activityIds, $actorId);
             $this->followPositions($customerId, $cohort, $sessions, $before, $dates, $titles, $actorId);
@@ -91,7 +91,7 @@ class CourseCohortContentReorder
     }
 
     /**
-     * ADR-0023 §9: a cancelled programme Session gives up its date, so its lesson and every later live Activity
+     * ADR-0023 §9: a cancelled programme Session gives up its date, so its lesson and every later position
      * move one position down. Position i's date takes the box of Activity i-1; the last Activity takes the next
      * free date. Call it inside the cancelling transaction. Returns whether anything moved.
      */
@@ -104,10 +104,11 @@ class CourseCohortContentReorder
                 return;
             }
             $versionId = (int) $cohort->version_id;
-            $live = $this->contentTree->liveActivities($customerId, (int) $cohort->id, $versionId)->values();
-            $start = $live->search(fn (object $activity): bool => (int) $activity->id === (int) $cancelled->version_activity_id);
-            $byActivity = $sessions->groupBy(fn (object $session): int => (int) $session->version_activity_id);
-            $delivering = fn (object $activity): Collection => $byActivity->get((int) $activity->id, collect())
+            $live = $this->contentTree->positions($customerId, (int) $cohort->id, $versionId)->values();
+            $cancelledKey = (string) CourseCohortContentTree::positionKey($cancelled);
+            $start = $live->search(fn (object $activity): bool => (string) $activity->position_key === $cancelledKey);
+            $byActivity = $sessions->groupBy(fn (object $session): string => (string) CourseCohortContentTree::positionKey($session));
+            $delivering = fn (object $activity): Collection => $byActivity->get((string) $activity->position_key, collect())
                 ->filter(fn (object $session): bool => CourseCohortContentTree::delivers($session))->values();
             if ($start === false || $delivering($live[$start])->isNotEmpty()) {
                 return;
@@ -128,7 +129,7 @@ class CourseCohortContentReorder
                 $rows[$index] = $here->first();
                 $sources[$index] = $here->first();
                 // Saved content would land on a position without a date.
-                if (! $rows[$index] && $sources[$index - 1] && ! ($dates[(int) $live[$index]->id]['occurrence'] ?? null)) {
+                if (! $rows[$index] && $sources[$index - 1] && ! ($dates[$live[$index]->position_key]['occurrence'] ?? null)) {
                     return;
                 }
             }
@@ -147,7 +148,7 @@ class CourseCohortContentReorder
             for ($index = $start + 1; $index < $live->count(); $index++) {
                 $source = $sources[$index - 1];
                 $row = $rows[$index];
-                $date = $row ? null : ($dates[(int) $live[$index]->id]['occurrence'] ?? null);
+                $date = $row ? null : ($dates[$live[$index]->position_key]['occurrence'] ?? null);
                 if (! $row && ! $source) {
                     continue;
                 }
@@ -169,7 +170,7 @@ class CourseCohortContentReorder
             $last = $live->count() - 1;
             $lastSource = $sources[$last];
             if ($last > $start && $lastSource) {
-                $free = $this->unsavedDates($customerId, $cohort, $sessions)[(int) $live[$last]->id]['occurrence'] ?? null;
+                $free = $this->unsavedDates($customerId, $cohort, $sessions)[$live[$last]->position_key]['occurrence'] ?? null;
                 if ($free) {
                     $this->assertTeachersCanTeach($customerId, (int) $cohort->id, $teamOf($lastSource), (string) $free['date']);
                     $this->replaceTeam($customerId, $this->saveAtDate($customerId, $cohort, $free, $this->boxOf($lastSource, $live[$last], $titles, $cohort), $actorId), $teamOf($lastSource), $actorId);
@@ -195,7 +196,8 @@ class CourseCohortContentReorder
 
             $sessions = DB::table('core_liveclass_sessions')
                 ->where('customer_id', $customerId)->where('cohort_id', $cohort->id)
-                ->whereNotNull('version_activity_id')
+                // The Sessions that hold a position: of a live Activity, or of a self-study Lesson.
+                ->where(fn ($query) => $query->whereNotNull('version_activity_id')->orWhere('session_type', LiveClassSelfStudySession::TYPE))
                 ->lockForUpdate()
                 ->get();
             $evidence = $this->sessionReadModel->sessionIdsWithEvidence($customerId, $sessions->pluck('id'));
@@ -229,36 +231,36 @@ class CourseCohortContentReorder
 
     /**
      * @param  Collection<int, object>  $sessions
-     * @param  Collection<int, object>  $before  the live Activities in the order before this drag
-     * @param  array<int|string, array<string, mixed>>  $dates  from unsavedDates(), keyed by the Activity sitting there before the drag
+     * @param  Collection<int, object>  $before  the positions in the order before this drag
+     * @param  array<int|string, array<string, mixed>>  $dates  from unsavedDates(), keyed by the position sitting there before the drag
      * @param  Collection<int|string, string>  $titles
      */
     private function followPositions(int $customerId, object $cohort, Collection $sessions, Collection $before, array $dates, Collection $titles, int $actorId): void
     {
-        $after = $this->contentTree->liveActivities($customerId, (int) $cohort->id, (int) $cohort->version_id);
-        $positionBefore = $before->pluck('id')->map(fn ($id): int => (int) $id)->flip();
-        $positionAfter = $after->pluck('id')->map(fn ($id): int => (int) $id)->flip();
+        $after = $this->contentTree->positions($customerId, (int) $cohort->id, (int) $cohort->version_id);
+        $positionBefore = $before->pluck('position_key')->flip();
+        $positionAfter = $after->pluck('position_key')->flip();
 
         // A live prerequisite may not end up behind the live Activity that needs it. An order the Version already had stands.
         foreach ($after as $activity) {
             $prerequisiteId = (int) $activity->unlock_after_version_activity_id;
             if ($prerequisiteId && $positionAfter->has($prerequisiteId)
-                && $positionBefore[$prerequisiteId] < $positionBefore[(int) $activity->id]
-                && $positionAfter[$prerequisiteId] > $positionAfter[(int) $activity->id]) {
+                && $positionBefore[$prerequisiteId] < $positionBefore[$activity->position_key]
+                && $positionAfter[$prerequisiteId] > $positionAfter[$activity->position_key]) {
                 $this->refuse('order', __('lf.LF_course_cohort_order_activity_prerequisite', [
                     'activity' => $activity->title_snapshot,
-                    'prerequisite' => $after->firstWhere('id', $prerequisiteId)->title_snapshot,
+                    'prerequisite' => $after->firstWhere('position_key', $prerequisiteId)->title_snapshot,
                 ]));
             }
         }
 
-        $sessionsByActivity = $sessions->groupBy(fn (object $session): int => (int) $session->version_activity_id);
+        $sessionsByActivity = $sessions->groupBy(fn (object $session): string => (string) CourseCohortContentTree::positionKey($session));
         $savedAt = [];
         foreach ($before->values() as $index => $previous) {
-            if ((int) $previous->id === (int) $after->get($index)->id) {
+            if ((string) $previous->position_key === (string) $after->get($index)->position_key) {
                 continue;
             }
-            $here = $sessionsByActivity->get((int) $previous->id, collect());
+            $here = $sessionsByActivity->get((string) $previous->position_key, collect());
             if ($here->contains(fn (object $session): bool => $session->locks_position)) {
                 $this->refuse('order', __('lf.LF_course_cohort_order_activity_locked', ['activity' => $previous->title_snapshot]));
             }
@@ -271,7 +273,7 @@ class CourseCohortContentReorder
         }
 
         // Read every box before any write: two positions may swap.
-        $savedOf = collect($savedAt)->filter()->keyBy(fn (object $session): int => (int) $session->version_activity_id);
+        $savedOf = collect($savedAt)->filter()->keyBy(fn (object $session): string => (string) CourseCohortContentTree::positionKey($session));
         $teams = DB::table('core_liveclass_session_teachers')
             ->where('customer_id', $customerId)->whereIn('session_id', $savedOf->pluck('id'))
             ->get(['session_id', 'teacher_id', 'role'])
@@ -280,9 +282,9 @@ class CourseCohortContentReorder
         $writes = [];
         foreach ($savedAt as $index => $sessionHere) {
             $current = $after->get($index);
-            $moving = $savedOf->get((int) $current->id);
+            $moving = $savedOf->get((string) $current->position_key);
             $previous = $before->get($index);
-            $date = $dates[(int) $previous->id]['occurrence'] ?? null;
+            $date = $dates[$previous->position_key]['occurrence'] ?? null;
             if (! $sessionHere && ! $moving) {
                 continue;
             }
@@ -304,16 +306,38 @@ class CourseCohortContentReorder
     }
 
     /**
-     * What travels with the content. Content never scheduled brings what a new Session of it would start with.
+     * What travels with the content, with the Session type of that content: the row at a position becomes a
+     * self-study Session when a self-study Lesson moves onto it, and a programme Session again when a live Activity
+     * does (ADR-0023 §10). Content never scheduled brings what a new Session of it would start with.
      *
      * @param  Collection<int|string, string>  $titles
      * @return array<string, mixed>
      */
     private function boxOf(?object $session, object $activity, Collection $titles, object $cohort): array
     {
+        if (CourseCohortContentTree::isSelfStudy($activity)) {
+            return LiveClassSelfStudySession::BOX + [
+                'version_lesson_id' => $activity->version_lesson_id,
+                'title' => $session ? $session->title : $titles[$activity->version_lesson_id],
+            ];
+        }
         $defaultUrl = ($cohort->default_meeting_url ?? null) ?: $activity->live_class_url_snapshot;
+        if (! $session && LiveClassPracticeSession::lesson((int) $cohort->customer_id, (int) $activity->version_lesson_id)) {
+            // A practice session starts in a room, without a link (ADR-0022 Amendment 1.3, Đợt 4).
+            return LiveClassPracticeSession::BOX + [
+                'session_type' => 'curriculum',
+                'version_lesson_id' => $activity->version_lesson_id,
+                'version_activity_id' => $activity->id,
+                'title' => $titles[$activity->version_lesson_id],
+                'facility_name_snapshot' => null,
+                'room_name_snapshot' => null,
+                'address_snapshot' => null,
+                'room_id' => null,
+            ];
+        }
 
         return [
+            'session_type' => 'curriculum',
             'version_lesson_id' => $activity->version_lesson_id,
             'version_activity_id' => $activity->id,
             'title' => $session ? $session->title : $titles[$activity->version_lesson_id],
