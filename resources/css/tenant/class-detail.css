@@ -1089,7 +1089,9 @@
     .learning-board-item { flex-wrap: wrap; border-radius: 13px; padding: 9px 11px; gap: 7px; }
     .learning-board-item__kind { width: 100%; flex-basis: 100%; min-height: 24px; }
     .learning-board-item__body { flex-basis: 100%; }
-    .learning-board-item__action { margin-left: auto; }
+    .learning-board-item__action { margin-left: auto; max-width: 100%; flex-wrap: wrap; justify-content: flex-end; }
+    /* A long note ("Lớp đã kết thúc nên…") wraps instead of widening the card past the screen. */
+    .learning-board-item__locked { white-space: normal; text-align: right; }
     .learning-board-phase__empty { border-radius: 13px; }
 }
 
@@ -1137,7 +1139,7 @@
 .learning-upload-resume button[data-upload-continue] { color: #fff; border-color: #4157c8; background: #4157c8; }
 .learning-upload-video-player:fullscreen .learning-upload-video-frame { flex: 1; min-height: 0; }
 .learning-board-item__action .learning-upload-video-player:fullscreen video { height: 100%; aspect-ratio: auto; }
-@media (max-width: 680px) { .learning-upload-resume { padding: 12px; } .learning-upload-resume-card { padding: 16px; } .learning-upload-resume-card h3 { font-size: 17px; } .learning-upload-resume-icon { width: 32px; height: 32px; margin-bottom: 8px; } .learning-upload-resume-card p { margin: 8px 0 12px; } }
+@media (max-width: 680px) { .learning-upload-resume { padding: 12px; } .learning-upload-resume-card { padding: 16px; } .learning-upload-resume-card h3 { font-size: 17px; } .learning-upload-resume-icon { width: 32px; height: 32px; margin-bottom: 8px; } .learning-upload-resume-card p { margin: 6px 0 10px; } .learning-upload-resume button { min-height: 36px; padding: 7px 14px; } }
 
 .learning-board-phase--locked .learning-board-phase__label { background: #f6f8fb; border-color: #e7edf5; color: #8796aa; }
 

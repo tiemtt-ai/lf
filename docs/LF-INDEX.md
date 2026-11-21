@@ -420,6 +420,7 @@ docs/quality/
 | [quality/LF-Assessment-Quiz-Grader-Bulk-Proposal.md](quality/LF-Assessment-Quiz-Grader-Bulk-Proposal.md) | Giao chấm theo đề ở danh sách Đề / Bài tập, bỏ giao theo danh mục và từng bài; nguồn của ADR-0027 Amendment 1.2; Owner duyệt |
 | [quality/LF-Assessment-Rubric-Proposal.md](quality/LF-Assessment-Rubric-Proposal.md) | Đề xuất Rubric (tiêu chí chấm) cho câu tự luận / nói: bảng, chụp khi xuất bản, quy đổi điểm; Owner duyệt, nguồn của ADR-0026 |
 | [quality/LF-Assessment-Learner-Regression-Audit.md](quality/LF-Assessment-Learner-Regression-Audit.md) | Regression audit HIGH phía học viên module Kiểm tra (làm bài, ghi âm, kết quả, Media); PASS WITH DOCUMENTED RISKS |
+| [quality/LF-LiveClass-Learning-Flow-Browser-QA.md](quality/LF-LiveClass-Learning-Flow-Browser-QA.md) | Bằng chứng thử trình duyệt hai vai luồng lớp học và khóa tự học; luồng đã có thì không thử lại, trừ khi sửa phần code đã ghi |
 | [quality/LF-Documentation-Conflicts.md](quality/LF-Documentation-Conflicts.md) | Canonical classification, STOP rule and traceable register for verified documentation conflicts |
 | [quality/LF-Course-Template-Version-Snapshot-Architecture-Review.md](quality/LF-Course-Template-Version-Snapshot-Architecture-Review.md) | Approved Course Template Version snapshot architecture review |
 | [quality/LF-Course-Template-Version-Duplicate-to-Draft-Architecture-Review.md](quality/LF-Course-Template-Version-Duplicate-to-Draft-Architecture-Review.md) | Approved Course Template Version duplicate-to-draft architecture review |

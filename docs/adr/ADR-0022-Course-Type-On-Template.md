@@ -1,6 +1,6 @@
 # ADR-0022 — Course Type On Course Template
 
-Version: 1.4
+Version: 1.5
 
 Status: Approved
 
@@ -781,6 +781,7 @@ vắng vẫn chạy cho các buổi cuối.
 * **Nội dung chưa mở** theo lịch (bài chưa có buổi) vẫn khóa.
 * **Hiển thị.** Trang khóa học, trang bài học và trang lớp của học viên hiện thông báo lớp
   đã kết thúc và đang ở chế độ xem lại; nút bắt đầu Quiz không còn.
+  *Từ Amendment 1.5 (2026-11-19), học viên lớp chỉ có trang lớp; thông báo nằm ở đó.*
 * Giáo viên, quản trị, tự ghi vắng và ghi tay điểm danh không đổi. Lớp `archived` như hiện
   nay: học viên không còn truy cập.
 * Khóa Tự học không bị ảnh hưởng, kể cả Enrollment Tự học còn giữ chỗ trong một lớp cũ.
@@ -943,6 +944,65 @@ Triển khai ngày 2026-11-18, không migration:
   học viên hiện thông báo; thẻ Quiz báo lớp đã kết thúc thay cho nút bắt đầu.
 * Test: `LearnerMyLearningTest::test_a_class_that_has_ended_is_review_only`,
   `CourseQuizActivityTest::test_a_class_that_has_ended_starts_no_new_attempt_and_adds_no_progress`.
+
+# Amendment 1.5 — Học viên lớp chỉ học ở trang lớp (Approved 2026-11-19, đã triển khai 2026-11-19)
+
+Owner duyệt ngày 2026-11-19 ("Có, chuyển hướng"; "chú ý ko có trang ẩn, luồng ẩn"; "Có, thêm
+Amendment"). Không đổi schema, không đổi quyền học.
+
+## Hiện trạng trước amendment
+
+Khóa Theo lớp không có trong danh sách "Khóa học" mà nằm ở tab "Lớp học", dẫn tới trang lớp
+`/my-courses/classes/{cohort}`. Nhưng Enrollment của lớp vẫn mở được trang chi tiết khóa
+`/my-courses/{enrollment}` và trang bài học `/my-courses/{enrollment}/lessons/{lesson}`,
+và học viên vào đó qua:
+
+* nút quay lại của trang làm Quiz và trang kết quả Quiz (về trang bài học);
+* nút quay lại của trang bài học (về trang chi tiết khóa);
+* nút "Vào học" của buổi tự học đang diễn ra (về trang bài học).
+
+Hai trang này không có lối vào từ menu: học viên làm Quiz xong, bấm quay lại thì tới trang
+không thấy ở đâu trong tài khoản. Trang bài học còn có bài trước / bài tiếp, tức một cách thứ
+hai đi qua khóa học, ngoài lịch của lớp. Nội dung có quy tắc hoàn thành `manual` chỉ có nút
+"Đánh dấu hoàn thành" ở trang bài học, nên học viên lớp chỉ hoàn thành được qua trang ẩn đó.
+
+## Quyết định
+
+* **Không có trang ẩn, luồng ẩn.** Học viên của khóa Theo lớp học mọi thứ ở trang lớp: lịch
+  buổi, bảng nội dung Trước / Trong / Sau của từng buổi, Quiz, video, audio, tài liệu, liên kết.
+* `/my-courses/{enrollment}` của Enrollment Theo lớp chuyển tới trang lớp.
+* `/my-courses/{enrollment}/lessons/{lesson}` của Enrollment Theo lớp chuyển tới buổi của bài
+  trên trang lớp: `#live-lesson-{session}` là buổi chưa hủy gần nhất đã bắt đầu, chưa có thì
+  buổi đầu; bài chưa có buổi thì về đầu trang lớp. Bài bị khóa cũng chuyển như vậy, trang lớp
+  nói lý do khóa của từng nội dung.
+* Chưa có lớp mở được (chưa xếp lớp, hoặc lớp còn nháp) thì cả hai về `/my-courses?tab=classes`,
+  như thẻ khóa ở danh mục.
+* Nút "Vào học" của buổi tự học dẫn tới buổi đó trên trang lớp.
+* Trang làm Quiz và trang kết quả Quiz có "Quay lại lớp học" về buổi của bài (ADR-0032
+  Amendment 1.2).
+* Nội dung `manual` có nút "Đánh dấu hoàn thành" trên bảng nội dung của buổi, như ở trang bài
+  học. Lớp đã kết thúc (Amendment 1.4) không có nút này.
+* Khóa Tự học giữ nguyên trang chi tiết khóa và trang bài học. Thứ tự lớp (ADR-0023) vẫn áp
+  dụng cho dữ liệu của Enrollment Theo lớp; học viên thấy nó qua lịch buổi của trang lớp.
+* Quyền mở nội dung và ghi tiến độ không đổi: `VersionActivityAccessService` và
+  `CourseProgressRecorder` vẫn là nơi quyết định; chuyển hướng chỉ đổi trang hiển thị.
+
+## Implementation record
+
+Triển khai ngày 2026-11-19, không migration:
+
+* `LearnerMyLearningService::classReturnUrl()`: trang lớp của Enrollment (chỗ đang hoạt động,
+  lớp không nháp), kèm `#live-lesson-{session}` theo bài khi có.
+* `LearnerMyLearningController::course()` và `lesson()`: Enrollment Theo lớp chuyển tới
+  `classReturnUrl()` hoặc tab Lớp học.
+* `partials/live-sessions.blade.php`: "Vào học" của buổi tự học tới buổi trên trang lớp.
+* `cohort.blade.php`: nút "Đánh dấu hoàn thành" (`data-learn-mark-done`) cho nội dung `manual`.
+* Test: `LearnerMyLearningTest::test_a_class_course_follows_the_class_order_and_needs_the_class`,
+  `::test_the_class_page_shows_when_each_scheduled_activity_opens`,
+  `::test_the_class_page_lists_a_self_study_session_without_a_delivery_mode`,
+  `::test_a_class_that_has_ended_is_review_only`,
+  `::test_the_class_video_popup_shows_its_resume_question_and_watched_share_like_mk`,
+  `LiveClassAttendanceCheckInTest::test_a_self_study_session_records_attendance_by_its_ticked_content`.
 
 # Approval
 

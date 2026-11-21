@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { POSITION_EVERY_SECONDS, shouldReportPosition, resumePosition, learnerActivity } from '../../resources/js/learner-lesson.js';
+import { POSITION_EVERY_SECONDS, shouldReportPosition, resumePosition, learnerActivity, asksToResume, clock, playedPercent, stamp } from '../../resources/js/learner-lesson.js';
 
 // ADR-0030: the page only reports what happened; positions go at most every 15 s of playback,
 // a learner resumes where they stopped, and the server's answer is what the page shows.
@@ -139,4 +139,71 @@ test('an external link records its opening and the link itself opens the tab', a
     await refused.openLink();
     assert.equal(refused.error, 'Failed');
     assert.equal(refused.completed, false);
+});
+
+test('a video stopped part-way asks before playing, unless it is near its end (MK popup)', () => {
+    assert.equal(asksToResume(120, 600), true);
+    assert.equal(asksToResume(0, 600), false);
+    assert.equal(asksToResume(596, 600), false);
+    assert.equal(asksToResume(30, 0), true);
+});
+
+test('the popup footer shows hh:mm:ss and the played share rounded down', () => {
+    assert.equal(clock(33.9), '00:00:33');
+    assert.equal(clock(3725), '01:02:05');
+    assert.equal(playedPercent(32.9, 1808, false), 1);
+    assert.equal(playedPercent(150, 600, false), 25);
+    assert.equal(playedPercent(10, 600, true), 100);
+    assert.equal(playedPercent(10, 0, false), 0);
+    assert.equal(stamp(new Date(2026, 10, 19, 20, 49)), '2026-11-19 20:49');
+});
+
+test('opening asks first; continuing resumes, starting over plays from zero', async () => {
+    const calls = withFetch((url) => (url === '/media' ? { json: { url: 'https://cdn/v.mp4' } } : progress('in_progress', 1)));
+    const activity = learnerActivity(config({ resumeAt: 120, duration: 600, playedSeconds: 150 }));
+    let loaded = null;
+    const player = {
+        currentTime: 0, duration: 600,
+        addEventListener: (event, callback) => { if (event === 'loadedmetadata') loaded = callback; },
+        load: () => loaded?.(), play: () => Promise.resolve(),
+    };
+    activity.$refs = { player };
+    activity.$nextTick = async () => {};
+
+    activity.openMedia();
+    assert.equal(activity.asking, true);
+    assert.equal(activity.started, false);
+    assert.equal(activity.resumeClock, '00:02:00');
+    assert.equal(activity.watchedClock, '00:02:30');
+    assert.equal(activity.watchedPercent, 25);
+
+    activity.startOver();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.equal(activity.asking, false);
+    assert.equal(activity.started, true);
+    assert.equal(player.currentTime, 0);
+    assert.match(activity.viewed, /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/);
+    assert.deepEqual(calls.map((call) => call.body?.event ?? call.url), ['/media', 'opened']);
+});
+
+test('the card share follows playback and gives way to the completed label (MK "Đã nghe 25%")', async () => {
+    // No duration from the course: the file's own once loaded.
+    const calls = withFetch(() => progress('completed', 100));
+    const activity = learnerActivity(config({ duration: 0 }));
+    const player = { currentTime: 0, duration: 52 };
+    activity.$refs = { player };
+    activity.mediaDuration = 52;
+    for (const time of [10, 11, 12, 13]) {
+        player.currentTime = time;
+        activity.lastReportedAt = Date.now();
+        activity.onTime();
+    }
+    assert.equal(activity.cardPercent, 25);
+    assert.equal(calls.length, 0);
+
+    activity.onPause();
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(activity.completed, true);
+    assert.equal(activity.cardPercent, 0);
+    assert.equal(activity.watchedPercent, 100);
 });

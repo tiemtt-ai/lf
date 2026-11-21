@@ -18,7 +18,8 @@
                 @if ($result === 'recorded')
                     {{ match ($recorded['status'] ?? null) { 'late' => $t('recorded_late'), 'registered' => $t('recorded_pending'), default => $t('recorded_present') } }}
                 @else
-                    {{ $t('already') }}
+                    {{-- An entry still waiting for ticked content is not attendance yet: say what is left. --}}
+                    {{ ($recorded['status'] ?? null) === 'registered' ? $t('recorded_pending') : $t('already') }}
                 @endif
             </p>
             @if (! empty($recorded['title']))

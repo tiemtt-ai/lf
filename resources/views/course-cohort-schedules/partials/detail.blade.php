@@ -17,13 +17,23 @@
     $detailWeekdayKeys = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
     $detailShowProgress = $derivedStatus === 'current';
     $detailMonthLabels = collect($plan['months'])->map(fn (array $month): string => __('lf.LF_course_cohort_schedule_detail_month', ['month' => $month['month'], 'year' => $month['year']]))->all();
+    // A Session made from an occurrence shows its own status: done, cancelled… (ADR-0002 Automatic Session Generation).
+    $detailSessionTone = fn (string $status): string => match ($status) {
+        'completed' => 'ui-status--completed',
+        'cancelled' => 'ui-status--danger',
+        'no_show' => 'ui-status--inactive',
+        default => 'ui-status--draft',
+    };
+    $detailSessionLabel = fn (array $session): string => '#'.$session['no'].' · '.$session['title'];
+    $detailHasPast = $plan['past_count'] > 0;
+    $detailHasExcluded = $plan['exclusions'] !== [];
     $detailMonthCounts = collect($plan['months'])->map(fn (array $month): string => trans_choice('lf.LF_course_cohort_schedule_detail_month_count', $month['count'], ['count' => $month['count']]))->all();
 @endphp
-<dialog class="ui-modal ui-cohort-schedule-detail" data-columns="3" aria-labelledby="schedule_detail_title" aria-describedby="schedule_detail_notice" tabindex="-1"
+<dialog class="ui-modal ui-cohort-schedule-detail" data-columns="3" aria-labelledby="schedule_detail_title" @if ($canMutate) aria-describedby="schedule_detail_notice" @endif tabindex="-1"
         x-data="{
             view: 'calendar', month: @js($plan['initial_month']), deleting: false,
             monthLabels: @js($detailMonthLabels), monthCounts: @js($detailMonthCounts),
-            closed() { history.replaceState(null, '', @js(route('admin.course-cohorts.show', ['id' => $cohort->id, 'tab' => 'schedules']))) },
+            closed() { history.replaceState(null, '', @js(route(($routePrefix ?? 'admin.course-cohorts').'.show', ['id' => $cohort->id, 'tab' => 'schedules']))) },
             // The list is the readable view on a phone, where a month grid only fits colour marks.
             init() {
                 if (window.matchMedia('(max-width: 680px)').matches) this.view = 'list'
@@ -40,7 +50,10 @@
         <header class="ui-modal__header">
             <div>
                 <h3 id="schedule_detail_title" class="ui-cohort-schedule-detail__title">{{ $schedule->name }} <span class="ui-status ui-status--{{ $detailTone }}">{{ __('lf.LF_course_cohort_schedule_status_'.$derivedStatus) }}</span></h3>
-                <p id="schedule_detail_notice" class="ui-caption ui-cohort-schedule-detail__notice"><x-backend-icon name="info" class="ui-icon" />{{ __('lf.LF_course_cohort_schedule_detail_notice') }}</p>
+                {{-- Only a class that can still change has Sessions to edit on the Sessions tab. --}}
+                @if ($canMutate)
+                    <p id="schedule_detail_notice" class="ui-caption ui-cohort-schedule-detail__notice"><x-backend-icon name="info" class="ui-icon" />{{ __('lf.LF_course_cohort_schedule_detail_notice') }}</p>
+                @endif
             </div>
             <button type="button" class="ui-modal__close cursor-interaction" x-on:click="$refs.dialog.close()" aria-label="{{ __('lf.LF_common_button_close') }}">×</button>
         </header>
@@ -100,7 +113,9 @@
                     </div>
                 </div>
 
-                <div x-show="view === 'calendar'">
+                {{-- Both views share one grid cell, so switching keeps the popup the height of the taller one. --}}
+                <div class="ui-cohort-schedule-detail__viewstack">
+                <div class="ui-cohort-schedule-detail__view" x-bind:class="{ 'is-hidden': view !== 'calendar' }" x-bind:aria-hidden="(view !== 'calendar').toString()">
                     <div class="ui-cohort-schedule-detail__monthbar">
                         <button type="button" class="ux-row-edit cursor-interaction" x-on:click="month--" x-bind:disabled="month === 0" aria-label="{{ __('lf.LF_common_date_prev_month') }}"><x-backend-icon name="chevron-left" class="ui-icon" /></button>
                         <strong aria-live="polite" x-text="monthLabels[month]">{{ $detailMonthLabels[$plan['initial_month']] ?? '' }}</strong>
@@ -122,7 +137,8 @@
                                             @if ($item['excluded'])
                                                 <span class="ui-cohort-schedule-detail__mark is-excluded" title="{{ $item['reason'] ?: __('lf.LF_course_cohort_schedule_detail_legend_excluded') }}"><s>{{ $item['start_time'] }}–{{ $item['end_time'] }}</s> {{ $item['reason'] ?: __('lf.LF_course_cohort_schedule_detail_day_off') }}</span>
                                             @else
-                                                <span @class(['ui-cohort-schedule-detail__mark', 'is-past' => $item['past'], 'is-next' => $item['next']])>{{ $item['start_time'] }}–{{ $item['end_time'] }}</span>
+                                                <span @class(['ui-cohort-schedule-detail__mark', 'is-past' => $item['past'], 'is-next' => $item['next'], 'is-cancelled' => ($item['session']['status'] ?? null) === 'cancelled'])
+                                                      @if ($item['session']) title="{{ $detailSessionLabel($item['session']) }} · {{ __('lf.LF_course_cohort_session_status_'.$item['session']['status']) }}" @endif>{{ $item['start_time'] }}–{{ $item['end_time'] }}</span>
                                             @endif
                                         @endforeach
                                     </div>
@@ -132,16 +148,20 @@
                     @endforeach
                     <div class="ui-cohort-schedule-detail__legend" aria-hidden="true">
                         <span><i class="ui-cohort-schedule-detail__swatch"></i>{{ __('lf.LF_course_cohort_schedule_detail_legend_planned') }}</span>
-                        @if ($detailShowProgress)
+                        @if ($detailShowProgress && $plan['next'])
                             <span><i class="ui-cohort-schedule-detail__swatch is-next"></i>{{ __('lf.LF_course_cohort_schedule_detail_next') }}</span>
+                        @endif
+                        @if ($detailHasPast)
                             <span><i class="ui-cohort-schedule-detail__swatch is-past"></i>{{ __('lf.LF_course_cohort_schedule_detail_legend_past') }}</span>
                         @endif
-                        <span><i class="ui-cohort-schedule-detail__swatch is-excluded"></i>{{ __('lf.LF_course_cohort_schedule_detail_legend_excluded') }}</span>
+                        @if ($detailHasExcluded)
+                            <span><i class="ui-cohort-schedule-detail__swatch is-excluded"></i>{{ __('lf.LF_course_cohort_schedule_detail_legend_excluded') }}</span>
+                        @endif
                         <span><i class="ui-cohort-schedule-detail__swatch is-out"></i>{{ __('lf.LF_course_cohort_schedule_detail_legend_out') }}</span>
                     </div>
                 </div>
 
-                <div x-show="view === 'list'" x-cloak>
+                <div class="ui-cohort-schedule-detail__view is-hidden" x-bind:class="{ 'is-hidden': view !== 'list' }" x-bind:aria-hidden="(view !== 'list').toString()" aria-hidden="true">
                     @if ($plan['weeks'] === [])
                         <p class="ui-caption">{{ __('lf.LF_course_cohort_schedule_preview_empty') }}</p>
                     @else
@@ -155,11 +175,16 @@
                                     <li @class(['ui-cohort-schedule-detail__listrow', 'is-excluded' => $item['excluded'], 'is-past' => $item['past'], 'is-next' => $item['next']])>
                                         <span class="ui-caption">{{ $item['number'] }}</span>
                                         <span class="ui-cohort-schedule-detail__listdate">{{ __('lf.LF_course_cohort_schedule_weekday_'.$item['weekday']) }}, {{ $detailDate($item['date']) }}</span>
-                                        <span>{{ $item['start_time'] }}–{{ $item['end_time'] }} <span class="ui-caption">· {{ $detailDuration($item['minutes']) }}</span></span>
+                                        <span class="ui-cohort-schedule-detail__listtime">
+                                            <span>{{ $item['start_time'] }}–{{ $item['end_time'] }} <span class="ui-caption">· {{ $detailDuration($item['minutes']) }}</span></span>
+                                            @if ($item['session'])<span class="ui-caption ui-cohort-schedule-detail__listsession">{{ $detailSessionLabel($item['session']) }}</span>@endif
+                                        </span>
                                         @if ($item['excluded'])
                                             <span class="ui-status ui-status--inactive">{{ __('lf.LF_course_cohort_schedule_detail_legend_excluded') }}@if ($item['reason']) · {{ $item['reason'] }}@endif</span>
                                         @elseif ($item['next'])
                                             <span class="ui-status ui-status--active">{{ __('lf.LF_course_cohort_schedule_detail_next') }}</span>
+                                        @elseif ($item['session'])
+                                            <span class="ui-status {{ $detailSessionTone($item['session']['status']) }}">{{ __('lf.LF_course_cohort_session_status_'.$item['session']['status']) }}</span>
                                         @endif
                                     </li>
                                 @endforeach
@@ -167,15 +192,15 @@
                         </ul>
                     @endif
                 </div>
+                </div>
             </section>
 
+            {{-- Dates off: listed only when the Schedule has any; the calendar marks them where they fall. --}}
+            @if ($detailHasExcluded)
             <section class="ui-cohort-schedule-detail__block" aria-labelledby="schedule_detail_exclusions">
                 <div class="ui-cohort-schedule-detail__head">
                     <h4 id="schedule_detail_exclusions">{{ __('lf.LF_course_cohort_schedule_exclusions') }} <span class="ui-caption">· {{ count($plan['exclusions']) }}</span></h4>
                 </div>
-                @if ($plan['exclusions'] === [])
-                    <p class="ui-caption">{{ __('lf.LF_course_cohort_schedule_no_exclusions') }}</p>
-                @else
                     <ul class="ui-cohort-schedule-detail__exclusions">
                         @foreach ($plan['exclusions'] as $exclusion)
                             <li>
@@ -185,8 +210,8 @@
                             </li>
                         @endforeach
                     </ul>
-                @endif
             </section>
+            @endif
         </div>
         <footer class="ui-modal__footer">
             <span class="ui-caption">
@@ -198,7 +223,7 @@
             @endif
             <button type="button" class="ui-button cursor-interaction" x-on:click="$refs.dialog.close()">{{ __('lf.LF_common_button_close') }}</button>
             @if ($canMutate)
-                <a class="ui-button ui-button--primary cursor-interaction" href="{{ route('admin.course-cohorts.show', ['id' => $cohort->id, 'tab' => 'schedules', 'schedule_form' => 'edit', 'schedule_id' => $schedule->id]) }}">
+                <a class="ui-button ui-button--primary cursor-interaction" href="{{ route(($routePrefix ?? 'admin.course-cohorts').'.show', ['id' => $cohort->id, 'tab' => 'schedules', 'schedule_form' => 'edit', 'schedule_id' => $schedule->id]) }}">
                     <x-backend-icon name="square-pen" class="ui-icon" />{{ __('lf.LF_course_cohort_schedule_detail_edit') }}
                 </a>
             @endif

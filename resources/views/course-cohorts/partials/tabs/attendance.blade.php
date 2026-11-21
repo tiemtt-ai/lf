@@ -34,20 +34,27 @@
     </div>
 
     @if ($selectedSessionId)
-        <form method="GET" action="{{ route($routePrefix.'.show', $cohort->id) }}" class="ui-field ui-attendance-session">
-            <input type="hidden" name="tab" value="attendance">
-            <label class="ui-field__label" for="attendance_session_id">{{ __('lf.LF_course_cohort_attendance_session') }}</label>
-            <select id="attendance_session_id" name="session_id" data-ui-kit-select onchange="this.form.submit()">
-                @foreach ($sessions as $session)
-                    <option value="{{ $session->id }}" @selected((int) $selectedSessionId === (int) $session->id)>
-                        @if ($session->scheduled_start_at ?? null){{ \Illuminate\Support\Carbon::parse($session->scheduled_start_at)->format('d/m/Y H:i') }} · @endif#{{ $session->session_no }} · {{ $session->title }}
-                    </option>
-                @endforeach
-            </select>
-        </form>
+        {{-- The Session picker is the card's filter bar, like the search bar of the Students tab. --}}
+        <div class="mk-tablebar mk-tablebar--filters ui-attendance-filterbar">
+            <form method="GET" action="{{ route($routePrefix.'.show', $cohort->id) }}" class="mk-filter-form ui-attendance-session">
+                <div class="ui-field mk-search">
+                    <label class="ui-field__label ui-sr-only" for="attendance_session_id">{{ __('lf.LF_course_cohort_attendance_session') }}</label>
+                    <select id="attendance_session_id" name="session_id" data-ui-kit-select onchange="this.form.submit()">
+                        @foreach ($sessions as $session)
+                            <option value="{{ $session->id }}" @selected((int) $selectedSessionId === (int) $session->id)>
+                                @if ($session->scheduled_start_at ?? null){{ \Illuminate\Support\Carbon::parse($session->scheduled_start_at)->format('d/m/Y H:i') }} · @endif#{{ $session->session_no }} · {{ $session->title }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+                <input type="hidden" name="tab" value="attendance">
+            </form>
+        </div>
 
         @if ($attendanceEditable && $cohort->status === 'completed')
-            <p class="ui-caption" data-attendance-completed-note>{{ __('lf.LF_attendance_completed_class_note') }}</p>
+            <div class="ui-banner ui-cohort-tab-notice" role="status" data-attendance-completed-note>
+                <span class="ui-banner__text">{{ __('lf.LF_attendance_completed_class_note') }}</span>
+            </div>
         @endif
 
         @unless ($attendanceEditable)
@@ -75,3 +82,7 @@
         </div>
     @endif
 </section>
+
+@if ($selectedSessionId)
+    @include('liveclass-attendance.partials.history', ['history' => $attendanceHistory])
+@endif

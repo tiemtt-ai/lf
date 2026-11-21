@@ -10,7 +10,8 @@
             ],
             'foldScope' => 'cohort-'.$cohort->id,
             'contentKey' => 'lf-course-cohort-'.$cohort->id,
-            'structureHelp' => __('lf.LF_course_cohort_session_tree_help'),
+            // A closed class neither moves dates nor reorders lessons: its help leaves out how to.
+            'structureHelp' => __($cohort->is_mutable ? 'lf.LF_course_cohort_session_tree_help' : 'lf.LF_course_cohort_session_tree_help_read_only'),
         ])
     </div>
 @elseif ($sessions->isEmpty())

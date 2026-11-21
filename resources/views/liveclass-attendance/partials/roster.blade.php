@@ -1,5 +1,7 @@
 {{-- The roster of one Session with each learner's result, and the edit history under it. Shared by the Cohort
-     attendance tab (administrator) and the teacher's attendance page. `$action` null means read-only.
+     attendance tab (administrator) and the teacher's attendance page. `$action` null means read-only; a learner whose
+     Enrollment is not active (expired, suspended…) stays read-only with the reason, since saving would skip them.
+     The edit history is its own block (partials/history), placed after the card that holds this roster.
      ADR-0002 § Attendance Policy And Recording Amendment, part B. --}}
 @php
     $manualStatuses = \App\Services\LiveClassAttendanceRecorder::MANUAL_STATUSES;
@@ -31,6 +33,13 @@
         };
     };
     $modeLabel = fn (?string $mode): string => $mode ? __('lf.LF_course_cohort_session_mode_'.$mode) : '—';
+    $statusTone = fn (string $status): string => match ($status) {
+        'present' => 'ui-status--active',
+        'late' => 'ui-status--inactive',
+        'absent' => 'ui-status--danger',
+        'excused' => 'ui-status--draft',
+        default => 'ui-status--archived',
+    };
 @endphp
 @if ($action)<form method="POST" action="{{ $action }}" data-attendance-form>@csrf @method('PUT')@endif
     <div class="mk-table-scroll ui-attendance-roster" role="region" aria-label="{{ __('lf.LF_course_cohort_attendance_title') }}" tabindex="0">
@@ -54,6 +63,9 @@
                 @php
                     $current = $row->attendance_status ?: 'registered';
                     $source = $entryLabel($row);
+                    // Only an active Enrollment takes a result by hand: saving skips the others, so their row is not editable.
+                    $inactive = ($row->enrollment_status ?? 'active') !== 'active' && ! ($row->outside ?? null) ? $row->enrollment_status : null;
+                    $editable = $action && ! ($row->outside ?? null) && $inactive === null;
                 @endphp
                 <tr>
                     <td class="mk-sequence" data-label="{{ __('lf.table_no') }}">{{ $loop->iteration }}</td>
@@ -61,7 +73,8 @@
                         <span class="mk-name-text">{{ $row->student_name }}</span>
                         <span class="ui-caption ui-framework-description">{{ $row->student_email }}</span>
                         @if ($source && ! ($row->outside ?? null))<span class="ui-caption ui-framework-description" @if ($row->joined_at && $row->attendance_source === 'system') data-attendance-checked-in @endif>{{ $source }}</span>@endif
-                        @if ($action && ! ($row->outside ?? null))
+                        @if ($inactive)<span class="ui-caption ui-framework-description" data-attendance-inactive="{{ $inactive }}">{{ __('lf.LF_course_cohort_attendance_inactive_'.$inactive) }}</span>@endif
+                        @if ($editable)
                             <input type="hidden" name="attendance[{{ $index }}][enrollment_id]" value="{{ $row->enrollment_id }}">
                             <input type="hidden" name="attendance[{{ $index }}][loaded_status]" value="{{ $current }}">
                             <input type="hidden" name="attendance[{{ $index }}][loaded_mode]" value="{{ $row->attendance_mode }}">
@@ -73,7 +86,7 @@
                         <td class="mk-text-cell" colspan="3" data-label="{{ __('lf.LF_course_cohort_attendance_status') }}" data-attendance-outside="{{ $row->outside }}">
                             <span class="ui-caption">{{ __('lf.LF_course_cohort_attendance_outside_'.$row->outside) }}</span>
                         </td>
-                    @elseif ($action)
+                    @elseif ($editable)
                         <td class="mk-text-cell" data-label="{{ __('lf.LF_course_cohort_attendance_status') }}">
                             <label class="ui-sr-only" for="attendance-status-{{ $index }}">{{ __('lf.LF_course_cohort_attendance_status') }}: {{ $row->student_name }}</label>
                             <select id="attendance-status-{{ $index }}" name="attendance[{{ $index }}][status]" data-ui-kit-select>
@@ -99,7 +112,7 @@
                             <input name="attendance[{{ $index }}][notes]" maxlength="1000" value="{{ $row->notes }}" placeholder="{{ __('lf.LF_course_cohort_attendance_notes_placeholder') }}" aria-label="{{ __('lf.LF_course_cohort_attendance_notes') }}: {{ $row->student_name }}">
                         </td>
                     @else
-                        <td class="mk-text-cell" data-label="{{ __('lf.LF_course_cohort_attendance_status') }}">{{ __('lf.LF_course_cohort_attendance_status_'.$current) }}</td>
+                        <td class="mk-text-cell" data-label="{{ __('lf.LF_course_cohort_attendance_status') }}"><span class="ui-status {{ $statusTone($current) }}">{{ __('lf.LF_course_cohort_attendance_status_'.$current) }}</span></td>
                         <td class="mk-text-cell" data-label="{{ __('lf.LF_course_cohort_attendance_mode') }}">{{ $modeLabel($row->attendance_mode) }}</td>
                         <td class="mk-text-cell" data-label="{{ __('lf.LF_course_cohort_attendance_notes') }}">{{ $row->notes ?: '—' }}</td>
                     @endif
@@ -112,7 +125,7 @@
     </div>
 @if ($action)
     @if ($attendance->isNotEmpty())
-        <div class="ui-attendance-actions">
+        <div class="ui-attendance-actions" data-attendance-actions>
             <button type="submit" class="ui-button ui-button--primary cursor-interaction">
                 <x-backend-icon name="check" class="ui-icon" />
                 {{ __('lf.LF_course_cohort_attendance_save') }}
@@ -121,23 +134,3 @@
     @endif
 </form>
 @endif
-
-<details class="ui-attendance-history" @if ($history->isEmpty()) hidden @endif data-attendance-history>
-    <summary>{{ trans_choice('lf.LF_course_cohort_attendance_history', $history->count(), ['count' => $history->count()]) }}</summary>
-    <ul>
-        @foreach ($history as $change)
-            <li>
-                <span class="ui-caption">{{ \Illuminate\Support\Carbon::parse($change->created_at)->format('d/m/Y H:i') }}</span>
-                <b>{{ $change->student_name }}</b>:
-                {{ $change->old_status ? __('lf.LF_course_cohort_attendance_status_'.$change->old_status) : __('lf.LF_course_cohort_attendance_status_registered') }}
-                <span aria-hidden="true">→</span>
-                {{ __('lf.LF_course_cohort_attendance_status_'.$change->new_status) }}
-                @if ($change->old_attendance_mode !== $change->new_attendance_mode)
-                    ({{ $modeLabel($change->old_attendance_mode) }} <span aria-hidden="true">→</span> {{ $modeLabel($change->new_attendance_mode) }})
-                @endif
-                · {{ $change->change_source === 'system' ? __('lf.LF_course_cohort_attendance_history_system') : ($change->actor_name ?? '—') }}
-                @if ($change->notes)<span class="ui-caption">· {{ $change->notes }}</span>@endif
-            </li>
-        @endforeach
-    </ul>
-</details>

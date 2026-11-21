@@ -433,6 +433,8 @@ html:has(.standard-b2b-site) { scrollbar-gutter: stable; }
 .standard-b2b-site .sb2b-course-card button.sb2b-course-reregister:hover { background: #edf4ff; }
 .standard-b2b-site .student-course-card .student-products__like { position: relative; z-index: 2; }
 .standard-b2b-site .my-course-tags span.is-live { background: #edf7e5; color: #477b24; }
+.standard-b2b-site .my-course-tags span.is-ended { background: #fdecec; color: #b42318; }
+.standard-b2b-site .my-course-tags span.is-paused { background: #fff4e5; color: #b54708; }
 .standard-b2b-site .my-course-content h3 a { color: inherit; }
 .standard-b2b-site .my-course-thumb { text-decoration: none; }
 .standard-b2b-site .my-course-actions button.btn-ask-teacher { width: 100%; border: 0; }
@@ -642,3 +644,5 @@ html:has(.standard-b2b-site) { scrollbar-gutter: stable; }
   .standard-b2b-site .sb2b-home-benefits__card{ min-height: 0; padding: 22px; }
 }
 @media (max-width: 480px){ .standard-b2b-site .sb2b-default-banner__art{ display: none; } }
+/* A one-off notice after a refused action ("Điểm danh" once the Enrollment is no longer active). */
+.standard-b2b-site .lf-learn-notice { margin: 12px 0 16px; padding: 10px 14px; border: 1px solid #fed7aa; border-radius: 10px; background: #fff7ed; color: #9a3412; font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }

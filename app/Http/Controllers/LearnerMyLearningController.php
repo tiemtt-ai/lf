@@ -104,22 +104,34 @@ class LearnerMyLearningController extends Controller
         ]);
     }
 
-    public function course(Request $request, int $enrollment): View
+    public function course(Request $request, int $enrollment): View|RedirectResponse
     {
         $customerId = $this->customerId();
-        $course = $this->learning->course($customerId, (int) $request->user()->id, $enrollment);
+        $studentId = (int) $request->user()->id;
+        $course = $this->learning->course($customerId, $studentId, $enrollment);
         abort_if($course === null, 404);
+        // A class course is learned on its class page ("Lớp học"), as the course list and the catalogue lead there;
+        // without a class to open yet, it waits in the classes tab.
+        if ($course->is_class) {
+            return redirect()->to($this->learning->classReturnUrl($customerId, $studentId, $enrollment)
+                ?? route('student.courses.index', ['tab' => 'classes']));
+        }
 
         return view('tenant.my-learning.course', ['tenant' => TenantContext::customer(), 'course' => $course]);
     }
 
     /** The learner's lesson page (ADR-0030 D1). A locked Lesson answers 403 with its reason. */
-    public function lesson(Request $request, int $enrollment, int $lesson): View
+    public function lesson(Request $request, int $enrollment, int $lesson): View|RedirectResponse
     {
         $customerId = $this->customerId();
         $studentId = (int) $request->user()->id;
         $page = $this->learning->lesson($customerId, $studentId, $enrollment, $lesson);
         abort_if($page === null, 404);
+        // A class learns a Lesson on its Session in the class page; there is no second, lesson-by-lesson way through it.
+        if ($page->course->is_class) {
+            return redirect()->to($this->learning->classReturnUrl($customerId, $studentId, $enrollment, $lesson)
+                ?? route('student.courses.index', ['tab' => 'classes']));
+        }
         abort_unless($page->allowed, 403, __('lf.LF_my_learning_lesson_locked'));
         $this->progress->openLesson($customerId, $studentId, $enrollment, $lesson);
 

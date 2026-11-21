@@ -127,7 +127,8 @@
         <div class="ui-summary-head">
             <div>
                 <h2 id="cohort-show-students">{{ __('lf.LF_course_cohort_student_view_title') }}</h2>
-                <p class="ui-caption">{{ __('lf.LF_course_cohort_tab_students_detail_note') }}</p>
+                {{-- A closed class only lists who studied in it: nothing is added any more. --}}
+                <p class="ui-caption">{{ __($cohort->is_mutable ? 'lf.LF_course_cohort_tab_students_detail_note' : 'lf.LF_course_cohort_tab_students_detail_note_closed') }}</p>
             </div>
             <div class="mk-table-top__actions">
                 @if ($cohort->is_mutable && $cohortAdmin)
@@ -175,12 +176,16 @@
 
         <div class="mk-table-scroll" role="region" aria-labelledby="cohort-show-students" tabindex="0">
             <table class="ui-cohort-roster-table">
-                <colgroup><col class="mk-col-sequence"><col><col><col class="mk-col-status"><col class="mk-col-action"></colgroup>
+                @php($showStudentAttendance = (bool) config('liveclass.attendance_enabled'))
+                <colgroup><col class="mk-col-sequence"><col><col>@if ($showStudentAttendance)<col class="ui-cohort-col-attendance">@endif<col class="mk-col-status"><col class="mk-col-action"></colgroup>
                 <thead><tr>
                     <th scope="col" class="mk-sequence">{{ __('lf.table_no') }}</th>
                     <th scope="col" class="mk-text-cell">{{ __('lf.LF_course_cohort_student_common_student') }}</th>
                     <th scope="col" class="mk-text-cell">{{ __('lf.LF_course_cohort_student_common_enrollment') }}</th>
-                    <th scope="col" class="ux-action-cell">{{ __('lf.LF_course_cohort_student_common_status') }}</th>
+                    @if ($showStudentAttendance)
+                        <th scope="col" class="mk-text-cell">{{ __('lf.LF_course_cohort_student_attendance') }}</th>
+                    @endif
+                    <th scope="col" class="ux-action-cell">{{ __('lf.LF_course_cohort_student_enrollment_status') }}</th>
                     <th scope="col" class="ux-action-cell">{{ __('lf.table_actions') }}</th>
                 </tr></thead>
                 <tbody>
@@ -198,26 +203,70 @@
                             @php($studentHistory = ($membershipHistory ?? collect())->get($student->membership_id, collect()))
                             @if ($studentHistory->isNotEmpty())
                                 {{-- ADR-0034: the changes of the join date and the times the learner was out of the class. --}}
-                                <details class="ui-cohort-join-history" data-membership-history="{{ $student->membership_id }}">
-                                    <summary class="cursor-interaction">{{ __('lf.LF_course_cohort_student_history') }} ({{ $studentHistory->count() }})</summary>
-                                    <ul>
-                                        @foreach ($studentHistory as $change)
-                                            <li>
-                                                <span>{{ \App\Services\CourseCohortMembershipHistory::at($change->created_at) }} · {{ $change->actor_name ?: __('lf.LF_course_cohort_student_history_system') }}</span>
-                                                <span>{{ \App\Services\CourseCohortMembershipHistory::label($change) }}</span>
-                                            </li>
-                                        @endforeach
-                                    </ul>
-                                </details>
+                                <button type="button" class="ui-cohort-join-history cursor-interaction" aria-haspopup="dialog" data-membership-history="{{ $student->membership_id }}"
+                                        x-on:click="document.getElementById('cohort-membership-history-{{ $student->membership_id }}').showModal()">{{ __('lf.LF_course_cohort_student_history') }} ({{ $studentHistory->count() }})</button>
+                                <dialog id="cohort-membership-history-{{ $student->membership_id }}" class="ui-modal" data-columns="2" aria-labelledby="cohort-membership-history-title-{{ $student->membership_id }}">
+                                    <div class="ui-modal__form">
+                                        <header class="ui-modal__header">
+                                            <div>
+                                                <h3 id="cohort-membership-history-title-{{ $student->membership_id }}">{{ __('lf.LF_course_cohort_student_history_title') }}</h3>
+                                                <p class="ui-caption">{{ $student->student_name }} · ENR-{{ str_pad((string) $student->enrollment_id, 6, '0', STR_PAD_LEFT) }}</p>
+                                            </div>
+                                            <button type="button" class="ui-modal__close cursor-interaction" x-on:click="$el.closest('dialog').close()" aria-label="{{ __('lf.LF_common_button_close') }}">×</button>
+                                        </header>
+                                        <div class="ui-modal__body">
+                                            <div class="mk-table-scroll" role="region" aria-labelledby="cohort-membership-history-title-{{ $student->membership_id }}" tabindex="0">
+                                                <table>
+                                                    <colgroup><col class="mk-col-sequence"><col class="ui-cohort-col-history-time"><col class="ui-cohort-col-history-actor"><col></colgroup>
+                                                    <thead><tr>
+                                                        <th scope="col" class="mk-sequence">{{ __('lf.table_no') }}</th>
+                                                        <th scope="col" class="mk-text-cell">{{ __('lf.LF_course_cohort_attendance_history_time') }}</th>
+                                                        <th scope="col" class="mk-text-cell">{{ __('lf.LF_course_cohort_attendance_history_actor') }}</th>
+                                                        <th scope="col" class="mk-text-cell">{{ __('lf.LF_course_cohort_attendance_history_change') }}</th>
+                                                    </tr></thead>
+                                                    <tbody>
+                                                    @foreach ($studentHistory as $change)
+                                                        <tr>
+                                                            <td class="mk-sequence" data-label="{{ __('lf.table_no') }}">{{ $loop->iteration }}</td>
+                                                            <td class="mk-text-cell ui-enroll-nowrap" data-label="{{ __('lf.LF_course_cohort_attendance_history_time') }}">{{ \App\Services\CourseCohortMembershipHistory::at($change->created_at) }}</td>
+                                                            <td class="mk-text-cell" data-label="{{ __('lf.LF_course_cohort_attendance_history_actor') }}">{{ $change->actor_name ?: __('lf.LF_course_cohort_student_history_system') }}</td>
+                                                            <td class="mk-text-cell" data-label="{{ __('lf.LF_course_cohort_attendance_history_change') }}">{{ \App\Services\CourseCohortMembershipHistory::label($change) }}</td>
+                                                        </tr>
+                                                    @endforeach
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                        <footer class="ui-modal__footer">
+                                            <span></span>
+                                            <button type="button" class="ui-button cursor-interaction" x-on:click="$el.closest('dialog').close()">{{ __('lf.LF_common_button_close') }}</button>
+                                        </footer>
+                                    </div>
+                                </dialog>
                             @endif
                         </td>
-                        <td class="ux-action-cell" data-label="{{ __('lf.LF_course_cohort_student_common_status') }}">
+                        @if ($showStudentAttendance)
+                            @php($studentAttendance = ($studentAttendanceCounts ?? collect())->get($student->enrollment_id, []))
+                            @php($studentAttended = ($studentAttendance['present'] ?? 0) + ($studentAttendance['late'] ?? 0))
+                            @php($studentRecorded = array_sum($studentAttendance))
+                            {{-- Present (late included) over the sessions that have a result for this learner. --}}
+                            <td class="mk-text-cell" data-label="{{ __('lf.LF_course_cohort_student_attendance') }}" data-student-attendance="{{ $student->enrollment_id }}">
+                                @if ($studentRecorded > 0)
+                                    <span class="mk-name-text">{{ __('lf.LF_course_cohort_student_attendance_value', ['attended' => $studentAttended, 'total' => $studentRecorded]) }}</span>
+                                    @php($studentAttendanceOther = collect(['late', 'absent', 'excused'])->filter(fn ($status) => ($studentAttendance[$status] ?? 0) > 0)->map(fn ($status) => __('lf.LF_course_cohort_attendance_status_'.$status).' '.$studentAttendance[$status]))
+                                    @if ($studentAttendanceOther->isNotEmpty())<span class="ui-caption ui-framework-description">{{ $studentAttendanceOther->implode(' · ') }}</span>@endif
+                                @else
+                                    <span class="ui-caption">{{ __('lf.LF_course_cohort_student_attendance_none') }}</span>
+                                @endif
+                            </td>
+                        @endif
+                        <td class="ux-action-cell" data-label="{{ __('lf.LF_course_cohort_student_enrollment_status') }}">
                             <span class="ui-status ui-status--{{ $studentTone }}">{{ __('lf.LF_course_enrollment_common_'.$student->enrollment_status) }}</span>
                             @if ($cohort->is_mutable && $student->enrollment_status === 'cancelled')
                                 <span class="ui-caption ui-cohort-seat-note"><x-backend-icon name="info" class="ui-icon" />{{ __('lf.LF_course_cohort_student_holds_seat') }}</span>
                             @endif
                         </td>
-                        <td class="ux-action-cell" data-label="{{ __('lf.table_actions') }}">
+                        <td class="ux-action-cell ui-cohort-roster-actions" data-label="{{ __('lf.table_actions') }}">
                             <button type="button" class="ux-row-edit cursor-interaction"
                                     aria-label="{{ __('lf.LF_course_cohort_student_view_enrollment') }}: {{ $student->student_name }}"
                                     data-tooltip="{{ __('lf.LF_course_cohort_student_view_enrollment') }}"
@@ -230,10 +279,13 @@
                                         'status_label' => __('lf.LF_course_enrollment_common_'.$student->enrollment_status),
                                         'source_label' => __('lf.LF_course_enrollment_common_source_'.$student->enrollment_source),
                                         'enrolled_at' => $student->enrolled_at ? \Illuminate\Support\Carbon::parse($student->enrolled_at)->format('d/m/Y H:i') : '—',
-                                        'access_starts_at' => $student->access_starts_at ? \Illuminate\Support\Carbon::parse($student->access_starts_at)->format('d/m/Y H:i') : '—',
-                                        'access_ends_at' => $student->access_ends_at ? \Illuminate\Support\Carbon::parse($student->access_ends_at)->format('d/m/Y H:i') : '—',
-                                        'review_starts_at' => $student->review_starts_at ? \Illuminate\Support\Carbon::parse($student->review_starts_at)->format('d/m/Y H:i') : '—',
-                                        'review_ends_at' => $student->review_ends_at ? \Illuminate\Support\Carbon::parse($student->review_ends_at)->format('d/m/Y H:i') : '—',
+                                        // Same rule and words as the full enrollment page: a class-run enrollment with no end has no window to show.
+                                        'show_windows' => ! $acceptsNewStudents || $student->access_ends_at,
+                                        'access_starts_at' => $student->access_starts_at ? \Illuminate\Support\Carbon::parse($student->access_starts_at)->format('d/m/Y H:i') : __('lf.LF_bulk_enrollment_access_immediate'),
+                                        'access_ends_at' => $student->access_ends_at ? \Illuminate\Support\Carbon::parse($student->access_ends_at)->format('d/m/Y H:i') : __('lf.LF_bulk_enrollment_access_unlimited'),
+                                        'review_window' => ! $student->review_starts_at && ! $student->review_ends_at ? __('lf.LF_bulk_enrollment_not_configured') : null,
+                                        'review_starts_at' => $student->review_starts_at ? \Illuminate\Support\Carbon::parse($student->review_starts_at)->format('d/m/Y H:i') : __('lf.LF_bulk_enrollment_not_configured'),
+                                        'review_ends_at' => $student->review_ends_at ? \Illuminate\Support\Carbon::parse($student->review_ends_at)->format('d/m/Y H:i') : __('lf.LF_bulk_enrollment_not_configured'),
                                         'detail_url' => $cohortAdmin ? route('admin.course-enrollments.show', $student->enrollment_id) : null,
                                         'current' => true,
                                     ]), $event)">
@@ -241,17 +293,18 @@
                             </button>
                             @if ($cohort->is_mutable && $cohortAdmin)
                                 {{-- ADR-0034: only an administrator changes the join date, on the membership's own form. --}}
-                                <a class="ux-row-edit cursor-interaction" href="{{ route('admin.course-cohort-students.edit', $student->membership_id) }}"
-                                   aria-label="{{ __('lf.LF_course_cohort_student_edit_joined_at') }}: {{ $student->student_name }}"
-                                   data-tooltip="{{ __('lf.LF_course_cohort_student_edit_joined_at') }}" data-membership-edit="{{ $student->membership_id }}">
-                                    <x-backend-icon name="calendar" class="ui-icon" />
-                                </a>
+                                <button type="button" class="ux-row-edit cursor-interaction" aria-haspopup="dialog"
+                                        aria-label="{{ __('lf.LF_course_cohort_student_membership_edit_title') }}: {{ $student->student_name }}"
+                                        data-tooltip="{{ __('lf.LF_course_cohort_student_membership_edit_title') }}" data-membership-edit="{{ $student->membership_id }}"
+                                        x-on:click="document.getElementById('cohort-membership-edit-{{ $student->membership_id }}').showModal()">
+                                    <x-backend-icon name="square-pen" class="ui-icon" />
+                                </button>
                             @endif
                         </td>
                     </tr>
                 @empty
                     <tr class="mk-empty-row">
-                        <td class="mk-empty" colspan="5">
+                        <td class="mk-empty" colspan="{{ $showStudentAttendance ? 6 : 5 }}">
                             <div role="status">
                                 <strong>{{ $studentKeyword !== '' ? __('lf.LF_course_cohort_student_filter_empty') : __('lf.LF_course_cohort_student_class_empty') }}</strong>
                                 <p class="ui-caption">{{ $studentKeyword !== '' ? __('lf.LF_course_cohort_student_filter_empty_help') : __('lf.LF_course_cohort_student_class_empty_help') }}</p>
@@ -268,6 +321,12 @@
                 :label="__('lf.LF_course_cohort_student_view_title')"
                 :page-size-label="__('lf.LF_course_template_index_page_size')"
                 :page-size-option="__('lf.LF_course_template_index_page_size_option', ['count' => $students->perPage()])" />
+        @endif
+
+        @if ($cohort->is_mutable && $cohortAdmin)
+            @foreach ($students as $student)
+                @include('course-cohorts.partials.tabs.membership-edit-dialog')
+            @endforeach
         @endif
 
         @include('course-cohorts.partials.enrollment-quick-view', ['cohort' => $cohort])

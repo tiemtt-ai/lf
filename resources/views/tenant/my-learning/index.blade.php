@@ -12,6 +12,7 @@
 @endphp
     <section class="student-products student-products--{{ $variant }}">
         @include('tenant.my-learning.partials.hub-nav', ['tab' => $tab])
+        @include('tenant.my-learning.partials.learn-notice')
 
         @include('tenant.my-learning.partials.live-sessions-block')
 

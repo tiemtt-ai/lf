@@ -75,6 +75,9 @@ Ràng buộc đã có hiệu lực:
 * Trang hiện các Activity của Lesson theo thứ tự hiển thị. Khóa học theo lớp dùng thứ tự
   của lớp (ADR-0023, `CourseCohortContentOrder`); khóa tự học dùng thứ tự của Version.
   Mục lục ở trang chi tiết khóa (Đợt 1) cũng đổi sang thứ tự của lớp với khóa theo lớp.
+  *Từ [ADR-0022 Amendment 1.5](ADR-0022-Course-Type-On-Template.md#amendment-15--học-viên-lớp-chỉ-học-ở-trang-lớp-approved-2026-11-19-đã-triển-khai-2026-11-19)
+  (2026-11-19), học viên lớp không dùng trang chi tiết khóa và trang bài học: cả hai chuyển tới
+  trang lớp.*
 * Mỗi Activity hiện quyết định của `VersionActivityAccessService` (mở / khóa và lý do).
   Lesson bị `VersionLessonAccessService` khóa thì trả 403 với lý do, không lộ nội dung Activity.
 * Enrollment không phải của học viên, khác tenant, hoặc `cancelled`: 404, như Đợt 1.

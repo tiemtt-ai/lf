@@ -51,6 +51,16 @@ class LearnerCourseQuizService
      * @param  Collection<int, object>  $activities  Version Activities of one Lesson
      * @return Collection<int, object>
      */
+    /**
+     * Whether a class learner is offered another attempt (MK Live 3.1): attempts are left, and either none was handed in
+     * yet or the attempt that counts is "Chưa đạt". The class page and the result page of a class attempt both ask this.
+     */
+    public static function classOffersAttempt(object $card): bool
+    {
+        return $card->left > 0
+            && ($card->finished->isEmpty() || ($card->best !== null && ! $card->best->verdict['passed']));
+    }
+
     public function cards(int $customerId, int $studentId, int $enrollmentId, Collection $activities): Collection
     {
         $quizActivities = $activities->where('activity_type', 'quiz');

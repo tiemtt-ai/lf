@@ -1,12 +1,12 @@
 # LF-Core-LiveClass.md
 
-Version: 2.38
+Version: 2.44
 
 Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-11-19
+Last Updated: 2026-11-20
 
 Document Path: core/LF-Core-LiveClass.md
 
@@ -455,6 +455,15 @@ timezone tiếp tục thuộc Schedule và là authority của preview.
 Lưu Cohort hoặc Schedule không tạo, sửa, xóa hay đồng bộ Session và không tạo
 Attendance, Recording, Replay, Progress hoặc Completion.
 
+> Cập nhật 2026-11-20, theo [ADR-0023](../adr/ADR-0023-Cohort-Content-Order.md) bản 1.6 và
+> [ADR-0022 Amendment 1.3, Đợt 4](../adr/ADR-0022-Course-Type-On-Template.md#đợt-4--buổi-thực-hành-và-buổi-tự-học-có-lịch)
+> (đã triển khai, `LiveClassScheduleSessionGenerator`): tạo hoặc sửa Schedule xếp Session cho
+> mọi vị trí của chương trình chưa có buổi; lịch không đủ ngày cho mọi vị trí thì không lưu
+> được. Session đã có không bị sửa, xóa hay đồng bộ; xóa Schedule theo § Schedule Lifecycle.
+> Vì vậy câu ngay trên, cùng hai câu "Tạo/sửa Schedule không … tạo runtime data" và "Schedule
+> mutation has no side effect on any Session or Origin" ở § Schedule Lifecycle, chỉ còn đúng
+> cho Session đã có. Preview vẫn không tạo Session.
+
 ## Schedule Preview
 
 Preview là read model do backend tính canonical:
@@ -465,8 +474,10 @@ Schedule + Slots + Exclusions + timezone
 ```
 
 Preview bao gồm `starts_on` và `ends_on`, loại mọi `excluded_on`, không lưu từng
-occurrence, không cấp Session ID và không tạo `core_liveclass_sessions`. UI phải
-ghi rõ “Các Buổi học thực tế chưa được tạo”. Client-side preview chỉ được dùng
+occurrence, không cấp Session ID và không tạo `core_liveclass_sessions`. Từ
+2026-11-20 mô tả tab Lịch học không còn ghi “Các Buổi học thực tế chưa được tạo”, vì lưu
+Schedule xếp Session (ghi chú ở § Schedule Source Of Truth); mô tả mới: “Lưu lịch thì hệ
+thống xếp buổi cho các bài chưa có ngày; buổi đã tạo không đổi.” Client-side preview chỉ được dùng
 để hỗ trợ presentation; request/backend vẫn là calculation authority.
 
 ## Schedule Lifecycle
@@ -1026,7 +1037,10 @@ Không thêm bảng, cột hay migration. Mọi phần dưới đây chỉ chạ
   ghi tay, thì không bị lần quét sau đổi.
 * **Điểm danh tay vẫn dùng được và được ưu tiên.** Lưu tab Điểm danh chỉ ghi cho Enrollment
   `active` (đóng DOC-CONFLICT-0011). Dòng không đổi thì giữ nguyên, kể cả giờ vào và nguồn
-  QR. Dòng có đổi thì thành `manual`. Tab hiện giờ vào của từng học viên.
+  QR. Dòng có đổi thì thành `manual`. Tab hiện giờ vào của từng học viên. Từ 2026-11-19
+  dòng của Enrollment không `active` (hết hạn, tạm dừng…) chỉ đọc và ghi lý do, ví dụ
+  "Ghi danh hết hạn: không ghi điểm danh được", ở cả tab Điểm danh của quản trị và trang
+  điểm danh của giáo viên, thay vì cho sửa rồi bỏ qua khi lưu.
 * **Đợt sau:** ghi lần bấm "Vào phòng họp", tự ghi vắng 30 phút sau giờ kết thúc, lưu lịch
   sử sửa, số phút muộn theo trung tâm (cần duyệt Database docs), màn hình điểm danh cho
   giáo viên, và buổi học trực tiếp tự hoàn thành theo điểm danh.
@@ -1070,8 +1084,11 @@ Nội dung vẫn nằm ở Template; lớp chỉ đọc.
 * Sửa bộ hoặc đổi bộ của lớp chỉ áp dụng cho kết quả ghi sau đó. Kết quả đã ghi không
   bị tính lại.
 * Mã QR lấy mốc mở sớm và mốc muộn từ bộ của lớp. Sau mốc vắng, mã ẩn và lần quét bị từ
-  chối; giáo viên ghi tay. Bộ đặt "giáo viên ghi tay" cho buổi tại lớp thì bảng không
-  hiện mã. Mã vẫn đổi mỗi 30 giây.
+  chối; giáo viên ghi tay. Qua giờ kết thúc dự kiến (giáo viên bắt đầu muộn) mã cũng ẩn,
+  bảng ghi rõ lý do, vì lần quét lúc đó bị từ chối (2026-11-19). Bộ đặt "giáo viên ghi tay"
+  cho buổi tại lớp thì bảng không hiện mã. Mã vẫn đổi mỗi 30 giây.
+* Quét lại khi giờ vào đã ghi nhưng còn chờ nội dung "Tính vào điểm danh": trang nhắc hoàn
+  thành nội dung, không báo "đã được điểm danh" (2026-11-19).
 * Thiết lập học bù có hiệu lực từ 2026-11-18 (mục Điểm danh theo nội dung và học bù); form
   hiện lại hai ô "Cho học bù" và "Hạn học bù".
 * Danh sách bộ quy tắc gắn nhãn "Bộ mặc định" cho bộ mặc định thay vì chỉ ẩn nút xoá.
@@ -1126,6 +1143,10 @@ quy tắc dựa vào loại buổi mà trung tâm đã đặt (Owner quyết 202
   `absent` kèm giờ vào và có dòng báo trước. Khác ở chỗ ghi `attendance_mode = offline`
   và luôn tính mốc từ giờ trên lịch.
 * Buổi `hybrid`: công cụ áp dụng cho người ở lớp; người ở xa bấm "Vào phòng họp".
+* Bấm "Điểm danh" hoặc "Vào phòng họp" từ trang cũ khi không còn được vào thì không ghi gì và
+  báo lý do thay vì trang lỗi 403 (2026-11-19): ghi danh không còn hoạt động (tạm dừng, hết
+  hạn, đã hủy) thì về "Lớp học của tôi" kèm dòng báo; buổi hay lớp không còn nhận vào thì về
+  lại trang lớp kèm "Buổi học này không còn nhận vào lớp."
 * Bộ quy tắc đặt "giáo viên ghi tay" cho buổi tại lớp thì không có mã QR và không có nút.
 * Hệ thống không biết học viên có thật sự ở trong phòng học hay không. Quy tắc "một
   thiết bị một học viên" bên dưới hạn chế việc này.
@@ -1185,6 +1206,10 @@ mục 2.4; thay câu "được hoãn" của ADR-0002 § Attendance Policy And Re
 * Bỏ qua buổi bị huỷ, học viên đã có kết quả, và buổi mà bộ quy tắc đặt ghi tay cho hình
   thức đó.
 * Trong lúc chờ học viên thấy "Chờ ghi nhận điểm danh".
+* Lệnh xét trạng thái Enrollment lúc chạy, không lưu khoảng thời gian tạm dừng. Kích hoạt lại
+  một Enrollment `suspended` thì các buổi trong 7 ngày gần nhất chưa có kết quả, kể cả buổi
+  diễn ra lúc đang tạm dừng, được ghi `absent` ở lần chạy kế tiếp; giáo viên sửa tay nếu cần
+  (Owner giữ cách này 2026-11-19).
 
 **Bổ sung khi rà soát** (Owner xác nhận cả bảy điểm ngày 2026-11-17)
 
@@ -1255,6 +1280,8 @@ Quy tắc chỉ áp dụng cho kết quả do hệ thống ghi; kết quả ghi 
   thúc theo lịch mà học viên chưa có kết quả, cho đến khi hệ thống ghi vắng hoặc giáo viên
   ghi tay. Buổi không ai bắt đầu (vẫn `scheduled`) không hiện nhãn này. Buổi đã kết thúc quá
   7 ngày (hết khoảng tự ghi vắng nhìn lại) cũng không hiện: học viên thấy "Chưa điểm danh".
+  Ghi danh không `active` (tạm dừng, hết hạn…) cũng không hiện nhãn này, vì chỉ ghi danh
+  `active` mới được ghi tay hay tự ghi vắng (2026-11-19).
 * Buổi tự học không có nút "Bắt đầu" nên giữ `scheduled` đến khi kết thúc. Trong giờ của buổi,
   trang lớp của học viên hiện "Đang diễn ra", khớp với khối buổi học phía trên (2026-11-19).
 

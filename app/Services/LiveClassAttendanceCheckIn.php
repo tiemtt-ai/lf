@@ -62,10 +62,11 @@ final class LiveClassAttendanceCheckIn
     }
 
     /**
-     * The current code and how long until the board should fetch the next one. Past the policy's absent threshold
-     * no code is issued (`closed`): a learner arriving that late is recorded by the teacher by hand.
+     * The current code and how long until the board should fetch the next one. Past the policy's absent threshold,
+     * or past the end of the Session when the teacher started it late, no code is issued (`closed`, `ended` for the
+     * second): a scan would be refused, so a learner arriving then is recorded by the teacher by hand.
      *
-     * @return array{code: string|null, refresh_in: int, closed: bool}
+     * @return array{code: string|null, refresh_in: int, closed: bool, ended?: bool}
      */
     public function issue(LiveClassBoardContext $context, ?CarbonImmutable $now = null): array
     {
@@ -74,8 +75,14 @@ final class LiveClassAttendanceCheckIn
         $seconds = $now->getTimestamp();
         $window = intdiv($seconds, self::WINDOW_SECONDS);
         $session = $this->session($context);
-        if ($session && $this->timing($context, $session)->isPastAbsentThreshold($now->utc())) {
-            return ['code' => null, 'refresh_in' => 60, 'closed' => true];
+        if ($session) {
+            $timing = $this->timing($context, $session);
+            if ($timing->isAfterClosing($now->utc())) {
+                return ['code' => null, 'refresh_in' => 60, 'closed' => true, 'ended' => true];
+            }
+            if ($timing->isPastAbsentThreshold($now->utc())) {
+                return ['code' => null, 'refresh_in' => 60, 'closed' => true];
+            }
         }
 
         // Short on purpose: fewer characters make a QR code with fewer, bigger cells, readable from further away.

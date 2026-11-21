@@ -13,6 +13,8 @@
             <path d="M14 3H5v18h14V8l-5-5Zm0 0v5h5M8 12h8M8 16h5"/><path d="m8 9 1 1 2-2"/> @break
         @case('meeting')
             <rect x="3" y="5" width="12" height="14" rx="2"/><path d="m15 10 6-4v12l-6-4"/> @break
+        @case('done')
+            <circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/> @break
         @case('link')
             <path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-2 2M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l2-2"/> @break
         @default

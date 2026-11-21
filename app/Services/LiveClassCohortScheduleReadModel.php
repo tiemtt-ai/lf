@@ -115,7 +115,7 @@ class LiveClassCohortScheduleReadModel
             'scheduleFormSchedule' => $schedule,
             'scheduleFormSlots' => $slots,
             'scheduleFormExclusions' => $exclusions,
-            'scheduleFormPlan' => $mode === 'view' ? $this->detailPlan($schedule, $slots, $exclusions, $derivedStatus) : null,
+            'scheduleFormPlan' => $mode === 'view' ? $this->detailPlan($customerId, $schedule, $slots, $exclusions, $derivedStatus) : null,
             'scheduleFormDerivedStatus' => $derivedStatus,
             // What "Xóa lịch" would take with it, or why it cannot (ADR-0002 § Schedule Deletion Amendment).
             'scheduleFormDeletion' => $mode === 'view' ? (function () use ($customerId, $schedule): array {
@@ -130,12 +130,23 @@ class LiveClassCohortScheduleReadModel
      * What the detail popup shows: every projected occurrence, the excluded ones
      * marked instead of dropped so a date off stays visible where it falls. Only
      * for reading: the preview contract without exclusions is unchanged, and
-     * "past" and "next" are judged in the Schedule's own timezone.
+     * "past" and "next" are judged in the Schedule's own timezone. An occurrence that
+     * already has a Session (through its Origin) carries that Session's number, title
+     * and status, so the plan reads as what happened, not only what was planned.
      *
      * @return array<string, mixed>
      */
-    private function detailPlan(object $schedule, Collection $slots, Collection $exclusions, string $status): array
+    private function detailPlan(int $customerId, object $schedule, Collection $slots, Collection $exclusions, string $status): array
     {
+        $linked = DB::table('core_liveclass_session_schedule_origins as origin')
+            ->join('core_liveclass_sessions as session', function ($join): void {
+                $join->on('session.id', '=', 'origin.session_id')->on('session.customer_id', '=', 'origin.customer_id');
+            })
+            ->where('origin.customer_id', $customerId)->where('origin.schedule_id', $schedule->id)
+            ->get(['origin.schedule_slot_id', 'origin.source_local_date', 'session.session_no', 'session.title', 'session.status'])
+            ->mapWithKeys(fn (object $row): array => [$row->schedule_slot_id.'|'.substr((string) $row->source_local_date, 0, 10) => [
+                'no' => (int) $row->session_no, 'title' => (string) $row->title, 'status' => (string) $row->status,
+            ]]);
         $timezone = $schedule->timezone;
         $now = CarbonImmutable::now($timezone);
         $start = CarbonImmutable::createFromFormat('!Y-m-d', $schedule->starts_on, $timezone);
@@ -145,7 +156,7 @@ class LiveClassCohortScheduleReadModel
         $number = 0;
         $nextFound = false;
         $items = $this->previewService->calculate($schedule->starts_on, $schedule->ends_on, $timezone, $slots)
-            ->map(function (array $occurrence) use ($reasons, $now, $status, &$number, &$nextFound): array {
+            ->map(function (array $occurrence) use ($reasons, $now, $status, $linked, &$number, &$nextFound): array {
                 $excluded = $reasons->has($occurrence['date']);
                 $endsAt = CarbonImmutable::parse($occurrence['ends_at']);
                 $past = ! $excluded && $endsAt->lte($now);
@@ -158,6 +169,7 @@ class LiveClassCohortScheduleReadModel
                     'past' => $past,
                     'next' => $next,
                     'number' => $excluded ? null : ++$number,
+                    'session' => $excluded ? null : $linked->get($occurrence['schedule_slot_id'].'|'.$occurrence['date']),
                     'minutes' => (int) CarbonImmutable::parse($occurrence['starts_at'])->diffInMinutes($endsAt),
                 ]);
             })->values();

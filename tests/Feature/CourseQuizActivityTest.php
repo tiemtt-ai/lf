@@ -224,11 +224,34 @@ class CourseQuizActivityTest extends TestCase
         $this->assertNotSame('completed', DB::table('core_course_activity_progress')->where('enrollment_id', $enrollment)
             ->where('version_activity_id', $activity)->value('status'));
 
-        // No new attempt, although two are left; the lesson page says why.
+        // No new attempt, although two are left; the class page, where a class learner does the Quiz, offers none.
         $this->actingAs($this->student)->post($start)->assertForbidden();
         $this->assertSame(1, DB::table('core_assessment_attempts')->where('enrollment_id', $enrollment)->count());
-        $this->actingAs($this->student)->get(self::HOST.'/my-courses/'.$enrollment.'/lessons/'.$lesson)->assertOk()
-            ->assertSee('data-learn-quiz-closed', false)->assertDontSee('data-learn-quiz-start', false);
+        $session = DB::table('core_liveclass_sessions')->insertGetId([
+            'customer_id' => $this->customer, 'cohort_id' => $cohort, 'template_version_id' => $courseVersion,
+            'session_type' => 'curriculum', 'version_lesson_id' => $lesson, 'session_no' => 1, 'title' => 'Buổi 1',
+            'delivery_mode' => 'offline', 'scheduled_start_at' => '2026-01-05 18:30:00', 'scheduled_end_at' => '2026-01-05 20:00:00',
+            'timezone' => 'Asia/Ho_Chi_Minh', 'status' => 'completed', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $classUrl = self::HOST.'/my-courses/classes/'.$cohort.'#live-lesson-'.$session;
+        $this->actingAs($this->student)->get(self::HOST.'/my-courses/classes/'.$cohort)->assertOk()
+            ->assertSee('data-learn-quiz-result', false)->assertDontSee('data-learn-quiz-start', false);
+
+        // No hidden pages: the lesson page and the result both lead back to the Quiz's Session on the class page.
+        $this->actingAs($this->student)->get(self::HOST.'/my-courses/'.$enrollment.'/lessons/'.$lesson)->assertRedirect($classUrl);
+        $this->actingAs($this->student)->get(self::HOST.'/assessments/attempts/'.$open->id.'/result')->assertOk()
+            ->assertSee('class="lf-exam-back" href="'.$classUrl.'"', false)
+            ->assertSeeText(__('lf.LF_my_learning_quiz_back_class'))
+            ->assertDontSeeText(__('lf.LF_my_learning_quiz_back_lesson'))
+            // Two attempts are left, but the class has ended: no "Làm lại" here either.
+            ->assertDontSeeText(__('lf.LF_assessment_learner_retry'));
+
+        // While the class runs, the result offers what the class page offers: a "submit" Quiz handed in is done, so
+        // neither page offers another attempt, although two are left (MK Live 3.1).
+        DB::table('core_course_cohorts')->where('id', $cohort)->update(['status' => 'active']);
+        $this->actingAs($this->student)->get(self::HOST.'/my-courses/classes/'.$cohort)->assertOk()->assertDontSee('data-learn-quiz-start', false);
+        $this->actingAs($this->student)->get(self::HOST.'/assessments/attempts/'.$open->id.'/result')->assertOk()
+            ->assertDontSeeText(__('lf.LF_assessment_learner_retry'));
     }
 
     public function test_a_course_attempt_shows_passed_or_not_by_the_activity_threshold(): void

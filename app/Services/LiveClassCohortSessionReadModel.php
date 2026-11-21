@@ -92,11 +92,19 @@ class LiveClassCohortSessionReadModel
             ->get(['assignments.session_id', 'assignments.teacher_id', 'assignments.role', 'teachers.name'])
             ->groupBy('session_id');
         $sessionsWithEvidence = $this->sessionIdsWithEvidence($customerId, $sessionIds);
+        // Attendance results per Session, for the Session popup's summary.
+        $attendanceCounts = DB::table('core_liveclass_attendances')
+            ->where('customer_id', $customerId)->whereIn('session_id', $sessionIds)
+            ->groupBy('session_id', 'status')
+            ->get(['session_id', 'status', DB::raw('COUNT(*) as total')])
+            ->groupBy('session_id')
+            ->map(fn (Collection $rows): array => $rows->pluck('total', 'status')->map(fn ($total): int => (int) $total)->all());
         $cohortStatus = (string) DB::table('core_course_cohorts')
             ->where('customer_id', $customerId)->where('id', $cohortId)->value('status');
         $now = now();
 
-        $sessions->each(function (object $session) use ($teamBySession, $sessionsWithEvidence, $cohortStatus, $now): void {
+        $sessions->each(function (object $session) use ($teamBySession, $sessionsWithEvidence, $attendanceCounts, $cohortStatus, $now): void {
+            $session->attendance_counts = $attendanceCounts->get($session->id, []);
             $team = $teamBySession->get($session->id, collect())->values();
             $session->teacher_team = $team;
             $teacherIds = $team->pluck('teacher_id')->map(fn ($id): string => (string) $id);

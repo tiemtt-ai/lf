@@ -6,7 +6,7 @@ Status: Approved
 
 Implementation Status: Implemented
 
-Last Updated: 2026-11-18
+Last Updated: 2026-11-19
 
 Proposal Date: 2026-11-18
 
@@ -159,6 +159,12 @@ Triển khai ngày 2026-11-18:
   lai và hỏi xác nhận; bảng điểm danh và trang lớp của học viên hiện lý do thay cho kết quả.
 * Test: `CourseCohortStudentManagementTest::test_the_join_date_is_kept_when_a_learner_is_added_back_and_every_change_is_history`,
   `LiveClassAttendanceCheckInTest::test_a_session_outside_the_learners_time_in_the_class_takes_no_attendance`.
-* Tab Học viên của lớp có nút "Sửa ngày vào lớp" ở mỗi dòng, chỉ cho quản trị khi lớp còn sửa
-  được; nút mở trang sửa thành viên (Owner 2026-11-18).
+* Tab Học viên của lớp có nút sửa ở mỗi dòng, chỉ cho quản trị khi lớp còn sửa được (Owner
+  2026-11-18). Từ 2026-11-19 nút mở popup "Sửa học viên trong lớp" ngay trong tab (lớp cùng Sản
+  phẩm, ngày vào lớp, lý do, ghi chú); các trang riêng của phân lớp (danh sách, chi tiết, thêm, sửa)
+  chuyển hướng về tab Học viên, route giữ nguyên.
+* 2026-11-19, theo mục 1: chọn lớp khác trong popup thì ô ngày vào lớp tự đặt là lúc chuyển
+  (vẫn sửa được); chọn lại lớp cũ thì trả ngày đã lưu. Yêu cầu chuyển lớp còn mang ngày vào lớp
+  cũ thì máy chủ ghi lúc chuyển, nên buổi trước đó của lớp mới không tự ghi vắng. Test
+  `CourseCohortStudentManagementTest::test_a_transfer_that_keeps_the_old_join_date_joins_the_new_class_now`.
 * Giới hạn: nút Lịch sử chỉ hiện khi thành viên đã có thay đổi.

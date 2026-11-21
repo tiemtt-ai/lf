@@ -1,12 +1,12 @@
 # Table: core_liveclass_schedules
 
-Version: 1.2
+Version: 1.3
 
 Document Status: Approved
 
 Implementation Status: Unknown
 
-Last Updated: 2026-11-19
+Last Updated: 2026-11-20
 
 Document Path: database/liveclass/core_liveclass_schedules.md
 
@@ -94,8 +94,15 @@ Schedule + Slots + Exclusions + timezone
 ```
 
 Preview includes both range endpoints, removes exclusion dates, stores no
-occurrence rows, creates no Session and grants no Session ID. UI must state:
-“Các Buổi học thực tế chưa được tạo”.
+occurrence rows, creates no Session and grants no Session ID.
+
+Bổ sung 2026-11-20 (Owner duyệt): saving a Schedule (create or update) plans
+Sessions for every programme position that has none
+([ADR-0023](../../adr/ADR-0023-Cohort-Content-Order.md) bản 1.6,
+`LiveClassScheduleSessionGenerator`); existing Sessions are not changed. The
+Schedules tab note therefore no longer states “Các Buổi học thực tế chưa được
+tạo”; it states “Lưu lịch thì hệ thống xếp buổi cho các bài chưa có ngày; buổi
+đã tạo không đổi.” Không đổi schema.
 
 ## Keys And Indexes
 

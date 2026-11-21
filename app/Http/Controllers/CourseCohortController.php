@@ -221,6 +221,14 @@ class CourseCohortController extends Controller
             'recordings' => $recordingCount,
         ]);
         $activeTab = (collect($tabs)->firstWhere('key', $requestedTab)['accessible'] ?? false) ? $requestedTab : 'overview';
+        // The Session popup leads to that Session on the Attendance tab, where the tab opens and the Session takes attendance.
+        $attendanceTabOpen = (bool) (collect($tabs)->firstWhere('key', 'attendance')['accessible'] ?? false);
+        $attendanceSessionIds = $eligibleAttendanceSessions->pluck('id')->map(fn ($sessionId): int => (int) $sessionId)->flip();
+        $cohortSessions->each(function (object $session) use ($attendanceTabOpen, $attendanceSessionIds, $routePrefix, $id): void {
+            $session->attendance_url = $attendanceTabOpen && $attendanceSessionIds->has((int) $session->id)
+                ? route($routePrefix.'.show', ['id' => $id, 'tab' => 'attendance', 'session_id' => $session->id])
+                : null;
+        });
 
         $tabData = match ($activeTab) {
             'students' => $this->studentTabData($request, $customerId, $id, $cohort),
@@ -238,6 +246,7 @@ class CourseCohortController extends Controller
                 : [],
             'studentKeyword' => '',
             'students' => collect(),
+            'membershipCohorts' => collect(),
             'selectedEnrollments' => collect(),
             'cancelledSeatCount' => 0,
             'acceptsNewStudents' => true,
@@ -324,6 +333,8 @@ class CourseCohortController extends Controller
             ->select(
                 'memberships.id as membership_id',
                 'memberships.joined_at',
+                'memberships.transfer_reason',
+                'memberships.note',
                 'enrollments.id as enrollment_id',
                 'enrollments.status as enrollment_status',
                 'enrollments.source as enrollment_source',
@@ -338,12 +349,30 @@ class CourseCohortController extends Controller
             ->paginate(10, ['*'], 'student_page')
             ->withQueryString();
 
+        // Attendance results of the learners on this page, in this class's Sessions only.
+        $studentAttendanceCounts = DB::table('core_liveclass_attendances as attendances')
+            ->join('core_liveclass_sessions as sessions', function ($join) use ($customerId): void {
+                $join->on('sessions.id', '=', 'attendances.session_id')->where('sessions.customer_id', $customerId);
+            })
+            ->where('attendances.customer_id', $customerId)->where('sessions.cohort_id', $id)
+            ->whereIn('attendances.enrollment_id', collect($students->items())->pluck('enrollment_id'))
+            ->whereIn('attendances.status', \App\Services\LiveClassAttendanceRecorder::MANUAL_STATUSES)
+            ->groupBy('attendances.enrollment_id', 'attendances.status')
+            ->get(['attendances.enrollment_id', 'attendances.status', DB::raw('COUNT(*) as total')])
+            ->groupBy('enrollment_id')
+            ->map(fn ($rows): array => $rows->pluck('total', 'status')->map(fn ($total): int => (int) $total)->all());
+
         return [
             'students' => $students,
+            'studentAttendanceCounts' => $studentAttendanceCounts,
             // ADR-0034: the history shown beside each join date.
             'membershipHistory' => CourseCohortMembershipHistory::forMemberships($customerId,
                 collect($students->items())->pluck('membership_id')->map(fn ($id): int => (int) $id)->all()),
             'studentKeyword' => $studentKeyword,
+            // The classes a learner can be moved to from the edit popup: same Product, still open to changes.
+            'membershipCohorts' => DB::table('core_course_cohorts')->where('customer_id', $customerId)
+                ->where('product_id', $cohort->product_id)->whereIn('status', ['draft', 'active'])
+                ->orderBy('name')->get(['id', 'name', 'code']),
             'selectedEnrollments' => $selectedEnrollments,
             'cancelledSeatCount' => $selectedEnrollments->where('status', 'cancelled')->count(),
             'acceptsNewStudents' => $this->versionResolver->runsInClass($customerId, $cohort->version_id ? (int) $cohort->version_id : null),

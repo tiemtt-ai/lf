@@ -27,7 +27,7 @@
                     <p><strong>{{ $session->title }}</strong> · {{ $session->cohort_name }} · {{ $start->format('H:i') }}–{{ $end->format('H:i') }}</p>
                 </div>
                 <div class="lf-live__actions">
-                    <a class="lf-live__btn @if (! $entryButton) is-primary @endif" href="{{ route('student.courses.lessons.show', [$session->enrollment_id, $session->version_lesson_id]) }}" data-live-self-study-lesson>
+                    <a class="lf-live__btn @if (! $entryButton) is-primary @endif" href="{{ route('student.courses.classes.show', $session->cohort_id) }}#live-lesson-{{ $session->id }}" data-live-self-study-lesson>
                         {{ __('lf.LF_liveclass_self_study_open_lesson') }}
                     </a>
                     {{-- Once a result is recorded the button goes; the line below says what was recorded. --}}

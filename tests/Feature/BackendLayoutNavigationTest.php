@@ -333,7 +333,6 @@ class BackendLayoutNavigationTest extends TestCase
     {
         $indexFiles = [
             'resources/views/admin/users/index.blade.php',
-            'resources/views/course-cohort-students/index.blade.php',
             'resources/views/course-cohorts/index.blade.php',
             'resources/views/course-enrollments/index.blade.php',
             'resources/views/course-products/index.blade.php',
@@ -437,7 +436,6 @@ class BackendLayoutNavigationTest extends TestCase
             'app/Http/Controllers/Admin/UserController.php',
             'app/Http/Controllers/CourseCategoryController.php',
             'app/Http/Controllers/CourseCohortController.php',
-            'app/Http/Controllers/CourseCohortStudentController.php',
             'app/Http/Controllers/CourseEnrollmentController.php',
             'app/Http/Controllers/CourseProductController.php',
             'app/Http/Controllers/CourseTemplateController.php',
@@ -620,7 +618,6 @@ class BackendLayoutNavigationTest extends TestCase
     public function test_admin_tables_use_the_canonical_sticky_action_menu_contract(): void
     {
         $tableViews = [
-            'resources/views/course-cohort-students/index.blade.php',
             'resources/views/media-categories/index.blade.php',
         ];
 

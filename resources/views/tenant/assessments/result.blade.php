@@ -16,7 +16,7 @@
     $graded = $attempt->status === 'graded';
 @endphp
     @if ($course)
-        <a class="lf-exam-back" href="{{ $course['back'] }}">← {{ __('lf.LF_my_learning_quiz_back_lesson') }}</a>
+        <a class="lf-exam-back" href="{{ $course['back'] }}">← {{ $course['back_label'] }}</a>
     @else
         <a class="lf-exam-back" href="{{ route('student.assessments.mine') }}">← {{ __('lf.LF_assessment_learner_tab_mine') }}</a>
     @endif
@@ -71,7 +71,7 @@
 
         <div class="tenant-course-actions">
             @if ($course)
-                <a class="student-button is-outline" href="{{ $course['back'] }}">{{ __('lf.LF_my_learning_quiz_back_lesson') }}</a>
+                <a class="student-button is-outline" href="{{ $course['back'] }}">{{ $course['back_label'] }}</a>
                 @if ($course['retry'])
                     <form method="POST" action="{{ $course['retry'] }}">
                         @csrf

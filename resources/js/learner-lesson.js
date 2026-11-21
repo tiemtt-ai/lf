@@ -18,6 +18,39 @@ export function resumePosition(stored, duration) {
     return at >= duration - 5 ? 0 : at;
 }
 
+/** Whether a video stopped part-way first asks "Tiếp tục xem / Xem từ đầu" (MK); one near its end starts over. */
+export function asksToResume(stored, duration) {
+    const at = Number(stored) || 0;
+
+    return at > 0 && resumePosition(at, Number(duration) > 0 ? Number(duration) : NaN) === at;
+}
+
+/** hh:mm:ss of whole seconds. */
+export function clock(seconds) {
+    const total = Math.max(0, Math.floor(Number(seconds) || 0));
+
+    return [Math.floor(total / 3600), Math.floor(total / 60) % 60, total % 60].map((part) => String(part).padStart(2, '0')).join(':');
+}
+
+/** "YYYY-MM-DD HH:mm" in the browser's time, as the popup footer shows the last opening. */
+export function stamp(date) {
+    const two = (value) => String(value).padStart(2, '0');
+
+    return `${date.getFullYear()}-${two(date.getMonth() + 1)}-${two(date.getDate())} ${two(date.getHours())}:${two(date.getMinutes())}`;
+}
+
+/**
+ * The share played as the popup footer shows it: the furthest second reached in normal playback over the duration,
+ * whole percents rounded down; complete once the server says so.
+ */
+export function playedPercent(played, duration, completed) {
+    if (completed) {
+        return 100;
+    }
+
+    return Number(duration) > 0 ? Math.min(100, Math.floor((100 * (Number(played) || 0)) / Number(duration))) : 0;
+}
+
 export function learnerActivity(config) {
     return {
         status: config.status,
@@ -28,9 +61,83 @@ export function learnerActivity(config) {
         started: false,
         lastReportedAt: null,
         retried: false,
+        // The MK video popup: the resume question, the seconds played and the last opening.
+        asking: false,
+        resumeAt: Number(config.resumeAt) || 0,
+        played: Number(config.playedSeconds) || 0,
+        lastTime: null,
+        viewed: config.viewedAt || '',
+        mediaDuration: 0,
 
         get completed() {
             return this.status === 'completed';
+        },
+
+        /** The Activity's duration, or the file's own once loaded when the course did not give one. */
+        get length() {
+            return Number(config.duration) || this.mediaDuration;
+        },
+
+        get watchedClock() {
+            return clock(this.completed ? Math.max(this.played, this.length) : this.played);
+        },
+
+        get watchedPercent() {
+            return playedPercent(this.played, this.length, this.completed);
+        },
+
+        /** The card's share while playing (MK "Đã nghe 25%"); once complete the card says so instead. */
+        get cardPercent() {
+            return this.completed ? 0 : playedPercent(this.played, this.length, false);
+        },
+
+        get resumeClock() {
+            return clock(this.resumeAt);
+        },
+
+        /** Opening the popup: a video stopped part-way asks first; otherwise it plays (once). */
+        openMedia() {
+            if (this.started || this.busy) {
+                return;
+            }
+            if (asksToResume(this.resumeAt, config.duration)) {
+                this.asking = true;
+
+                return;
+            }
+            this.play();
+        },
+
+        continuePlay() {
+            this.asking = false;
+            this.play();
+        },
+
+        /** "Xem từ đầu": report how far playback got, then play from the first second. */
+        startOver() {
+            this.asking = false;
+            const player = this.$refs.player;
+            if (!this.started) {
+                this.play(true);
+
+                return;
+            }
+            if (config.tracksPosition && player.currentTime > 0) {
+                this.lastReportedAt = Date.now();
+                this.send('position', { position_seconds: player.currentTime }).catch(() => {});
+            }
+            player.currentTime = 0;
+            player.play().catch(() => {});
+        },
+
+        toggleFullscreen() {
+            if (document.fullscreenElement) {
+                document.exitFullscreen?.();
+
+                return;
+            }
+            const target = this.$refs.screen ?? this.$refs.player;
+            (target.requestFullscreen ?? target.webkitRequestFullscreen)?.call(target);
         },
 
         async send(event, extra = {}) {
@@ -59,8 +166,8 @@ export function learnerActivity(config) {
             return (await response.json()).url;
         },
 
-        /** Video and audio: load the Media on the learner's click, then resume where they stopped. */
-        async play() {
+        /** Video and audio: load the Media on the learner's click, then resume where they stopped (or from the start). */
+        async play(fromStart = false) {
             if (this.busy) {
                 return;
             }
@@ -72,13 +179,15 @@ export function learnerActivity(config) {
                 await this.$nextTick();
                 const player = this.$refs.player;
                 player.addEventListener('loadedmetadata', () => {
-                    const at = resumePosition(config.resumeAt, player.duration);
+                    this.mediaDuration = Number.isFinite(player.duration) ? player.duration : 0;
+                    const at = fromStart ? 0 : resumePosition(this.resumeAt, player.duration);
                     if (at > 0) {
                         player.currentTime = at;
                     }
                     player.play().catch(() => {});
                 }, { once: true });
                 player.load();
+                this.viewed = stamp(new Date());
                 await this.send('opened');
             } catch {
                 this.error = config.messages.failed;
@@ -89,6 +198,12 @@ export function learnerActivity(config) {
 
         onTime() {
             const now = Date.now();
+            // Played time only grows with normal playback, as the server counts it; a jump ahead does not.
+            const time = this.$refs.player.currentTime;
+            if (time > this.played && this.lastTime !== null && time - this.lastTime >= 0 && time - this.lastTime <= 3) {
+                this.played = time;
+            }
+            this.lastTime = time;
             if (config.tracksPosition && shouldReportPosition(this.lastReportedAt, now)) {
                 this.lastReportedAt = now;
                 this.send('position', { position_seconds: this.$refs.player.currentTime }).catch(() => {});

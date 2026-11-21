@@ -47,7 +47,7 @@
         saved: @js(['fields' => $savedFields, 'slots' => $savedSlots, 'exclusions' => $savedExclusions]),
         name: @js($initialFields['name']), timezone: @js($initialFields['timezone']),
         startsOn: @js($initialFields['startsOn']), endsOn: @js($initialFields['endsOn']),
-        preview: [], previewCount: 0, previewMissing: 0, previewLoading: false, previewError: '', previewTimer: null, previewToken: 0,
+        preview: [], previewCount: 0, previewMissing: 0, previewLoading: @js($editing || $retry), previewError: '', previewTimer: null, previewToken: 0,
         maxSlots: 50, maxExclusions: 366, submitting: false, showErrors: true,
         withKey(slot) { return { errors: {}, persisted: false, ...slot, key: ++this.slotKey } },
         open() { this.$refs.dialog.showModal(); this.queuePreview() },
@@ -147,15 +147,17 @@
             if (hidden) hidden.value = iso
         },
         displayDate(iso) { return iso ? iso.split('-').reverse().join('/') : '' },
-        queuePreview() { clearTimeout(this.previewTimer); this.previewTimer = setTimeout(() => this.loadPreview(), 250) },
+        previewReady() { return this.startsOn && this.endsOn && this.timezone && this.slots.length && !this.slots.some(slot => !slot.weekday || !slot.start_time || !slot.end_time) },
+        // Loading starts with the wait, not the request: the empty-state hint never flashes before the first result.
+        queuePreview() { clearTimeout(this.previewTimer); if (this.previewReady()) this.previewLoading = true; this.previewTimer = setTimeout(() => this.loadPreview(), 250) },
         async loadPreview() {
             const token = ++this.previewToken
-            if (!this.startsOn || !this.endsOn || !this.timezone || !this.slots.length || this.slots.some(slot => !slot.weekday || !slot.start_time || !slot.end_time)) {
+            if (!this.previewReady()) {
                 this.preview = []; this.previewCount = 0; this.previewMissing = 0; this.previewError = ''; this.previewLoading = false; return
             }
             this.previewLoading = true; this.previewError = ''
             try {
-                const response = await fetch(@js(route('admin.course-cohorts.schedules.preview', $cohort->id)), {
+                const response = await fetch(@js(route(($routePrefix ?? 'admin.course-cohorts').'.schedules.preview', $cohort->id)), {
                     method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': @js(csrf_token()) },
                     body: JSON.stringify({
                         starts_on: this.startsOn, ends_on: this.endsOn, timezone: this.timezone,
@@ -182,7 +184,7 @@
             this.showErrors = false
             this.slotsError = ''
             @if ($editing)
-                history.replaceState(null, '', @js(route('admin.course-cohorts.show', ['id' => $cohort->id, 'tab' => 'schedules'])))
+                history.replaceState(null, '', @js(route(($routePrefix ?? 'admin.course-cohorts').'.show', ['id' => $cohort->id, 'tab' => 'schedules'])))
             @else
                 this.name = this.saved.fields.name
                 this.timezone = this.saved.fields.timezone
@@ -364,7 +366,10 @@
                         <span class="ui-caption" x-text="previewSummary()"></span>
                     </div>
                     <p class="ui-field__error" role="alert" x-show="previewError" x-text="previewError" x-cloak></p>
-                    <p class="ui-field__error" role="alert" x-show="previewMissing > 0 && !previewLoading" x-text="missingMessage()" x-cloak></p>
+                    {{-- A shortfall is a warning while the form is being filled; saving turns it into the slots error. --}}
+                    <div class="ui-banner ui-cohort-schedule-preview__warning" role="status" x-show="previewMissing > 0 && !previewLoading" x-cloak data-schedule-missing>
+                        <span class="ui-banner__text" x-text="missingMessage()"></span>
+                    </div>
                     <ul class="ui-cohort-schedule-preview__list" x-show="preview.length" x-cloak>
                         <template x-for="item in preview" :key="`${item.starts_at}-${item.ends_at}`">
                             <li>
@@ -373,7 +378,7 @@
                             </li>
                         </template>
                     </ul>
-                    <p class="ui-caption" x-show="!previewLoading && !preview.length && !previewError">{{ __('lf.LF_course_cohort_schedule_preview_empty') }}</p>
+                    <p class="ui-caption" x-show="!previewLoading && !preview.length && !previewError" x-cloak>{{ __('lf.LF_course_cohort_schedule_preview_empty') }}</p>
                 </aside>
             </div>
         </div>

@@ -30,7 +30,8 @@
         @elseif ($treeLessonProposal)
             @include('course-cohorts.partials.tabs.session-tree-date-range', ['rangeStart' => $treeLessonProposal['date'].' '.$treeLessonProposal['start_time'], 'rangeEnd' => $treeLessonProposal['date'].' '.$treeLessonProposal['end_time']])
         @else
-            {{ __('lf.LF_course_cohort_session_tree_unscheduled') }}
+            {{-- A closed class will not get a date any more: "not yet" would read as unfinished work. --}}
+            {{ __($cohort->is_mutable ? 'lf.LF_course_cohort_session_tree_unscheduled' : 'lf.LF_course_cohort_session_tree_no_session') }}
         @endif
     </span>
     @if ($treeSelfStudy)
@@ -38,6 +39,11 @@
     @elseif ($treeLessonSessions->isNotEmpty())
         {{-- How the lesson's session is delivered: in class, in class with remote learners, or online. --}}
         <span class="ui-session-mode ui-session-mode--{{ $treeLessonSessions->first()->delivery_mode }}" data-session-mode="{{ $treeLessonSessions->first()->delivery_mode }}">{{ __('lf.LF_course_cohort_session_mode_'.$treeLessonSessions->first()->delivery_mode) }}</span>
+    @endif
+    {{-- Once the lesson's session is under way or over, its status says how it went. --}}
+    @php $treeLessonStatus = $treeLessonSessions->first()?->status; @endphp
+    @if (in_array($treeLessonStatus, ['live', 'completed', 'no_show'], true))
+        <span class="ui-status ui-status--{{ ['live' => 'active', 'completed' => 'completed', 'no_show' => 'archived'][$treeLessonStatus] }}" data-lesson-session-status="{{ $treeLessonStatus }}">{{ __('lf.LF_course_cohort_session_status_'.$treeLessonStatus) }}</span>
     @endif
     @if ($treeLessonCancelled && ($treeLessonSessions->isNotEmpty() || $treeLessonProposal))
         @php $makeupFor = \Illuminate\Support\Carbon::parse($treeLessonCancelled->scheduled_start_at); @endphp

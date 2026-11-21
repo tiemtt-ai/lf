@@ -8,6 +8,9 @@ use App\Services\Assessment\AssessmentLearnerService as Learner;
 use App\Services\Assessment\AssessmentQuestionService;
 use App\Services\Assessment\AssessmentQuizPublishService;
 use App\Services\Assessment\AssessmentQuizService as Quizzes;
+use App\Services\CourseClassReview;
+use App\Services\LearnerCourseQuizService;
+use App\Services\LearnerMyLearningService;
 use App\Services\MediaService;
 use App\Support\CourseQuizVerdict;
 use App\Support\TenantContext;
@@ -42,6 +45,8 @@ final class AssessmentLearnerController extends Controller
         private readonly Learner $learner,
         private readonly Attempts $attempts,
         private readonly MediaService $media,
+        private readonly LearnerMyLearningService $learning,
+        private readonly LearnerCourseQuizService $courseQuizzes,
     ) {}
 
     public function index(Request $request): View
@@ -545,18 +550,38 @@ final class AssessmentLearnerController extends Controller
             return null;
         }
         $activity = DB::table('core_course_template_version_activities')->where('customer_id', $customerId)
-            ->where('id', $attempt->version_activity_id)->first(['version_lesson_id', 'completion_rule', 'completion_threshold']);
+            ->where('id', $attempt->version_activity_id)->first(['id', 'activity_type', 'version_lesson_id', 'completion_rule', 'completion_threshold',
+                'available_before_session', 'available_during_session', 'available_after_session']);
         $lessonId = $activity?->version_lesson_id;
         $used = DB::table(Attempts::TABLE)->where('customer_id', $customerId)->where('enrollment_id', $attempt->enrollment_id)
             ->where('version_activity_id', $attempt->version_activity_id)->count();
         $active = DB::table('core_course_enrollments')->where('customer_id', $customerId)
             ->where('id', $attempt->enrollment_id)->value('status') !== 'cancelled';
 
+        // A class learner came from the class page, so that is where "back" goes; the course pages are not on their menu.
+        // The part of the Session the class page shows it in, as LearnerMyLearningService::lessonActivities() decides.
+        $phase = match (true) {
+            (bool) $activity?->available_before_session => 'before',
+            (bool) $activity?->available_during_session => null,
+            (bool) $activity?->available_after_session => 'after',
+            default => null,
+        };
+        $class = $this->learning->classReturnUrl($customerId, (int) $attempt->user_id, (int) $attempt->enrollment_id, $lessonId ? (int) $lessonId : null, $phase);
+
+        $retry = $active && $used < (int) $version->max_attempts;
+        if ($retry && $class !== null && $activity) {
+            // A class learner is offered what the class page offers, and nothing once the class has ended (ADR-0022 Amendment 1.4).
+            $card = $this->courseQuizzes->cards($customerId, (int) $attempt->user_id, (int) $attempt->enrollment_id, collect([$activity]))->first();
+            $retry = ! CourseClassReview::only($customerId, (int) $attempt->enrollment_id)
+                && $card !== null && LearnerCourseQuizService::classOffersAttempt($card);
+        }
+
         return [
             // In a course, Đạt / Chưa đạt follows the Activity's threshold, not the quiz's (ADR-0032 Amendment 1.1).
             'verdict' => $activity ? CourseQuizVerdict::of($activity, $attempt, $visible) : null,
-            'back' => route('student.courses.lessons.show', [$attempt->enrollment_id, $lessonId]),
-            'retry' => $active && $used < (int) $version->max_attempts
+            'back' => $class ?? route('student.courses.lessons.show', [$attempt->enrollment_id, $lessonId]),
+            'back_label' => __($class ? 'lf.LF_my_learning_quiz_back_class' : 'lf.LF_my_learning_quiz_back_lesson'),
+            'retry' => $retry
                 ? route('student.courses.activities.attempts.store', [$attempt->enrollment_id, $attempt->version_activity_id])
                 : null,
         ];

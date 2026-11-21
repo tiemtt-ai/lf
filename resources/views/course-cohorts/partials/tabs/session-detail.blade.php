@@ -48,6 +48,11 @@
                 </div>
                 <div class="ui-summary__item" x-show="detailSession?.room_name_snapshot"><dt>{{ __('lf.LF_course_cohort_session_room') }}</dt><dd x-text="detailSession?.room_name_snapshot"></dd></div>
                 <div class="ui-summary__item" x-show="detailSession?.address_snapshot"><dt>{{ __('lf.LF_course_cohort_session_address') }}</dt><dd x-text="detailSession?.address_snapshot"></dd></div>
+                {{-- Attendance of this Session in one line; the full roster is on the Attendance tab. --}}
+                <div class="ui-summary__item ui-summary__item--wide" x-show="detailSession?.attendance_url || Object.keys(detailSession?.attendance_counts || {}).length" data-session-attendance-summary>
+                    <dt>{{ __('lf.LF_course_cohort_tab_attendance') }}</dt>
+                    <dd x-text="(() => { const counts = detailSession?.attendance_counts || {}; const parts = Object.entries(@js(collect(['present', 'late', 'absent', 'excused', 'registered'])->mapWithKeys(fn ($status) => [$status => __('lf.LF_course_cohort_attendance_status_'.$status)]))).filter(([status]) => counts[status]).map(([status, label]) => `${label} ${counts[status]}`); return parts.length ? parts.join(' · ') : @js(__('lf.LF_course_cohort_session_attendance_empty')) })()"></dd>
+                </div>
                 <div class="ui-summary__item ui-summary__item--wide" x-show="detailSession?.cancellation_reason"><dt>{{ __('lf.LF_course_cohort_session_status_reason') }}</dt><dd x-text="detailSession?.cancellation_reason"></dd></div>
             </dl>
         </div>
@@ -58,6 +63,9 @@
                 </template>
             </div>
             <button type="button" class="ui-button cursor-interaction" x-on:click="closeDetail()">{{ __('lf.LF_common_button_close') }}</button>
+            <a class="ui-button ui-button--outline cursor-interaction" x-show="detailSession?.attendance_url" x-cloak x-bind:href="detailSession?.attendance_url" data-session-attendance-link>
+                <x-backend-icon name="clipboard-check" class="ui-icon" />{{ __('lf.LF_course_cohort_session_attendance_open') }}
+            </a>
             {{-- Whiteboard of a live Session, in its own window (ADR-0002 § LiveClass Whiteboard Amendment). --}}
             <a class="ui-button ui-button--outline cursor-interaction" x-show="detailBoardUrl" x-cloak x-bind:href="detailBoardUrl"
                x-bind:target="'lf-whiteboard-' + (detailSession?.id ?? '')"

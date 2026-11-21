@@ -64,8 +64,9 @@
                     ];
                     $seconds = (int) ($activity->duration_seconds ?: $activity->estimated_seconds);
                 @endphp
-                <li @class(['student-card', 'lf-learn-activity', 'is-locked' => ! $activity->allowed])
+                <li @class(['student-card', 'lf-learn-activity', 'is-locked' => ! $activity->allowed]) id="activity-{{ $activity->id }}"
                     data-learn-activity="{{ $activity->id }}" data-learn-activity-type="{{ $activity->activity_type }}"
+                    data-learn-activity-duration="{{ (int) $activity->duration_seconds }}" data-learn-activity-percent="{{ $activity->played }}" data-learn-activity-seconds="{{ $activity->played_seconds }}" data-learn-activity-resume="{{ $activity->resume_at }}" data-learn-activity-viewed="{{ $activity->last_viewed_at?->format('Y-m-d H:i') }}"
                     x-data="lfLearnerActivity(@js($config))">
                     <div class="lf-learn-activity__head">
                         <div class="lf-learn-activity__title">

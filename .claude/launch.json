@@ -6,6 +6,24 @@
       "runtimeExecutable": "php",
       "runtimeArgs": ["artisan", "serve", "--host=127.0.0.1", "--port=8000"],
       "port": 8000
+    },
+    {
+      "name": "learnforge-serve-8010",
+      "runtimeExecutable": "php",
+      "runtimeArgs": ["artisan", "serve", "--host=127.0.0.1", "--port=8010"],
+      "port": 8010
+    },
+    {
+      "name": "learnforge-vite",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 5173
+    },
+    {
+      "name": "learnforge-reverb",
+      "runtimeExecutable": "php",
+      "runtimeArgs": ["artisan", "reverb:start", "--host=127.0.0.1", "--port=8080"],
+      "port": 8080
     }
   ]
 }

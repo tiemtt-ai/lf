@@ -1,6 +1,6 @@
 # ADR-0032 — Course Quiz Activity
 
-Version: 1.1
+Version: 1.2
 
 Status: Approved
 
@@ -108,6 +108,7 @@ khi xuất bản khóa; "đạt" dùng ngưỡng hoàn thành của Activity, kh
   xét theo luật D12 của **phiên bản đã chốt** (`AssessmentLearnerService::visibility`).
 * Trang làm bài và trang kết quả dùng lại giao diện module Kiểm tra; nút quay lại
   về bài học. Quyền đọc lần làm bài: `user_id` là học viên đang đăng nhập.
+  *Khóa Theo lớp: nút quay lại về buổi trên trang lớp, xem Amendment 1.2.*
 * "Kết quả học tập" (ADR-0031): nhóm Bài thi thêm các Quiz trong khóa, mỗi dòng một
   Enrollment + Activity, ghi tên khóa; vẫn chỉ dùng điểm được xem (ADR-0031 D3).
 
@@ -238,6 +239,36 @@ Quiz: Chờ giáo viên chấm, Đạt kèm điểm, Chưa đạt kèm điểm v
   `AssessmentLearnerController::courseContext()` (ngưỡng Activity); bài thi độc lập giữ cột
   `passed` của lần làm.
 * Test: `CourseQuizActivityTest::test_a_course_attempt_shows_passed_or_not_by_the_activity_threshold`.
+
+# Amendment 1.2 — Quiz của lớp quay lại trang lớp (Approved 2026-11-19, đã triển khai 2026-11-19)
+
+Owner duyệt ngày 2026-11-19 cùng [ADR-0022 Amendment 1.5](ADR-0022-Course-Type-On-Template.md#amendment-15--học-viên-lớp-chỉ-học-ở-trang-lớp-approved-2026-11-19-đã-triển-khai-2026-11-19)
+(học viên lớp chỉ học ở trang lớp, không có trang ẩn). Không đổi schema.
+
+## Quyết định
+
+* Lần làm của Enrollment Theo lớp đang có chỗ trong một lớp mở được: trang làm bài và trang
+  kết quả có "Quay lại lớp học" về `/my-courses/classes/{cohort}#live-lesson-{session}`, buổi
+  bảng nội dung có Quiz đó: Quiz "Trước buổi học" ở buổi đầu của bài, "Sau buổi học" ở buổi
+  cuối, còn lại ở buổi chưa hủy gần nhất đã bắt đầu (chưa có thì buổi đầu).
+* **Làm lại trên trang kết quả** theo đúng luật của thẻ Quiz trên trang lớp (MK Live 3.1): còn
+  lượt và lần được tính "Chưa đạt"; lớp đã kết thúc thì không có. Trước đây trang kết quả hiện
+  "Làm lại" khi còn lượt, kể cả lúc trang lớp không cho (Quiz `submit` đã nộp, hoặc lớp đã kết
+  thúc): đó là một lối làm bài chỉ có ở trang kết quả. Khóa Tự học giữ luật cũ (còn lượt).
+* Các lần làm khác (khóa Tự học, hoặc Enrollment không còn lớp mở được) giữ "Quay lại bài học".
+* Học viên lớp bắt đầu, làm tiếp và xem kết quả Quiz từ thẻ Quiz trên bảng nội dung của buổi;
+  trang bài học không còn là lối vào của họ (ADR-0022 Amendment 1.5). Lượt làm, Đạt / Chưa
+  đạt và luật xem điểm (D12, Amendment 1.1) không đổi.
+
+## Implementation record 1.2 — 2026-11-19
+
+* `AssessmentLearnerController::courseContext()` trả `back` từ
+  `LearnerMyLearningService::classReturnUrl()` (theo phần Trước / Trong / Sau của Quiz) khi có,
+  kèm `back_label`; `take.blade.php` và `result.blade.php` dùng nhãn đó. Với lớp, `retry` dùng
+  `LearnerCourseQuizService::classOffersAttempt()`, cùng hàm thẻ Quiz của trang lớp dùng, và
+  `CourseClassReview::only()`.
+* Test: `CourseQuizActivityTest::test_a_class_that_has_ended_starts_no_new_attempt_and_adds_no_progress`,
+  `LearnerMyLearningTest::test_a_lesson_over_several_sessions_shows_before_on_the_first_and_after_on_the_last`.
 
 ---
 

@@ -36,6 +36,8 @@
                 $url = route('student.courses.classes.show', $class->cohort_id);
                 $category = \App\Services\LearnerMyLearningService::levelLabel($class->level) ?: $class->category;
                 $notStarted = $class->group === 'current' && $class->session_held === 0;
+                // An Enrollment that ran out or is suspended: labelled, no way in, no next Session (display only).
+                $hold = $class->access_hold ?? null;
             @endphp
             <article class="my-course-card" data-learn-class="{{ $class->cohort_id }}">
                 <a class="my-course-thumb my-course-thumb--letter" href="{{ $url }}" tabindex="-1" aria-hidden="true">
@@ -47,14 +49,16 @@
                         @foreach ($class->delivery_modes as $mode)
                             <span>{{ __('lf.LF_course_cohort_session_mode_'.$mode) }}</span>
                         @endforeach
-                        @if ($class->live_session)
+                        @if ($hold)
+                            <span class="{{ $hold === 'suspended' ? 'is-paused' : 'is-ended' }}" data-learn-access-hold="{{ $hold }}">{{ __('lf.LF_my_learning_class_access_'.$hold) }}</span>
+                        @elseif ($class->live_session)
                             <span class="is-live">{{ __('lf.LF_my_learning_class_live_now') }}</span>
                         @endif
                     </div>
                     <h3><a href="{{ $url }}">{{ $class->name }}</a></h3>
                     <p>
                         {{ collect([$class->teachers !== [] ? implode(', ', $class->teachers) : null, $title])->filter()->implode(' · ') }}
-                        @if ($class->next_session)
+                        @if ($class->next_session && ! $hold)
                             · {{ __('lf.LF_my_learning_class_next') }}: {{ $class->next_session->starts_at->translatedFormat('D d/m') }} {{ $class->next_session->starts_at->format('H:i') }} ~ {{ $class->next_session->ends_at->format('H:i') }}
                         @endif
                     </p>
@@ -72,7 +76,7 @@
                     </div>
                 </div>
                 <div class="my-course-actions">
-                    @if ($class->group === 'current')
+                    @if ($class->group === 'current' && ! $hold)
                         <a href="{{ $url }}" class="btn-enter-class btn-live-class">
                             <span class="btn-enter-icon" aria-hidden="true"></span>
                             <span class="btn-enter-text">{{ $notStarted ? __('lf.LF_my_learning_class_upcoming') : __('lf.LF_my_learning_enter_class') }}</span>

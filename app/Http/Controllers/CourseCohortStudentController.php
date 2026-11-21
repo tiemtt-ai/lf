@@ -17,7 +17,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
-use Illuminate\View\View;
 
 class CourseCohortStudentController extends Controller
 {
@@ -32,77 +31,21 @@ class CourseCohortStudentController extends Controller
 
     private string $cohortRoutePrefix = 'admin.course-cohort-students';
 
-    public function index(Request $request): View
+    /**
+     * The tenant-wide membership list has no way in from the menu; a learner's class is managed on its Students tab.
+     */
+    public function index(Request $request): RedirectResponse
     {
         $this->authorizeAdmin($request);
-
-        $customerId = $this->customerId();
-        $keyword = trim((string) $request->query('keyword', ''));
-        $status = $request->query('status');
         $cohortId = (int) $request->query('cohort_id', 0);
-        $contextCohort = $cohortId > 0 ? $this->findCohortRecord($customerId, $cohortId) : null;
-
-        if (! in_array($status, self::STATUSES, true)) {
-            $status = null;
+        if ($cohortId > 0) {
+            return $this->studentsTab($this->findCohortRecord($this->customerId(), $cohortId)->id);
         }
 
-        $memberships = DB::table('core_course_cohort_students as memberships')
-            ->join('core_course_cohorts as cohorts', function ($join) use ($customerId): void {
-                $join->on('cohorts.id', '=', 'memberships.cohort_id')
-                    ->where('cohorts.customer_id', '=', $customerId);
-            })
-            ->join('core_course_enrollments as enrollments', function ($join) use ($customerId): void {
-                $join->on('enrollments.id', '=', 'memberships.enrollment_id')
-                    ->where('enrollments.customer_id', '=', $customerId);
-            })
-            ->join('users as students', function ($join) use ($customerId): void {
-                $join->on('students.id', '=', 'memberships.student_id')
-                    ->where('students.customer_id', '=', $customerId);
-            })
-            ->join('core_course_products as products', function ($join) use ($customerId): void {
-                $join->on('products.id', '=', 'memberships.product_id')
-                    ->where('products.customer_id', '=', $customerId);
-            })
-            ->where('memberships.customer_id', $customerId)
-            ->when($contextCohort, fn ($query) => $query->where('memberships.cohort_id', $contextCohort->id))
-            ->when($keyword !== '', function ($query) use ($keyword): void {
-                $query->where(function ($query) use ($keyword): void {
-                    $query->where('cohorts.name', 'like', '%'.$keyword.'%')
-                        ->orWhere('cohorts.code', 'like', '%'.$keyword.'%')
-                        ->orWhere('students.name', 'like', '%'.$keyword.'%')
-                        ->orWhere('students.email', 'like', '%'.$keyword.'%')
-                        ->orWhere('products.title', 'like', '%'.$keyword.'%')
-                        ->orWhere('products.product_code', 'like', '%'.$keyword.'%');
-                });
-            })
-            ->when($status, function ($query) use ($status): void {
-                $query->where('memberships.status', $status);
-            })
-            ->orderByDesc('memberships.joined_at')
-            ->orderByDesc('memberships.id')
-            ->select(
-                'memberships.*',
-                'cohorts.name as cohort_name',
-                'cohorts.code as cohort_code',
-                'students.name as student_name',
-                'students.email as student_email',
-                'products.title as product_title',
-                'products.product_code'
-            )
-            ->paginate(10)
-            ->withQueryString();
-
-        return view('course-cohort-students.index', [
-            'memberships' => $memberships,
-            'keyword' => $keyword,
-            'status' => $status,
-            'contextCohort' => $contextCohort,
-            'canAddStudents' => $contextCohort && ! $this->cohortEligibilityError($customerId, $contextCohort),
-            'routePrefix' => $this->routePrefix($request),
-        ]);
+        return redirect()->route('admin.course-cohorts.index');
     }
 
-    public function create(Request $request, int $cohort): View|RedirectResponse
+    public function create(Request $request, int $cohort): RedirectResponse
     {
         $this->authorizeAdmin($request);
 
@@ -115,18 +58,8 @@ class CourseCohortStudentController extends Controller
                 ->with('error', $eligibilityError);
         }
 
-        $oldEnrollmentIds = array_filter(array_map('intval', (array) old('enrollment_ids', [])));
-        $selectedEnrollments = $oldEnrollmentIds
-            ? $this->manageableEnrollmentsQuery($customerId, $contextCohort)
-                ->whereIn('enrollments.id', $oldEnrollmentIds)->get()
-            : collect();
-
-        return view('course-cohort-students.create', [
-            'cohort' => $contextCohort,
-            'selectedEnrollments' => $selectedEnrollments,
-            'eligibleEnrollmentCount' => $this->eligibleEnrollmentsQuery($customerId, $contextCohort)->count(),
-            'mode' => 'create',
-        ]);
+        // Learners are added in the student manager of the Students tab.
+        return $this->studentsTab((int) $contextCohort->id, ['manage' => 1]);
     }
 
     public function students(Request $request, int $cohort): RedirectResponse
@@ -137,7 +70,7 @@ class CourseCohortStudentController extends Controller
         return redirect()->route('admin.course-cohorts.show', ['id' => $cohort, 'tab' => 'students']);
     }
 
-    public function manage(Request $request, int $cohort): View|RedirectResponse
+    public function manage(Request $request, int $cohort): RedirectResponse
     {
         $this->authorizeAdmin($request);
         $customerId = $this->customerId();
@@ -380,30 +313,23 @@ class CourseCohortStudentController extends Controller
             ->with('success', __('lf.LF_course_cohort_student_sync_updated'));
     }
 
-    public function show(Request $request, int $id): View
+    public function show(Request $request, int $id): RedirectResponse
     {
         $this->authorizeAdmin($request);
 
-        return view('course-cohort-students.show', [
-            'membership' => $this->findMembership($this->customerId(), $id),
-            'routePrefix' => $this->routePrefix($request),
-        ]);
+        return $this->studentsTab((int) $this->findMembership($this->customerId(), $id)->cohort_id);
     }
 
-    public function edit(Request $request, int $id): View
+    /**
+     * The membership form is a popup on the Students tab; this address opens it there.
+     */
+    public function edit(Request $request, int $id): RedirectResponse
     {
         $this->authorizeAdmin($request);
-
-        $customerId = $this->customerId();
-        $membership = $this->findMembership($customerId, $id);
+        $membership = $this->findMembership($this->customerId(), $id);
         abort_if($membership->status !== 'active', 422);
 
-        return view('course-cohort-students.edit', [
-            'membership' => $membership,
-            'cohorts' => $this->cohorts($customerId),
-            'statuses' => ['active'],
-            'routePrefix' => $this->routePrefix($request),
-        ]);
+        return $this->studentsTab((int) $membership->cohort_id, ['member' => $membership->id]);
     }
 
     public function update(Request $request, int $id)
@@ -413,7 +339,13 @@ class CourseCohortStudentController extends Controller
         $customerId = $this->customerId();
         $membership = $this->findMembership($customerId, $id);
         abort_if($membership->status !== 'active', 422);
-        $validated = $this->validatedData($request, $customerId, $membership);
+        try {
+            $validated = $this->validatedData($request, $customerId, $membership);
+        } catch (ValidationException $e) {
+            // The popup of this row opens again with what was typed (`_form`), its errors in their own bag.
+            return redirect()->to(url()->previous(route('admin.course-cohorts.show', ['id' => $membership->cohort_id, 'tab' => 'students'])))
+                ->withErrors($e->errors(), 'membershipEdit')->withInput();
+        }
         DB::transaction(function () use ($customerId, $validated, $membership, $id, $request): void {
             $ids = array_values(array_unique([(int) $membership->cohort_id, (int) $validated['cohort_id']]));
             sort($ids);
@@ -430,6 +362,11 @@ class CourseCohortStudentController extends Controller
 
             // ADR-0034: a transfer and a changed join date are kept in the history.
             $transferred = (int) $target->id !== (int) $source->id;
+            // A transfer that kept the old class's join date joins the new class now: otherwise the new class's earlier
+            // sessions would count, and automatic absence would mark them (QA 2026-11-19). A date the admin changed stays.
+            if ($transferred && Carbon::parse((string) $lockedMembership->joined_at)->equalTo(Carbon::parse((string) $validated['joined_at']))) {
+                $validated['joined_at'] = now()->format('Y-m-d H:i:s');
+            }
             if ($transferred || ! Carbon::parse((string) $lockedMembership->joined_at)->equalTo(Carbon::parse((string) $validated['joined_at']))) {
                 CourseCohortMembershipHistory::record($lockedMembership, $transferred ? 'transferred' : 'joined_at_changed', $request->user()?->id, [
                     'old_joined_at' => $lockedMembership->joined_at, 'new_joined_at' => $validated['joined_at'], 'cohort_id' => (int) $target->id,
@@ -447,8 +384,7 @@ class CourseCohortStudentController extends Controller
             }
         }, 3);
 
-        return redirect()
-            ->route($this->routePrefix($request).'.show', $id)
+        return $this->studentsTab((int) $membership->cohort_id)
             ->with('success', __('lf.LF_course_cohort_student_common_updated'));
     }
 
@@ -470,8 +406,9 @@ class CourseCohortStudentController extends Controller
             $this->closeBoardsAfterCommit($customerId, (int) $membership->cohort_id, [(int) $membership->student_id]);
         }, 3);
 
-        return redirect()
-            ->route($this->routePrefix($request).'.show', $id)
+        $cohortId = (int) DB::table('core_course_cohort_students')->where('customer_id', $customerId)->where('id', $id)->value('cohort_id');
+
+        return $this->studentsTab($cohortId)
             ->with('success', __('lf.LF_course_cohort_student_common_archived_message'));
     }
 
@@ -569,6 +506,12 @@ class CourseCohortStudentController extends Controller
         });
 
         return $validator->validate();
+    }
+
+    /** @param  array<string, int|string>  $query */
+    private function studentsTab(int $cohortId, array $query = []): RedirectResponse
+    {
+        return redirect()->route('admin.course-cohorts.show', ['id' => $cohortId, 'tab' => 'students'] + $query);
     }
 
     private function rejectManagedInputs($validator, Request $request, array $fields): void
@@ -1024,15 +967,5 @@ class CourseCohortStudentController extends Controller
     private function formatEnrollmentDateTime(mixed $value): string
     {
         return $value ? Carbon::parse($value)->format('d/m/Y H:i') : '—';
-    }
-
-    private function cohorts(int $customerId)
-    {
-        return DB::table('core_course_cohorts')
-            ->where('customer_id', $customerId)
-            ->where('status', '!=', 'archived')
-            ->orderBy('name')
-            ->select('id', 'name', 'code', 'product_id', 'version_id', 'status', 'capacity')
-            ->get();
     }
 }

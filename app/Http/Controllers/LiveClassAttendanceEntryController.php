@@ -28,7 +28,10 @@ final class LiveClassAttendanceEntryController extends Controller
     public function meeting(Request $request, int $session): RedirectResponse
     {
         $customerId = (int) TenantContext::customerId();
-        [$row, $membership] = $this->whiteboards->learnerEntry($customerId, (int) $request->user()->id, $session);
+        [$row, $membership, $refusal] = $this->whiteboards->learnerEntry($customerId, (int) $request->user()->id, $session);
+        if ($refusal !== null) {
+            return $this->refused($refusal);
+        }
         $url = LiveClassWhiteboardService::meetingUrl($row);
         abort_if($url === null, 404);
 
@@ -44,12 +47,28 @@ final class LiveClassAttendanceEntryController extends Controller
     {
         abort_unless(LiveClassAttendanceCheckIn::enabled(), 404);
         $customerId = (int) TenantContext::customerId();
-        [$row, $membership] = $this->whiteboards->learnerEntry($customerId, (int) $request->user()->id, $session);
+        [$row, $membership, $refusal] = $this->whiteboards->learnerEntry($customerId, (int) $request->user()->id, $session);
+        if ($refusal !== null) {
+            return $this->refused($refusal);
+        }
 
         // One device records one learner in a Session in a room (MK 2.4); a self-study Session is learned at home.
         $outcome = $this->devices->guard($request, $customerId, $session, (int) $request->user()->id, ! LiveClassSelfStudySession::is($row),
             fn (): array => $this->recorder->enter($row, $membership, 'button', CarbonImmutable::now()));
 
         return back()->with('lf_attendance_entry', ['session' => $session] + $outcome);
+    }
+
+    /**
+     * Nothing is recorded; the learner is told why instead of meeting a bare 403. An Enrollment that is no longer
+     * active may not even show its class any more, so they go to "Lớp học của tôi"; a closed Session goes back.
+     */
+    private function refused(string $refusal): RedirectResponse
+    {
+        $notice = __('lf.LF_liveclass_attendance_entry_'.$refusal);
+
+        return $refusal === 'inactive'
+            ? redirect()->route('student.courses.index', ['tab' => 'classes'])->with('lf_learn_notice', $notice)
+            : back()->with('lf_learn_notice', $notice);
     }
 }

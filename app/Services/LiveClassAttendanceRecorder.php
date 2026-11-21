@@ -285,6 +285,7 @@ final class LiveClassAttendanceRecorder
                 'enrollments.id as enrollment_id', 'students.name as student_name', 'students.email as student_email',
                 'attendance.status as attendance_status', 'attendance.attendance_mode', 'attendance.notes',
                 'attendance.joined_at', 'attendance.attendance_source', 'memberships.joined_at as member_joined_at',
+                'enrollments.status as enrollment_status',
             ]);
     }
 

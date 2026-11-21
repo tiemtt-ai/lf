@@ -138,11 +138,16 @@ Canonical notes:
   “Tab Giáo viên đang bị khóa vì lớp chưa được tạo. Vui lòng lưu thông tin Tổng
   quan trước.”
 * Schedules: “Thiết lập quy tắc lịch định kỳ và xem trước các ngày học dự kiến.
-  Các Buổi học thực tế chưa được tạo.” Before creation, the locked reason is
+  Lưu lịch thì hệ thống xếp buổi cho các bài chưa có ngày; buổi đã tạo không
+  đổi.” (2026-11-20, Owner duyệt: thay câu “Các Buổi học thực tế chưa được
+  tạo”, vì lưu Lịch học xếp Session theo
+  [ADR-0023](../../adr/ADR-0023-Cohort-Content-Order.md) bản 1.6.) Before creation, the locked reason is
   “Tab Lịch học đang bị khóa vì lớp chưa được tạo. Vui lòng lưu thông tin Tổng
   quan trước.”
-* Sessions: “Quản lý các Buổi học cụ thể thuộc lớp. Chức năng Session hiện hành
-  không được thay đổi bởi Schedule Foundation amendment.” Before creation, the
+* Sessions: on the create page, “Quản lý các Buổi học cụ thể thuộc lớp. Tab này
+  tiếp tục sử dụng nghiệp vụ Buổi học hiện tại.”; on an existing class, “Quản lý
+  các Buổi học cụ thể thuộc lớp. Ngày giờ lấy lần lượt từ Lịch học; sửa từng
+  buổi ở đây.” (2026-11-20, Owner duyệt: ghi đúng hai câu đang hiển thị.) Before creation, the
   locked reason is “Tab Buổi học đang bị khóa vì lớp chưa được tạo. Vui lòng
   lưu thông tin Tổng quan trước.”
 * Attendance: “Ghi nhận tình trạng tham gia của học viên theo từng buổi học.

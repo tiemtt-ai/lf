@@ -133,8 +133,8 @@ final class LiveClassAttendanceCheckInController extends Controller
     {
         $issued = $this->checkIn->issue($context);
         if ($issued['closed']) {
-            // Past the absent threshold: the board hides the code and says why.
-            return response()->json(['closed' => true, 'url' => null, 'svg' => null, 'refresh_in' => $issued['refresh_in']]
+            // Past the absent threshold or the end of the Session: the board hides the code and says why.
+            return response()->json(['closed' => true, 'ended' => $issued['ended'] ?? false, 'url' => null, 'svg' => null, 'refresh_in' => $issued['refresh_in']]
                 + $this->checkIn->counts($context))->header('Cache-Control', 'no-store');
         }
         $url = route('student.live-sessions.check-in.scan', ['session' => $context->sessionId, 'code' => $issued['code']]);

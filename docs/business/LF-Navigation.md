@@ -1,6 +1,6 @@
 # LF-Navigation.md
 
-Version: 1.8
+Version: 1.9
 
 Document Status: Approved
 
@@ -809,13 +809,23 @@ hiển thị theo LF). Chỉ đọc; không ghi tiến độ, không mở nội 
 Quy tắc:
 
 * Chỉ Enrollment và Cohort seat của chính học viên trong tenant hiện tại; còn lại 404.
-* Enrollment `cancelled` không hiện; Cohort `draft` và seat đã rời lớp không hiện.
+* Enrollment `cancelled` không hiện; Cohort `draft` và seat đã rời lớp không hiện. Lớp của
+  Enrollment `cancelled` cũng không hiện ở "Đã kết thúc" hay Kết quả học tập: học viên không xem
+  lại lịch và chuyên cần của lớp đó (Owner xác nhận 2026-11-19).
+* Chuyển lớp dời chính seat sang lớp mới (ADR-0034), nên lớp cũ không còn ở Lớp học của học
+  viên, kể cả "Đã kết thúc": học viên không xem lại lịch và kết quả điểm danh ở lớp cũ. Lịch sử
+  chuyển lớp chỉ quản trị và giáo viên xem (Owner giữ như hiện tại 2026-11-19).
 * Enrollment khóa theo lớp (`scheduled`, `blended`) còn `pending`/`active`/`suspended` mà
   chưa có seat active ở Cohort khác `draft` hiện ở Lớp học → Đang học với nhãn
   "Đang chờ xếp lớp", không có liên kết (Owner 2026-11-11).
 * Nhóm khóa: `completed`, hoặc Course Progress `completed` khi Enrollment còn `active`
   (ADR-0030 Q2) → Đã hoàn thành; `expired` hoặc đã qua hạn học và ôn tập → Hết hạn;
   còn lại → Đang học.
+* Lớp có Enrollment `expired` hoặc đã qua hạn học và ôn tập (2026-11-19, chỉ hiển thị): thẻ ở
+  Lớp học có nhãn "Hết hạn học", không có nút "Vào lớp học" và không ghi buổi tới; trang lớp
+  báo "Ghi danh của bạn đã hết hạn học từ {ngày}…", các buổi sắp tới không đếm ngược và không
+  có nút. Học viên vẫn xem lại lịch và kết quả. Enrollment `suspended` hiện cùng cách với nhãn
+  "Tạm dừng học" và dòng báo "Ghi danh của bạn đang tạm dừng… liên hệ trung tâm để học tiếp".
 * Chuyên cần = Session có mặt hoặc đi muộn / Session đã diễn ra (bỏ `cancelled`,
   `no_show`, `draft`). Giờ Session đọc theo `timezone` của chính dòng đó. Từ 2026-11-18
   "đã diễn ra" là Session `completed`; buổi `live` và buổi `scheduled` đã qua giờ chưa tính
@@ -824,10 +834,44 @@ Quy tắc:
 * Đợt 2 (ADR-0030): `/my-courses/{enrollment}/lessons/{lesson}` là trang bài học
   (Activity theo thứ tự lớp, phát video / âm thanh / video nhúng, mở tài liệu ở tab mới,
   bài trước / bài tiếp); chi tiết khóa có nút "Học tiếp" và liên kết tới bài đang mở.
+  Ghi danh của lớp (2026-11-19): không có trang ẩn hay luồng ẩn. Khóa của lớp chỉ học ở
+  trang lớp (tab Lớp học): `/my-courses/{enrollment}` chuyển tới `/my-courses/classes/{cohort}`,
+  `/my-courses/{enrollment}/lessons/{lesson}` chuyển tới buổi của bài trên trang lớp
+  (`#live-lesson-{session}`: buổi gần nhất đã bắt đầu, chưa có thì buổi đầu); chưa có lớp mở
+  được thì về `/my-courses?tab=classes`. Nút "Vào học" của buổi tự học, trang làm Quiz và
+  trang kết quả Quiz ("Quay lại lớp học") cũng dẫn về buổi đó; Quiz "Trước buổi học" về buổi
+  đầu của bài, "Sau buổi học" về buổi cuối. Trang kết quả chỉ có "Làm lại" khi thẻ Quiz trên
+  trang lớp cũng có (còn lượt và lần được tính "Chưa đạt", lớp chưa kết thúc). Nội dung đánh dấu hoàn thành
+  thủ công có nút "Đánh dấu hoàn thành" ngay trên bảng nội dung của buổi.
 * "Quan tâm" (ADR-0030 D4, 2026-11-11): `/my-courses?tab=courses&view=favorite` hiện thẻ
   catalogue của Product đã đánh dấu (đang trên catalogue hoặc đang ghi danh), mới đánh dấu
   trước; nút ♡ ở thẻ `/courses`, trang chủ, trang chi tiết và thẻ khóa của tôi. Không tạo
   Enrollment.
+* Chi tiết khóa theo bố cục "learning course" của MK (2026-11-19): thẻ tổng quan (thời lượng,
+  bài hoàn thành kèm tỷ lệ, bài đã mở khi còn bài khóa, hạn truy cập và số ngày còn lại, nút
+  Học tiếp), rồi ba tab Danh sách bài học / Giới thiệu / Giảng viên. Mỗi bài là một thẻ: ô
+  "BÀI 01", tên bài, nhãn Chưa xem / Đang xem / Hoàn thành (hoặc lý do khóa), thời lượng và thanh
+  "Đã xem video" (bài chỉ có audio: "Đã nghe audio"; bài không có video/audio: "Đã học" theo tiến
+  độ của bài). Thẻ hoàn thành viền trái xanh lá, đang xem viền trái xanh dương. Bài có Quiz có
+  dòng "Kiểm tra: chưa làm / N lần" và nút "Bài kiểm tra" tới Quiz trên trang bài học.
+* Tiến độ trang chi tiết khóa (theo MK, 2026-11-19): % của từng bài là phần đã phát của video
+  hoặc audio bắt buộc trong bài (trung bình nếu nhiều, lấy tất cả nếu không có bài bắt buộc),
+  làm tròn xuống; nhãn Hoàn thành vẫn theo quy tắc hoàn thành bài của LF (mọi nội dung bắt
+  buộc, kể cả Quiz). Ô "Bài học hoàn thành" đếm bài hoàn thành, thanh "Tỷ lệ xem video" là
+  trung bình % của các bài có video/audio (bài chưa xem tính 0); khóa không có video/audio
+  dùng "Tỷ lệ hoàn thành". Khác MK: tiến độ thuộc riêng từng Enrollment (MK dùng chung một bản
+  ghi theo video cho mọi khóa), nên cùng video ở khóa khác hoặc lần mua lại không cộng sang
+  nhau; số giây tính theo vị trí xa nhất đã phát có giới hạn tốc độ, xem lại đoạn cũ không
+  cộng thêm.
+* "Vào học" mở popup theo popup video MK: đầu popup ô "BÀI 03" và tên bài, nút đóng tròn; giữa là
+  khung đen phát video (không có video thì audio); video/audio đã dừng giữa chừng thì hỏi "Tiếp
+  tục xem từ vị trí đã lưu?" với nút Xem từ đầu / Tiếp tục xem (gần cuối thì phát lại từ đầu),
+  chưa xem thì tự phát; chuyển bài khi đang phát thì vị trí dừng được ghi trước; chân popup
+  có lần mở gần nhất, "Tiến độ: hh:mm:ss ~ %" cập nhật khi đang phát, "Xem từ đầu", toàn màn
+  hình, bài trước / bài sau. Nội dung khác của bài (tài liệu, liên kết, audio phụ) nằm dưới
+  khung; Quiz có nút riêng ở thẻ bài. Trình phát, sự kiện tiến độ và điều kiện mở lấy từ trang
+  bài học; đóng popup thì số liệu và thẻ bài tự cập nhật; không có JavaScript thì liên kết mở
+  trang bài học. Ô tìm kiếm lọc theo tên bài ngay trên trang.
 * Chi tiết lớp theo bố cục MK Live (2026-11-19): đầu trang có tiến độ hiện tại (buổi đã
   điểm danh / tổng buổi) và tiến độ khuyến nghị theo ngày, thẻ buổi sắp tới / đang diễn ra,
   tóm tắt tỷ lệ có mặt và tỷ lệ hoàn thành nội dung bắt buộc. "Lịch học theo tuần" liệt kê
@@ -835,6 +879,15 @@ Quy tắc:
   Trước / Trong / Sau buổi học (nội dung `anytime` nằm ở Trong). Nội dung mở ngay trên trang
   (âm thanh, video, video nhúng, tài liệu, liên kết, Quiz) theo VersionActivityAccessService;
   buổi đang diễn ra có nút vào lớp, bảng và phòng họp như khối "Buổi học đang diễn ra".
+  Bài học dạy qua nhiều buổi: phần Trước chỉ hiện ở buổi đầu, phần Sau chỉ ở buổi cuối, phần
+  Trong ở mọi buổi. Buổi đã hủy vẫn ở trong lịch với lý do hủy, không có bảng nội dung.
+  Popup "Video tải lên" như MK Live: video đã xem dở hỏi "Tiếp tục xem / Xem từ đầu" (đã
+  xem gần hết thì phát từ đầu); chân popup có lần mở gần nhất, "Tiến độ xem: hh:mm:ss ~ %",
+  nút "Xem từ đầu" và toàn màn hình (cả video lẫn chân popup). Thời lượng và % là phần đã
+  xem xa nhất của ghi danh này, làm tròn xuống, giống số % trên thẻ nội dung. Popup audio
+  giữ dạng MK (tên bài, nút đóng, thanh audio); khác MK, audio phát tiếp từ chỗ đã dừng.
+  Thẻ video và audio đổi ngay khi đang phát như MK: % tăng dần, đạt điều kiện hoàn thành
+  thì thành "Đã xem" / "Đã nghe" và "✓ Đã hoàn thành", không cần tải lại trang.
 * "Kết quả học tập" (ADR-0031, 2026-11-11): `/my-courses?tab=results&view=courses|classes|exams`,
   mỗi nhóm một thẻ tổng hợp và một bảng; cùng phạm vi và cách tính chuyên cần như trên. Điểm
   bài thi chỉ dùng lần làm học viên được xem điểm (ADR-0025 D12), còn lại "Chưa công bố".

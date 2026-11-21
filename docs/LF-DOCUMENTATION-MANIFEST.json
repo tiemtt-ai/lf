@@ -5,7 +5,7 @@
   "default_locale": "vi",
   "fallback_locale": "en",
   "source_of_truth": "docs/LF-INDEX.md",
-  "document_count": 356,
+  "document_count": 357,
   "documents": [
     {
       "path": "LF-Core-Overview.md",
@@ -13115,6 +13115,54 @@
         "LF-LiveClass-Cohort-Session-Architecture-Review"
       ],
       "related_documents": [],
+      "superseded_by": null,
+      "routing_source": "LF-INDEX.md"
+    },
+    {
+      "path": "quality/LF-LiveClass-Learning-Flow-Browser-QA.md",
+      "title": "Luồng lớp học và khóa tự học — bằng chứng thử trên trình duyệt",
+      "area": "quality",
+      "document_type": "quality_standard",
+      "document_status": "Review",
+      "implementation_status": "Implemented",
+      "metadata_complete": true,
+      "authority": "quality",
+      "canonical_for": [],
+      "topics": [
+        "browser qa",
+        "live class",
+        "attendance",
+        "enrollment lifecycle",
+        "student experience"
+      ],
+      "keywords": {
+        "vi": [
+          "thử hai vai",
+          "điểm danh",
+          "học bù",
+          "tạm dừng",
+          "chuyển lớp"
+        ],
+        "en": [
+          "two-role browser test",
+          "attendance",
+          "make-up",
+          "suspended enrollment",
+          "class transfer"
+        ]
+      },
+      "identifiers": [
+        "LearnerMyLearningService",
+        "LiveClassAttendanceRecorder",
+        "LiveClassAttendanceEntryController",
+        "CourseCohortStudentController"
+      ],
+      "related_documents": [
+        "core/LF-Core-LiveClass.md",
+        "business/LF-Navigation.md",
+        "adr/ADR-0034-Cohort-Membership-Period-And-History.md",
+        "quality/LF-Regression-Audit.md"
+      ],
       "superseded_by": null,
       "routing_source": "LF-INDEX.md"
     },

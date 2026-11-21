@@ -2102,6 +2102,12 @@
 .lf-admin-ui.ui-structure .course-template-activity-tabs .ui-tabs__tab[aria-selected=true] { color: var(--ui-primary); }
 .lf-admin-ui.ui-structure .course-template-activity-tabs .ui-tabs__tab::after { display: none; }
 .lf-admin-ui.ui-structure .course-template-activity-tabs .ui-tabs__count { display: inline-flex; align-items: center; justify-content: center; min-width: 16px; height: 16px; padding: 0 5px; border-radius: 999px; background: color-mix(in srgb, currentColor 14%, transparent); color: inherit; font-size: 11px; font-weight: 600; line-height: 1; }
+/* Phone: the three phases stay on one line and scroll sideways instead of wrapping. */
+@media (max-width: 640px) {
+    .lf-admin-ui.ui-structure .course-template-activity-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+    .lf-admin-ui.ui-structure .course-template-activity-tabs::-webkit-scrollbar { display: none; }
+    .lf-admin-ui.ui-structure .course-template-activity-tabs .ui-tabs__tab { flex: none; white-space: nowrap; }
+}
 .lf-admin-ui.ui-structure .course-template-activity-list { display: flex; flex-direction: column; gap: 0; border: 1px solid var(--ct-border); border-radius: 10px; background: var(--ui-white); }
 .lf-admin-ui.ui-structure .course-template-activity-item { position: relative; isolation: isolate; display: flex; align-items: center; gap: 12px; min-height: 0; padding: 10px 12px; border-top: 0; border-bottom: 0; }
 /* Rows are filtered by phase (x-show writes display: none), so a row draws the hairline only when a visible row
@@ -2610,10 +2616,18 @@
 .lf-admin-ui .ui-chip-list--grid3 .ui-chip { justify-content: center; }
 .lf-admin-ui .ui-activity-panel { display: grid; gap: 12px; margin-top: 12px; padding: 16px 18px; border: 1px solid var(--ui-color-eef0fb); border-radius: 10px; background: var(--ui-color-f7f8fd); }
 .lf-admin-ui .ui-switch-row--boxed { align-items: center; padding: 14px 16px; border: 1px solid var(--ui-color-e6e8ee); border-radius: 10px; }
-.lf-admin-ui .ui-cohort-join-history { margin-top: 2px; color: var(--ui-muted); font-size: 12px; }
-.lf-admin-ui .ui-cohort-join-history > summary { color: var(--ui-primary); }
-.lf-admin-ui .ui-cohort-join-history ul { display: grid; gap: 6px; margin: 6px 0 0; padding: 0; list-style: none; }
-.lf-admin-ui .ui-cohort-join-history li { display: grid; gap: 1px; }
+/* "Lịch sử (N)" under a join date: a text button that opens the learner's history popup. */
+.lf-admin-ui .ui-cohort-join-history { display: block; margin-top: 2px; padding: 0; border: 0; background: none; color: var(--ui-primary); font: 12px/18px var(--ui-font-family); }
+.lf-admin-ui .ui-cohort-join-history:hover { text-decoration: underline; }
+.lf-admin-ui .ui-cohort-col-attendance { width: 180px; }
+.lf-admin-ui .ui-cohort-col-history-time { width: 150px; }
+.lf-admin-ui .ui-cohort-col-history-actor { width: 160px; }
+/* Phone: the row buttons sit in the card's top-right corner, beside the learner's name, instead of a row of their own. */
+@media (max-width: 640px) {
+    .lf-admin-ui .mk-table-scroll > table.ui-cohort-roster-table > tbody > tr > td.ui-cohort-roster-actions { position: absolute; top: 10px; right: 12px; }
+    .lf-admin-ui .mk-table-scroll > table.ui-cohort-roster-table > tbody > tr > td.ui-cohort-roster-actions[data-label]::before { content: none; }
+    .lf-admin-ui .mk-table-scroll > table.ui-cohort-roster-table > tbody > tr > td.mk-sequence + td.mk-text-cell:not(.mk-sequence) { padding-right: 76px; }
+}
 .lf-admin-ui .ui-apply-box { display: grid; gap: 12px; padding: 14px 16px; border: 1px solid var(--ui-color-e6e8ee); border-radius: 10px; }
 .lf-admin-ui .ui-apply-box .ui-switch-row > input[type=checkbox] { flex: none; margin-top: 3px; }
 .lf-admin-ui .ui-apply-box .ui-switch-row.is-locked { cursor: default; }
@@ -3121,7 +3135,7 @@
 .lf-admin-ui.ui-cohort .ui-version__chips { align-items: center; }
 .lf-admin-ui.ui-cohort .ui-version__chips > * { align-self: center; margin: 0; font-size: 13px; }
 .lf-admin-ui.ui-cohort .ui-framework__identity { align-items: center; padding-block: 14px; }
-.lf-admin-ui.ui-cohort .ui-version__identity { grid-template-columns: minmax(0, auto) minmax(0, 1fr); align-items: center; gap: 2px 10px; }
+.lf-admin-ui.ui-cohort .ui-version__identity { grid-template-columns: minmax(0, max-content) auto; justify-content: start; align-items: center; gap: 2px 10px; }
 .lf-admin-ui.ui-cohort .ui-version__identity h2 { grid-area: 1 / 1; }
 .lf-admin-ui.ui-cohort .ui-version__chips { grid-area: 1 / 2; }
 .lf-admin-ui .ui-cohort-code { display: flex; align-items: center; gap: 4px; grid-area: 2 / 1 / 2 / -1; }
@@ -3167,6 +3181,10 @@
 .lf-admin-ui .ui-cohort-schedule-line__times { display: flex; flex-wrap: wrap; gap: 0 6px; min-width: 0; }
 .lf-admin-ui.ui-cohort .ui-summary-head .mk-table-top__actions { flex: none; flex-wrap: nowrap; white-space: nowrap; }
 .lf-admin-ui .ui-cohort-col-session-time { width: 210px; }
+/* Recordings tab: the session and the replay window keep their width, the name wraps; the link sits under it. */
+.lf-admin-ui .ui-cohort-col-session { width: 260px; }
+.lf-admin-ui .ui-cohort-col-replay { width: 260px; }
+.lf-admin-ui .ui-cohort-recording-link { display: inline-block; margin-top: 2px; }
 .lf-admin-ui.ui-cohort .mk-name-text { display: block; white-space: normal; overflow-wrap: anywhere; }
 /* Sessions tab: the Content tab's structure, with each Session under its live Activity. */
 .lf-admin-ui .ui-cohort-session-tree { padding: 16px 22px 22px; }
@@ -3238,7 +3256,7 @@
 .lf-admin-ui .ui-cohort-auto-end { margin-top: 16px; }
 /* A short form: its dropdowns may leave the popup instead of being cut by the scroll box. Only low screens keep scrolling. */
 @media (min-width: 641px) and (min-height: 480px), (min-height: 700px) {
-    .lf-admin-ui .ui-modal.ui-cohort-teacher-modal, .lf-admin-ui .ui-cohort-teacher-modal .ui-modal__body { overflow: visible; }
+    .lf-admin-ui .ui-modal:is(.ui-cohort-teacher-modal, .ui-cohort-select-modal), .lf-admin-ui :is(.ui-cohort-teacher-modal, .ui-cohort-select-modal) .ui-modal__body { overflow: visible; }
 }
 .lf-admin-ui .ui-cohort-tab-notice { margin: 16px 20px; }
 /* Schedule popup: fields on the left, the live preview stays in view on the right. */
@@ -3342,6 +3360,13 @@
 .lf-admin-ui .ui-cohort-schedule-detail__listrow.is-next { background: var(--ui-success-soft); box-shadow: inset 3px 0 0 var(--ui-success); }
 .lf-admin-ui .ui-cohort-schedule-detail__listrow.is-excluded { background: var(--ui-notice-soft); color: var(--ui-warning); }
 .lf-admin-ui .ui-cohort-schedule-detail__listrow.is-excluded .ui-cohort-schedule-detail__listdate { text-decoration: line-through; }
+.lf-admin-ui .ui-cohort-schedule-detail__listtime { display: grid; min-width: 0; }
+.lf-admin-ui .ui-cohort-schedule-detail__listsession { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lf-admin-ui .ui-cohort-schedule-detail__mark.is-cancelled { text-decoration: line-through; }
+/* Calendar and list share one grid cell: the hidden one keeps its room, so switching does not resize the popup. */
+.lf-admin-ui .ui-cohort-schedule-detail__viewstack { display: grid; }
+.lf-admin-ui .ui-cohort-schedule-detail__view { grid-area: 1 / 1; min-width: 0; }
+.lf-admin-ui .ui-cohort-schedule-detail__view.is-hidden { visibility: hidden; pointer-events: none; }
 .lf-admin-ui .ui-cohort-schedule-detail__exclusions { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
 .lf-admin-ui .ui-cohort-schedule-detail__exclusions li { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; padding: 4px 10px; border: 1px solid var(--ui-notice-border); border-radius: 5px; background: var(--ui-notice-soft); font-size: 14px; line-height: 20px; }
 .lf-admin-ui .ui-cohort-schedule-detail__exclusions .ui-cohort-schedule-detail__listdate { font-weight: 500; }
@@ -3883,31 +3908,30 @@
     .lf-admin-ui .ui-attendance-roster td { overflow-wrap: anywhere; }
     .lf-admin-ui.ui-teacher-attendance > .mk-section, .lf-admin-ui .mk-section.ui-cohort-attendance { overflow: visible; }
 }
-.lf-admin-ui .ui-attendance-actions { display: flex; justify-content: flex-end; margin-top: 12px; }
+/* The save button closes the roster card as its footer bar. */
+.lf-admin-ui .ui-attendance-actions { display: flex; justify-content: flex-end; padding: 12px 20px; border-top: 1px solid var(--ui-border); }
 /* Phone: the roster uses the shared list-table cards below; its status, mode and note pickers each take the card's
    full width so the list they open has room (Owner 2026-11-18). */
 @media (max-width: 640px) {
     .lf-admin-ui .mk-table-scroll.ui-attendance-roster > table > tbody > tr:not(.mk-empty-row) { grid-template-columns: minmax(0, 1fr); }
     .lf-admin-ui.ui-teacher-attendance > .mk-section, .lf-admin-ui .mk-section.ui-cohort-attendance { overflow: visible; }
+    .lf-admin-ui .ui-attendance-actions { padding-inline: 16px; }
+    .lf-admin-ui .ui-attendance-actions .ui-button { width: 100%; }
 }
-.lf-admin-ui .ui-attendance-history { margin-top: 16px; font-size: 14px; }
-.lf-admin-ui .ui-attendance-history summary { color: var(--ui-primary); cursor: pointer; }
-.lf-admin-ui .ui-attendance-history ul { display: grid; gap: 6px; margin: 8px 0 0; padding: 0; list-style: none; }
-.lf-admin-ui .ui-attendance-history li { padding: 6px 10px; border-radius: var(--ui-control-radius); background: var(--ui-color-f7f8fa); }
-.lf-admin-ui .ui-attendance-session { max-width: 560px; margin-bottom: 12px; }
-.lf-admin-ui.ui-teacher-attendance .ui-attendance-session { margin-top: 18px; }
-/* The teacher page and the Cohort tab put the roster straight into a list card: what is not the full-width table keeps
-   the card's side gap. */
-.lf-admin-ui :is(.ui-teacher-attendance .mk-section, .mk-section.ui-cohort-attendance) > :is(.ui-attendance-session, p.ui-caption, .ui-banner, .ui-attendance-history, .mk-empty) { margin-inline: 24px; }
-.lf-admin-ui.ui-teacher-attendance .mk-section > p.ui-caption { margin-bottom: 12px; }
-.lf-admin-ui :is(.ui-teacher-attendance, .ui-cohort-attendance) .ui-attendance-actions { padding: 0 24px 16px; }
-.lf-admin-ui :is(.ui-teacher-attendance, .ui-cohort-attendance) .ui-attendance-history { margin-bottom: 16px; }
-.lf-admin-ui .ui-cohort-attendance .ui-attendance-session { margin-top: 18px; }
+/* The Session picker sits in the card's filter bar, as wide as the Students tab search. */
+.lf-admin-ui .mk-tablebar--filters.ui-attendance-filterbar .mk-search:first-child { flex: 0 1 560px; max-width: 560px; }
+/* A banner under the filter bar keeps the bar's side gap and leaves the table its own top edge. */
+.lf-admin-ui :is(.ui-teacher-attendance .mk-section, .mk-section.ui-cohort-attendance) > .ui-banner { margin: 0 20px 16px; }
+.lf-admin-ui :is(.ui-teacher-attendance .mk-section, .mk-section.ui-cohort-attendance) > .mk-empty { margin-inline: 20px; }
 .lf-admin-ui .ui-cohort-attendance .ui-summary-head .ui-caption { margin: 2px 0 0; }
-.lf-admin-ui .mk-section.ui-cohort-attendance > .ui-banner { margin-top: 0; margin-bottom: 12px; }
 .lf-admin-ui.ui-teacher-attendance [data-attendance-policy-open] { white-space: nowrap; }
+/* The edit history is a card of its own under the roster card (Owner: blocks stay separate). */
+.lf-admin-ui .mk-section.ui-attendance-history { margin-top: 16px; }
+.lf-admin-ui .ui-attendance-history-col-time { width: 152px; }
+.lf-admin-ui .ui-attendance-history-col-actor { width: 180px; }
 @media (max-width: 640px) {
-    .lf-admin-ui :is(.ui-teacher-attendance .mk-section, .mk-section.ui-cohort-attendance) > :is(.ui-attendance-session, p.ui-caption, .ui-banner, .ui-attendance-history, .mk-empty) { margin-inline: 16px; }
+    .lf-admin-ui :is(.ui-teacher-attendance .mk-section, .mk-section.ui-cohort-attendance) > .ui-banner { margin-inline: 16px; }
+    .lf-admin-ui :is(.ui-teacher-attendance .mk-section, .mk-section.ui-cohort-attendance) > .mk-empty { margin-inline: 16px; }
 }
 /* The read-only policy of a class on the teacher attendance page. */
 /* Phân quyền (ADR-0033): the group list reuses the attendance policy list and "apply" popup styles. */

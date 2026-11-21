@@ -9,7 +9,7 @@
 
 @section('content')
 @if ($course)
-    <a class="lf-exam-back" href="{{ $course['back'] }}">← {{ __('lf.LF_my_learning_quiz_back_lesson') }}</a>
+    <a class="lf-exam-back" href="{{ $course['back'] }}">← {{ $course['back_label'] }}</a>
 @endif
 @php
     $trim = fn ($value) => rtrim(rtrim(number_format((float) $value, 2, '.', ''), '0'), '.');

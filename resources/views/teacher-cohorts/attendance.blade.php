@@ -103,16 +103,20 @@
         </div>
 
         @if ($selected)
-            <form method="GET" action="{{ route('teacher.cohorts.attendance', $cohort->id) }}" class="ui-field ui-attendance-session">
-                <label class="ui-field__label" for="teacher-attendance-session">{{ __('lf.LF_teacher_attendance_session') }}</label>
-                <select id="teacher-attendance-session" name="session_id" data-ui-kit-select onchange="this.form.submit()">
-                    @foreach ($sessions as $session)
-                        <option value="{{ $session->id }}" @selected((int) $selected->id === (int) $session->id)>
-                            {{ \Illuminate\Support\Carbon::parse($session->scheduled_start_at)->format('d/m/Y H:i') }} · #{{ $session->session_no }} · {{ $session->title }}
-                        </option>
-                    @endforeach
-                </select>
-            </form>
+            <div class="mk-tablebar mk-tablebar--filters ui-attendance-filterbar">
+                <form method="GET" action="{{ route('teacher.cohorts.attendance', $cohort->id) }}" class="mk-filter-form ui-attendance-session">
+                    <div class="ui-field mk-search">
+                        <label class="ui-field__label ui-sr-only" for="teacher-attendance-session">{{ __('lf.LF_teacher_attendance_session') }}</label>
+                        <select id="teacher-attendance-session" name="session_id" data-ui-kit-select onchange="this.form.submit()">
+                            @foreach ($sessions as $session)
+                                <option value="{{ $session->id }}" @selected((int) $selected->id === (int) $session->id)>
+                                    {{ \Illuminate\Support\Carbon::parse($session->scheduled_start_at)->format('d/m/Y H:i') }} · #{{ $session->session_no }} · {{ $session->title }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                </form>
+            </div>
 
             @if (! $mayOperate)
                 <div class="ui-banner ui-cohort-tab-notice" role="status"><span class="ui-banner__text">{{ __('lf.LF_teacher_attendance_no_permission') }}</span></div>
@@ -121,9 +125,13 @@
             @elseif (! $editable)
                 <div class="ui-banner ui-cohort-tab-notice" role="status"><span class="ui-banner__text">{{ __('lf.LF_teacher_attendance_closed', ['time' => $closesLabel]) }}</span></div>
             @else
-                <p class="ui-caption" data-attendance-closes>{{ __('lf.LF_teacher_attendance_closes', ['time' => $closesLabel]) }}</p>
+                <div class="ui-banner ui-banner--info ui-cohort-tab-notice" role="status" data-attendance-closes>
+                    <span class="ui-banner__text">{{ __('lf.LF_teacher_attendance_closes', ['time' => $closesLabel]) }}</span>
+                </div>
                 @if ($cohort->status === 'completed')
-                    <p class="ui-caption" data-attendance-completed-note>{{ __('lf.LF_attendance_completed_class_note') }}</p>
+                    <div class="ui-banner ui-cohort-tab-notice" role="status" data-attendance-completed-note>
+                        <span class="ui-banner__text">{{ __('lf.LF_attendance_completed_class_note') }}</span>
+                    </div>
                 @endif
             @endif
 
@@ -140,5 +148,9 @@
             </div>
         @endif
     </section>
+
+    @if ($selected)
+        @include('liveclass-attendance.partials.history', ['history' => $history])
+    @endif
 </div>
 @endsection

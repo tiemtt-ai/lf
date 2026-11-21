@@ -284,7 +284,8 @@
                          x-bind:role="attendanceView === 'corner' ? 'button' : null" x-bind:title="attendanceView === 'corner' ? strings.attendance_enlarge : null">
                         <img x-show="attendance.svg" x-bind:src="attendance.svg" alt="{{ $t('attendance_code_alt') }}" width="320" height="320">
                         <span x-show="! attendance.svg && ! attendance.failed && ! attendance.closed">{{ $t('loading') }}</span>
-                        <span x-show="attendance.closed" x-cloak role="status">{{ $t('attendance_closed') }}</span>
+                        <span x-show="attendance.closed && ! attendance.ended" x-cloak role="status">{{ $t('attendance_closed') }}</span>
+                        <span x-show="attendance.closed && attendance.ended" x-cloak role="status">{{ $t('attendance_ended') }}</span>
                         <span x-show="attendance.failed" x-cloak>{{ $t('attendance_failed') }}</span>
                     </div>
                     <p class="lf-wb-attendance__count" x-show="attendance.learners !== null" x-cloak

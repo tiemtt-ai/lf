@@ -212,7 +212,7 @@ class LiveClassAttendanceCheckInTest extends TestCase
         // Past the absent threshold (16:05 + 30) the board stops issuing the code and says so.
         Carbon::setTestNow(CarbonImmutable::parse('2026-07-04 16:35:01', self::TZ));
         $this->actingAs($setup['teacher'])->getJson(self::HOST."/teacher/live-sessions/{$session}/board/attendance-code")
-            ->assertOk()->assertJson(['closed' => true, 'url' => null, 'svg' => null]);
+            ->assertOk()->assertJson(['closed' => true, 'ended' => false, 'url' => null, 'svg' => null]);
         // A code shown just before the threshold and scanned just after it is refused; nothing is written.
         Carbon::setTestNow(CarbonImmutable::parse('2026-07-04 16:34:50', self::TZ));
         $url = $this->codeUrl($setup, $session);
@@ -228,6 +228,24 @@ class LiveClassAttendanceCheckInTest extends TestCase
         $this->assertFalse($statuses->has($tooEarly->id));
         $this->assertFalse($statuses->has($pastAbsent->id));
         $this->assertSame('2026-07-04 15:50:00', (string) DB::table('core_liveclass_attendances')->where('user_id', $early->id)->value('joined_at'));
+    }
+
+    public function test_a_session_started_after_its_planned_end_offers_no_code(): void
+    {
+        $setup = $this->setupClass();
+        // Planned 16:00–17:30; the teacher only started at 18:00, so the absent threshold counts from 18:00 but every
+        // scan is past the end and refused. The board says so instead of showing a code nobody can use.
+        $session = $this->liveSession($setup, 'offline', actualStart: '2026-07-04 18:00:00');
+        Carbon::setTestNow(CarbonImmutable::parse('2026-07-04 18:05:00', self::TZ));
+        $this->actingAs($setup['teacher'])->getJson(self::HOST."/teacher/live-sessions/{$session}/board/attendance-code")
+            ->assertOk()->assertJson(['closed' => true, 'ended' => true, 'url' => null, 'svg' => null]);
+        $this->actingAs($setup['teacher'])->get(self::HOST."/teacher/live-sessions/{$session}/board")
+            ->assertOk()->assertSee(__('lf.LF_liveclass_whiteboard_attendance_ended'));
+
+        // Before the planned end the late start still shows the code.
+        Carbon::setTestNow(CarbonImmutable::parse('2026-07-04 17:29:00', self::TZ));
+        $this->actingAs($setup['teacher'])->getJson(self::HOST."/teacher/live-sessions/{$session}/board/attendance-code")
+            ->assertOk()->assertJson(['closed' => false]);
     }
 
     public function test_the_thresholds_come_from_the_policy_of_the_cohort(): void
@@ -250,7 +268,9 @@ class LiveClassAttendanceCheckInTest extends TestCase
         $this->scanAt($setup, $session, $late, '2026-07-04 16:01:00');
         // Without an absent threshold the code stays until the planned end and a late entry is only late.
         $this->scanAt($setup, $session, $veryLate, '2026-07-04 17:29:00');
-        $this->scanAt($setup, $session, $afterEnd, '2026-07-04 17:31:00')->assertSee(__('lf.LF_liveclass_attendance_checkin_too_late'));
+        // After the planned end the board shows no code; one shown just before is refused.
+        $this->scanAt($setup, $session, $afterEnd, '2026-07-04 17:30:10', shownAt: '2026-07-04 17:29:50')
+            ->assertSee(__('lf.LF_liveclass_attendance_checkin_too_late'));
 
         $statuses = DB::table('core_liveclass_attendances')->where('session_id', $session)->pluck('status', 'user_id');
         $this->assertSame(['present', 'late', 'late'], [$statuses[$early->id], $statuses[$late->id], $statuses[$veryLate->id]]);
@@ -339,7 +359,9 @@ class LiveClassAttendanceCheckInTest extends TestCase
         $enterAt($tooEarly, '2026-07-04 17:31:00')->assertRedirect('https://meet.example.test/room');
         $this->assertNull($row($tooEarly));
         DB::table('core_liveclass_sessions')->where('id', $session)->update(['status' => 'cancelled']);
-        $enterAt($tooEarly, '2026-07-04 16:05:00')->assertForbidden();
+        $enterAt($tooEarly, '2026-07-04 16:05:00')->assertRedirect()
+            ->assertSessionHas('lf_learn_notice', __('lf.LF_liveclass_attendance_entry_closed'));
+        $this->assertNull($row($tooEarly));
 
         // With online recording set to "by hand" the button opens the meeting and records nothing.
         $manualSession = $this->liveSession($setup, 'online');
@@ -401,6 +423,40 @@ class LiveClassAttendanceCheckInTest extends TestCase
         $this->actingAs($onTime)->from(self::HOST.'/my-courses')->post(self::HOST."/my-courses/live-sessions/{$boardSession}/attend")
             ->assertSessionHas('lf_attendance_entry', fn (array $flash): bool => $flash['result'] === 'not_offered');
         $this->assertDatabaseMissing('core_liveclass_attendances', ['session_id' => $boardSession]);
+    }
+
+    public function test_a_refused_entry_says_why_instead_of_a_bare_403(): void
+    {
+        // A stale class page still offers "Điểm danh" / "Vào phòng họp" after the Enrollment stopped being active or
+        // the Session closed: nothing is recorded and the learner is told why on a page they can still open.
+        $setup = $this->setupClass();
+        $session = $this->liveSession($setup, 'hybrid');
+        DB::table('core_liveclass_sessions')->where('id', $session)->update(['attendance_tool' => 'button']);
+        $student = $this->learner($setup);
+        $enrollment = (int) DB::table('core_course_cohort_students')->where('student_id', $student->id)->value('enrollment_id');
+        $classPage = self::HOST."/my-courses/classes/{$setup['cohort']}";
+        $classes = self::HOST.'/my-courses?tab=classes';
+        $inactive = __('lf.LF_liveclass_attendance_entry_inactive');
+        Carbon::setTestNow(CarbonImmutable::parse('2026-07-04 16:05:00', self::TZ));
+
+        foreach (['suspended', 'expired', 'cancelled'] as $status) {
+            DB::table('core_course_enrollments')->where('id', $enrollment)->update(['status' => $status]);
+            foreach (['attend', 'meeting'] as $way) {
+                $this->actingAs($student)->from($classPage)->post(self::HOST."/my-courses/live-sessions/{$session}/{$way}")
+                    ->assertRedirect($classes)->assertSessionHas('lf_learn_notice', $inactive);
+            }
+        }
+        $this->assertDatabaseMissing('core_liveclass_attendances', ['session_id' => $session]);
+        $this->actingAs($student)->withSession(['lf_learn_notice' => $inactive])->get($classes)->assertOk()
+            ->assertSee('data-learn-notice', false)->assertSeeText($inactive);
+
+        // A Session that no longer takes entries sends the learner back to the class page with the reason.
+        DB::table('core_course_enrollments')->where('id', $enrollment)->update(['status' => 'active']);
+        DB::table('core_liveclass_sessions')->where('id', $session)->update(['status' => 'completed']);
+        $this->actingAs($student)->from($classPage)->post(self::HOST."/my-courses/live-sessions/{$session}/attend")
+            ->assertRedirect($classPage)->assertSessionHas('lf_learn_notice', __('lf.LF_liveclass_attendance_entry_closed'));
+        $this->actingAs($student)->withSession(['lf_learn_notice' => 'x'])->get($classPage)->assertOk()->assertSee('data-learn-notice', false);
+        $this->assertDatabaseMissing('core_liveclass_attendances', ['session_id' => $session]);
     }
 
     public function test_opening_the_board_is_an_entry_only_in_an_online_session(): void
@@ -478,9 +534,16 @@ class LiveClassAttendanceCheckInTest extends TestCase
 
         // The tab lists the history and no longer offers "not recorded yet" for a learner with a result.
         $page = $this->actingAs($setup['admin'])->get(self::HOST."/admin/course-cohorts/{$setup['cohort']}?tab=attendance&session_id={$session}")
-            ->assertOk()->assertSee(trans_choice('lf.LF_course_cohort_attendance_history', 2, ['count' => 2]))
+            ->assertOk()->assertSee(__('lf.LF_course_cohort_attendance_history_title'))->assertSee('data-attendance-history', false)
             ->assertSee(__('lf.LF_course_cohort_attendance_source_manual'));
         $page->assertDontSee('<option value="registered"', false);
+
+        // The Students tab sums the learner's results: an excused session counts as recorded, not attended.
+        $this->actingAs($setup['admin'])->get(self::HOST."/admin/course-cohorts/{$setup['cohort']}?tab=students")
+            ->assertOk()
+            ->assertSee('data-student-attendance="'.$enrollment.'"', false)
+            ->assertSeeText(__('lf.LF_course_cohort_student_attendance_value', ['attended' => 0, 'total' => 1]))
+            ->assertSeeText(__('lf.LF_course_cohort_attendance_status_excused').' 1');
     }
 
     public function test_every_teacher_of_the_cohort_records_attendance_until_the_edit_window_closes(): void
@@ -962,6 +1025,25 @@ class LiveClassAttendanceCheckInTest extends TestCase
             ->assertOk()->assertSee(__('lf.LF_course_cohort_attendance_checked_in_qr', ['time' => '16:02']));
     }
 
+    public function test_the_roster_locks_a_learner_whose_enrollment_is_not_active(): void
+    {
+        // Saving skips an Enrollment that is not active, so its row offers nothing to edit and says why.
+        $setup = $this->setupClass();
+        $session = $this->liveSession($setup, 'offline', '2026-07-04 16:00:00');
+        $active = $this->learner($setup);
+        $expired = $this->learner($setup, enrollmentStatus: 'expired');
+        $enrollment = fn (User $user): int => (int) DB::table('core_course_cohort_students')->where('student_id', $user->id)->value('enrollment_id');
+
+        $html = $this->actingAs($setup['admin'])->get(self::HOST."/admin/course-cohorts/{$setup['cohort']}?tab=attendance&session_id={$session}")
+            ->assertOk()->assertSee('data-attendance-inactive="expired"', false)
+            ->assertSeeText(__('lf.LF_course_cohort_attendance_inactive_expired'))->getContent();
+
+        preg_match_all('/name="attendance\[\d+\]\[enrollment_id\]" value="(\d+)"/', $html, $inputs);
+        $this->assertSame([(string) $enrollment($active)], $inputs[1]);
+        $this->assertSame(1, preg_match_all('/name="attendance\[\d+\]\[status\]"/', $html));
+        $this->assertStringNotContainsString('data-attendance-inactive="active"', $html);
+    }
+
     public function test_a_form_loaded_before_a_scan_does_not_overwrite_it(): void
     {
         $setup = $this->setupClass();
@@ -1035,6 +1117,23 @@ class LiveClassAttendanceCheckInTest extends TestCase
         // A cancelled Session no longer counts.
         app(LiveClassSessionLifecycleService::class)->cancel($setup['customer'], $setup['cohort'], $session, 'Giáo viên ốm');
         $this->assertSame('not_started', $progress());
+    }
+
+    public function test_scanning_again_while_ticked_content_waits_says_what_is_left(): void
+    {
+        $setup = $this->setupClass();
+        $session = $this->liveSession($setup, 'offline');
+        $this->tickedActivity($setup, 'Bài tập trên lớp', 'during');
+        $student = $this->learner($setup);
+
+        $this->scanAt($setup, $session, $student, '2026-07-04 16:02:00')
+            ->assertSee(__('lf.LF_liveclass_attendance_checkin_recorded_pending'));
+        // The entry is not attendance yet, so a second scan does not say the learner is checked in.
+        $this->scanAt($setup, $session, $student, '2026-07-04 16:05:00')
+            ->assertSee(__('lf.LF_liveclass_attendance_checkin_recorded_pending'))
+            ->assertDontSee(__('lf.LF_liveclass_attendance_checkin_already'))
+            ->assertSee(__('lf.LF_liveclass_attendance_checkin_joined_at', ['time' => '16:02']));
+        $this->assertSame('registered', DB::table('core_liveclass_attendances')->where('session_id', $session)->value('status'));
     }
 
     public function test_ticked_content_decides_attendance_and_make_up(): void
@@ -1196,6 +1295,8 @@ class LiveClassAttendanceCheckInTest extends TestCase
         $this->actingAs($inTime)->get(self::HOST.'/my-courses')->assertOk()
             ->assertSeeText(__('lf.LF_liveclass_self_study_now_title'))
             ->assertSeeText(__('lf.LF_liveclass_self_study_content_hint', ['time' => '17:30']))
+            // Its "Vào học" leads to the Session on the class page, not to a page the menu does not have.
+            ->assertSee('href="'.self::HOST.'/my-courses/classes/'.$setup['cohort'].'#live-lesson-'.$session.'" data-live-self-study-lesson', false)
             ->assertDontSee("live-sessions/{$session}/attend", false);
         $this->actingAs($inTime)->from(self::HOST.'/my-courses')->post(self::HOST."/my-courses/live-sessions/{$session}/attend")
             ->assertSessionHas('lf_attendance_entry', fn (array $flash): bool => $flash['result'] === 'not_offered');
@@ -1394,10 +1495,12 @@ class LiveClassAttendanceCheckInTest extends TestCase
         ]);
     }
 
-    private function scanAt(array $setup, int $session, User $student, string $localTime)
+    /** @param  string|null  $shownAt  when the board showed the code, if earlier than the scan */
+    private function scanAt(array $setup, int $session, User $student, string $localTime, ?string $shownAt = null)
     {
-        Carbon::setTestNow(CarbonImmutable::parse($localTime, self::TZ));
+        Carbon::setTestNow(CarbonImmutable::parse($shownAt ?? $localTime, self::TZ));
         $url = $this->codeUrl($setup, $session);
+        Carbon::setTestNow(CarbonImmutable::parse($localTime, self::TZ));
         $page = self::HOST."/my-courses/live-sessions/{$session}/check-in";
         $this->actingAs($student)->get($url)->assertRedirect($page);
         $this->actingAs($student)->post($page)->assertRedirect($page);

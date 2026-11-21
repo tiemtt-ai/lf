@@ -119,9 +119,19 @@ class LearnerMyLearningService
         // Only a learning Enrollment inside its window gets a per-Lesson decision; otherwise every Lesson is closed for the same reason.
         $open = $course->status === 'active' && $this->enrollmentPolicy->allowsLearningAccessAt($course, $now);
         $closedReason = $course->status !== 'active' ? 'inactive_or_invalid_enrollment' : 'outside_enrollment_access_window';
+        // What the lesson list shows of each Lesson's Activities (MK "learning course" row): how much of its video or
+        // audio was played, when it was last opened, and its Quiz with the attempts made.
+        $activities = DB::table('core_course_template_version_activities')
+            ->where('customer_id', $customerId)->where('template_version_id', $course->version_id)
+            ->orderBy('sort_order')->orderBy('id')
+            ->get(['id', 'version_lesson_id', 'activity_type', 'duration_seconds', 'is_required'])->groupBy('version_lesson_id');
+        $activityProgress = DB::table('core_course_activity_progress')
+            ->where('customer_id', $customerId)->where('enrollment_id', $course->id)->where('student_id', $studentId)
+            ->get(['version_activity_id', 'progress_percentage', 'attempt_count', 'last_accessed_at'])->keyBy('version_activity_id');
         $number = 0;
-        $lessons->each(function (object $lesson) use ($course, $studentId, $open, $closedReason, $lessonProgress, &$number): void {
+        $lessons->each(function (object $lesson) use ($course, $studentId, $open, $closedReason, $lessonProgress, $activities, $activityProgress, &$number): void {
             $lesson->number = ++$number;
+            $this->summarizeLessonActivities($lesson, $activities->get($lesson->id) ?? collect(), $activityProgress);
             $decision = $open ? $this->lessonAccess->decide($studentId, (int) $course->id, (int) $lesson->id) : null;
             $lesson->allowed = $decision?->allowed ?? false;
             $lesson->reason = $decision?->reason ?? $closedReason;
@@ -135,6 +145,11 @@ class LearnerMyLearningService
         $course->lesson_completed = $lessons->where('progress_status', 'completed')->count();
         $course->lesson_open = $lessons->where('allowed', true)->count();
         $course->duration_seconds = (int) $lessons->sum('duration_seconds');
+        // The course-wide figure beside the rows (MK "Tỷ lệ xem video"): the mean of the rows' played share over the
+        // Lessons with video or audio, an unplayed one counting 0. Lessons completed stay a separate count, by LF's
+        // own rule (all required content, Quiz included), so the two are never the same figure.
+        $withMedia = $lessons->whereNotNull('media');
+        $course->watch_ratio = $withMedia->isEmpty() ? null : (int) floor($withMedia->avg('watched'));
         $course->sections = $this->outline($customerId, (int) $course->version_id, $lessons);
         // "Học tiếp": the last Lesson learned while it is open and unfinished; once it is finished, the next
         // open unfinished Lesson after it; otherwise the first open unfinished Lesson, then the first open one.
@@ -148,6 +163,32 @@ class LearnerMyLearningService
         $course->resume_lesson_id = ($resume ?? $ordered->first($unfinished) ?? $ordered->firstWhere('allowed', true))?->id;
 
         return $course;
+    }
+
+    /**
+     * The video or audio of a Lesson as the lesson list shows it: `media` (video, audio or null), the share played
+     * (`watched`, the mean of its required media Activities, else of all), the seconds played and the last opening; and its first Quiz with
+     * the attempts made on its Quizzes. Read only; the recorded progress is the source.
+     *
+     * @param  Collection<int, object>  $activities
+     * @param  Collection<int|string, object>  $progress
+     */
+    private function summarizeLessonActivities(object $lesson, Collection $activities, Collection $progress): void
+    {
+        $videos = $activities->whereIn('activity_type', ['video', 'embedded_video']);
+        $media = $videos->merge($activities->where('activity_type', 'audio'))->values();
+        // An optional video or audio does not hold the share down once the required ones are played.
+        $required = $media->filter(fn (object $a): bool => (bool) $a->is_required)->values();
+        $media = $required->isNotEmpty() ? $required : $media;
+        $played = fn (object $a): float => min(100, (float) ($progress->get($a->id)->progress_percentage ?? 0));
+        $lesson->media = $videos->isNotEmpty() ? 'video' : ($media->isNotEmpty() ? 'audio' : null);
+        $lesson->watched = $media->isEmpty() ? null : (int) floor($media->avg($played));
+        $lesson->watched_seconds = (int) round($media->sum(fn (object $a): float => $played($a) * (int) $a->duration_seconds / 100));
+        $last = $media->map(fn (object $a) => $progress->get($a->id)->last_accessed_at ?? null)->filter()->max();
+        $lesson->last_viewed_at = $last ? Carbon::parse($last) : null;
+        $quizzes = $activities->where('activity_type', 'quiz');
+        $lesson->quiz_activity_id = $quizzes->first()?->id;
+        $lesson->quiz_attempts = (int) $quizzes->sum(fn (object $a): int => (int) ($progress->get($a->id)->attempt_count ?? 0));
     }
 
     /**
@@ -195,7 +236,7 @@ class LearnerMyLearningService
         }
         $progress = DB::table('core_course_activity_progress')
             ->where('customer_id', $customerId)->where('enrollment_id', $course->id)->whereIn('version_activity_id', $activities->pluck('id'))
-            ->get(['version_activity_id', 'status', 'progress_percentage', 'last_position_seconds'])->keyBy('version_activity_id');
+            ->get(['version_activity_id', 'status', 'progress_percentage', 'last_position_seconds', 'last_accessed_at'])->keyBy('version_activity_id');
         $sessions ??= $course->cohort_id
             ? $this->cohortSessions($customerId, [$course->cohort_id])->get($course->cohort_id, collect())
             : collect();
@@ -215,6 +256,10 @@ class LearnerMyLearningService
             $activity->progress_status = $stored->status ?? 'not_started';
             $activity->progress = (int) round((float) ($stored->progress_percentage ?? 0));
             $activity->resume_at = (int) ($stored->last_position_seconds ?? 0);
+            $activity->last_viewed_at = isset($stored->last_accessed_at) ? Carbon::parse($stored->last_accessed_at) : null;
+            // Played share as the lesson list shows it: whole percents, never rounded up to a finish not reached.
+            $activity->played = (int) floor(min(100, (float) ($stored->progress_percentage ?? 0)));
+            $activity->played_seconds = (int) round(min(100, (float) ($stored->progress_percentage ?? 0)) * (int) $activity->duration_seconds / 100);
             $activity->progress_rule = CourseProgressRecorder::progressRule($activity);
             $activity->embed_url = null;
             if ($activity->activity_type === 'embedded_video' && $activity->external_video_url_snapshot) {
@@ -257,6 +302,7 @@ class LearnerMyLearningService
 
         $rows->each(function (object $row) use ($customerId, $teachers, $sessions, $attended, $now): void {
             $row->awaiting_class = false;
+            $this->markAccessEnded($row, $now);
             $row->teachers = $teachers->get($row->cohort_id, collect())->all();
             $this->summarizeSessions($customerId, $row, $sessions->get($row->cohort_id, collect()), $attended[$row->enrollment_id] ?? [], $now);
             $row->group = in_array($row->cohort_status, ['completed', 'archived'], true) ? 'completed' : 'current';
@@ -313,7 +359,7 @@ class LearnerMyLearningService
             ->get(['session_id', 'status', 'attendance_mode', 'attendance_source', 'joined_at'])->keyBy('session_id');
         $now = Carbon::now();
 
-        $sessions->each(function (object $session) use ($attendance, $now): void {
+        $sessions->each(function (object $session) use ($attendance, $now, $class): void {
             $mark = $attendance->get($session->id);
             $session->attendance_status = $mark->status ?? null;
             // A self-study Session has no "Bắt đầu": it stays `scheduled` until it ends, so inside its planned time
@@ -332,10 +378,14 @@ class LearnerMyLearningService
             $unmarked = $mark === null || $mark->status === 'registered';
             $ended = in_array($session->status, ['live', 'completed'], true) && $session->ends_at->lte($now)
                 && $session->ends_at->gte($now->copy()->subDays(LiveClassAttendanceRecorder::AUTO_ABSENT_LOOKBACK_DAYS));
-            $session->attendance_pending = $unmarked && (($mark->joined_at ?? null) !== null || $ended);
+            // Only an active Enrollment is still recorded (by hand or as automatic absence): a Session held while the
+            // Enrollment is suspended or expired waits for nothing.
+            $session->attendance_pending = $unmarked && $class->enrollment_status === 'active'
+                && (($mark->joined_at ?? null) !== null || $ended);
             $session->attendance_makeup = $mark !== null && $mark->status === 'present' && $mark->attendance_source === 'makeup';
         });
 
+        $this->markAccessEnded($class, $now);
         $class->teachers = $this->cohortTeachers($customerId, [$cohortId])->get($cohortId, collect())->all();
         $attendedIds = $sessions->filter(fn (object $s): bool => in_array($s->attendance_status, ['present', 'late'], true))
             ->pluck('id')->map(fn ($id): int => (int) $id)->all();
@@ -365,9 +415,26 @@ class LearnerMyLearningService
                 : collect();
         }
 
+        // A Lesson taught over several Sessions: "Trước" opens with its first Session and "Sau" with its last
+        // (ADR-0022 Amendment 1.3, Đợt 2), so each phase shows under that Session only. A cancelled Session has no board.
+        $taught = $class->sessions->reject(fn (object $s): bool => in_array($s->status, ['draft', 'cancelled'], true))
+            ->filter(fn (object $s): bool => $s->version_lesson_id !== null)->groupBy('version_lesson_id');
+
         $done = fn (object $a): bool => $a->progress_status === 'completed';
-        $class->sessions->each(function (object $session) use ($boards, $lessons, $done): void {
+        $class->sessions->each(function (object $session) use ($boards, $lessons, $done, $taught): void {
             $activities = $boards[(int) $session->version_lesson_id] ?? collect();
+            $own = $taught->get($session->version_lesson_id) ?? collect();
+            if ($session->status === 'cancelled') {
+                $activities = collect();
+            } elseif ($own->count() > 1) {
+                $first = (int) $own->first()->id === (int) $session->id;
+                $last = (int) $own->last()->id === (int) $session->id;
+                $activities = $activities->filter(fn (object $a): bool => match ($a->phase) {
+                    'before' => $first,
+                    'after' => $last,
+                    default => true,
+                })->values();
+            }
             $required = $activities->where('is_required', true);
             $session->lesson = $lessons->get((int) $session->version_lesson_id);
             $session->activities = $activities;
@@ -409,7 +476,8 @@ class LearnerMyLearningService
                 'enrollments.enrolled_at', 'enrollments.access_starts_at', 'enrollments.access_ends_at',
                 'enrollments.review_starts_at', 'enrollments.review_ends_at', 'enrollments.completed_at',
                 'products.title as product_title', 'versions.title_snapshot as version_title',
-                'versions.short_description_snapshot as summary', 'versions.category_name_snapshot as category',
+                'versions.short_description_snapshot as summary', 'versions.description_snapshot as description',
+                'versions.category_name_snapshot as category',
                 'versions.difficulty_level_snapshot as level', 'versions.course_type_snapshot as course_type',
                 'versions.template_id');
     }
@@ -440,7 +508,25 @@ class LearnerMyLearningService
                 'cohorts.name', 'cohorts.code', 'cohorts.status as cohort_status', 'cohorts.start_date', 'cohorts.end_date',
                 'cohorts.default_meeting_url', 'products.title as product_title', 'versions.title_snapshot as version_title',
                 'versions.category_name_snapshot as category', 'versions.difficulty_level_snapshot as level',
-                'enrollments.status as enrollment_status');
+                'enrollments.status as enrollment_status', 'enrollments.access_starts_at', 'enrollments.access_ends_at',
+                'enrollments.review_ends_at', 'enrollments.expired_at');
+    }
+
+    /**
+     * Why the learner cannot learn in a class for now (`access_hold`): `ended` when the Enrollment has run out
+     * (`expired`, or its window is over before the job ran), `suspended` while the centre has paused it, otherwise
+     * null; with the date it ran out. Display only: what opens is still decided by the runtime access service.
+     */
+    private function markAccessEnded(object $row, Carbon $now): void
+    {
+        $row->access_ended = $row->enrollment_status === 'expired' || $this->phase($row, $now) === 'ended';
+        $endsAt = $row->review_ends_at ?? $row->access_ends_at ?? $row->expired_at;
+        $row->access_ended_at = $row->access_ended && $endsAt !== null ? Carbon::parse((string) $endsAt) : null;
+        $row->access_hold = match (true) {
+            $row->access_ended => 'ended',
+            $row->enrollment_status === 'suspended' => 'suspended',
+            default => null,
+        };
     }
 
     /** @return Collection<int, Collection<int, object>> Sessions per Cohort, in schedule order. */
@@ -568,6 +654,32 @@ class LearnerMyLearningService
             ->pluck('total', 'template_version_id')
             ->map(fn ($total): int => (int) $total)
             ->all();
+    }
+
+    /**
+     * The class page a class Enrollment's lesson and Quiz pages lead back to, at the Session of the Lesson the learner
+     * was in (the latest one already started, else the first); null outside a class the learner can open. Content shown
+     * only "Trước buổi học" or only "Sau buổi học" is on the Lesson's first or last Session (ADR-0022 Amendment 1.3).
+     */
+    public function classReturnUrl(int $customerId, int $studentId, int $enrollmentId, ?int $versionLessonId = null, ?string $phase = null): ?string
+    {
+        $cohortId = $this->seatQuery($customerId, $studentId)->where('seats.enrollment_id', $enrollmentId)
+            ->orderByDesc('seats.id')->first()?->cohort_id;
+        if ($cohortId === null) {
+            return null;
+        }
+        $sessions = $versionLessonId === null ? collect() : DB::table('core_liveclass_sessions')
+            ->where('customer_id', $customerId)->where('cohort_id', $cohortId)->where('version_lesson_id', $versionLessonId)
+            ->where('status', '!=', 'cancelled')->orderBy('scheduled_start_at')->orderBy('id')->get(['id', 'scheduled_start_at']);
+        $now = Carbon::now();
+        $session = match ($phase) {
+            'before' => $sessions->first(),
+            'after' => $sessions->last(),
+            default => $sessions->last(fn (object $s): bool => $s->scheduled_start_at !== null && Carbon::parse($s->scheduled_start_at)->lte($now))
+                ?? $sessions->first(),
+        };
+
+        return route('student.courses.classes.show', (int) $cohortId).($session ? '#live-lesson-'.$session->id : '');
     }
 
     private function seatCohortId(int $customerId, int $studentId, int $enrollmentId): ?int

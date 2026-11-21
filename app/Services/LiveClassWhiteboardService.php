@@ -302,19 +302,24 @@ class LiveClassWhiteboardService
     /**
      * A learner's own entry to a Session that still takes entries: their seat, account and Enrollment, an active
      * Cohort and a Session that is scheduled or live. Unlike the board, the Session need not be live.
+     * A learner without a seat gets 404; otherwise a refusal is returned, not thrown, so the page can say why:
+     * `inactive` (account or Enrollment not active, or outside its learning window) or `closed` (the Session or
+     * the class no longer takes entries).
      *
-     * @return array{0: object, 1: object} the Session row and the learner's seat
+     * @return array{0: object, 1: object, 2: 'inactive'|'closed'|null} the Session row, the learner's seat, the refusal
      */
     public function learnerEntry(int $customerId, int $studentId, int $sessionId): array
     {
         $session = $this->sessionQuery($customerId)->where('sessions.id', $sessionId)->first();
         $membership = $session ? $this->learnerMembership($customerId, $studentId, (int) $session->cohort_id) : null;
         abort_if(! $membership, 404);
-        abort_unless($this->learnerMayView($customerId, $membership), 403);
-        abort_unless($session->cohort_status === 'active' && in_array($session->status, ['scheduled', 'live'], true), 403,
-            __('lf.LF_liveclass_attendance_entry_closed'));
+        $refusal = match (true) {
+            ! $this->learnerMayView($customerId, $membership) => 'inactive',
+            $session->cohort_status !== 'active' || ! in_array($session->status, ['scheduled', 'live'], true) => 'closed',
+            default => null,
+        };
 
-        return [$session, $membership];
+        return [$session, $membership, $refusal];
     }
 
     /**
