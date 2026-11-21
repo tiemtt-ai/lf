@@ -165,7 +165,9 @@ class LearnerMyLearningController extends Controller
             $validated['event'], isset($validated['position_seconds']) ? (float) $validated['position_seconds'] : null);
         abort_if($row === null, 403);
 
-        return response()->json(['progress' => $this->progressPayload($row)]);
+        return response()->json(['progress' => $this->progressPayload($row) + [
+            'lesson_completed' => $this->progress->completedInLesson($row),
+        ]]);
     }
 
     /** Starts or resumes the attempt of a Quiz Activity (ADR-0032 D2), then opens the Kiểm tra attempt page. */

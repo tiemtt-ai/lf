@@ -356,7 +356,7 @@ class CourseCohortController extends Controller
             })
             ->where('attendances.customer_id', $customerId)->where('sessions.cohort_id', $id)
             ->whereIn('attendances.enrollment_id', collect($students->items())->pluck('enrollment_id'))
-            ->whereIn('attendances.status', \App\Services\LiveClassAttendanceRecorder::MANUAL_STATUSES)
+            ->whereIn('attendances.status', LiveClassAttendanceRecorder::MANUAL_STATUSES)
             ->groupBy('attendances.enrollment_id', 'attendances.status')
             ->get(['attendances.enrollment_id', 'attendances.status', DB::raw('COUNT(*) as total')])
             ->groupBy('enrollment_id')
@@ -440,8 +440,25 @@ class CourseCohortController extends Controller
             ->orderByRaw("CASE assignments.role WHEN 'primary_teacher' THEN 0 WHEN 'teacher' THEN 1 ELSE 2 END")
             ->orderBy('teachers.name')->get();
 
+        // Completed Sessions each Teacher was on, from the Session team plus the legacy primary_teacher_id.
+        $completed = fn () => DB::table('core_liveclass_sessions as sessions')
+            ->where('sessions.customer_id', $customerId)
+            ->where('sessions.cohort_id', $id)
+            ->where('sessions.status', 'completed');
+        $teamPairs = $completed()
+            ->join('core_liveclass_session_teachers as team', function ($join): void {
+                $join->on('team.session_id', '=', 'sessions.id')->on('team.customer_id', '=', 'sessions.customer_id');
+            })
+            ->get(['sessions.id as session_id', 'team.teacher_id']);
+        $legacyPairs = $completed()->whereNotNull('sessions.primary_teacher_id')
+            ->get(['sessions.id as session_id', 'sessions.primary_teacher_id as teacher_id']);
+        $teacherSessionCounts = $teamPairs->concat($legacyPairs)
+            ->unique(fn (object $pair): string => $pair->teacher_id.'|'.$pair->session_id)
+            ->countBy('teacher_id');
+
         return [
             'teachers' => $teachers,
+            'teacherSessionCounts' => $teacherSessionCounts->all(),
             'availableTeachers' => $this->availableTeachersQuery($customerId)
                 ->reject(fn (object $teacher): bool => $teachers->contains('teacher_id', $teacher->id))
                 ->values(),

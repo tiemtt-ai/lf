@@ -1167,8 +1167,10 @@ class LiveClassAttendanceCheckInTest extends TestCase
             ->assertSeeText(__('lf.LF_liveclass_attendance_entry_pending', ['time' => '16:02']));
         $this->assertNull(DB::table('core_course_activity_progress')->where('enrollment_id', $enrollment($onTime))
             ->where('version_activity_id', $setup['liveActivity'])->where('status', 'completed')->value('id'));
-        // Done in time: the result is the one of the entry time, and the live class completes.
-        $open($onTime, $inClass, '16:40:00')->assertOk();
+        // Done in time: the result is the one of the entry time, and the live class completes; the answer says so, for
+        // the class page to count both at once.
+        $answer = $open($onTime, $inClass, '16:40:00')->assertOk();
+        $this->assertEqualsCanonicalizing([$setup['liveActivity'], $inClass], $answer->json('progress.lesson_completed'));
         $this->assertSame(['present', 'system', '2026-07-04 16:02:00'], $result($onTime));
         $this->assertSame('completed', DB::table('core_course_activity_progress')->where('enrollment_id', $enrollment($onTime))
             ->where('version_activity_id', $setup['liveActivity'])->value('status'));

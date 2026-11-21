@@ -421,7 +421,8 @@ class LearnerMyLearningService
             ->filter(fn (object $s): bool => $s->version_lesson_id !== null)->groupBy('version_lesson_id');
 
         $done = fn (object $a): bool => $a->progress_status === 'completed';
-        $class->sessions->each(function (object $session) use ($boards, $lessons, $done, $taught): void {
+        $ids = fn ($activities): array => $activities->pluck('id')->map(fn ($id): int => (int) $id)->values()->all();
+        $class->sessions->each(function (object $session) use ($boards, $lessons, $done, $taught, $ids): void {
             $activities = $boards[(int) $session->version_lesson_id] ?? collect();
             $own = $taught->get($session->version_lesson_id) ?? collect();
             if ($session->status === 'cancelled') {
@@ -440,6 +441,8 @@ class LearnerMyLearningService
             $session->activities = $activities;
             $session->completion = $required->isEmpty() ? null
                 : ['done' => $required->filter($done)->count(), 'total' => $required->count()];
+            // The same count by Activity, so content completed on the page counts at once (learner-lesson.js).
+            $session->completion_ids = ['required' => $ids($required), 'done' => $ids($required->filter($done))];
             // What the learner must finish for the Session's attendance (or the make-up), shown as "Điều kiện điểm danh".
             $session->attendance_requirements = $activities->where('counts_for_attendance', true)->values();
         });
@@ -447,6 +450,7 @@ class LearnerMyLearningService
         $required = collect($boards)->flatten(1)->where('is_required', true);
         $class->completion_done = $required->filter($done)->count();
         $class->completion_total = $required->count();
+        $class->completion_ids = ['required' => $ids($required), 'done' => $ids($required->filter($done))];
         $class->completion_rate = $required->isEmpty() ? null : (int) round(100 * $class->completion_done / $required->count());
 
         // The learner's results over the Sessions held while they were in the class (ADR-0034).

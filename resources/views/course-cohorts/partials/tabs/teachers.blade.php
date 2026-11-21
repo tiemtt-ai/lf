@@ -7,6 +7,9 @@
         'to' => $cohort->end_date ? \Illuminate\Support\Carbon::parse($cohort->end_date)->format('d/m/Y') : '—',
     ];
     // A failed edit flashes the same field names; they belong to its own popup, not to the assign form.
+    $teacherCanEdit = $cohort->is_mutable && ($cohortAdmin ?? true);
+    $teacherColumns = $teacherCanEdit ? 6 : 5;
+    $teacherDate = fn (?string $date): ?string => $date ? \Illuminate\Support\Carbon::parse($date)->format('d/m/Y') : null;
     $assignOld = fn (string $field, mixed $default = null): mixed => str_starts_with((string) old('_form'), 'teacher_edit_') ? $default : old($field, $default);
 @endphp
 <section class="mk-section course-cohort-teachers" aria-labelledby="cohort-teachers-title"
@@ -38,7 +41,7 @@
             <div class="ui-summary-head">
                 <div>
                     <h2 id="cohort-teachers-title">{{ __('lf.LF_course_cohort_teacher_title') }}</h2>
-                    <p class="ui-caption">{{ __('lf.LF_course_cohort_teacher_help') }}</p>
+                    <p class="ui-caption">{{ __($cohort->is_mutable ? 'lf.LF_course_cohort_teacher_help' : 'lf.LF_course_cohort_teacher_help_closed') }}</p>
                 </div>
                 <div class="mk-table-top__actions">
                     <span class="ui-caption">{{ trans_choice('lf.LF_course_cohort_teacher_count', $teachers->count(), ['count' => $teachers->count()]) }}</span>
@@ -112,14 +115,17 @@
             @endif
 
             <div class="mk-table-scroll" role="region" aria-labelledby="cohort-teachers-title" tabindex="0">
-                <table>
-                    <colgroup><col class="mk-col-sequence"><col><col class="ui-cohort-col-role"><col class="ui-cohort-col-period"><col class="mk-col-action"></colgroup>
+                <table @class(['ui-cohort-roster-table' => $teacherCanEdit])>
+                    <colgroup><col class="mk-col-sequence"><col><col class="ui-cohort-col-role"><col class="ui-cohort-col-period"><col class="ui-cohort-col-taught">@if ($teacherCanEdit)<col class="mk-col-action">@endif</colgroup>
                     <thead><tr>
                         <th scope="col" class="mk-sequence">{{ __('lf.table_no') }}</th>
                         <th scope="col" class="mk-text-cell">{{ __('lf.LF_course_cohort_teacher_teacher') }}</th>
                         <th scope="col" class="mk-text-cell">{{ __('lf.LF_course_cohort_teacher_role') }}</th>
                         <th scope="col" class="mk-text-cell">{{ __('lf.LF_course_cohort_teacher_period') }}</th>
-                        <th scope="col" class="ux-action-cell">{{ __('lf.table_actions') }}</th>
+                        <th scope="col" class="mk-text-cell">{{ __('lf.LF_course_cohort_teacher_sessions') }}</th>
+                        @if ($teacherCanEdit)
+                            <th scope="col" class="ux-action-cell">{{ __('lf.table_actions') }}</th>
+                        @endif
                     </tr></thead>
                     <tbody>
                     @forelse ($teachers as $teacher)
@@ -134,13 +140,23 @@
                             <td class="mk-text-cell" data-label="{{ __('lf.LF_course_cohort_teacher_role') }}">
                                 <span @class(['ui-status', 'ui-status--active' => $teacher->role === 'primary_teacher', 'ui-status--draft' => $teacher->role !== 'primary_teacher'])>{{ __('lf.LF_course_cohort_teacher_role_'.$teacher->role) }}</span>
                             </td>
-                            <td class="mk-text-cell ui-enroll-nowrap" data-label="{{ __('lf.LF_course_cohort_teacher_period') }}">
-                                {{ $teacher->assigned_from ? \Illuminate\Support\Carbon::parse($teacher->assigned_from)->format('d/m/Y') : '—' }}
-                                <span aria-hidden="true">→</span>
-                                {{ $teacher->assigned_to ? \Illuminate\Support\Carbon::parse($teacher->assigned_to)->format('d/m/Y') : '—' }}
+                            @php($periodFrom = $teacherDate($teacher->assigned_from))
+                            @php($periodTo = $teacherDate($teacher->assigned_to))
+                            <td class="mk-text-cell" data-label="{{ __('lf.LF_course_cohort_teacher_period') }}" data-teacher-period>
+                                @if (! $periodFrom && ! $periodTo)
+                                    {{ __('lf.LF_course_cohort_teacher_period_class') }}
+                                @else
+                                    <span class="ui-enroll-nowrap">{{ $periodFrom ?? __('lf.LF_course_cohort_teacher_period_from_start') }}</span>
+                                    <span aria-hidden="true">→</span>
+                                    <span class="ui-enroll-nowrap">{{ $periodTo ?? __('lf.LF_course_cohort_teacher_period_to_end') }}</span>
+                                @endif
                             </td>
-                            <td class="ux-action-cell" data-label="{{ __('lf.table_actions') }}">
-                                @if ($cohort->is_mutable && ($cohortAdmin ?? true))
+                            @php($taught = (int) ($teacherSessionCounts[$teacher->teacher_id] ?? 0))
+                            <td class="mk-text-cell" data-label="{{ __('lf.LF_course_cohort_teacher_sessions') }}" data-teacher-sessions>
+                                {{ trans_choice('lf.LF_course_cohort_teacher_sessions_value', $taught, ['count' => $taught]) }}
+                            </td>
+                            @if ($teacherCanEdit)
+                            <td class="ux-action-cell ui-cohort-roster-actions" data-label="{{ __('lf.table_actions') }}">
                                     <button type="button" class="ux-row-edit cursor-interaction" aria-haspopup="dialog"
                                             aria-label="{{ __('lf.LF_common_button_edit') }}: {{ $teacher->teacher_name }}"
                                             data-tooltip="{{ __('lf.LF_common_button_edit') }}"
@@ -159,17 +175,15 @@
                                             <x-backend-icon name="trash" class="ui-icon" />
                                         </button>
                                     </form>
-                                @else
-                                    <span class="ui-caption">{{ __('lf.LF_course_cohort_tab_read_only') }}</span>
-                                @endif
                             </td>
+                            @endif
                         </tr>
                         @if ($errors->has($removeErrorKey))
                             @php($blockedSessions = collect($errors->get($removeSessionErrorKey)))
                             <tr class="course-cohort-teacher-removal-error-row"
                                 data-for="cohort-teacher-row-{{ $teacher->id }}"
                                 x-data="{ visible: true, expanded: false }" x-show="visible">
-                                <td class="mk-text-cell" colspan="5">
+                                <td class="mk-text-cell" colspan="{{ $teacherColumns }}">
                                     <div class="course-cohort-teacher-removal-error" role="alert" aria-live="assertive">
                                         <span class="course-cohort-teacher-removal-error__icon" aria-hidden="true">!</span>
                                         <div class="course-cohort-teacher-removal-error__content">
@@ -208,7 +222,7 @@
                             </tr>
                         @endif
                     @empty
-                        <tr class="mk-empty-row"><td class="mk-empty" colspan="5"><div role="status"><strong>{{ __('lf.LF_course_cohort_teacher_empty') }}</strong></div></td></tr>
+                        <tr class="mk-empty-row"><td class="mk-empty" colspan="{{ $teacherColumns }}"><div role="status"><strong>{{ __('lf.LF_course_cohort_teacher_empty') }}</strong></div></td></tr>
                     @endforelse
                     </tbody>
                 </table>

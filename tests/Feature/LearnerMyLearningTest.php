@@ -607,7 +607,8 @@ class LearnerMyLearningTest extends TestCase
         $watched = $item($page());
         // The card follows playback live (MK "Đã nghe 25%"), then shows the completed label.
         $this->assertStringContainsString('x-show="cardPercent > 0" x-text="cardPercent + \'%\'" >25%</span>', $watched);
-        $this->assertStringContainsString('x-text="completed ? '.Js::from(__('lf.LF_my_learning_board_state_watched')).' : \'\'"', $watched);
+        $this->assertStringContainsString('x-text="stateLabel"', $watched);
+        $this->assertSame(['opened' => '', 'completed' => __('lf.LF_my_learning_board_state_watched')], $this->alpineConfig($watched, 'lfLearnerActivity')['labels']);
         $this->assertStringContainsString('>2026-07-10 09:02</time>', $watched);
         $this->assertStringContainsString('00:02:30', $watched);
 
@@ -621,8 +622,43 @@ class LearnerMyLearningTest extends TestCase
         };
         $this->assertMatchesRegularExpression('#x-show="! completed"\s+x-on:click="markDone\(\)"[^>]*data-learn-mark-done#', $manualItem());
         $this->actingAs($this->student)->postJson($this->progressUrl($enrollment, $manual), ['event' => 'completed'])->assertOk()
-            ->assertJsonPath('progress.status', 'completed');
+            ->assertJsonPath('progress.status', 'completed')->assertJsonPath('progress.lesson_completed', [$manual]);
         $this->assertMatchesRegularExpression('#x-show="! completed"\s+x-cloak\s+x-on:click="markDone\(\)"#', $manualItem());
+
+        // Completed on the page, it shows at once: the card says so, the other cards of the Activity and "Hoàn thành x/y"
+        // follow the page event (learner-lesson.js), from the ids the server counted.
+        $html = $page();
+        $card = $manualItem();
+        $this->assertStringContainsString('x-on:lf-learn-progress.window="syncProgress($event.detail)"', $card);
+        $this->assertStringContainsString('x-text="stateLabel"', $card);
+        $this->assertStringContainsString('>'.__('lf.LF_my_learning_board_state_opened').'</span>', $card);
+        $cardConfig = $this->alpineConfig($card, 'lfLearnerActivity');
+        $this->assertSame($manual, $cardConfig['activityId']);
+        $this->assertSame(array_fill_keys(['opened', 'completed'], __('lf.LF_my_learning_board_state_opened')), $cardConfig['labels']);
+
+        $start = strpos($html, 'data-learn-session-completion');
+        $this->assertNotFalse($start);
+        $line = substr($html, $start, strpos($html, '</div>', $start) - $start);
+        $this->assertStringContainsString('x-on:lf-learn-progress.window="record($event.detail)"', $line);
+        $this->assertStringContainsString('x-text="text"', $line);
+        $session = $this->alpineConfig($line, 'lfLearnerCompletion');
+        $this->assertSame([$live, $video, $manual], $session['required']);
+        $this->assertContains($manual, $session['done']);
+        $this->assertNotContains($video, $session['done']);
+        $this->assertSame(__('lf.LF_my_learning_board_lesson_progress'), $session['labels']['progress']);
+
+        $start = strpos($html, 'data-learn-class-completion');
+        $figure = substr($html, $start, strpos($html, '</div>', $start) - $start);
+        $this->assertStringContainsString('x-text="count + \'/\' + total"', $figure);
+        $this->assertSame([$live, $video, $manual], $this->alpineConfig($figure, 'lfLearnerCompletion')['required']);
+    }
+
+    /** The config an Alpine component of the page was given through `@js`. */
+    private function alpineConfig(string $html, string $component): array
+    {
+        $this->assertSame(1, preg_match('#'.$component."\\(JSON\\.parse\\('(.*?)'\\)\\)#", $html, $match));
+
+        return json_decode(json_decode('"'.$match[1].'"'), true, flags: JSON_THROW_ON_ERROR);
     }
 
     public function test_the_lesson_list_shows_each_lessons_played_share_and_quiz_like_mk(): void

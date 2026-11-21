@@ -236,11 +236,16 @@ class LiveClassWhiteboardTest extends TestCase
         $scheduled = $this->liveSession($setup, 'Scheduled', '2026-07-04 15:00:00', '2026-07-04 17:00:00', teacher: $setup['teacher']);
         $live = $this->liveSession($setup, 'Live', '2026-07-04 15:00:00', '2026-07-04 17:00:00', status: 'live', teacher: $setup['teacher']);
 
-        $this->actingAs($setup['teacher'])->get(self::HOST."/teacher/live-sessions/{$scheduled}/board")->assertForbidden();
+        // A board that is not open sends the page back to the list with the reason, not a bare 403.
+        $list = self::HOST.'/teacher/live-sessions';
+        $this->actingAs($setup['teacher'])->get(self::HOST."/teacher/live-sessions/{$scheduled}/board")
+            ->assertRedirect($list)->assertSessionHasErrors(['lifecycle' => __('lf.LF_liveclass_whiteboard_not_live')]);
         $this->actingAs($setup['teacher'])->get(self::HOST."/teacher/live-sessions/{$live}/board")->assertOk();
 
         DB::table('core_course_cohorts')->where('id', $setup['cohort'])->update(['status' => 'completed']);
-        $this->actingAs($setup['teacher'])->get(self::HOST."/teacher/live-sessions/{$live}/board")->assertForbidden();
+        $this->actingAs($setup['teacher'])->get(self::HOST."/teacher/live-sessions/{$live}/board")
+            ->assertRedirect($list)->assertSessionHasErrors(['lifecycle' => __('lf.LF_liveclass_whiteboard_ended')]);
+        // The board's own endpoints and channel stay 403.
         $this->actingAs($setup['teacher'])->get(self::HOST."/teacher/live-sessions/{$live}/board/materials")->assertForbidden();
     }
 
@@ -255,7 +260,11 @@ class LiveClassWhiteboardTest extends TestCase
         $row = DB::table('core_liveclass_sessions')->find($live);
         $this->assertSame('completed', $row->status);
         $this->assertNotNull($row->actual_end_at);
-        $this->actingAs($setup['teacher'])->get(self::HOST."/teacher/live-sessions/{$live}/board")->assertForbidden();
+        // A stale "Mở bảng" after the end says so on the list.
+        $this->actingAs($setup['teacher'])->get(self::HOST."/teacher/live-sessions/{$live}/board")
+            ->assertRedirect(route('teacher.live-sessions.index'))->assertSessionHasErrors(['lifecycle' => __('lf.LF_liveclass_whiteboard_ended')]);
+        $this->actingAs($setup['teacher'])->followingRedirects()->get(self::HOST."/teacher/live-sessions/{$live}/board")
+            ->assertOk()->assertSeeText(__('lf.LF_liveclass_whiteboard_ended'));
     }
 
     public function test_material_list_is_the_lessons_ready_in_class_media_in_cohort_order(): void
@@ -412,7 +421,9 @@ class LiveClassWhiteboardTest extends TestCase
         $this->assertSame([(string) $live], $found[1]);
 
         $this->actingAs($setup['admin'])->get(self::HOST."/admin/course-cohorts/{$setup['cohort']}/sessions/{$live}/board")->assertOk();
-        $this->actingAs($setup['admin'])->get(self::HOST."/admin/course-cohorts/{$setup['cohort']}/sessions/{$scheduled}/board")->assertForbidden();
+        $this->actingAs($setup['admin'])->get(self::HOST."/admin/course-cohorts/{$setup['cohort']}/sessions/{$scheduled}/board")
+            ->assertRedirect(route('admin.course-cohorts.show', ['id' => $setup['cohort'], 'tab' => 'sessions']))
+            ->assertSessionHasErrors(['lifecycle' => __('lf.LF_liveclass_whiteboard_not_live')]);
         $this->actingAs($setup['admin'])->getJson(self::HOST."/admin/course-cohorts/{$setup['cohort']}/sessions/{$live}/board/materials/{$setup['materials']['pdf']}/url")
             ->assertOk()->assertJsonStructure(['url']);
         // The Session must belong to the Cohort in the path.
@@ -492,16 +503,22 @@ class LiveClassWhiteboardTest extends TestCase
         $this->actingAs($student)->getJson("{$board}/state")->assertOk()->assertJsonPath('seq', 0);
 
         // Not live, not a member, no longer a member, Enrollment not active or outside its window.
-        $this->actingAs($student)->get(self::HOST."/my-courses/live-sessions/{$scheduled}/board")->assertForbidden();
+        // A board that is not open goes back to the class page, an inactive Enrollment to the classes tab; both say why.
+        $this->actingAs($student)->get(self::HOST."/my-courses/live-sessions/{$scheduled}/board")
+            ->assertRedirect(route('student.courses.classes.show', $setup['cohort']))
+            ->assertSessionHas('lf_learn_notice', __('lf.LF_liveclass_whiteboard_not_live'));
         $this->actingAs($this->user($setup['customer'], 'student'))->get($board)->assertNotFound();
         $membership = DB::table('core_course_cohort_students')->where('student_id', $student->id)->first();
         DB::table('core_course_enrollments')->where('id', $membership->enrollment_id)->update(['status' => 'suspended']);
-        $this->actingAs($student)->get($board)->assertForbidden();
+        $inactive = fn () => $this->actingAs($student)->get($board)
+            ->assertRedirect(route('student.courses.index', ['tab' => 'classes']))
+            ->assertSessionHas('lf_learn_notice', __('lf.LF_liveclass_attendance_entry_inactive'));
+        $inactive();
         $this->actingAs($student)->getJson("{$board}/status")->assertForbidden();
         DB::table('core_course_enrollments')->where('id', $membership->enrollment_id)->update([
             'status' => 'active', 'access_starts_at' => '2026-06-01 00:00:00', 'access_ends_at' => '2026-07-01 00:00:00',
         ]);
-        $this->actingAs($student)->get($board)->assertForbidden();
+        $inactive();
         DB::table('core_course_enrollments')->where('id', $membership->enrollment_id)->update(['access_starts_at' => null, 'access_ends_at' => null]);
         $this->actingAs($student)->get($board)->assertOk();
         DB::table('core_course_cohort_students')->where('id', $membership->id)->update(['left_at' => now()]);

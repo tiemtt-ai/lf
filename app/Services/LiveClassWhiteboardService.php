@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Exceptions\LiveClassBoardRefused;
 use App\Models\User;
 use App\Support\LiveClassBoardContext;
 use Carbon\CarbonImmutable;
@@ -195,7 +196,9 @@ class LiveClassWhiteboardService
         $session = $this->sessionQuery($customerId)->where('sessions.id', $sessionId)->first();
         $membership = $session ? $this->learnerMembership($customerId, $studentId, (int) $session->cohort_id) : null;
         abort_if(! $membership, 404);
-        abort_unless($this->learnerMayView($customerId, $membership), 403);
+        if (! $this->learnerMayView($customerId, $membership)) {
+            throw new LiveClassBoardRefused('inactive', (int) $session->cohort_id, __('lf.LF_liveclass_attendance_entry_inactive'));
+        }
 
         return $this->context($session, $studentId, 'student', canPresent: false);
     }
@@ -517,8 +520,12 @@ class LiveClassWhiteboardService
     {
         // A practice session has no board, for anyone (ADR-0022 Amendment 1.3, Đợt 4).
         abort_if(LiveClassPracticeSession::isType($session->lesson_type ?? null), 404);
-        abort_unless($session->cohort_status === 'active' && $session->status === 'live', 403,
-            __('lf.LF_liveclass_whiteboard_not_live'));
+        if ($session->cohort_status !== 'active' || $session->status !== 'live') {
+            // Not started yet, or no longer running (ended, cancelled, class closed): the board pages say which.
+            $notYet = $session->cohort_status === 'active' && $session->status === 'scheduled';
+            throw new LiveClassBoardRefused('closed', (int) $session->cohort_id,
+                __($notYet ? 'lf.LF_liveclass_whiteboard_not_live' : 'lf.LF_liveclass_whiteboard_ended'));
+        }
 
         try {
             $plannedEnd = CarbonImmutable::parse((string) $session->scheduled_end_at, $session->timezone)->utc();

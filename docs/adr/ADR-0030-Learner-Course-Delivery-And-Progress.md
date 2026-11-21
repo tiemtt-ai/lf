@@ -6,7 +6,7 @@ Status: Approved
 
 Implementation Status: Implemented
 
-Last Updated: 2026-11-19
+Last Updated: 2026-11-21
 
 Proposal Date: 2026-11-10
 
@@ -297,3 +297,21 @@ Owner duyệt 2026-11-10 ("Duyệt theo đề xuất"), chọn đúng các đề
 * Test: `tests/Feature/TenantWebsiteUiTest.php` (`test_students_mark_courses_quan_tam_without_enrolling`,
   `test_quan_tam_is_for_the_tenants_own_students_only`), `tests/Feature/LearnerMyLearningTest.php`;
   chạy cả trên MariaDB 11.4 tạm.
+
+# Implementation record — 2026-11-21 (trang lớp cập nhật tại chỗ)
+
+* Phản hồi của endpoint tiến độ có thêm `lesson_completed`: id các Activity của cùng Lesson mà
+  Enrollment đã hoàn thành (`CourseProgressRecorder::completedInLesson`, lọc theo `customer_id`
+  và `enrollment_id`). Hoàn thành một nội dung "Tính điểm danh" có thể hoàn thành luôn Activity
+  `live_class` của bài (ADR-0022 Amendment 1.3), nên trang cần biết cả những id đó.
+* Trang lớp (`tenant/my-learning/cohort.blade.php`): mọi thẻ đang mở, trừ Quiz và Link học, đổi
+  nhãn trạng thái ("Đã mở", "Đã xem", "Đã nghe") và dấu "✓ Đã hoàn thành" ngay khi máy chủ trả
+  lời. Trước đây chỉ thẻ video/audio làm vậy; tài liệu và link phải tải lại trang. "Hoàn thành x/y
+  nội dung bắt buộc" của từng buổi và ô "Tỷ lệ hoàn thành" đầu trang đếm theo cùng sự kiện, từ
+  danh sách id máy chủ đã đếm (`LearnerMyLearningService`: `completion_ids`).
+* `learner-lesson.js`: trạng thái chỉ đi lên (chưa học → đang học → hoàn thành), nên phản hồi đến
+  muộn không lùi lại. Mỗi thẻ báo sự kiện `lf-learn-progress`; các thẻ khác của cùng Activity (bài
+  dạy nhiều buổi) và các bộ đếm nghe sự kiện đó. Ô điểm danh của buổi (ví dụ "Vắng mặt" → "Học bù")
+  vẫn chỉ đổi khi tải lại trang.
+* Test: `tests/js/learner-lesson.test.mjs`, `LearnerMyLearningTest::test_the_class_video_popup_shows_its_resume_question_and_watched_share_like_mk`,
+  `LiveClassAttendanceCheckInTest::test_ticked_content_decides_attendance_and_make_up`.

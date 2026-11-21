@@ -1,12 +1,12 @@
 # LF-Core-LiveClass.md
 
-Version: 2.44
+Version: 2.45
 
 Document Status: Approved
 
 Implementation Status: Partial
 
-Last Updated: 2026-11-20
+Last Updated: 2026-11-21
 
 Document Path: core/LF-Core-LiveClass.md
 
@@ -1147,6 +1147,12 @@ quy tắc dựa vào loại buổi mà trung tâm đã đặt (Owner quyết 202
   báo lý do thay vì trang lỗi 403 (2026-11-19): ghi danh không còn hoạt động (tạm dừng, hết
   hạn, đã hủy) thì về "Lớp học của tôi" kèm dòng báo; buổi hay lớp không còn nhận vào thì về
   lại trang lớp kèm "Buổi học này không còn nhận vào lớp."
+* Mở link bảng điện tử khi bảng không mở (ví dụ "Xem bảng" / "Mở bảng" trên trang chưa tải lại)
+  cũng báo lý do thay vì trang 403 (2026-11-21): giáo viên về danh sách Buổi học trực tiếp, quản
+  trị về tab Buổi học của lớp, học viên về trang lớp, kèm "Buổi học không còn diễn ra. Bảng đã
+  đóng." hoặc "Bảng điện tử chỉ mở khi buổi học đang diễn ra." (buổi chưa bắt đầu); học viên có
+  ghi danh không còn hoạt động về "Lớp học của tôi" như trên. Các yêu cầu nền của bảng (tài liệu,
+  trạng thái, đồng bộ, kênh realtime) vẫn trả 403.
 * Bộ quy tắc đặt "giáo viên ghi tay" cho buổi tại lớp thì không có mã QR và không có nút.
 * Hệ thống không biết học viên có thật sự ở trong phòng học hay không. Quy tắc "một
   thiết bị một học viên" bên dưới hạn chế việc này.

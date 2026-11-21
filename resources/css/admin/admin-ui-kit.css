@@ -3167,6 +3167,11 @@
 .lf-admin-ui .ui-cohort-teacher-blocked { max-height: 120px; margin: 4px 0 0; padding-left: 18px; overflow-y: auto; list-style: disc; color: var(--ui-invalid); font-size: 13px; line-height: 20px; }
 .lf-admin-ui .ui-cohort-col-role { width: 170px; }
 .lf-admin-ui .ui-cohort-col-period { width: 200px; }
+.lf-admin-ui .ui-cohort-col-taught { width: 120px; }
+/* Phone: the assignment period takes a full card row (after role and sessions taught) so the date range stays on one line. */
+@media (max-width: 640px) {
+    .lf-admin-ui .mk-table-scroll > table > tbody > tr > td[data-teacher-period] { grid-column: 1 / -1; order: 1; }
+}
 .lf-admin-ui.ui-cohort .ui-summary-head p { margin: 2px 0 0; }
 .lf-admin-ui .bulk-enrollment-selector__list table { min-width: 0; }
 .lf-admin-ui .bulk-enrollment-selector__list td { height: auto; padding: 8px 10px; border-right: 0; }

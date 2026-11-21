@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\LiveClassBoardRefused;
 use App\Services\LiveClassAttendanceCheckIn;
 use App\Services\LiveClassWhiteboardLiveState;
 use App\Services\LiveClassWhiteboardService;
@@ -63,9 +64,14 @@ final class LiveClassWhiteboardController extends Controller
             ->with('success', __('lf.LF_liveclass_whiteboard_completed'));
     }
 
-    public function teacherBoard(Request $request, int $session): View
+    public function teacherBoard(Request $request, int $session): View|RedirectResponse
     {
-        $context = $this->whiteboards->teacherContext($this->customerId(), (int) $request->user()->id, $session);
+        try {
+            $context = $this->whiteboards->teacherContext($this->customerId(), (int) $request->user()->id, $session);
+        } catch (LiveClassBoardRefused $refused) {
+            // A stale "Mở bảng" (the Session ended or has not started): back to the list with the reason, not a bare 403.
+            return redirect()->route('teacher.live-sessions.index')->withErrors(['lifecycle' => $refused->getMessage()]);
+        }
 
         return $this->board($request, $context,
             route('teacher.live-sessions.index'),
@@ -89,9 +95,14 @@ final class LiveClassWhiteboardController extends Controller
         return $this->materialUrl($context, $activity);
     }
 
-    public function adminBoard(Request $request, int $cohort, int $session): View
+    public function adminBoard(Request $request, int $cohort, int $session): View|RedirectResponse
     {
-        $context = $this->whiteboards->adminContext($this->customerId(), (int) $request->user()->id, $cohort, $session);
+        try {
+            $context = $this->whiteboards->adminContext($this->customerId(), (int) $request->user()->id, $cohort, $session);
+        } catch (LiveClassBoardRefused $refused) {
+            return redirect()->route('admin.course-cohorts.show', ['id' => $cohort, 'tab' => 'sessions'])
+                ->withErrors(['lifecycle' => $refused->getMessage()]);
+        }
 
         return $this->board($request, $context,
             route('admin.course-cohorts.show', ['id' => $cohort, 'tab' => 'sessions']),
@@ -115,9 +126,18 @@ final class LiveClassWhiteboardController extends Controller
         return $this->materialUrl($context, $activity);
     }
 
-    public function studentBoard(Request $request, int $session): View
+    public function studentBoard(Request $request, int $session): View|RedirectResponse
     {
-        $context = $this->whiteboards->learnerContext($this->customerId(), (int) $request->user()->id, $session);
+        try {
+            $context = $this->whiteboards->learnerContext($this->customerId(), (int) $request->user()->id, $session);
+        } catch (LiveClassBoardRefused $refused) {
+            // Same as a refused entry (LiveClassAttendanceEntryController): an inactive Enrollment goes to the classes
+            // tab, a board that is not open goes back to the class page; both say why.
+            return ($refused->reason === 'inactive'
+                ? redirect()->route('student.courses.index', ['tab' => 'classes'])
+                : redirect()->route('student.courses.classes.show', $refused->cohortId))
+                ->with('lf_learn_notice', $refused->getMessage());
+        }
         $this->whiteboards->recordBoardEntry($context);
 
         return $this->board($request, $context,

@@ -51,6 +51,67 @@ export function playedPercent(played, duration, completed) {
     return Number(duration) > 0 ? Math.min(100, Math.floor((100 * (Number(played) || 0)) / Number(duration))) : 0;
 }
 
+const STATUS_RANK = { not_started: 0, in_progress: 1, completed: 2 };
+
+/** Activity Progress only moves forward (not started → in progress → completed), so a late answer never takes one back. */
+export function furtherStatus(current, next) {
+    return (STATUS_RANK[next] ?? -1) > (STATUS_RANK[current] ?? -1) ? next : current;
+}
+
+/** The window event every card of an Activity, and every count that includes it, follows on the class page. */
+export const PROGRESS_EVENT = 'lf-learn-progress';
+
+function announceProgress(activity, status) {
+    const target = globalThis.window;
+    if (activity && typeof target?.dispatchEvent === 'function' && typeof CustomEvent === 'function') {
+        target.dispatchEvent(new CustomEvent(PROGRESS_EVENT, { detail: { activity, status } }));
+    }
+}
+
+/**
+ * "Hoàn thành x/y nội dung bắt buộc" of a Session and the class "Tỷ lệ hoàn thành": the required Activities and those
+ * already completed come from the server; an Activity completed on the page counts at once.
+ */
+export function learnerCompletion(config) {
+    const required = (config.required ?? []).map(Number);
+
+    return {
+        done: (config.done ?? []).map(Number).filter((id) => required.includes(id)),
+
+        get count() {
+            return this.done.length;
+        },
+
+        get total() {
+            return required.length;
+        },
+
+        get finished() {
+            return this.total > 0 && this.count >= this.total;
+        },
+
+        get percent() {
+            return this.total > 0 ? Math.round((100 * this.count) / this.total) : 0;
+        },
+
+        /** The Session line: "✓ Đã hoàn thành buổi học" once all are done, else "Hoàn thành :done/:total …". */
+        get text() {
+            const labels = config.labels ?? {};
+
+            return this.finished
+                ? labels.done ?? ''
+                : String(labels.progress ?? '').replace(':done', String(this.count)).replace(':total', String(this.total));
+        },
+
+        record(detail) {
+            const activity = Number(detail?.activity);
+            if (detail?.status === 'completed' && required.includes(activity) && !this.done.includes(activity)) {
+                this.done = [...this.done, activity];
+            }
+        },
+    };
+}
+
 export function learnerActivity(config) {
     return {
         status: config.status,
@@ -71,6 +132,23 @@ export function learnerActivity(config) {
 
         get completed() {
             return this.status === 'completed';
+        },
+
+        /** The card's state ("Đã mở", "Đã xem", "Đã nghe"), as the server writes it for the same status. */
+        get stateLabel() {
+            const labels = config.labels ?? {};
+            if (this.completed) {
+                return labels.completed ?? '';
+            }
+
+            return this.status !== 'not_started' ? labels.opened ?? '' : '';
+        },
+
+        /** Another card of this Activity (a Lesson over several Sessions) recorded progress. */
+        syncProgress(detail) {
+            if (config.activityId && Number(detail?.activity) === Number(config.activityId)) {
+                this.status = furtherStatus(this.status, detail.status);
+            }
         },
 
         /** The Activity's duration, or the file's own once loaded when the course did not give one. */
@@ -151,8 +229,16 @@ export function learnerActivity(config) {
                 throw new Error(String(response.status));
             }
             const data = await response.json();
-            this.status = data.progress.status;
+            this.status = furtherStatus(this.status, data.progress.status);
             this.percentage = data.progress.percentage;
+            announceProgress(config.activityId, this.status);
+            // Content this one completed with it (attendance completes the Link học), counted as the server does.
+            const others = data.progress.status === 'completed' && Array.isArray(data.progress.lesson_completed) ? data.progress.lesson_completed : [];
+            for (const other of others) {
+                if (Number(other) !== Number(config.activityId)) {
+                    announceProgress(Number(other), 'completed');
+                }
+            }
 
             return data.progress;
         },

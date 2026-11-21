@@ -138,10 +138,11 @@
                 <span>{{ __('lf.LF_my_learning_board_attendance_rate') }}</span>
                 <small>@foreach ($class->attendance_counts as $state => $count){{ __('lf.LF_my_learning_board_count_'.$state) }} {{ $count }}@if (! $loop->last) · @endif @endforeach</small>
             </div>
-            <div class="classroom-summary__figure">
-                <strong>{{ $class->completion_rate === null ? '-' : $class->completion_rate.'%' }}</strong>
+            <div class="classroom-summary__figure" data-learn-class-completion
+                 @if ($class->completion_rate !== null) x-data="lfLearnerCompletion(@js($class->completion_ids))" x-on:lf-learn-progress.window="record($event.detail)" @endif>
+                <strong @if ($class->completion_rate !== null) x-text="percent + '%'" @endif>{{ $class->completion_rate === null ? '-' : $class->completion_rate.'%' }}</strong>
                 <span>{{ __('lf.LF_my_learning_board_completion_rate') }}</span>
-                <small>{{ $class->completion_done }}/{{ $class->completion_total }}</small>
+                <small @if ($class->completion_rate !== null) x-text="count + '/' + total" @endif>{{ $class->completion_done }}/{{ $class->completion_total }}</small>
             </div>
             <a class="classroom-summary__link" href="{{ route('student.courses.index', ['tab' => 'results', 'view' => 'classes']) }}">{{ __('lf.LF_my_learning_board_view_results') }} <span aria-hidden="true">→</span></a>
         </div>
@@ -268,10 +269,19 @@
                     <div id="lesson-content-{{ $session->id }}" class="lesson-collapsible-content">
                         <div class="lesson-learning-flow-board">
                             @if ($session->completion)
-                                @php $lessonDone = $session->completion['done'] >= $session->completion['total']; @endphp
-                                <div @class(['learning-board-progress', 'learning-board-progress--done' => $lessonDone])>
-                                    <span>{{ $lessonDone ? '✓ '.__('lf.LF_my_learning_board_lesson_done') : __('lf.LF_my_learning_board_lesson_progress', $session->completion) }}</span>
-                                    <span class="learning-board-progress__bar" aria-hidden="true"><span style="width: {{ (int) round($session->completion['done'] * 100 / $session->completion['total']) }}%"></span></span>
+                                @php
+                                    $lessonDone = $session->completion['done'] >= $session->completion['total'];
+                                    $completionConfig = $session->completion_ids + ['labels' => [
+                                        'done' => '✓ '.__('lf.LF_my_learning_board_lesson_done'),
+                                        'progress' => __('lf.LF_my_learning_board_lesson_progress'),
+                                    ]];
+                                @endphp
+                                {{-- Content completed on the page counts at once (learner-lesson.js `learnerCompletion`). --}}
+                                <div @class(['learning-board-progress', 'learning-board-progress--done' => $lessonDone]) data-learn-session-completion
+                                     x-data="lfLearnerCompletion(@js($completionConfig))" x-on:lf-learn-progress.window="record($event.detail)"
+                                     x-bind:class="{ 'learning-board-progress--done': finished }">
+                                    <span x-text="text">{{ $lessonDone ? '✓ '.__('lf.LF_my_learning_board_lesson_done') : __('lf.LF_my_learning_board_lesson_progress', $session->completion) }}</span>
+                                    <span class="learning-board-progress__bar" aria-hidden="true"><span style="width: {{ (int) round($session->completion['done'] * 100 / $session->completion['total']) }}%" x-bind:style="{ width: percent + '%' }"></span></span>
                                 </div>
                             @endif
                             @foreach ($phases as $phase => $items)
@@ -303,8 +313,21 @@
                                                 $locked = ! $isLiveClass && ! $activity->allowed;
                                                 // MK: an uploaded video or audio card follows playback live ("Đã nghe 25%", then "Đã nghe").
                                                 $liveCard = in_array($activity->activity_type, ['video', 'audio'], true) && ! $locked;
-                                                $doneLabel = __($activity->activity_type === 'audio' ? 'lf.LF_my_learning_board_state_listened' : 'lf.LF_my_learning_board_state_watched');
+                                                // Every open card but a Quiz (its attempts decide) shows its state as the page records it, and
+                                                // follows the other cards of the same Activity (a Lesson over several Sessions).
+                                                $tracked = ! $isLiveClass && ! $locked && $activity->activity_type !== 'quiz';
+                                                $stateLabels = [
+                                                    'opened' => in_array($activity->activity_type, ['document', 'external_link', 'embedded_video'], true) ? __('lf.LF_my_learning_board_state_opened') : '',
+                                                    'completed' => match ($activity->activity_type) {
+                                                        'audio' => __('lf.LF_my_learning_board_state_listened'),
+                                                        'video', 'embedded_video' => __('lf.LF_my_learning_board_state_watched'),
+                                                        'document', 'external_link' => __('lf.LF_my_learning_board_state_opened'),
+                                                        default => '',
+                                                    },
+                                                ];
                                                 $config = [
+                                                    'activityId' => (int) $activity->id,
+                                                    'labels' => $stateLabels,
                                                     'status' => $activity->progress_status,
                                                     'percentage' => $activity->progress,
                                                     'resumeAt' => $activity->resume_at,
@@ -321,12 +344,15 @@
                                             @endphp
                                             <div @class(['learning-board-item', 'learning-board-item--unopened' => $locked, 'learning-board-item--locked' => $locked])
                                                  data-learn-activity="{{ $activity->id }}" data-learn-activity-type="{{ $activity->activity_type }}"
-                                                 @unless ($isLiveClass || $locked) x-data="lfLearnerActivity(@js($config))" @endunless>
+                                                 @unless ($isLiveClass || $locked) x-data="lfLearnerActivity(@js($config))" @endunless
+                                                 @if ($tracked) x-on:lf-learn-progress.window="syncProgress($event.detail)" @endif>
                                                 <span class="learning-board-item__kind">
                                                     @include('tenant.my-learning.partials.board-icon', ['icon' => $kindIcon($activity)]){{ $kindLabel($activity, $session) }}
-                                                    @if ($liveCard)
-                                                        <span class="learning-board-item__progress" data-activity-state="progressing" x-show="cardPercent > 0" x-text="cardPercent + '%'" @if ($percent === 0) x-cloak @endif>{{ $percent > 0 ? $percent.'%' : '' }}</span>
-                                                        <span class="learning-board-item__activity" x-bind:data-activity-state="completed ? 'completed' : 'progressing'" x-text="completed ? @js($doneLabel) : ''" data-activity-state="{{ $done ? 'completed' : 'progressing' }}">{{ $state }}</span>
+                                                    @if ($tracked)
+                                                        @if ($liveCard)
+                                                            <span class="learning-board-item__progress" data-activity-state="progressing" x-show="cardPercent > 0" x-text="cardPercent + '%'" @if ($percent === 0) x-cloak @endif>{{ $percent > 0 ? $percent.'%' : '' }}</span>
+                                                        @endif
+                                                        <span class="learning-board-item__activity" x-bind:data-activity-state="completed ? 'completed' : 'progressing'" x-text="stateLabel" data-activity-state="{{ $done ? 'completed' : 'progressing' }}">{{ $state }}</span>
                                                     @else
                                                         @if ($percent > 0)<span class="learning-board-item__progress" data-activity-state="progressing">{{ $percent }}%</span>@endif
                                                         <span class="learning-board-item__activity" data-activity-state="{{ $done || $state === __('lf.LF_my_learning_board_state_joined') ? 'completed' : 'progressing' }}">{{ $state }}</span>
@@ -338,7 +364,7 @@
                                                         <span class="learning-board-item__rules">
                                                             @if ($activity->is_required)
                                                                 <span @class(['learning-board-item__rule', 'learning-board-item__rule--done' => $done])
-                                                                      @if ($liveCard) x-bind:class="{ 'learning-board-item__rule--done': completed }" x-text="completed ? @js('✓ '.__('lf.LF_my_learning_board_rule_done')) : @js(__('lf.LF_my_learning_activity_required'))" @endif>{{ $done ? '✓ '.__('lf.LF_my_learning_board_rule_done') : __('lf.LF_my_learning_activity_required') }}</span>
+                                                                      @if ($tracked) x-bind:class="{ 'learning-board-item__rule--done': completed }" x-text="completed ? @js('✓ '.__('lf.LF_my_learning_board_rule_done')) : @js(__('lf.LF_my_learning_activity_required'))" @endif>{{ $done ? '✓ '.__('lf.LF_my_learning_board_rule_done') : __('lf.LF_my_learning_activity_required') }}</span>
                                                             @endif
                                                             @if (($activity->counts_for_attendance && $phase !== 'before') || $isLiveClass)
                                                                 <span class="learning-board-item__rule learning-board-item__rule--attendance" data-learn-counts-attendance>{{ __('lf.LF_my_learning_board_rule_attendance') }}</span>

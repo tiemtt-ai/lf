@@ -285,6 +285,20 @@ class CourseProgressRecorder
         $this->attendanceContentChanged($customerId, $enrollmentId, $activity);
     }
 
+    /**
+     * The Activities of a progress row's Lesson this Enrollment has completed. Completing content may complete more of
+     * its Lesson (attendance completes the Link học, ADR-0022 Amendment 1.3), so the class page counts what this says.
+     *
+     * @return list<int>
+     */
+    public function completedInLesson(object $row): array
+    {
+        return DB::table('core_course_activity_progress')
+            ->where('customer_id', $row->customer_id)->where('enrollment_id', $row->enrollment_id)
+            ->where('version_lesson_id', $row->version_lesson_id)->where('status', 'completed')
+            ->orderBy('version_activity_id')->pluck('version_activity_id')->map(fn ($id): int => (int) $id)->all();
+    }
+
     /** Version Activity completion rule as the progress tables name it. */
     public static function progressRule(object $activity): string
     {

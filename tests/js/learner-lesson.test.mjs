@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { POSITION_EVERY_SECONDS, shouldReportPosition, resumePosition, learnerActivity, asksToResume, clock, playedPercent, stamp } from '../../resources/js/learner-lesson.js';
+import { POSITION_EVERY_SECONDS, shouldReportPosition, resumePosition, learnerActivity, learnerCompletion, furtherStatus, PROGRESS_EVENT, asksToResume, clock, playedPercent, stamp } from '../../resources/js/learner-lesson.js';
 
 // ADR-0030: the page only reports what happened; positions go at most every 15 s of playback,
 // a learner resumes where they stopped, and the server's answer is what the page shows.
@@ -206,4 +206,126 @@ test('the card share follows playback and gives way to the completed label (MK "
     assert.equal(activity.completed, true);
     assert.equal(activity.cardPercent, 0);
     assert.equal(activity.watchedPercent, 100);
+});
+
+// The class page: content completed there shows on its cards and in "Hoàn thành x/y" at once, without a reload.
+
+function withWindow() {
+    const events = [];
+    globalThis.window = { dispatchEvent: (event) => events.push(event) };
+
+    return events;
+}
+
+const deferred = () => {
+    let resolve;
+    const promise = new Promise((done) => { resolve = done; });
+
+    return { promise, resolve };
+};
+
+test('progress only moves forward, so a late answer never takes it back', async () => {
+    assert.equal(furtherStatus('not_started', 'in_progress'), 'in_progress');
+    assert.equal(furtherStatus('in_progress', 'completed'), 'completed');
+    assert.equal(furtherStatus('completed', 'in_progress'), 'completed');
+    assert.equal(furtherStatus('in_progress', 'unknown'), 'in_progress');
+
+    // "Mở nội dung" answered after "Đánh dấu đã học": the card stays completed.
+    const opened = deferred();
+    globalThis.fetch = async (url, options) => {
+        const { event } = JSON.parse(options.body);
+        if (event === 'opened') {
+            await opened.promise;
+
+            return { ok: true, json: async () => progress('in_progress', 0).json };
+        }
+
+        return { ok: true, json: async () => progress('completed', 100).json };
+    };
+    const activity = learnerActivity(config({ tracksPosition: false }));
+    const late = activity.send('opened');
+    await activity.markDone();
+    opened.resolve();
+    await late;
+    assert.equal(activity.completed, true);
+});
+
+test('a card says what the server recorded and tells the page, once it answers', async () => {
+    const events = withWindow();
+    withFetch(() => progress('completed', 100));
+    const labels = { opened: 'Đã mở', completed: 'Đã mở' };
+    const activity = learnerActivity(config({ tracksPosition: false, activityId: 235, labels }));
+    assert.equal(activity.stateLabel, '');
+    await activity.markDone();
+    assert.equal(activity.stateLabel, 'Đã mở');
+    assert.equal(events.length, 1);
+    assert.equal(events[0].type, PROGRESS_EVENT);
+    assert.deepEqual(events[0].detail, { activity: 235, status: 'completed' });
+
+    // Attendance completed the Link học with it: the page counts that too, and only on a completion.
+    events.length = 0;
+    withFetch(() => ({ json: { progress: { status: 'completed', percentage: 100, lesson_completed: [214, 217] } } }));
+    await learnerActivity(config({ tracksPosition: false, activityId: 217, labels })).send('opened');
+    assert.deepEqual(events.map((event) => event.detail), [{ activity: 217, status: 'completed' }, { activity: 214, status: 'completed' }]);
+    events.length = 0;
+    withFetch(() => ({ json: { progress: { status: 'in_progress', percentage: 10, lesson_completed: [214] } } }));
+    await learnerActivity(config({ activityId: 218, labels })).send('position', { position_seconds: 5 });
+    assert.deepEqual(events.map((event) => event.detail), [{ activity: 218, status: 'in_progress' }]);
+
+    // A refused event tells nothing.
+    events.length = 0;
+    withFetch(() => ({ ok: false, status: 403 }));
+    await learnerActivity(config({ tracksPosition: false, activityId: 236, labels })).markDone();
+    assert.equal(events.length, 0);
+    delete globalThis.window;
+
+    const opening = learnerActivity(config({ status: 'in_progress', labels: { opened: 'Đã mở', completed: 'Đã xem' } }));
+    assert.equal(opening.stateLabel, 'Đã mở');
+    const video = learnerActivity(config({ status: 'in_progress', labels: { opened: '', completed: 'Đã xem' } }));
+    assert.equal(video.stateLabel, '');
+});
+
+test('another card of the same Activity follows; other Activities and older states do not change it', () => {
+    const card = learnerActivity(config({ activityId: 235 }));
+    card.syncProgress({ activity: 999, status: 'completed' });
+    assert.equal(card.completed, false);
+    card.syncProgress({ activity: '235', status: 'completed' });
+    assert.equal(card.completed, true);
+    card.syncProgress({ activity: 235, status: 'in_progress' });
+    assert.equal(card.completed, true);
+    // The lesson page gives no id: it follows nothing.
+    const lesson = learnerActivity(config());
+    lesson.syncProgress({ activity: undefined, status: 'completed' });
+    assert.equal(lesson.completed, false);
+});
+
+test('"Hoàn thành x/y" counts a required Activity completed on the page once, and only a required one', () => {
+    const labels = { done: '✓ Đã hoàn thành buổi học', progress: 'Hoàn thành :done/:total nội dung bắt buộc' };
+    const session = learnerCompletion({ required: [235, 236], done: [], labels });
+    assert.equal(session.text, 'Hoàn thành 0/2 nội dung bắt buộc');
+    assert.equal(session.percent, 0);
+
+    session.record({ activity: 235, status: 'in_progress' });
+    session.record({ activity: 999, status: 'completed' });
+    assert.equal(session.count, 0);
+
+    session.record({ activity: 235, status: 'completed' });
+    session.record({ activity: '235', status: 'completed' });
+    assert.equal(session.text, 'Hoàn thành 1/2 nội dung bắt buộc');
+    assert.equal(session.percent, 50);
+    assert.equal(session.finished, false);
+
+    session.record({ activity: 236, status: 'completed' });
+    assert.equal(session.finished, true);
+    assert.equal(session.text, '✓ Đã hoàn thành buổi học');
+    assert.equal(session.percent, 100);
+
+    // The class figure: 19/34 → 20/34, 56% → 59%, as the server rounds it.
+    const required = Array.from({ length: 34 }, (_, i) => i + 1);
+    const figure = learnerCompletion({ required, done: required.slice(0, 19).concat([500]) });
+    assert.equal(figure.count, 19);
+    assert.equal(figure.percent, 56);
+    figure.record({ activity: 20, status: 'completed' });
+    assert.equal(`${figure.count}/${figure.total}`, '20/34');
+    assert.equal(figure.percent, 59);
 });

@@ -6,7 +6,7 @@ Document Status: Review
 
 Implementation Status: Implemented
 
-Last Updated: 2026-11-20
+Last Updated: 2026-11-21
 
 Document Path: quality/LF-LiveClass-Learning-Flow-Browser-QA.md
 
@@ -43,13 +43,17 @@ Cột "Test giữ" là test tự động bảo vệ kết quả; chạy lại te
 | A5 | Popup audio ở trang lớp, thẻ cập nhật khi đang nghe | Đạt (3% → 91% → "Đã nghe") | Thẻ đứng yên đến khi tải lại | như A4 và test JS |
 | A6 | Quay lại từ Quiz của lớp; trang khóa/bài học của ghi danh lớp | Đạt: về đúng buổi; `/my-courses/54…` chuyển về lớp 27 | Trang ẩn, luồng ẩn (ADR-0022 Amd 1.5, ADR-0032 Amd 1.2) | `CourseQuizActivityTest`, `test_a_class_course_follows_the_class_order_and_needs_the_class` |
 | A7 | Toàn bộ luồng học viên lớp: dò 50 link từ menu, 19 tệp, 4 Quiz, lớp 28 xem lại, 375px | Đạt | Quay lại sai buổi khi Quiz Trước/Sau ở bài nhiều buổi; nút "Làm lại" sai quy tắc; tràn ngang 375px | `test_a_lesson_over_several_sessions_shows_before_on_the_first_and_after_on_the_last`, `test_a_class_that_has_ended_is_review_only` |
+| A8 | Mở tài liệu ở tab mới (Chrome riêng, 21/11/2026) | Đạt: bấm "Mở nội dung" mở tab mới với tệp PDF qua link ký; `window.opener` rỗng; ghi `opened` 200 | — | `test_the_class_page_shows_when_each_scheduled_activity_opens` |
+| A9 | Toàn màn hình thật của popup video (Chrome riêng, 21/11/2026) | Đạt: nút toàn màn hình đưa khung phát (kèm hộp "Tiếp tục xem" và thanh tiến độ) lên toàn màn hình; phát được khi đang toàn màn hình; bấm lại thì thoát, popup vẫn mở | — | `test_the_class_video_popup_shows_its_resume_question_and_watched_share_like_mk` |
+| A10 | Nút "Đánh dấu đã học" (quy tắc `manual`; demo không có nên tạm đổi nội dung 235, đã trả lại) và thẻ cập nhật tại chỗ | Đạt sau sửa: bấm → nút ẩn, thẻ "Đã mở · ✓ Đã hoàn thành", buổi 0/4 → 1/4 (thanh 25%), đầu trang 19/34 → 20/34, 56% → 59%. Mở "Bài tập về nhà: Mua sắm" (học bù): thẻ hoàn thành, buổi "✓ Đã hoàn thành buổi học" vì Link học hoàn thành theo; tải lại thì số khớp, ô điểm danh mới đổi sang "Học bù" | Thẻ tài liệu/link và các bộ đếm chỉ đổi khi tải lại (sửa 21/11, ADR-0030 Implementation record 2026-11-21) | `LearnerMyLearningTest::test_the_class_video_popup_shows_its_resume_question_and_watched_share_like_mk`, `LiveClassAttendanceCheckInTest::test_ticked_content_decides_attendance_and_make_up`, `tests/js/learner-lesson.test.mjs` |
 
 ### B. Giáo viên
 
 | # | Luồng | Kết quả | Lỗi đã sửa | Test giữ |
 |---|---|---|---|---|
-| B1 | Các tab lớp 27, Kết quả & Chấm bài, Buổi học trực tiếp, điểm danh tay, 375px | Đạt; không bấm "Nhận chấm" | Popup Lịch học trỏ về `/admin` (403); nhãn "Hoạt động / Theo lớp" bị cắt ở 700–1000px | `CourseCohortManagementTest` (popup lịch ở khu giáo viên) |
+| B1 | Các tab lớp 27, Kết quả & Chấm bài, Buổi học trực tiếp, điểm danh tay, 375px | Đạt; "Nhận chấm" thử ở B3 | Popup Lịch học trỏ về `/admin` (403); nhãn "Hoạt động / Theo lớp" bị cắt ở 700–1000px | `CourseCohortManagementTest` (popup lịch ở khu giáo viên) |
 | B2 | Nút "Bắt đầu buổi học" (Chrome) | Đạt: bảng mở cửa sổ mới, đồng bộ, QR, 3 tài liệu, PDF 54 trang | — | `LiveClassWhiteboardTest::test_teacher_starts_their_session_on_its_day_and_lands_on_the_board` |
+| B3 | "Nhận chấm" và chấm tay (bài 22 Viết – nộp tệp, lớp 27; Chrome riêng, 21/11/2026) | Đạt: "Bạn đã nhận chấm bài này.", cột người chấm "Bạn · Đang chấm", dòng chỉ còn "Chấm bài"; câu 1 theo rubric 3/2/2 + nhận xét → 7/15 "Tạm tính, còn câu chờ chấm"; câu 2 → 11/15 Đạt, "Đã chấm xong". Học viên thấy điểm từng tiêu chí và nhận xét; Quiz trên trang lớp "✓ Đã hoàn thành", buổi 9 thành "Đã hoàn thành buổi học" | — | `AssessmentGraderAssignmentTest::test_teachers_claim_and_release_attempts` |
 
 ### C. Hai vai giáo viên và học viên
 
@@ -66,6 +70,7 @@ Cột "Test giữ" là test tự động bảo vệ kết quả; chạy lại te
 | C10 | Buổi trực tuyến: phòng họp và bảng điện tử (buổi tạm 15, Google Meet) | Đạt, xem ghi chú dưới bảng | — | `LiveClassAttendanceCheckInTest::test_join_meeting_records_the_entry_before_the_teacher_starts_and_then_opens_the_meeting`, `LiveClassWhiteboardTest::test_every_way_out_of_live_ends_the_board_and_clears_its_state` |
 | C9 | Chuyển lớp (lớp đích tạm, quản trị dùng popup thật) | Đạt sau sửa: lịch sử chuyển, lớp cũ 404, roster hai lớp đúng | Ngày vào lớp giữ ngày lớp cũ nên buổi trước đó của lớp mới bị tự ghi vắng | `CourseCohortStudentManagementTest::test_a_transfer_that_keeps_the_old_join_date_joins_the_new_class_now` |
 | C11 | Buổi Tại lớp + từ xa có mã QR (20/11/2026, buổi tạm cho Bài 9, ba vai trên Chrome riêng) | Đạt: quản trị xếp buổi bằng popup Sửa bài học; "Bắt đầu được từ 09:50" rồi bắt đầu; bảng chiếu PDF 16 trang; QR 0/3 → quét → "Có mặt" 09:51 → bảng 1/3 kèm tên; học viên có Tôi ở lớp / Tôi học từ xa, bảng học viên theo đúng trang; "Kết thúc được từ 10:05" rồi kết thúc; chuyên cần 60% → 64%. Chưa bấm Vào phòng họp | — | `LiveClassAttendanceCheckInTest`, `LiveClassWhiteboardTest` |
+| C12 | Bấm "Vào phòng họp" bằng chuột (buổi tạm trực tuyến Bài 9, Chrome riêng, 21/11/2026) | Đạt: form POST mở tab mới tới Google Meet, `window.opener` rỗng; trang lớp "✓ Có mặt · Vào lớp lúc 11:15 · Trực tuyến", "Đã vào phòng họp lúc 11:15". Link demo nên Meet báo không vào được cuộc gọi | — | `test_join_meeting_records_the_entry_before_the_teacher_starts_and_then_opens_the_meeting` |
 
 Sau khi sửa C9, thử lại hai vai có lưu thật (lớp đích tạm 29: buổi 15/11 đã học, buổi 21/11 sắp
 tới; quản trị chọn lớp trong popup, ghi lý do, xác nhận):
@@ -96,6 +101,30 @@ C10, buổi trực tuyến (giáo viên Chrome, học viên trong app):
   biến nó thành GET (405). Phía học viên đã gửi đúng POST đó từ trang, không mở Google Meet. Trình
   duyệt thật mở tab mới bình thường.
 
+C11 (bổ sung 21/11/2026), người ở xa trong buổi kết hợp: buổi tạm 17 "Bài 3" (Tại lớp + từ xa,
+Google Meet). Chrome riêng không dùng được (chrome-devtools báo "Target closed"), trình duyệt app
+đang đăng nhập quản trị của người khác, nên học viên và giáo viên đi bằng HTTP (mỗi vai một cookie,
+gửi đúng form trên trang); quản trị xem trong app.
+
+* Trước khi giáo viên bắt đầu, trang lớp có "Tôi ở lớp / Tôi học từ xa" và form "Vào phòng họp".
+  Gửi form → 302 sang link Meet; ghi "Có mặt · Trực tuyến · 10:50" (Quiz "Tính điểm danh" đã nộp từ
+  trước).
+* Giáo viên bắt đầu lúc 10:51 (sau khi học viên vào): vẫn "Có mặt", không thành muộn. Bảng có cả mã
+  QR lẫn "Vào phòng họp"; bộ đếm 1/3 tính cả người từ xa.
+* Tab Điểm danh của quản trị: "Vào lớp trực tuyến lúc 10:50 · Có mặt · Trực tuyến".
+* Kết thúc buổi: trang lớp "Đã kết thúc", hết form "Vào phòng họp".
+* Vào phòng họp cũng hoàn thành nội dung "Học tại lớp" của bài, nên tiến độ bài và khóa của học viên
+  đổi theo (đã trả lại khi dọn dữ liệu).
+* Lỗi tìm thấy, đã sửa 21/11 (Owner "Fix it"): mở lại link bảng sau khi buổi kết thúc (ví dụ "Xem
+  bảng" trên trang lớp chưa tải lại) từng ra trang "403 Không có quyền truy cập" trống, cùng loại
+  với C7. Giờ giáo viên về Buổi học trực tiếp, quản trị về tab Buổi học, học viên về trang lớp, kèm
+  "Buổi học không còn diễn ra. Bảng đã đóng." (buổi chưa bắt đầu: "Bảng điện tử chỉ mở khi buổi học
+  đang diễn ra."). Đã thử với buổi 111: quản trị trong app (thấy dòng báo đỏ ở tab Buổi học), giáo
+  viên và học viên bằng HTTP; yêu cầu nền của bảng vẫn 403. Test
+  `LiveClassWhiteboardTest::test_board_opens_only_while_the_session_is_live_in_an_active_cohort`,
+  `test_teacher_completes_a_live_session_and_the_board_closes`,
+  `test_learner_views_the_board_only_with_an_active_membership_and_enrollment`.
+
 ## Quyết định của Owner (không mở lại)
 
 * Trang điểm danh giáo viên chỉ liệt kê buổi đã đến giờ bắt đầu, dù học viên bấm "Điểm danh"
@@ -115,16 +144,21 @@ C10, buổi trực tuyến (giáo viên Chrome, học viên trong app):
 * Giáo viên bắt đầu được buổi bất kỳ lúc nào trong ngày dự kiến, kể cả sau giờ kết thúc.
 * `liveclass:mark-absent --customer=1` chạy cho cả tenant: khi thử, nó cũng ghi vắng học viên
   khác ở buổi Owner đang thử. Dọn cùng lúc trả dữ liệu.
+* Ô điểm danh của buổi (ví dụ "Vắng mặt" → "Học bù" sau khi mở nội dung học bù) chỉ đổi khi tải
+  lại trang; thẻ và bộ đếm "Hoàn thành x/y" đổi ngay.
+* Quiz `submit` đã nộp nhưng chờ chấm: điểm danh tính ngay khi nộp, còn "Hoàn thành x/y nội dung bắt
+  buộc" chỉ tính khi chấm xong, nên buổi có thể "✓ Có mặt" mà vẫn "1/2" (ADR-0022, MK 3.3).
 
 ## Khi nào phải thử lại
 
 Chỉ thử lại luồng tương ứng khi sửa vào:
 
 * `LearnerMyLearningService`, `tenant/my-learning/*`, `student-site.css`, `class-detail.css`,
-  `learner-lesson.js` → A1–A7, C5, C6.
+  `learner-lesson.js`, `CourseProgressRecorder` → A1–A10, C5, C6.
 * `LiveClassAttendanceCheckIn`, `LiveClassAttendanceRecorder`, `liveclass-attendance/*`,
   `LiveClassAttendanceEntryController` → C1–C8.
-* `LiveClassWhiteboardService`, `liveclass-whiteboard/*`, `live-session-actions.blade.php` → B2, C1, C7, C10.
+* `LiveClassWhiteboardService`, `LiveClassWhiteboardController`, `liveclass-whiteboard/*`,
+  `live-session-actions.blade.php` → B2, C1, C7, C10, C11.
 * `CourseCohortStudentController`, `membership-edit-dialog.blade.php`,
   `CourseCohortMembershipHistory` → C9.
 * `course-cohort-schedules/partials/*`, `admin-ui-kit.css` → B1.
@@ -133,9 +167,7 @@ Còn lại: chạy các bộ test ở cột "Test giữ" là đủ.
 
 ## Chưa thử trên trình duyệt
 
-* Buổi kết hợp (Tại lớp + từ xa): người ở xa bấm Vào phòng họp (phần QR và bảng đã thử ở C11); vào phòng họp thật trên Google Meet.
-* Mở tài liệu ở tab mới: trình duyệt app chặn tab mới, chỉ thấy đường dự phòng.
-* Nút "Đánh dấu hoàn thành" trên bảng nội dung của buổi: demo không có nội dung loại này.
-* Toàn màn hình thật của popup video.
-* Nút "Nhận chấm" và chấm bài thật của giáo viên.
+* Vào phòng họp Google Meet thật (link họp thật, tài khoản Google); tab mới đã thử ở C12.
+* Thoát toàn màn hình bằng phím Esc thật: công cụ gửi Esc thẳng vào trang nên popup đóng mà
+  trình duyệt chưa thoát toàn màn hình; Esc thật do trình duyệt xử lý trước.
 * Safari và thiết bị thật; micro thật.

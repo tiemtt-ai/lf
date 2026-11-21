@@ -6,7 +6,7 @@ import { courseTemplateOrder, courseTemplateRefreshOutline } from './course-temp
 import './ai-authoring';
 import { installDialogInitialFocus } from './dialog-initial-focus';
 import { clearAllBoards } from './liveclass-whiteboard/board-storage';
-import { learnerActivity } from './learner-lesson';
+import { learnerActivity, learnerCompletion } from './learner-lesson';
 import { installStudentSite } from './student-site';
 
 installDialogInitialFocus(window.HTMLDialogElement);
@@ -23,6 +23,7 @@ document.addEventListener('submit', (event) => {
 
 window.Alpine = Alpine;
 window.lfLearnerActivity = learnerActivity;
+window.lfLearnerCompletion = learnerCompletion;
 
 window.tenantRegistrationForm = (initialSlug = '') => ({
     slug: initialSlug,

@@ -579,6 +579,53 @@ class CourseCohortManagementTest extends TestCase
             ->assertDontSeeText(__('lf.LF_common_button_save_changes'));
     }
 
+    public function test_teacher_tab_counts_completed_sessions_and_drops_actions_on_a_closed_class(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $teacher = $this->createUser($customerId, 'teacher');
+        $assistant = $this->createUser($customerId, 'teacher');
+        $versionId = $this->createVersion($customerId, $admin->id, 'Teacher Tab Version');
+        $cohortId = $this->createCohortWithOperatingPeriod($customerId);
+        DB::table('core_course_cohorts')->where('id', $cohortId)->update(['version_id' => $versionId]);
+        $assign = fn (object $user, string $role, ?string $from, ?string $to) => DB::table('core_course_cohort_teachers')->insert([
+            'customer_id' => $customerId, 'cohort_id' => $cohortId, 'teacher_id' => $user->id, 'role' => $role,
+            'status' => 'active', 'assigned_from' => $from, 'assigned_to' => $to,
+            'created_by' => $admin->id, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $assign($teacher, 'teacher', '2026-08-03', null);
+        $assign($assistant, 'assistant', null, null);
+        foreach (['completed' => 1, 'cancelled' => 2, 'scheduled' => 3] as $status => $no) {
+            $sessionId = DB::table('core_liveclass_sessions')->insertGetId([
+                'customer_id' => $customerId, 'cohort_id' => $cohortId,
+                'template_version_id' => $versionId, 'session_type' => 'operational',
+                'title' => 'Session '.$no, 'session_no' => $no, 'delivery_mode' => 'online',
+                'scheduled_start_at' => "2026-08-1{$no} 19:00:00", 'scheduled_end_at' => "2026-08-1{$no} 21:00:00",
+                'timezone' => 'Asia/Ho_Chi_Minh', 'status' => $status,
+                'created_by' => $admin->id, 'created_at' => now(), 'updated_at' => now(),
+            ]);
+            DB::table('core_liveclass_session_teachers')->insert([
+                'customer_id' => $customerId, 'session_id' => $sessionId, 'teacher_id' => $teacher->id, 'role' => 'teacher',
+                'created_by' => $admin->id, 'created_at' => now(), 'updated_at' => now(),
+            ]);
+        }
+        $tab = "https://tenant-a.localhost/admin/course-cohorts/{$cohortId}?tab=teachers";
+
+        // Only the completed Session counts; an open end and an unlimited period read in words.
+        $this->actingAs($admin)->get($tab)->assertOk()
+            ->assertSeeText(__('lf.LF_course_cohort_teacher_help'))
+            ->assertSeeText(__('lf.LF_course_cohort_teacher_period_to_end'))
+            ->assertSeeText(__('lf.LF_course_cohort_teacher_period_class'))
+            ->assertSeeText(trans_choice('lf.LF_course_cohort_teacher_sessions_value', 1, ['count' => 1]))
+            ->assertSee('cohort-teacher-edit-', false);
+
+        // A closed class is view only: its own description, no action column.
+        DB::table('core_course_cohorts')->where('id', $cohortId)->update(['status' => 'completed']);
+        $this->actingAs($admin)->get($tab)->assertOk()
+            ->assertSeeText(__('lf.LF_course_cohort_teacher_help_closed'))
+            ->assertDontSee('cohort-teacher-edit-', false);
+    }
+
     public function test_edit_action_lives_on_the_overview_tab_only(): void
     {
         $customerId = $this->createTenant();
