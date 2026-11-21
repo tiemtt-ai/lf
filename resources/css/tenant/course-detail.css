@@ -562,7 +562,8 @@
 .lf-cd-modal__close:hover,
 .lf-cd-modal__close:focus-visible { background: #dfeafa; color: #4157c8; }
 
-.lf-cd-modal__body { flex: 1; min-height: 0; overflow-y: auto; }
+/* `auto`, not `1` (a 0% basis): Safari gives the body no height in a dialog without a definite height, so the stage vanished. */
+.lf-cd-modal__body { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 
 .lf-cd-modal__stage {
     display: flex;

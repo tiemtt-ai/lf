@@ -51,6 +51,29 @@ export function playedPercent(played, duration, completed) {
     return Number(duration) > 0 ? Math.min(100, Math.floor((100 * (Number(played) || 0)) / Number(duration))) : 0;
 }
 
+/**
+ * Full screen for the player frame. Safari on iPhone has no full screen for page elements, only for the video itself
+ * (its own player); a video without a loaded source cannot go full screen there yet. Whether it went is returned.
+ */
+export function enterFullscreen(target, video) {
+    const request = target?.requestFullscreen ?? target?.webkitRequestFullscreen;
+    if (typeof request === 'function') {
+        Promise.resolve(request.call(target)).catch(() => {});
+
+        return true;
+    }
+    if (typeof video?.webkitEnterFullscreen !== 'function') {
+        return false;
+    }
+    try {
+        video.webkitEnterFullscreen();
+
+        return true;
+    } catch {
+        return false;
+    }
+}
+
 const STATUS_RANK = { not_started: 0, in_progress: 1, completed: 2 };
 
 /** Activity Progress only moves forward (not started → in progress → completed), so a late answer never takes one back. */
@@ -214,8 +237,7 @@ export function learnerActivity(config) {
 
                 return;
             }
-            const target = this.$refs.screen ?? this.$refs.player;
-            (target.requestFullscreen ?? target.webkitRequestFullscreen)?.call(target);
+            enterFullscreen(this.$refs.screen ?? this.$refs.player, this.$refs.player);
         },
 
         async send(event, extra = {}) {

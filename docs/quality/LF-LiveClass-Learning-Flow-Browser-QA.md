@@ -14,7 +14,7 @@ Document Path: quality/LF-LiveClass-Learning-Flow-Browser-QA.md
 
 ## Mục đích
 
-Ghi lại các luồng đã thử thật trên trình duyệt ngày 2026-11-19 và 2026-11-20, kết quả, lỗi đã sửa, test giữ
+Ghi lại các luồng đã thử thật trên trình duyệt ngày 2026-11-19 đến 2026-11-21, kết quả, lỗi đã sửa, test giữ
 kết quả và quyết định của Owner. Luồng nào đã có ở đây thì **không thử lại**, trừ khi sửa vào
 phần code ở mục "Khi nào phải thử lại". Thời gian review dành cho phần chưa thử (mục cuối).
 
@@ -46,6 +46,7 @@ Cột "Test giữ" là test tự động bảo vệ kết quả; chạy lại te
 | A8 | Mở tài liệu ở tab mới (Chrome riêng, 21/11/2026) | Đạt: bấm "Mở nội dung" mở tab mới với tệp PDF qua link ký; `window.opener` rỗng; ghi `opened` 200 | — | `test_the_class_page_shows_when_each_scheduled_activity_opens` |
 | A9 | Toàn màn hình thật của popup video (Chrome riêng, 21/11/2026) | Đạt: nút toàn màn hình đưa khung phát (kèm hộp "Tiếp tục xem" và thanh tiến độ) lên toàn màn hình; phát được khi đang toàn màn hình; bấm lại thì thoát, popup vẫn mở | — | `test_the_class_video_popup_shows_its_resume_question_and_watched_share_like_mk` |
 | A10 | Nút "Đánh dấu đã học" (quy tắc `manual`; demo không có nên tạm đổi nội dung 235, đã trả lại) và thẻ cập nhật tại chỗ | Đạt sau sửa: bấm → nút ẩn, thẻ "Đã mở · ✓ Đã hoàn thành", buổi 0/4 → 1/4 (thanh 25%), đầu trang 19/34 → 20/34, 56% → 59%. Mở "Bài tập về nhà: Mua sắm" (học bù): thẻ hoàn thành, buổi "✓ Đã hoàn thành buổi học" vì Link học hoàn thành theo; tải lại thì số khớp, ô điểm danh mới đổi sang "Học bù" | Thẻ tài liệu/link và các bộ đếm chỉ đổi khi tải lại (sửa 21/11, ADR-0030 Implementation record 2026-11-21) | `LearnerMyLearningTest::test_the_class_video_popup_shows_its_resume_question_and_watched_share_like_mk`, `LiveClassAttendanceCheckInTest::test_ticked_content_decides_attendance_and_make_up`, `tests/js/learner-lesson.test.mjs` |
+| A11 | Học viên trên Safari iPhone 16 Pro giả lập (iOS 18.4, 21/11/2026): đăng nhập, trang lớp 27, popup video, tài liệu, popup audio, nội dung học bù; popup video của khóa tự học (ghi danh 59) | Đạt sau sửa: "Tiếp tục xem" phát trong popup; tài liệu mở tab mới; audio phát; mở "Mua sắm" (buổi 4) thì thẻ hoàn thành, buổi 1/3 → "✓ Đã hoàn thành buổi học" không tải lại. Nút toàn màn hình ở cả hai popup đưa video vào trình phát toàn màn hình của iOS; vuốt xuống thoát thì về popup, video dừng (iOS tự dừng) | Nút toàn màn hình không làm gì (iPhone chỉ cho video vào toàn màn hình); popup khóa tự học không hiện khung phát và hộp "Tiếp tục xem" dù video vẫn chạy (phần thân `flex: 1` bị Safari tính cao 0). Sửa 21/11, ADR-0030 Implementation record 2026-11-21 | `tests/js/learner-lesson.test.mjs` (full screen …), như A4 |
 
 ### B. Giáo viên
 
@@ -71,6 +72,7 @@ Cột "Test giữ" là test tự động bảo vệ kết quả; chạy lại te
 | C9 | Chuyển lớp (lớp đích tạm, quản trị dùng popup thật) | Đạt sau sửa: lịch sử chuyển, lớp cũ 404, roster hai lớp đúng | Ngày vào lớp giữ ngày lớp cũ nên buổi trước đó của lớp mới bị tự ghi vắng | `CourseCohortStudentManagementTest::test_a_transfer_that_keeps_the_old_join_date_joins_the_new_class_now` |
 | C11 | Buổi Tại lớp + từ xa có mã QR (20/11/2026, buổi tạm cho Bài 9, ba vai trên Chrome riêng) | Đạt: quản trị xếp buổi bằng popup Sửa bài học; "Bắt đầu được từ 09:50" rồi bắt đầu; bảng chiếu PDF 16 trang; QR 0/3 → quét → "Có mặt" 09:51 → bảng 1/3 kèm tên; học viên có Tôi ở lớp / Tôi học từ xa, bảng học viên theo đúng trang; "Kết thúc được từ 10:05" rồi kết thúc; chuyên cần 60% → 64%. Chưa bấm Vào phòng họp | — | `LiveClassAttendanceCheckInTest`, `LiveClassWhiteboardTest` |
 | C12 | Bấm "Vào phòng họp" bằng chuột (buổi tạm trực tuyến Bài 9, Chrome riêng, 21/11/2026) | Đạt: form POST mở tab mới tới Google Meet, `window.opener` rỗng; trang lớp "✓ Có mặt · Vào lớp lúc 11:15 · Trực tuyến", "Đã vào phòng họp lúc 11:15". Link demo nên Meet báo không vào được cuộc gọi | — | `test_join_meeting_records_the_entry_before_the_teacher_starts_and_then_opens_the_meeting` |
+| C13 | "Vào phòng họp" trên Safari iPhone giả lập (buổi tạm trực tuyến Bài 9, 21/11/2026) | Đạt: mở tab Google Meet mới, trang lớp còn nguyên ở tab cũ; ghi "Có mặt · Trực tuyến" 11:38. Link demo nên Meet báo sai mã họp | — | như C12 |
 
 Sau khi sửa C9, thử lại hai vai có lưu thật (lớp đích tạm 29: buổi 15/11 đã học, buổi 21/11 sắp
 tới; quản trị chọn lớp trong popup, ghi lý do, xác nhận):
@@ -154,7 +156,7 @@ gửi đúng form trên trang); quản trị xem trong app.
 Chỉ thử lại luồng tương ứng khi sửa vào:
 
 * `LearnerMyLearningService`, `tenant/my-learning/*`, `student-site.css`, `class-detail.css`,
-  `learner-lesson.js`, `CourseProgressRecorder` → A1–A10, C5, C6.
+  `learner-lesson.js`, `CourseProgressRecorder`, `course-detail.css` → A1–A11, C5, C6.
 * `LiveClassAttendanceCheckIn`, `LiveClassAttendanceRecorder`, `liveclass-attendance/*`,
   `LiveClassAttendanceEntryController` → C1–C8.
 * `LiveClassWhiteboardService`, `LiveClassWhiteboardController`, `liveclass-whiteboard/*`,
@@ -167,7 +169,7 @@ Còn lại: chạy các bộ test ở cột "Test giữ" là đủ.
 
 ## Chưa thử trên trình duyệt
 
-* Vào phòng họp Google Meet thật (link họp thật, tài khoản Google); tab mới đã thử ở C12.
+* Vào phòng họp Google Meet thật (link họp thật, tài khoản Google); tab mới đã thử ở C12, C13.
 * Thoát toàn màn hình bằng phím Esc thật: công cụ gửi Esc thẳng vào trang nên popup đóng mà
   trình duyệt chưa thoát toàn màn hình; Esc thật do trình duyệt xử lý trước.
-* Safari và thiết bị thật; micro thật.
+* Safari trên Mac; iPhone/iPad thật (A11, C13 chỉ trên máy giả lập); micro thật.

@@ -483,7 +483,7 @@
             if (document.fullscreenElement) { document.exitFullscreen?.(); return; }
             const media = player();
             const target = media && media.tagName !== 'AUDIO' && media.offsetParent ? media : stage;
-            (target.requestFullscreen ?? target.webkitRequestFullscreen)?.call(target);
+            window.lfEnterFullscreen?.(target, media?.tagName === 'VIDEO' ? media : null);
         });
 
         // After learning, the figures and the lesson rows are read again; the page itself stays.

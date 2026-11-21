@@ -313,5 +313,10 @@ Owner duyệt 2026-11-10 ("Duyệt theo đề xuất"), chọn đúng các đề
   muộn không lùi lại. Mỗi thẻ báo sự kiện `lf-learn-progress`; các thẻ khác của cùng Activity (bài
   dạy nhiều buổi) và các bộ đếm nghe sự kiện đó. Ô điểm danh của buổi (ví dụ "Vắng mặt" → "Học bù")
   vẫn chỉ đổi khi tải lại trang.
+* Safari trên iPhone không cho phần tử thường của trang vào toàn màn hình, chỉ cho chính video (trình
+  phát của iOS). Nút toàn màn hình của popup video ở trang lớp và trang khóa tự học dùng
+  `enterFullscreen` (`learner-lesson.js`): khung phát nếu trình duyệt cho, không thì video
+  (`webkitEnterFullscreen`); video chưa nạp thì không làm gì. Popup khóa tự học từng mất khung phát
+  trên Safari vì phần thân `flex: 1` (cơ sở 0%) bị tính cao 0; nay là `flex: 1 1 auto`.
 * Test: `tests/js/learner-lesson.test.mjs`, `LearnerMyLearningTest::test_the_class_video_popup_shows_its_resume_question_and_watched_share_like_mk`,
   `LiveClassAttendanceCheckInTest::test_ticked_content_decides_attendance_and_make_up`.

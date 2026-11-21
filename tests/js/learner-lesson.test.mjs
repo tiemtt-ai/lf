@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { POSITION_EVERY_SECONDS, shouldReportPosition, resumePosition, learnerActivity, learnerCompletion, furtherStatus, PROGRESS_EVENT, asksToResume, clock, playedPercent, stamp } from '../../resources/js/learner-lesson.js';
+import { enterFullscreen, POSITION_EVERY_SECONDS, shouldReportPosition, resumePosition, learnerActivity, learnerCompletion, furtherStatus, PROGRESS_EVENT, asksToResume, clock, playedPercent, stamp } from '../../resources/js/learner-lesson.js';
 
 // ADR-0030: the page only reports what happened; positions go at most every 15 s of playback,
 // a learner resumes where they stopped, and the server's answer is what the page shows.
@@ -328,4 +328,28 @@ test('"Hoàn thành x/y" counts a required Activity completed on the page once, 
     figure.record({ activity: 20, status: 'completed' });
     assert.equal(`${figure.count}/${figure.total}`, '20/34');
     assert.equal(figure.percent, 59);
+});
+
+test('full screen takes the player frame, or only the video where the browser allows no more (Safari on iPhone)', async () => {
+    const calls = [];
+    const frame = { requestFullscreen() { calls.push('frame'); return Promise.reject(new Error('denied')); } };
+    const video = { webkitEnterFullscreen() { calls.push('video'); } };
+    assert.equal(enterFullscreen(frame, video), true);
+    const prefixed = { webkitRequestFullscreen() { calls.push('prefixed'); } };
+    assert.equal(enterFullscreen(prefixed, video), true);
+    assert.equal(enterFullscreen({}, video), true);
+    assert.deepEqual(calls, ['frame', 'prefixed', 'video']);
+
+    // A video without a loaded source refuses on iPhone; nothing else can go full screen.
+    const empty = { webkitEnterFullscreen() { throw new Error('InvalidStateError'); } };
+    assert.equal(enterFullscreen({}, empty), false);
+    assert.equal(enterFullscreen({}, null), false);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    globalThis.document = { fullscreenElement: null };
+    const popup = learnerActivity(config());
+    popup.$refs = { screen: {}, player: video };
+    popup.toggleFullscreen();
+    assert.deepEqual(calls, ['frame', 'prefixed', 'video', 'video']);
+    delete globalThis.document;
 });
