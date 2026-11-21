@@ -875,8 +875,9 @@ Quy tắc:
 * Chi tiết lớp theo bố cục MK Live (2026-11-19): đầu trang có tiến độ hiện tại (buổi đã
   điểm danh / tổng buổi) và tiến độ khuyến nghị theo ngày, thẻ buổi sắp tới / đang diễn ra,
   tóm tắt tỷ lệ có mặt và tỷ lệ hoàn thành nội dung bắt buộc. "Lịch học theo tuần" liệt kê
-  mọi Session; mỗi buổi có kết quả điểm danh, đếm ngược đến giờ vào học và bảng nội dung
-  Trước / Trong / Sau buổi học (nội dung `anytime` nằm ở Trong). Nội dung mở ngay trên trang
+  mọi Session; mỗi buổi có kết quả điểm danh, nhãn giờ vào học (đúng ngày học, từ 00:00 theo
+  múi giờ của buổi, đếm ngược "Vào học sau: hh:mm:ss"; trước đó ghi "Ngày mai" hoặc "Còn N ngày"
+  theo ngày lịch) và bảng nội dung Trước / Trong / Sau buổi học (nội dung `anytime` nằm ở Trong). Nội dung mở ngay trên trang
   (âm thanh, video, video nhúng, tài liệu, liên kết, Quiz) theo VersionActivityAccessService;
   buổi đang diễn ra có nút vào lớp, bảng và phòng họp như khối "Buổi học đang diễn ra".
   Bài học dạy qua nhiều buổi: phần Trước chỉ hiện ở buổi đầu, phần Sau chỉ ở buổi cuối, phần

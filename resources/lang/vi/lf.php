@@ -5350,6 +5350,8 @@ return [
     'LF_my_learning_board_conditions' => 'Điều kiện điểm danh',
     'LF_my_learning_board_conditions_hint' => 'Hoàn thành các nội dung sau để được tính điểm danh (phần Sau buổi học dùng để học bù).',
     'LF_my_learning_board_countdown' => '⏳ Vào học sau: :time',
+    'LF_my_learning_board_tomorrow' => '⏳ Ngày mai',
+    'LF_my_learning_board_in_days' => '⏳ Còn :days ngày',
     'LF_my_learning_board_lesson_done' => 'Đã hoàn thành buổi học',
     'LF_my_learning_board_lesson_progress' => 'Hoàn thành :done/:total nội dung bắt buộc',
     'LF_my_learning_board_phase_before' => 'Trước buổi học',

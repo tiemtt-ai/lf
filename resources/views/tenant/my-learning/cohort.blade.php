@@ -251,9 +251,24 @@
                                     <div class="lesson-live-guidance__heading"><strong>{{ __('lf.LF_my_learning_session_status_live') }}</strong></div>
                                 </div>
                             @elseif ($upcoming && $chipClass === null)
+                                @php
+                                    // On its own day, from 00:00 where it is held, the time left; before that the calendar days, so it
+                                    // agrees with the date beside it. resources/js/learner-session-countdown.js keeps it current.
+                                    $dayStart = $session->starts_at->copy()->startOfDay()->getTimestamp();
+                                    $daysAhead = (int) ceil(($dayStart - $now->getTimestamp()) / 86400);
+                                    $left = max(0, $session->starts_at->getTimestamp() - $now->getTimestamp());
+                                    $countdownText = match (true) {
+                                        $daysAhead <= 0 => __('lf.LF_my_learning_board_countdown', ['time' => sprintf('%02d:%02d:%02d', intdiv($left, 3600), intdiv($left, 60) % 60, $left % 60)]),
+                                        $daysAhead === 1 => __('lf.LF_my_learning_board_tomorrow'),
+                                        default => __('lf.LF_my_learning_board_in_days', ['days' => $daysAhead]),
+                                    };
+                                @endphp
                                 <button type="button" class="week-enter-btn locked js-lesson-countdown" disabled data-learn-countdown="{{ $session->starts_at->getTimestamp() }}"
-                                        data-countdown-label="{{ __('lf.LF_my_learning_board_countdown', ['time' => '__TIME__']) }}">
-                                    <span class="lesson-countdown-label">{{ __('lf.LF_my_learning_board_countdown', ['time' => '--:--:--']) }}</span>
+                                        data-learn-countdown-day="{{ $dayStart }}"
+                                        data-countdown-label="{{ __('lf.LF_my_learning_board_countdown', ['time' => '__TIME__']) }}"
+                                        data-countdown-tomorrow="{{ __('lf.LF_my_learning_board_tomorrow') }}"
+                                        data-countdown-days="{{ __('lf.LF_my_learning_board_in_days', ['days' => '__DAYS__']) }}">
+                                    <span class="lesson-countdown-label">{{ $countdownText }}</span>
                                 </button>
                             @elseif ($chipClass !== null)
                                 <span class="week-status-chip {{ $chipClass }}" data-learn-attendance="{{ $outside ?? ($attendance ?? 'none') }}" @if ($session->attendance_pending ?? false) data-learn-attendance-pending @endif>{{ $chipText }}</span>
@@ -555,20 +570,6 @@
                 if (body) body.hidden = ! open;
             });
         });
-
-        // "Vào học sau: hh:mm:ss" until a Session starts.
-        const pad = (n) => String(n).padStart(2, '0');
-        const countdowns = [...page.querySelectorAll('[data-learn-countdown]')];
-        const tick = () => {
-            const now = Math.floor(Date.now() / 1000);
-            countdowns.forEach((button) => {
-                const left = Math.max(0, Number(button.dataset.learnCountdown) - now);
-                const days = Math.floor(left / 86400);
-                const time = (days > 0 ? days + 'd ' : '') + [Math.floor(left % 86400 / 3600), Math.floor(left % 3600 / 60), left % 60].map(pad).join(':');
-                button.querySelector('.lesson-countdown-label').textContent = button.dataset.countdownLabel.replace('__TIME__', time);
-            });
-        };
-        if (countdowns.length) { tick(); window.setInterval(tick, 1000); }
 
         // The Sessions to act on now change on the server (entry opens, the teacher starts, the Session ends): ask once a
         // minute while the tab is visible and reload when the answer changes, unless something is playing or open.

@@ -859,6 +859,15 @@ class LearnerMyLearningTest extends TestCase
 
         // Inside the window: the countdown and the way in are there, no notice.
         $this->assertStringContainsString('data-learn-countdown="', $page());
+        // On its own day, from 00:00, it counts down; before that it says the calendar days (resources/js/learner-session-countdown.js).
+        $label = fn (): string => (preg_match('#<span class="lesson-countdown-label">([^<]*)</span>#', $page(), $match) ? html_entity_decode($match[1]) : '');
+        $this->assertSame(__('lf.LF_my_learning_board_in_days', ['days' => 3]), $label());
+        Carbon::setTestNow('2026-07-12 23:59:00');
+        $this->assertSame(__('lf.LF_my_learning_board_tomorrow'), $label());
+        Carbon::setTestNow('2026-07-13 00:00:00');
+        $this->assertSame(__('lf.LF_my_learning_board_countdown', ['time' => '19:00:00']), $label());
+        $this->assertStringContainsString('data-learn-countdown-day="'.Carbon::parse('2026-07-13 00:00:00')->getTimestamp().'"', $page());
+        Carbon::setTestNow('2026-07-10 09:00:00');
         $this->assertStringNotContainsString('data-learn-access-hold', $page());
         $this->assertStringContainsString('btn-live-class', $list());
 

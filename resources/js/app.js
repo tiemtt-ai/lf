@@ -8,11 +8,13 @@ import { installDialogInitialFocus } from './dialog-initial-focus';
 import { clearAllBoards } from './liveclass-whiteboard/board-storage';
 import { installCoursePopup } from './learner-course-popup';
 import { learnerActivity, learnerCompletion } from './learner-lesson';
+import { installSessionCountdowns } from './learner-session-countdown';
 import { installStudentSite } from './student-site';
 
 installDialogInitialFocus(window.HTMLDialogElement);
 installStudentSite(document);
 installCoursePopup(document, window);
+installSessionCountdowns(document, window);
 
 // A classroom touch screen is shared: logging out clears every Whiteboard kept in
 // this browser (ADR-0002 § LiveClass Whiteboard Amendment).

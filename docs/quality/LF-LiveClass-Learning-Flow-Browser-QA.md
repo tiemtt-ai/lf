@@ -157,7 +157,7 @@ gửi đúng form trên trang); quản trị xem trong app.
 Chỉ thử lại luồng tương ứng khi sửa vào:
 
 * `LearnerMyLearningService`, `tenant/my-learning/*`, `student-site.css`, `class-detail.css`,
-  `learner-lesson.js`, `learner-course-popup.js`, `CourseProgressRecorder`, `course-detail.css` → A1–A12, C5, C6.
+  `learner-lesson.js`, `learner-course-popup.js`, `learner-session-countdown.js`, `CourseProgressRecorder`, `course-detail.css` → A1–A12, C5, C6.
 * `LiveClassAttendanceCheckIn`, `LiveClassAttendanceRecorder`, `liveclass-attendance/*`,
   `LiveClassAttendanceEntryController` → C1–C8.
 * `LiveClassWhiteboardService`, `LiveClassWhiteboardController`, `liveclass-whiteboard/*`,

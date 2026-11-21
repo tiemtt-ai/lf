@@ -5350,6 +5350,8 @@ return [
     'LF_my_learning_board_conditions' => 'Attendance conditions',
     'LF_my_learning_board_conditions_hint' => 'Complete these contents to be counted present (the after-class part counts as make-up).',
     'LF_my_learning_board_countdown' => '⏳ Starts in: :time',
+    'LF_my_learning_board_tomorrow' => '⏳ Tomorrow',
+    'LF_my_learning_board_in_days' => '⏳ In :days days',
     'LF_my_learning_board_lesson_done' => 'Session completed',
     'LF_my_learning_board_lesson_progress' => ':done/:total required contents completed',
     'LF_my_learning_board_phase_before' => 'Before class',
