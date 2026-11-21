@@ -623,6 +623,18 @@ class LearnerMyLearningTest extends TestCase
         $this->assertMatchesRegularExpression('#x-show="! completed"\s+x-on:click="markDone\(\)"[^>]*data-learn-mark-done#', $manualItem());
         $this->actingAs($this->student)->postJson($this->progressUrl($enrollment, $manual), ['event' => 'completed'])->assertOk()
             ->assertJsonPath('progress.status', 'completed')->assertJsonPath('progress.lesson_completed', [$manual]);
+        // Only completed content looks up what completed with it: the heartbeat of a video still being watched costs no
+        // query. Done content answers each time, so a completing answer lost on the way is made good by the next one.
+        $lookups = 0;
+        DB::listen(function ($query) use (&$lookups): void {
+            $lookups += str_contains($query->sql, 'from "core_course_activity_progress"')
+                && str_ends_with($query->sql, 'order by "version_activity_id" asc') ? 1 : 0;
+        });
+        $this->actingAs($this->student)->postJson($this->progressUrl($enrollment, $video), ['event' => 'position', 'position_seconds' => 160])->assertOk()
+            ->assertJsonPath('progress.status', 'in_progress')->assertJsonPath('progress.lesson_completed', []);
+        $this->actingAs($this->student)->postJson($this->progressUrl($enrollment, $manual), ['event' => 'completed'])->assertOk()
+            ->assertJsonPath('progress.status', 'completed')->assertJsonPath('progress.lesson_completed', [$manual]);
+        $this->assertSame(1, $lookups);
         $this->assertMatchesRegularExpression('#x-show="! completed"\s+x-cloak\s+x-on:click="markDone\(\)"#', $manualItem());
 
         // Completed on the page, it shows at once: the card says so, the other cards of the Activity and "Hoàn thành x/y"
@@ -635,6 +647,15 @@ class LearnerMyLearningTest extends TestCase
         $cardConfig = $this->alpineConfig($card, 'lfLearnerActivity');
         $this->assertSame($manual, $cardConfig['activityId']);
         $this->assertSame(array_fill_keys(['opened', 'completed'], __('lf.LF_my_learning_board_state_opened')), $cardConfig['labels']);
+
+        // The Link học has no player, yet attendance completes it with other content (`lesson_completed`): its "Bắt buộc"
+        // follows the same event, so it never says "Bắt buộc" beside a Session line that says it is done.
+        $start = strpos($html, 'data-learn-activity="'.$live.'"');
+        $this->assertNotFalse($start);
+        $liveCard = substr($html, $start, strpos($html, 'learning-board-item ', $start + 1) - $start);
+        $this->assertStringContainsString('x-on:lf-learn-progress.window="syncProgress($event.detail)"', $liveCard);
+        $this->assertSame(['activityId' => $live, 'status' => 'not_started'], $this->alpineConfig($liveCard, 'lfLearnerActivity'));
+        $this->assertMatchesRegularExpression('#x-bind:class="\{ \'learning-board-item__rule--done\': completed \}"#', $liveCard);
 
         $start = strpos($html, 'data-learn-session-completion');
         $this->assertNotFalse($start);
@@ -708,6 +729,11 @@ class LearnerMyLearningTest extends TestCase
         $this->assertStringContainsString('data-learn-modal-resume hidden', $html);
         $this->assertStringContainsString(__('lf.LF_my_learning_detail_resume_question'), $html);
         $this->assertStringContainsString('data-learn-modal-resume-continue>'.__('lf.LF_my_learning_detail_continue').'</button>', $html);
+        // resources/js/learner-course-popup.js runs the popup (tests/js/learner-course-popup.test.mjs); the page gives
+        // it the words it shows while a lesson loads or fails.
+        $this->assertStringContainsString('data-learn-message-loading="'.e(__('lf.LF_my_learning_detail_loading')).'"', $html);
+        $this->assertStringContainsString('data-learn-message-failed="'.e(__('lf.LF_my_learning_activity_failed')).'"', $html);
+        $this->assertStringNotContainsString("fullscreen.addEventListener('click',", $html);
         $this->assertMatchesRegularExpression('#data-learn-ratio="watch">\s*<span>'.preg_quote(__('lf.LF_my_learning_detail_watch_ratio')).'</span>\s*<progress value="12"#', $html);
         $this->assertStringContainsString('0/'.__('lf.LF_my_learning_detail_lessons_unit', ['count' => 3]), $html);
 

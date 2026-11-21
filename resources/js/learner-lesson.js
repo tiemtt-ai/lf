@@ -53,25 +53,72 @@ export function playedPercent(played, duration, completed) {
 
 /**
  * Full screen for the player frame. Safari on iPhone has no full screen for page elements, only for the video itself
- * (its own player); a video without a loaded source cannot go full screen there yet. Whether it went is returned.
+ * (its own player); a video without a loaded source cannot go full screen there yet. A browser that has the call but
+ * refuses the frame (a WebView, a permission policy) gets the video instead; one that says up front it has no full
+ * screen for page elements (an app's WebView) goes to the video during the tap itself, so a video not loaded yet
+ * answers no and the button can play it first. Whether it went, or was asked, is returned.
  */
-export function enterFullscreen(target, video) {
-    const request = target?.requestFullscreen ?? target?.webkitRequestFullscreen;
-    if (typeof request === 'function') {
-        Promise.resolve(request.call(target)).catch(() => {});
+export function enterFullscreen(target, video, doc = globalThis.document) {
+    const toVideo = () => {
+        if (typeof video?.webkitEnterFullscreen !== 'function') {
+            return false;
+        }
+        try {
+            video.webkitEnterFullscreen();
 
-        return true;
-    }
-    if (typeof video?.webkitEnterFullscreen !== 'function') {
-        return false;
+            return true;
+        } catch {
+            return false;
+        }
+    };
+    const request = target?.requestFullscreen ?? target?.webkitRequestFullscreen;
+    if (typeof request !== 'function' || !fullscreenAllowed(doc)) {
+        return toVideo();
     }
     try {
-        video.webkitEnterFullscreen();
+        Promise.resolve(request.call(target)).catch(toVideo);
 
         return true;
     } catch {
+        return toVideo();
+    }
+}
+
+/**
+ * Whether the button can do anything: the frame where the page may go full screen, else the video itself (Safari on
+ * iPhone). An embedded YouTube/Vimeo player there has neither; its own control does it.
+ */
+export function canEnterFullscreen(target, video, doc = document) {
+    const request = target?.requestFullscreen ?? target?.webkitRequestFullscreen;
+
+    return (fullscreenAllowed(doc) && typeof request === 'function') || typeof video?.webkitEnterFullscreen === 'function';
+}
+
+/** Whether the page may put its elements in full screen; a browser that does not say is taken at its word later. */
+function fullscreenAllowed(doc) {
+    return (doc?.fullscreenEnabled ?? doc?.webkitFullscreenEnabled ?? true) !== false;
+}
+
+/** The element in full screen; Safari before 16.4 (older iPads) only has the prefixed names. */
+export function fullscreenElement(doc = document) {
+    return doc.fullscreenElement ?? doc.webkitFullscreenElement ?? null;
+}
+
+/** Leaves full screen if the page is in it, and says whether it was. */
+export function leaveFullscreen(doc = document) {
+    if (! fullscreenElement(doc)) {
         return false;
     }
+    const exit = doc.exitFullscreen ?? doc.webkitExitFullscreen;
+    if (typeof exit === 'function') {
+        try {
+            Promise.resolve(exit.call(doc)).catch(() => {});
+        } catch {
+            // Already left.
+        }
+    }
+
+    return true;
 }
 
 const STATUS_RANK = { not_started: 0, in_progress: 1, completed: 2 };
@@ -232,12 +279,34 @@ export function learnerActivity(config) {
         },
 
         toggleFullscreen() {
-            if (document.fullscreenElement) {
-                document.exitFullscreen?.();
-
+            if (leaveFullscreen()) {
                 return;
             }
-            enterFullscreen(this.$refs.screen ?? this.$refs.player, this.$refs.player);
+            if (!enterFullscreen(this.$refs.screen ?? this.$refs.player, this.$refs.player)) {
+                this.playFullscreen();
+            }
+        },
+
+        /**
+         * Safari on iPhone: a video without its source cannot go full screen yet, so the button plays it (as "Tiếp tục
+         * xem") and goes full screen once it has loaded. Whether it started is returned.
+         */
+        playFullscreen() {
+            const player = this.$refs.player;
+            if (this.started || this.busy || player?.tagName !== 'VIDEO') {
+                return false;
+            }
+            this.asking = false;
+            const enter = () => enterFullscreen(null, player);
+            player.addEventListener('loadedmetadata', enter, { once: true });
+            // A start that failed (the link, the network) leaves nothing behind: the next play is not taken full screen.
+            this.play().then(() => {
+                if (!this.started) {
+                    player.removeEventListener('loadedmetadata', enter);
+                }
+            });
+
+            return true;
         },
 
         async send(event, extra = {}) {

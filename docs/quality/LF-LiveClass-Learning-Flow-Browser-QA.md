@@ -36,7 +36,7 @@ Cột "Test giữ" là test tự động bảo vệ kết quả; chạy lại te
 
 | # | Luồng | Kết quả | Lỗi đã sửa | Test giữ |
 |---|---|---|---|---|
-| A1 | Thẻ bài và popup "Vào học" của khóa tự học (theo MK 537), 1280px và 390px | Đạt | Bố cục thẻ, tiến độ từng bài và cả khóa | `LearnerMyLearningTest::test_the_lesson_list_shows_each_lessons_played_share_and_quiz_like_mk` |
+| A1 | Thẻ bài và popup "Vào học" của khóa tự học (theo MK 537), 1280px và 390px | Đạt. Thử lại khuya 21/11 sau khi chuyển script popup sang `learner-course-popup.js` (trình duyệt của app, ghi danh 59): trang không còn script inline; Bài 1 hỏi "Tiếp tục xem" 00:00:44, "Tiếp tục xem" chạy từ 00:45, chân popup đổi giờ mở và tiến độ; nút toàn màn hình gọi toàn màn hình cho video; đóng thì khung phát trống và trang đọc lại số liệu; ô tìm "hội thoại" còn 1/5 bài. Dữ liệu tiến độ ghi ra đã trả lại từ bản sao lưu | Bố cục thẻ, tiến độ từng bài và cả khóa | `LearnerMyLearningTest::test_the_lesson_list_shows_each_lessons_played_share_and_quiz_like_mk`, `tests/js/learner-course-popup.test.mjs` |
 | A2 | Hộp "Tiếp tục xem / Xem từ đầu" của khóa tự học | Đạt | Chuyển bài trước/sau làm mất vị trí đã dừng | như A1 |
 | A3 | Trang chi tiết lớp 27 so với MK Live 442 | Đạt, không sửa code | — | `test_the_class_page_shows_when_each_scheduled_activity_opens` |
 | A4 | Popup video ở trang lớp | Đạt; toàn màn hình chỉ kiểm phần tử, trình duyệt app không vào toàn màn hình thật | Lỗi 500 dòng "Buổi học trực tiếp"; % thẻ và popup lệch 1 | `test_the_class_video_popup_shows_its_resume_question_and_watched_share_like_mk` |
@@ -46,7 +46,8 @@ Cột "Test giữ" là test tự động bảo vệ kết quả; chạy lại te
 | A8 | Mở tài liệu ở tab mới (Chrome riêng, 21/11/2026) | Đạt: bấm "Mở nội dung" mở tab mới với tệp PDF qua link ký; `window.opener` rỗng; ghi `opened` 200 | — | `test_the_class_page_shows_when_each_scheduled_activity_opens` |
 | A9 | Toàn màn hình thật của popup video (Chrome riêng, 21/11/2026) | Đạt: nút toàn màn hình đưa khung phát (kèm hộp "Tiếp tục xem" và thanh tiến độ) lên toàn màn hình; phát được khi đang toàn màn hình; bấm lại thì thoát, popup vẫn mở | — | `test_the_class_video_popup_shows_its_resume_question_and_watched_share_like_mk` |
 | A10 | Nút "Đánh dấu đã học" (quy tắc `manual`; demo không có nên tạm đổi nội dung 235, đã trả lại) và thẻ cập nhật tại chỗ | Đạt sau sửa: bấm → nút ẩn, thẻ "Đã mở · ✓ Đã hoàn thành", buổi 0/4 → 1/4 (thanh 25%), đầu trang 19/34 → 20/34, 56% → 59%. Mở "Bài tập về nhà: Mua sắm" (học bù): thẻ hoàn thành, buổi "✓ Đã hoàn thành buổi học" vì Link học hoàn thành theo; tải lại thì số khớp, ô điểm danh mới đổi sang "Học bù" | Thẻ tài liệu/link và các bộ đếm chỉ đổi khi tải lại (sửa 21/11, ADR-0030 Implementation record 2026-11-21) | `LearnerMyLearningTest::test_the_class_video_popup_shows_its_resume_question_and_watched_share_like_mk`, `LiveClassAttendanceCheckInTest::test_ticked_content_decides_attendance_and_make_up`, `tests/js/learner-lesson.test.mjs` |
-| A11 | Học viên trên Safari iPhone 16 Pro giả lập (iOS 18.4, 21/11/2026): đăng nhập, trang lớp 27, popup video, tài liệu, popup audio, nội dung học bù; popup video của khóa tự học (ghi danh 59) | Đạt sau sửa: "Tiếp tục xem" phát trong popup; tài liệu mở tab mới; audio phát; mở "Mua sắm" (buổi 4) thì thẻ hoàn thành, buổi 1/3 → "✓ Đã hoàn thành buổi học" không tải lại. Nút toàn màn hình ở cả hai popup đưa video vào trình phát toàn màn hình của iOS; vuốt xuống thoát thì về popup, video dừng (iOS tự dừng) | Nút toàn màn hình không làm gì (iPhone chỉ cho video vào toàn màn hình); popup khóa tự học không hiện khung phát và hộp "Tiếp tục xem" dù video vẫn chạy (phần thân `flex: 1` bị Safari tính cao 0). Sửa 21/11, ADR-0030 Implementation record 2026-11-21 | `tests/js/learner-lesson.test.mjs` (full screen …), như A4 |
+| A11 | Học viên trên Safari iPhone 16 Pro giả lập (iOS 18.4, 21/11/2026): đăng nhập, trang lớp 27, popup video, tài liệu, popup audio, nội dung học bù; popup video của khóa tự học (ghi danh 59) | Đạt sau sửa: "Tiếp tục xem" phát trong popup; tài liệu mở tab mới; audio phát; mở "Mua sắm" (buổi 4) thì thẻ hoàn thành, buổi 1/3 → "✓ Đã hoàn thành buổi học" không tải lại. Nút toàn màn hình ở cả hai popup đưa video vào trình phát toàn màn hình của iOS; vuốt xuống thoát thì về popup, video dừng (iOS tự dừng). Thử lại 21/11 sau sửa: đang hỏi "Tiếp tục xem" (lớp 27 buổi 5 "Chữa đề giữa khóa"; khóa 59 Bài 1) mà bấm toàn màn hình thì video phát tiếp từ vị trí đã lưu và vào toàn màn hình ngay lần bấm đầu; ở popup khóa tự học, nút mờ với bài audio (Bài 2, Bài 4), sáng với bài video. Thử lại tối 21/11 sau sửa `playFullscreen` (gỡ chờ toàn màn hình khi phát lỗi): khóa 59 Bài 1 đang hỏi "Tiếp tục xem" 00:00:44, bấm toàn màn hình thì vào trình phát iOS ngay và chạy tiếp từ 00:44; vuốt xuống về popup; Bài 2 (audio) nút mờ; trang lớp 27 buổi 7 video tải lên vào toàn màn hình, thoát về popup. Thử lại khuya 21/11 sau sửa hộp hỏi ẩn khi phát và `fullscreenEnabled`: khóa 59 Bài 1 đang hỏi 00:00:44, bấm toàn màn hình thì hộp hỏi ẩn, vào trình phát iOS, chạy tiếp từ 00:44; vuốt xuống về popup, không còn hộp hỏi; Bài 2 nút mờ; lớp 27 buổi 7 vào trình phát iOS, vuốt xuống về popup. Dữ liệu tiến độ ghi ra khi thử đã trả lại từ bản sao lưu | Nút toàn màn hình không làm gì (iPhone chỉ cho video vào toàn màn hình); popup khóa tự học không hiện khung phát và hộp "Tiếp tục xem" dù video vẫn chạy (phần thân `flex: 1` bị Safari tính cao 0). Sửa 21/11, ADR-0030 Implementation record 2026-11-21 | `tests/js/learner-lesson.test.mjs` (full screen …), `tests/js/learner-course-popup.test.mjs`, như A4 |
+| A12 | Học viên trên Safari iPad (A16) giả lập (iOS 18.4, 21/11/2026): trang lớp 27, popup video; popup video khóa tự học (ghi danh 59) | Đạt: trang lớp theo bố cục rộng; nút toàn màn hình đưa cả khung phát (kèm hộp "Tiếp tục xem" và thanh tiến độ) lên toàn màn hình như Chrome (A9); phát được khi đang toàn màn hình; bấm lại thì thoát, popup vẫn mở, video vẫn chạy. Popup khóa tự học hiện khung phát, toàn màn hình vào trình phát iOS, vuốt xuống thì về popup. Thử lại tối 21/11: lớp 27 buổi 7 video tải lên vào toàn màn hình cả khung (thanh tiến độ vẫn hiện), video vẫn chạy, bấm lại thì về popup, video vẫn chạy; khóa 59 Bài 1 đang hỏi "Tiếp tục xem" 00:00:44, bấm toàn màn hình thì khung phát vào toàn màn hình với nút "Xem tiếp", bấm thì chạy tiếp từ 00:44; Bài 2 (audio) nút sáng vì iPad cho khung phát vào toàn màn hình. Thử lại sau sửa: đang hỏi ở 00:00:44, toàn màn hình, "Xem tiếp" chạy từ 00:45, vuốt xuống thì về popup, không còn hộp hỏi, video chạy tiếp. Dữ liệu tiến độ ghi ra khi thử đã trả lại từ bản sao lưu | Popup khóa tự học, đang hỏi "Tiếp tục xem" mà vào toàn màn hình rồi phát bằng nút "Xem tiếp" trong khung, thoát ra thì hộp hỏi (00:00:44) vẫn che video đang chạy (hộp nằm ngoài khung phát nên không được trả lời). Sửa 21/11: video phát thì hộp hỏi ẩn, ADR-0030 Implementation record 2026-11-21 | `tests/js/learner-course-popup.test.mjs` (a video stopped part-way asks "Tiếp tục xem" …), như A11 |
 
 ### B. Giáo viên
 
@@ -147,7 +148,7 @@ gửi đúng form trên trang); quản trị xem trong app.
 * `liveclass:mark-absent --customer=1` chạy cho cả tenant: khi thử, nó cũng ghi vắng học viên
   khác ở buổi Owner đang thử. Dọn cùng lúc trả dữ liệu.
 * Ô điểm danh của buổi (ví dụ "Vắng mặt" → "Học bù" sau khi mở nội dung học bù) chỉ đổi khi tải
-  lại trang; thẻ và bộ đếm "Hoàn thành x/y" đổi ngay.
+  lại trang; thẻ (cả thẻ Link học, sửa sau review 21/11) và bộ đếm "Hoàn thành x/y" đổi ngay.
 * Quiz `submit` đã nộp nhưng chờ chấm: điểm danh tính ngay khi nộp, còn "Hoàn thành x/y nội dung bắt
   buộc" chỉ tính khi chấm xong, nên buổi có thể "✓ Có mặt" mà vẫn "1/2" (ADR-0022, MK 3.3).
 
@@ -156,7 +157,7 @@ gửi đúng form trên trang); quản trị xem trong app.
 Chỉ thử lại luồng tương ứng khi sửa vào:
 
 * `LearnerMyLearningService`, `tenant/my-learning/*`, `student-site.css`, `class-detail.css`,
-  `learner-lesson.js`, `CourseProgressRecorder`, `course-detail.css` → A1–A11, C5, C6.
+  `learner-lesson.js`, `learner-course-popup.js`, `CourseProgressRecorder`, `course-detail.css` → A1–A12, C5, C6.
 * `LiveClassAttendanceCheckIn`, `LiveClassAttendanceRecorder`, `liveclass-attendance/*`,
   `LiveClassAttendanceEntryController` → C1–C8.
 * `LiveClassWhiteboardService`, `LiveClassWhiteboardController`, `liveclass-whiteboard/*`,
@@ -172,4 +173,14 @@ Còn lại: chạy các bộ test ở cột "Test giữ" là đủ.
 * Vào phòng họp Google Meet thật (link họp thật, tài khoản Google); tab mới đã thử ở C12, C13.
 * Thoát toàn màn hình bằng phím Esc thật: công cụ gửi Esc thẳng vào trang nên popup đóng mà
   trình duyệt chưa thoát toàn màn hình; Esc thật do trình duyệt xử lý trước.
-* Safari trên Mac; iPhone/iPad thật (A11, C13 chỉ trên máy giả lập); micro thật.
+* Safari trên Mac (công cụ chỉ xem được Safari, không bấm được); iPhone/iPad thật (A11, A12, C13 chỉ trên
+  máy giả lập); micro thật.
+* Toàn màn hình trên Safari trước 16.4 (iPad cũ, chỉ có tên `webkit`), trên WebView từ chối khung phát và trên trình
+  duyệt nhúng của ứng dụng báo `fullscreenEnabled` false (nút phát video trước rồi mới vào toàn màn hình): chỉ có
+  test JS (`tests/js/learner-lesson.test.mjs`, `tests/js/learner-course-popup.test.mjs`). Trên Chrome tự động hóa
+  (từ chối "not granted"), 21/11 đã thấy nút chuyển sang video; giả lập tên `webkit` thì nút bấm lần hai và đóng
+  popup đều thoát.
+* Phát lỗi (link, mạng) sau khi bấm toàn màn hình trên iPhone thì lần phát sau không tự vào toàn màn hình: không
+  làm hỏng mạng được trên máy giả lập, chỉ có test JS (`tests/js/learner-lesson.test.mjs`).
+* Nút toàn màn hình tắt với video nhúng YouTube/Vimeo trên iPhone: khóa tự học demo không có bài nhúng, chỉ có test JS
+  (`canEnterFullscreen`) và bài audio trên iPhone giả lập (A11).

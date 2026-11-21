@@ -303,7 +303,10 @@ Owner duyệt 2026-11-10 ("Duyệt theo đề xuất"), chọn đúng các đề
 * Phản hồi của endpoint tiến độ có thêm `lesson_completed`: id các Activity của cùng Lesson mà
   Enrollment đã hoàn thành (`CourseProgressRecorder::completedInLesson`, lọc theo `customer_id`
   và `enrollment_id`). Hoàn thành một nội dung "Tính điểm danh" có thể hoàn thành luôn Activity
-  `live_class` của bài (ADR-0022 Amendment 1.3), nên trang cần biết cả những id đó.
+  `live_class` của bài (ADR-0022 Amendment 1.3), nên trang cần biết cả những id đó. Chỉ Activity đã
+  hoàn thành mới đọc danh sách này; nhịp `position` 15 giây một lần của video đang xem dở trả `[]`, không tốn
+  thêm truy vấn. Nội dung đã xong thì lần ghi nào cũng trả danh sách, nên nếu mất phản hồi của lần ghi vừa hoàn
+  thành, lần ghi kế tiếp vẫn cập nhật được thẻ Link học.
 * Trang lớp (`tenant/my-learning/cohort.blade.php`): mọi thẻ đang mở, trừ Quiz và Link học, đổi
   nhãn trạng thái ("Đã mở", "Đã xem", "Đã nghe") và dấu "✓ Đã hoàn thành" ngay khi máy chủ trả
   lời. Trước đây chỉ thẻ video/audio làm vậy; tài liệu và link phải tải lại trang. "Hoàn thành x/y
@@ -316,7 +319,29 @@ Owner duyệt 2026-11-10 ("Duyệt theo đề xuất"), chọn đúng các đề
 * Safari trên iPhone không cho phần tử thường của trang vào toàn màn hình, chỉ cho chính video (trình
   phát của iOS). Nút toàn màn hình của popup video ở trang lớp và trang khóa tự học dùng
   `enterFullscreen` (`learner-lesson.js`): khung phát nếu trình duyệt cho, không thì video
-  (`webkitEnterFullscreen`); video chưa nạp thì không làm gì. Popup khóa tự học từng mất khung phát
+  (`webkitEnterFullscreen`). Video chưa nạp (đang hỏi "Tiếp tục xem") thì nút phát video như "Tiếp tục xem" rồi
+  vào toàn màn hình khi video nạp xong (`playFullscreen`); nếu không phát được (link, mạng) thì lần phát sau không tự vào
+  toàn màn hình. Hộp "Tiếp tục xem" của popup khóa tự học nằm ngoài khung phát, nên trên iPad và Chrome khung phát vào
+  toàn màn hình với nút "Xem tiếp" của chính nó; khi video bắt đầu phát (bằng nút nào cũng vậy) hộp hỏi ẩn đi, không
+  còn che video sau khi thoát toàn màn hình. Ở popup khóa tự học, nút tắt khi không làm được gì
+  (`canEnterFullscreen`): trên iPhone là bài audio, bài chỉ có tài liệu và video nhúng YouTube/Vimeo (dùng nút
+  toàn màn hình của chính trình phát đó). Popup khóa tự học từng mất khung phát
   trên Safari vì phần thân `flex: 1` (cơ sở 0%) bị tính cao 0; nay là `flex: 1 1 auto`.
-* Test: `tests/js/learner-lesson.test.mjs`, `LearnerMyLearningTest::test_the_class_video_popup_shows_its_resume_question_and_watched_share_like_mk`,
+  Trình duyệt có lệnh toàn màn hình nhưng từ chối khung phát (WebView, chính sách quyền) thì
+  `enterFullscreen` chuyển sang video, không để nút im lặng; trang báo trước là không cho phần tử vào toàn màn hình
+  (`fullscreenEnabled` false, ví dụ trình duyệt nhúng của ứng dụng trên iPad) thì chuyển sang video ngay trong lần bấm,
+  nên video chưa nạp trả lời "không" và nút phát video trước như trên iPhone (`playFullscreen`). Thoát dùng `leaveFullscreen`, đọc cả tên
+  `webkit` (Safari trước 16.4 trên iPad cũ), ở nút bấm lần hai và khi đóng popup khóa tự học. Script của popup khóa
+  tự học (tìm bài, mở bài, hộp "Tiếp tục xem", chân popup, toàn màn hình) là module
+  `resources/js/learner-course-popup.js` (`installCoursePopup`, gọi từ `app.js`), không còn là script inline trong
+  `course.blade.php`; chữ "Đang tải" và "Không mở được" đến từ thuộc tính `data-learn-message-*` của popup.
+  `tests/js/learner-course-popup.test.mjs` import thẳng module: khung được chọn, thứ tự thoát → vào → phát, nút tắt,
+  hộp hỏi hiện khi video dừng giữa chừng và ẩn khi khung phát phát, bài khóa không phát, đóng popup thoát toàn màn hình
+  và đọc lại số liệu.
+  Test cũng đọc mọi tệp trong `resources/css` và đọc giá trị `flex` như trình duyệt: không luật nào của phần thân
+  popup (đúng class `lf-cd-modal__body`, kể cả selector ghép, trong `@media`) có cơ sở 0 (`flex: 1`, `flex: 1 1`, `flex: 1 0px`, `flex-basis: 0`), và
+  phải còn một luật có cơ sở `auto` (`flex: 1 1 auto`, `flex: auto`).
+* Thẻ Link học (`live_class`) không có trình phát nhưng cũng nghe `lf-learn-progress`: điểm danh hoàn thành nó
+  cùng nội dung khác (`lesson_completed`), nên nhãn "Bắt buộc" đổi sang "✓ Đã hoàn thành" cùng lúc với dòng của buổi.
+* Test: `tests/js/learner-lesson.test.mjs`, `tests/js/learner-course-popup.test.mjs`, `LearnerMyLearningTest::test_the_class_video_popup_shows_its_resume_question_and_watched_share_like_mk`,
   `LiveClassAttendanceCheckInTest::test_ticked_content_decides_attendance_and_make_up`.

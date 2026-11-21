@@ -6,11 +6,13 @@ import { courseTemplateOrder, courseTemplateRefreshOutline } from './course-temp
 import './ai-authoring';
 import { installDialogInitialFocus } from './dialog-initial-focus';
 import { clearAllBoards } from './liveclass-whiteboard/board-storage';
-import { enterFullscreen, learnerActivity, learnerCompletion } from './learner-lesson';
+import { installCoursePopup } from './learner-course-popup';
+import { learnerActivity, learnerCompletion } from './learner-lesson';
 import { installStudentSite } from './student-site';
 
 installDialogInitialFocus(window.HTMLDialogElement);
 installStudentSite(document);
+installCoursePopup(document, window);
 
 // A classroom touch screen is shared: logging out clears every Whiteboard kept in
 // this browser (ADR-0002 § LiveClass Whiteboard Amendment).
@@ -24,7 +26,6 @@ document.addEventListener('submit', (event) => {
 window.Alpine = Alpine;
 window.lfLearnerActivity = learnerActivity;
 window.lfLearnerCompletion = learnerCompletion;
-window.lfEnterFullscreen = enterFullscreen;
 
 window.tenantRegistrationForm = (initialSlug = '') => ({
     slug: initialSlug,

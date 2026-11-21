@@ -165,8 +165,10 @@ class LearnerMyLearningController extends Controller
             $validated['event'], isset($validated['position_seconds']) ? (float) $validated['position_seconds'] : null);
         abort_if($row === null, 403);
 
+        // Only completed content can have completed others with it (attendance and the Link học): the heartbeat of a
+        // video still being watched looks nothing up. Done content answers every time, so a lost answer heals at the next.
         return response()->json(['progress' => $this->progressPayload($row) + [
-            'lesson_completed' => $this->progress->completedInLesson($row),
+            'lesson_completed' => $row->status === 'completed' ? $this->progress->completedInLesson($row) : [],
         ]]);
     }
 

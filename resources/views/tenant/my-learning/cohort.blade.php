@@ -316,6 +316,9 @@
                                                 // Every open card but a Quiz (its attempts decide) shows its state as the page records it, and
                                                 // follows the other cards of the same Activity (a Lesson over several Sessions).
                                                 $tracked = ! $isLiveClass && ! $locked && $activity->activity_type !== 'quiz';
+                                                // The Link học has no player, but attendance can complete it with other content (`lesson_completed`),
+                                                // so its "Bắt buộc" follows the same event as the counters.
+                                                $follows = $tracked || $isLiveClass;
                                                 $stateLabels = [
                                                     'opened' => in_array($activity->activity_type, ['document', 'external_link', 'embedded_video'], true) ? __('lf.LF_my_learning_board_state_opened') : '',
                                                     'completed' => match ($activity->activity_type) {
@@ -344,8 +347,9 @@
                                             @endphp
                                             <div @class(['learning-board-item', 'learning-board-item--unopened' => $locked, 'learning-board-item--locked' => $locked])
                                                  data-learn-activity="{{ $activity->id }}" data-learn-activity-type="{{ $activity->activity_type }}"
-                                                 @unless ($isLiveClass || $locked) x-data="lfLearnerActivity(@js($config))" @endunless
-                                                 @if ($tracked) x-on:lf-learn-progress.window="syncProgress($event.detail)" @endif>
+                                                 @if ($isLiveClass) x-data="lfLearnerActivity(@js(['activityId' => (int) $activity->id, 'status' => $activity->progress_status]))"
+                                                 @elseif (! $locked) x-data="lfLearnerActivity(@js($config))" @endif
+                                                 @if ($follows) x-on:lf-learn-progress.window="syncProgress($event.detail)" @endif>
                                                 <span class="learning-board-item__kind">
                                                     @include('tenant.my-learning.partials.board-icon', ['icon' => $kindIcon($activity)]){{ $kindLabel($activity, $session) }}
                                                     @if ($tracked)
@@ -364,7 +368,7 @@
                                                         <span class="learning-board-item__rules">
                                                             @if ($activity->is_required)
                                                                 <span @class(['learning-board-item__rule', 'learning-board-item__rule--done' => $done])
-                                                                      @if ($tracked) x-bind:class="{ 'learning-board-item__rule--done': completed }" x-text="completed ? @js('✓ '.__('lf.LF_my_learning_board_rule_done')) : @js(__('lf.LF_my_learning_activity_required'))" @endif>{{ $done ? '✓ '.__('lf.LF_my_learning_board_rule_done') : __('lf.LF_my_learning_activity_required') }}</span>
+                                                                      @if ($follows) x-bind:class="{ 'learning-board-item__rule--done': completed }" x-text="completed ? @js('✓ '.__('lf.LF_my_learning_board_rule_done')) : @js(__('lf.LF_my_learning_activity_required'))" @endif>{{ $done ? '✓ '.__('lf.LF_my_learning_board_rule_done') : __('lf.LF_my_learning_activity_required') }}</span>
                                                             @endif
                                                             @if (($activity->counts_for_attendance && $phase !== 'before') || $isLiveClass)
                                                                 <span class="learning-board-item__rule learning-board-item__rule--attendance" data-learn-counts-attendance>{{ __('lf.LF_my_learning_board_rule_attendance') }}</span>

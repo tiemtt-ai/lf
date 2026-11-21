@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { enterFullscreen, POSITION_EVERY_SECONDS, shouldReportPosition, resumePosition, learnerActivity, learnerCompletion, furtherStatus, PROGRESS_EVENT, asksToResume, clock, playedPercent, stamp } from '../../resources/js/learner-lesson.js';
+import fs from 'node:fs';
+import postcss from 'postcss';
+import { canEnterFullscreen, enterFullscreen, fullscreenElement, leaveFullscreen, POSITION_EVERY_SECONDS, shouldReportPosition, resumePosition, learnerActivity, learnerCompletion, furtherStatus, PROGRESS_EVENT, asksToResume, clock, playedPercent, stamp } from '../../resources/js/learner-lesson.js';
 
 // ADR-0030: the page only reports what happened; positions go at most every 15 s of playback,
 // a learner resumes where they stopped, and the server's answer is what the page shows.
@@ -332,12 +334,13 @@ test('"Hoàn thành x/y" counts a required Activity completed on the page once, 
 
 test('full screen takes the player frame, or only the video where the browser allows no more (Safari on iPhone)', async () => {
     const calls = [];
-    const frame = { requestFullscreen() { calls.push('frame'); return Promise.reject(new Error('denied')); } };
     const video = { webkitEnterFullscreen() { calls.push('video'); } };
+    const frame = { requestFullscreen() { calls.push('frame'); return Promise.resolve(); } };
     assert.equal(enterFullscreen(frame, video), true);
     const prefixed = { webkitRequestFullscreen() { calls.push('prefixed'); } };
     assert.equal(enterFullscreen(prefixed, video), true);
     assert.equal(enterFullscreen({}, video), true);
+    await new Promise((resolve) => setTimeout(resolve, 0));
     assert.deepEqual(calls, ['frame', 'prefixed', 'video']);
 
     // A video without a loaded source refuses on iPhone; nothing else can go full screen.
@@ -352,4 +355,214 @@ test('full screen takes the player frame, or only the video where the browser al
     popup.toggleFullscreen();
     assert.deepEqual(calls, ['frame', 'prefixed', 'video', 'video']);
     delete globalThis.document;
+});
+
+test('a browser that refuses the frame full screen gets the video instead of a dead button', async () => {
+    const calls = [];
+    const video = { webkitEnterFullscreen() { calls.push('video'); } };
+    const refused = { requestFullscreen() { calls.push('frame'); return Promise.reject(new Error('NotAllowedError')); } };
+    assert.equal(enterFullscreen(refused, video), true);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.deepEqual(calls, ['frame', 'video']);
+
+    const throws = { requestFullscreen() { throw new TypeError('not supported'); } };
+    assert.equal(enterFullscreen(throws, video), true);
+    assert.equal(enterFullscreen(throws, null), false);
+    // Refused with no video to fall back on: nothing more, and no unhandled rejection.
+    assert.equal(enterFullscreen(refused, null), true);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.deepEqual(calls, ['frame', 'video', 'video', 'frame']);
+});
+
+test('a page told it has no element full screen (an app WebView on iPad) goes to the video during the tap', async () => {
+    const calls = [];
+    const frame = { requestFullscreen() { calls.push('frame'); return Promise.reject(new Error('NotAllowedError')); } };
+    const video = { webkitEnterFullscreen() { calls.push('video'); } };
+    const empty = { webkitEnterFullscreen() { calls.push('empty'); throw new Error('InvalidStateError'); } };
+    for (const doc of [{ fullscreenEnabled: false }, { webkitFullscreenEnabled: false }]) {
+        assert.equal(enterFullscreen(frame, video, doc), true);
+        // A video not loaded yet answers no at once, so the popup can play it first (playFullscreen).
+        assert.equal(enterFullscreen(frame, empty, doc), false);
+    }
+    // Allowed, or not said: the frame is asked first, as before.
+    assert.equal(enterFullscreen(frame, null, { fullscreenEnabled: true }), true);
+    assert.equal(enterFullscreen(frame, null, {}), true);
+    assert.equal(enterFullscreen(frame, null, undefined), true);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.deepEqual(calls, ['video', 'empty', 'video', 'empty', 'frame', 'frame', 'frame']);
+
+    // The class popup button then plays the video, and takes it full screen once loaded.
+    globalThis.document = { fullscreenElement: null, fullscreenEnabled: false };
+    const popup = learnerActivity(config());
+    let played = 0;
+    popup.playFullscreen = () => { played++; return true; };
+    popup.$refs = { screen: frame, player: { tagName: 'VIDEO', ...empty } };
+    popup.toggleFullscreen();
+    assert.equal(played, 1);
+    delete globalThis.document;
+});
+
+test('on iPhone the full screen button plays a video not loaded yet, then takes it full screen', async () => {
+    const calls = withFetch((url) => (url === '/media' ? { json: { url: '/clip.mp4' } } : progress('in_progress', 5)));
+    const order = [];
+    const listeners = {};
+    // Safari on iPhone: the frame cannot go full screen, and the video only once it has a source.
+    const video = {
+        tagName: 'VIDEO', currentTime: 0, duration: 600,
+        addEventListener(name, listener) { (listeners[name] ??= []).push(listener); },
+        load() { order.push('load'); },
+        play() { order.push('play'); return Promise.resolve(); },
+        webkitEnterFullscreen() {
+            if (!activity.src) { throw new Error('InvalidStateError'); }
+            order.push('full screen');
+        },
+    };
+    globalThis.document = { fullscreenElement: null };
+    const activity = learnerActivity(config({ resumeAt: 120, duration: 600 }));
+    activity.$nextTick = async () => {};
+    activity.$refs = { screen: {}, player: video };
+    activity.openMedia();
+    assert.equal(activity.asking, true);
+
+    activity.toggleFullscreen();
+    assert.equal(activity.asking, false);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.equal(activity.started, true);
+    assert.equal(calls[0].url, '/media');
+    listeners.loadedmetadata.splice(0).forEach((listener) => listener());
+    // Full screen first, then it plays from where the learner stopped, as "Tiếp tục xem".
+    assert.deepEqual(order, ['load', 'full screen', 'play']);
+    assert.equal(video.currentTime, 120);
+
+    // Once started, a refused full screen does not load it again.
+    assert.equal(activity.playFullscreen(), false);
+    // Audio is never taken full screen this way.
+    const audio = learnerActivity(config());
+    audio.$refs = { player: { tagName: 'AUDIO' } };
+    assert.equal(audio.playFullscreen(), false);
+    delete globalThis.document;
+});
+
+test('a full screen start that fails on iPhone leaves the next play out of full screen', async () => {
+    let fails = true;
+    withFetch((url) => (url === '/media' ? (fails ? { ok: false, status: 500 } : { json: { url: '/clip.mp4' } }) : progress('in_progress', 5)));
+    const entered = [];
+    const listeners = {};
+    const video = {
+        tagName: 'VIDEO', currentTime: 0, duration: 600,
+        addEventListener(name, listener) { (listeners[name] ??= []).push(listener); },
+        removeEventListener(name, listener) { listeners[name] = (listeners[name] ?? []).filter((other) => other !== listener); },
+        load() {},
+        play() { return Promise.resolve(); },
+        webkitEnterFullscreen() {
+            if (!activity.src) { throw new Error('InvalidStateError'); }
+            entered.push('full screen');
+        },
+    };
+    globalThis.document = { fullscreenElement: null };
+    const activity = learnerActivity(config({ resumeAt: 120, duration: 600 }));
+    activity.$nextTick = async () => {};
+    activity.$refs = { screen: {}, player: video };
+    activity.toggleFullscreen();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.equal(activity.started, false);
+    assert.equal(activity.error, 'Failed');
+    assert.deepEqual(listeners.loadedmetadata, []);
+
+    // "Tiếp tục xem" afterwards plays in the popup, as asked, not full screen.
+    fails = false;
+    activity.continuePlay();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.equal(activity.started, true);
+    listeners.loadedmetadata.splice(0).forEach((listener) => listener());
+    assert.deepEqual(entered, []);
+    delete globalThis.document;
+});
+
+test('the full screen button is off where it can do nothing (an embedded player on iPhone)', () => {
+    const page = { fullscreenEnabled: true };
+    assert.equal(canEnterFullscreen({ requestFullscreen() {} }, null, page), true);
+    assert.equal(canEnterFullscreen({ webkitRequestFullscreen() {} }, null, {}), true);
+    // Safari on iPhone: no full screen for the iframe or the stage; a video still has its own.
+    assert.equal(canEnterFullscreen({}, null, {}), false);
+    assert.equal(canEnterFullscreen({}, { webkitEnterFullscreen() {} }, {}), true);
+    // The page may not go full screen (a frame without permission), even where the call exists.
+    assert.equal(canEnterFullscreen({ requestFullscreen() {} }, null, { fullscreenEnabled: false }), false);
+    assert.equal(canEnterFullscreen({ webkitRequestFullscreen() {} }, null, { webkitFullscreenEnabled: false }), false);
+});
+
+test('full screen is left with the prefixed names too (Safari before 16.4 on older iPads)', () => {
+    const left = [];
+    const frame = {};
+    const old = { webkitFullscreenElement: frame, webkitExitFullscreen() { left.push('webkit'); } };
+    assert.equal(fullscreenElement(old), frame);
+    assert.equal(leaveFullscreen(old), true);
+    const current = { fullscreenElement: frame, exitFullscreen() { left.push('standard'); return Promise.reject(new Error('gone')); } };
+    assert.equal(leaveFullscreen(current), true);
+    assert.equal(leaveFullscreen({ fullscreenElement: null }), false);
+    assert.equal(fullscreenElement({}), null);
+    assert.deepEqual(left, ['webkit', 'standard']);
+
+    // The popup button leaves instead of asking again.
+    const asked = [];
+    globalThis.document = old;
+    const popup = learnerActivity(config());
+    popup.$refs = { screen: { webkitRequestFullscreen() { asked.push('frame'); } }, player: null };
+    popup.toggleFullscreen();
+    assert.deepEqual(left, ['webkit', 'standard', 'webkit']);
+    assert.deepEqual(asked, []);
+    delete globalThis.document;
+});
+
+// Every stylesheet, every rule naming the popup body (compound selectors and lists too, any media query); the class
+// itself, not a longer one such as `lf-cd-modal__body-inner`.
+const POPUP_BODY = /\.lf-cd-modal__body(?![\w-])/;
+function flexOfPopupBody(files) {
+    const found = [];
+    for (const file of files) {
+        postcss.parse(fs.readFileSync(file, 'utf8')).walkRules((rule) => {
+            if (rule.selectors.some((selector) => POPUP_BODY.test(selector))) {
+                rule.walkDecls(/^flex(-basis)?$/i, (decl) => found.push({ prop: decl.prop.toLowerCase(), value: decl.value.trim().toLowerCase() }));
+            }
+        });
+    }
+
+    return found;
+}
+const stylesheets = (dir) => fs.readdirSync(dir, { recursive: true }).filter((name) => name.endsWith('.css')).map((name) => new URL(name, dir));
+// The basis a `flex` or `flex-basis` declaration gives, read as the browser reads the shorthand: unitless numbers are
+// grow and shrink, and with no basis written it is 0%; the keywords have their own (`none`, `auto`, `initial` → auto).
+function flexBasis({ prop, value }) {
+    if (prop === 'flex-basis') {
+        return value;
+    }
+    const keyword = { none: 'auto', auto: 'auto', initial: 'auto' }[value];
+    if (keyword || ['inherit', 'unset', 'revert', 'revert-layer'].includes(value)) {
+        return keyword ?? null;
+    }
+    const tokens = value.split(/\s+/);
+    const numbers = tokens.filter((token) => /^[+]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/.test(token));
+    // A lone `0` after the grow and shrink numbers is the basis.
+    if (numbers.length === 3) {
+        return numbers[2];
+    }
+
+    return tokens.find((token) => !numbers.includes(token)) ?? '0%';
+}
+const zeroBasis = (basis) => basis !== null && /^[+-]?0*\.?0+([a-z]+|%)?$/.test(basis);
+
+test('the course popup body keeps an auto basis: with `flex: 1` Safari gave it no height and the video stage vanished', () => {
+    const bases = flexOfPopupBody(stylesheets(new URL('../../resources/css/', import.meta.url))).map(flexBasis);
+    assert.deepEqual(['.lf-cd-modal__body', '.lf-cd-modal .lf-cd-modal__body:hover', '.lf-cd-modal__body-inner', '.lf-cd-modal__bodyx']
+        .map((selector) => POPUP_BODY.test(selector)), [true, true, false, false]);
+    assert.ok(bases.some((basis) => basis === 'auto' || basis === 'content'), bases.join('; '));
+    assert.deepEqual(bases.filter(zeroBasis), []);
+
+    const read = (value, prop = 'flex') => flexBasis({ prop, value });
+    const zero = ['1', '1 1', '2 0', '1 1 0', '1 1 0%', '1 0px', '0 1 0.0rem'].map((value) => read(value));
+    assert.ok(zero.every(zeroBasis), zero.join('; '));
+    assert.ok(zeroBasis(read('0', 'flex-basis')) && zeroBasis(read('0%', 'flex-basis')));
+    const kept = ['1 1 auto', 'auto', 'none', 'initial', '1 0 auto', '1 content', '1 1 12rem'].map((value) => read(value));
+    assert.deepEqual(kept, ['auto', 'auto', 'auto', 'auto', 'auto', 'content', '12rem']);
+    assert.ok(!kept.some(zeroBasis) && !zeroBasis(read('inherit')));
 });
