@@ -13,14 +13,22 @@
     <section class="student-card student-section lf-checkin" aria-labelledby="lf-checkin-title" data-checkin-result="{{ $result ?? ($pending ? 'pending' : 'idle') }}">
         <h1 id="lf-checkin-title" class="student-section-title">{{ $t('title') }}</h1>
 
-        @if (in_array($result, ['recorded', 'already'], true))
+        @if (in_array($result, ['recorded', 'already', 'mode_changed'], true))
+            @php
+                // mode_changed: a hybrid learner recorded from afar scanned in the room; the result stands, now in class.
+                // An entry still waiting for ticked content is not attendance yet: say what is left. Absent or excused
+                // (set by the teacher, or an entry past the absent threshold) is said as it is, never as a check-in.
+                $checkinStatus = $recorded['status'] ?? null;
+                $checkinMessage = match (true) {
+                    $checkinStatus === 'registered' => $t('recorded_pending'),
+                    in_array($checkinStatus, ['absent', 'excused'], true) => __('lf.LF_liveclass_attendance_entry_result_manual', ['status' => __('lf.LF_course_cohort_attendance_status_'.$checkinStatus)]),
+                    $result === 'already' => $t('already'),
+                    $checkinStatus === 'late' => $t('recorded_late'),
+                    default => $t('recorded_present'),
+                };
+            @endphp
             <p class="lf-checkin__status" role="status">
-                @if ($result === 'recorded')
-                    {{ match ($recorded['status'] ?? null) { 'late' => $t('recorded_late'), 'registered' => $t('recorded_pending'), default => $t('recorded_present') } }}
-                @else
-                    {{-- An entry still waiting for ticked content is not attendance yet: say what is left. --}}
-                    {{ ($recorded['status'] ?? null) === 'registered' ? $t('recorded_pending') : $t('already') }}
-                @endif
+                {{ $checkinMessage }}
             </p>
             @if (! empty($recorded['title']))
                 <p class="student-section-copy">{{ $recorded['title'] }} · {{ $recorded['cohort'] }}</p>

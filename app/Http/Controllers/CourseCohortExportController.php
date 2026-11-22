@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\AuthorizesCourseCohortAdmin;
+use App\Services\CourseCohortMembershipHistory;
 use App\Services\LiveClassCohortSessionReadModel;
 use App\Services\LiveClassSessionPolicy;
+use App\Services\LiveClassSessionTime;
 use App\Support\XlsxDownload;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -69,7 +71,9 @@ class CourseCohortExportController extends Controller
 
     /**
      * One row per active student, one column per Session the Điểm danh tab offers; a Session not marked yet reads
-     * as the tab shows it (Chưa điểm danh). Totals and the attendance rate (present + late over those Sessions) close the row.
+     * as the tab shows it (Chưa điểm danh), and one outside the learner's time in the class says so (ADR-0034).
+     * Totals count the Sessions inside that time; the attendance rate is present + late over the Sessions taught to
+     * the end inside it, as the learner's class page counts it (a Session still running or never started is left out).
      */
     public function attendance(Request $request, int $id): Response
     {
@@ -78,14 +82,17 @@ class CourseCohortExportController extends Controller
         $customerId = $this->authorizeCohortManager($request, $id);
         $cohort = $this->findCohort($customerId, $id);
         $sessions = $this->sessionReadModel->forCohort($customerId, $id)
-            ->filter(fn (object $session): bool => $this->sessionPolicy->canRecordAttendance($session, now()))
+            ->filter(fn (object $session): bool => $this->sessionPolicy->takesAttendance($session, now()))
+            ->each(function (object $session): void {
+                $session->ends_at_utc = LiveClassSessionTime::utc((string) $session->scheduled_end_at, $session->timezone ?? null);
+            })
             ->values();
 
         $students = $this->activeRoster($customerId, $id)
             ->orderBy('students.name')
             ->orderBy('memberships.id')
             ->limit(XlsxDownload::MAX_ROWS)
-            ->get(['enrollments.id as enrollment_id', 'students.name as student_name', 'students.email as student_email']);
+            ->get(['enrollments.id as enrollment_id', 'memberships.joined_at', 'students.name as student_name', 'students.email as student_email']);
 
         $marks = $sessions->isEmpty() || $students->isEmpty() ? collect() : DB::table('core_liveclass_attendances')
             ->where('customer_id', $customerId)
@@ -93,6 +100,8 @@ class CourseCohortExportController extends Controller
             ->whereIn('enrollment_id', $students->pluck('enrollment_id'))
             ->get(['session_id', 'enrollment_id', 'status'])
             ->keyBy(fn (object $mark) => $mark->session_id.':'.$mark->enrollment_id);
+        $gaps = CourseCohortMembershipHistory::gaps($customerId, $id,
+            $students->pluck('enrollment_id')->map(fn ($enrollmentId): int => (int) $enrollmentId)->all());
 
         $header = [__('lf.table_no'), __('lf.LF_course_cohort_student_common_student'), __('lf.LF_common_label_email')];
         foreach ($sessions as $session) {
@@ -103,19 +112,29 @@ class CourseCohortExportController extends Controller
         }
         $header[] = __('lf.LF_export_col_attendance_rate');
 
-        $rows = $students->values()->map(function (object $student, int $index) use ($sessions, $marks): array {
+        $rows = $students->values()->map(function (object $student, int $index) use ($sessions, $marks, $gaps): array {
             $row = [$index + 1, $student->student_name, $student->student_email];
             $counts = array_fill_keys(self::ATTENDANCE_STATUSES, 0);
+            $held = $attended = 0;
             foreach ($sessions as $session) {
+                $outside = CourseCohortMembershipHistory::outside($student->joined_at, null,
+                    $gaps->get((int) $student->enrollment_id), $session->ends_at_utc);
+                if ($outside !== null) {
+                    $row[] = __('lf.LF_course_cohort_attendance_outside_'.$outside);
+
+                    continue;
+                }
                 $status = $marks->get($session->id.':'.$student->enrollment_id)?->status;
                 $status = in_array($status, self::ATTENDANCE_STATUSES, true) ? $status : 'registered';
                 $counts[$status]++;
+                if ($session->status === 'completed') {
+                    $held++;
+                    $attended += in_array($status, ['present', 'late'], true) ? 1 : 0;
+                }
                 $row[] = __('lf.LF_course_cohort_attendance_status_'.$status);
             }
             array_push($row, $counts['present'], $counts['late'], $counts['absent'], $counts['excused']);
-            $row[] = $sessions->isEmpty()
-                ? ''
-                : XlsxDownload::number(($counts['present'] + $counts['late']) * 100 / $sessions->count()).'%';
+            $row[] = $held === 0 ? '' : XlsxDownload::number($attended * 100 / $held).'%';
 
             return $row;
         });

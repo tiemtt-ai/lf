@@ -60,6 +60,8 @@ class LiveClassWhiteboardService
                     ->where('assignments.teacher_id', $teacherId);
             })
             ->whereIn('sessions.status', ['scheduled', 'live'])
+            // A self-study session is learned at home, never started by a teacher.
+            ->where('sessions.session_type', '!=', LiveClassSelfStudySession::TYPE)
             ->where('cohorts.status', 'active')
             ->addSelect('assignments.assigned_from', 'assignments.assigned_to')
             ->orderBy('sessions.scheduled_start_at')->orderBy('sessions.id')
@@ -244,7 +246,7 @@ class LiveClassWhiteboardService
 
         return $sessions->map(function (object $session) use ($customerId, $attendanceOn, $now, $results): ?object {
             $session->is_live = $session->status === 'live';
-            $session->entry_meeting = $session->entry_button = $session->entry_warning = false;
+            $session->entry_meeting = $session->entry_button = $session->entry_qr = $session->entry_warning = false;
             $session->attendance = $results->get($session->id.':'.$session->enrollment_id);
             if (LiveClassSelfStudySession::is($session)) {
                 return $attendanceOn ? $this->selfStudyEntry($customerId, $session, $now) : null;
@@ -259,6 +261,8 @@ class LiveClassWhiteboardService
                 && ! $timing->isAfterClosing($now);
             $session->entry_meeting = self::meetingUrl($session) !== null && $open('meeting');
             $session->entry_button = $open('button');
+            // The board shows a code to scan only when the system records the room by QR (not by hand) and it is open.
+            $session->entry_qr = $open('qr');
             $hasResult = $session->attendance && ($session->attendance->joined_at !== null || $session->attendance->status !== 'registered');
             // Entering now would be recorded as absent: the page says so before the learner presses.
             $session->entry_warning = ! $hasResult && ($session->entry_meeting || $session->entry_button)

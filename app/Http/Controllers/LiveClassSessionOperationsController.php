@@ -42,7 +42,8 @@ final class LiveClassSessionOperationsController extends Controller
             ->where('id', $session)->first() ?? abort(404);
         abort_unless(DB::table('core_course_cohorts')->where('customer_id', $customerId)->where('id', $cohort)
             ->where('status', 'active')->exists(), 422, __('lf.LF_course_cohort_runtime_requires_active'));
-        $request->replace($request->only(['meeting_url']));
+        // Only the link is saved here; the row id stays so a refused link opens this row's popup again with its error.
+        $request->replace($request->only(['meeting_url', 'meeting_link_session_id']));
 
         return $this->apply($request, $customerId, $row,
             redirect()->route($this->cohortArea().'.show', ['id' => $cohort, 'tab' => 'sessions']), 'sessionMeetingLink');

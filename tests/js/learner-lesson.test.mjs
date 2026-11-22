@@ -104,6 +104,24 @@ test('a player without a source does not show an error, an expired one is fetche
     assert.equal(activity.error, 'Failed');
 });
 
+test('a link that expires again after the new one played is fetched again (a long video)', async () => {
+    const calls = withFetch(() => ({ json: { url: '/fresh' } }));
+    const activity = learnerActivity(config());
+    activity.$nextTick = async () => {};
+    const listeners = [];
+    const player = { currentTime: 42, addEventListener(name, listener) { listeners.push(listener); }, load() {}, play: async () => {} };
+    activity.$refs = { player };
+    activity.src = '/expired';
+
+    await activity.onError();
+    listeners.shift()();
+    await activity.onError();
+    listeners.shift()();
+    await activity.onError();
+    assert.equal(calls.length, 3);
+    assert.equal(activity.error, '');
+});
+
 test('a document opens in a new tab, or records first when no tab can be opened', async () => {
     const order = [];
     const calls = withFetch((url) => (url === '/media' ? { json: { url: '/file.pdf' } } : progress('completed', 100)));

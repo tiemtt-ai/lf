@@ -284,7 +284,11 @@ class LiveClassAttendanceCheckInTest extends TestCase
         // With in-room recording set to "by hand" the board offers no code and a scan writes nothing.
         Carbon::setTestNow(CarbonImmutable::parse('2026-07-04 16:10:00', self::TZ));
         $url = $this->codeUrl($setup, $session);
+        // The learner page asks to scan only while the board shows a code.
+        $this->actingAs($early)->get(self::HOST.'/my-courses')->assertOk()->assertSee('data-live-qr-hint', false);
         DB::table(LiveClassAttendancePolicies::TABLE)->where('id', $own)->update(['offline_recording' => 'manual']);
+        $this->actingAs($early)->get(self::HOST.'/my-courses')->assertOk()->assertDontSee('data-live-qr-hint', false)
+            ->assertDontSee(__('lf.LF_liveclass_whiteboard_learner_scan_qr'));
         $this->assertStringContainsString('"attendanceCodeUrl":null', $this->boardConfig($setup['teacher'], "/teacher/live-sessions/{$session}/board"));
         $this->actingAs($setup['teacher'])->getJson(self::HOST."/teacher/live-sessions/{$session}/board/attendance-code")->assertNotFound();
         $manual = $this->learner($setup);
@@ -486,7 +490,10 @@ class LiveClassAttendanceCheckInTest extends TestCase
         // room, the time and the result stay, the mode becomes in-room, and the history keeps that system change.
         $this->actingAs($student)->post(self::HOST."/my-courses/live-sessions/{$hybrid}/meeting")->assertRedirect('https://meet.example.test/room');
         $this->assertSame(['late', 'online'], [$row($hybrid)->status, $row($hybrid)->attendance_mode]);
-        $this->scanAt($setup, $hybrid, $student, '2026-07-04 16:20:00');
+        $this->scanAt($setup, $hybrid, $student, '2026-07-04 16:20:00')
+            ->assertSee('data-checkin-result="mode_changed"', false)
+            ->assertSee(__('lf.LF_liveclass_attendance_checkin_recorded_late'))
+            ->assertDontSee('LF_liveclass_attendance_checkin_mode_changed');
         $this->assertSame(['late', 'offline', '2026-07-04 16:12:00'],
             [$row($hybrid)->status, $row($hybrid)->attendance_mode, (string) $row($hybrid)->joined_at]);
         $this->assertDatabaseHas('core_liveclass_attendance_changes', [
@@ -926,6 +933,12 @@ class LiveClassAttendanceCheckInTest extends TestCase
             [$row()['meeting_url_snapshot'], $row()['room_name_snapshot'], $row()['attendance_tool']]);
         $this->actingAs($setup['admin'])->get(self::HOST."/admin/course-cohorts/{$setup['cohort']}?tab=sessions")->assertOk()
             ->assertSee(__('lf.LF_liveclass_session_operations_link_edit'));
+        // A refused link opens this row's popup again with its error (the row id survives the request being narrowed).
+        $this->actingAs($setup['admin'])->from(self::HOST."/admin/course-cohorts/{$setup['cohort']}?tab=sessions")
+            ->put(self::HOST."/admin/course-cohorts/{$setup['cohort']}/sessions/{$session}/meeting-link",
+                ['meeting_url' => 'meet.example.test/no-scheme', 'meeting_link_session_id' => $session])
+            ->assertSessionHasErrorsIn('sessionMeetingLink', ['meeting_url'])
+            ->assertSessionHasInput('meeting_link_session_id', $session);
         $this->actingAs($setup['admin'])->put(self::HOST."/admin/course-cohorts/{$setup['cohort']}/sessions/{$session}/meeting-link",
             ['meeting_url' => 'https://meet.example.test/admin', 'room_name' => 'Phòng admin'])->assertSessionHasNoErrors();
         $this->assertSame(['https://meet.example.test/admin', 'Phòng 302'], [$row()['meeting_url_snapshot'], $row()['room_name_snapshot']]);
@@ -1017,8 +1030,10 @@ class LiveClassAttendanceCheckInTest extends TestCase
         $this->assertSame(['absent', 'manual'], [$rows[$markedByHand->id]->status, $rows[$markedByHand->id]->attendance_source]);
         $this->assertFalse($rows->has($cancelled->id), 'DOC-CONFLICT-0011: a cancelled Enrollment is not recorded');
 
-        // A later scan does not override what was set by hand.
-        $this->scanAt($setup, $session, $markedByHand, '2026-07-04 16:20:00')->assertSee(__('lf.LF_liveclass_attendance_checkin_already'));
+        // A later scan does not override what was set by hand, and the page says that result, not a check-in.
+        $this->scanAt($setup, $session, $markedByHand, '2026-07-04 16:20:00')
+            ->assertSee(__('lf.LF_liveclass_attendance_entry_result_manual', ['status' => __('lf.LF_course_cohort_attendance_status_absent')]))
+            ->assertDontSee(__('lf.LF_liveclass_attendance_checkin_already'));
         $this->assertSame('absent', DB::table('core_liveclass_attendances')->where('user_id', $markedByHand->id)->value('status'));
 
         $this->actingAs($setup['admin'])->get(self::HOST."/admin/course-cohorts/{$setup['cohort']}?tab=attendance&session_id={$session}")

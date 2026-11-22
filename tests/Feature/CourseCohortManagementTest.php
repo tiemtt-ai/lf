@@ -7,6 +7,7 @@ use App\Services\CourseCohortContentTree;
 use App\Services\CourseCohortLifecycleService;
 use App\Services\LiveClassCohortSessionReadModel;
 use App\Services\LiveClassScheduleSessionGenerator;
+use App\Services\LiveClassSelfStudySession;
 use App\Services\LiveClassWhiteboardService;
 use App\Services\TeacherPermissions;
 use App\Support\SimpleXlsx;
@@ -2978,6 +2979,24 @@ class CourseCohortManagementTest extends TestCase
         );
     }
 
+    public function test_a_draft_past_its_end_date_is_not_activated(): void
+    {
+        // An active class ends by itself after its end date (ADR-0022 Amendment 1.4): activating one already past it
+        // would end it within a minute, so activation asks for a new end date first.
+        [$customerId, $admin, $cohortId] = $this->lifecycleCohort();
+        DB::table('core_course_cohorts')->where('id', $cohortId)->update([
+            'status' => 'draft', 'start_date' => now()->subMonth()->toDateString(), 'end_date' => now()->subDay()->toDateString(),
+        ]);
+        $this->assertContains(__('lf.LF_course_cohort_activation_end_date_past'),
+            app(CourseCohortLifecycleService::class)->activationIssues($customerId, $cohortId));
+        $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/activate");
+        $this->assertSame('draft', DB::table('core_course_cohorts')->where('id', $cohortId)->value('status'));
+
+        DB::table('core_course_cohorts')->where('id', $cohortId)->update(['end_date' => now()->toDateString()]);
+        $this->assertNotContains(__('lf.LF_course_cohort_activation_end_date_past'),
+            app(CourseCohortLifecycleService::class)->activationIssues($customerId, $cohortId), 'the last day still runs');
+    }
+
     /**
      * @return array{0: int, 1: User, 2: int}
      */
@@ -3199,7 +3218,7 @@ class CourseCohortManagementTest extends TestCase
         $sessionId = DB::table('core_liveclass_sessions')->insertGetId([
             'customer_id' => $customerId, 'cohort_id' => $cohort->id, 'template_version_id' => $cohort->version_id,
             'session_type' => 'operational', 'title' => 'Buổi đã học', 'session_no' => 1, 'delivery_mode' => 'online',
-            'scheduled_start_at' => now()->subHours(3), 'scheduled_end_at' => now()->subHours(2),
+            'scheduled_start_at' => now()->subHours(3), 'scheduled_end_at' => now()->subHours(2), 'primary_teacher_id' => $manager->id,
             'timezone' => config('app.timezone'), 'status' => 'completed', 'created_at' => now(), 'updated_at' => now(),
         ]);
 
@@ -4711,6 +4730,13 @@ class CourseCohortManagementTest extends TestCase
         $sessions = DB::table('core_liveclass_sessions')->where('cohort_id', $cohortId)->orderBy('scheduled_start_at')->pluck('id');
         $this->assertCount(2, $sessions);
         $this->assertSame(0, DB::table('core_liveclass_session_teachers')->whereIn('session_id', $sessions)->count());
+        // Nobody teaches a self-study session: the new teacher does not join it.
+        $selfStudy = DB::table('core_liveclass_sessions')->insertGetId(array_merge(
+            (array) DB::table('core_liveclass_sessions')->where('id', $sessions[1])->first(['customer_id', 'cohort_id', 'template_version_id', 'version_lesson_id', 'timezone', 'created_by']),
+            LiveClassSelfStudySession::BOX,
+            ['title' => 'Self study', 'session_no' => 3, 'status' => 'scheduled', 'scheduled_start_at' => '2026-08-20 09:00:00',
+                'scheduled_end_at' => '2026-08-20 10:00:00', 'created_at' => now(), 'updated_at' => now()],
+        ));
 
         $teacher = $this->createUser($customerId, 'teacher');
         $this->actingAs($admin)->post("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/teachers", [
@@ -4719,6 +4745,22 @@ class CourseCohortManagementTest extends TestCase
 
         $this->assertSame(0, DB::table('core_liveclass_session_teachers')->where('session_id', $sessions[0])->count(), 'before the teacher starts');
         $this->assertSame((int) $teacher->id, (int) DB::table('core_liveclass_session_teachers')->where('session_id', $sessions[1])->value('teacher_id'));
+        $this->assertSame(0, DB::table('core_liveclass_session_teachers')->where('session_id', $selfStudy)->count(), 'self-study');
+
+        // A team row an older fill left on a self-study session neither lists it for the teacher nor holds the teacher.
+        DB::table('core_liveclass_session_teachers')->where('session_id', $sessions[1])->delete();
+        DB::table('core_liveclass_session_teachers')->insert([
+            'customer_id' => $customerId, 'session_id' => $selfStudy, 'teacher_id' => $teacher->id, 'role' => 'teacher',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('core_course_cohorts')->where('id', $cohortId)->update(['status' => 'active']);
+        $this->assertFalse(app(LiveClassWhiteboardService::class)->teacherSessions($customerId, (int) $teacher->id)
+            ->contains('id', $selfStudy));
+        DB::table('core_course_cohorts')->where('id', $cohortId)->update(['status' => 'draft']);
+        $assignment = (int) DB::table('core_course_cohort_teachers')->where('cohort_id', $cohortId)->where('teacher_id', $teacher->id)->value('id');
+        $this->actingAs($admin)->delete("https://tenant-a.localhost/admin/course-cohorts/{$cohortId}/teachers/{$assignment}")
+            ->assertSessionHasNoErrors();
+        $this->assertSame('inactive', DB::table('core_course_cohort_teachers')->where('id', $assignment)->value('status'));
     }
 
     private function operationalPayload(string $title, string $start, string $end): array
@@ -5491,6 +5533,9 @@ class CourseCohortManagementTest extends TestCase
         [$an, $anEnrollment] = $enrol('An Nguyễn', '0901');
         [$binh, $binhEnrollment] = $enrol('Bình Trần', '0902');
         $enrol('Cũ Đã Rời', '0903', 'removed');
+        // Joined after Buổi 1 (ADR-0034): that Session is not hers and does not lower her rate.
+        [$chi, $chiEnrollment] = $enrol('Chi Lê', '0904');
+        DB::table('core_course_cohort_students')->where('enrollment_id', $chiEnrollment)->update(['joined_at' => '2026-08-07 08:00:00']);
 
         $lessonId = DB::table('core_course_template_version_lessons')->insertGetId([
             'customer_id' => $customerId, 'template_version_id' => $versionId, 'source_template_lesson_id' => 9901,
@@ -5506,12 +5551,15 @@ class CourseCohortManagementTest extends TestCase
             'session_type' => 'curriculum', 'version_lesson_id' => $lessonId, 'version_activity_id' => $activityId,
             'title' => 'Buổi '.$no, 'session_no' => $no, 'delivery_mode' => 'online',
             'scheduled_start_at' => $start, 'scheduled_end_at' => substr($start, 0, 11).'21:00:00',
-            'timezone' => 'Asia/Ho_Chi_Minh', 'status' => $status, 'created_by' => $admin->id,
+            'timezone' => 'Asia/Ho_Chi_Minh', 'status' => $status, 'primary_teacher_id' => $teacher->id, 'created_by' => $admin->id,
             'created_at' => now(), 'updated_at' => now(),
         ]);
         $first = $session(1, '2026-08-05 19:00:00', 'completed');
         $second = $session(2, '2026-08-10 19:00:00', 'scheduled');
         $session(3, '2026-08-20 19:00:00', 'scheduled'); // not started: not on the Điểm danh tab, not in the file
+        // Started but nobody teaches it yet: it takes no result, so neither the tab nor the file offers it.
+        $unassigned = $session(4, '2026-08-11 19:00:00', 'scheduled');
+        DB::table('core_liveclass_sessions')->where('id', $unassigned)->update(['primary_teacher_id' => null]);
         $mark = fn (int $sessionId, int $enrollmentId, int $userId, string $status) => DB::table('core_liveclass_attendances')->insert([
             'customer_id' => $customerId, 'session_id' => $sessionId, 'enrollment_id' => $enrollmentId, 'user_id' => $userId,
             'version_activity_id' => $activityId, 'status' => $status, 'attendance_mode' => 'online', 'duration_seconds' => 0,
@@ -5532,8 +5580,8 @@ class CourseCohortManagementTest extends TestCase
 
         $roster = $this->readXlsx($this->actingAs($admin)->get("{$base}/{$cohortId}/students/export"), 'hoc-vien-lop-coh-existing-');
         $this->assertSame(__('lf.LF_course_cohort_student_common_student'), $roster[0][1]);
-        $this->assertCount(3, $roster);
-        $this->assertEqualsCanonicalizing(['An Nguyễn', 'Bình Trần'], array_column(array_slice($roster, 1), 1));
+        $this->assertCount(4, $roster);
+        $this->assertEqualsCanonicalizing(['An Nguyễn', 'Bình Trần', 'Chi Lê'], array_column(array_slice($roster, 1), 1));
         $this->assertContains('0901', array_column($roster, 3));
         $filtered = $this->readXlsx($this->actingAs($admin)->get("{$base}/{$cohortId}/students/export?student_keyword=Bình"), 'hoc-vien-lop-');
         $this->assertSame(['Bình Trần'], array_column(array_slice($filtered, 1), 1));
@@ -5549,7 +5597,11 @@ class CourseCohortManagementTest extends TestCase
         $label = fn (string $status) => __('lf.LF_course_cohort_attendance_status_'.$status);
         $this->assertSame(['1', 'An Nguyễn', $an->email, $label('present'), $label('late'), '1', '1', '0', '0', '100%'], $grid[1]);
         $this->assertSame(['2', 'Bình Trần', $binh->email, $label('absent'), $label('registered'), '0', '0', '1', '0', '0%'], $grid[2]);
-        $this->assertCount(3, $grid);
+        // Buổi 2 has not been taught to the end, so it is left out of the rate; Buổi 1 is before Chi joined.
+        $this->assertSame(['3', 'Chi Lê', $chi->email, __('lf.LF_course_cohort_attendance_outside_before_join'), $label('registered'), '0', '0', '0', '0', ''], $grid[3]);
+        $this->assertCount(4, $grid);
+        $this->actingAs($admin)->get("{$base}/{$cohortId}?tab=attendance&session_id={$unassigned}")->assertOk()
+            ->assertDontSee('Buổi 4');
 
         // Another tenant's Cohort is not found; non-admins are kept out; the grid is off while attendance is off.
         $this->actingAs($admin)->get("{$base}/{$otherCohort}/students/export")->assertNotFound();

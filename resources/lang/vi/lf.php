@@ -1342,6 +1342,7 @@ return [
     'LF_course_cohort_activation_capacity_invalid' => 'Sức chứa của lớp không hợp lệ.',
     'LF_course_cohort_activation_capacity_exceeded' => 'Số học viên hiện tại vượt quá sức chứa của lớp.',
     'LF_course_cohort_activation_dates_invalid' => 'Thời gian vận hành của lớp không hợp lệ.',
+    'LF_course_cohort_activation_end_date_past' => 'Ngày kết thúc của lớp đã qua: lớp sẽ tự kết thúc ngay sau khi kích hoạt. Hãy sửa ngày kết thúc trước.',
     'LF_course_cohort_activation_product_version_invalid' => 'Product Item hoặc Version đã khóa không còn hợp lệ để kích hoạt.',
     'LF_course_cohort_activation_enrollment_inactive' => 'Ghi danh #:id không còn ở trạng thái Hoạt động.',
     'LF_course_cohort_activation_membership_binding_invalid' => 'Ghi danh #:id không khớp Product hoặc Version của lớp.',

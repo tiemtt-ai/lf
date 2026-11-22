@@ -309,6 +309,25 @@ class LearnerMyLearningTest extends TestCase
         $this->assertSame(0, DB::table('core_course_activity_progress')->count(), 'reading a lesson records no Activity');
     }
 
+    public function test_full_watch_threshold_is_reached_although_the_stored_duration_is_rounded_up(): void
+    {
+        [$product, $version] = $this->course($this->customer, 'Sơ cấp tự học', 'self_paced');
+        $lesson = $this->lesson($version, 'Bài 1', 1);
+        // The probe stores ceil(300.6) = 301; the player ends at 300.6.
+        $video = $this->activity($version, $lesson, 'Video', 'video', 1, ['completion_rule' => 'watch_percent', 'completion_threshold' => 100, 'duration_seconds' => 301]);
+        $audio = $this->activity($version, $lesson, 'Nghe', 'audio', 2, ['completion_rule' => 'watch_percent', 'completion_threshold' => 90, 'duration_seconds' => 4]);
+        $enrollment = $this->enroll($this->student, $product, $version, ['access_starts_at' => '2026-07-01 00:00:00', 'access_ends_at' => '2026-07-21 00:00:00']);
+        $send = fn (int $activity, float $at) => $this->actingAs($this->student)->postJson($this->progressUrl($enrollment, $activity), ['event' => 'position', 'position_seconds' => $at]);
+
+        $send($video, 1)->assertOk();
+        $send($audio, 1)->assertOk();
+        Carbon::setTestNow(Carbon::now()->addSeconds(300));
+        $send($video, 299.5)->assertOk()->assertJsonPath('progress.status', 'in_progress');
+        $send($video, 300.6)->assertOk()->assertJsonPath('progress.status', 'completed')->assertJsonPath('progress.percentage', 100);
+        // A 3.2 s clip stored as 4 s still reaches 90 %.
+        $send($audio, 3.2)->assertOk()->assertJsonPath('progress.status', 'completed');
+    }
+
     public function test_progress_events_follow_each_activity_completion_rule(): void
     {
         [$product, $version] = $this->course($this->customer, 'Sơ cấp tự học', 'self_paced');

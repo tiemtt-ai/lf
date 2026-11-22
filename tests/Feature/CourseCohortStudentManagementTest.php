@@ -1532,6 +1532,12 @@ class CourseCohortStudentManagementTest extends TestCase
         // Saving it unchanged adds nothing.
         $update(['cohort_id' => $cohortId, 'joined_at' => '2026-07-03 09:00:00'])->assertSessionHasNoErrors();
         $this->assertCount(3, $history());
+        // A join date stored to the second comes back from the popup to the minute: the note alone changed, the
+        // stored seconds stay and nothing goes into the history.
+        DB::table('core_course_cohort_students')->where('id', $membershipId)->update(['joined_at' => '2026-07-03 09:00:37']);
+        $update(['cohort_id' => $cohortId, 'joined_at' => '2026-07-03T09:00', 'note' => 'Chỉ sửa ghi chú'])->assertSessionHasNoErrors();
+        $this->assertCount(3, $history());
+        $this->assertSame(['2026-07-03 09:00:37', 'Chỉ sửa ghi chú'], [(string) $membership()->joined_at, $membership()->note]);
 
         // The class page shows the history beside the join date, and the edit form refuses a future date.
         $this->actingAs($admin)->get("{$base}/course-cohorts/{$cohortId}?tab=students")->assertOk()

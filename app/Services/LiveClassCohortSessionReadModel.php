@@ -105,7 +105,8 @@ class LiveClassCohortSessionReadModel
 
         $sessions->each(function (object $session) use ($teamBySession, $sessionsWithEvidence, $attendanceCounts, $cohortStatus, $now): void {
             $session->attendance_counts = $attendanceCounts->get($session->id, []);
-            $team = $teamBySession->get($session->id, collect())->values();
+            // Nobody teaches a self-study session: a team row an older fill left on one is not shown.
+            $team = LiveClassSelfStudySession::is($session) ? collect() : $teamBySession->get($session->id, collect())->values();
             $session->teacher_team = $team;
             $teacherIds = $team->pluck('teacher_id')->map(fn ($id): string => (string) $id);
             if ($session->primary_teacher_id && ! $teacherIds->contains((string) $session->primary_teacher_id)) {

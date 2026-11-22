@@ -170,6 +170,8 @@ tắc điểm danh và lưu trữ vẫn chỉ quản trị làm. Mọi thao tác
 theo ngày"): lớp `active` tự kết thúc sau 23:59 ngày kết thúc (lệnh
 `course:complete-ended-cohorts`); kết thúc sớm chỉ quản trị bấm, giáo viên chính không còn
 nút "Kết thúc lớp" nhưng vẫn sửa được ngày kết thúc (lớp đang chạy: không trước hôm nay).
+Bổ sung 2026-11-22: lớp nháp đã qua ngày kết thúc không kích hoạt được; phải sửa ngày kết
+thúc trước.
 
 Khoảng lịch của Session phải nằm hoàn toàn trong thời gian vận hành Cohort.
 Ngày bắt đầu tối thiểu là ngày lớn hơn giữa `cohort.start_date` và ngày hiện

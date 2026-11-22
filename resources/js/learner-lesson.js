@@ -404,7 +404,7 @@ export function learnerActivity(config) {
                 .catch(() => {});
         },
 
-        /** The signed URL expired while playing: fetch a new one once and continue from the same second. */
+        /** The signed URL expired while playing: fetch a new one and continue from the same second; a new link that fails too is not fetched again. */
         async onError() {
             // A player without a source yet (before "Phát") is not an error.
             if (!this.src) {
@@ -422,6 +422,8 @@ export function learnerActivity(config) {
                 this.src = await this.mediaUrl();
                 await this.$nextTick();
                 player.addEventListener('loadedmetadata', () => {
+                    // The new link plays, so a later expiry (a long video) may fetch one again.
+                    this.retried = false;
                     player.currentTime = at;
                     player.play().catch(() => {});
                 }, { once: true });

@@ -14,6 +14,7 @@ use App\Services\LiveClassAttendancePolicies;
 use App\Services\LiveClassAttendanceRecorder;
 use App\Services\LiveClassCohortScheduleReadModel;
 use App\Services\LiveClassCohortSessionReadModel;
+use App\Services\LiveClassSelfStudySession;
 use App\Services\LiveClassSessionPolicy;
 use App\Services\LiveClassSessionTime;
 use App\Support\CourseType;
@@ -205,7 +206,7 @@ class CourseCohortController extends Controller
             ->where('status', 'active')->count();
         $cohortSessions = $this->sessionReadModel->forCohort($customerId, $id);
         $eligibleAttendanceSessions = $cohortSessions
-            ->filter(fn (object $session): bool => $this->sessionPolicy->canRecordAttendance($session, now()))
+            ->filter(fn (object $session): bool => $this->sessionPolicy->takesAttendance($session, now()))
             ->values();
         $recordingCount = (int) DB::table('core_liveclass_recordings as recordings')
             ->join('core_liveclass_sessions as sessions', 'sessions.id', '=', 'recordings.session_id')
@@ -444,7 +445,9 @@ class CourseCohortController extends Controller
         $completed = fn () => DB::table('core_liveclass_sessions as sessions')
             ->where('sessions.customer_id', $customerId)
             ->where('sessions.cohort_id', $id)
-            ->where('sessions.status', 'completed');
+            ->where('sessions.status', 'completed')
+            // Nobody teaches a self-study session, even one an older team fill reached.
+            ->where('sessions.session_type', '!=', LiveClassSelfStudySession::TYPE);
         $teamPairs = $completed()
             ->join('core_liveclass_session_teachers as team', function ($join): void {
                 $join->on('team.session_id', '=', 'sessions.id')->on('team.customer_id', '=', 'sessions.customer_id');

@@ -362,12 +362,19 @@ class CourseCohortStudentController extends Controller
 
             // ADR-0034: a transfer and a changed join date are kept in the history.
             $transferred = (int) $target->id !== (int) $source->id;
+            // The popup shows the join date to the minute while it is stored to the second: the same minute is the
+            // same date, and the stored seconds stay (an edit of the note alone is no join date change).
+            $sameJoinDate = Carbon::parse((string) $lockedMembership->joined_at)->format('Y-m-d H:i')
+                === Carbon::parse((string) $validated['joined_at'])->format('Y-m-d H:i');
+            if ($sameJoinDate) {
+                $validated['joined_at'] = (string) $lockedMembership->joined_at;
+            }
             // A transfer that kept the old class's join date joins the new class now: otherwise the new class's earlier
             // sessions would count, and automatic absence would mark them (QA 2026-11-19). A date the admin changed stays.
-            if ($transferred && Carbon::parse((string) $lockedMembership->joined_at)->equalTo(Carbon::parse((string) $validated['joined_at']))) {
+            if ($transferred && $sameJoinDate) {
                 $validated['joined_at'] = now()->format('Y-m-d H:i:s');
             }
-            if ($transferred || ! Carbon::parse((string) $lockedMembership->joined_at)->equalTo(Carbon::parse((string) $validated['joined_at']))) {
+            if ($transferred || ! $sameJoinDate) {
                 CourseCohortMembershipHistory::record($lockedMembership, $transferred ? 'transferred' : 'joined_at_changed', $request->user()?->id, [
                     'old_joined_at' => $lockedMembership->joined_at, 'new_joined_at' => $validated['joined_at'], 'cohort_id' => (int) $target->id,
                 ]);

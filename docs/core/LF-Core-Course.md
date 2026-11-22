@@ -1,12 +1,12 @@
 # LF-Core-Course.md
 
-Version: 3.23
+Version: 3.24
 
 Document Status: Approved
 
 Implementation Status: Unknown
 
-Last Updated: 2026-11-19
+Last Updated: 2026-11-22
 
 Document Path: core/LF-Core-Course.md
 
@@ -1585,7 +1585,8 @@ bài học và cho Course ghi ba bảng progress. Track không tham gia.
   `watch_percent` → `watch_percentage` (video) / `listen_percentage` (audio),
   `manual` → `manual`, `join` → `attended`. Quiz ngoài phạm vi.
 * "Xem đủ X%": vị trí cao nhất, mỗi lần chỉ tăng tối đa (thời gian thực × 1,5 + 30 giây)
-  kể từ lần ghi trước. Activity đã hoàn thành không quay lại, trừ `attended` (đi theo
+  kể từ lần ghi trước. Thời lượng lưu là thời lượng đo được làm tròn lên giây, nên vị trí
+  cách cuối dưới 1 giây tính là 100%. Activity đã hoàn thành không quay lại, trừ `attended` (đi theo
   điểm danh, sửa thành vắng thì quay lại chưa hoàn thành).
 * `attended`: LiveClass ghi `present` / `late` cho Enrollment ở buổi gắn Activity, buổi không
   `cancelled` / `no_show`; LiveClass gọi Course tính lại sau khi ghi điểm danh.
@@ -1791,7 +1792,9 @@ Marketing/display cache không được dùng cho Completion, Certificate, Billi
 * 2026-11-19 (Owner duyệt và triển khai;
   [ADR-0022](../adr/ADR-0022-Course-Type-On-Template.md) Amendment 1.4): `active -> completed`
   tự xảy ra sau 23:59 ngày `end_date` (lệnh `course:complete-ended-cohorts`); kết thúc sớm
-  bằng tay chỉ quản trị làm. Các bước chuyển trạng thái không đổi.
+  bằng tay chỉ quản trị làm. Các bước chuyển trạng thái không đổi. Bổ sung 2026-11-22: lớp
+  `draft` có `end_date` trước hôm nay không kích hoạt được (sẽ tự kết thúc ngay), phải sửa
+  ngày kết thúc trước.
 * Chỉ Enrollment `active` được thêm hoặc chuyển vào Cohort `draft` hoặc
   `active`. Bổ sung 2026-11-19 (Owner duyệt, đã triển khai): Enrollment đã qua
   `access_ends_at` (`access_ends_at <= now`) cũng bị từ chối, kể cả khi còn trong

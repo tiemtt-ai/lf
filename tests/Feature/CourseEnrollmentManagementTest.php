@@ -97,6 +97,26 @@ class CourseEnrollmentManagementTest extends TestCase
         );
     }
 
+    public function test_multiline_note_posted_by_the_form_matches_the_json_preflight(): void
+    {
+        $customerId = $this->createTenant();
+        $admin = $this->createUser($customerId, 'customer_admin');
+        $student = $this->createUser($customerId, 'student');
+        $productId = $this->createProduct($customerId, 'TOPIK Beginner', 'topik-beginner');
+        $this->createProductItem($customerId, $productId, $this->createVersion($customerId, $admin->id, title: 'TOPIK Beginner'));
+        // The preflight is JSON ("\n"); the commit is the native form post of the textarea ("\r\n").
+        $token = $this->prepareBulkSubmission($admin, [$student->id], [$productId], [], $this->bulkConfiguration(['notes' => "Line one\nLine two"]));
+
+        $this->actingAs($admin)->post(
+            'https://tenant-a.localhost/admin/course-enrollments/bulk',
+            $this->bulkStoreData([$student->id], [$productId], $token, [], $this->bulkConfiguration(['notes' => "Line one\r\nLine two"]))
+        )->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('core_course_enrollments', [
+            'customer_id' => $customerId, 'student_id' => $student->id, 'product_id' => $productId, 'notes' => "Line one\nLine two",
+        ]);
+    }
+
     public function test_enrollment_forms_show_real_notes_and_hide_metadata_json(): void
     {
         $customerId = $this->createTenant();

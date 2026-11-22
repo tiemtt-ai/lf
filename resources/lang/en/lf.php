@@ -1342,6 +1342,7 @@ return [
     'LF_course_cohort_activation_capacity_invalid' => 'The class capacity is invalid.',
     'LF_course_cohort_activation_capacity_exceeded' => 'The current student count exceeds the class capacity.',
     'LF_course_cohort_activation_dates_invalid' => 'The class operating period is invalid.',
+    'LF_course_cohort_activation_end_date_past' => 'The class end date has passed: the class would end right after activation. Change the end date first.',
     'LF_course_cohort_activation_product_version_invalid' => 'The locked Product Item or Version is no longer eligible for activation.',
     'LF_course_cohort_activation_enrollment_inactive' => 'Enrollment #:id is no longer Active.',
     'LF_course_cohort_activation_membership_binding_invalid' => 'Enrollment #:id does not match the class Product or Version.',

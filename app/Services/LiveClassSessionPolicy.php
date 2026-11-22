@@ -82,6 +82,18 @@ class LiveClassSessionPolicy
             || ($session->status === 'scheduled' && $this->startsAt($session)->lte($now));
     }
 
+    /**
+     * A Session the Điểm danh tab lists and the attendance export counts: one that takes a result by hand now. A
+     * Session nobody teaches yet takes none until a teacher is assigned (saving it is refused); a self-study one has
+     * no teacher by design. `$session` is a row of {@see LiveClassCohortSessionReadModel::forCohort()} (`teacher_ids`).
+     */
+    public function takesAttendance(object $session, CarbonInterface $now): bool
+    {
+        return $this->canRecordAttendance($session, $now)
+            && (LiveClassSelfStudySession::is($session) || ! empty($session->primary_teacher_id)
+                || collect($session->teacher_ids ?? [])->isNotEmpty());
+    }
+
     public function canCreateRecording(object $session, CarbonInterface $now): bool
     {
         return $session->status === 'completed'

@@ -21,7 +21,8 @@
                 <button type="submit" class="lf-live__btn is-primary">{{ __('lf.LF_liveclass_attendance_entry_button') }}</button>
             </form>
         @endif
-    @else
+    @elseif ($session->entry_qr ?? false)
+        {{-- Only while the board shows a code: not when the room is recorded by hand, nor once the code has closed. --}}
         <p class="lf-live__hint" x-show="where === 'room'" @if ($session->delivery_mode !== 'offline') x-cloak @endif data-live-qr-hint>
             {{ __('lf.LF_liveclass_whiteboard_learner_scan_qr') }}
         </p>

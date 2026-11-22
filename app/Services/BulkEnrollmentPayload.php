@@ -20,7 +20,8 @@ class BulkEnrollmentPayload
                 $value = $configuration[$field] ?? null;
 
                 if (is_string($value)) {
-                    $value = trim($value);
+                    // A JSON preflight sends "\n" while the browser posts a textarea with "\r\n".
+                    $value = trim(str_replace(["\r\n", "\r"], "\n", $value));
                 }
 
                 return [$field => $value === '' ? null : $value];

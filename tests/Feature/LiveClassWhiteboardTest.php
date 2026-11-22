@@ -470,8 +470,9 @@ class LiveClassWhiteboardTest extends TestCase
         $this->liveSession($setup, 'Tomorrow', '2026-07-05 15:00:00', '2026-07-05 17:00:00', teacher: $setup['teacher']);
         $student = $this->learner($setup);
         $outsider = $this->user($setup['customer'], 'student');
-        // In class only shows the QR check-in hint; the board is for online and remote learners.
-        $this->assertStringContainsString('data-live-qr-hint', $this->actingAs($student)->get(self::HOST.'/my-courses')->assertOk()->getContent());
+        // In class there is no board; with attendance off the board shows no code either, so there is no QR hint
+        // (LiveClassAttendanceCheckInTest covers the hint while a code is shown). The board is for online and remote learners.
+        $this->assertStringNotContainsString('data-live-qr-hint', $this->actingAs($student)->get(self::HOST.'/my-courses')->assertOk()->getContent());
         DB::table('core_liveclass_sessions')->where('id', $live)->update(['delivery_mode' => 'online']);
 
         $page = $this->actingAs($student)->get(self::HOST.'/my-courses')->assertOk()->getContent();
@@ -807,9 +808,9 @@ class LiveClassWhiteboardTest extends TestCase
         $page = fn (): string => $this->actingAs($student)->get(self::HOST.'/my-courses')->assertOk()->getContent();
         $board = "/my-courses/live-sessions/{$live}/board";
 
-        // In class: only the QR hint, no board and no meeting.
+        // In class: no board and no meeting (and, with attendance off, no code to scan).
         $html = $page();
-        $this->assertStringContainsString('data-live-qr-hint', $html);
+        $this->assertStringNotContainsString('data-live-qr-hint', $html);
         $this->assertStringNotContainsString($board, $html);
         $this->assertStringNotContainsString('data-live-where', $html);
 

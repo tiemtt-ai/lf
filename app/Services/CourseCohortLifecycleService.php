@@ -245,6 +245,12 @@ class CourseCohortLifecycleService
             $errors[] = __('lf.LF_course_cohort_activation_dates_invalid');
         }
 
+        // An active class ends by itself after its end date (ADR-0022 Amendment 1.4): one already past it would end
+        // within a minute of being activated.
+        if ($cohort->end_date && substr((string) $cohort->end_date, 0, 10) < now(config('app.timezone'))->toDateString()) {
+            $errors[] = __('lf.LF_course_cohort_activation_end_date_past');
+        }
+
         if ($cohort->version_id && ! $this->versionResolver->runsInClass($customerId, (int) $cohort->version_id)) {
             $errors[] = __('lf.LF_course_type_cohort_legacy_self_paced');
         }

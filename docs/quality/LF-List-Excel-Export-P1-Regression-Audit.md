@@ -22,7 +22,7 @@ Không có thay đổi schema hay migration. Đề xuất gốc: [LF-List-Excel-
 | Người dùng | `GET admin/users/export` → `admin.users.export` | Admin | Theo tab vai trò, từ khóa, trạng thái |
 | Ghi danh khóa học | `GET admin/course-enrollments/export` → `admin.course-enrollments.export` | Admin | Theo mọi bộ lọc của trang (cả bộ lọc nâng cao) |
 | Học viên của một lớp | `GET admin/course-cohorts/{id}/students/export` → `admin.course-cohorts.students.export` | Admin | Học viên đang học (active), theo từ khóa của tab |
-| Điểm danh của lớp | `GET admin/course-cohorts/{id}/attendance/export` → `admin.course-cohorts.attendance.export` | Admin | Ma trận học viên × buổi; 404 khi `liveclass.attendance_enabled` tắt |
+| Điểm danh của lớp | `GET admin/course-cohorts/{id}/attendance/export` → `admin.course-cohorts.attendance.export` | Admin | Ma trận học viên × buổi; 404 khi `liveclass.attendance_enabled` tắt. Sửa 2026-11-22: chỉ buổi đã có giáo viên (như tab Điểm danh); buổi ngoài thời gian thuộc lớp ghi "Trước ngày vào lớp"/"Không thuộc lớp" và không tính (ADR-0034); tỷ lệ = Có mặt + Muộn trên buổi đã `completed` trong thời gian thuộc lớp, như trang lớp của học viên |
 | Kết quả kiểm tra | `GET admin\|teacher/assessments/results/export` → `*.assessments.results.export` | Admin, giáo viên | Theo tab Chờ chấm, từ khóa, đề, trạng thái |
 
 **Không làm:** "Học viên trong lớp (toàn tenant)" (`admin.course-cohort-students.index`) — trang này không có lối vào từ menu hay trang khác, chỉ mở được bằng URL; xuất theo từng lớp đã thay thế nhu cầu này.

@@ -29,6 +29,9 @@ class CourseProgressRecorder
 
     private const POSITION_SLACK_SECONDS = 30;
 
+    /** The stored duration is the probed one rounded up, so the real end lies within this many seconds of it. */
+    private const DURATION_ROUNDING_SECONDS = 1;
+
     /** Learning time added per record never exceeds this, whatever the client says. */
     private const MAX_SECONDS_PER_RECORD = 90;
 
@@ -327,7 +330,11 @@ class CourseProgressRecorder
         return [
             'last_position_seconds' => (int) floor($position),
             'total_learning_seconds' => (int) $row->total_learning_seconds + ($last ? min((int) $elapsed, self::MAX_SECONDS_PER_RECORD) : 0),
-            'progress_percentage' => $duration > 0 ? round(min(100, 100 * $max / $duration), 2) : (float) $row->progress_percentage,
+            'progress_percentage' => match (true) {
+                $duration <= 0 => (float) $row->progress_percentage,
+                $max > $duration - self::DURATION_ROUNDING_SECONDS => 100.0,
+                default => round(min(100, 100 * $max / $duration), 2),
+            },
             'metadata' => json_encode($meta),
         ];
     }

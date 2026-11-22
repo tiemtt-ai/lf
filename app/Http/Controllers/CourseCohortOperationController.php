@@ -162,6 +162,8 @@ class CourseCohortOperationController extends Controller
             ->where('sessions.customer_id', $customerId)
             ->where('sessions.cohort_id', $cohort)
             ->where('sessions.status', 'scheduled')
+            // Nobody teaches a self-study session (LiveClassScheduleSessionGenerator leaves it without a team).
+            ->where('sessions.session_type', '!=', LiveClassSelfStudySession::TYPE)
             ->whereNull('sessions.primary_teacher_id')
             ->whereNotExists(fn ($query) => $query->selectRaw('1')
                 ->from('core_liveclass_session_teachers as team')
@@ -346,6 +348,8 @@ class CourseCohortOperationController extends Controller
             ->where('sessions.customer_id', $customerId)
             ->where('sessions.cohort_id', $cohortId)
             ->whereNotIn('sessions.status', ['cancelled', 'no_show'])
+            // A self-study session is never taught: a team row left on one does not hold the teacher.
+            ->where('sessions.session_type', '!=', LiveClassSelfStudySession::TYPE)
             ->orderBy('sessions.session_no')
             ->get([
                 'sessions.id', 'sessions.session_no', 'sessions.title', 'sessions.status',

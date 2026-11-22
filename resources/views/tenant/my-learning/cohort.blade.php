@@ -397,7 +397,7 @@
                                                                 $session->attendance_mode === 'offline' => $session->attendance_tool === 'button' ? 'button' : 'qr',
                                                                 default => 'other',
                                                             }, ['time' => $entered->format('H:i')]) }}</p>
-                                                        @elseif ($live && $session->delivery_mode !== 'online' && ! ($live->entry_button ?? false))
+                                                        @elseif ($live && $session->delivery_mode !== 'online' && ($live->entry_qr ?? false))
                                                             <p class="learning-board-item__checkin">{{ __('lf.LF_liveclass_whiteboard_learner_scan_qr') }}</p>
                                                         @endif
                                                         <p class="learning-board-item__description">{{ __('lf.LF_my_learning_board_mode_'.$session->delivery_mode) }}</p>
