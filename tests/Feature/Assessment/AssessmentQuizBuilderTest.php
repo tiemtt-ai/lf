@@ -242,6 +242,62 @@ class AssessmentQuizBuilderTest extends TestCase
             ->assertSeeText(__('lf.LF_assessment_quiz_version_current'));
     }
 
+    /** The version keeps its snapshot, so an edit in the bank of a chosen question or passage waits for the next publish. */
+    public function test_editing_a_chosen_question_or_passage_in_the_bank_reports_unpublished_changes(): void
+    {
+        $quiz = $this->quiz($this->admin);
+        $section = $this->sectionIds($quiz)[0];
+        $single = $this->question($this->admin, 'Một');
+        $passage = $this->passage($this->admin, 'Bài đọc');
+        $this->question($this->admin, 'Con', '1', 'published', $passage);
+        $unused = $this->question($this->admin, 'Không trong đề');
+        $this->add($quiz, $section, [$single], [$passage])->assertCreated();
+        $base = self::ADMIN.'/quizzes/'.$quiz;
+        $this->actingAs($this->admin)->post($base.'/publish')->assertSessionHasNoErrors();
+        $changes = __('lf.LF_assessment_quiz_unpublished_changes');
+
+        $this->travel(5)->minutes();
+        $this->actingAs($this->admin)->put(self::ADMIN.'/questions/'.$unused, $this->questionPayload('Không trong đề (sửa)'), self::AJAX)->assertOk();
+        $this->actingAs($this->admin)->get($base)->assertOk()->assertDontSeeText($changes);
+
+        $this->actingAs($this->admin)->put(self::ADMIN.'/questions/'.$single, $this->questionPayload('Một (sửa)'), self::AJAX)->assertOk();
+        $this->actingAs($this->admin)->get($base)->assertOk()->assertSeeText($changes);
+
+        $this->actingAs($this->admin)->post($base.'/publish')->assertSessionHasNoErrors();
+        $this->travel(5)->minutes();
+        $this->actingAs($this->admin)->get($base)->assertOk()->assertDontSeeText($changes);
+        $this->actingAs($this->admin)->put(self::ADMIN.'/passages/'.$passage, ['title' => 'Bài đọc (sửa)', 'status' => 'published'], self::AJAX)->assertOk();
+        $this->actingAs($this->admin)->get($base)->assertOk()->assertSeeText($changes);
+    }
+
+    /** The popup opens with the newest rows only; on a cut list its filter brings in the matches of the whole bank. */
+    public function test_the_picker_filter_searches_the_whole_bank_when_the_list_is_cut(): void
+    {
+        $quiz = $this->quiz($this->admin);
+        $old = $this->question($this->admin, 'Câu cũ đặc biệt');
+        $row = (array) DB::table('core_assessment_questions')->find($old);
+        unset($row['id']);
+        foreach (range(1, 500) as $n) {
+            DB::table('core_assessment_questions')->insert(['created_at' => now()->addMinutes($n)] + $row);
+        }
+        $pick = self::ADMIN.'/quizzes/'.$quiz.'/questions/pick';
+
+        $this->actingAs($this->admin)->get($pick, self::AJAX)->assertOk()
+            ->assertDontSeeText('Câu cũ đặc biệt')->assertSeeText(__('lf.LF_assessment_quiz_picker_truncated'));
+        $found = $this->actingAs($this->admin)->get($pick.'?q='.urlencode('cũ đặc'), self::AJAX)->assertOk()->json();
+        $this->assertStringContainsString('Câu cũ đặc biệt', $found['questions']);
+        $this->assertStringContainsString('value="'.$old.'"', $found['questions']);
+        $this->assertStringNotContainsString('ui-pick-row', $this->actingAs($this->admin)->get($pick.'?q=khongco', self::AJAX)->json('questions'));
+
+        // A teacher's search stays within what they may add.
+        $mine = $this->quiz($this->teacher);
+        $this->assertStringNotContainsString('Câu cũ đặc biệt', $this->actingAs($this->teacher)
+            ->get(self::TEACHER.'/quizzes/'.$mine.'/questions/pick?q='.urlencode('cũ đặc'), self::AJAX)->assertOk()->json('questions'));
+        // A short list is not cut, so the popup says nothing about it.
+        $this->actingAs($this->teacher)->get(self::TEACHER.'/quizzes/'.$mine.'/questions/pick', self::AJAX)->assertOk()
+            ->assertDontSeeText(__('lf.LF_assessment_quiz_picker_truncated'));
+    }
+
     public function test_publish_refuses_an_invalid_draft(): void
     {
         $quiz = $this->quiz($this->admin);
@@ -358,6 +414,15 @@ class AssessmentQuizBuilderTest extends TestCase
         $this->actingAs($user)->postJson($base.'/quizzes', $this->quizPayload($overrides), self::AJAX)->assertCreated();
 
         return (int) DB::table('core_assessment_quizzes')->max('id');
+    }
+
+    /** @return array<string, mixed> a single choice question as the form sends it */
+    private function questionPayload(string $prompt): array
+    {
+        return [
+            'question_type' => 'single_choice', 'default_points' => '1', 'status' => 'published', 'prompt' => $prompt,
+            'options' => [['text' => 'Một', 'correct' => 1], ['text' => 'Hai', 'correct' => 0]],
+        ];
     }
 
     /** @param  array<string, mixed>  $extra */

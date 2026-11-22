@@ -4,6 +4,7 @@ namespace Tests\Feature\Assessment;
 
 use App\Models\User;
 use App\Services\Assessment\AssessmentAttemptService;
+use App\Services\TeacherPermissions;
 use App\Support\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -264,6 +265,26 @@ class AssessmentGraderAssignmentTest extends TestCase
         $this->save($this->admin, [$quiz], [], 'replace')->assertOk();
         $this->actingAs($lan)->get(self::TEACHER.'/results/'.$attempt->id)->assertOk();
         $this->actingAs($minh)->get(self::TEACHER.'/results/'.$attempt->id)->assertNotFound();
+    }
+
+    /** Nhận chấm needs `assessment.grading` (ADR-0033 D3): the list offers it only to teachers who may grade. */
+    public function test_the_result_list_offers_claiming_only_to_teachers_who_may_grade(): void
+    {
+        $writer = $this->createUser($this->customerId, 'teacher', 'Cô Soạn');
+        app(TeacherPermissions::class)->defaultGroup($this->customerId);
+        $group = DB::table(TeacherPermissions::GROUPS_TABLE)->insertGetId(['customer_id' => $this->customerId, 'name' => 'Soạn đề', 'created_at' => now(), 'updated_at' => now()]);
+        DB::table(TeacherPermissions::GRANTS_TABLE)->insert(['customer_id' => $this->customerId, 'permission_group_id' => $group, 'permission_key' => 'assessment.authoring', 'created_at' => now()]);
+        DB::table('users')->where('id', $writer->id)->update(['teacher_permission_group_id' => $group]);
+        $grader = $this->createUser($this->customerId, 'teacher', 'Thầy Chấm');
+        $attempt = $this->submittedAttempt($this->grant($this->quiz($writer), $writer));
+
+        $this->actingAs($writer)->get(self::TEACHER.'/results?tab=pending')->assertOk()
+            ->assertSeeText('Học viên Lan')->assertDontSee('results/'.$attempt->id.'/claim', false);
+        $this->actingAs($writer)->post(self::TEACHER.'/results/'.$attempt->id.'/claim')->assertForbidden();
+
+        $this->actingAs($this->admin)->get(self::ADMIN.'/results?tab=pending')->assertOk()->assertDontSee('results/'.$attempt->id.'/claim', false);
+        $this->save($this->admin, [(int) $attempt->quiz_id], [$grader->id], 'add')->assertOk();
+        $this->actingAs($grader)->get(self::TEACHER.'/results?tab=pending')->assertOk()->assertSee('results/'.$attempt->id.'/claim', false);
     }
 
     /** ADR-0027 Amendment 1.1: the first score a teacher saves on a pending attempt nobody holds takes it for them. */

@@ -140,6 +140,14 @@ class CourseQuizActivityTest extends TestCase
         $this->actingAs($this->student)->post(self::HOST.'/assessments/attempts/'.$open->id.'/submit');
         $this->assertSame('in_progress', DB::table('core_assessment_attempts')->where('id', $open->id)->value('status'));
         $this->actingAs($this->student)->post($start)->assertForbidden();
+        // The paper no longer opens, so the 409 above (sent on to the result, which sends back an open attempt) cannot
+        // bounce the learner between the two pages: they land on their courses and are told why.
+        $this->actingAs($this->student)->get(self::HOST.'/assessments/attempts/'.$open->id.'/result')
+            ->assertRedirect(self::HOST.'/assessments/attempts/'.$open->id);
+        $this->actingAs($this->student)->get(self::HOST.'/assessments/attempts/'.$open->id)
+            ->assertRedirect(self::HOST.'/my-courses')->assertSessionHas('lf_learn_notice', __('lf.LF_assessment_attempt_course_cancelled'));
+        $this->actingAs($this->student)->withSession(['lf_learn_notice' => __('lf.LF_assessment_attempt_course_cancelled')])
+            ->get(self::HOST.'/my-courses')->assertOk()->assertSeeText(__('lf.LF_assessment_attempt_course_cancelled'));
     }
 
     public function test_pass_waits_for_grading_and_graders_see_the_course(): void

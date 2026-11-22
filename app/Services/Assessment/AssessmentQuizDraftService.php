@@ -244,9 +244,11 @@ final class AssessmentQuizDraftService
         });
     }
 
-    /** Published questions this user may add (not yet in the quiz), newest first. */
-    public function availableQuestions(int $customerId, User $user, int $quizId, string $locale, int $limit = 500): Collection
+    /** Published questions this user may add (not yet in the quiz), newest first; `$search` matches prompt or category. */
+    public function availableQuestions(int $customerId, User $user, int $quizId, string $locale, int $limit = 500, string $search = ''): Collection
     {
+        $like = '%'.addcslashes($search, '%_\\').'%';
+
         return $this->questions->scoped($customerId, $user, 'q')
             ->leftJoin('core_assessment_question_contents as c', function ($join) use ($locale): void {
                 $join->on('c.question_id', '=', 'q.id')->on('c.customer_id', '=', 'q.customer_id')->where('c.locale', '=', $locale);
@@ -257,6 +259,7 @@ final class AssessmentQuizDraftService
             ->where('q.status', 'published')
             ->whereNull('q.passage_id')
             ->whereNotIn('q.id', $this->chosenQuestionIds($customerId, $quizId))
+            ->when($search !== '', fn ($query) => $query->where(fn ($match) => $match->where('c.prompt', 'like', $like)->orWhere('cat.name', 'like', $like)))
             ->orderByDesc('q.created_at')->orderByDesc('q.id')
             ->limit($limit)
             ->get(['q.id', 'q.question_type', 'q.default_points', 'c.prompt', 'cat.name as category_name']);
@@ -318,16 +321,18 @@ final class AssessmentQuizDraftService
         ];
     }
 
-    /** Published passages this user may add that still have a ready child outside the quiz. */
-    public function availablePassages(int $customerId, User $user, int $quizId, int $limit = 300): Collection
+    /** Published passages this user may add that still have a ready child outside the quiz; `$search` matches title or category. */
+    public function availablePassages(int $customerId, User $user, int $quizId, int $limit = 300, string $search = ''): Collection
     {
         $chosen = $this->chosenQuestionIds($customerId, $quizId);
+        $like = '%'.addcslashes($search, '%_\\').'%';
 
         return $this->passages->scoped($customerId, $user, 'p')
             ->leftJoin(AssessmentCategoryService::TABLE.' as cat', function ($join): void {
                 $join->on('cat.id', '=', 'p.category_id')->on('cat.customer_id', '=', 'p.customer_id');
             })
             ->where('p.status', 'published')
+            ->when($search !== '', fn ($query) => $query->where(fn ($match) => $match->where('p.title', 'like', $like)->orWhere('cat.name', 'like', $like)))
             ->select('p.id', 'p.title', 'p.skill_type', 'cat.name as category_name')
             ->selectSub(fn ($query) => $query->from(AssessmentQuestionService::TABLE.' as child')->selectRaw('count(*)')
                 ->whereColumn('child.passage_id', 'p.id')->where('child.customer_id', $customerId)
@@ -366,6 +371,28 @@ final class AssessmentQuizDraftService
     {
         DB::table(AssessmentQuizService::TABLE)->where('customer_id', $customerId)->where('id', $quizId)
             ->update(['content_updated_at' => now(), 'updated_at' => now()]);
+    }
+
+    /**
+     * A question, passage or rubric of the draft was edited after `$since` (the current version's publish time). The
+     * version keeps its snapshot, so the edit reaches learners only when the quiz is published again.
+     */
+    public function bankChangedSince(int $customerId, int $quizId, string $since): bool
+    {
+        return DB::table(AssessmentQuizService::QUESTIONS_TABLE.' as i')
+            ->join(AssessmentQuestionService::TABLE.' as q', function ($join): void {
+                $join->on('q.id', '=', 'i.question_id')->on('q.customer_id', '=', 'i.customer_id');
+            })
+            ->leftJoin(AssessmentPassageService::TABLE.' as p', function ($join): void {
+                $join->on('p.id', '=', 'q.passage_id')->on('p.customer_id', '=', 'q.customer_id');
+            })
+            ->leftJoin(AssessmentRubricService::TABLE.' as r', function ($join): void {
+                $join->on('r.id', '=', 'q.rubric_id')->on('r.customer_id', '=', 'q.customer_id');
+            })
+            ->where('i.customer_id', $customerId)->where('i.quiz_id', $quizId)
+            ->where(fn ($changed) => $changed->where('q.updated_at', '>', $since)
+                ->orWhere('p.updated_at', '>', $since)->orWhere('r.updated_at', '>', $since))
+            ->exists();
     }
 
     private function chosenQuestionIds(int $customerId, int $quizId): Builder

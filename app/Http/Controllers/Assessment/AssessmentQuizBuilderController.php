@@ -26,6 +26,13 @@ use Illuminate\View\View;
  */
 final class AssessmentQuizBuilderController extends Controller
 {
+    /** Thêm câu hỏi: rows the popup opens with (newest first), and the most a filter brings in from the whole bank. */
+    private const PICKER_QUESTION_LIMIT = 500;
+
+    private const PICKER_PASSAGE_LIMIT = 300;
+
+    private const PICKER_SEARCH_LIMIT = 100;
+
     public function __construct(
         private readonly Quizzes $quizzes,
         private readonly Drafts $drafts,
@@ -53,9 +60,11 @@ final class AssessmentQuizBuilderController extends Controller
             'totalPoints' => $items->sum(fn (object $item) => (float) $item->points),
             'versions' => $versions,
             'currentVersion' => $current,
-            // The draft changed after the current version was published (settings, sections or questions).
-            'hasChanges' => $current !== null && $quiz->content_updated_at !== null
-                && strtotime((string) $quiz->content_updated_at) > strtotime((string) $current->published_at),
+            // The draft changed after the current version was published (settings, sections or questions), or one of its
+            // questions, passages or rubrics was edited in the bank since: either reaches learners only on the next publish.
+            'hasChanges' => $current !== null && (($quiz->content_updated_at !== null
+                && strtotime((string) $quiz->content_updated_at) > strtotime((string) $current->published_at))
+                || $this->drafts->bankChangedSince($customerId, $id, (string) $current->published_at)),
             'activeRegistrations' => DB::table(AssessmentRegistrationService::TABLE)
                 ->where('customer_id', $customerId)->where('quiz_id', $id)->where('status', 'active')->count(),
             'quizGraders' => $this->graders->quizGraders($customerId, $id),
@@ -119,19 +128,41 @@ final class AssessmentQuizBuilderController extends Controller
 
     // ---- Chosen questions ----
 
-    public function pickQuestions(Request $request, int $id): View
+    public function pickQuestions(Request $request, int $id): View|JsonResponse
     {
         abort_unless($request->ajax(), 404);
         $customerId = $this->customerId();
         $user = $request->user();
         $this->quizzes->find($customerId, $user, $id);
+        $locale = $this->questions->locale();
+
+        // Typing in the filter of a cut list: the matching rows of the whole bank, appended to the list on screen.
+        if ($request->filled('q')) {
+            $search = mb_substr(trim((string) $request->query('q')), 0, 100);
+
+            return response()->json([
+                'questions' => view('assessments.quizzes.picker-rows', [
+                    'kind' => 'questions',
+                    'rows' => $this->drafts->availableQuestions($customerId, $user, $id, $locale, self::PICKER_SEARCH_LIMIT, $search),
+                ])->render(),
+                'passages' => view('assessments.quizzes.picker-rows', [
+                    'kind' => 'passages',
+                    'rows' => $this->drafts->availablePassages($customerId, $user, $id, self::PICKER_SEARCH_LIMIT, $search),
+                ])->render(),
+            ]);
+        }
+
+        // One row past each limit tells the popup the list is cut, so its filter also asks the server.
+        $questions = $this->drafts->availableQuestions($customerId, $user, $id, $locale, self::PICKER_QUESTION_LIMIT + 1);
+        $passages = $this->drafts->availablePassages($customerId, $user, $id, self::PICKER_PASSAGE_LIMIT + 1);
 
         return view('assessments.quizzes.picker', [
             'quizId' => $id,
             'sections' => $this->drafts->sections($customerId, $id),
             'sectionId' => (int) $request->query('section_id'),
-            'questions' => $this->drafts->availableQuestions($customerId, $user, $id, $this->questions->locale()),
-            'passages' => $this->drafts->availablePassages($customerId, $user, $id),
+            'questions' => $questions->take(self::PICKER_QUESTION_LIMIT),
+            'passages' => $passages->take(self::PICKER_PASSAGE_LIMIT),
+            'truncated' => $questions->count() > self::PICKER_QUESTION_LIMIT || $passages->count() > self::PICKER_PASSAGE_LIMIT,
             'routePrefix' => $this->routePrefix($request),
         ]);
     }

@@ -108,6 +108,13 @@ final class AssessmentLearnerController extends Controller
         if ($attempt->status !== 'in_progress') {
             return redirect()->route('student.assessments.attempts.result', $id);
         }
+        // A course attempt whose Enrollment was cancelled can neither be answered nor submitted (ADR-0032 D2), so the
+        // page would bounce between the paper and the result on every save: send the learner to their courses instead.
+        if ($attempt->enrollment_id && DB::table('core_course_enrollments')->where('customer_id', $customerId)
+            ->where('id', $attempt->enrollment_id)->value('status') === 'cancelled') {
+            return redirect()->route('student.courses.index')
+                ->with('lf_learn_notice', __('lf.LF_assessment_attempt_course_cancelled'));
+        }
 
         $version = $this->version($customerId, $attempt);
         $answers = DB::table(Attempts::ANSWERS_TABLE)->where('customer_id', $customerId)->where('attempt_id', $id)
@@ -321,6 +328,14 @@ final class AssessmentLearnerController extends Controller
     public function submit(Request $request, int $id): RedirectResponse
     {
         $customerId = $this->customerId();
+        // A form post sends each line break of a textarea as CRLF while maxlength counted one character (autosave sends
+        // LF), so a text at the limit would fail `max`: count and keep it as the learner typed it.
+        $posted = $request->input('answers');
+        if (is_array($posted)) {
+            $request->merge(['answers' => array_map(fn ($answer) => is_array($answer) && is_string($answer['text'] ?? null)
+                ? ['text' => str_replace("\r\n", "\n", $answer['text'])] + $answer
+                : $answer, $posted)]);
+        }
         $validated = $request->validate([
             'answers' => ['nullable', 'array', 'max:500'],
             'answers.*.option_keys' => ['nullable', 'array', 'max:50'],
@@ -373,7 +388,7 @@ final class AssessmentLearnerController extends Controller
             ->where('f.file_role', 'speaking_recording')->where('m.status', 'ready')
             ->get(['f.answer_id', 'f.media_file_id'])->keyBy('answer_id');
         $registration = $attempt->quiz_registration_id
-            ? DB::table('core_assessment_quiz_registrations')->where('id', $attempt->quiz_registration_id)->first()
+            ? DB::table('core_assessment_quiz_registrations')->where('customer_id', $customerId)->where('id', $attempt->quiz_registration_id)->first()
             : null;
         $course = $this->courseContext($customerId, $attempt, $version, $visible);
 
@@ -386,7 +401,7 @@ final class AssessmentLearnerController extends Controller
             'answers' => $answers,
             'fileUrls' => $files->map(fn (object $file) => $this->media->generateSignedUrl((int) $file->media_file_id)),
             'attachments' => $this->attachmentsByQuestion($customerId, $answers),
-            'canRetry' => $registration && $registration->status === 'active',
+            'canRetry' => $registration && $this->canStartAgain($customerId, $registration),
             'course' => $course,
             // Điểm từng tiêu chí of the current grading (ADR-0026 D6), shown with the teacher's feedback.
             'rubricScores' => $visible['feedback'] ? DB::table(Attempts::GRADINGS_TABLE)->where('customer_id', $customerId)
@@ -585,6 +600,20 @@ final class AssessmentLearnerController extends Controller
                 ? route('student.courses.activities.attempts.store', [$attempt->enrollment_id, $attempt->version_activity_id])
                 : null,
         ];
+    }
+
+    /** Làm lại shows only when start() would let it through: the registration and the quiz live, attempts left. */
+    private function canStartAgain(int $customerId, object $registration): bool
+    {
+        if ($registration->status !== 'active') {
+            return false;
+        }
+        $quiz = DB::table(Quizzes::TABLE)->where('customer_id', $customerId)->where('id', $registration->quiz_id)->first();
+        $maxAttempts = $quiz?->current_version_id && $quiz->status !== 'archived'
+            ? DB::table(Quizzes::VERSIONS_TABLE)->where('customer_id', $customerId)->where('id', $quiz->current_version_id)->value('max_attempts')
+            : null;
+
+        return $maxAttempts !== null && (int) $registration->attempts_used < (int) $maxAttempts;
     }
 
     private function version(int $customerId, object $attempt): object

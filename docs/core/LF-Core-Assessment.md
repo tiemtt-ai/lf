@@ -79,6 +79,15 @@ Có:
   trong đề), trả bản xem trước (`questions.auto-preview`, không lưu gì) và nói ô
   nào thiếu. Xác nhận đi qua `questions.add`, thêm theo thứ tự bản xem trước
   với điểm mặc định. Tối đa 200 câu một lần. Không có bảng mới.
+* Popup "Thêm câu hỏi" mở với 500 câu lẻ và 300 ngữ liệu mới nhất. Khi danh
+  sách bị cắt, popup ghi rõ và ô lọc (từ 2 ký tự) hỏi thêm máy chủ
+  (`questions.pick?q=`, khớp đề bài / tên ngữ liệu / danh mục, tối đa 100 dòng
+  mỗi loại, cùng phạm vi người soạn), dòng tìm được nối vào danh sách, giữ các
+  ô đã chọn (2026-11-22).
+* Dòng "Bản nháp có thay đổi chưa xuất bản" trên trang đề cũng hiện khi một câu,
+  ngữ liệu hoặc tiêu chí chấm đã có trong đề được sửa ở ngân hàng sau lần xuất
+  bản hiện hành (`AssessmentQuizDraftService::bankChangedSince`): phiên bản giữ
+  snapshot nên bản sửa chỉ tới học viên khi xuất bản lại (2026-11-22).
 
 Không có (làm sau hoặc bỏ): đề mà mỗi lượt làm một bộ câu khác, gói đề, gắn vào Course Template, giao
 theo lớp, thanh toán / bán đề, chia sẻ giữa giáo viên, xếp loại,

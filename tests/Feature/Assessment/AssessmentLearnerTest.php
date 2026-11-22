@@ -266,6 +266,28 @@ class AssessmentLearnerTest extends TestCase
         $this->actingAs($this->student)->get(self::SITE.'/my-courses?tab=exams')->assertOk()->assertSeeText(__('lf.LF_my_learning_exam_quiz_archived'));
     }
 
+    /** A textarea posts line breaks as CRLF where maxlength counted one each; Làm lại shows only while start() allows it. */
+    public function test_a_full_length_essay_with_line_breaks_submits_and_retry_follows_what_start_allows(): void
+    {
+        [$quiz, $q] = $this->quiz(['title' => 'Đề hai lượt', 'max_attempts' => '2']);
+        $registration = $this->register($quiz);
+        $this->actingAs($this->student)->post(self::SITE.'/assessments/registrations/'.$registration.'/start');
+        $attempt = (int) DB::table('core_assessment_attempts')->value('id');
+        $essay = (int) DB::table('core_assessment_quiz_version_questions')->where('question_id', $q['essay'])->value('id');
+        $typed = str_repeat('a', 9995).str_repeat("\n", 10).str_repeat('a', 9995);
+
+        $this->actingAs($this->student)->post(self::SITE.'/assessments/attempts/'.$attempt.'/submit', ['answers' => [
+            $essay => ['present' => '1', 'text' => str_replace("\n", "\r\n", $typed)],
+        ]])->assertSessionHasNoErrors()->assertRedirect(self::SITE.'/assessments/attempts/'.$attempt.'/result');
+        $this->assertSame($typed, DB::table('core_assessment_answers')->where('quiz_version_question_id', $essay)->value('answer_text'));
+        $this->assertSame('submitted', DB::table('core_assessment_attempts')->where('id', $attempt)->value('status'));
+
+        $result = self::SITE.'/assessments/attempts/'.$attempt.'/result';
+        $this->actingAs($this->student)->get($result)->assertOk()->assertSeeText(__('lf.LF_assessment_learner_retry'));
+        $this->actingAs($this->admin)->post(self::ADMIN.'/quizzes/'.$quiz.'/archive')->assertSessionHasNoErrors();
+        $this->actingAs($this->student)->get($result)->assertOk()->assertDontSeeText(__('lf.LF_assessment_learner_retry'));
+    }
+
     public function test_media_links_of_a_timed_attempt_last_until_its_deadline_and_can_be_renewed(): void
     {
         [$quiz] = $this->quiz(['title' => 'Đề Nghe 60 phút', 'duration_minutes' => '60']);

@@ -53,6 +53,8 @@ final class AssessmentResultController extends Controller
             'quizzes' => $this->grading->scoped($customerId, $user)->whereNotNull('z.current_version_id')
                 ->groupBy('z.id', 'z.title')->orderBy('z.title')->get(['z.id', 'z.title']),
             'teachers' => $user->role === 'customer_admin' ? $this->graders->teachers($customerId)->orderBy('name')->get(['id', 'name']) : collect(),
+            // Nhận chấm needs `assessment.grading` (ADR-0033 D3), as on the attempt page.
+            'mayGrade' => app(TeacherPermissions::class)->may($user, 'assessment.grading'),
             'routePrefix' => $this->routePrefix($request),
         ]);
     }

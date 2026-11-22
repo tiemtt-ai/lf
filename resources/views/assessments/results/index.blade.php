@@ -177,7 +177,7 @@
                                 @endif
                             </td>
                             <td class="ux-action-cell" data-label="{{ __('lf.table_actions') }}">
-                                @if (! $isAdmin && ! $held && $attempt->grading_status === 'pending' && $attempt->status !== 'in_progress')
+                                @if (! $isAdmin && $mayGrade && ! $held && $attempt->grading_status === 'pending' && $attempt->status !== 'in_progress')
                                     <form method="POST" action="{{ route($routePrefix.'.claim', $attempt->id) }}" class="ui-inline-form">
                                         @csrf
                                         <button type="submit" class="ux-row-edit cursor-interaction"
