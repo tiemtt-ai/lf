@@ -3192,7 +3192,7 @@ return [
     'LF_course_cohort_schedule_applied_message' => 'The schedule was saved and is being applied in order to the actual sessions.',
     'LF_course_cohort_schedule_applied_title' => 'Schedule saved',
     'LF_course_cohort_schedule_applied_view' => 'View sessions',
-    'LF_course_cohort_schedule_not_enough_dates' => 'The programme still has :missing online activities without a class date. Extend the applied period or add time slots; the schedule saves once every activity has a date.',
+    'LF_course_cohort_schedule_not_enough_dates' => 'The programme still has :missing lessons/sessions without a class date. Extend the applied period or add time slots; the schedule saves once every lesson/session has a date.',
     'LF_course_cohort_schedule_created' => 'Schedule saved.',
     'LF_course_cohort_schedule_updated' => 'Schedule updated.',
     'LF_course_cohort_schedule_edit' => 'Edit schedule',

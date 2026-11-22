@@ -3192,7 +3192,7 @@ return [
     'LF_course_cohort_schedule_applied_message' => 'Lịch học đã lưu thành công và đang áp dụng lần lượt cho buổi học thực tế.',
     'LF_course_cohort_schedule_applied_title' => 'Đã lưu lịch học',
     'LF_course_cohort_schedule_applied_view' => 'Xem buổi học',
-    'LF_course_cohort_schedule_not_enough_dates' => 'Chương trình còn :missing hoạt động trực tuyến chưa có ngày học. Hãy kéo dài thời gian áp dụng hoặc thêm khung giờ; đủ ngày mới lưu được lịch.',
+    'LF_course_cohort_schedule_not_enough_dates' => 'Chương trình còn :missing bài/buổi chưa có ngày học. Hãy kéo dài thời gian áp dụng hoặc thêm khung giờ; đủ ngày mới lưu được lịch.',
     'LF_course_cohort_schedule_created' => 'Đã lưu lịch học.',
     'LF_course_cohort_schedule_updated' => 'Đã cập nhật lịch học.',
     'LF_course_cohort_schedule_edit' => 'Sửa lịch học',
