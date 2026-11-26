@@ -31,6 +31,8 @@ final class AssessmentQuestionService
 
     public const GRADER_TYPES = ['essay', 'speaking'];
 
+    public const CONTENT_LOCALE = 'vi';
+
     public function __construct(
         private readonly AssessmentPromptMediaService $media,
         private readonly AssessmentPassageService $passages,
@@ -198,9 +200,14 @@ final class AssessmentQuestionService
         ];
     }
 
+    /**
+     * The one locale question content is written and read in (ADR-0025 D5: one content per question, in the default
+     * locale; Guardrails: default locale `vi`). Never the interface language: `app.locale` follows the header language
+     * switch, and content keyed by it disappears from lists and from published snapshots when the reader switches.
+     */
     public function locale(): string
     {
-        return (string) config('app.locale', 'vi');
+        return self::CONTENT_LOCALE;
     }
 
     private function findForUpdate(int $customerId, User $user, int $questionId): object

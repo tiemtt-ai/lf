@@ -238,6 +238,18 @@ class AssessmentPassageManagementTest extends TestCase
         ]), self::AJAX)->assertUnprocessable()->assertJsonValidationErrors(['prompt_video_file']);
     }
 
+    public function test_a_new_passage_whose_file_the_media_domain_rejects_is_not_saved(): void
+    {
+        // Passes the form rule (MIME audio/mpeg) but not Media's MIME + extension check; the popup stays open on the
+        // error, so a passage left behind would be created again on the next save.
+        $this->actingAs($this->admin)->post(self::ADMIN, $this->payload() + [
+            'prompt_audio_file' => UploadedFile::fake()->create('nghe.txt', 32, 'audio/mpeg'),
+        ], self::AJAX)->assertUnprocessable();
+
+        $this->assertSame(0, DB::table('core_assessment_passages')->count());
+        $this->assertSame(0, DB::table('core_assessment_question_media')->count());
+    }
+
     public function test_passage_media_can_be_picked_from_the_library(): void
     {
         $video = DB::table('media_files')->insertGetId([

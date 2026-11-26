@@ -298,6 +298,23 @@ class AssessmentQuizBuilderTest extends TestCase
             ->assertDontSeeText(__('lf.LF_assessment_quiz_picker_truncated'));
     }
 
+    public function test_publishing_in_another_interface_language_freezes_the_same_content(): void
+    {
+        // Question content has one locale (ADR-0025 D5); the header language switch must not empty the snapshot.
+        $quiz = $this->quiz($this->admin);
+        $essay = $this->question($this->admin, 'Viết về gia đình bạn', '5', 'published', null, ['question_type' => 'essay', 'options' => []]);
+        $choice = $this->question($this->admin, 'Chọn đáp án đúng');
+        $this->add($quiz, $this->sectionIds($quiz)[0], [$essay, $choice], [])->assertCreated();
+
+        $english = fn () => $this->actingAs($this->admin)->withSession(['locale' => 'en']);
+        $english()->get(self::ADMIN.'/quizzes/'.$quiz.'?tab=questions')->assertOk()->assertSeeText('Viết về gia đình bạn');
+        $english()->post(self::ADMIN.'/quizzes/'.$quiz.'/publish')->assertRedirect()->assertSessionHasNoErrors();
+
+        $frozen = DB::table('core_assessment_quiz_version_questions')->orderBy('sort_order')->get();
+        $this->assertSame(['Viết về gia đình bạn', 'Chọn đáp án đúng'], $frozen->map(fn ($row) => json_decode($row->question_snapshot, true)['prompt'])->all());
+        $this->assertCount(2, json_decode($frozen[1]->options_snapshot, true));
+    }
+
     public function test_publish_refuses_an_invalid_draft(): void
     {
         $quiz = $this->quiz($this->admin);

@@ -21,6 +21,7 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Throwable;
 
 /**
  * Câu hỏi of the Kiểm tra module, for admins (whole tenant) and teachers (their own questions).
@@ -105,7 +106,15 @@ final class AssessmentQuestionController extends Controller
         $data = $this->validated($request);
         $library = $this->libraryChoices($request);
         $id = $this->questions->save($this->customerId(), $request->user(), null, $data);
-        $this->syncMedia($request, $id, $data['prompt'], $library);
+
+        try {
+            $this->syncMedia($request, $id, $data['prompt'], $library);
+        } catch (Throwable $exception) {
+            // The popup stays open on an error, so a question left behind here would be created again on the next save.
+            $this->questions->deleteMany($this->customerId(), $request->user(), [$id]);
+
+            throw $exception;
+        }
 
         return $this->saved($request, __('lf.LF_assessment_question_created'), 201);
     }

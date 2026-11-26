@@ -241,6 +241,27 @@ class AssessmentQuestionManagementTest extends TestCase
         $this->assertSame(0, DB::table('core_assessment_question_options')->where('question_id', $free)->count());
     }
 
+    public function test_content_keeps_the_default_locale_whatever_the_interface_language(): void
+    {
+        // ADR-0025 D5: one content per question, in the default locale. The header language switch only changes labels.
+        $english = fn () => $this->actingAs($this->admin)->withSession(['locale' => 'en']);
+
+        $english()->post(self::ADMIN, $this->payload(['prompt' => 'Soạn khi giao diện English']), self::AJAX)->assertCreated();
+        $id = (int) DB::table('core_assessment_questions')->max('id');
+        $this->assertSame(['vi'], DB::table('core_assessment_question_contents')->where('question_id', $id)->pluck('locale')->all());
+        $this->assertSame(['vi'], DB::table('core_assessment_question_options')->where('question_id', $id)->distinct()->pluck('locale')->all());
+
+        // Written in Vietnamese, read and edited in English: the same single content, still listed and exported.
+        $other = $this->storedQuestion($this->admin, ['prompt' => 'Soạn khi giao diện tiếng Việt']);
+        $english()->get(self::ADMIN)->assertOk()->assertSeeText('Soạn khi giao diện tiếng Việt')->assertSeeText('Soạn khi giao diện English');
+        $english()->put(self::ADMIN.'/'.$other, $this->payload(['prompt' => 'Sửa khi giao diện English']), self::AJAX)->assertOk();
+
+        $this->assertSame(1, DB::table('core_assessment_question_contents')->where('question_id', $other)->count());
+        $this->assertSame('Sửa khi giao diện English', DB::table('core_assessment_question_contents')->where('question_id', $other)->where('locale', 'vi')->value('prompt'));
+        $this->assertSame(['vi'], DB::table('core_assessment_question_options')->where('question_id', $other)->distinct()->pluck('locale')->all());
+        $this->actingAs($this->admin)->withSession(['locale' => 'vi'])->get(self::ADMIN)->assertSeeText('Sửa khi giao diện English');
+    }
+
     public function test_another_tenant_cannot_reach_the_questions(): void
     {
         $id = $this->storedQuestion($this->admin);

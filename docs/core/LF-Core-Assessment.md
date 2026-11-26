@@ -157,6 +157,12 @@ Question ── Content / Options / Media
 Câu hỏi và ngữ liệu có lifecycle `draft` → `published` → `archived`; sửa được ở
 mọi trạng thái trừ khi đã lưu trữ. Chỉ nguồn `published` được thêm vào đề.
 
+Nội dung câu hỏi (đề bài, giải thích, đáp án, lựa chọn) luôn ghi và đọc theo
+locale mặc định `vi` (`AssessmentQuestionService::CONTENT_LOCALE`, ADR-0025 D5),
+không theo ngôn ngữ giao diện người dùng chọn trên header: danh sách, Xuất
+Excel, trang đề và snapshot khi xuất bản đều dùng cùng một bản nội dung
+(2026-11-26).
+
 Đề có bản nháp sửa được. Khi xuất bản:
 
 ```text
@@ -302,6 +308,11 @@ hoặc chọn từ Thư viện Media (bộ chọn chung của ADR-0021: admin ch
 tenant, giáo viên chỉ file của mình hoặc được chia sẻ). Server kiểm file chọn
 (cùng tenant, đúng loại, `ready`, quyền dùng) trước khi lưu; chọn file khác thì
 chỉ gỡ usage, không xoá file của thư viện.
+
+File tải lên được Media kiểm sau khi câu hỏi / ngữ liệu đã lưu. Khi **tạo mới**
+mà Media từ chối file, câu hỏi / ngữ liệu vừa tạo bị xoá lại và form báo lỗi:
+popup vẫn mở nên giữ lại sẽ sinh bản trùng ở lần bấm lưu sau. Khi **sửa**, các
+trường đã lưu được giữ và media cũ không đổi (2026-11-26).
 
 Tệp bài tự luận (ADR-0027 D5): câu essay bật "Cho nộp tệp"
 (`allow_file_answer`, chụp vào `question_snapshot` khi xuất bản). Học viên tải

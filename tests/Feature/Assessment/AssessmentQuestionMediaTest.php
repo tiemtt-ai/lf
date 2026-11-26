@@ -115,6 +115,21 @@ class AssessmentQuestionMediaTest extends TestCase
         $this->assertSame('active', DB::table('media_file_usages')->where('media_file_id', $oldMedia)->value('status'));
     }
 
+    public function test_a_new_question_whose_file_the_media_domain_rejects_is_not_saved(): void
+    {
+        // The image is accepted and attached first; the audio passes the form rule but not Media's MIME + extension
+        // check. The popup stays open on the error, so nothing may be left behind for the next save to duplicate.
+        $this->actingAs($this->admin)->post(self::BASE, $this->payload([
+            'prompt_image_file' => UploadedFile::fake()->image('hinh.png', 40, 30),
+            'prompt_audio_file' => UploadedFile::fake()->create('nghe.txt', 32, 'audio/mpeg'),
+        ]), self::AJAX)->assertUnprocessable();
+
+        $this->assertSame(0, DB::table('core_assessment_questions')->count());
+        $this->assertSame(0, DB::table('core_assessment_question_contents')->count());
+        $this->assertSame(0, DB::table('core_assessment_question_media')->count());
+        $this->assertSame(0, DB::table('media_file_usages')->where('owner_type', 'assessment_question')->where('status', 'active')->count());
+    }
+
     public function test_m4a_and_aac_prompt_audio_are_accepted(): void
     {
         // audio/x-hx-aac-adts is what libmagic reports for an ADTS .aac file.

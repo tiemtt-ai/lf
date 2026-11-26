@@ -18,6 +18,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use Throwable;
 
 /**
  * Ngữ liệu of the Kiểm tra module: the list and form of passages (step 1) and the passage page that manages its
@@ -97,7 +98,16 @@ final class AssessmentPassageController extends Controller
         $data = $this->validated($request);
         $library = $this->libraryChoices($request);
         $id = $this->passages->save($this->customerId(), $request->user(), null, $data);
-        $this->syncMedia($request, $id, $data['title'], $library);
+
+        try {
+            $this->syncMedia($request, $id, $data['title'], $library);
+        } catch (Throwable $exception) {
+            // The popup stays open on an error, so a passage left behind here would be created again on the next save.
+            $this->passages->deleteMany($this->customerId(), $request->user(), [$id]);
+
+            throw $exception;
+        }
+
         $message = __('lf.LF_assessment_passage_created');
 
         // A new passage continues on its own page, where its questions are added.
